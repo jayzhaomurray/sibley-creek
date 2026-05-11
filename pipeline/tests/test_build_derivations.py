@@ -326,6 +326,160 @@ def test_derive_corra_overnight_spread_is_noop_when_inputs_missing(
     assert not (data_root / "processed" / "corra_overnight_spread_bps.csv").exists()
 
 
+def test_derive_cpi_breadth_gt3_weighted_share_math(tmp_path, monkeypatch):
+    """`derive_cpi_breadth_gt3()` reads wide-format cpi_components.csv and the
+    per-component weight mapping JSON, and writes data/processed/
+    cpi_breadth_gt3.csv = weighted share of components with Y/Y > 3%.
+
+    Construction: three synthetic components A/B/C with weights 10/20/30 (total
+    60). Seed 24 monthly observations. In the latest month, A's Y/Y = 1.0%,
+    B's Y/Y = 5.0% (above 3), C's Y/Y = 4.0% (above 3). Expected share =
+    (20 + 30) / (10 + 20 + 30) * 100 = 83.333%.
+    """
+    data_root = tmp_path / "data"
+    raw_dir = data_root / "raw"
+    derived_dir = data_root / "derived"
+    processed_dir = data_root / "processed"
+    raw_dir.mkdir(parents=True)
+    derived_dir.mkdir(parents=True)
+    processed_dir.mkdir(parents=True)
+
+    # 24 months of index levels. For Y/Y, we need months 13..24 to compare
+    # to months 1..12.
+    dates = pd.date_range(start="2024-04-01", periods=24, freq="MS")
+    # Component A: flat 100 -> Y/Y = 0% for all comparison months EXCEPT
+    # the latest, where we lift to 101 (Y/Y = 1.0%).
+    a_levels = [100.0] * 23 + [101.0]
+    # Component B: 100 -> latest is 105 (Y/Y = 5.0%).
+    b_levels = [100.0] * 23 + [105.0]
+    # Component C: 100 -> latest is 104 (Y/Y = 4.0%).
+    c_levels = [100.0] * 23 + [104.0]
+    df_components = pd.DataFrame({
+        "date": dates,
+        "A": a_levels,
+        "B": b_levels,
+        "C": c_levels,
+    })
+    df_components.to_csv(raw_dir / "cpi_components.csv", index=False)
+    (raw_dir / "cpi_components.meta.json").write_text(json.dumps({
+        "name": "cpi_components", "source": "Statistics Canada",
+        "source_url": "https://example.invalid", "source_id": "Table 18-10-0004-01",
+        "units": "Index, 2002=100", "frequency": "monthly",
+        "fetched_at": "2026-05-11T00:00:00+00:00", "release_date": None,
+    }), encoding="utf-8")
+
+    weights = [
+        {"name": "A", "wt_value": 10.0, "cpi_vector": 1, "wt_refPer": "2024-01-01"},
+        {"name": "B", "wt_value": 20.0, "cpi_vector": 2, "wt_refPer": "2024-01-01"},
+        {"name": "C", "wt_value": 30.0, "cpi_vector": 3, "wt_refPer": "2024-01-01"},
+    ]
+    (derived_dir / "cpi_component_weights_canada.json").write_text(
+        json.dumps(weights), encoding="utf-8",
+    )
+
+    from pipeline import build as build_mod
+
+    monkeypatch.setattr(build_mod, "DATA_RAW", raw_dir)
+    monkeypatch.setattr(build_mod, "DATA_PROCESSED", processed_dir)
+    monkeypatch.setattr(build_mod, "DATA_DERIVED", derived_dir)
+
+    build_mod.derive_cpi_breadth_gt3()
+
+    out_csv = processed_dir / "cpi_breadth_gt3.csv"
+    out_meta = processed_dir / "cpi_breadth_gt3.meta.json"
+    assert out_csv.exists()
+    assert out_meta.exists()
+
+    out_df = pd.read_csv(out_csv, parse_dates=["date"])
+    # 12 Y/Y rows (months 13-24); the first 12 are dropped because of NaN.
+    assert len(out_df) == 12
+    # Months 13..23 have all components at 0% Y/Y -> share above 3 = 0.
+    for v in out_df["value"].iloc[:-1]:
+        assert abs(v - 0.0) < 1e-9
+    # Latest (month 24): components B (5%) and C (4%) above 3; share =
+    # (20 + 30) / (10 + 20 + 30) * 100 = 83.333...
+    assert out_df["value"].iloc[-1] == pytest.approx(50.0 / 60.0 * 100.0, rel=1e-9)
+
+    out_meta_dict = json.loads(out_meta.read_text(encoding="utf-8"))
+    assert out_meta_dict["name"] == "cpi_breadth_gt3"
+    assert out_meta_dict["frequency"] == "monthly"
+    assert out_meta_dict["transform"] == "basket_weighted_share(yoy>3, normalize_over_valid)"
+    assert out_meta_dict["units"].startswith("%")
+
+
+def test_derive_cpi_breadth_gt3_normalizes_over_valid_only(tmp_path, monkeypatch):
+    """If one component has insufficient history (no Y/Y comparator), it is
+    dropped from BOTH the numerator and the denominator so coverage gaps
+    don't bias the share toward zero."""
+    data_root = tmp_path / "data"
+    raw_dir = data_root / "raw"
+    derived_dir = data_root / "derived"
+    processed_dir = data_root / "processed"
+    raw_dir.mkdir(parents=True)
+    derived_dir.mkdir(parents=True)
+    processed_dir.mkdir(parents=True)
+
+    dates = pd.date_range(start="2024-04-01", periods=24, freq="MS")
+    # A: full 24-month history, latest Y/Y = 5% (above 3).
+    a_levels = [100.0] * 23 + [105.0]
+    # B: only the last 6 months populated (NaN prior). Y/Y in the latest
+    # month is undefined -> drop B from numerator AND denominator.
+    b_levels = [float("nan")] * 18 + [100.0, 100.0, 100.0, 100.0, 100.0, 105.0]
+    df_components = pd.DataFrame({
+        "date": dates,
+        "A": a_levels,
+        "B": b_levels,
+    })
+    df_components.to_csv(raw_dir / "cpi_components.csv", index=False)
+    (raw_dir / "cpi_components.meta.json").write_text(json.dumps({
+        "name": "cpi_components", "source": "Statistics Canada",
+        "source_url": "https://example.invalid", "source_id": "Table 18-10-0004-01",
+        "units": "Index, 2002=100", "frequency": "monthly",
+        "fetched_at": "2026-05-11T00:00:00+00:00", "release_date": None,
+    }), encoding="utf-8")
+
+    weights = [
+        {"name": "A", "wt_value": 30.0, "cpi_vector": 1, "wt_refPer": "2024-01-01"},
+        {"name": "B", "wt_value": 70.0, "cpi_vector": 2, "wt_refPer": "2024-01-01"},
+    ]
+    (derived_dir / "cpi_component_weights_canada.json").write_text(
+        json.dumps(weights), encoding="utf-8",
+    )
+
+    from pipeline import build as build_mod
+
+    monkeypatch.setattr(build_mod, "DATA_RAW", raw_dir)
+    monkeypatch.setattr(build_mod, "DATA_PROCESSED", processed_dir)
+    monkeypatch.setattr(build_mod, "DATA_DERIVED", derived_dir)
+
+    build_mod.derive_cpi_breadth_gt3()
+
+    out_df = pd.read_csv(processed_dir / "cpi_breadth_gt3.csv", parse_dates=["date"])
+    # Latest month: only A is valid (B has NaN 12 months ago); A is at +5%
+    # which is above 3, so share = 30/30 * 100 = 100%. If we incorrectly
+    # normalized over the full basket (30 + 70 = 100), we'd get 30%.
+    assert out_df["value"].iloc[-1] == pytest.approx(100.0, rel=1e-9)
+
+
+def test_derive_cpi_breadth_gt3_is_noop_when_inputs_missing(tmp_path, monkeypatch, caplog):
+    """Missing cpi_components OR missing the weights JSON -> log + return."""
+    data_root = tmp_path / "data"
+    (data_root / "raw").mkdir(parents=True)
+    (data_root / "processed").mkdir(parents=True)
+    (data_root / "derived").mkdir(parents=True)
+
+    from pipeline import build as build_mod
+
+    monkeypatch.setattr(build_mod, "DATA_RAW", data_root / "raw")
+    monkeypatch.setattr(build_mod, "DATA_PROCESSED", data_root / "processed")
+    monkeypatch.setattr(build_mod, "DATA_DERIVED", data_root / "derived")
+
+    with caplog.at_level("WARNING"):
+        build_mod.derive_cpi_breadth_gt3()  # should NOT raise
+
+    assert not (data_root / "processed" / "cpi_breadth_gt3.csv").exists()
+
+
 def test_derive_gdp_views_is_noop_when_raw_missing(tmp_path, monkeypatch, caplog):
     """If `data/raw/gdp_monthly.csv` is absent, derive_gdp_views() emits a
     warning and returns cleanly without writing anything (mirrors the

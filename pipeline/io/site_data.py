@@ -433,23 +433,7 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
         SupportingPrintSpec(
             key="cpi-breadth-gt3",
             indicator="CPI breadth >3%",
-            primary_series="cpi_breadth_gt3",  # MISSING (needs basket-weighted aggregation)
-            primary_dir="processed",
-            unit_display="%",
-            value_decimals=0,
-            delta_decimals=0,
-            delta_unit="pp",
-            delta_kind="pp",
-            as_of_format="month-year",
-            transform=None,
-            notes="TK: requires basket-weight aggregation across cpi_components.csv. Chart-builder follow-up; basket weights are in data/derived/cpi_basket_weights_canada.csv.",
-        ),
-    ),
-    "labour": (
-        SupportingPrintSpec(
-            key="emp-percap-yoy",
-            indicator="Per-capita employment, y/y",
-            primary_series="employment_per_capita_yoy",  # processed; needs employment_level + pop_total
+            primary_series="cpi_breadth_gt3",
             primary_dir="processed",
             unit_display="%",
             value_decimals=1,
@@ -458,8 +442,15 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
             delta_kind="pp",
             as_of_format="month-year",
             transform=None,
-            notes="Derived in pipeline.build.derive_per_capita_employment. Requires raw/employment_level and raw/pop_total. Falls back to TK if either missing.",
+            notes=(
+                "Share of the 60-component CPI basket (2024 weights) with Y/Y "
+                "inflation > 3%. Derived in pipeline.build.derive_cpi_breadth_gt3 "
+                "from data/raw/cpi_components.csv and data/derived/"
+                "cpi_component_weights_canada.json."
+            ),
         ),
+    ),
+    "labour": (
         SupportingPrintSpec(
             key="agg-hours-yoy",
             indicator="Aggregate hours, y/y",
@@ -547,32 +538,37 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
         ),
         SupportingPrintSpec(
             key="cmhc-arrears",
-            indicator="CMHC arrears rate",
-            primary_series="cmhc_arrears",  # MISSING (needs CMHC fetch)
+            indicator="Bank mortgage arrears",
+            primary_series="cba_mortgage_arrears_national",
             primary_dir="raw",
             unit_display="%",
             value_decimals=2,
             delta_decimals=2,
             delta_unit="pp",
             delta_kind="pp",
-            as_of_format="quarter",
-            transform=None,
-            notes="TK: CMHC arrears rate not in boc-tracker; backend follow-up.",
-        ),
-        SupportingPrintSpec(
-            key="months-inventory",
-            indicator="Months of inventory",
-            primary_series="crea_months_of_inventory",  # MISSING
-            primary_dir="raw",
-            unit_display="",
-            value_decimals=1,
-            delta_decimals=1,
-            delta_unit="",
-            delta_kind="level",
             as_of_format="month-year",
             transform=None,
-            notes="TK: CREA months-of-inventory is not in boc-tracker. SNLR (crea_snlr.csv) covers tightness; chart-builder may swap to SNLR as a v1 proxy.",
+            notes=(
+                "Residential mortgage arrears rate, Canada, monthly (Canadian "
+                "Bankers Association DB50). Covers chartered banks plus "
+                "Manulife / Laurentian / Equitable -- the chartered-bank slice "
+                "(~75% of mortgage stock). Closest available proxy for the "
+                "discontinued CMHC arrears series. Cadence: monthly with "
+                "~2.5-month publication lag. Fetched via pipeline.fetch."
+                "cba_arrears. The print key remains 'cmhc-arrears' (preserved "
+                "for editorial-canon continuity in src/data/sections.ts) but "
+                "the indicator label is 'Bank mortgage arrears' because the "
+                "underlying series is CBA, not CMHC."
+            ),
         ),
+        # months-inventory dropped: CREA does not publish a national MOI series
+        # in any free / scriptable channel (their stats portal is dashboard-
+        # only), and BoC Valet's CREA bundle (FVI_CREA_*) does not include MOI.
+        # Derivation from active listings / sales requires a new fetcher; the
+        # existing crea_snlr.csv (sales-to-new-listings ratio) covers the same
+        # tightness signal and is already plumbed elsewhere. Dropped 2026-05-11
+        # rather than ship a TK; the housing tile renders one fewer supporting
+        # row.
         # Housing affordability (Wave 5 brief: Housing Panel 7 home; surfaced
         # on the homepage tile as the level of the BoC qualifying-payment-to-
         # income ratio). BoC INDINF_AFFORD_Q, quarterly. Source value is a

@@ -53,14 +53,13 @@ import pandas as pd
 from pipeline.catalog import BOC_VALET_SERIES, STATCAN_SERIES
 from pipeline.catalog.boc_series import BocSpec
 from pipeline.catalog.statcan_series import StatcanSpec, get_url as statcan_url
-from pipeline.fetch import alberta, boc, cpi_basket, crea, dof_fiscal, statcan
+from pipeline.fetch import alberta, boc, cba_arrears, cpi_basket, crea, dof_fiscal, statcan
 from pipeline.io import SeriesMeta, build_site_data, write_series
 from pipeline.io.panel_data import build_all_panel_data
 from pipeline.transform import yoy_pct
 from pipeline.transform.derivations import (
     headline_yoy,
     partner_share_trajectory,
-    per_capita_growth,
     six_month_annualized,
     trade_balance_3m_ma,
 )
@@ -381,6 +380,74 @@ def fetch_crea_mls_hpi() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# CBA mortgage arrears (PDF, monthly, ~2.5-month lag)
+# --------------------------------------------------------------------------- #
+
+def fetch_cba_mortgage_arrears() -> None:
+    """Pull the latest CBA arrears PDF and emit national + provincial CSVs.
+
+    Output:
+        data/raw/cba_mortgage_arrears_national.csv    -- monthly national %
+            arrears rate going back to ~1995.
+        data/raw/cba_mortgage_arrears_provincial.csv  -- per-province %
+            for the latest month only (cross-section snapshot).
+
+    Replaces the (deprecated, never-landed) CMHC arrears placeholder. CBA
+    covers chartered banks plus Manulife, Laurentian, and Equitable; that
+    is most of the mortgage stock (~75%) but excludes credit-union and
+    private-lender mortgages. The series is the closest publicly available
+    proxy for the long-deprecated CMHC arrears series.
+    """
+    result = cba_arrears.fetch_cba_arrears(lookback=4)
+
+    # National monthly history
+    release_year, release_month = result.release_label
+    release_url = cba_arrears.release_url_for(release_year, release_month)
+    national_meta = SeriesMeta(
+        name="cba_mortgage_arrears_national",
+        source="Canadian Bankers Association",
+        source_url=release_url,
+        source_id=f"CBA-DB50-NATIONAL/{release_year}-{release_month}",
+        units="% (arrears 3+ months / total mortgages)",
+        frequency="monthly",
+        release_date=result.as_of_date.date().isoformat(),
+        notes=(
+            "Residential mortgage arrears rate, Canada, monthly. Reporting "
+            "banks: BMO, CIBC, National, RBC, Scotia, TD, Manulife (since "
+            "2004), Laurentian (since 2010), Equitable (since 2020). Arrears "
+            "definition: mortgages 3+ months past due / total mortgages "
+            "(per CBA DB50 PUBLIC table). Closest available proxy for the "
+            "discontinued CMHC arrears series. Cadence: monthly with a "
+            "~2.5-month publication lag. Parsed from CBA PDF on each "
+            "pipeline run; see pipeline.fetch.cba_arrears."
+        ),
+    )
+    write_series(result.national_history, national_meta, DATA_RAW)
+
+    # Provincial cross-section snapshot (latest month only -- CBA only
+    # publishes the cross-section table in each release, not provincial
+    # history; the latest snapshot is still useful for the regional read).
+    provincial_meta = SeriesMeta(
+        name="cba_mortgage_arrears_provincial",
+        source="Canadian Bankers Association",
+        source_url=release_url,
+        source_id=f"CBA-DB50-PROVINCIAL/{release_year}-{release_month}",
+        units="% (arrears 3+ months / total mortgages)",
+        frequency="snapshot",
+        release_date=result.as_of_date.date().isoformat(),
+        notes=(
+            "Per-province residential mortgage arrears rate, Canada, latest "
+            "month only (cross-section snapshot from page 1 of the CBA PDF). "
+            "Provinces: atlantic, quebec, ontario, manitoba, saskatchewan, "
+            "alberta, british_columbia. CBA does not publish provincial "
+            "monthly history; the cross-section is the only granular cut "
+            "available without bank-by-bank disclosures."
+        ),
+    )
+    write_series(result.provincial_snapshot, provincial_meta, DATA_RAW)
+
+
+# --------------------------------------------------------------------------- #
 # CPI basket weights (StatCan Table 18-10-0007-01, basket-cycle cadence)
 # --------------------------------------------------------------------------- #
 
@@ -536,6 +603,101 @@ def derive_cpi_views() -> None:
         write_series(yoy, meta, DATA_PROCESSED)
 
 
+def derive_cpi_breadth_gt3() -> None:
+    """Share of CPI basket (weighted) with Y/Y inflation above 3%.
+
+    Classical "breadth" measure: for each month, compute each of the 60
+    published CPI components' Y/Y % change, then sum the 2024-basket
+    weights of those components whose Y/Y > 3%. Output is the weighted
+    share (in %) of the basket experiencing inflation above the upper
+    edge of the BoC 1-3% control band.
+
+    Inputs:
+        data/raw/cpi_components.csv        -- wide-format index levels,
+                                              one column per component
+        data/derived/cpi_component_weights_canada.json
+                                           -- mapping of component name to
+                                              2024 basket weight (% share)
+
+    Output:
+        data/processed/cpi_breadth_gt3.csv
+            columns: date, value (% of basket with Y/Y > 3%)
+
+    Weights are normalized over the 60 components we have (they sum to
+    ~99% of the all-items basket; the small residual is excluded minor
+    sub-aggregates). Normalization ensures the output is bounded [0, 100].
+    A component is included in a month only if both its current value AND
+    its 12-month-prior value are present (otherwise Y/Y is undefined and
+    we drop that month-component pair from the denominator too, to avoid
+    biasing the share toward 0 in months with sparse coverage).
+    """
+    import json as _json
+
+    components = _read_raw("cpi_components")
+    if components is None:
+        return
+    weights_path = DATA_DERIVED / "cpi_component_weights_canada.json"
+    if not weights_path.exists():
+        logger.warning("derive_cpi_breadth_gt3 skipped: missing %s", weights_path)
+        return
+    mapping = _json.loads(weights_path.read_text(encoding="utf-8"))
+    weights = {x["name"]: float(x["wt_value"]) for x in mapping}
+
+    components = components.sort_values("date").reset_index(drop=True)
+    components = components.set_index("date")
+    # Keep only columns we have weights for. Surface a warning if any
+    # weight name isn't in the components frame (layout drift).
+    matched_cols = [c for c in components.columns if c in weights]
+    missing_names = sorted(set(weights) - set(components.columns))
+    if missing_names:
+        logger.warning(
+            "derive_cpi_breadth_gt3: %d weight names not in cpi_components: %s",
+            len(missing_names), missing_names[:3],
+        )
+    if not matched_cols:
+        logger.warning("derive_cpi_breadth_gt3: no overlapping components")
+        return
+
+    # Y/Y % per component (component levels are NSA index, 2002=100).
+    yoy = components[matched_cols].pct_change(periods=12) * 100.0
+
+    # For each month: per-component validity mask = both current and 12-mo
+    # prior present (i.e. yoy is not NaN). Numerator = sum of weights where
+    # yoy > 3 AND valid. Denominator = sum of weights where valid. Output =
+    # numerator / denominator * 100 (already in percent because weights are %).
+    w = pd.Series(weights)[matched_cols]
+    valid = yoy.notna()
+    gt3 = yoy.gt(3.0) & valid
+    num = gt3.mul(w, axis=1).sum(axis=1)
+    den = valid.mul(w, axis=1).sum(axis=1)
+    share = (num / den) * 100.0
+    share = share.replace([float("inf"), -float("inf")], pd.NA).dropna()
+
+    out = share.reset_index()
+    out.columns = ["date", "value"]
+
+    meta = SeriesMeta(
+        name="cpi_breadth_gt3",
+        source="Statistics Canada Web Data Service (derived)",
+        source_url="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401",
+        source_id="cpi_components_yoy_basket_weighted_share_gt_3pct",
+        units="% (share of weighted basket with Y/Y > 3%)",
+        frequency="monthly",
+        notes=(
+            "Share of the 60-component CPI basket (2024 weights) with Y/Y "
+            "inflation greater than 3%. Numerator and denominator both "
+            "restricted to components with non-missing Y/Y so coverage gaps "
+            "don't bias the share. Output is a percent (0-100); the BoC "
+            "control-band upper edge is 3%, so this metric reads how broad "
+            "the above-band inflation pulse is. Sources: cpi_components.csv "
+            "(per-component NSA index levels) and cpi_component_weights_"
+            "canada.json (lifted from boc-tracker; StatCan 2024 basket)."
+        ),
+        transform="basket_weighted_share(yoy>3, normalize_over_valid)",
+    )
+    write_series(out, meta, DATA_PROCESSED)
+
+
 def derive_gdp_views() -> None:
     """Compute Y/Y for the monthly real-GDP series (Table 36-10-0434-01).
 
@@ -596,45 +758,6 @@ def derive_productivity_views() -> None:
         transform="yoy_pct(periods_per_year=4)",
     )
     write_series(yoy, meta, DATA_PROCESSED)
-
-
-def derive_per_capita_employment() -> None:
-    """Per-capita employment Y/Y, the canon 4.3 element-2 signature.
-
-    Computed as employment_level Y/Y minus pop_total Y/Y (BoC MPR convention,
-    per researcher memo Wave 1 brief 1.2). Employment is monthly; population
-    is quarterly. We resample population to monthly via forward-fill, since
-    population is a slow-moving stock estimate.
-    """
-    emp = _read_raw("employment_level")
-    pop = _read_raw("pop_total")
-    if emp is None or pop is None:
-        return
-    # Forward-fill population to monthly cadence on employment dates.
-    pop_m = (
-        pop.set_index("date")
-        .sort_index()
-        .reindex(emp["date"].sort_values(), method="ffill")
-        .reset_index()
-    )
-    pop_m.columns = ["date", "value"]
-    out = per_capita_growth(emp, pop_m, periods_per_year=12)
-    spec = STATCAN_SERIES["employment_level"]
-    meta = SeriesMeta(
-        name="employment_per_capita_yoy",
-        source="Statistics Canada Web Data Service (derived)",
-        source_url=statcan_url(spec),
-        source_id="v2062811-minus-v1 (employment_yoy minus pop_total_yoy)",
-        units="% (percentage points)",
-        frequency="monthly",
-        notes=(
-            "Per-capita employment growth: employment Y/Y minus population Y/Y. "
-            "Population (Table 17-10-0009-01, quarterly) forward-filled to "
-            "monthly cadence to align with LFS employment. Per BoC MPR convention."
-        ),
-        transform="per_capita_growth(periods_per_year=12)",
-    )
-    write_series(out, meta, DATA_PROCESSED)
 
 
 def derive_terms_of_trade() -> None:
@@ -883,6 +1006,12 @@ def main() -> int:
     logger.info("--- CREA MLS HPI ---")
     _safe("crea_mls_hpi", fetch_crea_mls_hpi, failed)
 
+    # 4b) CBA mortgage arrears (PDF, monthly, ~2.5-month lag). Powers the
+    #     housing supporting print `cmhc-arrears` (renamed to "Bank mortgage
+    #     arrears" because CBA != CMHC; CBA is the chartered-bank slice).
+    logger.info("--- CBA mortgage arrears ---")
+    _safe("cba_mortgage_arrears", fetch_cba_mortgage_arrears, failed)
+
     # 5) Alberta Economic Dashboard -- monthly natural-gas price (canon 4.6 element 4).
     logger.info("--- Alberta Dashboard (natural gas) ---")
     _safe("alberta_natural_gas", fetch_alberta_natural_gas, failed)
@@ -898,9 +1027,9 @@ def main() -> int:
     #    populated. Each derivation is isolated; failures don't cascade.
     logger.info("--- Derivations ---")
     _safe("derive_cpi_views", derive_cpi_views, failed)
+    _safe("derive_cpi_breadth_gt3", derive_cpi_breadth_gt3, failed)
     _safe("derive_gdp_views", derive_gdp_views, failed)
     _safe("derive_productivity_views", derive_productivity_views, failed)
-    _safe("derive_per_capita_employment", derive_per_capita_employment, failed)
     _safe("derive_trade_views", derive_trade_views, failed)
     _safe("derive_terms_of_trade", derive_terms_of_trade, failed)
     _safe("derive_current_account_views", derive_current_account_views, failed)

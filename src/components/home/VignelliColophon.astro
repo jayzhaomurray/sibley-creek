@@ -22,22 +22,6 @@
  */
 
 import { site } from "../../data/sections";
-import { PLACEHOLDER } from "../../data/site_data_loader";
-
-const today = new Date();
-const produced = today.toISOString().slice(0, 10);
-const currentYear = today.getFullYear();
-
-/*
- * Next-release stamp: not yet pipeline-driven. The Canadian release-calendar
- * loader is on backend's plate but no JSON payload carries this field yet,
- * so the slot renders an explicit "NOT WIRED" marker rather than the
- * hand-typed canon value that previously lived in src/data/sections.ts.
- *
- * When backend adds `nextRelease` to data/site/sections.json (or a sibling
- * file), import it via site_data_loader.ts and swap `nextReleaseDisplay`
- * for the real {label, date, agency} tuple.
- */
 ---
 <footer class="vig-col" role="contentinfo">
   <div class="vig-col__rules" aria-hidden="true">
@@ -52,43 +36,26 @@ const currentYear = today.getFullYear();
       <span class="vig-col__sub">Independent research.</span>
     </p>
     <p class="vig-col__notes">
-      Series are placeholder values for the v1 release. Reported values match
-      the most recently published vintage; revisions are not reconciled
-      across releases.
+      Reported values match the most recently published release vintage;
+      revisions are not reconciled across releases.
     </p>
   </div>
 
-  <dl class="vig-col__stamps">
-    <div class="vig-col__stamp">
-      <dt>Next release</dt>
-      <dd>
-        <span class="vig-col__stamp-placeholder">
-          {PLACEHOLDER.nextReleaseNotWired}
-        </span>
-      </dd>
-    </div>
-    <div class="vig-col__stamp">
-      <dt>Produced</dt>
-      <dd><span class="vig-col__stamp-soft">{produced}</span></dd>
-    </div>
-    <div class="vig-col__stamp">
-      <dt>Edition</dt>
-      <dd><span class="vig-col__stamp-soft">v1</span></dd>
-    </div>
-  </dl>
+  <div class="vig-col__sources">
+    <p class="vig-col__sources-label">Sources</p>
+    <p class="vig-col__sources-body">
+      Statistics Canada;
+      Bank of Canada;
+      Canadian Real Estate Association;
+      Department of Finance Canada;
+      Canadian Bankers Association;
+      Office of the Superintendent of Financial Institutions;
+      Canada Mortgage and Housing Corporation;
+      Federal Reserve Economic Data (FRED);
+      Yahoo Finance.
+    </p>
+  </div>
 
-  <nav class="vig-col__nav" aria-label="Site information">
-    <ul role="list" class="vig-col__nav-list">
-      <li><a href="/about/">About</a></li>
-      <li><a href="/methodology/">Methodology</a></li>
-      <li><a href="/sources/">Sources</a></li>
-      <li><a href="/accessibility/">Accessibility</a></li>
-    </ul>
-  </nav>
-
-  <p class="vig-col__copy">
-    (c) {currentYear} {site.name}. Data attributed at point of use.
-  </p>
 </footer>
 
 <style>
@@ -160,27 +127,25 @@ const currentYear = today.getFullYear();
     max-width: 76ch;
   }
 
-  .vig-col__stamps {
-    margin: 18px 0 0;
+  /* Sources block — consolidates all data source attributions for the
+   * splash + section pages into one footer location. Spelled out in
+   * full (no abbreviations) per editorial decision. */
+  .vig-col__sources {
+    margin: 16px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--ink);
     display: grid;
     grid-template-columns: 1fr;
     gap: 6px;
-    border-top: 1px solid var(--ink);
-    padding-top: 12px;
   }
   @media (min-width: 720px) {
-    .vig-col__stamps {
-      grid-template-columns: 2fr 1fr 1fr;
-      gap: 20px;
+    .vig-col__sources {
+      grid-template-columns: max-content 1fr;
+      gap: 18px;
+      align-items: baseline;
     }
   }
-  .vig-col__stamp {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 8px;
-  }
-  .vig-col__stamp dt {
+  .vig-col__sources-label {
     margin: 0;
     font-family: var(--font-sans);
     font-weight: 600;
@@ -189,93 +154,15 @@ const currentYear = today.getFullYear();
     letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--ink);
-    flex: 0 0 auto;
   }
-  .vig-col__stamp dd {
+  .vig-col__sources-body {
     margin: 0;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 8px;
     font-family: var(--font-sans);
-    font-size: 11px;
-    line-height: 1.2;
-    color: var(--ink);
-  }
-  .vig-col__stamp-strong {
-    color: var(--ink);
-    font-weight: 800;
-    font-family: var(--font-sans);
-    font-size: 11px;
-    letter-spacing: 0.04em;
-  }
-  .vig-col__stamp-soft {
-    color: var(--ink);
     font-weight: 400;
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    font-size: 11px;
-  }
-  .vig-col__stamp-sep {
-    display: inline-block;
-    width: 1px;
-    height: 9px;
-    background: var(--ink);
-  }
-  /* Mid-gray placeholder ink so the [ NOT WIRED ] marker reads as a stub
-   * against the surrounding real chrome (Produced date, Edition, copyright).
-   * Hard-coded because --ink-faint resolves to pure black under the
-   * Vignelli canon (see tokens.css). */
-  .vig-col__stamp-placeholder {
-    font-family: var(--font-mono);
-    font-weight: 400;
-    font-size: 11px;
-    line-height: 1;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: #8A8A8A;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--ink);
+    max-width: 80ch;
   }
 
-  .vig-col__nav {
-    margin-top: 18px;
-    padding-top: 12px;
-    border-top: 1px solid var(--ink);
-  }
-  .vig-col__nav-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 18px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  .vig-col__nav-list a {
-    font-family: var(--font-sans);
-    font-weight: 600;
-    font-size: 10px;
-    line-height: 1;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--ink);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    padding-bottom: 1px;
-    transition: border-color 80ms linear;
-  }
-  .vig-col__nav-list a:hover {
-    border-bottom-color: var(--ink);
-  }
-  .vig-col__nav-list a:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 3px;
-  }
-
-  .vig-col__copy {
-    margin: 14px 0 0;
-    font-family: var(--font-sans);
-    font-weight: 200;
-    font-size: 11px;
-    line-height: 1.4;
-    color: var(--ink);
-  }
 </style>

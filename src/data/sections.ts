@@ -324,15 +324,6 @@ export const sections: Section[] = [
       spark: [],
       },
       {
-        key: "emp-percap-yoy",
-        indicator: "Per-capita employment, y/y",
-        value: "TK",
-        delta: "TK",
-        deltaDir: "neutral",
-        asOf: "TK",
-      spark: [],
-      },
-      {
         key: "agg-hours-yoy",
         indicator: "Aggregate hours, y/y",
         value: "TK",
@@ -584,16 +575,7 @@ export const sections: Section[] = [
       },
       {
         key: "cmhc-arrears",
-        indicator: "CMHC arrears rate",
-        value: "TK",
-        delta: "TK",
-        deltaDir: "neutral",
-        asOf: "TK",
-      spark: [],
-      },
-      {
-        key: "months-inventory",
-        indicator: "Months of inventory",
+        indicator: "Bank mortgage arrears",
         value: "TK",
         delta: "TK",
         deltaDir: "neutral",

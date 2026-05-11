@@ -29,11 +29,10 @@ import DeepDivePanel from "../components/home/DeepDivePanel.astro";
 import { deepDives, site } from "../data/sections";
 import { enrichedSections, type EnrichedSection } from "../data/site_data_loader";
 
-// Canonical section ordering. Seven sections + one working-papers cell.
-const SLUG_ORDER = ["gdp", "inflation", "labour", "housing", "policy", "markets", "trade"] as const;
-const ordered: EnrichedSection[] = SLUG_ORDER
-  .map((slug) => enrichedSections.find((s) => s.slug === slug))
-  .filter((s): s is EnrichedSection => Boolean(s));
+// Card order = enrichedSections order = canon order in sections.ts = nav order.
+// Single source of truth: reordering sections in sections.ts reorders both
+// the masthead nav AND the splash card grid simultaneously.
+const ordered: EnrichedSection[] = enrichedSections;
 
 // Title-statement date line. Always reflects today.
 const today = new Date();

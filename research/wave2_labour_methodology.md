@@ -23,7 +23,7 @@ Conventions used throughout:
 - "SA" = seasonally adjusted by the source agency (StatCan in all cases here).
   "NSA" = not seasonally adjusted. Our pipeline does not perform its own seasonal
   adjustment in v1.
-- "3M MA" = simple three-period trailing arithmetic mean ending at the reference
+- "3mma" = simple three-period trailing arithmetic mean ending at the reference
   month: MA3_t = (x_t + x_{t-1} + x_{t-2}) / 3. Right-aligned. We do not center.
 - Period naming: monthly LFS reference periods are the StatCan-published month
   (e.g. "2026-04" = April 2026 LFS print released first Friday of May 2026).
@@ -164,13 +164,13 @@ peak lags:
 | Smoothing window | 2022 V/U peak value | Peak date     | Lag vs raw NSA peak |
 |------------------|---------------------|---------------|---------------------|
 | Raw NSA          | 0.99                | June 2022     | 0                   |
-| 3M MA            | approx 0.96         | August 2022   | 2 months            |
+| 3mma            | approx 0.96         | August 2022   | 2 months            |
 | 12M MA           | 0.86                | January 2023  | 7 months            |
 
 The 12M MA lag of 7 months is too large relative to the duration of
 policy-relevant cyclical episodes (the 2022 overheat lasted roughly 12
-months end-to-end). 3M MA removes the residual NSA seasonal pattern with
-an acceptable 2-month lag. Decision: 3M MA at basics-layer.
+months end-to-end). 3mma removes the residual NSA seasonal pattern with
+an acceptable 2-month lag. Decision: 3mma at basics-layer.
 
 ### 2.2 The SA / NSA mix
 
@@ -178,9 +178,9 @@ Note that JVWS is NSA-only (StatCan does not publish a SA companion series for
 job vacancies at the national headline level), while the LFS unemployment rate
 is SA. The ratio therefore mixes seasonal conventions. We accept this with
 two mitigations:
-1. The 3M MA partially absorbs the residual NSA seasonal pattern in vacancies.
+1. The 3mma partially absorbs the residual NSA seasonal pattern in vacancies.
 2. The methodology note attached to the panel states the SA / NSA mix
-   explicitly; the chart legend labels the vacancy rate as "NSA, 3M MA".
+   explicitly; the chart legend labels the vacancy rate as "NSA, 3mma".
 
 We do not seasonally adjust JVWS ourselves in v1. Doing so would introduce a
 methodology surface that differs from the StatCan-published vacancy series; the
@@ -198,7 +198,7 @@ Per boc-tracker labour.md Claim 3, the bands are:
 |                   | tightening cycle anchor)                                       |
 | 0.60 <= V/U < 0.80 | Tight                                                          |
 | V/U >= 0.80       | Exceptionally tight (anchored to 2022 post-COVID peak;         |
-|                   | Canadian raw peak 0.99 vs 12M MA peak 0.86 vs 3M MA peak 0.96) |
+|                   | Canadian raw peak 0.99 vs 12M MA peak 0.86 vs 3mma peak 0.96) |
 
 **These are historical anchors, not current-state claims.** The basics-layer
 prose convention: when V/U is in the 0.45-0.60 band, the prose may say "in the
@@ -255,7 +255,7 @@ x-axis:  unemployment_rate_t,  LFS SA monthly  (Table 14-10-0287-01 v2062815)
 y-axis:  vacancy_rate_t,       JVWS NSA monthly (Table 14-10-0371-01 v1212389365)
 ```
 
-**Smoothing.** Both axes are smoothed with 3M MA (right-aligned) before
+**Smoothing.** Both axes are smoothed with 3mma (right-aligned) before
 plotting. This matches the V/U convention in Section 2 and produces a
 visibly less noisy locus than raw NSA on vacancy.
 
@@ -277,7 +277,7 @@ The 12-month trail is the right length because:
 ### 3.3 Reuse of boc-tracker construction
 
 The existing boc-tracker `_build_beveridge_curve_panel` (in `build.py`)
-already implements this with the right axes and the 3M MA smoothing. The
+already implements this with the right axes and the 3mma smoothing. The
 chart at `Documents/boc-tracker/analyses/beveridge_curve_canada.html` is
 the working reference. Date range: May 2015 through Feb 2026; U range
 4.97%-13.50%; V range 0%-5.90%. Re-use the construction; do not re-invent.
@@ -609,7 +609,7 @@ so the editorial team can scrub backwards if needed.
    or adjust.
 
 5. **Beveridge-curve smoothing axis symmetry.** Confirm both axes get
-   3M MA (current proposal). Alternative is to smooth only the noisier
+   3mma (current proposal). Alternative is to smooth only the noisier
    vacancy axis. Symmetric smoothing is cleaner; asymmetric smoothing
    introduces a subtle path artefact at cyclical turning points.
 

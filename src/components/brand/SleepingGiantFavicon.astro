@@ -1,0 +1,125 @@
+---
+/*
+ * SleepingGiantFavicon - Sibley Creek's brand mark, at favicon scale.
+ *
+ * At 32px wide, the full 4:1 reclining silhouette compresses to 32x8
+ * and reads as a meaningless smudge. The favicon-variant solves the
+ * legibility problem by CROPPING the silhouette to its most
+ * recognizable portion: the head's cliff face, the throat dip, and the
+ * Adam's Apple bump. To any Thunder Bay resident, this is the shape
+ * they read first - the cliff plus the famous "Adam's Apple" notch is
+ * the silhouette's iconic moment.
+ *
+ * Discipline (inherits from SleepingGiantMark.astro):
+ *
+ *   - SINGLE CONTINUOUS PATH. One M, cubic beziers throughout, no lifts.
+ *   - PURE INK stroke (`var(--ink)`). No fill.
+ *   - ONE MTA red dot at the rightmost terminus (the Adam's Apple bump).
+ *     Same brand-signal pattern as the canonical mark: line ends with a
+ *     red dot at the right.
+ *   - 32 x 32 viewBox (1:1) - the legible square favicon scale. The
+ *     stroke is HEAVIER (2.25px) so the line reads cleanly at the 16px
+ *     and 32px raster sizes the browser will rasterize this SVG into.
+ *
+ * Anatomy of the cropped silhouette (32 x 32 viewBox):
+ *
+ *   - (2, 28)   left baseline (lake, behind the head)
+ *   - rise sharply into the head cliff
+ *   - (10, 6)   head peak / forehead apex (the cliff top)
+ *   - face descent
+ *   - (18, 18)  throat dip (Adam's Apple notch bottom)
+ *   - (26, 14)  Adam's Apple bump - the rightmost terminus + dot
+ *
+ * The reader sees: vertical cliff on the left, peak, slope down to the
+ * throat notch, the small bump, and the red dot pinned at the bump.
+ * The negative space below the line is Lake Superior; above is sky.
+ * That's the brand in 32 pixels.
+ *
+ * Usage:
+ *
+ *   - The favicon surface: site/<icon>.svg pipeline (frontend-designer
+ *     wires this; not in this dispatch's scope).
+ *   - Any other "small square brand stamp" surface (e.g. an avatar, a
+ *     PWA manifest icon at 192 / 512).
+ *
+ * Zero client JS. Pure inline SVG, server-rendered.
+ */
+
+interface Props {
+  /**
+   * Pixel size of the rendered mark (width = height). Default 32 - the
+   * canonical browser-tab favicon size.
+   */
+  size?: number;
+
+  /**
+   * Toggle the MTA red accent dot at the Adam's Apple terminus.
+   * Default true. Set false for monochrome surfaces (e.g. a print
+   * favicon, an SVG-mask-friendly export).
+   */
+  withAccent?: boolean;
+
+  /**
+   * Optional class hook for surface-specific positioning.
+   */
+  class?: string;
+}
+
+const { size = 32, withAccent = true, class: className } = Astro.props;
+
+// Cropped silhouette - head + Adam's Apple. Single continuous path.
+// One M, then cubic beziers only. No lifts. ASCII path data.
+const headPath = [
+  "M 2 28",                          // lake baseline, left edge
+  "C 4 22, 6 14, 8 8",               // rise sharply into the head's cliff
+  "C 9 5, 11 5, 12 7",               // head peak / forehead apex (sharp)
+  "C 14 10, 16 14, 18 18",           // face slope down to the throat notch
+  "C 20 19, 22 17, 26 14",           // small Adam's Apple bump (terminus)
+].join(" ");
+
+// Rightmost terminus anchor for the red dot - matches the last C endpoint.
+const dotCX = 26;
+const dotCY = 14;
+const dotR = 2.5;
+---
+
+<svg
+  class:list={["sg-fav", className]}
+  width={size}
+  height={size}
+  viewBox="0 0 32 32"
+  preserveAspectRatio="xMidYMid meet"
+  role="img"
+  aria-label="Sibley Creek favicon: cropped head and Adam's Apple of the Sleeping Giant"
+>
+  <title>Sibley Creek</title>
+  <path class="sg-fav__line" d={headPath} />
+  {withAccent && (
+    <circle class="sg-fav__dot" cx={dotCX} cy={dotCY} r={dotR} />
+  )}
+</svg>
+
+<style>
+  .sg-fav {
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  .sg-fav__line {
+    fill: none;
+    stroke: var(--ink);
+    /* Heavier than the canonical mark's 1.5/2px. At 16-32px raster scale
+     * the line needs to survive the browser's bitmap downsampling; 2.25px
+     * SVG stroke rasterizes to a ~2px black line at 32px and a ~1px line
+     * at 16px, both of which read cleanly. */
+    stroke-width: 2.25;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .sg-fav__dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+</style>

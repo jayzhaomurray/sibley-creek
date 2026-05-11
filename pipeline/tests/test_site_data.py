@@ -657,8 +657,8 @@ def test_supporting_print_fy_ytd_yoy_vs_prior_fy_at_same_month(tmp_path):
     assert p["delta"] == "-$6.3B"
     # Sign of change (deficit widened) -> 'neg'
     assert p["deltaDir"] == "neg"
-    # as_of_format='fy-ytd-month' renders "FY26 through Feb"
-    assert p["asOf"] == "FY26 through Feb"
+    # as_of_format='fy-ytd-month' renders "FYTD Feb 26"
+    assert p["asOf"] == "FYTD Feb 26"
 
 
 def test_supporting_print_fy_ytd_falls_back_when_prior_fy_missing(tmp_path):
@@ -704,10 +704,10 @@ def test_format_as_of_fy_ytd_month_label_boundary(tmp_path):
     FY26. Regression guard for the boundary handling.
     """
     from pipeline.io.site_data import _format_as_of
-    assert _format_as_of(pd.Timestamp("2026-02-28"), "fy-ytd-month") == "FY26 through Feb"
-    assert _format_as_of(pd.Timestamp("2025-03-31"), "fy-ytd-month") == "FY25 through Mar"
-    assert _format_as_of(pd.Timestamp("2025-04-30"), "fy-ytd-month") == "FY26 through Apr"
-    assert _format_as_of(pd.Timestamp("2024-12-31"), "fy-ytd-month") == "FY25 through Dec"
+    assert _format_as_of(pd.Timestamp("2026-02-28"), "fy-ytd-month") == "FYTD Feb 26"
+    assert _format_as_of(pd.Timestamp("2025-03-31"), "fy-ytd-month") == "FYTD Mar 25"
+    assert _format_as_of(pd.Timestamp("2025-04-30"), "fy-ytd-month") == "FYTD Apr 26"
+    assert _format_as_of(pd.Timestamp("2024-12-31"), "fy-ytd-month") == "FYTD Dec 25"
 
 
 def test_supporting_print_load_bearing_always_first(tmp_path):

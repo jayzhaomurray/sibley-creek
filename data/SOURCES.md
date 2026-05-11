@@ -415,27 +415,52 @@ the BCC issues a new communique; lock the rest.
 
 ---
 
-## CBA -- Canadian Bankers Association (mortgage arrears) -- BLOCKED
+## CBA -- Canadian Bankers Association (mortgage arrears)
 
-**Status:** NOT WIRED. Documented here so the gap is visible.
+**Pipeline module:** `pipeline/fetch/cba_arrears.py`
+**Source URL pattern:** `https://cba.ca/Assets/CanadianBankersAssociation/Documents/Articles/Statistics/stat-mortgages-arrears-{month}-{year}-en.pdf`
+**Frequency:** monthly, ~2.5-month publication lag.
 
-Canon 4.4 element 5 calls for CBA chartered-bank monthly arrears as a
-higher-frequency proxy for CMHC RMIR arrears (quarterly). The CBA
-publishes the data at `https://cba.ca/mortgages-in-arrears` and at
-month-specific permalinks.
+The CBA publishes monthly "Number of Residential Mortgages in Arrears"
+PDFs covering chartered banks (BMO, CIBC, National, RBC, Scotia, TD)
+plus Manulife (since 2004), Laurentian (since 2010), and Equitable
+(since 2020). Each PDF has a cross-section table for the reference
+month (page 1) and full national time-series history back to 1995
+(pages 2+).
 
-**Why we cannot fetch it from CI:** cba.ca is behind a Sucuri WAF that
-serves a JavaScript-challenge interstitial to all non-browser clients
-(HTTP 307 to a JS-eval page that sets a cloudproxy cookie before
-serving real content). A headless-browser fetch (Playwright, Puppeteer)
-would solve this but adds ~200 MB of Chromium to the CI image and a
-non-trivial maintenance surface for a single monthly data point.
+This is the closest publicly available proxy for the (long-discontinued
+on the homepage tile) CMHC arrears series. Coverage is ~75% of the
+mortgage stock; brokered / private-lender / credit-union mortgages are
+excluded.
 
-**v1 disposition:** carry the gap as an editorial caveat (per the canon
-note "CBA chartered-bank arrears as monthly proxy" -- if we can cite it
-in prose with a date, we don't strictly need the data file). Revisit if
-a JSON/CSV endpoint surfaces or if the editorial use case justifies
-adding a headless-browser fetcher.
+**WAF note:** the `cba.ca/mortgages-in-arrears` HTML landing page is
+behind a Sucuri WAF that serves a JavaScript-challenge interstitial to
+non-browser clients. The `/Assets/...` PDF URLs, however, are served
+directly and respond to plain `httpx` GETs with HTTP 200 +
+`Content-Type: application/pdf`. The pipeline therefore probes the
+direct PDF URL pattern (filename uses LOWERCASE month name) and skips
+the HTML page entirely.
+
+**URL probing convention:** `pipeline.fetch.cba_arrears.find_and_download_latest()`
+walks back from `today - 2 months` (CBA's typical lag) through a
+configurable lookback window, returning the first month whose PDF URL
+returns 200. A 404 advances to the next candidate; failure of every
+candidate raises `FileNotFoundError`.
+
+**Parsing:** the PDF text extracted by `pypdf` is line-oriented for the
+page-1 cross-section (regex match: `LOCATION  TOTAL  ARREARS  PCT%`)
+and a side-by-side two-column layout for the national time series
+(regex finds every `YYYY-MM <total> <arrears> <pct>%` group). An
+upstream layout change would surface as a `ValueError` raised from
+`parse_cba_arrears_pdf`, not as a silent partial parse.
+
+**Output files:**
+- `data/raw/cba_mortgage_arrears_national.csv` -- monthly national % back to ~1995
+- `data/raw/cba_mortgage_arrears_provincial.csv` -- per-province % for the latest month only
+
+CBA does not publish per-province time-series history in the PDF; only
+the latest-month cross-section is available without bank-by-bank
+disclosures.
 
 ---
 

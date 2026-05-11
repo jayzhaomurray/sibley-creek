@@ -625,6 +625,60 @@ tokens (`INDEPENDENT`, `PROUDLY CANADIAN`), and the colophon /
 publication-mark closing rule. Every other red use is a violation
 and should be flagged in QA.
 
+### 3.7 The tenth permitted MTA red moment - Sleeping Giant mark foot-dot
+
+The 2026-05-11 brand-mark dispatch canonizes a tenth permitted MTA
+red moment: **the single MTA red filled circle at the foot terminus
+of the Sleeping Giant brand mark** (`SleepingGiantMark.astro`,
+`SleepingGiantFavicon.astro`). One dot per mark instance, at the
+rightmost end of the silhouette's continuous-line path.
+
+**Rationale.** The Sleeping Giant mark is the publication's
+geographic identity element - it appears in the masthead, the OG
+social card, the favicon, and the 404 hero. The foot-dot is
+functionally the same brand-signal moment as a chart's latest-print
+dot: a single MTA red filled circle at the rightmost terminus of a
+pure-ink line. The mirror is intentional. Every visual element on
+the site ends with one red moment at the right:
+
+- A chart line ends with the MTA red latest-print dot at the
+  rightmost data point (Section 5.3, canon-reference Rule 2).
+- A page ends with the 2px MTA red rule above the colophon (Section
+  3.6).
+- The brand mark ends with the MTA red dot at the foot terminus.
+
+The discipline of one terminal red per object is the publication's
+visual signature - the Vignelli "one accent threaded through" applied
+across charts, page chrome, AND the brand layer.
+
+**Constraints on this use.**
+
+- **One dot per mark.** Each rendered instance of the Sleeping Giant
+  mark carries exactly one red dot, at the rightmost path terminus.
+  No second dot at the head, no dot at the chest, no auxiliary marks.
+- **3-4px radius scale.** 3px on the inline-masthead variant (matches
+  the canon-reference chart's mini-chart dot scale); 4px on the og
+  variant (matches the chartbook-scale dot range, 3-5px). The favicon
+  variant uses 2.5px to fit the 32 x 32 viewBox.
+- **`withAccent={false}` is the documented exception.** Monochrome
+  surfaces (print stationery, embossed mock-ups, SVG-mask exports)
+  may suppress the dot. The default is on.
+- **Position - rightmost terminus.** The dot anchors at the foot
+  terminus of the silhouette path. Floating the dot anywhere else on
+  the canvas - above the chest, below the foot, at the head - is a
+  violation.
+
+**The complete permitted set is therefore ten moments:** latest-print
+dot, figure-number numeral, plate-number numeral, section-number
+kicker, focus ring, link hover, selection highlight, brand-kicker
+tokens, colophon / publication-mark closing rule, and the Sleeping
+Giant mark foot-dot. Every other red use is a violation and should
+be flagged in QA.
+
+The full canon for the mark itself lives in
+`design/sleeping-giant-mark.md` (placement, sizing, variants, the
+SVG path data, misuse cases).
+
 ---
 
 ## 4. Direction-by-glyph rule

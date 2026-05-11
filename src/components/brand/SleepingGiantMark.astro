@@ -1,0 +1,191 @@
+---
+/*
+ * SleepingGiantMark - Sibley Creek's canonical brand mark.
+ *
+ * A one-continuous-line stylized silhouette of the Sleeping Giant, the
+ * landform on the Sibley Peninsula in Lake Superior (Sleeping Giant
+ * Provincial Park, Ontario). The publication is named after Sibley Creek
+ * on that peninsula; the Giant is the publication's geographic identity.
+ *
+ * Discipline (Vignelli / canon-reference register):
+ *
+ *   - SINGLE CONTINUOUS PATH. One M at the start; everything after is C
+ *     (cubic bezier). No lifts. The reader's eye traces the silhouette
+ *     without breaks - this is the "one line, one idea" move applied to
+ *     the brand mark.
+ *   - PURE INK stroke (`var(--ink)` = #000000). No fill, no shading, no
+ *     texture, no hatching. White paper underneath; Lake Superior is the
+ *     implied negative space below the line, sky above.
+ *   - Stroke width varies by surface (inline / og), pinned via CSS custom
+ *     property `--mark-stroke` so a single component covers all surfaces.
+ *   - ONE MTA red dot at the FOOT (rightmost terminus). 3-4px filled
+ *     circle. This mirrors the chart canon's latest-print dot: every
+ *     visual element on this site ends with one red moment at the right.
+ *     ON by default; toggle off only for pure-ink exports.
+ *   - Simplified silhouette, NOT topographic. Vignelli's NYC Subway
+ *     Diagram is the spiritual exemplar: it bears no geographic
+ *     correspondence to Manhattan but is instantly recognizable. Same
+ *     here - capture the reclining figure as the eye reads it from
+ *     Thunder Bay, without trying to be a topo map.
+ *
+ * Orientation (deliberate flip from the photographed view):
+ *
+ *   The canonical photograph of the Sleeping Giant from Thunder Bay shows
+ *   the figure reclining with head to one side and feet to the other.
+ *   For this brand mark we orient HEAD-LEFT, FEET-RIGHT so the red
+ *   accent dot sits at the rightmost terminus, matching the chart
+ *   latest-print dot convention threaded across every visual element on
+ *   the site. Recognition of the reclining figure does not depend on the
+ *   cartographic orientation; the brand-system consistency does.
+ *   Vignelli would do the same.
+ *
+ *   The single path runs left-to-right as:
+ *
+ *     - (4, 72)      left baseline (lake surface, behind the head)
+ *     - sharp rise into the head's cliff face (the highest point)
+ *     - head peak / forehead apex around (32, 10) - the apex of the mark
+ *     - face slope down to the throat
+ *     - throat dip (Adam's Apple notch bottom) around (78, 38)
+ *     - small Adam's Apple bump around (94, 30)
+ *     - long rise onto the broad chest plateau
+ *     - chest plateau (sustained near-apex) around (122-170, 18)
+ *     - stomach dip around (200, 28)
+ *     - knee rise around (228, 22)
+ *     - over the knee, shin descent begins
+ *     - long shin / leg descent
+ *     - foot mesa terminus around (304, 46) - the rightmost point
+ *
+ *   The path terminates at the foot mesa. The red dot sits at that
+ *   terminus. The line does NOT continue past the dot down to the lake
+ *   on the right - terminating at the foot is the cleaner Vignelli move
+ *   and lets the dot read as a terminal stamp (same logic as a chart's
+ *   line terminating at its latest-print dot).
+ *
+ * ViewBox: 320 x 80 (4:1 aspect). Wide landscape. The Giant is a
+ * reclining figure read horizontally; the viewBox echoes that.
+ *
+ * Variants:
+ *
+ *   variant="inline" (default) - masthead-inline + small surfaces.
+ *                                Stroke 1.5px, accent dot 3px.
+ *   variant="og"               - OG card hero, 404 page, large-surface
+ *                                marks. Stroke 2px, accent dot 4px.
+ *
+ * Zero client JS. Pure inline SVG, server-rendered.
+ */
+
+interface Props {
+  /**
+   * Pixel width of the rendered mark. Height is derived from the 4:1
+   * aspect ratio of the viewBox. Inline-masthead default is ~120px wide
+   * (height ~30px); og variant uses ~480-600px wide.
+   */
+  size?: number;
+
+  /**
+   * Surface variant. Affects stroke width and accent-dot scale.
+   *   "inline" - 1.5px stroke, 3px dot.
+   *   "og"     - 2px stroke, 4px dot.
+   */
+  variant?: "inline" | "og";
+
+  /**
+   * Toggle the MTA red accent dot at the foot. Default true. Set false
+   * for a pure-ink export (e.g. a print stationery use, an emboss
+   * mock-up, or any surface where the brand has decided to suppress the
+   * accent moment).
+   */
+  withAccent?: boolean;
+
+  /**
+   * Optional class hook for surface-specific positioning. The component
+   * does not own its parent margins.
+   */
+  class?: string;
+}
+
+const {
+  size = 120,
+  variant = "inline",
+  withAccent = true,
+  class: className,
+} = Astro.props;
+
+// Variant-driven scales.
+const isInline = variant === "inline";
+const strokeWidth = isInline ? 1.5 : 2;
+const dotR = isInline ? 3 : 4;
+
+// The single continuous path - 320 x 80 viewBox.
+// Head on the left (apex), foot on the right (terminus + dot).
+// One M, then cubic beziers only. No lifts. ASCII path data.
+const giantPath = [
+  "M 4 72",                            // left baseline (lake, behind the head)
+  "C 10 56, 14 32, 22 18",             // rise off the lake into the head's cliff
+  "C 26 12, 30 8, 34 10",              // head peak / forehead apex (32,10)
+  "C 40 12, 48 18, 56 24",             // face slope down toward the throat
+  "C 64 30, 72 36, 78 38",             // throat dip / Adam's Apple notch bottom
+  "C 84 38, 90 34, 96 30",             // small Adam's Apple bump
+  "C 104 26, 112 22, 122 20",          // long rise onto the chest plateau
+  "C 138 17, 154 17, 170 18",          // chest plateau (sustained near-apex)
+  "C 184 20, 194 24, 202 28",          // descent off the chest into stomach
+  "C 210 30, 218 28, 228 22",          // stomach dip up into the knee rise
+  "C 236 19, 244 22, 252 28",          // over the knee
+  "C 262 33, 272 38, 282 42",          // shin descent
+  "C 292 45, 300 46, 304 46",          // foot mesa terminus (rightmost)
+].join(" ");
+
+// Foot-terminus anchor for the red dot. Matches the last C endpoint.
+const dotCX = 304;
+const dotCY = 46;
+---
+
+<svg
+  class:list={["sg-mark", `sg-mark--${variant}`, className]}
+  width={size}
+  height={size / 4}
+  viewBox="0 0 320 80"
+  preserveAspectRatio="xMidYMid meet"
+  role="img"
+  aria-label="Sibley Creek mark: stylized silhouette of the Sleeping Giant on the Sibley Peninsula, Lake Superior"
+  style={`--mark-stroke: ${strokeWidth}px;`}
+>
+  <title>Sibley Creek - the Sleeping Giant, Sibley Peninsula, Lake Superior</title>
+  <path class="sg-mark__line" d={giantPath} />
+  {withAccent && (
+    <circle class="sg-mark__dot" cx={dotCX} cy={dotCY} r={dotR} />
+  )}
+</svg>
+
+<style>
+  /*
+   * The mark sits on paper. Container ships no fill, no border, no
+   * background. Negative-space rules live in the consuming surface
+   * (the masthead, the OG card frame, etc.) so the mark itself is
+   * portable.
+   */
+  .sg-mark {
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  .sg-mark__line {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: var(--mark-stroke, 1.5px);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    /* Keep the line at its specified stroke width regardless of the
+     * wrapper's CSS-driven scale. Same rationale as the canon-reference
+     * chart line. */
+    vector-effect: non-scaling-stroke;
+  }
+
+  .sg-mark__dot {
+    fill: var(--accent);
+    /* No stroke ring. The canon's brand-signal dot is a filled circle
+     * on the paper, not a ringed marker - matches the latest-print dot
+     * convention on charts (canon-compliance Rule 2). */
+    stroke: none;
+  }
+</style>
