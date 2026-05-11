@@ -42,7 +42,9 @@ non-zero if any task failed, so CI surfaces the failure in the run UI.
 
 from __future__ import annotations
 
+import argparse
 import logging
+import os
 import sys
 import traceback
 from pathlib import Path
@@ -1039,11 +1041,42 @@ def derive_trade_views() -> None:
 # Orchestrator
 # --------------------------------------------------------------------------- #
 
-def main() -> int:
+def _parse_build_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        prog="python -m pipeline.build",
+        description="Run the macro-research-department data pipeline.",
+    )
+    p.add_argument(
+        "--fan-out",
+        action="store_true",
+        help=(
+            "After the data refresh, detect a release event (content-hash "
+            "change on a primary series sidecar vs the rotated snapshot) "
+            "and fan-out a fresh-cascade through every affected surface "
+            "(section blurb, tileLine, plate interpretations, fresh-tag "
+            "rotation, hero abstract). Default OFF for manual local "
+            "rebuilds so the user is not surprised by writer dispatches; "
+            "CI / scheduled runs set the GITHUB_ACTIONS env var (or pass "
+            "--fan-out explicitly) which flips this to ON automatically."
+        ),
+    )
+    p.add_argument(
+        "--no-fan-out",
+        action="store_true",
+        help=(
+            "Force the fan-out OFF even in CI. Useful for data-only "
+            "rebuilds that should not retrigger LLM dispatches."
+        ),
+    )
+    return p.parse_args(argv)
+
+
+def main(argv: Optional[list[str]] = None) -> int:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    args = _parse_build_args(argv)
     DATA_RAW.mkdir(parents=True, exist_ok=True)
     DATA_PROCESSED.mkdir(parents=True, exist_ok=True)
     DATA_DERIVED.mkdir(parents=True, exist_ok=True)
@@ -1125,6 +1158,52 @@ def main() -> int:
     #    Per-panel failures fall back to a sentinel slot, not an exception.
     logger.info("--- Panel data bundle ---")
     _safe("build_panel_data", lambda: build_all_panel_data(DATA_ROOT), failed)
+
+    # 9) Optional: fan-out cascade. Detects whether a release event
+    #    landed (content-hash change on a primary series sidecar vs the
+    #    snapshot taken in step 6b) and, if so, cascades that release
+    #    through every affected surface (section blurb, tileLine, plate
+    #    interpretations, fresh-tag rotation, hero abstract). Default
+    #    behaviour:
+    #      - CI / scheduled runs (GITHUB_ACTIONS env var set): ON.
+    #      - Manual local run: OFF, unless --fan-out is passed.
+    #      - --no-fan-out forces OFF regardless of CI.
+    #    The fan-out itself is failure-isolated; a dispatch error logs
+    #    and the build still exits on the data-side failed list.
+    auto_on = bool(os.environ.get("GITHUB_ACTIONS"))
+    fan_out_enabled = (args.fan_out or auto_on) and not args.no_fan_out
+    if fan_out_enabled:
+        logger.info("--- Fan-out cascade ---")
+        try:
+            from pipeline.blurbs.fan_out import (
+                detect_release_event,
+                fan_out_release,
+            )
+            event = detect_release_event(ROOT)
+            if event is None:
+                logger.info(
+                    "fan_out: no release event detected (no sidecar "
+                    "release_date newer than snapshot); nothing to do.",
+                )
+            else:
+                logger.info(
+                    "fan_out: cascade trigger -- release_id=%s "
+                    "release_key=%s section=%s release_date=%s",
+                    event.release_id, event.release_key,
+                    event.section, event.release_date,
+                )
+                result = fan_out_release(event, repo_root=ROOT)
+                logger.info(
+                    "fan_out: drafted=%d failed=%d promoted=%s error=%s",
+                    result.surfaces_drafted, result.surfaces_failed,
+                    result.promoted, result.error,
+                )
+                if not result.promoted:
+                    failed.append("fan_out_release")
+        except Exception as exc:  # noqa: BLE001
+            logger.error("FAILED: fan_out -- %s: %s", type(exc).__name__, exc)
+            logger.debug("traceback:\n%s", traceback.format_exc())
+            failed.append("fan_out")
 
     if failed:
         logger.error("Build completed with %d failure(s): %s", len(failed), ", ".join(failed))

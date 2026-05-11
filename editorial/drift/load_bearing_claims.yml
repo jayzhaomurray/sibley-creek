@@ -1,0 +1,206 @@
+# Load-bearing claims registry for published deep dives.
+#
+# Each entry names a numeric claim made in a published deep dive that is
+# load-bearing for the pillar's thesis -- the "what would change my mind"
+# version of the cite. If the underlying data has moved by more than the
+# per-claim threshold since publication, the watcher flags drift.
+#
+# A claim must be:
+#   (a) a specific numeric or dated claim,
+#   (b) load-bearing for the thesis (not decorative colour),
+#   (c) resolvable from a pipeline data source -- data/raw/*.csv or
+#       data/site/panel_data/*.json.
+#
+# Qualitative claims ("the FX channel is not binding right now") are
+# tracked in the deep dives themselves and flagged in the watcher only
+# via the secondary numeric thresholds they decompose into.
+#
+# Schema per claim:
+#   id              : short stable id, scoped within the pillar
+#   text            : verbatim or near-verbatim phrasing from the deep dive
+#   data_source     : pipeline path + resolver expression. Two forms:
+#                       "data/raw/<file>.csv -> last row"
+#                       "data/site/panel_data/<file>.json -> panels[?key=='<key>'].value"
+#   published_value : the value as cited in the deep dive at publish time
+#   unit            : "%", "pp", "bps", "level", "ratio" -- for the alert text
+#   threshold       : absolute move (in the same unit as published_value)
+#                     beyond which the watcher flags drift
+#
+# Threshold philosophy: set thresholds at the size that would force a
+# re-read of the pillar, not at every noise floor. A 0.1 pp wiggle in
+# unemployment is not drift. A 0.5 pp move is.
+
+pillars:
+  - slug: mortgage-renewal-wall
+    title: "Pillar A -- The renewal wall has peaked; arrears risk has rotated to the labour channel"
+    published_at: "2026-05-11"
+    claims:
+      - id: A1
+        text: "Mortgage interest cost Y/Y at 0.28% in March 2026 -- MIC contribution to inflation essentially extinguished."
+        data_source: "data/site/panel_data/inflation.json -> panels[?key=='cpi_mortgage_interest_yoy'].value"
+        published_value: 0.28
+        unit: "%"
+        threshold: 1.0
+      - id: A2
+        text: "Headline unemployment at 6.9% in April 2026 -- the labour-channel falsification trigger sits at +50 bps above this."
+        data_source: "data/raw/unemployment_rate.csv -> last row"
+        published_value: 6.9
+        unit: "%"
+        threshold: 0.5
+      - id: A3
+        text: "Prime-age (25-54) unemployment at 6.0% -- a cyclical move but smaller in relative terms than youth."
+        data_source: "data/raw/prime_age_unemployment_rate.csv -> last row"
+        published_value: 6.0
+        unit: "%"
+        threshold: 0.5
+      - id: A4
+        text: "BoC overnight rate at 2.25% -- fourth consecutive hold; the floor on the renewal-rate spread is stable."
+        data_source: "data/raw/overnight_rate.csv -> last row"
+        published_value: 2.25
+        unit: "%"
+        threshold: 0.25
+      - id: A5
+        text: "5-year GoC yield -- a sustained move above 4.0% would re-widen the renewal-rate spread."
+        data_source: "data/raw/yield_5yr.csv -> last row"
+        published_value: 2.85
+        unit: "%"
+        threshold: 0.50
+
+  - slug: boc-fed-divergence
+    title: "Pillar B -- The divergence can run further than the loonie is signalling"
+    published_at: "2026-05-11"
+    claims:
+      - id: B1
+        text: "BoC overnight rate target at 2.25% -- four consecutive holds since October 2025."
+        data_source: "data/raw/overnight_rate.csv -> last row"
+        published_value: 2.25
+        unit: "%"
+        threshold: 0.25
+      - id: B2
+        text: "Fed funds effective at 3.625% -- the midpoint of the 3.50 to 3.75% target range."
+        data_source: "data/raw/fed_funds.csv -> last row"
+        published_value: 3.625
+        unit: "%"
+        threshold: 0.25
+      - id: B3
+        text: "2y GoC at 2.94% to close May 7, 2026 -- the Canadian leg of the curve-spread divergence."
+        data_source: "data/raw/yield_2yr.csv -> last row"
+        published_value: 2.94
+        unit: "%"
+        threshold: 0.30
+      - id: B4
+        text: "USDCAD at 1.3575 -- the FX-channel falsification trigger sits at a sustained 1.45-plus."
+        data_source: "data/raw/fxusdcad.csv -> last row"
+        published_value: 1.3575
+        unit: "level"
+        threshold: 0.05
+      - id: B5
+        text: "CSCE 5y consumer inflation expectations at 3.02% in Q1 2026 -- the binding expectations chain; trigger at 3.5%-plus."
+        data_source: "data/site/panel_data/inflation.json -> panels[?key=='infl_exp_consumer_5y'].value"
+        published_value: 3.02
+        unit: "%"
+        threshold: 0.50
+      - id: B6
+        text: "10y GoC at 3.53% -- a rise to 4.0% would tighten conditions enough to offset the BoC's stance."
+        data_source: "data/raw/yield_10yr.csv -> last row"
+        published_value: 3.53
+        unit: "%"
+        threshold: 0.40
+
+  - slug: per-capita-output
+    title: "Pillar E -- Per-capita weakness is mostly a denominator story, and the denominator is turning"
+    published_at: "2026-05-11"
+    claims:
+      - id: E1
+        text: "Employment rate (15+) at 60.5% in April 2026 -- 1.7 points below the December 2019 baseline of 62.2%."
+        data_source: "data/raw/employment_rate.csv -> last row"
+        published_value: 60.5
+        unit: "%"
+        threshold: 0.5
+      - id: E2
+        text: "Aggregate participation rate at 65.0% in April 2026 -- 90 bps below the June 2023 cycle peak of 65.9%."
+        data_source: "data/raw/participation_rate.csv -> last row"
+        published_value: 65.0
+        unit: "%"
+        threshold: 0.5
+      - id: E3
+        text: "Prime-age (25-54) participation at 88.5% in April 2026 -- essentially at cycle highs; the falsification trigger is 87.5%."
+        data_source: "data/raw/lf_participation_prime.csv -> last row"
+        published_value: 88.5
+        unit: "%"
+        threshold: 0.5
+      - id: E4
+        text: "Youth (15-24) participation at 62.9% in April 2026 -- 2.6 points below pre-COVID; tracks the student-permit cycle."
+        data_source: "data/raw/lf_participation_youth.csv -> last row"
+        published_value: 62.9
+        unit: "%"
+        threshold: 1.0
+      - id: E5
+        text: "Headline unemployment at 6.9% in April 2026 -- baseline for the cyclical-vs-structural decomposition."
+        data_source: "data/raw/unemployment_rate.csv -> last row"
+        published_value: 6.9
+        unit: "%"
+        threshold: 0.5
+
+  - slug: us-tariff-repricing
+    title: "Pillar -- The reorientation has already happened"
+    published_at: "2026-05-11"
+    claims:
+      - id: T1
+        text: "Total Canadian merchandise exports hit a record CAD 68.8 billion in March 2026, above the pre-tariff baseline near CAD 61 billion."
+        data_source: "data/raw/trade_exports_total.csv -> last row"
+        # StatCan IMTD series is reported in CAD millions in the raw CSV;
+        # the deep dive quotes the same value in billions.
+        published_value: 68793.6
+        unit: "CAD millions"
+        threshold: 5000.0
+      - id: T2
+        text: "US-bound merchandise exports at CAD 45.5 billion in March 2026 -- the numerator behind the 66.1% US share."
+        data_source: "data/raw/trade_exports_us.csv -> last row"
+        published_value: 45495.8
+        unit: "CAD millions"
+        threshold: 4000.0
+      - id: T3
+        text: "USDCAD at roughly 1.36 -- moving in the opposite direction to what the textbook FX-tariff story would predict."
+        data_source: "data/raw/fxusdcad.csv -> last row"
+        published_value: 1.36
+        unit: "level"
+        threshold: 0.05
+      - id: T4
+        text: "Headline CPI Y/Y at 2.32% in March 2026 -- the realized tariff pass-through is below the BoC's January 2025 scenario."
+        data_source: "data/site/panel_data/inflation.json -> panels[?key=='cpi_all_items_yoy'].value"
+        published_value: 2.32
+        unit: "%"
+        threshold: 0.50
+
+# Claims considered but excluded as un-watchable from pipeline data
+# (qualitative, derived, or sourced from material not yet in data/):
+#
+# Pillar A:
+#   - "60% of all outstanding mortgages renew during 2025 or 2026" -- sourced
+#     from BoC SAN 2025-21 (PDF), not in pipeline as a time series.
+#   - CBA national arrears rate 0.28% (Feb 2026) -- the CBA fetcher writes
+#     to data/raw/cba_arrears_*.csv but the file shape varies by release;
+#     re-add once the schema stabilises.
+#   - SAP 2026-12 magnitudes (+1 pp unemployment -> +10 bps arrears) --
+#     coefficient, not a series.
+#
+# Pillar B:
+#   - BoC-Fed policy spread at the 8th percentile post-1996 -- this is a
+#     derived statistic, not a series; can be computed but the threshold is
+#     captured by tracking BoC and Fed rates independently.
+#   - 2y GoC-UST spread at the 5th percentile -- same shape.
+#
+# Pillar E:
+#   - "Population YoY at -0.25% in Q1 2026" -- quarterly population
+#     estimates (Table 17-10-0009) not yet wired into data/raw/.
+#   - "Net NPR flow -171k in Q4 2025" -- Components of Population Change
+#     (Table 17-10-0040) not yet wired.
+#   - Labour productivity +1.1% in 2025 -- annual series from StatCan
+#     productivity release; not in data/raw/ as a clean monthly/quarterly.
+#
+# Pillar T:
+#   - "US export share at 66.1% in March 2026" -- watchable as a derived
+#     ratio of exports_us / exports_total, but the registry watches the
+#     two component series directly so the ratio is implicitly covered.
+#   - Section 232 tariff rates -- policy levels, not time series.
