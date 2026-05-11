@@ -240,7 +240,7 @@ export const sections: Section[] = [
     chartSeriesKey: "cpi-yoy",
     heroKicker: "March CPI",
     tileLine:
-      "Headline CPI ticked up to 2.3% in March, shelter still doing the work.",
+      "Headline CPI ran 2.3% Y/Y in March, with food and energy now carrying the above-target weight.",
     prints: [
       {
         // The pipeline produces a real value for this row (data/site/sections.json:
@@ -362,7 +362,7 @@ export const sections: Section[] = [
     chartSeriesKey: "policy-rate",
     heroKicker: "April rate decision",
     tileLine:
-      "BoC cut 25 bps to 2.25% and dropped the line about needing more evidence on services inflation.",
+      "BoC held at 2.25% on April 29, the sixth straight hold since October's cut.",
     prints: [
       {
         // Pipeline produces a real value for this row (BoC overnight rate,
@@ -493,7 +493,7 @@ export const sections: Section[] = [
     chartSeriesKey: "trade-balance",
     heroKicker: "March balance",
     tileLine:
-      "March merch trade balance narrowed to -$2.2B on a 3mma basis; US export share fell to 66.1%.",
+      "March goods trade balance narrowed to -$2.2B on a 3mma basis; US export share fell to 66.1%.",
     prints: [
       {
         key: "trade-balance",
