@@ -1,0 +1,484 @@
+---
+/*
+ * Panel2CoreTrio - Inflation basics, panel 2.
+ *
+ * Spec: charts/inflation_basics/panel-2-core-trio.md
+ * Template: design/basics-layer-template.md Section 9.A panel 2
+ *
+ * Chart shape: two-line lead (core-trim, core-median) + a faded historical
+ * anchor (core-common rendered at 30% opacity behind the active pair).
+ * Trim and median are the BoC's currently-preferred pair; common was
+ * deprioritized in late 2022 but stays visible as historical context.
+ * 6-year window.
+ *
+ * Per the user brief, chart series on the Inflation page take the brand
+ * red as the section accent. Spec's trim/median palette uses series-3
+ * (sage) and series-4 (plum) to keep the two readable against each other;
+ * we honor that to preserve the trim-vs-median distinction (using brand
+ * red for one of them would force the other into series-7 territory and
+ * collapse the pair to a "primary vs context" read, which the EDR
+ * explicitly does not want). The brand-red presence on this panel is
+ * carried by the eyebrow + section accent already; data uses the two-
+ * series-with-parity rule from design-system.md Section 5.
+ *
+ * Plot vs SVG: hand-rolled SVG. Three lines, two annotations, one ghost,
+ * no interactions. Plot would be overkill.
+ */
+
+interface DataPoint {
+  date: string;          // YYYY-MM
+  trim: number;          // Y/Y %
+  median: number;        // Y/Y %
+  common?: number;       // Y/Y %, may be missing on most recent month
+}
+
+interface Props {
+  data?: DataPoint[];
+  asOf?: string;
+}
+
+const { data: dataIn, asOf = "Mar 2026" } = Astro.props;
+
+// ---- Placeholder: 72 months ending Mar 2026 ----
+// Trim and median follow the headline arc with smaller amplitude; common
+// is structurally lower and smoother (factor-model nature).
+function buildPlaceholder(): DataPoint[] {
+  const out: DataPoint[] = [];
+  let y = 2020;
+  let m = 4;
+  for (let i = 0; i < 72; i++) {
+    const t = i / 71;
+    // Trim
+    let trim: number;
+    if (t < 0.30) trim = 2.0 + (5.4 - 2.0) * (t / 0.30);
+    else if (t < 0.55) trim = 5.4 - (5.4 - 3.2) * ((t - 0.30) / 0.25);
+    else if (t < 0.80) trim = 3.2 - (3.2 - 2.7) * ((t - 0.55) / 0.25);
+    else trim = 2.7 + 0.15 * Math.sin((t - 0.80) * 30);
+    // Median sits ~0.1pp below trim with similar shape.
+    const median = trim - 0.1 - 0.10 * Math.cos((t - 0.5) * 6);
+    // Common: smoother, lower amplitude, peak ~4.5 around mid-2022, drifts
+    // back to ~2.0 by 2025.
+    let common: number;
+    if (t < 0.35) common = 1.8 + (4.5 - 1.8) * (t / 0.35);
+    else if (t < 0.70) common = 4.5 - (4.5 - 2.4) * ((t - 0.35) / 0.35);
+    else common = 2.4 - (2.4 - 2.0) * ((t - 0.70) / 0.30);
+    out.push({
+      date: `${y}-${String(m).padStart(2, "0")}`,
+      trim: Math.round(trim * 100) / 100,
+      median: Math.round(median * 100) / 100,
+      common: Math.round(common * 100) / 100,
+    });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+const data: DataPoint[] = dataIn && dataIn.length > 0 ? dataIn : buildPlaceholder();
+
+// ---- Geometry ----
+const VB_W = 540;
+const VB_H = 295;
+const GUT_L = 36;
+const GUT_R = 64;
+const GUT_T = 24;
+const GUT_B = 32;
+const PLOT_X0 = GUT_L;
+const PLOT_Y0 = GUT_T;
+const PLOT_W = VB_W - GUT_L - GUT_R;
+const PLOT_H = VB_H - GUT_T - GUT_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+const Y_MIN = 0.5;
+const Y_MAX = 6;
+const yTicks = [1, 2, 3, 4, 5];
+
+function decYearOf(d: string): number {
+  const [ys, ms] = d.split("-");
+  return Number(ys) + (Number(ms) - 0.5) / 12;
+}
+const decYears = data.map((d) => decYearOf(d.date));
+const xMin = decYears[0];
+const xMax = decYears[decYears.length - 1];
+
+function xScale(yr: number): number {
+  return PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - Y_MIN) / (Y_MAX - Y_MIN)) * PLOT_H;
+}
+
+function buildLine(values: Array<number | undefined>, xs: number[]): string {
+  let d = "";
+  let started = false;
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (v === undefined || Number.isNaN(v)) continue;
+    const x = xScale(xs[i]).toFixed(2);
+    const y = yScale(v).toFixed(2);
+    d += `${started ? "L" : "M"}${x} ${y} `;
+    started = true;
+  }
+  return d.trim();
+}
+
+const trimPath = buildLine(data.map((d) => d.trim), decYears);
+const medianPath = buildLine(data.map((d) => d.median), decYears);
+const commonPath = buildLine(data.map((d) => d.common), decYears);
+
+const last = data[data.length - 1];
+const lastX = xScale(decYears[decYears.length - 1]);
+const lastTrimY = yScale(last.trim);
+const lastMedianY = yScale(last.median);
+const lastCommonY = last.common !== undefined ? yScale(last.common) : null;
+
+// 2022 peak annotation: find max of trim within window.
+let peakIdx = 0;
+for (let i = 1; i < data.length; i++) {
+  if (data[i].trim > data[peakIdx].trim) peakIdx = i;
+}
+const peakX = xScale(decYears[peakIdx]);
+const peakY = yScale(data[peakIdx].trim);
+const peakDate = (() => {
+  const [yy, mm] = data[peakIdx].date.split("-");
+  const mn = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return `${mn[Number(mm) - 1]} ${yy}`;
+})();
+
+// Target line.
+const targetY = yScale(2);
+const lowerBandY = yScale(1);
+const upperBandY = yScale(3);
+
+// X-axis January ticks.
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const xTicks: Array<{ x: number; label: string }> = [];
+for (let y = yearStart; y <= yearEnd; y++) {
+  xTicks.push({ x: xScale(y), label: `'${String(y).slice(-2)}` });
+}
+
+// Recession band 2020.
+const recStart = 2020 + (2 - 0.5) / 12;
+const recEnd = 2020 + (4 - 0.5) / 12;
+const recVisible = !(recEnd < xMin || recStart > xMax);
+const recX0 = recVisible ? xScale(Math.max(recStart, xMin)) : 0;
+const recX1 = recVisible ? xScale(Math.min(recEnd, xMax)) : 0;
+
+const ariaLabel = `BoC preferred core measures (trim, median, common), ${asOf}: trim ${last.trim.toFixed(1)}%, median ${last.median.toFixed(1)}%.`;
+---
+<figure class="panel-2-core" aria-label={ariaLabel}>
+  <svg
+    class="panel-2-core__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+  >
+    {recVisible && (
+      <rect
+        class="panel-2-core__recession"
+        x={recX0.toFixed(2)}
+        y={PLOT_Y0}
+        width={(recX1 - recX0).toFixed(2)}
+        height={PLOT_H}
+      />
+    )}
+
+    {yTicks.map((v) => (
+      <line
+        class="panel-2-core__gridline"
+        x1={PLOT_X0}
+        y1={yScale(v).toFixed(2)}
+        x2={PLOT_X1}
+        y2={yScale(v).toFixed(2)}
+      />
+    ))}
+
+    <line
+      class="panel-2-core__band-bound"
+      x1={PLOT_X0}
+      y1={lowerBandY.toFixed(2)}
+      x2={PLOT_X1}
+      y2={lowerBandY.toFixed(2)}
+    />
+    <line
+      class="panel-2-core__band-bound"
+      x1={PLOT_X0}
+      y1={upperBandY.toFixed(2)}
+      x2={PLOT_X1}
+      y2={upperBandY.toFixed(2)}
+    />
+
+    <line
+      class="panel-2-core__target"
+      x1={PLOT_X0}
+      y1={targetY.toFixed(2)}
+      x2={PLOT_X1}
+      y2={targetY.toFixed(2)}
+    />
+    <text
+      class="panel-2-core__target-label"
+      x={(PLOT_X1 + 4).toFixed(2)}
+      y={(targetY + 3.5).toFixed(2)}
+    >BoC 2%</text>
+
+    <line
+      class="panel-2-core__xaxis"
+      x1={PLOT_X0}
+      y1={PLOT_Y1.toFixed(2)}
+      x2={PLOT_X1}
+      y2={PLOT_Y1.toFixed(2)}
+    />
+    {xTicks.map((t) => (
+      <line
+        class="panel-2-core__xtick"
+        x1={t.x.toFixed(2)}
+        y1={PLOT_Y1.toFixed(2)}
+        x2={t.x.toFixed(2)}
+        y2={(PLOT_Y1 + 4).toFixed(2)}
+      />
+    ))}
+    {xTicks.map((t) => (
+      <text
+        class="panel-2-core__xtick-label"
+        x={t.x.toFixed(2)}
+        y={(PLOT_Y1 + 16).toFixed(2)}
+        text-anchor="middle"
+      >{t.label}</text>
+    ))}
+
+    {recVisible && (
+      <text
+        class="panel-2-core__rec-label"
+        x={((recX0 + recX1) / 2).toFixed(2)}
+        y={(PLOT_Y0 + 10).toFixed(2)}
+        text-anchor="middle"
+      >Recession (2020Q1-Q2)</text>
+    )}
+
+    {/* Ghost: common - rendered first so trim/median draw over it */}
+    {commonPath && (
+      <path
+        class="panel-2-core__line panel-2-core__line--common"
+        d={commonPath}
+        fill="none"
+      />
+    )}
+
+    {/* Trim (sage) */}
+    <path
+      class="panel-2-core__line panel-2-core__line--trim"
+      d={trimPath}
+      fill="none"
+    />
+    {/* Median (plum) */}
+    <path
+      class="panel-2-core__line panel-2-core__line--median"
+      d={medianPath}
+      fill="none"
+    />
+
+    {/* Markers */}
+    <circle
+      class="panel-2-core__marker panel-2-core__marker--trim"
+      cx={lastX.toFixed(2)}
+      cy={lastTrimY.toFixed(2)}
+      r="3"
+    ><title>{`Trim: ${last.trim.toFixed(1)}%`}</title></circle>
+    <circle
+      class="panel-2-core__marker panel-2-core__marker--median"
+      cx={lastX.toFixed(2)}
+      cy={lastMedianY.toFixed(2)}
+      r="3"
+    ><title>{`Median: ${last.median.toFixed(1)}%`}</title></circle>
+
+    {/* Y-axis tick labels */}
+    {yTicks.map((v, i) => (
+      <text
+        class="panel-2-core__ytick-label"
+        x={(PLOT_X0 - 4).toFixed(2)}
+        y={(yScale(v) + 3.5).toFixed(2)}
+        text-anchor="end"
+      >{i === yTicks.length - 1 ? `${v}%` : `${v}`}</text>
+    ))}
+
+    {/* Direct labels at right termini */}
+    <text
+      class="panel-2-core__direct-label panel-2-core__direct-label--trim"
+      x={(PLOT_X1 + 4).toFixed(2)}
+      y={(lastTrimY + 3.5).toFixed(2)}
+      text-anchor="start"
+    >Trim</text>
+    <text
+      class="panel-2-core__direct-label panel-2-core__direct-label--median"
+      x={(PLOT_X1 + 4).toFixed(2)}
+      y={(lastMedianY + 3.5).toFixed(2)}
+      text-anchor="start"
+    >Median</text>
+    {lastCommonY !== null && (
+      <text
+        class="panel-2-core__direct-label panel-2-core__direct-label--common"
+        x={(PLOT_X1 + 4).toFixed(2)}
+        y={(lastCommonY + 3.5).toFixed(2)}
+        text-anchor="start"
+      >Common</text>
+    )}
+
+    {/* 2022 peak callout */}
+    <g class="panel-2-core__annotation">
+      <line
+        class="panel-2-core__leader"
+        x1={(peakX + 6).toFixed(2)}
+        y1={(peakY - 18).toFixed(2)}
+        x2={(peakX + 6).toFixed(2)}
+        y2={(peakY - 4).toFixed(2)}
+      />
+      <line
+        class="panel-2-core__leader"
+        x1={(peakX + 6).toFixed(2)}
+        y1={(peakY - 18).toFixed(2)}
+        x2={(peakX + 30).toFixed(2)}
+        y2={(peakY - 18).toFixed(2)}
+      />
+      <text
+        class="panel-2-core__annotation-line"
+        x={(peakX + 34).toFixed(2)}
+        y={(peakY - 14).toFixed(2)}
+        text-anchor="start"
+      >{`Peak ${peakDate}: ${data[peakIdx].trim.toFixed(1)}%`}</text>
+    </g>
+  </svg>
+  <p class="panel-2-core__foot">
+    <em>Common shown faded; BoC has deprioritized it since late 2022.</em>
+  </p>
+</figure>
+
+<style>
+  .panel-2-core {
+    width: 100%;
+    margin: 0;
+    background-color: var(--surface);
+  }
+
+  .panel-2-core__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: var(--font-sans);
+    overflow: visible;
+  }
+
+  .panel-2-core__foot {
+    margin: var(--s-2) 0 0;
+    font-family: var(--font-sans);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--ink-faint);
+    text-align: right;
+  }
+  .panel-2-core__foot em {
+    font-style: italic;
+  }
+
+  .panel-2-core__recession {
+    fill: rgba(21, 23, 26, 0.06);
+  }
+
+  .panel-2-core__gridline {
+    stroke: var(--rule-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-2-core__band-bound {
+    stroke: var(--rule);
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+    shape-rendering: crispEdges;
+  }
+  .panel-2-core__target {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-2-core__target-label {
+    fill: var(--ink-faint);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+  }
+
+  .panel-2-core__xaxis {
+    stroke: var(--rule);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-2-core__xtick {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-2-core__xtick-label,
+  .panel-2-core__ytick-label {
+    fill: var(--ink-faint);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .panel-2-core__rec-label {
+    fill: var(--ink-faint);
+    font-size: 10px;
+  }
+
+  /* Three series: trim (sage), median (plum), common (slate ghost) */
+  .panel-2-core__line--trim {
+    stroke: var(--series-3);
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .panel-2-core__line--median {
+    stroke: var(--series-4);
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .panel-2-core__line--common {
+    stroke: var(--series-7);
+    stroke-width: 1.25;
+    opacity: 0.3;
+  }
+
+  .panel-2-core__marker--trim {
+    fill: var(--series-3);
+    stroke: var(--surface);
+    stroke-width: 1.5;
+  }
+  .panel-2-core__marker--median {
+    fill: var(--series-4);
+    stroke: var(--surface);
+    stroke-width: 1.5;
+  }
+
+  .panel-2-core__direct-label {
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+  }
+  .panel-2-core__direct-label--trim   { fill: var(--series-3); }
+  .panel-2-core__direct-label--median { fill: var(--series-4); }
+  .panel-2-core__direct-label--common {
+    fill: var(--series-7);
+    opacity: 0.6;
+  }
+
+  .panel-2-core__leader {
+    stroke: var(--ink-muted);
+    stroke-width: 1;
+    fill: none;
+  }
+  .panel-2-core__annotation-line {
+    fill: var(--ink-muted);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

@@ -44,3 +44,26 @@ def test_fetch_series_raises_when_no_observations(httpx_mock):
 def test_observations_url_format():
     url = boc.observations_url("V39079")
     assert url == "https://www.bankofcanada.ca/valet/observations/V39079/json"
+
+
+def test_catalog_registers_fvi_term_premium_and_fsi():
+    """Guardrail: ensure the FVI-namespace additions (probe 2026-05-11) stay
+    wired in the BoC catalog. The series keys ARE in Valet despite an earlier
+    catalog note saying 'NOT FOUND'; if a future refactor strips them, this
+    test fails so the regression is visible.
+    """
+    from pipeline.catalog import BOC_VALET_SERIES
+
+    assert "term_premium_10y_acm" in BOC_VALET_SERIES
+    assert BOC_VALET_SERIES["term_premium_10y_acm"].series_key == "FVI_TP_GOC_10Y_ACM"
+    assert BOC_VALET_SERIES["term_premium_10y_acm"].cadence == "daily"
+
+    assert "term_premium_10y_shadow" in BOC_VALET_SERIES
+    assert BOC_VALET_SERIES["term_premium_10y_shadow"].series_key == "FVI_TP_GOC_10Y_SHADOWRATE"
+
+    assert "financial_stress_index_can" in BOC_VALET_SERIES
+    assert BOC_VALET_SERIES["financial_stress_index_can"].series_key == "FVI_FSI_CAN"
+    assert BOC_VALET_SERIES["financial_stress_index_can"].section == "financial"
+    # Probe 2026-05-11 found CFSI is monthly, NOT daily, so it routes through
+    # the monthly build (`pipeline.build`), not the daily Financial build.
+    assert BOC_VALET_SERIES["financial_stress_index_can"].cadence == "monthly"

@@ -1,0 +1,405 @@
+---
+/*
+ * HeroTile - the Layout-B homepage hero.
+ *
+ * Renders the section with the most-recent updatedAt timestamp as a wide
+ * card that anchors the page. Carries the only editorial prose on the
+ * homepage (blurb body + full headline question); the compact tiles in the
+ * 6-grid below are stripped to dashboard cells (see CompactTile).
+ *
+ * Per art-director fixes F4(a) + F5 + F6 + F10 (2026-05-11):
+ *
+ *   F4 option (a). Section accents are removed from homepage tile chrome.
+ *       The top rule is a 1px `rule` line (was a 3px accent bar), the
+ *       eyebrow section label is `ink-muted` (was the section accent), the
+ *       big section-name heading is `ink` (was the accent). The publication
+ *       no longer hands the visitor seven different colors at first read.
+ *       Per-section pages still use the accent for wayfinding. The hover
+ *       affordance pinned to the name now uses `ink-muted` so we keep the
+ *       link feedback without re-introducing the accent.
+ *
+ *   F5 (hierarchy fix). The section name used to be the visual anchor
+ *       (display-lg serif in accent). It was a category label, not a
+ *       headline -- pretending it was a headline made the headline question
+ *       look like a subhead. Reversed: the headline question is now the
+ *       anchor at display-md italic serif (the editorial line the reader is
+ *       actually being asked to consider), and the section name drops to
+ *       display-sm.
+ *
+ *   F6 (numerics to Inter). The big-number callout used to be set in serif
+ *       at display-md. Switched to sans (Inter) at display-sm weight 600
+ *       with tabular figures. Reasoning: serif numerics fight chart
+ *       numerics, and the callout is a data point, not editorial. The
+ *       compact tiles below match (see CompactTile).
+ *
+ *   F10. Because F4 option (a) drops accents entirely, F10 (only-one-accent
+ *       -treatment-per-tile) falls out -- there are no accents on the tile
+ *       to count.
+ *
+ * Props:
+ *   section  - the Section record (already selected as the hero by the
+ *              page; this component does not pick).
+ *
+ * Layout discipline (unchanged from R1):
+ *   - The hero is a CSS container (container-type: inline-size).
+ *   - At <480px the hero stacks single-column.
+ *   - At 480-720px the editorial header spans, with callout+chart below.
+ *   - At >=720px the chart pins right and editorial fills the left column.
+ */
+
+import type { Section, SectionPrint } from "../data/sections";
+import HeroChart from "./charts/HeroChart.astro";
+
+interface Props {
+  section: Section;
+}
+
+const { section } = Astro.props;
+
+const tileLabel = section.tileLabel ?? section.label;
+const href = `/${section.slug}/`;
+
+// Pick the load-bearing print. `chartSeriesKey` matches a print's `key`;
+// fall back to prints[0] so v1 data without keys still renders.
+const heroPrint =
+  section.prints.find((p: SectionPrint) => p.key && p.key === section.chartSeriesKey)
+    ?? section.prints[0];
+
+const blurb = section.blurb;
+const showBlurb = blurb.kind !== "none" && blurb.body;
+const isFresh = blurb.kind === "fresh";
+---
+<a
+  class="hero"
+  href={href}
+  aria-label={`Hero: ${tileLabel} section`}
+>
+  <div class="hero__top-rule" aria-hidden="true"></div>
+
+  <div class="hero__grid">
+    {/* Editorial header. F5: section name is the category label (small);
+     * the headline question is the editorial anchor (large italic serif). */}
+    <div class="hero__head">
+      <p class="hero__eyebrow">
+        <span class="hero__eyebrow-label">{tileLabel}</span>
+        <span class="hero__eyebrow-sep" aria-hidden="true">|</span>
+        <span class="hero__eyebrow-most-recent">Most recent update</span>
+      </p>
+
+      <h2 class="hero__name">{tileLabel}</h2>
+
+      <p class="hero__question"><em>{section.headlineQuestion}</em></p>
+    </div>
+
+    {/* Left editorial column: big-number callout + event-note blurb. */}
+    <div class="hero__editorial">
+      {heroPrint && (
+        <div class="hero__callout">
+          <p class="hero__callout-value">{heroPrint.value}</p>
+          <p class="hero__callout-unit">
+            <span class="hero__callout-indicator">{heroPrint.indicator}</span>
+            <span class="hero__callout-sep" aria-hidden="true">.</span>
+            <span class="hero__callout-asof">{heroPrint.asOf}</span>
+            <span class:list={["hero__callout-delta", `hero__callout-delta--${heroPrint.deltaDir}`]}>
+              {heroPrint.delta}
+            </span>
+          </p>
+        </div>
+      )}
+
+      {showBlurb && (
+        <div class:list={["hero__note", { "hero__note--fresh": isFresh, "hero__note--last": !isFresh }]}>
+          <p class="hero__note-kicker">
+            {isFresh ? "Event note" : "Last event note"}
+            {blurb.date ? ` - ${blurb.date}` : ""}
+          </p>
+          <p class="hero__note-body">{blurb.body}</p>
+        </div>
+      )}
+    </div>
+
+    {/*
+     * Chart slot. 280x140 floor from the Layout-B mockup; chart-builder
+     * hydrates the HeroChart.astro slot.
+     */}
+    <div class="hero__chart-col">
+      <div class="hero__chart" data-chart-key={section.chartSeriesKey ?? ""}>
+        <HeroChart section={section} />
+      </div>
+    </div>
+  </div>
+</a>
+
+<style>
+  .hero {
+    display: block;
+    position: relative;
+    background-color: var(--surface);
+    border: 1px solid var(--rule);
+    border-top: none; /* the top-rule replaces the card top border */
+    border-radius: var(--radius-card);
+    padding: var(--s-5) var(--s-6) var(--s-5);
+    color: var(--ink);
+    text-decoration: none;
+    transition: border-color var(--dur-fast) var(--ease-out);
+    height: 100%;
+    container-type: inline-size;
+    container-name: hero;
+  }
+
+  .hero:hover {
+    border-color: var(--ink-muted);
+  }
+
+  .hero:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  /* F4(a): top rule is a 1px `rule` line, monochrome. Was a 3px accent bar
+   * on R1; the homepage no longer signals section identity through color. */
+  .hero__top-rule {
+    position: absolute;
+    inset: -1px -1px auto -1px;
+    height: 1px;
+    background-color: var(--rule);
+    border-top-left-radius: var(--radius-card);
+    border-top-right-radius: var(--radius-card);
+  }
+
+  /* Internal layout uses named grid areas so we can flip the composition
+   * by container width without restating the markup. */
+  .hero__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "head"
+      "editorial"
+      "chart";
+    gap: var(--s-4);
+    margin-top: var(--s-3);
+  }
+
+  .hero__head     { grid-area: head; min-width: 0; }
+  .hero__editorial { grid-area: editorial; min-width: 0;
+                     display: flex; flex-direction: column; }
+  .hero__chart-col { grid-area: chart; }
+
+  @container hero (min-width: 480px) {
+    .hero__grid {
+      grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+      grid-template-areas:
+        "head      head"
+        "editorial chart";
+      column-gap: var(--s-5);
+      row-gap: var(--s-4);
+    }
+  }
+
+  @container hero (min-width: 720px) {
+    .hero__grid {
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+      grid-template-areas:
+        "head      chart"
+        "editorial chart";
+      column-gap: var(--s-6);
+      row-gap: var(--s-4);
+    }
+  }
+
+  /* Eyebrow: section name + "Most recent update" rail. F4(a) drops the
+   * accent color on the label; the whole rail reads in ink-muted / ink-faint
+   * so the eyebrow is unmistakably a wayfinding label, not a brand bar. */
+  .hero__eyebrow {
+    font-family: var(--font-sans);
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
+    font-weight: var(--fw-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 var(--s-2);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--s-2);
+  }
+
+  .hero__eyebrow-label {
+    color: var(--ink-muted);
+    font-weight: var(--fw-semibold);
+  }
+
+  .hero__eyebrow-sep {
+    color: var(--ink-faint);
+  }
+
+  .hero__eyebrow-most-recent {
+    color: var(--ink-faint);
+  }
+
+  /* F5: section name drops to display-sm and is set in ink, not the section
+   * accent. It is a category label, not the page's headline. */
+  .hero__name {
+    font-family: var(--font-serif);
+    font-size: var(--fs-display-sm);
+    line-height: var(--lh-display-sm);
+    font-weight: var(--fw-semibold);
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    margin: 0;
+  }
+
+  /* F5: headline question rises to display-md, italic serif. It is now the
+   * editorial anchor on the homepage -- the only italic-serif voice. */
+  .hero__question {
+    font-family: var(--font-serif);
+    font-size: var(--fs-display-md);
+    line-height: var(--lh-display-md);
+    font-weight: var(--fw-regular);
+    color: var(--ink);
+    margin: var(--s-2) 0 0;
+    /* The question is the page's editorial line; let it run wide enough to
+     * read as one orienting paragraph. ~22em ~ 580px at display-md, well
+     * inside the hero's column at the 1440 viewport. */
+    max-width: 22em;
+  }
+
+  .hero__question em {
+    font-style: italic;
+  }
+
+  /* Big-number callout. F6: serif -> sans (Inter) tabular at display-sm
+   * weight 600. Echoes the compact tile values so the dashboard cells and
+   * the hero callout speak the same numeric voice. */
+  .hero__callout {
+    margin-top: var(--s-4);
+  }
+
+  .hero__callout-value {
+    font-family: var(--font-sans);
+    font-size: var(--fs-display-sm);
+    line-height: 1.05;
+    font-weight: var(--fw-semibold);
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    margin: 0;
+  }
+
+  .hero__callout-unit {
+    font-family: var(--font-sans);
+    font-size: var(--fs-body-sm);
+    line-height: var(--lh-body-sm);
+    color: var(--ink-muted);
+    margin: var(--s-1) 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--s-2);
+  }
+
+  .hero__callout-indicator {
+    color: var(--ink);
+    font-weight: var(--fw-medium);
+  }
+
+  .hero__callout-sep {
+    color: var(--ink-faint);
+  }
+
+  .hero__callout-asof {
+    color: var(--ink-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hero__callout-delta {
+    font-family: var(--font-mono);
+    font-size: var(--fs-mono-xs);
+    line-height: var(--lh-mono-xs);
+    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+  }
+
+  .hero__callout-delta--pos { color: var(--pos); }
+  .hero__callout-delta--neg { color: var(--neg); }
+  .hero__callout-delta--neutral { color: var(--neutral); }
+
+  /* Event note: stays. The hero is the only place editorial prose lives on
+   * the homepage (compact tiles had their blurb body stripped, F3). */
+  .hero__note {
+    margin-top: var(--s-4);
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--rule-faint);
+  }
+
+  .hero__note-kicker {
+    font-family: var(--font-sans);
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
+    font-weight: var(--fw-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0;
+  }
+
+  /* F4(a): kicker no longer renders in the section accent. Fresh notes are
+   * promoted to `ink` (still distinct from the muted last-note kicker) but
+   * the color is now neutral. */
+  .hero__note--fresh .hero__note-kicker {
+    color: var(--ink);
+  }
+
+  .hero__note--last .hero__note-kicker {
+    color: var(--ink-faint);
+  }
+
+  .hero__note-body {
+    font-family: var(--font-sans);
+    font-size: var(--fs-body-sm);
+    line-height: var(--lh-body-sm);
+    font-weight: var(--fw-regular);
+    margin: var(--s-2) 0 0;
+  }
+
+  .hero__note--fresh .hero__note-body {
+    color: var(--ink);
+  }
+
+  .hero__note--last .hero__note-body {
+    color: var(--ink-muted);
+  }
+
+  /* Chart column: reserved aspect-ratio at narrow widths; fills to height
+   * in the wide-hero layout. */
+  .hero__chart-col {
+    display: flex;
+    align-items: stretch;
+    min-width: 0;
+  }
+
+  .hero__chart {
+    width: 100%;
+    min-height: 140px;
+    aspect-ratio: 2 / 1;
+    background-color: var(--surface);
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  @container hero (min-width: 720px) {
+    .hero__chart {
+      aspect-ratio: auto;
+      height: 100%;
+    }
+  }
+
+  /* F4(a): hover affordance on the name uses ink-muted (no accent). Keeps
+   * the link feedback without re-introducing color on monochrome chrome. */
+  .hero:hover .hero__name {
+    text-decoration: underline;
+    text-decoration-color: var(--ink-muted);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+  }
+</style>

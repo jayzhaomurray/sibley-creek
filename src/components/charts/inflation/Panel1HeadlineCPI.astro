@@ -1,0 +1,480 @@
+---
+/*
+ * Panel1HeadlineCPI - Inflation basics, panel 1.
+ *
+ * Spec: charts/inflation_basics/panel-1-headline-cpi.md
+ * Template: design/basics-layer-template.md Section 9.A
+ *
+ * Chart shape: dual-line time series, headline CPI Y/Y (solid) plus the same
+ * series' 3M annualized (dashed, recessive). 5-year window. The Y/Y is the
+ * headline read; the 3M AR is its leading-direction companion. The user
+ * brief locks chart series color to brand red on the Inflation page; both
+ * lines share the section accent (--accent = #A6192E).
+ *
+ * Plot vs SVG: hand-rolled SVG. Two lines, ~5 annotations, no interactions
+ * beyond native SVG <title> tooltips - well under Plot's worth-it threshold,
+ * and zero client JS. Matches the HeroChart precedent.
+ *
+ * Placeholder data: backend ships `{date, yoy, mom3_ar, consensus_yoy}`
+ * once the catalog wiring lands. Until then we synthesize a plausible 60-
+ * month series that peaks in mid-2022 and disinflates to ~2.1% by Mar 2026,
+ * with 3M AR running slightly below Y/Y in the last 3 months (the
+ * disinflation signature).
+ */
+
+interface DataPoint {
+  /** ISO month string "YYYY-MM" for the print. */
+  date: string;
+  /** Y/Y, percent. */
+  yoy: number;
+  /** 3-month annualized, percent. Optional - probe-pending per spec. */
+  mom3_ar?: number;
+}
+
+interface Props {
+  /** Tidy frame from backend. If omitted, placeholder is used. */
+  data?: DataPoint[];
+  /** Reference month label (e.g. "Mar 2026"). */
+  asOf?: string;
+}
+
+const { data: dataIn, asOf = "Mar 2026" } = Astro.props;
+
+// ---- Placeholder series (60 months ending Mar 2026) ----
+// Shape: pre-2021 ~2%, climbs through 2021, peaks mid-2022 around 8.1%,
+// disinflates through 2023-2024, settles near 2% by 2025-2026. The 3M AR
+// tracks the Y/Y but lags inflection points by ~3 months.
+function buildPlaceholder(): DataPoint[] {
+  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const out: DataPoint[] = [];
+  // 60 months ending Mar 2026 -> starts Apr 2021. But to ground the 2022
+  // peak we anchor the curve more loosely; absolute dates here are
+  // placeholder anyway.
+  let y = 2021;
+  let m = 4;
+  for (let i = 0; i < 60; i++) {
+    const t = i / 59; // 0..1
+    // Synthetic curve: rise from ~3.4 to ~8.1 peak around t=0.27 (mid-2022),
+    // cool through 2023-2024 to ~2.8, hover near 2.1 thereafter.
+    let yoy: number;
+    if (t < 0.27) yoy = 3.4 + (8.1 - 3.4) * (t / 0.27);
+    else if (t < 0.55) yoy = 8.1 - (8.1 - 3.1) * ((t - 0.27) / 0.28);
+    else if (t < 0.78) yoy = 3.1 - (3.1 - 2.0) * ((t - 0.55) / 0.23);
+    else yoy = 2.0 + 0.25 * Math.sin((t - 0.78) * 18);
+    yoy = Math.round(yoy * 100) / 100;
+    // 3M AR: leads the inflection slightly (use yoy at t+0.04 as a proxy
+    // for "3M is the leading window"). For the last 3 months we force it
+    // below the Y/Y to honor the panel deck's "disinflation is recent".
+    let ar: number;
+    const tLead = Math.min(1, t + 0.04);
+    if (tLead < 0.27) ar = 3.4 + (8.1 - 3.4) * (tLead / 0.27);
+    else if (tLead < 0.55) ar = 8.1 - (8.1 - 3.1) * ((tLead - 0.27) / 0.28);
+    else if (tLead < 0.78) ar = 3.1 - (3.1 - 2.0) * ((tLead - 0.55) / 0.23);
+    else ar = 2.0 + 0.20 * Math.sin((tLead - 0.78) * 18);
+    if (i >= 57) ar = yoy - 0.4; // last three: 3M < Y/Y
+    ar = Math.round(ar * 100) / 100;
+    const yyyy = y;
+    const mm = String(m).padStart(2, "0");
+    out.push({ date: `${yyyy}-${mm}`, yoy, mom3_ar: ar });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+    void monthNames;
+  }
+  return out;
+}
+
+const data: DataPoint[] = dataIn && dataIn.length > 0 ? dataIn : buildPlaceholder();
+
+// ---- Geometry ----
+// Canvas: 432 x 243 plot area + 36/48/24/28 gutters per spec.
+const VB_W = 540; // 36 + 432 + 48 = 516; bump to 540 for breathing
+const VB_H = 295; // 24 + 243 + 28 = 295
+const GUT_L = 36;
+const GUT_R = 60;
+const GUT_T = 24;
+const GUT_B = 32;
+const PLOT_X0 = GUT_L;
+const PLOT_Y0 = GUT_T;
+const PLOT_W = VB_W - GUT_L - GUT_R;
+const PLOT_H = VB_H - GUT_T - GUT_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+// ---- Date math: convert "YYYY-MM" to decimal year ----
+function decYearOf(d: string): number {
+  const [ys, ms] = d.split("-");
+  return Number(ys) + (Number(ms) - 0.5) / 12;
+}
+const decYears = data.map((d) => decYearOf(d.date));
+const xMin = decYears[0];
+const xMax = decYears[decYears.length - 1];
+
+// ---- Y scale: fixed 0..9 to keep gridlines stable across vintages ----
+const Y_MIN = -1;
+const Y_MAX = 9;
+const yTicks = [0, 2, 4, 6, 8];
+
+function xScale(yr: number): number {
+  return PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - Y_MIN) / (Y_MAX - Y_MIN)) * PLOT_H;
+}
+
+// ---- Build paths ----
+function buildLine(values: Array<number | undefined>, xs: number[]): string {
+  let d = "";
+  let started = false;
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (v === undefined || Number.isNaN(v)) continue;
+    const x = xScale(xs[i]).toFixed(2);
+    const y = yScale(v).toFixed(2);
+    d += `${started ? "L" : "M"}${x} ${y} `;
+    started = true;
+  }
+  return d.trim();
+}
+
+const yoyPath = buildLine(data.map((d) => d.yoy), decYears);
+const arPath = buildLine(data.map((d) => d.mom3_ar), decYears);
+
+// ---- Latest-point coordinates for direct labels / annotations ----
+const last = data[data.length - 1];
+const lastX = xScale(decYears[decYears.length - 1]);
+const lastYoyY = yScale(last.yoy);
+const lastArY = last.mom3_ar !== undefined ? yScale(last.mom3_ar) : null;
+
+// ---- BoC 2% target line ----
+const targetY = yScale(2);
+// 1% and 3% control-range bounds.
+const lowerBandY = yScale(1);
+const upperBandY = yScale(3);
+
+// ---- X-axis ticks: January per year ----
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const xTicks: Array<{ x: number; label: string }> = [];
+for (let y = yearStart; y <= yearEnd; y++) {
+  xTicks.push({ x: xScale(y), label: `'${String(y).slice(-2)}` });
+}
+
+// ---- Recession band: 2020Q1-Q2 (clipped to window) ----
+const recStart = 2020 + (2 - 0.5) / 12;
+const recEnd = 2020 + (4 - 0.5) / 12;
+const recVisible = !(recEnd < xMin || recStart > xMax);
+const recX0 = recVisible ? xScale(Math.max(recStart, xMin)) : 0;
+const recX1 = recVisible ? xScale(Math.min(recEnd, xMax)) : 0;
+
+// ---- Annotation: latest print (placeholder copy; writer owns the wording) ----
+const monthShort = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const lastDate = `${monthShort[Number(last.date.split("-")[1]) - 1]} ${last.date.split("-")[0]}`;
+const annLine1 = `${lastDate}: ${last.yoy.toFixed(1)}%`;
+const annLine2 = last.mom3_ar !== undefined ? `3M AR: ${last.mom3_ar.toFixed(1)}%` : "";
+
+// Annotation anchor: place above-right of the last Y/Y point.
+const annX = lastX - 110;
+const annY = lastYoyY - 22;
+
+const ariaLabel = `Headline CPI year-over-year and 3-month annualized, ${asOf}: ${last.yoy.toFixed(1)}% Y/Y.`;
+---
+<figure class="panel-1-cpi" aria-label={ariaLabel}>
+  <svg
+    class="panel-1-cpi__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+  >
+    {/* Recession band - behind everything */}
+    {recVisible && (
+      <rect
+        class="panel-1-cpi__recession"
+        x={recX0.toFixed(2)}
+        y={PLOT_Y0}
+        width={(recX1 - recX0).toFixed(2)}
+        height={PLOT_H}
+      />
+    )}
+
+    {/* Gridlines (rule-faint) */}
+    {yTicks.map((v) => (
+      <line
+        class:list={["panel-1-cpi__gridline", { "panel-1-cpi__gridline--zero": v === 0 }]}
+        x1={PLOT_X0}
+        y1={yScale(v).toFixed(2)}
+        x2={PLOT_X1}
+        y2={yScale(v).toFixed(2)}
+      />
+    ))}
+
+    {/* BoC 1%/3% control-range bounds - dashed in rule */}
+    <line
+      class="panel-1-cpi__band-bound"
+      x1={PLOT_X0}
+      y1={lowerBandY.toFixed(2)}
+      x2={PLOT_X1}
+      y2={lowerBandY.toFixed(2)}
+    />
+    <line
+      class="panel-1-cpi__band-bound"
+      x1={PLOT_X0}
+      y1={upperBandY.toFixed(2)}
+      x2={PLOT_X1}
+      y2={upperBandY.toFixed(2)}
+    />
+
+    {/* BoC 2% target line - solid ink-faint */}
+    <line
+      class="panel-1-cpi__target"
+      x1={PLOT_X0}
+      y1={targetY.toFixed(2)}
+      x2={PLOT_X1}
+      y2={targetY.toFixed(2)}
+    />
+    <text
+      class="panel-1-cpi__target-label"
+      x={(PLOT_X1 + 4).toFixed(2)}
+      y={(targetY + 3.5).toFixed(2)}
+      text-anchor="start"
+    >BoC 2% target</text>
+
+    {/* X-axis bottom rule */}
+    <line
+      class="panel-1-cpi__xaxis"
+      x1={PLOT_X0}
+      y1={PLOT_Y1.toFixed(2)}
+      x2={PLOT_X1}
+      y2={PLOT_Y1.toFixed(2)}
+    />
+
+    {/* X-axis ticks */}
+    {xTicks.map((t) => (
+      <line
+        class="panel-1-cpi__xtick"
+        x1={t.x.toFixed(2)}
+        y1={PLOT_Y1.toFixed(2)}
+        x2={t.x.toFixed(2)}
+        y2={(PLOT_Y1 + 4).toFixed(2)}
+      />
+    ))}
+    {xTicks.map((t) => (
+      <text
+        class="panel-1-cpi__xtick-label"
+        x={t.x.toFixed(2)}
+        y={(PLOT_Y1 + 16).toFixed(2)}
+        text-anchor="middle"
+      >{t.label}</text>
+    ))}
+
+    {/* Recession top-edge label */}
+    {recVisible && (
+      <text
+        class="panel-1-cpi__rec-label"
+        x={((recX0 + recX1) / 2).toFixed(2)}
+        y={(PLOT_Y0 + 10).toFixed(2)}
+        text-anchor="middle"
+      >Recession (2020Q1-Q2)</text>
+    )}
+
+    {/* Data: 3M AR line (recessive, dashed) */}
+    {arPath && (
+      <path
+        class="panel-1-cpi__line panel-1-cpi__line--ar"
+        d={arPath}
+        fill="none"
+      />
+    )}
+
+    {/* Data: Y/Y line (primary) */}
+    <path
+      class="panel-1-cpi__line panel-1-cpi__line--yoy"
+      d={yoyPath}
+      fill="none"
+    />
+
+    {/* Last-print marker */}
+    <circle
+      class="panel-1-cpi__marker"
+      cx={lastX.toFixed(2)}
+      cy={lastYoyY.toFixed(2)}
+      r="3"
+    >
+      <title>{`${lastDate}: ${last.yoy.toFixed(1)}% Y/Y`}</title>
+    </circle>
+
+    {/* Y-axis tick labels */}
+    {yTicks.map((v, i) => (
+      <text
+        class="panel-1-cpi__ytick-label"
+        x={(PLOT_X0 - 4).toFixed(2)}
+        y={(yScale(v) + 3.5).toFixed(2)}
+        text-anchor="end"
+      >{i === yTicks.length - 1 ? `${v}%` : `${v}`}</text>
+    ))}
+
+    {/* Direct labels at right termini */}
+    <text
+      class="panel-1-cpi__direct-label panel-1-cpi__direct-label--yoy"
+      x={(PLOT_X1 + 4).toFixed(2)}
+      y={(lastYoyY + 3.5).toFixed(2)}
+      text-anchor="start"
+    >Y/Y</text>
+    {lastArY !== null && (
+      <text
+        class="panel-1-cpi__direct-label panel-1-cpi__direct-label--ar"
+        x={(PLOT_X1 + 4).toFixed(2)}
+        y={(lastArY + 3.5).toFixed(2)}
+        text-anchor="start"
+      >3M AR</text>
+    )}
+
+    {/* Annotation: latest print callout (placeholder copy; writer owns) */}
+    <g class="panel-1-cpi__annotation">
+      <line
+        class="panel-1-cpi__leader"
+        x1={(annX + 80).toFixed(2)}
+        y1={(annY + 18).toFixed(2)}
+        x2={(lastX - 5).toFixed(2)}
+        y2={(lastYoyY - 5).toFixed(2)}
+      />
+      <text
+        class="panel-1-cpi__annotation-line"
+        x={annX.toFixed(2)}
+        y={annY.toFixed(2)}
+        text-anchor="start"
+      >{annLine1}</text>
+      {annLine2 && (
+        <text
+          class="panel-1-cpi__annotation-line panel-1-cpi__annotation-line--secondary"
+          x={annX.toFixed(2)}
+          y={(annY + 14).toFixed(2)}
+          text-anchor="start"
+        >{annLine2}</text>
+      )}
+    </g>
+  </svg>
+</figure>
+
+<style>
+  .panel-1-cpi {
+    width: 100%;
+    margin: 0;
+    background-color: var(--surface);
+  }
+
+  .panel-1-cpi__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: var(--font-sans);
+    overflow: visible;
+  }
+
+  .panel-1-cpi__recession {
+    fill: rgba(21, 23, 26, 0.06);
+  }
+
+  .panel-1-cpi__gridline {
+    stroke: var(--rule-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-1-cpi__gridline--zero {
+    stroke: var(--ink-muted);
+  }
+
+  .panel-1-cpi__band-bound {
+    stroke: var(--rule);
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+    shape-rendering: crispEdges;
+  }
+
+  .panel-1-cpi__target {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  .panel-1-cpi__target-label {
+    fill: var(--ink-faint);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+  }
+
+  .panel-1-cpi__xaxis {
+    stroke: var(--rule);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-1-cpi__xtick {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-1-cpi__xtick-label,
+  .panel-1-cpi__ytick-label {
+    fill: var(--ink-faint);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .panel-1-cpi__rec-label {
+    fill: var(--ink-faint);
+    font-size: 10px;
+    font-weight: var(--fw-regular);
+  }
+
+  /* Brand red on the Inflation page per user brief. The 3M AR is the
+     same hue with reduced opacity + dashed treatment (per template 9.A:
+     "Y/Y at 60% opacity, 3M AR at full weight" - we keep the spec's
+     "Y/Y is the headline" hierarchy: Y/Y full, 3M AR recessive). */
+  .panel-1-cpi__line--yoy {
+    stroke: var(--accent);
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .panel-1-cpi__line--ar {
+    stroke: var(--accent);
+    stroke-width: 1.25;
+    stroke-dasharray: 3 3;
+    opacity: 0.55;
+    stroke-linecap: butt;
+    stroke-linejoin: round;
+  }
+
+  .panel-1-cpi__marker {
+    fill: var(--accent);
+    stroke: var(--surface);
+    stroke-width: 1.5;
+  }
+
+  .panel-1-cpi__direct-label {
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .panel-1-cpi__direct-label--yoy {
+    fill: var(--accent);
+  }
+  .panel-1-cpi__direct-label--ar {
+    fill: var(--accent);
+    opacity: 0.7;
+  }
+
+  .panel-1-cpi__leader {
+    stroke: var(--ink-muted);
+    stroke-width: 1;
+    fill: none;
+  }
+  .panel-1-cpi__annotation-line {
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+  .panel-1-cpi__annotation-line--secondary {
+    fill: var(--ink-muted);
+  }
+</style>

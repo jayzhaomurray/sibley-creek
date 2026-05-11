@@ -1,0 +1,419 @@
+---
+/*
+ * Panel2IndustryVsExpenditure - two-line overlay, indexed to 2019Q4=100.
+ *
+ * Implements charts/gdp_basics/panel-2-industry-vs-exp.md (spec v0.1).
+ *
+ * Visual: monthly industry line (1.5px solid series-1) + quarterly
+ * expenditure step-line (1px dashed series-7) on a single index axis,
+ * 2019Q4=100. Recession band 2020Q1-Q2. Reference line at 100. Both
+ * lines get direct labels at terminus.
+ *
+ * Plot vs SVG: spec calls for Observable Plot. We match HeroChart /
+ * Sparkline precedent of hand-rolled SVG to keep zero-JS posture. The
+ * step-after geometry is one helper function.
+ *
+ * Data: placeholder series. Backend supplies
+ * data/derived/gdp_basics/panel-2.csv: date (monthly), industry_idx,
+ * expenditure_idx (nullable except quarter-end), expenditure_idx_step.
+ */
+
+interface MonthlyPoint {
+  date: string;
+  industry_idx: number | null;
+  expenditure_idx: number | null;
+}
+
+interface Props {
+  data?: MonthlyPoint[];
+  ariaLabel?: string;
+}
+
+function makePlaceholder(): MonthlyPoint[] {
+  // Roughly 8 years of monthly data, 2018-01 through 2026-03 (~99 months)
+  // Index 2019Q4 = 100. Recession in 2020Q1-Q2 drops both ~12%, recovery
+  // by 2022Q2 back to 100, gradual growth to ~107 by 2026Q1.
+  const out: MonthlyPoint[] = [];
+  let y = 2018, m = 1;
+  for (let i = 0; i < 99; i++) {
+    // Pre-recession ramp 96 -> 100 by 2019Q4 (i=23 ~ Dec 2019)
+    let base: number;
+    if (i < 24) {
+      base = 96 + (i / 23) * 4; // 96 -> 100
+    } else if (i < 27) {
+      // 2020Q1
+      base = 100 - (i - 23) * 1.5; // mild down
+    } else if (i < 30) {
+      // 2020Q2 trough
+      base = 95 - (i - 26) * 2; // dive to ~89
+    } else if (i < 52) {
+      // Recovery to ~102 by mid-2022
+      base = 88 + ((i - 29) / 22) * 14;
+    } else {
+      // Slow grind to ~107
+      base = 102 + ((i - 51) / 47) * 5 + Math.sin(i * 0.3) * 0.4;
+    }
+    const industry = base + Math.sin(i * 0.7) * 0.2;
+    const isQuarterEnd = m === 3 || m === 6 || m === 9 || m === 12;
+    // Expenditure tracks industry with a small lag and 0.1-0.4 offset
+    const expenditure = isQuarterEnd ? base - 0.2 + Math.cos(i * 0.4) * 0.3 : null;
+    out.push({
+      date: `${y}-${String(m).padStart(2, "0")}`,
+      industry_idx: Number(industry.toFixed(2)),
+      expenditure_idx: expenditure !== null ? Number(expenditure.toFixed(2)) : null,
+    });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+const {
+  data = makePlaceholder(),
+  ariaLabel = "Industry vs expenditure GDP cuts, indexed to 2019Q4=100",
+} = Astro.props;
+
+// ---- Geometry --------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 44;
+const M_R = 112;
+const M_T = 36;
+const M_B = 36;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+function decYearOf(d: string): number {
+  const [yy, mm] = d.split("-").map(Number);
+  return yy + (mm - 0.5) / 12;
+}
+const xs = data.map((d) => decYearOf(d.date));
+const xMin = xs[0];
+const xMax = xs[xs.length - 1];
+
+const indVals = data.map((d) => d.industry_idx).filter((v): v is number => v !== null);
+const expVals = data.map((d) => d.expenditure_idx).filter((v): v is number => v !== null);
+const allVals = [...indVals, ...expVals];
+const rawMin = Math.min(...allVals);
+const rawMax = Math.max(...allVals);
+const pad = (rawMax - rawMin) * 0.1;
+let yLo = Math.floor((rawMin - pad) / 2) * 2;
+let yHi = Math.ceil((rawMax + pad) / 2) * 2;
+// Ensure 100 is in range
+if (yLo > 100) yLo = 100;
+if (yHi < 100) yHi = 100;
+
+function xScale(decY: number): number {
+  return PLOT_X0 + ((decY - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - yLo) / (yHi - yLo)) * PLOT_H;
+}
+
+// ---- Industry line --------------------------------------------------------
+const indPath = data
+  .filter((d) => d.industry_idx !== null)
+  .map((d, i) => {
+    const x = xScale(decYearOf(d.date));
+    const y = yScale(d.industry_idx as number);
+    return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+  })
+  .join(" ");
+
+// ---- Expenditure step-after line ------------------------------------------
+const expPoints = data
+  .map((d, i) => (d.expenditure_idx !== null ? { i, x: xScale(xs[i]), y: yScale(d.expenditure_idx as number), v: d.expenditure_idx as number } : null))
+  .filter((p): p is { i: number; x: number; y: number; v: number } => p !== null);
+
+// Step-after: hold value until next quarterly point. We stop at the last
+// actual point to avoid overstating the most recent quarter (the spec
+// describes step-held-forward across the chart's existing window, but
+// extending past the last print would imply the next-quarter value).
+function buildStepAfter(pts: Array<{ x: number; y: number }>): string {
+  if (pts.length === 0) return "";
+  let d = `M${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`;
+  for (let i = 1; i < pts.length; i++) {
+    d += ` L${pts[i].x.toFixed(2)} ${pts[i - 1].y.toFixed(2)}`;
+    d += ` L${pts[i].x.toFixed(2)} ${pts[i].y.toFixed(2)}`;
+  }
+  return d;
+}
+const expPath = buildStepAfter(expPoints);
+
+// ---- Gridlines + ticks ----------------------------------------------------
+const yTicks: number[] = [];
+const yStep = (yHi - yLo) / 5 <= 2 ? 2 : 4;
+for (let v = yLo; v <= yHi + 1e-9; v += yStep) {
+  yTicks.push(v);
+}
+
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const yearTicks: Array<{ x: number; label: string }> = [];
+for (let y = yearStart; y <= yearEnd; y++) {
+  const decY = y + (1 - 0.5) / 12;
+  if (decY < xMin || decY > xMax) continue;
+  yearTicks.push({ x: xScale(decY), label: String(y) });
+}
+
+// ---- Recession band -------------------------------------------------------
+const recStart = 2020 + (2 - 0.5) / 12;
+const recEnd = 2020 + (4 - 0.5) / 12;
+const recVisible = recEnd >= xMin && recStart <= xMax;
+const recX0 = recVisible ? xScale(Math.max(recStart, xMin)) : 0;
+const recX1 = recVisible ? xScale(Math.min(recEnd, xMax)) : 0;
+
+// ---- Direct label positions ----------------------------------------------
+const lastInd = (() => {
+  for (let i = data.length - 1; i >= 0; i--) {
+    if (data[i].industry_idx !== null) {
+      return { x: xScale(xs[i]), y: yScale(data[i].industry_idx as number), v: data[i].industry_idx as number };
+    }
+  }
+  return null;
+})();
+const lastExp = expPoints[expPoints.length - 1] ?? null;
+
+// ---- Reference line label position ---------------------------------------
+const y100 = yScale(100);
+---
+<div class="gdp-panel-chart" data-panel="2">
+  <svg
+    class="gdp-panel-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* Recession band */}
+    {recVisible && (
+      <g>
+        <rect
+          class="gdp-panel-chart__recession"
+          x={recX0.toFixed(2)}
+          y={PLOT_Y0}
+          width={Math.max(1, recX1 - recX0).toFixed(2)}
+          height={PLOT_H}
+        />
+        <text
+          class="gdp-panel-chart__recession-label"
+          x={((recX0 + recX1) / 2).toFixed(2)}
+          y={(PLOT_Y0 - 6).toFixed(2)}
+          text-anchor="middle"
+        >Recession (2020Q1-Q2)</text>
+      </g>
+    )}
+
+    {/* Y gridlines */}
+    {yTicks.map((v) => {
+      const y = yScale(v);
+      return (
+        <line
+          class="gdp-panel-chart__gridline"
+          x1={PLOT_X0}
+          y1={y.toFixed(2)}
+          x2={PLOT_X1}
+          y2={y.toFixed(2)}
+        />
+      );
+    })}
+
+    {/* Reference line at 100 (2019Q4 anchor) */}
+    <line
+      class="gdp-panel-chart__refline"
+      x1={PLOT_X0}
+      y1={y100.toFixed(2)}
+      x2={PLOT_X1}
+      y2={y100.toFixed(2)}
+    />
+    <text
+      class="gdp-panel-chart__refline-label"
+      x={(PLOT_X1 + 4).toFixed(2)}
+      y={(y100 + 3.5).toFixed(2)}
+      text-anchor="start"
+    >2019Q4 = 100</text>
+
+    {/* Industry line (monthly) */}
+    <path class="gdp-panel-chart__line-industry" d={indPath} fill="none" />
+
+    {/* Expenditure step-line (quarterly, dashed) */}
+    <path class="gdp-panel-chart__line-expenditure" d={expPath} fill="none" />
+
+    {/* Expenditure quarterly markers */}
+    {expPoints.map((p, i) => {
+      const isLast = i === expPoints.length - 1;
+      return (
+        <circle
+          class:list={["gdp-panel-chart__marker-exp", { "gdp-panel-chart__marker-latest-exp": isLast }]}
+          cx={p.x.toFixed(2)}
+          cy={p.y.toFixed(2)}
+          r={isLast ? "4" : "3"}
+        >
+          <title>{`${data[p.i].date}: ${p.v.toFixed(1)} (expenditure)`}</title>
+        </circle>
+      );
+    })}
+
+    {/* X-axis rule */}
+    <line
+      class="gdp-panel-chart__xaxis"
+      x1={PLOT_X0}
+      y1={PLOT_Y1.toFixed(2)}
+      x2={PLOT_X1}
+      y2={PLOT_Y1.toFixed(2)}
+    />
+
+    {/* X ticks (year-start) */}
+    {yearTicks.map((t) => (
+      <g>
+        <line
+          class="gdp-panel-chart__xtick"
+          x1={t.x.toFixed(2)}
+          y1={PLOT_Y1.toFixed(2)}
+          x2={t.x.toFixed(2)}
+          y2={(PLOT_Y1 + 4).toFixed(2)}
+        />
+        <text
+          class="gdp-panel-chart__xtick-label"
+          x={t.x.toFixed(2)}
+          y={(PLOT_Y1 + 16).toFixed(2)}
+          text-anchor="middle"
+        >{t.label}</text>
+      </g>
+    ))}
+
+    {/* Y-axis labels */}
+    {yTicks.map((v, i) => {
+      const y = yScale(v);
+      const isTop = i === yTicks.length - 1;
+      return (
+        <text
+          class="gdp-panel-chart__ytick-label"
+          x={(PLOT_X0 - 6).toFixed(2)}
+          y={(y + 3.5).toFixed(2)}
+          text-anchor="end"
+        >{isTop ? `${v.toFixed(0)} idx` : v.toFixed(0)}</text>
+      );
+    })}
+
+    {/* Unit annotation */}
+    <text
+      class="gdp-panel-chart__unit"
+      x={PLOT_X0.toFixed(2)}
+      y={(PLOT_Y0 - 18).toFixed(2)}
+      text-anchor="start"
+    >Index, 2019Q4 = 100</text>
+
+    {/* Direct labels */}
+    {lastInd && (
+      <text
+        class="gdp-panel-chart__direct-label gdp-panel-chart__direct-label--industry"
+        x={(lastInd.x + 8).toFixed(2)}
+        y={(lastInd.y + 4).toFixed(2)}
+        text-anchor="start"
+      >By industry</text>
+    )}
+    {lastExp && (
+      <text
+        class="gdp-panel-chart__direct-label gdp-panel-chart__direct-label--expenditure"
+        x={(lastExp.x + 8).toFixed(2)}
+        y={(lastExp.y + 16).toFixed(2)}
+        text-anchor="start"
+      >By expenditure</text>
+    )}
+  </svg>
+</div>
+
+<style>
+  .gdp-panel-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--surface);
+    overflow: visible;
+  }
+  .gdp-panel-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+  .gdp-panel-chart__recession { fill: rgba(21, 23, 26, 0.06); }
+  .gdp-panel-chart__recession-label {
+    fill: var(--ink-faint);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+  }
+  .gdp-panel-chart__gridline {
+    stroke: var(--rule-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .gdp-panel-chart__refline {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    shape-rendering: crispEdges;
+  }
+  .gdp-panel-chart__refline-label {
+    fill: var(--ink-faint);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .gdp-panel-chart__line-industry {
+    stroke: var(--series-1);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+  }
+  .gdp-panel-chart__line-expenditure {
+    stroke: var(--series-7);
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+    stroke-linejoin: miter;
+    fill: none;
+  }
+  .gdp-panel-chart__marker-exp {
+    fill: var(--series-7);
+  }
+  .gdp-panel-chart__marker-latest-exp {
+    fill: var(--series-7);
+    stroke: var(--surface);
+    stroke-width: 1;
+  }
+  .gdp-panel-chart__xaxis {
+    stroke: var(--rule);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .gdp-panel-chart__xtick {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .gdp-panel-chart__ytick-label,
+  .gdp-panel-chart__xtick-label {
+    fill: var(--ink-faint);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .gdp-panel-chart__unit {
+    fill: var(--ink-faint);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.02em;
+  }
+  .gdp-panel-chart__direct-label {
+    font-size: 13px;
+    font-weight: var(--fw-medium);
+  }
+  .gdp-panel-chart__direct-label--industry { fill: var(--series-1); }
+  .gdp-panel-chart__direct-label--expenditure { fill: var(--series-7); }
+</style>

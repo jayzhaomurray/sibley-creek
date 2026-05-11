@@ -1,0 +1,367 @@
+---
+/*
+ * SectionTile — the Reading-Room tile for one section on the homepage.
+ *
+ * Built to the R1 spec from art-director:
+ *   - 3px top rule in section accent
+ *   - Section name in display-sm serif, colored by section accent
+ *   - Headline question on one line (serif italic deck)
+ *   - 2-3 most load-bearing prints; each with value, delta, "as of", and a
+ *     reserved sparkline slot (aspect-ratio 2/1, dashed border placeholder)
+ *   - "As of [date] . [cadence]" footer line in ink-faint micro
+ *   - Event-blurb slot pinned at the bottom of the tile:
+ *       fresh -> "EVENT NOTE - [DATE]" in section accent, full body
+ *       last  -> "LAST EVENT NOTE - [DATE]" in ink-faint, muted body
+ *       none  -> the slot collapses (v1 should not ship this state)
+ *
+ * Tiles are NOT fixed-height. The blurb varies in length per section and the
+ * grid uses `align-items: start` so each tile breathes at its own height.
+ *
+ * The tile is a single full-area link to the section page; the title gets a
+ * subtle hover affordance (text-decoration in accent), the rest of the tile
+ * does not animate. Per design-system.md sec 8: hover effects only on
+ * interactive elements; the affordance is restrained.
+ *
+ * a11y: the whole tile is wrapped in <a> for ergonomic targeting but the
+ * title is the accessible name (other text is decorative-but-readable; we
+ * do not aria-hide it because screen-reader users benefit from the context).
+ *
+ * Props:
+ *   section  - a Section record from src/data/sections.ts. The component
+ *              does not reach into the data layer itself.
+ *
+ * No emoji, no Unicode beyond ASCII. The middle-dot separator in the
+ * cadence line is rendered as " . " in source per global ASCII-only rule.
+ */
+
+import type { Section } from "../data/sections";
+import Sparkline from "./Sparkline.astro";
+
+interface Props {
+  section: Section;
+}
+
+const { section } = Astro.props;
+
+const tileLabel = section.tileLabel ?? section.label;
+const href = `/${section.slug}/`;
+
+// Compose the cadence footer: "As of <most-recent print> . <cadence>".
+// The "most recent" stamp is the first print's asOf — by convention the
+// load-bearing print sits first. Backend may swap this for a true max
+// later; for v1 placeholders this is correct.
+const cadenceLine = section.prints[0]
+  ? `As of ${section.prints[0].asOf} . ${section.cadence}`
+  : section.cadence;
+
+const blurb = section.blurb;
+const showBlurb = blurb.kind !== "none" && blurb.body;
+const isFresh = blurb.kind === "fresh";
+
+// Inline style sets the accent for this tile from the section's token. We
+// resolve to a CSS custom property at the component scope so the style block
+// below can paint top-rule, header color, and kicker color from one source.
+const tileStyle = `--tile-accent: var(${section.accentVar});`;
+---
+<a
+  class="tile"
+  href={href}
+  style={tileStyle}
+  aria-label={`${tileLabel} section`}
+>
+  <div class="tile__top-rule" aria-hidden="true"></div>
+
+  <header class="tile__header">
+    <h3 class="tile__name">{tileLabel}</h3>
+    <p class="tile__question"><em>{section.headlineQuestion}</em></p>
+  </header>
+
+  <ul role="list" class="tile__prints">
+    {section.prints.map((p, i) => (
+      <li class="print">
+        <div class="print__head">
+          <span class="print__indicator">{p.indicator}</span>
+          <span class="print__asof">{p.asOf}</span>
+        </div>
+        <div class="print__body">
+          <div class="print__numbers">
+            <span class="print__value">{p.value}</span>
+            <span class:list={["print__delta", `print__delta--${p.deltaDir}`]}>
+              {p.delta}
+            </span>
+          </div>
+          {/*
+           * Sparkline slot. The first print is the section's hero metric on
+           * the tile — it gets the section accent color to anchor the eye
+           * (and to echo the 3px top rule + section name above). Subsequent
+           * prints render in ink-muted ("muted") per design-system sec 5
+           * so they recede and the hero metric leads.
+           *
+           * The reservation (aspect-ratio 2/1, max-height) lives on
+           * .print__spark below; the SVG fills width:100% / height:100%, so
+           * CLS is impossible whether `spark` data is present or missing.
+           */}
+          <div class="print__spark">
+            <Sparkline
+              data={p.spark ?? []}
+              accent={i === 0 ? `var(${section.accentVar})` : "muted"}
+              ariaLabel={`${p.indicator}, recent trend`}
+            />
+          </div>
+        </div>
+      </li>
+    ))}
+  </ul>
+
+  <p class="tile__cadence">{cadenceLine}</p>
+
+  {showBlurb && (
+    <aside class:list={["tile__note", { "tile__note--fresh": isFresh, "tile__note--last": !isFresh }]}>
+      <p class="tile__note-kicker">
+        {isFresh ? "EVENT NOTE" : "LAST EVENT NOTE"}
+        {blurb.date ? ` - ${blurb.date}` : ""}
+      </p>
+      <p class="tile__note-body">{blurb.body}</p>
+    </aside>
+  )}
+</a>
+
+<style>
+  /* The tile is a flex column so the cadence line and event-note pin to
+   * the bottom when the prints block is shorter than the grid row would
+   * otherwise demand. We deliberately do NOT set a fixed height. */
+  .tile {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background-color: var(--surface);
+    border: 1px solid var(--rule);
+    border-top: none; /* the accent top-rule replaces the card top border */
+    border-radius: var(--radius-card);
+    padding: var(--s-5) var(--s-5) var(--s-5);
+    color: var(--ink);
+    text-decoration: none;
+    transition: border-color var(--dur-fast) var(--ease-out);
+  }
+
+  .tile:hover {
+    border-color: var(--ink-muted);
+  }
+
+  .tile:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  /* 3px top rule in the section accent. Rendered as a positioned bar so it
+   * traverses the full tile width above the padding. */
+  .tile__top-rule {
+    position: absolute;
+    inset: -1px -1px auto -1px; /* overlap the 1px border so it reads as one */
+    height: 3px;
+    background-color: var(--tile-accent);
+    border-top-left-radius: var(--radius-card);
+    border-top-right-radius: var(--radius-card);
+  }
+
+  /* Header */
+
+  .tile__header {
+    margin-top: var(--s-2);
+  }
+
+  .tile__name {
+    font-family: var(--font-serif);
+    font-size: var(--fs-display-sm);
+    line-height: var(--lh-display-sm);
+    font-weight: var(--fw-semibold);
+    color: var(--tile-accent);
+    letter-spacing: -0.005em;
+    margin: 0;
+  }
+
+  .tile__question {
+    font-family: var(--font-serif);
+    font-size: var(--fs-deck);
+    line-height: var(--lh-deck);
+    font-weight: var(--fw-regular);
+    color: var(--ink-muted);
+    margin-top: var(--s-2);
+    /* Allow wrap when the question is long; "one line on desktop" is a
+     * typography target, not a hard clip — clipping headlines is editorial-
+     * sin per design-system.md sec 2. */
+  }
+
+  .tile__question em {
+    font-style: italic;
+  }
+
+  /* Prints */
+
+  .tile__prints {
+    margin-top: var(--s-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+  }
+
+  .print {
+    display: block;
+    border-top: 1px solid var(--rule-faint);
+    padding-top: var(--s-3);
+  }
+
+  .print:first-child {
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .print__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--s-3);
+  }
+
+  .print__indicator {
+    font-family: var(--font-sans);
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
+    font-weight: var(--fw-medium);
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .print__asof {
+    font-family: var(--font-sans);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-weight: var(--fw-medium);
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+
+  .print__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    align-items: center;
+    gap: var(--s-4);
+    margin-top: var(--s-2);
+  }
+
+  .print__numbers {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    min-width: 0;
+  }
+
+  .print__value {
+    font-family: var(--font-serif);
+    font-size: var(--fs-display-sm);
+    line-height: 1.1;
+    font-weight: var(--fw-semibold);
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .print__delta {
+    font-family: var(--font-mono);
+    font-size: var(--fs-mono-xs);
+    line-height: var(--lh-mono-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .print__delta--pos { color: var(--pos); }
+  .print__delta--neg { color: var(--neg); }
+  .print__delta--neutral { color: var(--neutral); }
+
+  /* Sparkline slot. We reserve the box via aspect-ratio + max-height so
+   * the layout is stable whether or not the Sparkline has data (no CLS,
+   * no jump between tiles whose backend data lands late). The Sparkline
+   * SVG fills 100%/100% of this box. */
+  .print__spark {
+    aspect-ratio: 2 / 1;
+    width: 100%;
+    max-height: 44px;
+  }
+
+  /* Cadence footer */
+
+  .tile__cadence {
+    font-family: var(--font-sans);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-weight: var(--fw-medium);
+    color: var(--ink-faint);
+    margin-top: var(--s-5);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--rule-faint);
+  }
+
+  /* Event note slot. Sits at the very bottom of the tile, pinned via the
+   * flex column. Margin-top:auto pushes it down when the prints block is
+   * short relative to a tall sibling tile, though tiles are independent
+   * heights so this only kicks in inside one tile, not across the row. */
+
+  .tile__note {
+    margin-top: var(--s-4);
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--rule-faint);
+  }
+
+  .tile__note-kicker {
+    font-family: var(--font-sans);
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
+    font-weight: var(--fw-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0;
+  }
+
+  .tile__note--fresh .tile__note-kicker {
+    color: var(--tile-accent);
+  }
+
+  .tile__note--last .tile__note-kicker {
+    color: var(--ink-faint);
+  }
+
+  .tile__note-body {
+    font-family: var(--font-sans);
+    font-size: var(--fs-body-sm);
+    line-height: var(--lh-body-sm);
+    font-weight: var(--fw-regular);
+    margin-top: var(--s-2);
+  }
+
+  .tile__note--fresh .tile__note-body {
+    color: var(--ink);
+  }
+
+  .tile__note--last .tile__note-body {
+    color: var(--ink-muted);
+  }
+
+  /* Hover affordance on the section name only. The whole tile is the link
+   * surface, but the visual cue stays tight to the name (FT-style). */
+  .tile:hover .tile__name {
+    text-decoration: underline;
+    text-decoration-color: var(--tile-accent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+
+  /* Mobile tweaks: collapse the print body to stacked rows so values and
+   * deltas read at full size without the sparkline column squeezing them. */
+  @media (max-width: 480px) {
+    .print__body {
+      grid-template-columns: 1fr;
+    }
+    .print__spark {
+      max-height: 36px;
+    }
+  }
+</style>

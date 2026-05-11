@@ -1,0 +1,615 @@
+---
+/*
+ * Panel6PassThrough - Inflation basics, panel 6.
+ *
+ * Spec: charts/inflation_basics/panel-6-pass-through.md
+ * Template: design/basics-layer-template.md Section 9.A panel 6
+ *
+ * Chart shape: two side-by-side strip charts, each with dual y-axes.
+ *   Strip A (FX channel):     USDCAD Y/Y (driver, left) vs goods ex-energy CPI Y/Y (response, right)
+ *   Strip B (Wage channel):   LFS-Micro wage Y/Y (driver, left) vs services ex-shelter CPI Y/Y (response, right)
+ *
+ * Per EDR: NO regression line, NO R-squared, NO scatter. The chart is
+ * a visual co-movement read; the interpretation is analyst prose. The
+ * panel is gated on Panel 4's ex-aggregates landing (backend); until
+ * then, the chart ships with placeholder data and a flagged note.
+ *
+ * Per user brief: placeholder data, panel 6 is gated on backend's
+ * basket-weights fetcher for the real ex-aggregates. We render the
+ * chart shape against synthesized series so the layout, color
+ * convention, and dual-axis tuning are locked.
+ *
+ * Per user brief: brand-red on Inflation page. The driver line (the
+ * editorial argument: "the driver leads") uses --accent. The CPI
+ * response line uses series-7 (slate) so the brand red stays as the
+ * load-bearing series and the response reads as context.
+ *
+ * Plot vs SVG: hand-rolled SVG. Two strips, 4 lines total, dual-axis
+ * geometry done by hand. Plot's dual-axis idiom exists but the
+ * side-by-side layout at panel width is simpler as plain SVG.
+ */
+
+interface FxRow {
+  date: string;        // YYYY-MM
+  usdcad_yoy: number;  // %, can be negative
+  goods_yoy: number;   // %
+}
+interface WageRow {
+  date: string;
+  wage_yoy: number;
+  services_yoy: number;
+}
+
+interface Props {
+  fx?: FxRow[];
+  wages?: WageRow[];
+  /** When true, render the gated-fallback (empty surface-sunk strips). */
+  gated?: boolean;
+}
+
+// ---- Placeholder synthesis (7-year window ending Mar 2026) ----
+function buildFx(): FxRow[] {
+  const out: FxRow[] = [];
+  let y = 2019;
+  let m = 4;
+  for (let i = 0; i < 84; i++) {
+    const t = i / 83;
+    // USDCAD Y/Y: oscillates -8..+10 with 2020 spike.
+    const fx = 6 * Math.sin(t * 5) + 4 * Math.cos(t * 3.7) - 1;
+    // Goods ex-energy CPI Y/Y: lags fx by ~6 months. Peak 2022.
+    let g: number;
+    if (t < 0.35) g = 0.5 + (4.0 - 0.5) * (t / 0.35);
+    else if (t < 0.70) g = 4.0 - (4.0 - 0.8) * ((t - 0.35) / 0.35);
+    else g = 0.8 + 0.4 * Math.sin((t - 0.70) * 12);
+    out.push({
+      date: `${y}-${String(m).padStart(2, "0")}`,
+      usdcad_yoy: Math.round(fx * 100) / 100,
+      goods_yoy: Math.round(g * 100) / 100,
+    });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+function buildWages(): WageRow[] {
+  const out: WageRow[] = [];
+  let y = 2019;
+  let m = 4;
+  for (let i = 0; i < 84; i++) {
+    const t = i / 83;
+    // Wage Y/Y: 2-3 normal, jumps to 5.5 in 2022-23, cools to 3.4.
+    let w: number;
+    if (t < 0.35) w = 2.5 + 0.4 * Math.sin(t * 7);
+    else if (t < 0.65) w = 2.5 + (5.5 - 2.5) * ((t - 0.35) / 0.30);
+    else w = 5.5 - (5.5 - 3.4) * ((t - 0.65) / 0.35);
+    // Services ex-shelter CPI: 2-3 normal, 4-5 peak, sticky at ~3.1.
+    let s: number;
+    if (t < 0.4) s = 2.3 + (3.4 - 2.3) * (t / 0.4);
+    else if (t < 0.75) s = 3.4 + (5.0 - 3.4) * ((t - 0.4) / 0.35);
+    else s = 5.0 - (5.0 - 3.1) * ((t - 0.75) / 0.25);
+    out.push({
+      date: `${y}-${String(m).padStart(2, "0")}`,
+      wage_yoy: Math.round(w * 100) / 100,
+      services_yoy: Math.round(s * 100) / 100,
+    });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+const { fx: fxIn, wages: wIn, gated = false } = Astro.props;
+const fx: FxRow[] = fxIn && fxIn.length > 0 ? fxIn : buildFx();
+const wages: WageRow[] = wIn && wIn.length > 0 ? wIn : buildWages();
+
+// ---- Geometry: 2 strips side-by-side, 16px gutter between ----
+const VB_W = 540;
+const VB_H = 230;
+
+const STRIP_GAP = 16;
+const STRIP_W = (VB_W - STRIP_GAP) / 2;
+const GUT_L = 30;
+const GUT_R = 30;
+const GUT_T = 32;
+const GUT_B = 28;
+
+// Strip A bounds.
+const A_BOX_X0 = 0;
+const A_BOX_X1 = STRIP_W;
+const A_PLOT_X0 = A_BOX_X0 + GUT_L;
+const A_PLOT_X1 = A_BOX_X1 - GUT_R;
+const PLOT_Y0 = GUT_T;
+const PLOT_Y1 = VB_H - GUT_B;
+const PLOT_H = PLOT_Y1 - PLOT_Y0;
+
+// Strip B bounds.
+const B_BOX_X0 = STRIP_W + STRIP_GAP;
+const B_BOX_X1 = VB_W;
+const B_PLOT_X0 = B_BOX_X0 + GUT_L;
+const B_PLOT_X1 = B_BOX_X1 - GUT_R;
+
+// ---- Date math ----
+function decYearOf(d: string): number {
+  const [ys, ms] = d.split("-");
+  return Number(ys) + (Number(ms) - 0.5) / 12;
+}
+
+function buildStrip(
+  rows: Array<{ date: string; left: number; right: number }>,
+  xMinPx: number,
+  xMaxPx: number,
+  leftMin: number,
+  leftMax: number,
+  rightMin: number,
+  rightMax: number,
+): { xs: number[]; leftPath: string; rightPath: string; lastIdx: number; xScale: (yr: number) => number; yScaleL: (v: number) => number; yScaleR: (v: number) => number } {
+  const xMin = decYearOf(rows[0].date);
+  const xMax = decYearOf(rows[rows.length - 1].date);
+  const xScale = (yr: number) => xMinPx + ((yr - xMin) / (xMax - xMin)) * (xMaxPx - xMinPx);
+  const yScaleL = (v: number) => PLOT_Y0 + PLOT_H - ((v - leftMin) / (leftMax - leftMin)) * PLOT_H;
+  const yScaleR = (v: number) => PLOT_Y0 + PLOT_H - ((v - rightMin) / (rightMax - rightMin)) * PLOT_H;
+
+  const xs = rows.map((r) => xScale(decYearOf(r.date)));
+  let lp = "";
+  let rp = "";
+  for (let i = 0; i < rows.length; i++) {
+    const x = xs[i].toFixed(2);
+    const yL = yScaleL(rows[i].left).toFixed(2);
+    const yR = yScaleR(rows[i].right).toFixed(2);
+    lp += `${i === 0 ? "M" : "L"}${x} ${yL} `;
+    rp += `${i === 0 ? "M" : "L"}${x} ${yR} `;
+  }
+  return {
+    xs,
+    leftPath: lp.trim(),
+    rightPath: rp.trim(),
+    lastIdx: rows.length - 1,
+    xScale,
+    yScaleL,
+    yScaleR,
+  };
+}
+
+// Strip A: USDCAD Y/Y vs Goods ex-energy
+const stripA = buildStrip(
+  fx.map((r) => ({ date: r.date, left: r.usdcad_yoy, right: r.goods_yoy })),
+  A_PLOT_X0, A_PLOT_X1,
+  -15, 15,
+  -2, 6,
+);
+const fxLast = fx[fx.length - 1];
+
+// Strip B: Wage Y/Y vs Services ex-shelter
+const stripB = buildStrip(
+  wages.map((r) => ({ date: r.date, left: r.wage_yoy, right: r.services_yoy })),
+  B_PLOT_X0, B_PLOT_X1,
+  0, 8,
+  0, 6,
+);
+const wageLast = wages[wages.length - 1];
+
+// Left-axis gridlines for each strip (4 ticks each).
+const aLeftTicks = [-15, -5, 5, 15];
+const bLeftTicks = [0, 2, 4, 6, 8];
+
+// X-axis January ticks per strip.
+function xTicksFor(rows: Array<{ date: string }>, xScale: (yr: number) => number): Array<{ x: number; label: string }> {
+  const ys = Math.ceil(decYearOf(rows[0].date));
+  const ye = Math.floor(decYearOf(rows[rows.length - 1].date));
+  const out: Array<{ x: number; label: string }> = [];
+  for (let y = ys; y <= ye; y++) {
+    if ((ye - ys) > 5 && (y % 2 !== 0)) continue;
+    out.push({ x: xScale(y), label: `'${String(y).slice(-2)}` });
+  }
+  return out;
+}
+const aTicks = xTicksFor(fx, stripA.xScale);
+const bTicks = xTicksFor(wages, stripB.xScale);
+
+// 2% target on right axis (response axis).
+const aTargetY = stripA.yScaleR(2);
+const bTargetY = stripB.yScaleR(2);
+
+// Zero on left axis where relevant.
+const aZeroY = stripA.yScaleL(0);
+
+// Last-point coords.
+const aLastX = stripA.xs[stripA.lastIdx];
+const aLastLeftY = stripA.yScaleL(fxLast.usdcad_yoy);
+const aLastRightY = stripA.yScaleR(fxLast.goods_yoy);
+const bLastX = stripB.xs[stripB.lastIdx];
+const bLastLeftY = stripB.yScaleL(wageLast.wage_yoy);
+const bLastRightY = stripB.yScaleR(wageLast.services_yoy);
+
+const ariaLabel = gated
+  ? "Pass-through panel deferred to v1.5 pending basket-weight reproducibility."
+  : `Pass-through watch: USDCAD Y/Y ${fxLast.usdcad_yoy > 0 ? "+" : ""}${fxLast.usdcad_yoy.toFixed(1)}% vs goods ex-energy ${fxLast.goods_yoy.toFixed(1)}%; wage Y/Y ${wageLast.wage_yoy.toFixed(1)}% vs services ex-shelter ${wageLast.services_yoy.toFixed(1)}%.`;
+---
+<figure class="panel-6-pt" aria-label={ariaLabel}>
+  <svg
+    class="panel-6-pt__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+  >
+    {gated ? (
+      <g>
+        <rect
+          class="panel-6-pt__gated-strip"
+          x={A_BOX_X0}
+          y={PLOT_Y0}
+          width={STRIP_W.toFixed(2)}
+          height={PLOT_H.toFixed(2)}
+        />
+        <rect
+          class="panel-6-pt__gated-strip"
+          x={B_BOX_X0.toFixed(2)}
+          y={PLOT_Y0}
+          width={STRIP_W.toFixed(2)}
+          height={PLOT_H.toFixed(2)}
+        />
+        <text
+          class="panel-6-pt__gated-text"
+          x={(VB_W / 2).toFixed(2)}
+          y={(PLOT_Y0 + PLOT_H / 2).toFixed(2)}
+          text-anchor="middle"
+        >Pass-through ships with v1.5</text>
+        <text
+          class="panel-6-pt__gated-sub"
+          x={(VB_W / 2).toFixed(2)}
+          y={(PLOT_Y0 + PLOT_H / 2 + 16).toFixed(2)}
+          text-anchor="middle"
+        >Pending basket-weight reproducibility for ex-aggregates</text>
+      </g>
+    ) : (
+      <g>
+        {/* ============ STRIP A: FX -> GOODS ============ */}
+
+        <text
+          class="panel-6-pt__strip-title"
+          x={(A_BOX_X0 + STRIP_W / 2).toFixed(2)}
+          y="14"
+          text-anchor="middle"
+        >EXTERNAL: FX PASS-THROUGH</text>
+
+        {aLeftTicks.map((v) => (
+          <line
+            class="panel-6-pt__gridline"
+            x1={A_PLOT_X0.toFixed(2)}
+            y1={stripA.yScaleL(v).toFixed(2)}
+            x2={A_PLOT_X1.toFixed(2)}
+            y2={stripA.yScaleL(v).toFixed(2)}
+          />
+        ))}
+
+        {/* Zero line on left axis */}
+        <line
+          class="panel-6-pt__zero"
+          x1={A_PLOT_X0.toFixed(2)}
+          y1={aZeroY.toFixed(2)}
+          x2={A_PLOT_X1.toFixed(2)}
+          y2={aZeroY.toFixed(2)}
+        />
+
+        {/* 2% target on right axis */}
+        <line
+          class="panel-6-pt__target"
+          x1={A_PLOT_X0.toFixed(2)}
+          y1={aTargetY.toFixed(2)}
+          x2={A_PLOT_X1.toFixed(2)}
+          y2={aTargetY.toFixed(2)}
+        />
+
+        {/* X-axis */}
+        <line
+          class="panel-6-pt__xaxis"
+          x1={A_PLOT_X0.toFixed(2)}
+          y1={PLOT_Y1.toFixed(2)}
+          x2={A_PLOT_X1.toFixed(2)}
+          y2={PLOT_Y1.toFixed(2)}
+        />
+        {aTicks.map((t) => (
+          <line
+            class="panel-6-pt__xtick"
+            x1={t.x.toFixed(2)}
+            y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+        ))}
+        {aTicks.map((t) => (
+          <text
+            class="panel-6-pt__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 14).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        ))}
+
+        {/* Response line (slate, behind) */}
+        <path
+          class="panel-6-pt__line panel-6-pt__line--response"
+          d={stripA.rightPath}
+          fill="none"
+        />
+        {/* Driver line (accent, on top) */}
+        <path
+          class="panel-6-pt__line panel-6-pt__line--driver"
+          d={stripA.leftPath}
+          fill="none"
+        />
+
+        {/* Markers */}
+        <circle
+          class="panel-6-pt__marker panel-6-pt__marker--driver"
+          cx={aLastX.toFixed(2)}
+          cy={aLastLeftY.toFixed(2)}
+          r="2.75"
+        ><title>{`USDCAD Y/Y: ${fxLast.usdcad_yoy > 0 ? "+" : ""}${fxLast.usdcad_yoy.toFixed(1)}%`}</title></circle>
+        <circle
+          class="panel-6-pt__marker panel-6-pt__marker--response"
+          cx={aLastX.toFixed(2)}
+          cy={aLastRightY.toFixed(2)}
+          r="2.75"
+        ><title>{`Goods ex-energy: ${fxLast.goods_yoy.toFixed(1)}%`}</title></circle>
+
+        {/* Left-axis labels (driver scale) */}
+        {aLeftTicks.map((v, i) => (
+          <text
+            class="panel-6-pt__ytick-label panel-6-pt__ytick-label--left"
+            x={(A_PLOT_X0 - 4).toFixed(2)}
+            y={(stripA.yScaleL(v) + 3.5).toFixed(2)}
+            text-anchor="end"
+          >{i === aLeftTicks.length - 1 ? `${v}%` : `${v}`}</text>
+        ))}
+        {/* Right-axis labels (response scale) - 2% and 6% */}
+        {[2, 6].map((v) => (
+          <text
+            class="panel-6-pt__ytick-label panel-6-pt__ytick-label--right"
+            x={(A_PLOT_X1 + 4).toFixed(2)}
+            y={(stripA.yScaleR(v) + 3.5).toFixed(2)}
+            text-anchor="start"
+          >{`${v}%`}</text>
+        ))}
+
+        {/* Direct labels: driver near terminus, response stacked below */}
+        <text
+          class="panel-6-pt__direct-label panel-6-pt__direct-label--driver"
+          x={(aLastX + 4).toFixed(2)}
+          y={(aLastLeftY + 4).toFixed(2)}
+          text-anchor="start"
+        >USDCAD</text>
+        <text
+          class="panel-6-pt__direct-label panel-6-pt__direct-label--response"
+          x={(aLastX + 4).toFixed(2)}
+          y={(aLastRightY + 4).toFixed(2)}
+          text-anchor="start"
+        >Goods</text>
+
+        {/* ============ STRIP B: WAGE -> SERVICES ============ */}
+
+        <text
+          class="panel-6-pt__strip-title"
+          x={(B_BOX_X0 + STRIP_W / 2).toFixed(2)}
+          y="14"
+          text-anchor="middle"
+        >INTERNAL: WAGE PASS-THROUGH</text>
+
+        {bLeftTicks.map((v) => (
+          <line
+            class="panel-6-pt__gridline"
+            x1={B_PLOT_X0.toFixed(2)}
+            y1={stripB.yScaleL(v).toFixed(2)}
+            x2={B_PLOT_X1.toFixed(2)}
+            y2={stripB.yScaleL(v).toFixed(2)}
+          />
+        ))}
+
+        <line
+          class="panel-6-pt__target"
+          x1={B_PLOT_X0.toFixed(2)}
+          y1={bTargetY.toFixed(2)}
+          x2={B_PLOT_X1.toFixed(2)}
+          y2={bTargetY.toFixed(2)}
+        />
+
+        <line
+          class="panel-6-pt__xaxis"
+          x1={B_PLOT_X0.toFixed(2)}
+          y1={PLOT_Y1.toFixed(2)}
+          x2={B_PLOT_X1.toFixed(2)}
+          y2={PLOT_Y1.toFixed(2)}
+        />
+        {bTicks.map((t) => (
+          <line
+            class="panel-6-pt__xtick"
+            x1={t.x.toFixed(2)}
+            y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+        ))}
+        {bTicks.map((t) => (
+          <text
+            class="panel-6-pt__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 14).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        ))}
+
+        <path
+          class="panel-6-pt__line panel-6-pt__line--response"
+          d={stripB.rightPath}
+          fill="none"
+        />
+        <path
+          class="panel-6-pt__line panel-6-pt__line--driver"
+          d={stripB.leftPath}
+          fill="none"
+        />
+
+        <circle
+          class="panel-6-pt__marker panel-6-pt__marker--driver"
+          cx={bLastX.toFixed(2)}
+          cy={bLastLeftY.toFixed(2)}
+          r="2.75"
+        ><title>{`Wage Y/Y: ${wageLast.wage_yoy.toFixed(1)}%`}</title></circle>
+        <circle
+          class="panel-6-pt__marker panel-6-pt__marker--response"
+          cx={bLastX.toFixed(2)}
+          cy={bLastRightY.toFixed(2)}
+          r="2.75"
+        ><title>{`Services ex-shelter: ${wageLast.services_yoy.toFixed(1)}%`}</title></circle>
+
+        {bLeftTicks.map((v, i) => (
+          <text
+            class="panel-6-pt__ytick-label panel-6-pt__ytick-label--left"
+            x={(B_PLOT_X0 - 4).toFixed(2)}
+            y={(stripB.yScaleL(v) + 3.5).toFixed(2)}
+            text-anchor="end"
+          >{i === bLeftTicks.length - 1 ? `${v}%` : `${v}`}</text>
+        ))}
+        {[2, 4, 6].map((v) => (
+          <text
+            class="panel-6-pt__ytick-label panel-6-pt__ytick-label--right"
+            x={(B_PLOT_X1 + 4).toFixed(2)}
+            y={(stripB.yScaleR(v) + 3.5).toFixed(2)}
+            text-anchor="start"
+          >{`${v}%`}</text>
+        ))}
+
+        <text
+          class="panel-6-pt__direct-label panel-6-pt__direct-label--driver"
+          x={(bLastX + 4).toFixed(2)}
+          y={(bLastLeftY + 4).toFixed(2)}
+          text-anchor="start"
+        >Wages</text>
+        <text
+          class="panel-6-pt__direct-label panel-6-pt__direct-label--response"
+          x={(bLastX + 4).toFixed(2)}
+          y={(bLastRightY + 4).toFixed(2)}
+          text-anchor="start"
+        >Services</text>
+      </g>
+    )}
+  </svg>
+  {!gated && (
+    <p class="panel-6-pt__foot">
+      <em>Placeholder data. Live wiring pending the basket-weights fetcher.</em>
+    </p>
+  )}
+</figure>
+
+<style>
+  .panel-6-pt {
+    width: 100%;
+    margin: 0;
+    background-color: var(--surface);
+  }
+  .panel-6-pt__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: var(--font-sans);
+    overflow: visible;
+  }
+  .panel-6-pt__foot {
+    margin: var(--s-2) 0 0;
+    font-family: var(--font-sans);
+    font-size: var(--fs-micro);
+    color: var(--ink-faint);
+    text-align: right;
+  }
+  .panel-6-pt__foot em { font-style: italic; }
+
+  .panel-6-pt__strip-title {
+    fill: var(--ink-muted);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.04em;
+  }
+
+  .panel-6-pt__gridline {
+    stroke: var(--rule-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-6-pt__zero {
+    stroke: var(--ink-muted);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-6-pt__target {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    shape-rendering: crispEdges;
+  }
+  .panel-6-pt__xaxis {
+    stroke: var(--rule);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-6-pt__xtick {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-6-pt__xtick-label,
+  .panel-6-pt__ytick-label {
+    fill: var(--ink-faint);
+    font-size: 9px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Driver line: brand accent (the editorial argument: "driver leads") */
+  .panel-6-pt__line--driver {
+    stroke: var(--accent);
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  /* Response line: slate (recedes; the driver is the lead) */
+  .panel-6-pt__line--response {
+    stroke: var(--series-7);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.85;
+  }
+
+  .panel-6-pt__marker--driver {
+    fill: var(--accent);
+    stroke: var(--surface);
+    stroke-width: 1;
+  }
+  .panel-6-pt__marker--response {
+    fill: var(--series-7);
+    stroke: var(--surface);
+    stroke-width: 1;
+  }
+
+  .panel-6-pt__direct-label {
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+  }
+  .panel-6-pt__direct-label--driver   { fill: var(--accent); }
+  .panel-6-pt__direct-label--response { fill: var(--series-7); }
+
+  .panel-6-pt__gated-strip {
+    fill: var(--surface-sunk);
+  }
+  .panel-6-pt__gated-text {
+    fill: var(--ink);
+    font-size: 14px;
+    font-weight: var(--fw-medium);
+    font-family: var(--font-serif);
+  }
+  .panel-6-pt__gated-sub {
+    fill: var(--ink-muted);
+    font-size: 11px;
+  }
+</style>

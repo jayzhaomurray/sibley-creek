@@ -1,0 +1,641 @@
+---
+/*
+ * Panel5Expectations - Inflation basics, panel 5.
+ *
+ * Spec: charts/inflation_basics/panel-5-expectations.md
+ * Template: design/basics-layer-template.md Section 9.A panel 5
+ *
+ * Chart shape: two stacked sub-charts within the panel.
+ *   Upper: CSCE consumer 1y vs 5y, quarterly time series, brand red.
+ *     5y at full weight (the anchor read); 1y at reduced weight (dashed).
+ *     Spec rationale: 5y is the anchor, 1y is noisy near-term - convention
+ *     reversal forces the eye to the 5y. Flagged in panel md for AD.
+ *   Lower: BOS firms-expecting-above-3%, quarterly line; at the right
+ *     terminus a small horizontal stacked-bar inset shows the current
+ *     bucket distribution.
+ *
+ * Plot vs SVG: hand-rolled SVG. Two short time series + a 4-segment
+ * stacked bar - no Plot warranted.
+ *
+ * Per user brief: brand-red on Inflation page. CSCE pair uses --accent
+ * (the section accent on this page). BOS line uses series-4 (plum)
+ * per the template; the bucket-stack inset uses an accent-tinted ramp
+ * keyed off the brand red.
+ */
+
+interface CscePoint {
+  date: string;      // "YYYY-Qq"
+  cons_1y: number;
+  cons_5y: number;
+}
+
+interface BosPoint {
+  date: string;
+  above3: number;            // % of firms (0..100)
+}
+
+interface BosDist {
+  below1: number;
+  one_to_two: number;
+  two_to_three: number;
+  above3: number;
+}
+
+interface Props {
+  csce?: CscePoint[];
+  bos?: BosPoint[];
+  bosDist?: BosDist;
+  asOf?: string;
+}
+
+// ---- Placeholder data ----
+function buildCsce(): CscePoint[] {
+  const out: CscePoint[] = [];
+  let y = 2014;
+  let q = 1;
+  // 48 quarters Q1 2014 -> Q4 2025 ... extend to Q1 2026 -> 49 pts.
+  for (let i = 0; i < 49; i++) {
+    const t = i / 48;
+    // 1y noisy, peaks ~6 in 2022 Q2-Q3 (t~0.65)
+    let oneY: number;
+    if (t < 0.6) oneY = 2.5 + 0.4 * Math.sin(t * 6) + (t < 0.45 ? 0 : (t - 0.45) * 12);
+    else if (t < 0.78) oneY = 6.0 - (6.0 - 3.5) * ((t - 0.6) / 0.18);
+    else oneY = 3.5 - (3.5 - 2.8) * ((t - 0.78) / 0.22);
+    // 5y anchored ~3 long-run, peaked ~3.5 in 2022, drifting to 2.5 now.
+    let fiveY: number;
+    if (t < 0.55) fiveY = 3.0;
+    else if (t < 0.75) fiveY = 3.0 + (3.5 - 3.0) * ((t - 0.55) / 0.20);
+    else fiveY = 3.5 - (3.5 - 2.5) * ((t - 0.75) / 0.25);
+    out.push({
+      date: `${y}-Q${q}`,
+      cons_1y: Math.round(oneY * 100) / 100,
+      cons_5y: Math.round(fiveY * 100) / 100,
+    });
+    q += 1;
+    if (q > 4) { q = 1; y += 1; }
+  }
+  return out;
+}
+
+function buildBos(): BosPoint[] {
+  const out: BosPoint[] = [];
+  let y = 2003;
+  let q = 1;
+  // 92 quarters Q1 2003 -> Q1 2026 minus 1 = ~92 pts.
+  for (let i = 0; i < 92; i++) {
+    const t = i / 91;
+    // Pre-2020 baseline ~10%, spike to 78 in 2022 Q2 (~t=0.80), back to 24 now.
+    let v: number;
+    if (t < 0.70) v = 9 + 6 * Math.sin(t * 4) + (t < 0.74 ? 0 : 0);
+    else if (t < 0.82) v = 12 + (78 - 12) * ((t - 0.70) / 0.12);
+    else if (t < 0.95) v = 78 - (78 - 28) * ((t - 0.82) / 0.13);
+    else v = 28 - (28 - 24) * ((t - 0.95) / 0.05);
+    out.push({ date: `${y}-Q${q}`, above3: Math.max(2, Math.round(v)) });
+    q += 1;
+    if (q > 4) { q = 1; y += 1; }
+  }
+  return out;
+}
+
+const defaultBosDist: BosDist = {
+  below1: 6,
+  one_to_two: 32,
+  two_to_three: 38,
+  above3: 24,
+};
+
+const { csce: csceIn, bos: bosIn, bosDist: distIn } = Astro.props;
+const csce: CscePoint[] = csceIn && csceIn.length > 0 ? csceIn : buildCsce();
+const bos: BosPoint[] = bosIn && bosIn.length > 0 ? bosIn : buildBos();
+const bosDist: BosDist = distIn ?? defaultBosDist;
+
+// ---- Geometry ----
+const VB_W = 540;
+const VB_H_U = 150;
+const VB_H_GAP = 36;
+const VB_H_L = 150;
+const VB_H = VB_H_U + VB_H_GAP + VB_H_L + 28;
+
+const GUT_L = 36;
+const GUT_R = 88; // wider right for bucket inset on lower canvas
+
+// Upper sub-chart
+const U_X0 = GUT_L;
+const U_Y0 = 24;
+const U_W = VB_W - GUT_L - GUT_R;
+const U_H = VB_H_U - 24 - 28;
+const U_X1 = U_X0 + U_W;
+const U_Y1 = U_Y0 + U_H;
+
+// Lower sub-chart (reserves a 64px slice at the right for the bucket inset)
+const INSET_W = 60;
+const INSET_GAP = 6;
+const L_X0 = GUT_L;
+const L_Y0 = VB_H_U + VB_H_GAP;
+const L_W = U_W - INSET_W - INSET_GAP;
+const L_H = VB_H_L - 24 - 28;
+const L_X1 = L_X0 + L_W;
+const L_Y1 = L_Y0 + L_H;
+const INSET_X0 = L_X1 + INSET_GAP;
+const INSET_X1 = INSET_X0 + INSET_W;
+
+// ---- Quarter -> decimal year ----
+function decYearQ(s: string): number {
+  const [ys, qs] = s.split("-");
+  const q = Number(qs.replace("Q", ""));
+  return Number(ys) + (q * 3 - 1.5) / 12;
+}
+const csceX = csce.map((d) => decYearQ(d.date));
+const bosX = bos.map((d) => decYearQ(d.date));
+
+// ---- Scales for upper (CSCE) ----
+const csceXMin = csceX[0];
+const csceXMax = csceX[csceX.length - 1];
+const csceYMin = 1;
+const csceYMax = 7;
+function xScaleU(yr: number): number {
+  return U_X0 + ((yr - csceXMin) / (csceXMax - csceXMin)) * U_W;
+}
+function yScaleU(v: number): number {
+  return U_Y0 + U_H - ((v - csceYMin) / (csceYMax - csceYMin)) * U_H;
+}
+
+// ---- Scales for lower (BOS) ----
+const bosXMin = bosX[0];
+const bosXMax = bosX[bosX.length - 1];
+const bosYMin = 0;
+const bosYMax = 90;
+function xScaleL(yr: number): number {
+  return L_X0 + ((yr - bosXMin) / (bosXMax - bosXMin)) * L_W;
+}
+function yScaleL(v: number): number {
+  return L_Y0 + L_H - ((v - bosYMin) / (bosYMax - bosYMin)) * L_H;
+}
+
+function buildLineU(values: number[], xs: number[]): string {
+  let d = "";
+  for (let i = 0; i < values.length; i++) {
+    const x = xScaleU(xs[i]).toFixed(2);
+    const y = yScaleU(values[i]).toFixed(2);
+    d += `${i === 0 ? "M" : "L"}${x} ${y} `;
+  }
+  return d.trim();
+}
+function buildLineL(values: number[], xs: number[]): string {
+  let d = "";
+  for (let i = 0; i < values.length; i++) {
+    const x = xScaleL(xs[i]).toFixed(2);
+    const y = yScaleL(values[i]).toFixed(2);
+    d += `${i === 0 ? "M" : "L"}${x} ${y} `;
+  }
+  return d.trim();
+}
+
+const csce5Path = buildLineU(csce.map((d) => d.cons_5y), csceX);
+const csce1Path = buildLineU(csce.map((d) => d.cons_1y), csceX);
+const bosPath = buildLineL(bos.map((d) => d.above3), bosX);
+
+const csceLast = csce[csce.length - 1];
+const csce5LastY = yScaleU(csceLast.cons_5y);
+const csce1LastY = yScaleU(csceLast.cons_1y);
+const csceLastX = xScaleU(csceX[csceX.length - 1]);
+
+const bosLast = bos[bos.length - 1];
+const bosLastX = xScaleL(bosX[bosX.length - 1]);
+const bosLastY = yScaleL(bosLast.above3);
+
+// Upper 2% target.
+const targetU = yScaleU(2);
+
+// Upper Y ticks
+const csceYTicks = [1, 2, 3, 4, 5, 6, 7];
+// Lower Y ticks
+const bosYTicks = [0, 25, 50, 75];
+
+// Upper X ticks: every 2 years from rounded.
+function upperXTicks(): Array<{ x: number; label: string }> {
+  const out: Array<{ x: number; label: string }> = [];
+  const ys = Math.ceil(csceXMin);
+  const ye = Math.floor(csceXMax);
+  for (let y = ys; y <= ye; y++) {
+    if ((y % 2) !== 0) continue;
+    out.push({ x: xScaleU(y), label: `'${String(y).slice(-2)}` });
+  }
+  return out;
+}
+function lowerXTicks(): Array<{ x: number; label: string }> {
+  const out: Array<{ x: number; label: string }> = [];
+  const ys = Math.ceil(bosXMin);
+  const ye = Math.floor(bosXMax);
+  // every 5 years
+  for (let y = ys; y <= ye; y++) {
+    if ((y % 5) !== 0) continue;
+    out.push({ x: xScaleL(y), label: `'${String(y).slice(-2)}` });
+  }
+  return out;
+}
+const uTicks = upperXTicks();
+const lTicks = lowerXTicks();
+
+// ---- Stacked bucket inset (lower right) ----
+// Buckets from bottom to top in panel: below1, 1-2, 2-3, above3.
+// Build cumulative heights mapped into the lower-canvas y-range so the
+// stack visually shares its vertical scale with the time-series view.
+const bucketTotal = bosDist.below1 + bosDist.one_to_two + bosDist.two_to_three + bosDist.above3;
+const bd = {
+  below1: bosDist.below1 / bucketTotal,
+  one_to_two: bosDist.one_to_two / bucketTotal,
+  two_to_three: bosDist.two_to_three / bucketTotal,
+  above3: bosDist.above3 / bucketTotal,
+};
+// Stack within the inset's full height. Inset spans L_Y0..L_Y1.
+const insetTopY = L_Y0;
+const insetBotY = L_Y1;
+const insetH = insetBotY - insetTopY;
+
+// Cumulative shares from bottom (below1 first).
+const cum1 = bd.below1;
+const cum2 = cum1 + bd.one_to_two;
+const cum3 = cum2 + bd.two_to_three;
+const segBelow1Y0 = insetBotY - bd.below1 * insetH;
+const segOne2TwoY0 = insetBotY - cum2 * insetH;
+const segTwo2ThreeY0 = insetBotY - cum3 * insetH;
+const segAbove3Y0 = insetTopY;
+
+const ariaLabel = `Inflation expectations: CSCE 1-year ${csceLast.cons_1y.toFixed(1)}%, 5-year ${csceLast.cons_5y.toFixed(1)}%; BOS firms expecting above 3% at ${bosLast.above3}% (latest).`;
+---
+<figure class="panel-5-exp" aria-label={ariaLabel}>
+  <svg
+    class="panel-5-exp__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+  >
+    {/* ============ UPPER: CSCE ============ */}
+
+    {csceYTicks.map((v) => (
+      <line
+        class="panel-5-exp__gridline"
+        x1={U_X0}
+        y1={yScaleU(v).toFixed(2)}
+        x2={U_X1}
+        y2={yScaleU(v).toFixed(2)}
+      />
+    ))}
+
+    {/* 2% target */}
+    <line
+      class="panel-5-exp__target"
+      x1={U_X0}
+      y1={targetU.toFixed(2)}
+      x2={U_X1}
+      y2={targetU.toFixed(2)}
+    />
+    <text
+      class="panel-5-exp__target-label"
+      x={(U_X1 + 4).toFixed(2)}
+      y={(targetU + 3.5).toFixed(2)}
+    >BoC 2%</text>
+
+    {/* X-axis */}
+    <line
+      class="panel-5-exp__xaxis"
+      x1={U_X0}
+      y1={U_Y1.toFixed(2)}
+      x2={U_X1}
+      y2={U_Y1.toFixed(2)}
+    />
+    {uTicks.map((t) => (
+      <line
+        class="panel-5-exp__xtick"
+        x1={t.x.toFixed(2)}
+        y1={U_Y1.toFixed(2)}
+        x2={t.x.toFixed(2)}
+        y2={(U_Y1 + 4).toFixed(2)}
+      />
+    ))}
+    {uTicks.map((t) => (
+      <text
+        class="panel-5-exp__xtick-label"
+        x={t.x.toFixed(2)}
+        y={(U_Y1 + 16).toFixed(2)}
+        text-anchor="middle"
+      >{t.label}</text>
+    ))}
+
+    {/* 1-year line (recessive, dashed) */}
+    <path
+      class="panel-5-exp__line panel-5-exp__line--csce1"
+      d={csce1Path}
+      fill="none"
+    />
+    {/* 5-year line (anchor, solid) */}
+    <path
+      class="panel-5-exp__line panel-5-exp__line--csce5"
+      d={csce5Path}
+      fill="none"
+    />
+
+    {/* Markers */}
+    <circle
+      class="panel-5-exp__marker"
+      cx={csceLastX.toFixed(2)}
+      cy={csce5LastY.toFixed(2)}
+      r="3"
+    ><title>{`5-year: ${csceLast.cons_5y.toFixed(1)}%`}</title></circle>
+    <circle
+      class="panel-5-exp__marker panel-5-exp__marker--faded"
+      cx={csceLastX.toFixed(2)}
+      cy={csce1LastY.toFixed(2)}
+      r="2.5"
+    ><title>{`1-year: ${csceLast.cons_1y.toFixed(1)}%`}</title></circle>
+
+    {/* Y tick labels (upper) */}
+    {csceYTicks.map((v, i) => (
+      <text
+        class="panel-5-exp__ytick-label"
+        x={(U_X0 - 4).toFixed(2)}
+        y={(yScaleU(v) + 3.5).toFixed(2)}
+        text-anchor="end"
+      >{i === csceYTicks.length - 1 ? `${v}%` : `${v}`}</text>
+    ))}
+
+    {/* Direct labels (upper) */}
+    <text
+      class="panel-5-exp__direct-label"
+      x={(U_X1 + 4).toFixed(2)}
+      y={(csce5LastY + 3.5).toFixed(2)}
+      text-anchor="start"
+    >5-year</text>
+    <text
+      class="panel-5-exp__direct-label panel-5-exp__direct-label--faded"
+      x={(U_X1 + 4).toFixed(2)}
+      y={(csce1LastY + 3.5).toFixed(2)}
+      text-anchor="start"
+    >1-year</text>
+
+    {/* CSCE eyebrow */}
+    <text
+      class="panel-5-exp__sub-title"
+      x={U_X0}
+      y={(U_Y0 - 8).toFixed(2)}
+      text-anchor="start"
+    >CONSUMERS (CSCE)</text>
+
+    {/* ============ LOWER: BOS + bucket inset ============ */}
+
+    {bosYTicks.map((v) => (
+      <line
+        class="panel-5-exp__gridline"
+        x1={L_X0}
+        y1={yScaleL(v).toFixed(2)}
+        x2={L_X1}
+        y2={yScaleL(v).toFixed(2)}
+      />
+    ))}
+
+    <line
+      class="panel-5-exp__xaxis"
+      x1={L_X0}
+      y1={L_Y1.toFixed(2)}
+      x2={L_X1}
+      y2={L_Y1.toFixed(2)}
+    />
+    {lTicks.map((t) => (
+      <line
+        class="panel-5-exp__xtick"
+        x1={t.x.toFixed(2)}
+        y1={L_Y1.toFixed(2)}
+        x2={t.x.toFixed(2)}
+        y2={(L_Y1 + 4).toFixed(2)}
+      />
+    ))}
+    {lTicks.map((t) => (
+      <text
+        class="panel-5-exp__xtick-label"
+        x={t.x.toFixed(2)}
+        y={(L_Y1 + 16).toFixed(2)}
+        text-anchor="middle"
+      >{t.label}</text>
+    ))}
+
+    <path
+      class="panel-5-exp__line panel-5-exp__line--bos"
+      d={bosPath}
+      fill="none"
+    />
+    <circle
+      class="panel-5-exp__marker panel-5-exp__marker--bos"
+      cx={bosLastX.toFixed(2)}
+      cy={bosLastY.toFixed(2)}
+      r="3"
+    ><title>{`BOS above 3%: ${bosLast.above3}%`}</title></circle>
+
+    {bosYTicks.map((v, i) => (
+      <text
+        class="panel-5-exp__ytick-label"
+        x={(L_X0 - 4).toFixed(2)}
+        y={(yScaleL(v) + 3.5).toFixed(2)}
+        text-anchor="end"
+      >{i === bosYTicks.length - 1 ? `${v}%` : `${v}`}</text>
+    ))}
+
+    {/* Direct label at line terminus */}
+    <text
+      class="panel-5-exp__direct-label panel-5-exp__direct-label--bos"
+      x={(bosLastX - 4).toFixed(2)}
+      y={(bosLastY - 8).toFixed(2)}
+      text-anchor="end"
+    >Above 3%</text>
+
+    {/* Lower title */}
+    <text
+      class="panel-5-exp__sub-title"
+      x={L_X0}
+      y={(L_Y0 - 8).toFixed(2)}
+      text-anchor="start"
+    >FIRMS EXPECTING ABOVE 3% (BOS) + CURRENT DISTRIBUTION</text>
+
+    {/* ============ BUCKET STACK INSET ============ */}
+    {/* Above 3% segment - brand accent (the approved accent-coupling
+        between the line color and the highest bucket) */}
+    <rect
+      class="panel-5-exp__bucket panel-5-exp__bucket--above3"
+      x={INSET_X0.toFixed(2)}
+      y={segAbove3Y0.toFixed(2)}
+      width={INSET_W.toFixed(2)}
+      height={(bd.above3 * insetH).toFixed(2)}
+    >
+      <title>{`Above 3%: ${bosDist.above3}%`}</title>
+    </rect>
+    <rect
+      class="panel-5-exp__bucket panel-5-exp__bucket--two3"
+      x={INSET_X0.toFixed(2)}
+      y={segTwo2ThreeY0.toFixed(2)}
+      width={INSET_W.toFixed(2)}
+      height={(bd.two_to_three * insetH).toFixed(2)}
+    >
+      <title>{`2-3%: ${bosDist.two_to_three}%`}</title>
+    </rect>
+    <rect
+      class="panel-5-exp__bucket panel-5-exp__bucket--one2"
+      x={INSET_X0.toFixed(2)}
+      y={segOne2TwoY0.toFixed(2)}
+      width={INSET_W.toFixed(2)}
+      height={(bd.one_to_two * insetH).toFixed(2)}
+    >
+      <title>{`1-2%: ${bosDist.one_to_two}%`}</title>
+    </rect>
+    <rect
+      class="panel-5-exp__bucket panel-5-exp__bucket--below1"
+      x={INSET_X0.toFixed(2)}
+      y={segBelow1Y0.toFixed(2)}
+      width={INSET_W.toFixed(2)}
+      height={(bd.below1 * insetH).toFixed(2)}
+    >
+      <title>{`Below 1%: ${bosDist.below1}%`}</title>
+    </rect>
+
+    {/* Bucket labels right of inset */}
+    {[
+      { y: segAbove3Y0 + (bd.above3 * insetH) / 2,    label: `>3% ${bosDist.above3}%`,           cls: "above3" },
+      { y: segTwo2ThreeY0 + (bd.two_to_three * insetH) / 2, label: `2-3% ${bosDist.two_to_three}%`, cls: "two3" },
+      { y: segOne2TwoY0 + (bd.one_to_two * insetH) / 2, label: `1-2% ${bosDist.one_to_two}%`,     cls: "one2" },
+      { y: segBelow1Y0 + (bd.below1 * insetH) / 2,    label: `<1% ${bosDist.below1}%`,            cls: "below1" },
+    ].map((row) => (
+      <text
+        class={`panel-5-exp__bucket-label panel-5-exp__bucket-label--${row.cls}`}
+        x={(INSET_X1 + 4).toFixed(2)}
+        y={(row.y + 3.5).toFixed(2)}
+        text-anchor="start"
+      >{row.label}</text>
+    ))}
+  </svg>
+</figure>
+
+<style>
+  .panel-5-exp {
+    width: 100%;
+    margin: 0;
+    background-color: var(--surface);
+  }
+  .panel-5-exp__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: var(--font-sans);
+    overflow: visible;
+  }
+
+  .panel-5-exp__gridline {
+    stroke: var(--rule-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-5-exp__target {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    shape-rendering: crispEdges;
+  }
+  .panel-5-exp__target-label {
+    fill: var(--ink-faint);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+  }
+  .panel-5-exp__xaxis {
+    stroke: var(--rule);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-5-exp__xtick {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-5-exp__xtick-label,
+  .panel-5-exp__ytick-label {
+    fill: var(--ink-faint);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* CSCE 5y is the anchor: full weight brand red.
+     1y is faded + dashed (per spec's reversed-convention rationale). */
+  .panel-5-exp__line--csce5 {
+    stroke: var(--accent);
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .panel-5-exp__line--csce1 {
+    stroke: var(--accent);
+    stroke-width: 1.25;
+    stroke-dasharray: 3 3;
+    opacity: 0.6;
+  }
+
+  /* BOS line: series-4 (plum), per panel md / template. */
+  .panel-5-exp__line--bos {
+    stroke: var(--series-4);
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .panel-5-exp__marker {
+    fill: var(--accent);
+    stroke: var(--surface);
+    stroke-width: 1.5;
+  }
+  .panel-5-exp__marker--faded {
+    fill: var(--accent);
+    opacity: 0.6;
+  }
+  .panel-5-exp__marker--bos {
+    fill: var(--series-4);
+    stroke: var(--surface);
+    stroke-width: 1.5;
+  }
+
+  .panel-5-exp__direct-label {
+    fill: var(--accent);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+  }
+  .panel-5-exp__direct-label--faded {
+    opacity: 0.65;
+  }
+  .panel-5-exp__direct-label--bos {
+    fill: var(--series-4);
+  }
+
+  .panel-5-exp__sub-title {
+    fill: var(--ink-muted);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.04em;
+  }
+
+  /* Bucket stack: brand-accent ramp from heaviest (above3) to lightest
+     (below1). Each segment separated by a thin surface hairline via
+     `stroke`, not by a separate rect. */
+  .panel-5-exp__bucket {
+    stroke: var(--surface);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-5-exp__bucket--above3 { fill: var(--accent); fill-opacity: 0.9; }
+  .panel-5-exp__bucket--two3   { fill: var(--accent); fill-opacity: 0.65; }
+  .panel-5-exp__bucket--one2   { fill: var(--accent); fill-opacity: 0.40; }
+  .panel-5-exp__bucket--below1 { fill: var(--accent); fill-opacity: 0.20; }
+
+  .panel-5-exp__bucket-label {
+    font-size: 9px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+    fill: var(--ink-muted);
+  }
+  .panel-5-exp__bucket-label--above3 { fill: var(--accent); }
+</style>

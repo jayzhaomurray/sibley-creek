@@ -1,0 +1,379 @@
+---
+/*
+ * Panel4SubAggregates - Inflation basics, panel 4.
+ *
+ * Spec: charts/inflation_basics/panel-4-sub-aggregates.md
+ * Template: design/basics-layer-template.md Section 9.A panel 4
+ *
+ * Chart shape: ranked horizontal bar chart (latest-print snapshot, sorted
+ * by absolute Y/Y deviation from 2%), 2%-centered axis. Below it, a thin
+ * shelter-decomposition inset (Shelter ex-MIC + Mortgage Interest Cost).
+ * Bars colored by semantic direction-of-print per design-system Section 4:
+ * above-target -> neg, near-target -> neutral, below-target -> pos.
+ *
+ * Plot vs SVG: hand-rolled SVG. Five horizontal bars + a 2-bar inset is
+ * trivial geometry; Plot for static bars at this density is overkill.
+ *
+ * v1 fallback support: when `data` includes the ex-aggregates the chart
+ * renders the preferred 5-bar build; otherwise it falls back to the
+ * all-services / all-goods cut. The shelter inset always renders (it
+ * doesn't require derived ex-aggregates).
+ *
+ * Placeholder data per spec example: shelter +4.2% (28% wt), services
+ * ex-shelter +3.1% (28% wt), goods ex-energy +1.2% (24% wt), food +2.5%
+ * (16% wt), energy -0.6% (4% wt). Shelter decomposition: shelter ex-MIC
+ * 3.8%, MIC 8.3%.
+ */
+
+interface BarRow {
+  label: string;
+  value: number;     // Y/Y %
+  weight?: number;   // 0..1 basket weight, optional
+}
+
+interface ShelterDecomp {
+  exMIC: number;
+  mic: number;
+}
+
+interface Props {
+  bars?: BarRow[];
+  shelter?: ShelterDecomp;
+  asOf?: string;
+}
+
+const defaultBars: BarRow[] = [
+  { label: "Shelter",            value: 4.2, weight: 0.28 },
+  { label: "Services ex-shelter",value: 3.1, weight: 0.28 },
+  { label: "Food",               value: 2.5, weight: 0.16 },
+  { label: "Goods ex-energy",    value: 1.2, weight: 0.24 },
+  { label: "Energy",             value: -0.6, weight: 0.04 },
+];
+const defaultShelter: ShelterDecomp = { exMIC: 3.8, mic: 8.3 };
+
+const { bars: barsIn, shelter: shelterIn } = Astro.props;
+const bars: BarRow[] = barsIn ?? defaultBars;
+const shelter: ShelterDecomp = shelterIn ?? defaultShelter;
+
+// Sort bars by absolute deviation from 2% (largest deviation first / top).
+const sorted = [...bars].sort(
+  (a, b) => Math.abs(b.value - 2) - Math.abs(a.value - 2),
+);
+
+// ---- Geometry ----
+const VB_W = 540;
+const VB_H_UPPER = 220;
+const VB_H_INSET = 80;
+const VB_H_GAP = 20;
+const VB_H = VB_H_UPPER + VB_H_GAP + VB_H_INSET + 28;
+
+const GUT_L = 140; // wide left gutter for category labels
+const GUT_R = 56;
+
+const U_X0 = GUT_L;
+const U_Y0 = 24;
+const U_W = VB_W - GUT_L - GUT_R;
+const U_H = VB_H_UPPER - 24 - 28;
+const U_X1 = U_X0 + U_W;
+const U_Y1 = U_Y0 + U_H;
+
+// X scale: -2% .. 8% (2%-centered).
+const X_MIN = -2;
+const X_MAX = 8;
+const xTickValues = [-2, 0, 2, 4, 6, 8];
+
+function xScale(v: number): number {
+  return U_X0 + ((v - X_MIN) / (X_MAX - X_MIN)) * U_W;
+}
+const x2 = xScale(2); // 2% reference axis
+
+const ROW_H = U_H / sorted.length;
+const BAR_H = Math.min(20, ROW_H * 0.55);
+
+function colorFor(v: number): "neg" | "neutral" | "pos" {
+  if (v > 2.5) return "neg";
+  if (v < 1.5) return "pos";
+  return "neutral";
+}
+
+// ---- Shelter inset ----
+const L_X0 = GUT_L;
+const L_Y0 = VB_H_UPPER + VB_H_GAP + 16; // leave space for title
+const L_W = U_W;
+const L_H = VB_H_INSET - 16 - 18;
+const L_X1 = L_X0 + L_W;
+
+function xScaleL(v: number): number {
+  // Reuse same scale to keep visual consistency.
+  return L_X0 + ((v - X_MIN) / (X_MAX - X_MIN)) * L_W;
+}
+const insetRowH = L_H / 2;
+const insetBarH = Math.min(14, insetRowH * 0.55);
+
+const ariaLabel = `CPI sub-aggregates, latest print: ${sorted
+  .map((b) => `${b.label} ${b.value > 0 ? "+" : ""}${b.value.toFixed(1)}%`)
+  .join("; ")}.`;
+---
+<figure class="panel-4-sub" aria-label={ariaLabel}>
+  <svg
+    class="panel-4-sub__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+  >
+    {/* X gridlines */}
+    {xTickValues.map((v) => (
+      <line
+        class:list={[
+          "panel-4-sub__gridline",
+          { "panel-4-sub__gridline--zero": v === 0 },
+        ]}
+        x1={xScale(v).toFixed(2)}
+        y1={U_Y0}
+        x2={xScale(v).toFixed(2)}
+        y2={U_Y1.toFixed(2)}
+      />
+    ))}
+
+    {/* 2% reference axis (heavier than other gridlines) */}
+    <line
+      class="panel-4-sub__refline"
+      x1={x2.toFixed(2)}
+      y1={U_Y0}
+      x2={x2.toFixed(2)}
+      y2={U_Y1.toFixed(2)}
+    />
+
+    {/* Bars */}
+    {sorted.map((b, i) => {
+      const yCenter = U_Y0 + i * ROW_H + ROW_H / 2;
+      const yTop = yCenter - BAR_H / 2;
+      // Bar extends from 2% line to the value's x position.
+      const xValue = xScale(b.value);
+      const xStart = Math.min(x2, xValue);
+      const w = Math.max(1, Math.abs(xValue - x2));
+      const colorClass = colorFor(b.value);
+      const valueStr = `${b.value > 0 ? "+" : ""}${b.value.toFixed(1)}%`;
+      const weightStr = b.weight !== undefined ? `(wt. ${(b.weight * 100).toFixed(0)}%)` : "";
+      return (
+        <g>
+          {/* Category label */}
+          <text
+            class="panel-4-sub__category"
+            x={(U_X0 - 8).toFixed(2)}
+            y={(yCenter + 4).toFixed(2)}
+            text-anchor="end"
+          >{b.label}</text>
+          {/* Bar */}
+          <rect
+            class={`panel-4-sub__bar panel-4-sub__bar--${colorClass}`}
+            x={xStart.toFixed(2)}
+            y={yTop.toFixed(2)}
+            width={w.toFixed(2)}
+            height={BAR_H.toFixed(2)}
+          >
+            <title>{`${b.label}: ${valueStr} Y/Y${b.weight !== undefined ? `, weight ${(b.weight * 100).toFixed(0)}%` : ""}`}</title>
+          </rect>
+          {/* Value label */}
+          <text
+            class="panel-4-sub__value"
+            x={(b.value >= 2 ? xValue + 4 : xValue - 4).toFixed(2)}
+            y={(yCenter + 4).toFixed(2)}
+            text-anchor={b.value >= 2 ? "start" : "end"}
+          >{valueStr}</text>
+          {/* Weight subscript */}
+          {weightStr && (
+            <text
+              class="panel-4-sub__weight"
+              x={(U_X1 + 6).toFixed(2)}
+              y={(yCenter + 4).toFixed(2)}
+              text-anchor="start"
+            >{weightStr}</text>
+          )}
+        </g>
+      );
+    })}
+
+    {/* X-tick labels (under upper canvas) */}
+    {xTickValues.map((v) => (
+      <text
+        class="panel-4-sub__xtick-label"
+        x={xScale(v).toFixed(2)}
+        y={(U_Y1 + 14).toFixed(2)}
+        text-anchor="middle"
+      >{`${v}%`}</text>
+    ))}
+    {/* "Target" label on the 2% reference */}
+    <text
+      class="panel-4-sub__target-tag"
+      x={x2.toFixed(2)}
+      y={(U_Y0 - 6).toFixed(2)}
+      text-anchor="middle"
+    >2% target</text>
+
+    {/* ============== SHELTER INSET ============== */}
+
+    {/* Inset title */}
+    <text
+      class="panel-4-sub__inset-title"
+      x={L_X0}
+      y={(L_Y0 - 6).toFixed(2)}
+      text-anchor="start"
+    >SHELTER, DECOMPOSED</text>
+
+    {/* Inset gridlines: 0 and 2 only */}
+    <line
+      class="panel-4-sub__gridline"
+      x1={xScaleL(0).toFixed(2)}
+      y1={L_Y0.toFixed(2)}
+      x2={xScaleL(0).toFixed(2)}
+      y2={(L_Y0 + L_H).toFixed(2)}
+    />
+    <line
+      class="panel-4-sub__refline"
+      x1={xScaleL(2).toFixed(2)}
+      y1={L_Y0.toFixed(2)}
+      x2={xScaleL(2).toFixed(2)}
+      y2={(L_Y0 + L_H).toFixed(2)}
+    />
+
+    {/* Two inset bars */}
+    {[
+      { label: "Shelter ex-MIC", value: shelter.exMIC },
+      { label: "Mortgage interest cost", value: shelter.mic },
+    ].map((row, i) => {
+      const yC = L_Y0 + i * insetRowH + insetRowH / 2;
+      const yT = yC - insetBarH / 2;
+      const xV = xScaleL(row.value);
+      const xS = Math.min(xScaleL(2), xV);
+      const w = Math.max(1, Math.abs(xV - xScaleL(2)));
+      const cc = colorFor(row.value);
+      const vs = `${row.value > 0 ? "+" : ""}${row.value.toFixed(1)}%`;
+      return (
+        <g>
+          <text
+            class="panel-4-sub__inset-category"
+            x={(L_X0 - 8).toFixed(2)}
+            y={(yC + 4).toFixed(2)}
+            text-anchor="end"
+          >{row.label}</text>
+          <rect
+            class={`panel-4-sub__bar panel-4-sub__bar--${cc}`}
+            x={xS.toFixed(2)}
+            y={yT.toFixed(2)}
+            width={w.toFixed(2)}
+            height={insetBarH.toFixed(2)}
+          >
+            <title>{`${row.label}: ${vs} Y/Y`}</title>
+          </rect>
+          <text
+            class="panel-4-sub__value"
+            x={(row.value >= 2 ? xV + 4 : xV - 4).toFixed(2)}
+            y={(yC + 4).toFixed(2)}
+            text-anchor={row.value >= 2 ? "start" : "end"}
+          >{vs}</text>
+        </g>
+      );
+    })}
+
+    {/* Inset x-tick at 2% only */}
+    <text
+      class="panel-4-sub__xtick-label"
+      x={xScaleL(2).toFixed(2)}
+      y={(L_Y0 + L_H + 14).toFixed(2)}
+      text-anchor="middle"
+    >2%</text>
+
+    {/* Suppress unused L_X1 lint */}
+    <line x1={L_X1} y1="0" x2={L_X1} y2="0" stroke="none" />
+  </svg>
+</figure>
+
+<style>
+  .panel-4-sub {
+    width: 100%;
+    margin: 0;
+    background-color: var(--surface);
+  }
+  .panel-4-sub__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: var(--font-sans);
+    overflow: visible;
+  }
+
+  .panel-4-sub__gridline {
+    stroke: var(--rule-faint);
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+    shape-rendering: crispEdges;
+  }
+  .panel-4-sub__gridline--zero {
+    stroke: var(--ink-muted);
+    stroke-dasharray: none;
+  }
+
+  .panel-4-sub__refline {
+    stroke: var(--ink-muted);
+    stroke-width: 1.25;
+    shape-rendering: crispEdges;
+  }
+
+  .panel-4-sub__bar--neg {
+    fill: var(--neg);
+    fill-opacity: 0.85;
+  }
+  .panel-4-sub__bar--neutral {
+    fill: var(--neutral-soft);
+    stroke: var(--neutral);
+    stroke-width: 1;
+  }
+  .panel-4-sub__bar--pos {
+    fill: var(--pos);
+    fill-opacity: 0.85;
+  }
+
+  .panel-4-sub__category {
+    fill: var(--ink);
+    font-size: 12px;
+    font-weight: var(--fw-regular);
+  }
+  .panel-4-sub__value {
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono);
+  }
+  .panel-4-sub__weight {
+    fill: var(--ink-faint);
+    font-size: 10px;
+    font-style: italic;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono);
+  }
+  .panel-4-sub__xtick-label {
+    fill: var(--ink-faint);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .panel-4-sub__target-tag {
+    fill: var(--ink-faint);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.04em;
+  }
+
+  .panel-4-sub__inset-title {
+    fill: var(--ink-muted);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.04em;
+  }
+  .panel-4-sub__inset-category {
+    fill: var(--ink-muted);
+    font-size: 11px;
+  }
+</style>

@@ -1,0 +1,629 @@
+---
+/*
+ * Panel3Breadth - Inflation basics, panel 3. HERO chart of the page.
+ *
+ * Spec: charts/inflation_basics/panel-3-breadth.md
+ * Template: design/basics-layer-template.md Section 9.A panel 3
+ *
+ * Chart shape (composite, two sub-canvases stacked):
+ *
+ *   Upper: stacked-area composition of CPI basket components by Y/Y bucket
+ *          (above 3% / between 1-3% / below 1%), summing to 100% at each t.
+ *          The 1-3% (target band) sits in the middle so the eye reads it
+ *          as the comfort zone; above-3% on top, below-1% on bottom.
+ *          8-year window (regime story).
+ *
+ *   Lower: continuous |tilt| percentile ladder. A faded lane shows the
+ *          historical distribution of the median signed-distance-from-2%
+ *          statistic, with the current month plotted as a single vertical
+ *          mark. Affords the edge case where composition reads "clustered
+ *          near target" but the remaining pressure is one-sided.
+ *
+ * Per the user brief, Panel 3 must NOT force the four-state typology.
+ * The retire-the-four-state resolution (May 2026 verification) means the
+ * panel shows continuous shares + the tilt ladder, not a classification.
+ *
+ * Per the user brief: Inflation page chart series color = brand red.
+ * The composition uses a sequential ramp anchored on the brand red
+ * (`--accent` for above-3%, then `--accent-soft` and `--rule-faint`
+ * stepping down). The current-tilt marker on the lower canvas uses
+ * the brand accent at full saturation - one of the two approved
+ * accent-on-data places per the page spec (panel 3 + panel 6 driver).
+ *
+ * Plot vs SVG: hand-rolled SVG, per the spec's hero designation. Two
+ * sub-canvases need a shared time axis but the lower canvas is an
+ * asymmetric ladder, not a standard chart - Plot's idioms don't fit
+ * cleanly. Spec calls for a React island with D3 scales; we ship it as
+ * a single Astro component with zero client JS and the hover-coupling
+ * deferred until interaction-bearing features come back online.
+ * Per the spec: "default state shows the story" - the current-month
+ * read is the default and renders without hover.
+ */
+
+interface CompositionPoint {
+  date: string;       // YYYY-MM
+  share_above3: number;  // 0..1
+  share_1_3: number;     // 0..1
+  share_below1: number;  // 0..1
+}
+
+interface TiltDistribution {
+  hist_p10: number;
+  hist_p25: number;
+  hist_p50: number;
+  hist_p75: number;
+  hist_p90: number;
+  current: number;        // raw |tilt| value for the current month
+  current_pctile: number; // percentile rank of current vs history (0..100)
+}
+
+interface Props {
+  composition?: CompositionPoint[];
+  tilt?: TiltDistribution;
+  asOf?: string;
+}
+
+const { composition: compIn, tilt: tiltIn, asOf = "Mar 2026" } = Astro.props;
+
+// ---- Placeholder composition: 96 months ending Mar 2026 ----
+// Pre-2020 normal: ~25% above 3%, ~55% in band, ~20% below 1%.
+// 2022 peak: ~70% above 3%, ~25% in band, ~5% below.
+// 2024-26 normalize toward pre-shock shape; latest: 29% / 54% / 17%.
+function buildPlaceholderComp(): CompositionPoint[] {
+  const out: CompositionPoint[] = [];
+  let y = 2018;
+  let m = 4;
+  for (let i = 0; i < 96; i++) {
+    const t = i / 95;
+    let above: number;
+    if (t < 0.25) above = 0.22 + (0.30 - 0.22) * (t / 0.25);
+    else if (t < 0.45) above = 0.30 + (0.70 - 0.30) * ((t - 0.25) / 0.20);
+    else if (t < 0.72) above = 0.70 - (0.70 - 0.32) * ((t - 0.45) / 0.27);
+    else above = 0.32 - (0.32 - 0.29) * ((t - 0.72) / 0.28);
+    let below: number;
+    if (t < 0.25) below = 0.20 - (0.20 - 0.10) * (t / 0.25);
+    else if (t < 0.50) below = 0.10 - (0.10 - 0.05) * ((t - 0.25) / 0.25);
+    else if (t < 0.80) below = 0.05 + (0.17 - 0.05) * ((t - 0.50) / 0.30);
+    else below = 0.17;
+    let mid = 1 - above - below;
+    if (mid < 0) { mid = 0; below = 1 - above; }
+    out.push({
+      date: `${y}-${String(m).padStart(2, "0")}`,
+      share_above3: Math.round(above * 1000) / 1000,
+      share_1_3: Math.round(mid * 1000) / 1000,
+      share_below1: Math.round(below * 1000) / 1000,
+    });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+const placeholderTilt: TiltDistribution = {
+  hist_p10: 0.4,
+  hist_p25: 0.7,
+  hist_p50: 1.1,
+  hist_p75: 1.6,
+  hist_p90: 2.3,
+  current: 1.85,
+  current_pctile: 78,
+};
+
+const composition: CompositionPoint[] =
+  compIn && compIn.length > 0 ? compIn : buildPlaceholderComp();
+const tilt: TiltDistribution = tiltIn ?? placeholderTilt;
+
+// ---- Geometry: 432 x 360 per spec; we scale the viewBox to ~540 wide ----
+const VB_W = 540;
+const VB_H_UPPER = 220;
+const VB_H_GAP = 40;
+const VB_H_LOWER = 100;
+const VB_H = VB_H_UPPER + VB_H_GAP + VB_H_LOWER + 30; // +30 footer for labels
+
+const GUT_L = 36;
+const GUT_R = 84; // wider right for right-rail share labels
+
+// Upper sub-canvas plot box.
+const U_PLOT_X0 = GUT_L;
+const U_PLOT_Y0 = 24;
+const U_PLOT_W = VB_W - GUT_L - GUT_R;
+const U_PLOT_H = VB_H_UPPER - 24 - 24;
+const U_PLOT_X1 = U_PLOT_X0 + U_PLOT_W;
+const U_PLOT_Y1 = U_PLOT_Y0 + U_PLOT_H;
+
+// Lower sub-canvas plot box (full panel width, 100px tall).
+const L_PLOT_X0 = GUT_L;
+const L_PLOT_Y0 = VB_H_UPPER + VB_H_GAP;
+const L_PLOT_W = U_PLOT_W;
+const L_PLOT_H = VB_H_LOWER - 24;
+const L_PLOT_X1 = L_PLOT_X0 + L_PLOT_W;
+
+// ---- Dates and scales (shared x-axis) ----
+function decYearOf(d: string): number {
+  const [ys, ms] = d.split("-");
+  return Number(ys) + (Number(ms) - 0.5) / 12;
+}
+const decYears = composition.map((d) => decYearOf(d.date));
+const xMin = decYears[0];
+const xMax = decYears[decYears.length - 1];
+
+function xScale(yr: number): number {
+  return U_PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * U_PLOT_W;
+}
+function yScaleU(v: number): number {
+  // v in 0..1 (share of basket).
+  return U_PLOT_Y0 + U_PLOT_H - v * U_PLOT_H;
+}
+
+// ---- Build stacked area paths ----
+// Stack order from bottom to top: below_1, target_band (1-3), above_3.
+function buildBandPath(
+  cumLo: (i: number) => number,
+  cumHi: (i: number) => number,
+): string {
+  // Forward edge (upper bound), reverse edge (lower bound).
+  let d = "";
+  for (let i = 0; i < composition.length; i++) {
+    const x = xScale(decYears[i]).toFixed(2);
+    const y = yScaleU(cumHi(i)).toFixed(2);
+    d += `${i === 0 ? "M" : "L"}${x} ${y} `;
+  }
+  for (let i = composition.length - 1; i >= 0; i--) {
+    const x = xScale(decYears[i]).toFixed(2);
+    const y = yScaleU(cumLo(i)).toFixed(2);
+    d += `L${x} ${y} `;
+  }
+  d += "Z";
+  return d;
+}
+
+const belowBand = buildBandPath(
+  () => 0,
+  (i) => composition[i].share_below1,
+);
+const middleBand = buildBandPath(
+  (i) => composition[i].share_below1,
+  (i) => composition[i].share_below1 + composition[i].share_1_3,
+);
+const aboveBand = buildBandPath(
+  (i) => composition[i].share_below1 + composition[i].share_1_3,
+  () => 1,
+);
+
+// Upper-edge stroke paths (just the boundary line, top-of-band).
+function buildEdge(cumHi: (i: number) => number): string {
+  let d = "";
+  for (let i = 0; i < composition.length; i++) {
+    const x = xScale(decYears[i]).toFixed(2);
+    const y = yScaleU(cumHi(i)).toFixed(2);
+    d += `${i === 0 ? "M" : "L"}${x} ${y} `;
+  }
+  return d.trim();
+}
+const belowEdge = buildEdge((i) => composition[i].share_below1);
+const middleEdge = buildEdge((i) => composition[i].share_below1 + composition[i].share_1_3);
+
+// 50% majority reference line.
+const majorityY = yScaleU(0.5);
+
+// ---- Latest-month right-rail label positions ----
+const lastIdx = composition.length - 1;
+const lastPt = composition[lastIdx];
+const lastBelowEnd = lastPt.share_below1;
+const lastMidEnd = lastPt.share_below1 + lastPt.share_1_3;
+
+// Center y for each band's right-rail label.
+const labelBelowY = yScaleU(lastBelowEnd / 2);
+const labelMidY = yScaleU((lastBelowEnd + lastMidEnd) / 2);
+const labelAboveY = yScaleU((lastMidEnd + 1) / 2);
+
+// X-axis January ticks.
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const xTicks: Array<{ x: number; label: string }> = [];
+for (let y = yearStart; y <= yearEnd; y++) {
+  // Skip every other year if range > 6 to declutter.
+  if ((yearEnd - yearStart) > 6 && (y % 2 !== 0)) continue;
+  xTicks.push({ x: xScale(y), label: `'${String(y).slice(-2)}` });
+}
+
+// Recession 2020.
+const recStart = 2020 + (2 - 0.5) / 12;
+const recEnd = 2020 + (4 - 0.5) / 12;
+const recVisible = !(recEnd < xMin || recStart > xMax);
+const recX0 = recVisible ? xScale(Math.max(recStart, xMin)) : 0;
+const recX1 = recVisible ? xScale(Math.min(recEnd, xMax)) : 0;
+
+// 2022 peak annotation: find max above-3% month.
+let peakIdx = 0;
+for (let i = 1; i < composition.length; i++) {
+  if (composition[i].share_above3 > composition[peakIdx].share_above3) peakIdx = i;
+}
+const peakX = xScale(decYears[peakIdx]);
+const peakBandY = yScaleU(composition[peakIdx].share_below1 + composition[peakIdx].share_1_3);
+const peakDateLabel = (() => {
+  const [yy, mm] = composition[peakIdx].date.split("-");
+  const mn = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return `${mn[Number(mm) - 1]} ${yy}`;
+})();
+
+// ---- Tilt ladder geometry ----
+// Map historical P10..P90 to L_PLOT_X0+..L_PLOT_X1- with 16px margins.
+const LADDER_MARGIN = 24;
+const ladderX0 = L_PLOT_X0 + LADDER_MARGIN;
+const ladderX1 = L_PLOT_X1 - LADDER_MARGIN;
+const ladderY = L_PLOT_Y0 + L_PLOT_H / 2;
+const ladderHalfH = 14;
+
+// Place historical percentiles along the lane by their values.
+const tMin = tilt.hist_p10 - 0.2;
+const tMax = Math.max(tilt.hist_p90, tilt.current) + 0.3;
+function ladderX(v: number): number {
+  return ladderX0 + ((v - tMin) / (tMax - tMin)) * (ladderX1 - ladderX0);
+}
+
+const tickP10 = ladderX(tilt.hist_p10);
+const tickP25 = ladderX(tilt.hist_p25);
+const tickP50 = ladderX(tilt.hist_p50);
+const tickP75 = ladderX(tilt.hist_p75);
+const tickP90 = ladderX(tilt.hist_p90);
+const curX = ladderX(tilt.current);
+
+const ariaLabel = `Inflation breadth composition, ${asOf}: above 3% ${(lastPt.share_above3 * 100).toFixed(0)}%, in target band ${(lastPt.share_1_3 * 100).toFixed(0)}%, below 1% ${(lastPt.share_below1 * 100).toFixed(0)}%; tilt at the ${tilt.current_pctile}th percentile.`;
+---
+<figure class="panel-3-breadth" aria-label={ariaLabel}>
+  <svg
+    class="panel-3-breadth__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+  >
+    {/* ===================== UPPER SUB-CANVAS: STACKED COMPOSITION ===================== */}
+
+    {/* Recession band - behind everything */}
+    {recVisible && (
+      <rect
+        class="panel-3-breadth__recession"
+        x={recX0.toFixed(2)}
+        y={U_PLOT_Y0}
+        width={(recX1 - recX0).toFixed(2)}
+        height={U_PLOT_H + VB_H_GAP + L_PLOT_H}
+      />
+    )}
+
+    {/* Bands: below 1, target band 1-3, above 3 */}
+    <path class="panel-3-breadth__band panel-3-breadth__band--below" d={belowBand} />
+    <path class="panel-3-breadth__band panel-3-breadth__band--mid" d={middleBand} />
+    <path class="panel-3-breadth__band panel-3-breadth__band--above" d={aboveBand} />
+
+    {/* Band-edge strokes */}
+    <path class="panel-3-breadth__edge panel-3-breadth__edge--below" d={belowEdge} fill="none" />
+    <path class="panel-3-breadth__edge panel-3-breadth__edge--mid" d={middleEdge} fill="none" />
+
+    {/* Gridlines at 25%, 50%, 75% */}
+    {[0.25, 0.50, 0.75].map((v) => (
+      <line
+        class:list={["panel-3-breadth__gridline", { "panel-3-breadth__gridline--majority": v === 0.5 }]}
+        x1={U_PLOT_X0}
+        y1={yScaleU(v).toFixed(2)}
+        x2={U_PLOT_X1}
+        y2={yScaleU(v).toFixed(2)}
+      />
+    ))}
+
+    {/* X-axis bottom rule */}
+    <line
+      class="panel-3-breadth__xaxis"
+      x1={U_PLOT_X0}
+      y1={U_PLOT_Y1.toFixed(2)}
+      x2={U_PLOT_X1}
+      y2={U_PLOT_Y1.toFixed(2)}
+    />
+    {xTicks.map((t) => (
+      <line
+        class="panel-3-breadth__xtick"
+        x1={t.x.toFixed(2)}
+        y1={U_PLOT_Y1.toFixed(2)}
+        x2={t.x.toFixed(2)}
+        y2={(U_PLOT_Y1 + 4).toFixed(2)}
+      />
+    ))}
+    {xTicks.map((t) => (
+      <text
+        class="panel-3-breadth__xtick-label"
+        x={t.x.toFixed(2)}
+        y={(U_PLOT_Y1 + 16).toFixed(2)}
+        text-anchor="middle"
+      >{t.label}</text>
+    ))}
+
+    {/* Y-axis tick labels for upper canvas */}
+    {[0, 0.25, 0.50, 0.75, 1].map((v) => (
+      <text
+        class="panel-3-breadth__ytick-label"
+        x={(U_PLOT_X0 - 4).toFixed(2)}
+        y={(yScaleU(v) + 3.5).toFixed(2)}
+        text-anchor="end"
+      >{`${(v * 100).toFixed(0)}%`}</text>
+    ))}
+
+    {/* Right-rail share labels for the three bands */}
+    <text
+      class="panel-3-breadth__share-label panel-3-breadth__share-label--above"
+      x={(U_PLOT_X1 + 6).toFixed(2)}
+      y={(labelAboveY + 3.5).toFixed(2)}
+      text-anchor="start"
+    >{`Above 3%  ${(lastPt.share_above3 * 100).toFixed(0)}%`}</text>
+    <text
+      class="panel-3-breadth__share-label panel-3-breadth__share-label--mid"
+      x={(U_PLOT_X1 + 6).toFixed(2)}
+      y={(labelMidY + 3.5).toFixed(2)}
+      text-anchor="start"
+    >{`1-3%  ${(lastPt.share_1_3 * 100).toFixed(0)}%`}</text>
+    <text
+      class="panel-3-breadth__share-label panel-3-breadth__share-label--below"
+      x={(U_PLOT_X1 + 6).toFixed(2)}
+      y={(labelBelowY + 3.5).toFixed(2)}
+      text-anchor="start"
+    >{`Below 1%  ${(lastPt.share_below1 * 100).toFixed(0)}%`}</text>
+
+    {/* Right-rail "Majority" annotation on the 50% line */}
+    <text
+      class="panel-3-breadth__majority-label"
+      x={(U_PLOT_X1 + 6).toFixed(2)}
+      y={(majorityY + 3.5).toFixed(2)}
+      text-anchor="start"
+    >Majority</text>
+
+    {/* Recession top-edge label */}
+    {recVisible && (
+      <text
+        class="panel-3-breadth__rec-label"
+        x={((recX0 + recX1) / 2).toFixed(2)}
+        y={(U_PLOT_Y0 + 10).toFixed(2)}
+        text-anchor="middle"
+      >Recession (2020Q1-Q2)</text>
+    )}
+
+    {/* 2022 peak annotation */}
+    <g class="panel-3-breadth__annotation">
+      <line
+        class="panel-3-breadth__leader"
+        x1={(peakX + 4).toFixed(2)}
+        y1={(peakBandY - 8).toFixed(2)}
+        x2={(peakX + 4).toFixed(2)}
+        y2={(U_PLOT_Y0 + 26).toFixed(2)}
+      />
+      <line
+        class="panel-3-breadth__leader"
+        x1={(peakX + 4).toFixed(2)}
+        y1={(U_PLOT_Y0 + 26).toFixed(2)}
+        x2={(peakX + 36).toFixed(2)}
+        y2={(U_PLOT_Y0 + 26).toFixed(2)}
+      />
+      <text
+        class="panel-3-breadth__annotation-line"
+        x={(peakX + 40).toFixed(2)}
+        y={(U_PLOT_Y0 + 30).toFixed(2)}
+        text-anchor="start"
+      >{`Peak ${peakDateLabel}: ${(composition[peakIdx].share_above3 * 100).toFixed(0)}% above 3%`}</text>
+    </g>
+
+    {/* ===================== LOWER SUB-CANVAS: TILT LADDER ===================== */}
+
+    {/* Sub-canvas title */}
+    <text
+      class="panel-3-breadth__ladder-title"
+      x={L_PLOT_X0}
+      y={(L_PLOT_Y0 - 14).toFixed(2)}
+      text-anchor="start"
+    >TILT MAGNITUDE - HISTORICAL DISTRIBUTION</text>
+
+    {/* Historical distribution lane fill */}
+    <rect
+      class="panel-3-breadth__ladder-lane"
+      x={ladderX0.toFixed(2)}
+      y={(ladderY - ladderHalfH).toFixed(2)}
+      width={(ladderX1 - ladderX0).toFixed(2)}
+      height={(2 * ladderHalfH).toFixed(2)}
+    />
+    {/* Lane upper / lower hairline boundaries */}
+    <line
+      class="panel-3-breadth__ladder-bound"
+      x1={ladderX0.toFixed(2)}
+      y1={(ladderY - ladderHalfH).toFixed(2)}
+      x2={ladderX1.toFixed(2)}
+      y2={(ladderY - ladderHalfH).toFixed(2)}
+    />
+    <line
+      class="panel-3-breadth__ladder-bound"
+      x1={ladderX0.toFixed(2)}
+      y1={(ladderY + ladderHalfH).toFixed(2)}
+      x2={ladderX1.toFixed(2)}
+      y2={(ladderY + ladderHalfH).toFixed(2)}
+    />
+
+    {/* Percentile ticks */}
+    {[
+      { x: tickP10, label: "P10" },
+      { x: tickP25, label: "P25" },
+      { x: tickP50, label: "P50" },
+      { x: tickP75, label: "P75" },
+      { x: tickP90, label: "P90" },
+    ].map((p) => (
+      <g>
+        <line
+          class="panel-3-breadth__ladder-tick"
+          x1={p.x.toFixed(2)}
+          y1={(ladderY - ladderHalfH).toFixed(2)}
+          x2={p.x.toFixed(2)}
+          y2={(ladderY + ladderHalfH).toFixed(2)}
+        />
+        <text
+          class="panel-3-breadth__ladder-tick-label"
+          x={p.x.toFixed(2)}
+          y={(ladderY + ladderHalfH + 12).toFixed(2)}
+          text-anchor="middle"
+        >{p.label}</text>
+      </g>
+    ))}
+
+    {/* Current-month marker - the single editorial argument */}
+    <line
+      class="panel-3-breadth__ladder-current"
+      x1={curX.toFixed(2)}
+      y1={(ladderY - ladderHalfH - 6).toFixed(2)}
+      x2={curX.toFixed(2)}
+      y2={(ladderY + ladderHalfH + 6).toFixed(2)}
+    />
+    <text
+      class="panel-3-breadth__ladder-current-label"
+      x={(curX + 6).toFixed(2)}
+      y={(ladderY - ladderHalfH - 4).toFixed(2)}
+      text-anchor="start"
+    >{`Current: P${tilt.current_pctile}`}</text>
+  </svg>
+</figure>
+
+<style>
+  .panel-3-breadth {
+    width: 100%;
+    margin: 0;
+    background-color: var(--surface);
+  }
+
+  .panel-3-breadth__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: var(--font-sans);
+    overflow: visible;
+  }
+
+  .panel-3-breadth__recession {
+    fill: rgba(21, 23, 26, 0.06);
+  }
+
+  /* Stacked composition bands. Sequential ramp keyed off the brand red:
+     above-3% reads heaviest in accent; target-band reads neutral; below-1%
+     reads palest. This honors the user brief's brand-red mandate without
+     conflating composition with editorial valence (the EDR explicitly
+     wants composition shown as data, not as good/bad). */
+  .panel-3-breadth__band--above {
+    fill: var(--accent);
+    fill-opacity: 0.65;
+  }
+  .panel-3-breadth__band--mid {
+    fill: var(--accent-soft);
+    fill-opacity: 0.85;
+  }
+  .panel-3-breadth__band--below {
+    fill: var(--rule-faint);
+    fill-opacity: 1;
+  }
+  .panel-3-breadth__edge--below,
+  .panel-3-breadth__edge--mid {
+    stroke: var(--surface);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  .panel-3-breadth__gridline {
+    stroke: var(--rule-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+    stroke-opacity: 0.6;
+  }
+  .panel-3-breadth__gridline--majority {
+    stroke: var(--ink-faint);
+    stroke-dasharray: 2 2;
+    stroke-opacity: 0.7;
+  }
+
+  .panel-3-breadth__xaxis {
+    stroke: var(--rule);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-3-breadth__xtick {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-3-breadth__xtick-label,
+  .panel-3-breadth__ytick-label {
+    fill: var(--ink-faint);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .panel-3-breadth__share-label {
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .panel-3-breadth__share-label--above { fill: var(--accent); }
+  .panel-3-breadth__share-label--mid   { fill: var(--ink-muted); }
+  .panel-3-breadth__share-label--below { fill: var(--ink-faint); }
+
+  .panel-3-breadth__majority-label {
+    fill: var(--ink-faint);
+    font-size: 10px;
+    font-style: italic;
+  }
+  .panel-3-breadth__rec-label {
+    fill: var(--ink-faint);
+    font-size: 10px;
+  }
+
+  .panel-3-breadth__leader {
+    stroke: var(--ink-muted);
+    stroke-width: 1;
+    fill: none;
+  }
+  .panel-3-breadth__annotation-line {
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+  }
+
+  /* Lower canvas: tilt ladder */
+  .panel-3-breadth__ladder-title {
+    fill: var(--ink-muted);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.04em;
+  }
+  .panel-3-breadth__ladder-lane {
+    fill: var(--surface-sunk);
+  }
+  .panel-3-breadth__ladder-bound {
+    stroke: var(--rule);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-3-breadth__ladder-tick {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .panel-3-breadth__ladder-tick-label {
+    fill: var(--ink-faint);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+  }
+  /* Current-month marker uses brand accent at full saturation.
+     One of the two approved accent-on-data exceptions on the page. */
+  .panel-3-breadth__ladder-current {
+    stroke: var(--accent);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+  }
+  .panel-3-breadth__ladder-current-label {
+    fill: var(--accent);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

@@ -166,3 +166,132 @@ sequentially in CI but are independently runnable for local development.
   scope first, and within each, which canonical vector / series key
   expresses the headline indicator. The pipeline is ready to accept that
   list; nothing more is needed on the backend side until it lands.
+
+---
+
+## ADR-0005: Split daily Financial build from monthly main build
+
+**Date:** 2026-05-11
+**Status:** Accepted
+
+### Context
+
+The Financial section (canon 4.6 + the daily "what moved overnight"
+absorption per `wave1_data_scope_financial_trade.md` Section 1.3) refreshes
+every North American trading day at 18:00 ET. Every other section is at
+StatCan monthly cadence (LFS, CPI, GDP) or slower. Running the daily
+Financial fetchers on the monthly StatCan rhythm wastes CI minutes and
+leaves the Financial section stale between StatCan releases.
+
+### Decision
+
+Two entry points, one shared library:
+
+1. `pipeline.build` (monthly + quarterly + ad-hoc fiscal/housing). Runs
+   the StatCan catalog filtered to non-financial sections, the BoC Valet
+   catalog filtered to non-daily cadence, the DoF Fiscal Monitor scraper,
+   and the CREA MLS HPI bulk download. Drives cross-series derivations
+   that depend on StatCan inputs.
+2. `pipeline.build_financial` (daily, scheduled 18:00 ET). Runs the BoC
+   Valet catalog filtered to daily cadence, the FRED catalog, the Yahoo
+   catalog, and Financial-side derivations (GoC-UST spreads).
+
+Both inherit a single failure-isolation primitive (`_safe()`) lifted from
+boc-tracker's `fetch.py:484-494`: per-series exceptions are logged and
+appended to a `failed` list; the script exits non-zero if anything
+failed, so GitHub Actions surfaces the failure list in the run UI without
+the rest of the day's data being lost on disk.
+
+### Consequences
+
+- Daily Financial CI is fast and tight: ~15 BoC daily + 10 FRED + 3 Yahoo
+  series, plus spread derivations. Should run in under a minute.
+- Monthly build re-runs the heavier StatCan catalog (82 series) plus CREA
+  XLSX parsing and DoF HTML scraping. Slower, but only at StatCan
+  release cadence.
+- The on-disk contract (CSV + `.meta.json` in `data/raw/`,
+  `data/processed/`) is shared; downstream Astro never sees the split.
+- Adding a new daily-cadence series is one catalog entry; adding a new
+  monthly series is one catalog entry. Orchestration code does not
+  change.
+- Open question for ops: GitHub Actions cron for the daily Financial
+  build, including weekend skipping (markets closed Sat-Sun; no point
+  re-fetching). Deferred until CI lands.
+
+---
+
+## ADR-0006: GitHub Actions cron lands; workflows in ready-to-enable state
+
+**Date:** 2026-05-11
+**Status:** Accepted (resolves the open question in ADR-0005)
+
+### Context
+
+ADR-0005 deferred the cron specifics until CI landed. Frontend rebuild is
+in flight on the homepage; the pipeline side is unblocked. The repository
+does not yet have a `git remote` configured, so we cannot test the
+workflows against live GitHub schedulers -- but committing the files now
+means the cron starts firing automatically the moment a remote is wired up.
+
+### Decision
+
+Two workflow files under `.github/workflows/`, both in READY-TO-ENABLE
+state:
+
+1. `build-financial-daily.yml` -- runs `python -m pipeline.build_financial`
+   Mon-Fri at 22:00 UTC (18:00 EDT / 17:00 EST), per ADR-0005 + the
+   wave1_data_scope_financial_trade.md Section 1.3 hand-off note.
+2. `build-monthly.yml` -- runs `python -m pipeline.build` on the 1st of
+   each month at 17:00 UTC. Single-shot monthly refresh; we explicitly
+   chose this over per-release-day workflows for v1 simplicity.
+
+Both workflows:
+- Use `actions/setup-python@v5` with `python-version: "3.12"` and pip
+  caching keyed on `pipeline/requirements.txt`.
+- Pass `FRED_API_KEY` from repo secrets; the pipeline's `_safe()` already
+  handles its absence as a flagged failure rather than a hard stop.
+- Use `continue-on-error: true` on the build step so partial-failure
+  exit codes do NOT skip the commit step; the run still surfaces red via
+  a final "surface" step that re-raises the build outcome.
+- Commit in-place with `git diff --cached --quiet` to skip empty commits.
+- **Do not push to a remote**; the repo has no remote yet. Once a remote
+  lands, a follow-up ADR can decide whether to push from the workflow
+  token or push via a manual PR-then-merge flow.
+
+Concurrency groups prevent overlap (one daily run at a time; one monthly
+run at a time). Timeouts: 10 min daily, 30 min monthly.
+
+### Consequences
+
+- Zero remote-side action required to merge these in. They commit, but
+  the commits stay local to the runner's checkout until a remote is
+  added and a push policy is decided.
+- The daily build runs in under a minute against the live APIs (per
+  ADR-0005); the 10-min timeout gives wide headroom for FRED rate-limit
+  retries.
+- GitHub's cron is UTC-only -- the daily slot drifts 1 hour between EST
+  and EDT. We accept the drift: 17:00 ET vs 18:00 ET both post-date the
+  EDT close (16:30 ET) for BoC daily series and the FRED end-of-day push.
+- Adding a remote later: the workflows are intentionally remote-agnostic.
+  Once `git remote add origin ...` lands and a default branch lives on
+  github.com, the schedules begin firing without any workflow edits.
+- The CBA mortgage-arrears blocker is captured in `data/SOURCES.md`
+  rather than absorbed into the build; it is a known gap, not a silent
+  one. Headless-browser fetching would close it but adds a heavy CI
+  dependency for a single monthly indicator; deferred.
+
+### Workstream B catalog additions (recorded here for traceability)
+
+- BoC Valet `FVI_TP_GOC_10Y_ACM` and `FVI_TP_GOC_10Y_SHADOWRATE` --
+  Canadian 10-year GoC term premium (ACM + shadow-rate models). An
+  earlier catalog comment said "NOT FOUND in Valet"; a re-probe with a
+  broader regex (`FVI_TP_GOC_*`) found both. Canon 4.6 element 2 v1
+  basics requirement met without scraping the FSI page.
+- BoC Valet `FVI_FSI_CAN` -- Canadian Financial Stress Index. Daily.
+  Surfaced as a regime classifier next to the term-premium read.
+- `pipeline/fetch/alberta.py` + `fetch_natural_gas_price()` -- Alberta
+  Economic Dashboard monthly natural-gas reference price (C$/GJ, AECO-
+  equivalent monthly settle). Weekly bid-week is gated behind NGX
+  subscription; canon 4.6 element 4 v1 fallback to monthly cadence.
+- `data/SOURCES.md` -- adds the Alberta Dashboard subsection in full
+  (was a TODO stub) and documents the CBA Sucuri-JS-challenge blocker.

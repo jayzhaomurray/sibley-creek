@@ -1,0 +1,201 @@
+---
+/*
+ * Sparkline — inline micro-chart for tile prints.
+ *
+ * Per design-system.md section 5 ("Sparkline vs full-chart"):
+ *   - No axes, no gridlines, no labels inside the line.
+ *   - Single series, single color (ink-muted default, or section accent if
+ *     this is the hero metric).
+ *   - Last point dot at 3px in series color.
+ *   - The inline number to the right at mono-sm and any pos/neg coloring
+ *     belongs to the *consumer* (the tile already renders value + delta),
+ *     so this component is just the line + dot — no axis chrome, no labels.
+ *
+ * Implementation: hand-rolled SVG. Plot/D3 would dominate the bundle for
+ * a 1-line, no-axis, 24-point chart with no scales worth saving — and
+ * pulling in Plot for a sparkline would also force a React/MDX island
+ * model on what should be a static, server-rendered shape. The SVG path
+ * here is built at component-render time on the server; zero client JS
+ * ships, and CLS is impossible because the parent sets aspect-ratio.
+ *
+ * The viewBox is 160x40 to match the design-system sparkline upper bound;
+ * the SVG itself fills its parent (width/height 100%) via preserveAspect-
+ * Ratio "none", so the inscribed line stretches to whatever box the tile
+ * reserves (currently aspect-ratio 2/1, ~max 88px wide x 44px tall in
+ * the 3-col layout). Strokes use `vector-effect: non-scaling-stroke` so
+ * the line stays 1.25px regardless of how the SVG is stretched.
+ *
+ * Props:
+ *   data    - numeric series, ~20-30 points. Order is left -> right
+ *             (oldest -> newest). The last value gets the end-dot.
+ *   accent  - "muted" (default, ink-muted) or "accent" (a CSS color, e.g.
+ *             a section accent token from data/sections). Passing a CSS
+ *             token name is fine; we forward it as a CSS variable on the
+ *             root <svg> and the stroke/fill consume it. "muted" is the
+ *             non-hero default per design-system sec 5.
+ *   ariaLabel - optional accessible name (e.g. "GDP m/m, last 24 months").
+ *               If omitted, the SVG is presentational (aria-hidden) and the
+ *               number to its left does the SR work.
+ *
+ * Behavior with degenerate inputs:
+ *   - 0 points: renders nothing (returns null content inside the slot).
+ *   - 1 point: renders only the end-dot, centered vertically.
+ *   - All values equal: line at mid-height (avoid divide-by-zero).
+ */
+
+interface Props {
+  data: number[];
+  accent?: "muted" | "accent" | string;
+  ariaLabel?: string;
+  class?: string;
+}
+
+const { data, accent = "muted", ariaLabel, class: className } = Astro.props;
+
+// --- Geometry ---------------------------------------------------------------
+// We draw into a fixed 160x40 viewBox and let preserveAspectRatio="none"
+// stretch into the parent. Padding keeps the line and end-dot from clipping
+// against the box edges; 2px on the y avoids the dot kissing the top/bottom.
+const VB_W = 160;
+const VB_H = 40;
+const PAD_X = 2;
+const PAD_Y = 3;
+
+const points = Array.isArray(data) ? data.filter((v) => Number.isFinite(v)) : [];
+const n = points.length;
+
+let pathD = "";
+let lastX = 0;
+let lastY = 0;
+let renderLine = false;
+let renderDot = false;
+
+if (n === 1) {
+  // Single point: just the dot, centered vertically.
+  lastX = VB_W / 2;
+  lastY = VB_H / 2;
+  renderDot = true;
+} else if (n >= 2) {
+  const minV = Math.min(...points);
+  const maxV = Math.max(...points);
+  const range = maxV - minV;
+  const innerW = VB_W - PAD_X * 2;
+  const innerH = VB_H - PAD_Y * 2;
+
+  const toX = (i: number) => PAD_X + (i / (n - 1)) * innerW;
+  // Y inverts: high values sit toward the top of the SVG (smaller y).
+  // When range is 0 (flat line), park at vertical midpoint.
+  const toY = (v: number) =>
+    range === 0
+      ? VB_H / 2
+      : PAD_Y + innerH - ((v - minV) / range) * innerH;
+
+  const coords = points.map((v, i) => [toX(i), toY(v)] as const);
+  pathD = coords
+    .map(([x, y], i) =>
+      `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`,
+    )
+    .join(" ");
+
+  const last = coords[coords.length - 1];
+  lastX = last[0];
+  lastY = last[1];
+  renderLine = true;
+  renderDot = true;
+}
+
+// --- Color resolution -------------------------------------------------------
+// "muted" -> ink-muted (default per design-system sec 5).
+// "accent" -> the page-level editorial red (rarely used inline; almost no
+//             tile print would qualify).
+// A custom string is treated as a CSS color expression and passed through —
+// this is how the tile injects its section-accent token without us hard-
+// coding the seven section colors here. The CSS variable mechanism keeps
+// the surface API small.
+function resolveColor(input: string): string {
+  if (input === "muted") return "var(--ink-muted)";
+  if (input === "accent") return "var(--accent)";
+  return input;
+}
+const strokeColor = resolveColor(accent);
+
+const hidden = ariaLabel ? undefined : true;
+---
+{n === 0 ? (
+  <span class:list={["spark", "spark--empty", className]} aria-hidden="true"></span>
+) : (
+  <svg
+    class:list={["spark", className]}
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="none"
+    role={ariaLabel ? "img" : undefined}
+    aria-label={ariaLabel}
+    aria-hidden={hidden}
+    style={`--spark-color: ${strokeColor};`}
+  >
+    {renderLine && (
+      <path
+        class="spark__line"
+        d={pathD}
+        fill="none"
+      />
+    )}
+    {renderDot && (
+      /* The dot is rendered as a zero-radius circle with a stroke, so
+       * vector-effect: non-scaling-stroke keeps it a true round 3px dot
+       * at the screen even though preserveAspectRatio="none" would
+       * otherwise stretch a filled circle into an ellipse. The stroke
+       * width is the visual diameter. */
+      <circle
+        class="spark__dot"
+        cx={lastX.toFixed(2)}
+        cy={lastY.toFixed(2)}
+        r="0"
+      />
+    )}
+  </svg>
+)}
+
+<style>
+  /* The sparkline fills its parent's reserved aspect-ratio box. The parent
+   * (SectionTile .print__spark) sets aspect-ratio: 2/1 and max-height; we
+   * never set our own height — that would break the CLS guarantee. */
+  .spark {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .spark--empty {
+    /* Render the reserved space invisibly when there's no data. The
+     * parent's box keeps the layout honest; no dashed border here because
+     * empty-state is a backend gap, not a development affordance. */
+    width: 100%;
+    height: 100%;
+  }
+
+  .spark__line {
+    stroke: var(--spark-color);
+    stroke-width: 1.25;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    /* Keep the visual stroke weight constant regardless of how the SVG
+     * is stretched non-uniformly by preserveAspectRatio="none". Without
+     * this, the line would thicken/thin with the box. */
+    vector-effect: non-scaling-stroke;
+  }
+
+  .spark__dot {
+    /* 3px diameter dot per design-system sec 5 ("Last point dot at 3px,
+     * in series color"). We render r=0 with a stroke of 3px and use
+     * non-scaling-stroke so the dot stays circular and a true 3px on
+     * screen regardless of the parent box's aspect-ratio. stroke-linecap
+     * round closes the zero-length stroke into a circle. */
+    fill: none;
+    stroke: var(--spark-color);
+    stroke-width: 3;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+</style>

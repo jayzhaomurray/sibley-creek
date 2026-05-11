@@ -1,0 +1,950 @@
+---
+/*
+ * SectionLayout - the page shell for a per-section basics-layer page
+ * (GDP, Inflation, Labour, Housing, Policy, Markets, Trade).
+ *
+ * Implements the template specified in design/basics-layer-template.md.
+ * v0.1 covers GDP; the layout generalizes across all seven sections
+ * because the template structure is identical per section.
+ *
+ * Sections of the page rendered by this layout:
+ *   1. Page header
+ *      - Kicker row: "MACRO RESEARCH DEPARTMENT | SECTION N OF 7 | <section>"
+ *      - Section name (display-xl serif)
+ *      - Headline question (deck italic)
+ *      - Page-level "LATEST RELEASE" stamp (micro mono / sans)
+ *      - Hairline rule (1px, section accent at 40% opacity)
+ *   2. Panel index dots (anchor links to each panel)
+ *   3. Two-column responsive panel grid (single column on mobile)
+ *      - Rendered from a `panels` prop; the layout owns the grid, the page
+ *        owns the panel data.
+ *
+ * Panel internals are rendered inline rather than via a separate component
+ * to keep v0.1 simple; if/when chart-builder hydrates individual panel
+ * charts, we can extract a <SectionPanel> island without touching the
+ * page-level layout API.
+ *
+ * Props:
+ *   slug              - SectionSlug, drives the section-accent token resolution
+ *   sectionIndex      - 1..7, displayed in the kicker as "SECTION N OF 7"
+ *   sectionName       - Display name for the big serif headline. e.g. "GDP".
+ *   sectionLabel      - Short label for the kicker (often == sectionName)
+ *   accentVar         - CSS variable name (with leading "--") for the
+ *                       section accent token (e.g. "--section-accent-gdp").
+ *                       Resolved into --section-accent at the page root so
+ *                       downstream selectors can reference one name.
+ *   headlineQuestion  - The EDR-canonical headline question (italic deck).
+ *   pageAsOf          - The page-level "LATEST RELEASE" stamp:
+ *                         { label, releaseDate } e.g.
+ *                         { label: "Monthly GDP by industry, Mar 2026",
+ *                           releaseDate: "May 1, 2026" }
+ *   panels            - Array of Panel records (see Panel interface below).
+ *                       Renders in order; the EDR's order is the editorial
+ *                       argument and is NOT reordered for visual balance.
+ *
+ * SEO ownership: title, description, canonical are passed through to
+ * BaseLayout. SectionLayout sets sensible defaults; the page can override.
+ */
+
+import BaseLayout from "./BaseLayout.astro";
+
+// GDP basics-page chart components. Each Panel may carry a `chartKey` that
+// dispatches to one of these; if omitted, the panel renders a dashed-border
+// chart placeholder. This keeps page-level wiring declarative and lets
+// other section pages (Inflation, Labour, etc.) light up their own chart
+// components later without breaking GDP.
+import Panel1HeadlineGDP from "../components/charts/gdp/Panel1HeadlineGDP.astro";
+import Panel2IndustryVsExpenditure from "../components/charts/gdp/Panel2IndustryVsExpenditure.astro";
+import Panel3Contributions from "../components/charts/gdp/Panel3Contributions.astro";
+import Panel4PerCapita from "../components/charts/gdp/Panel4PerCapita.astro";
+import Panel5OutputGap from "../components/charts/gdp/Panel5OutputGap.astro";
+import Panel6RecessionState from "../components/charts/gdp/Panel6RecessionState.astro";
+
+// Inflation basics-page chart components. Same dispatch pattern as GDP.
+import Panel1HeadlineCPI from "../components/charts/inflation/Panel1HeadlineCPI.astro";
+import Panel2CoreTrio from "../components/charts/inflation/Panel2CoreTrio.astro";
+import Panel3Breadth from "../components/charts/inflation/Panel3Breadth.astro";
+import Panel4SubAggregates from "../components/charts/inflation/Panel4SubAggregates.astro";
+import Panel5Expectations from "../components/charts/inflation/Panel5Expectations.astro";
+import Panel6PassThrough from "../components/charts/inflation/Panel6PassThrough.astro";
+
+export type ChartKey = "gdp-panel-1" | "gdp-panel-2" | "gdp-panel-3" | "gdp-panel-4" | "gdp-panel-5" | "gdp-panel-6" | "inflation-panel-1" | "inflation-panel-2" | "inflation-panel-3" | "inflation-panel-4" | "inflation-panel-5" | "inflation-panel-6";
+
+export interface PanelVintage {
+  /** "AS OF" release date for the panel's data, e.g. "May 1, 2026". */
+  releaseDate: string;
+  /** Reference period of the data, e.g. "Mar 2026". Optional. */
+  reference?: string;
+  /**
+   * Optional secondary stamp pair for panels that combine two series at
+   * different vintages (per template section 6 "page-level vs panel-level").
+   * If present, replaces the single-line stamp with a stacked two-anchor
+   * stamp. Each entry is shown as "<label>: <date> (<ref>)".
+   */
+  secondary?: { label: string; date: string; ref?: string }[];
+}
+
+export interface PanelCallout {
+  /** The big-number value, e.g. "+0.2%". */
+  value: string;
+  /** Unit / period qualifier, e.g. "month-over-month, March 2026". */
+  unit: string;
+  /** Direction of the delta-vs-prior. Drives color encoding. */
+  direction: "pos" | "neg" | "neutral";
+  /** Delta-vs-prior, pre-formatted, e.g. "+0.1pp vs Feb". */
+  deltaPrior: string;
+  /**
+   * Surprise vs consensus. Optional - omitted on derived / non-forecasted
+   * series (per-capita, output gap, recession state).
+   *   verb       - "Beat" | "Missed" | "In line with"
+   *   text       - the rest of the surprise clause, e.g. "consensus by 0.1pp"
+   *   anchor     - "c" for consensus, "m" for MPR fallback. Rendered as
+   *                "[c]" / "[m]" subscript per template section 4.
+   */
+  surprise?: {
+    verb: string;
+    text: string;
+    anchor: "c" | "m";
+  };
+  /**
+   * Revision tag. Optional. "up" / "down" / "unrevised". Per template
+   * section 5: the tag is never omitted when revisions are part of the
+   * release - its absence would be ambiguous. We render "Unrevised" when
+   * caller passes "unrevised" explicitly.
+   */
+  revision?: "up" | "down" | "unrevised";
+}
+
+export interface PanelMethodology {
+  /** Drawer title; defaults to "<Panel title> - methodology". */
+  title?: string;
+  /** Drawer body text (single paragraph for v1). */
+  body: string;
+}
+
+export interface Panel {
+  /** Anchor id for in-page nav (panel index dots). e.g. "panel-1". */
+  id: string;
+  /** All-caps EDR designation; e.g. "HEADLINE REAL GDP". */
+  eyebrow: string;
+  /** Active-voice sentence; e.g. "Monthly GDP rose 0.2% in March...". */
+  title: string;
+  /** Italic deck answering "so what" - one sentence. */
+  deck: string;
+  /** Vintage stamp shown top-right of the panel. */
+  vintage: PanelVintage;
+  /**
+   * Either a numeric callout block OR an editorial status line. Mutually
+   * exclusive. Per template section 3 ("Panel without a callout?").
+   */
+  callout?: PanelCallout;
+  editorialStatus?: string;
+  /** Source citation, e.g. "Statistics Canada Table 36-10-0434-01." */
+  source: string;
+  /** Optional methodology drawer. v1 uses a <details> dressed as a drawer. */
+  methodology: PanelMethodology;
+  /**
+   * Optional chart-builder dispatch key. When set, SectionLayout renders the
+   * matching chart component in the panel's chart slot; otherwise it falls
+   * back to a dashed-border placeholder.
+   */
+  chartKey?: ChartKey;
+}
+
+interface Props {
+  slug: string;
+  sectionIndex: number;
+  sectionName: string;
+  sectionLabel: string;
+  accentVar: string;
+  headlineQuestion: string;
+  pageAsOf: {
+    label: string;
+    releaseDate: string;
+  };
+  panels: Panel[];
+  /** SEO passthroughs. */
+  title: string;
+  description: string;
+  canonical?: string;
+  ogImage?: string;
+}
+
+const {
+  slug,
+  sectionIndex,
+  sectionName,
+  sectionLabel,
+  accentVar,
+  headlineQuestion,
+  pageAsOf,
+  panels,
+  title,
+  description,
+  canonical,
+  ogImage,
+} = Astro.props;
+
+const totalSections = 7;
+
+// Resolve the section accent once at page root. Downstream CSS in this
+// layout reads --section-accent rather than the per-section token, so the
+// stylesheet stays section-agnostic and we get clean theming via one
+// declaration. (Mirrors the SectionTile pattern.)
+const rootStyle = `--section-accent: var(${accentVar});`;
+---
+<BaseLayout
+  title={title}
+  description={description}
+  canonical={canonical}
+  ogImage={ogImage}
+  pageClass={`section-page section-page--${slug}`}
+>
+  <article class="section" data-section={slug} style={rootStyle}>
+
+    {/* ---------------- Page header ---------------- */}
+    <header class="container section__header" aria-labelledby="section-title">
+
+      <p class="section__kicker">
+        <span class="section__kicker-pub">Macro Research Department</span>
+        <span class="section__kicker-sep" aria-hidden="true">|</span>
+        <span class="section__kicker-pos">Section {sectionIndex} of {totalSections}</span>
+        <span class="section__kicker-sep" aria-hidden="true">|</span>
+        <span class="section__kicker-name">{sectionLabel}</span>
+      </p>
+
+      <h1 id="section-title" class="section__name">{sectionName}</h1>
+
+      <p class="section__question"><em>{headlineQuestion}</em></p>
+
+      <p class="section__asof" aria-label="Most recent release on this page">
+        <span class="section__asof-label">Latest release</span>
+        <span class="section__asof-body">
+          {pageAsOf.label} (released {pageAsOf.releaseDate})
+        </span>
+      </p>
+
+      <hr class="section__hairline" aria-hidden="true" />
+    </header>
+
+    {/* ---------------- Panel index dots ---------------- */}
+    <nav
+      class="container section__dots"
+      aria-label="Panels on this page"
+    >
+      <ul role="list" class="section__dots-list">
+        {panels.map((panel, i) => (
+          <li class="section__dots-item">
+            <a
+              class="section__dot"
+              href={`#${panel.id}`}
+              aria-label={`Panel ${i + 1}: ${panel.eyebrow}`}
+            >
+              <span class="section__dot-marker" aria-hidden="true"></span>
+              <span class="section__dot-label">{panel.eyebrow}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+
+    {/* ---------------- Panel grid ---------------- */}
+    <section
+      class="container section__panels"
+      aria-label={`${sectionLabel} basics panels`}
+    >
+      <ol role="list" class="section__panels-grid">
+        {panels.map((panel, i) => {
+          const methTitle = panel.methodology.title
+            ?? `${panel.eyebrow} - methodology`;
+          return (
+            <li
+              id={panel.id}
+              class="section__panel-cell"
+              aria-labelledby={`${panel.id}-title`}
+            >
+              <article class="panel">
+
+                {/* Top row: eyebrow (left) + vintage stamp (right) */}
+                <header class="panel__top">
+                  <p class="panel__eyebrow">
+                    <span class="panel__eyebrow-index" aria-hidden="true">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span class="panel__eyebrow-label">{panel.eyebrow}</span>
+                  </p>
+
+                  <div class="panel__vintage">
+                    {panel.vintage.secondary && panel.vintage.secondary.length > 0 ? (
+                      <>
+                        <span class="panel__vintage-label">As of</span>
+                        {panel.vintage.secondary.map((s) => (
+                          <span class="panel__vintage-line">
+                            {s.label}: {s.date}{s.ref ? ` (${s.ref})` : ""}
+                          </span>
+                        ))}
+                      </>
+                    ) : (
+                      <>
+                        <span class="panel__vintage-label">As of</span>
+                        <span class="panel__vintage-date">
+                          {panel.vintage.releaseDate}
+                        </span>
+                        {panel.vintage.reference && (
+                          <span class="panel__vintage-ref">
+                            Reference: {panel.vintage.reference}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </header>
+
+                {/* Title + deck */}
+                <h2 id={`${panel.id}-title`} class="panel__title">
+                  {panel.title}
+                </h2>
+                <p class="panel__deck"><em>{panel.deck}</em></p>
+
+                {/* Chart slot - dispatch on panel.chartKey, or render
+                    dashed-border placeholder if unset. */}
+                {panel.chartKey ? (
+                  <div class="panel__chart panel__chart--live">
+                    {panel.chartKey === "gdp-panel-1" && <Panel1HeadlineGDP />}
+                    {panel.chartKey === "gdp-panel-2" && <Panel2IndustryVsExpenditure />}
+                    {panel.chartKey === "gdp-panel-3" && <Panel3Contributions />}
+                    {panel.chartKey === "gdp-panel-4" && <Panel4PerCapita />}
+                    {panel.chartKey === "gdp-panel-5" && <Panel5OutputGap />}
+                    {panel.chartKey === "gdp-panel-6" && <Panel6RecessionState />}
+                    {panel.chartKey === "inflation-panel-1" && <Panel1HeadlineCPI />}
+                    {panel.chartKey === "inflation-panel-2" && <Panel2CoreTrio />}
+                    {panel.chartKey === "inflation-panel-3" && <Panel3Breadth />}
+                    {panel.chartKey === "inflation-panel-4" && <Panel4SubAggregates />}
+                    {panel.chartKey === "inflation-panel-5" && <Panel5Expectations />}
+                    {panel.chartKey === "inflation-panel-6" && <Panel6PassThrough />}
+                  </div>
+                ) : (
+                  <div
+                    class="panel__chart"
+                    role="img"
+                    aria-label={`${panel.eyebrow} chart placeholder`}
+                  >
+                    <span class="panel__chart-note">Chart</span>
+                  </div>
+                )}
+
+                {/* Callout block: either numeric or editorial status. */}
+                {panel.callout ? (
+                  <div class="panel__callout">
+                    <p class="panel__callout-value">{panel.callout.value}</p>
+                    <p class="panel__callout-unit">{panel.callout.unit}</p>
+                    <p class={`panel__callout-row panel__callout-row--${panel.callout.direction}`}>
+                      <span class="panel__callout-arrow" aria-hidden="true">
+                        {panel.callout.direction === "pos" ? "^"
+                          : panel.callout.direction === "neg" ? "v"
+                          : "-"}
+                      </span>
+                      <span class="panel__callout-delta">{panel.callout.deltaPrior}</span>
+                      {panel.callout.surprise && (
+                        <>
+                          <span class="panel__callout-pipe" aria-hidden="true">|</span>
+                          <span class="panel__callout-surprise">
+                            {panel.callout.surprise.verb} {panel.callout.surprise.text}
+                            <span
+                              class="panel__callout-anchor"
+                              aria-label={panel.callout.surprise.anchor === "c"
+                                ? "Anchor: market consensus"
+                                : "Anchor: BoC MPR projection fallback"}
+                              title={panel.callout.surprise.anchor === "c"
+                                ? "Consensus = Bloomberg/Reuters median forecast."
+                                : "MPR fallback used. Consensus unavailable."}
+                            >[{panel.callout.surprise.anchor}]</span>
+                          </span>
+                        </>
+                      )}
+                      {panel.callout.revision && (
+                        <span class={`panel__callout-revision panel__callout-revision--${panel.callout.revision}`}>
+                          {panel.callout.revision === "up" ? "Revised up"
+                            : panel.callout.revision === "down" ? "Revised down"
+                            : "Unrevised"}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                ) : panel.editorialStatus ? (
+                  <p class="panel__editorial">{panel.editorialStatus}</p>
+                ) : null}
+
+                {/* Foot: source line + methodology disclosure */}
+                <footer class="panel__foot">
+                  <p class="panel__source">
+                    <span class="panel__source-label">Source:</span>{" "}
+                    <span class="panel__source-text">{panel.source}</span>
+                  </p>
+
+                  <details class="panel__method">
+                    <summary class="panel__method-summary">
+                      <span class="panel__method-text">Methodology</span>
+                      <span class="panel__method-caret" aria-hidden="true">&gt;</span>
+                    </summary>
+                    <div class="panel__method-drawer" role="region" aria-label={methTitle}>
+                      <p class="panel__method-title">{methTitle}</p>
+                      <p class="panel__method-body">{panel.methodology.body}</p>
+                    </div>
+                  </details>
+                </footer>
+              </article>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+
+  </article>
+
+  <style>
+    /* ---------- Page header ---------- */
+
+    .section__header {
+      padding-top: var(--s-3);
+    }
+
+    .section__kicker {
+      font-family: var(--font-sans);
+      font-size: var(--fs-label);
+      line-height: var(--lh-label);
+      font-weight: var(--fw-medium);
+      color: var(--ink-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 0 0 var(--s-5);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: var(--s-3);
+    }
+
+    .section__kicker-pub,
+    .section__kicker-pos {
+      color: var(--ink-muted);
+    }
+
+    .section__kicker-sep {
+      color: var(--ink-faint);
+    }
+
+    .section__kicker-name {
+      color: var(--section-accent);
+      font-weight: var(--fw-semibold);
+    }
+
+    .section__name {
+      font-family: var(--font-serif);
+      font-size: var(--fs-display-xl);
+      line-height: var(--lh-display-xl);
+      font-weight: var(--fw-semibold);
+      letter-spacing: -0.015em;
+      color: var(--ink);
+      margin: 0;
+    }
+
+    .section__question {
+      font-family: var(--font-serif);
+      font-size: var(--fs-deck);
+      line-height: var(--lh-deck);
+      font-weight: var(--fw-regular);
+      font-style: normal; /* italic comes from <em> inside */
+      color: var(--ink-muted);
+      max-width: var(--col-body);
+      margin: var(--s-3) 0 0;
+    }
+
+    .section__question em {
+      font-style: italic;
+    }
+
+    .section__asof {
+      font-family: var(--font-sans);
+      font-size: var(--fs-micro);
+      line-height: var(--lh-micro);
+      font-weight: var(--fw-regular);
+      color: var(--ink-faint);
+      margin: var(--s-4) 0 0;
+      max-width: var(--col-body);
+    }
+
+    .section__asof-label {
+      font-weight: var(--fw-medium);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-right: var(--s-2);
+    }
+
+    .section__asof-body {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .section__hairline {
+      border: 0;
+      height: 1px;
+      background-color: var(--section-accent);
+      opacity: 0.4;
+      max-width: var(--col-body);
+      margin: var(--s-5) 0 0;
+    }
+
+    /* ---------- Panel index dots ---------- */
+
+    .section__dots {
+      margin-top: var(--s-7);
+    }
+
+    .section__dots-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--s-3);
+      margin: 0;
+      max-width: var(--col-wide);
+    }
+
+    .section__dots-item {
+      display: flex;
+    }
+
+    .section__dot {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--s-2);
+      text-decoration: none;
+      color: var(--ink-muted);
+      padding: var(--s-1) var(--s-2);
+      border-radius: 4px;
+    }
+
+    .section__dot:hover,
+    .section__dot:focus-visible {
+      color: var(--ink);
+    }
+
+    .section__dot:focus-visible {
+      outline: 2px solid var(--ink);
+      outline-offset: 2px;
+    }
+
+    .section__dot-marker {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--section-accent);
+      opacity: 0.3;
+      transition: opacity var(--dur-fast) var(--ease-out);
+      flex-shrink: 0;
+    }
+
+    .section__dot:hover .section__dot-marker,
+    .section__dot:focus-visible .section__dot-marker {
+      opacity: 1;
+    }
+
+    .section__dot-label {
+      font-family: var(--font-sans);
+      font-size: var(--fs-micro);
+      line-height: var(--lh-micro);
+      font-weight: var(--fw-medium);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ink-faint);
+      transition: color var(--dur-fast) var(--ease-out);
+    }
+
+    .section__dot:hover .section__dot-label,
+    .section__dot:focus-visible .section__dot-label {
+      color: var(--ink);
+    }
+
+    /* ---------- Panel grid ---------- */
+
+    .section__panels {
+      margin-top: var(--s-7);
+    }
+
+    .section__panels-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--s-6);
+      margin: 0;
+      max-width: var(--col-wide);
+      counter-reset: panel;
+    }
+
+    /* Two columns from lg up; per template section 2. */
+    @media (min-width: 960px) {
+      .section__panels-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: var(--s-5);
+        row-gap: var(--s-6);
+      }
+    }
+
+    .section__panel-cell {
+      display: flex;
+      min-width: 0;
+      counter-increment: panel;
+    }
+
+    /* ---------- Panel card ---------- */
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      background-color: var(--surface);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-card);
+      padding: var(--s-7) var(--s-6) var(--s-6);
+      color: var(--ink);
+    }
+
+    .panel__top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: var(--s-4);
+      margin-bottom: var(--s-4);
+    }
+
+    .panel__eyebrow {
+      font-family: var(--font-sans);
+      font-size: var(--fs-label);
+      line-height: var(--lh-label);
+      font-weight: var(--fw-medium);
+      color: var(--section-accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 0;
+      display: inline-flex;
+      align-items: baseline;
+      gap: var(--s-2);
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .panel__eyebrow-index {
+      font-family: var(--font-mono);
+      font-size: var(--fs-mono-xs);
+      font-weight: var(--fw-regular);
+      color: var(--ink-faint);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .panel__vintage {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: var(--s-1);
+      text-align: right;
+      flex-shrink: 0;
+      max-width: 50%;
+    }
+
+    .panel__vintage-label {
+      font-family: var(--font-sans);
+      font-size: var(--fs-label);
+      line-height: 1.3;
+      font-weight: var(--fw-medium);
+      color: var(--ink-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .panel__vintage-date {
+      font-family: var(--font-sans);
+      font-size: var(--fs-body-sm);
+      line-height: 1.3;
+      font-weight: var(--fw-regular);
+      color: var(--ink-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .panel__vintage-ref,
+    .panel__vintage-line {
+      font-family: var(--font-sans);
+      font-size: var(--fs-micro);
+      line-height: 1.3;
+      font-weight: var(--fw-regular);
+      color: var(--ink-faint);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Title + deck */
+    .panel__title {
+      font-family: var(--font-serif);
+      font-size: var(--fs-display-sm);
+      line-height: var(--lh-display-sm);
+      font-weight: var(--fw-semibold);
+      color: var(--ink);
+      letter-spacing: -0.005em;
+      margin: 0;
+    }
+
+    .panel__deck {
+      font-family: var(--font-serif);
+      font-size: var(--fs-body-sm);
+      line-height: var(--lh-body-sm);
+      font-style: normal;
+      font-weight: var(--fw-regular);
+      color: var(--ink-muted);
+      margin: var(--s-2) 0 0;
+    }
+
+    .panel__deck em {
+      font-style: italic;
+    }
+
+    /* Chart slot - dashed-border placeholder until chart-builder hydrates. */
+    .panel__chart {
+      margin-top: var(--s-5);
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border: 1px dashed var(--rule);
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--surface);
+    }
+
+    /* Live chart slot: no dashed border, no flex centering. The chart
+     * component owns its own aspect-ratio (16:9 for time series; 4:3 for
+     * the contributions decomposition in panel 3). */
+    .panel__chart--live {
+      border: 0;
+      aspect-ratio: auto;
+      display: block;
+      align-items: initial;
+      justify-content: initial;
+    }
+
+    .panel__chart-note {
+      font-family: var(--font-sans);
+      font-size: var(--fs-label);
+      font-weight: var(--fw-medium);
+      color: var(--ink-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Callout block */
+    .panel__callout {
+      margin-top: var(--s-5);
+    }
+
+    .panel__callout-value {
+      font-family: var(--font-serif);
+      font-size: var(--fs-display-md);
+      line-height: 1.1;
+      font-weight: var(--fw-semibold);
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+      margin: 0;
+    }
+
+    .panel__callout-unit {
+      font-family: var(--font-sans);
+      font-size: var(--fs-body-sm);
+      line-height: var(--lh-body-sm);
+      font-weight: var(--fw-regular);
+      color: var(--ink-muted);
+      margin: var(--s-1) 0 0;
+    }
+
+    .panel__callout-row {
+      font-family: var(--font-sans);
+      font-size: var(--fs-label);
+      line-height: var(--lh-label);
+      font-weight: var(--fw-medium);
+      margin: var(--s-3) 0 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: var(--s-2);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .panel__callout-row--pos { color: var(--pos); }
+    .panel__callout-row--neg { color: var(--neg); }
+    .panel__callout-row--neutral { color: var(--neutral); }
+
+    .panel__callout-arrow {
+      font-family: var(--font-mono);
+      font-weight: var(--fw-semibold);
+    }
+
+    .panel__callout-pipe {
+      color: var(--ink-faint);
+      margin: 0 var(--s-1);
+    }
+
+    .panel__callout-anchor {
+      font-family: var(--font-mono);
+      font-size: var(--fs-mono-xs);
+      color: var(--ink-faint);
+      vertical-align: -0.25em;
+      margin-left: 2px;
+      cursor: help;
+    }
+
+    .panel__callout-revision {
+      font-family: var(--font-sans);
+      font-size: var(--fs-label);
+      font-weight: var(--fw-medium);
+      margin-left: var(--s-3);
+    }
+
+    .panel__callout-revision--up { color: var(--pos); }
+    .panel__callout-revision--down { color: var(--neg); }
+    .panel__callout-revision--unrevised { color: var(--ink-faint); }
+
+    /* Editorial status line (for panels without a numeric callout) */
+    .panel__editorial {
+      margin-top: var(--s-5);
+      font-family: var(--font-sans);
+      font-size: var(--fs-body-sm);
+      line-height: var(--lh-body-sm);
+      font-weight: var(--fw-medium);
+      color: var(--ink);
+    }
+
+    /* Foot row: source line + methodology */
+    .panel__foot {
+      margin-top: auto;
+      padding-top: var(--s-5);
+      border-top: 1px solid var(--rule-faint);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--s-3);
+    }
+
+    .panel__source {
+      font-family: var(--font-sans);
+      font-size: var(--fs-micro);
+      line-height: var(--lh-micro);
+      font-weight: var(--fw-regular);
+      color: var(--ink-faint);
+      margin: 0;
+      flex: 1 1 240px;
+      min-width: 0;
+    }
+
+    .panel__source-label {
+      font-weight: var(--fw-medium);
+    }
+
+    /* Methodology disclosure dressed as a slide-in drawer.
+     *
+     * v1: this is a <details>/<summary> styled to look like a drawer trigger
+     * in the panel foot. When opened, the drawer slides in from the right
+     * edge of the viewport (position: fixed) at max-width 480px. Reduced-
+     * motion users see an instant reveal per base.css's global override.
+     *
+     * The summary is the affordance per template section 7; the drawer
+     * content is the disclosure body. The 90% backdrop is omitted in v1
+     * because a true backdrop requires JS to capture outside-clicks; we
+     * defer it to a later pass when (or if) a modal pattern lands. */
+    .panel__method {
+      position: static;
+      flex-shrink: 0;
+    }
+
+    .panel__method-summary {
+      list-style: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: baseline;
+      gap: var(--s-1);
+      font-family: var(--font-sans);
+      font-size: var(--fs-label);
+      line-height: var(--lh-label);
+      font-weight: var(--fw-medium);
+      color: var(--ink);
+      text-decoration: underline;
+      text-decoration-color: var(--accent);
+      text-underline-offset: 2px;
+      text-decoration-thickness: 1px;
+    }
+
+    .panel__method-summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .panel__method-summary:hover {
+      color: var(--accent);
+    }
+
+    .panel__method-summary:focus-visible {
+      outline: 2px solid var(--ink);
+      outline-offset: 2px;
+    }
+
+    .panel__method-caret {
+      color: var(--ink-muted);
+      font-family: var(--font-mono);
+      font-weight: var(--fw-regular);
+    }
+
+    /* Drawer panel - slides in from the right at 480px max width.
+     * When closed, position: static keeps it out of the layout; when open
+     * (the [open] attribute on <details>), we lift it to a fixed overlay. */
+    .panel__method-drawer {
+      display: none;
+    }
+
+    .panel__method[open] .panel__method-drawer {
+      display: block;
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: min(480px, 92vw);
+      background-color: var(--surface);
+      border-left: 1px solid var(--rule);
+      padding: var(--s-7) var(--s-6);
+      overflow-y: auto;
+      z-index: 50;
+      animation: panel-drawer-in var(--dur-disclosure) var(--ease-out);
+      box-shadow: -8px 0 24px -16px rgba(21, 23, 26, 0.18);
+    }
+
+    @keyframes panel-drawer-in {
+      from { transform: translateX(8px); opacity: 0; }
+      to   { transform: translateX(0); opacity: 1; }
+    }
+
+    .panel__method-title {
+      font-family: var(--font-serif);
+      font-size: var(--fs-display-sm);
+      line-height: var(--lh-display-sm);
+      font-weight: var(--fw-semibold);
+      color: var(--ink);
+      letter-spacing: -0.005em;
+      margin: 0 0 var(--s-4);
+    }
+
+    .panel__method-body {
+      font-family: var(--font-sans);
+      font-size: var(--fs-body);
+      line-height: var(--lh-body);
+      color: var(--ink);
+      margin: 0;
+    }
+
+    /* Reduced-motion: kill the slide animation, keep the layout transition. */
+    @media (prefers-reduced-motion: reduce) {
+      .panel__method[open] .panel__method-drawer {
+        animation: none;
+      }
+    }
+  </style>
+</BaseLayout>

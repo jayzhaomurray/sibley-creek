@@ -391,11 +391,11 @@ monetary and fiscal -- and is it consistent with the cycle?
    construction and a formal fiscal-monetary consistency index are
    Pillar F deep-dive territory.
 
-### 4.6 Financial
+### 4.6 Markets
 
 **Headline question.** What external winds are pushing on Canadian
-inflation, growth, and the CAD -- and where is the financial system
-tight or loose?
+inflation, growth, and the CAD -- and where are Canadian markets and
+the financial system tight or loose?
 
 **Basics layer (4-6 elements):**
 1. CAD -- USDCAD level (BoC Valet `FXUSDCAD` for consistency with
@@ -488,14 +488,14 @@ from the prior editorial pass. Each is homed in exactly one section.
 
 | # | Deep dive | Home section | Cross-references |
 |---|---|---|---|
-| A | Mortgage renewal wall -- has it peaked, what is the residual transmission through 2027 | Housing | Financial (PCL builds, bank exposure); Inflation (mortgage-interest CPI) |
-| B | BoC vs. Fed divergence -- how far can it run before CAD, the GoC curve, or credit conditions force a back-off | Policy (monetary) | Financial (CAD, GoC-UST spreads, credit) |
+| A | Mortgage renewal wall -- has it peaked, what is the residual transmission through 2027 | Housing | Markets (PCL builds, bank exposure); Inflation (mortgage-interest CPI) |
+| B | BoC vs. Fed divergence -- how far can it run before CAD, the GoC curve, or credit conditions force a back-off | Policy (monetary) | Markets (CAD, GoC-UST spreads, credit) |
 | C | Housing cycle and supply response -- is it bottoming, is supply arriving where population is settling | Housing | Labour (population-to-stock ratio) |
 | D | Business investment and the productivity gap -- cyclical capex inflection vs. structural divergence with the US | GDP | Labour (productivity = output / hours); Trade (FDI) |
 | E | Population deceleration vs. labour -- does per-capita output recover through deceleration or through unemployment | Labour | Housing (population-to-stock); Policy (fiscal-demographic pressure) |
-| F | Fiscal capacity, federal and provincial -- is the debt-service trajectory consistent with the next downturn | Policy (fiscal) | Financial (GoC term premium, issuance) |
-| G | LNG / TMX / external position -- are the structural lifts being absorbed by oil-sands discipline and the WCS differential | Trade | Financial (commodity prices, CAD) |
-| H | US trade relationship -- how is USMCA review and Section 232/301 repricing Canadian exporters | Trade | GDP (export contribution); Financial (CAD) |
+| F | Fiscal capacity, federal and provincial -- is the debt-service trajectory consistent with the next downturn | Policy (fiscal) | Markets (GoC term premium, issuance) |
+| G | LNG / TMX / external position -- are the structural lifts being absorbed by oil-sands discipline and the WCS differential | Trade | Markets (commodity prices, CAD) |
+| H | US trade relationship -- how is USMCA review and Section 232/301 repricing Canadian exporters | Trade | GDP (export contribution); Markets (CAD) |
 
 **Why these eight, now.** Each is load-bearing for the Canadian cycle
 as of May 2026, supported by data we can get, and a question where a
@@ -542,7 +542,7 @@ The 2026 Canadian release calendar this anchors to:
 | Housing | Monthly | StatCan housing starts; CREA MLS HPI; CMHC arrears |
 | Policy (Monetary) | Event-driven | BoC rate decisions, MPR, Summary of Deliberations, FSR |
 | Policy (Fiscal) | Monthly + event | DoF Fiscal Monitor; Budget; FES; PBO releases; provincial budgets |
-| Financial | Daily (light) + weekly synthesis | BoC Valet daily series; weekly close summary |
+| Markets | Daily (light) + weekly synthesis | BoC Valet daily series; weekly close summary |
 | Trade | Monthly + event | StatCan merchandise trade; quarterly current account; USMCA / 232 / 301 events |
 
 **Deep-dive cadence** follows the underlying question, not a fixed
@@ -728,3 +728,4 @@ below.
 - 2026-05-10: Two-layer architecture adopted -- boc-tracker-style sections as v1 navigation, eight pillars folded under sections as deep dives. editorial-director.
 - 2026-05-10: Section 4 adjusted post-Wave-1 to reflect actual data coverage and construction cost. Four-state inflation breadth retired as forced classification (preserved as prose vocabulary). Surprise-vs-consensus reframed to BoC MPR central projection (no Big-Six / Reuters consensus citation). GDP contributions simplified to six-bar GFCF (business-vs-residential split deferred to Pillar D). Inflation 3M-AR core, goods-ex-energy / services-ex-shelter derivations, and pass-through panel gated on basket-weight reproducibility. Labour basics-layer panel order locked: LFS headline, per-capita panel (signature), wage band, V/U + Beveridge, immigration trajectory with IRCC annotations, four-province dumbbell dispersion. Housing mortgage-stack-by-vintage and own CAPB construction deferred to deep-dives; v1 basics cites BoC chartpack and IMF/OECD CAPB directly. Financial CAD fair-value model, own FCI composite, full term-premium decomposition, and Canadian credit-spread proxies deferred to v1.5; v1 basics uses USDCAD percentile classifier and US-side comparators with explicit caveats. Trade adds partner shares (China, UK, Japan, Mexico, Germany) and ToT / BCPI / FDI elements; energy-by-mode and auto/metals folded into deep-dives. editorial-director.
 - 2026-05-10: User-override on surprise framing. Surprise is now anchored to market consensus (Bloomberg / Reuters median, or aggregated forecaster median where paid feed unavailable) across GDP, Inflation, and Labour element-1. BoC MPR projection is the fallback when consensus is genuinely unavailable. Reasoning: the voice principle on Big-Six sourcing (Section 7) applies to citation as authority, not to aggregating forecaster numbers as derived consensus inputs. Prior 2026-05-10 framing (BoC MPR as primary anchor) was a too-strict reading of the voice principle. main Claude on user instruction.
+- 2026-05-11: Section 4.6 renamed "Financial" -> "Markets" to align with the homepage label rename in flight. Cross-references in Section 5 deep-dive table and Section 6 cadence table updated accordingly. Editorial rationale: "Markets" is the more honest label for what the section actually covers at the basics layer (CAD, GoC curve, credit spreads, commodity prices, bank capital, FCI). Financial-system stability work is deep-dive territory; the basics layer is markets-data-with-Canadian-lens. editorial-director.

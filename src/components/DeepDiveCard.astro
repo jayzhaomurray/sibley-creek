@@ -1,0 +1,181 @@
+---
+/*
+ * DeepDiveCard — one card in the "Current Deep Dives" strip on the
+ * homepage. Per art-director's R1 spec:
+ *   - Section badge in the section's accent color + pillar code
+ *   - Title in display-sm serif
+ *   - One-sentence deck in serif italic
+ *   - Status pip (drafted / shipped / research) + last-update date
+ *
+ * The card itself reuses the .tile chrome lineage (1px rule border, paper-
+ * white surface, 4px radius) but does NOT carry the top-rule accent — the
+ * section badge does the wayfinding instead. Status is communicated by a
+ * small text pip in ink-muted, not by a colored chip; we are an editorial
+ * site, not a Kanban board.
+ *
+ * Props:
+ *   item     - one DeepDive record from src/data/sections.ts.
+ *   section  - the matching Section record (looked up by caller). Used for
+ *              the badge label color and accent.
+ */
+
+import type { DeepDive, Section } from "../data/sections";
+
+interface Props {
+  item: DeepDive;
+  section: Section;
+}
+
+const { item, section } = Astro.props;
+
+const tileLabel = section.tileLabel ?? section.label;
+const href = item.href ?? `/${section.slug}/`;
+const badgeStyle = `--badge-accent: var(${section.accentVar});`;
+
+// Status label is plain text per design-system.md sec 7 (no icons in card
+// headers as decoration). The label maps 1:1 to the editorial workflow.
+const statusLabel = {
+  research: "In research",
+  drafted: "Drafted",
+  shipped: "Shipped",
+}[item.status];
+---
+<a class="dd" href={href} aria-label={`Deep dive: ${item.title}`} style={badgeStyle}>
+  <div class="dd__badge-row">
+    <span class="dd__badge">
+      <span class="dd__badge-section">{tileLabel}</span>
+      <span class="dd__badge-pillar">Pillar {item.pillar}</span>
+    </span>
+  </div>
+
+  <h3 class="dd__title">{item.title}</h3>
+  <p class="dd__deck"><em>{item.deck}</em></p>
+
+  <div class="dd__meta">
+    <span class:list={["dd__status", `dd__status--${item.status}`]}>{statusLabel}</span>
+    <span class="dd__updated">Updated {item.lastUpdated}</span>
+  </div>
+</a>
+
+<style>
+  .dd {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-card);
+    padding: var(--s-5);
+    color: var(--ink);
+    text-decoration: none;
+    transition: border-color var(--dur-fast) var(--ease-out);
+  }
+
+  .dd:hover {
+    border-color: var(--ink-muted);
+  }
+
+  .dd:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  /* Badge row: section name in accent color + pillar code, separated by a
+   * thin rule (not a slash glyph, not a bullet). */
+  .dd__badge-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+  }
+
+  .dd__badge {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    font-family: var(--font-sans);
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
+    font-weight: var(--fw-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .dd__badge-section {
+    color: var(--badge-accent);
+  }
+
+  .dd__badge-pillar {
+    color: var(--ink-faint);
+    /* The pillar code is a navigational anchor (per editorial canon) — it
+     * is text, not a chip. */
+  }
+
+  .dd__badge-pillar::before {
+    /* Hairline separator between section name and pillar code. */
+    content: "";
+    display: inline-block;
+    width: 1px;
+    height: 0.85em;
+    background-color: var(--rule);
+    vertical-align: middle;
+    margin-right: var(--s-2);
+  }
+
+  .dd__title {
+    font-family: var(--font-serif);
+    font-size: var(--fs-display-sm);
+    line-height: var(--lh-display-sm);
+    font-weight: var(--fw-semibold);
+    color: var(--ink);
+    margin: var(--s-3) 0 0;
+    letter-spacing: -0.005em;
+  }
+
+  .dd:hover .dd__title {
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+
+  .dd__deck {
+    font-family: var(--font-serif);
+    font-size: var(--fs-body-sm);
+    line-height: var(--lh-body-sm);
+    font-style: italic;
+    font-weight: var(--fw-regular);
+    color: var(--ink-muted);
+    margin: var(--s-3) 0 0;
+  }
+
+  .dd__deck em {
+    font-style: italic;
+  }
+
+  /* Status + updated stamp pinned to the bottom of the card. */
+  .dd__meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--s-3);
+    margin-top: auto;
+    padding-top: var(--s-5);
+    font-family: var(--font-sans);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-weight: var(--fw-medium);
+    color: var(--ink-faint);
+  }
+
+  .dd__status {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .dd__status--shipped { color: var(--pos); }
+  .dd__status--drafted { color: var(--ink); }
+  .dd__status--research { color: var(--ink-faint); }
+
+  .dd__updated {
+    font-variant-numeric: tabular-nums;
+  }
+</style>

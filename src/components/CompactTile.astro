@@ -1,0 +1,258 @@
+---
+/*
+ * CompactTile - the homepage 6-grid tile (stripped to a dashboard cell).
+ *
+ * Per art-director fixes F3 + F4(a) + F6 + F11 (2026-05-11):
+ *
+ *   F3 (strip-down). The tile used to carry an italic-serif headline question
+ *       as a deck and a one-line clamped event-blurb. Both came off. The
+ *       reader does NOT come to the homepage for editorial prose on six
+ *       sections at once; that lives inside each section page. The homepage
+ *       compact tile is now a dashboard cell: section name + indicator +
+ *       value + delta + sparkline + as-of.
+ *
+ *   F4 option (a). Section accents are removed from homepage tile chrome
+ *       entirely. The top rule is a 1px `rule` line (was 2px accent), the
+ *       section name is `ink` (was the section accent), and the sparkline
+ *       carries `ink-muted` not the accent. The "rainbow of seven accents"
+ *       problem disappears, and Inflation's accent (which collided with the
+ *       editorial-red brand color) no longer reads as a logo. Per-section
+ *       pages still use accents for wayfinding; this change is homepage-only.
+ *
+ *   F6. The numeric value is set in Inter, weight 600, display-sm size, with
+ *       tabular figures. Serif numerics fight chart numerics and read as
+ *       decorative in a six-tile strip; the dashboard framing wants the sans
+ *       digits.
+ *
+ *   F11 (peer rows). The two rows of the 6-grid are now visually identical
+ *       in dimension and treatment, because the bottom row used to look
+ *       lighter only because the top row was carrying more editorial freight.
+ *       With F3 applied the rows fall out as peers automatically.
+ *
+ * The hero tile retains its blurb body and headline question -- the homepage's
+ * editorial voice arrives in exactly one place. The whole tile is still a
+ * full-area link to the section page (interaction model unchanged).
+ *
+ * Props:
+ *   section  - the Section record, same shape as SectionTile.
+ *
+ * The compact tile is NOT used on the section pages.
+ */
+
+import type { Section } from "../data/sections";
+import Sparkline from "./Sparkline.astro";
+
+interface Props {
+  section: Section;
+}
+
+const { section } = Astro.props;
+
+const tileLabel = section.tileLabel ?? section.label;
+const href = `/${section.slug}/`;
+
+// One print, the load-bearing one (chartSeriesKey, with prints[0] fallback).
+const heroPrint =
+  section.prints.find((p) => p.key && p.key === section.chartSeriesKey)
+    ?? section.prints[0];
+---
+<a
+  class="ctile"
+  href={href}
+  aria-label={`${tileLabel} section`}
+>
+  <div class="ctile__top-rule" aria-hidden="true"></div>
+
+  <header class="ctile__header">
+    <h3 class="ctile__name">{tileLabel}</h3>
+  </header>
+
+  {heroPrint && (
+    <div class="ctile__print">
+      <div class="ctile__print-head">
+        <span class="ctile__print-indicator">{heroPrint.indicator}</span>
+        <span class="ctile__print-asof">{heroPrint.asOf}</span>
+      </div>
+      <div class="ctile__print-body">
+        <div class="ctile__print-numbers">
+          <span class="ctile__print-value">{heroPrint.value}</span>
+          <span class:list={["ctile__print-delta", `ctile__print-delta--${heroPrint.deltaDir}`]}>
+            {heroPrint.delta}
+          </span>
+        </div>
+        <div class="ctile__spark">
+          <Sparkline
+            data={heroPrint.spark ?? []}
+            accent="muted"
+            ariaLabel={`${heroPrint.indicator}, recent trend`}
+          />
+        </div>
+      </div>
+    </div>
+  )}
+</a>
+
+<style>
+  .ctile {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background-color: var(--surface);
+    border: 1px solid var(--rule);
+    border-top: none;
+    border-radius: var(--radius-card);
+    /* F3: padding can stay tight; the tile carries less now so it does not
+     * need to breathe further. */
+    padding: var(--s-3) var(--s-4) var(--s-4);
+    color: var(--ink);
+    text-decoration: none;
+    transition: border-color var(--dur-fast) var(--ease-out);
+    height: 100%;
+    min-width: 0;
+  }
+
+  .ctile:hover {
+    border-color: var(--ink-muted);
+  }
+
+  .ctile:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  /* F4(a): the top rule is a 1px `rule` line, monochrome. Sits flush with
+   * the card border (overlaps -1px on each side so the border + rule read
+   * as one continuous edge). No section accent. */
+  .ctile__top-rule {
+    position: absolute;
+    inset: -1px -1px auto -1px;
+    height: 1px;
+    background-color: var(--rule);
+    border-top-left-radius: var(--radius-card);
+    border-top-right-radius: var(--radius-card);
+  }
+
+  /* Header: section name only. The italic headline-question deck is gone
+   * (F3) -- that prose lives on the hero and on the per-section pages. */
+  .ctile__header {
+    margin-top: var(--s-1);
+  }
+
+  .ctile__name {
+    font-family: var(--font-serif);
+    font-size: var(--fs-display-sm);
+    line-height: 1.15;
+    font-weight: var(--fw-semibold);
+    /* F4(a): name is ink, not the section accent. */
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    margin: 0;
+  }
+
+  /* Print block: indicator + asof on row 1, value + delta + sparkline on
+   * row 2. The sparkline takes the right half so the row reads as one
+   * compact data card. */
+  .ctile__print {
+    margin-top: var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--rule-faint);
+  }
+
+  .ctile__print-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--s-2);
+  }
+
+  .ctile__print-indicator {
+    font-family: var(--font-sans);
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
+    font-weight: var(--fw-medium);
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .ctile__print-asof {
+    font-family: var(--font-sans);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-weight: var(--fw-medium);
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+
+  .ctile__print-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    align-items: center;
+    gap: var(--s-3);
+    margin-top: var(--s-2);
+  }
+
+  .ctile__print-numbers {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    min-width: 0;
+  }
+
+  /* F6: value moves from serif display to sans tabular. Inter weight 600
+   * at display-sm. The "tnum" feature locks columnar widths so adjacent
+   * tiles' values stack visually even though their digits differ. */
+  .ctile__print-value {
+    font-family: var(--font-sans);
+    font-size: var(--fs-display-sm);
+    line-height: 1.05;
+    font-weight: var(--fw-semibold);
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* Delta stays mono per design-system.md sec 2 (numbers in tables / inline
+   * numerics use Plex Mono). The compact tile delta reads as a numeric
+   * citation next to the lead value, which is the table case. */
+  .ctile__print-delta {
+    font-family: var(--font-mono);
+    font-size: var(--fs-mono-xs);
+    line-height: var(--lh-mono-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ctile__print-delta--pos { color: var(--pos); }
+  .ctile__print-delta--neg { color: var(--neg); }
+  .ctile__print-delta--neutral { color: var(--neutral); }
+
+  /* Sparkline slot: tight, fixed aspect ratio so CLS is zero whether or
+   * not data has landed. */
+  .ctile__spark {
+    aspect-ratio: 2.2 / 1;
+    width: 100%;
+    max-height: 38px;
+  }
+
+  /* F4(a): hover affordance is the card border darkening to ink-muted (set
+   * on `.ctile:hover` above). The name no longer gets an accent-colored
+   * underline because there is no accent on this tile. A subtle 1px ink
+   * underline on hover keeps the link affordance clear without painting
+   * a color onto monochrome chrome. */
+  .ctile:hover .ctile__name {
+    text-decoration: underline;
+    text-decoration-color: var(--ink-muted);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+
+  /* Mobile: stack the print body so values get full width. */
+  @media (max-width: 640px) {
+    .ctile__print-body {
+      grid-template-columns: 1fr;
+    }
+    .ctile__spark {
+      max-height: 32px;
+    }
+  }
+</style>

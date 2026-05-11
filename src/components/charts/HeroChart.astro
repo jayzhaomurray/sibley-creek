@@ -1,0 +1,782 @@
+---
+/*
+ * HeroChart - the homepage hero's load-bearing time series, ~280x140.
+ *
+ * Implements design/hero-chart-spec.md v0.1 against placeholder data in
+ * src/data/sections.ts. Renders one of three chart shapes based on the
+ * hero section's `chartSeriesKey`:
+ *
+ *   policy-rate -> step function (BoC overnight: discrete decisions, no
+ *                  interpolation between meetings).
+ *   gdp-mm      -> thin column bars (m/m % change reads as discrete events).
+ *   default     -> line (CPI YoY, unemployment, HPI YoY, USDCAD, trade balance).
+ *
+ * Inside the 280x140 canvas:
+ *   - Recession bands at ink 6% opacity (Canada CD Howe BCC dates; the only
+ *     one falling inside our 1y-8y windows is the 2020Q1-Q2 recession).
+ *     Unlabeled per spec sec 6.
+ *   - 3 horizontal gridlines (min / mid / max) in rule-faint.
+ *   - One x-axis 1px rule in `rule`.
+ *   - Y-tick labels right-aligned in the 32px left gutter; topmost tick
+ *     carries the unit (e.g. "4%").
+ *   - The data shape (line / step / bars) in the section accent color.
+ *   - Latest-print marker: 5px filled circle for line/step. For bars, the
+ *     last bar itself is the marker.
+ *   - Consensus tick + dashed connector for sections where consensus
+ *     applies (cpi-yoy, gdp-mm, unrate, trade-balance). Skipped for
+ *     policy-rate, hpi-yoy, usdcad per spec sec 8.
+ *   - Direct label in the 44px right gutter for line/step. Bars use the
+ *     y-axis unit only (no terminal point to label).
+ *   - SVG <title> children on data marks render native browser tooltips
+ *     with date + value, zero client JS. This is the "minimal precision-
+ *     only" interaction model from spec sec 7 hit at static-render cost.
+ *
+ * Implementation: hand-rolled SVG (matches Sparkline.astro precedent).
+ * Observable Plot would mean a React island + ~100KB Plot bundle for one
+ * static single-series chart per page. The shapes here (line, step path,
+ * bars, two ticks, a dashed connector) total maybe 60 lines of geometry;
+ * pulling Plot for that is a budget-breaker against zero-JS Astro defaults.
+ *
+ * The canvas is a fixed 280x140 viewBox with preserveAspectRatio="xMidYMid
+ * meet"; the parent's CSS sets the rendered width (the hero tile reserves
+ * the same 280x140 floor), so on >=md breakpoints the chart renders close
+ * to 1:1 and on sm breakpoints scales uniformly. The 2x DPR concern from
+ * spec sec 1 is moot for SVG — vector marks resample crisply at any DPR.
+ *
+ * Props:
+ *   section - the Section record. We read .chartSeriesKey and .prints
+ *             ourselves; the parent does not need to pre-pick.
+ *
+ * Date synthesis note:
+ *   Placeholder prints carry `spark[]` (oldest -> newest) and an `asOf`
+ *   string like "Apr 2026" or "2026Q1", but no per-point dates. We
+ *   synthesize a date stamp per point by stepping backward from `asOf`
+ *   in the appropriate cadence (monthly for m/m, y/y, daily; quarterly
+ *   for SAAR / output gap; daily for USDCAD). The window length is
+ *   derived from the chart-type matrix in spec sec 9. Once the backend
+ *   pipeline carries true (date, value) pairs, this synthesis is
+ *   replaced wholesale — the geometry below stays.
+ */
+
+import type { Section, SectionPrint } from "../../data/sections";
+
+interface Props {
+  section: Section;
+  /** Optional override for the rendered indicator (e.g. for testing). */
+  print?: SectionPrint;
+}
+
+const { section, print: printOverride } = Astro.props;
+
+// ---- Pick the load-bearing print ------------------------------------------
+const heroPrint: SectionPrint | undefined =
+  printOverride
+  ?? section.prints.find((p) => p.key && p.key === section.chartSeriesKey)
+  ?? section.prints[0];
+
+// ---- Geometry constants (spec sec 1) ---------------------------------------
+const VB_W = 280;
+const VB_H = 140;
+const GUT_L = 32; // y-axis tick labels
+const GUT_R = 44; // direct label region
+const GUT_T = 8;
+const GUT_B = 18; // x-axis rule + tick labels
+const PLOT_X0 = GUT_L;
+const PLOT_Y0 = GUT_T;
+const PLOT_W = VB_W - GUT_L - GUT_R;
+const PLOT_H = VB_H - GUT_T - GUT_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+// ---- Chart-type dispatcher -------------------------------------------------
+type ChartType = "line" | "step" | "bar";
+function chartTypeFor(key: string | undefined): ChartType {
+  if (key === "policy-rate") return "step";
+  if (key === "gdp-mm") return "bar";
+  return "line";
+}
+const chartType: ChartType = chartTypeFor(section.chartSeriesKey);
+
+// ---- Consensus availability per spec sec 8 / sec 9 ------------------------
+//
+// Render consensus mark for: cpi-yoy, gdp-mm, unrate, trade-balance.
+// Skip for: policy-rate, hpi-yoy, usdcad.
+const consensusKeys = new Set([
+  "cpi-yoy",
+  "gdp-mm",
+  "unrate",
+  "trade-balance",
+]);
+const showConsensus = !!(section.chartSeriesKey && consensusKeys.has(section.chartSeriesKey));
+
+// ---- Direct-label wording (spec sec 5 — must fit ~7-8 chars at label) -----
+const directLabelByKey: Record<string, string> = {
+  "cpi-yoy": "CPI YoY",
+  "unrate": "Unemp.",
+  "policy-rate": "Rate",
+  "hpi-yoy": "HPI YoY",
+  "usdcad": "USDCAD",
+  "trade-balance": "Trade",
+};
+const directLabel = section.chartSeriesKey
+  ? directLabelByKey[section.chartSeriesKey] ?? ""
+  : "";
+
+// ---- Date cadence per series (for tooltip date stamps + x-axis ticks) -----
+type Cadence = "monthly" | "quarterly" | "daily";
+function cadenceFor(key: string | undefined): Cadence {
+  if (key === "usdcad") return "daily";
+  // All other v1 hero series are monthly. (Quarterly SAAR / output gap are
+  // not currently surfaced as hero series.)
+  return "monthly";
+}
+const seriesCadence = cadenceFor(section.chartSeriesKey);
+
+// ---- Synthesize dates from `asOf` working backward ------------------------
+//
+// Output is an array `dates` with one ISO-ish stamp per spark[] point. We
+// also expose `asOfDate` (the rightmost) for the consensus + last-print
+// markers and the direct-label anchor. Backend will replace this with
+// real (date, value) pairs from the pipeline.
+
+interface DatePoint {
+  /** Decimal year for x-axis math (e.g. 2026.25 = Apr 2026). */
+  decYear: number;
+  /** Display string for tooltip (e.g. "Apr 2026"). */
+  label: string;
+  /** Year integer for x-axis tick label dedupe. */
+  year: number;
+}
+
+function parseAsOf(asOf: string): { y: number; m: number; isQ?: boolean } {
+  // Handle "2026Q1", "2026Q2", etc.
+  const qm = /^(\d{4})Q([1-4])$/.exec(asOf);
+  if (qm) {
+    const y = Number(qm[1]);
+    const q = Number(qm[2]);
+    // Anchor quarterly stamp at the quarter's last month for x-axis.
+    return { y, m: q * 3, isQ: true };
+  }
+  // Handle "Apr 2026", "May 9, 2026", "Mar 2026", "Feb 2026" etc.
+  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const tokens = asOf.split(/\s+|,\s*/).filter(Boolean);
+  let month = -1;
+  let year = -1;
+  for (const t of tokens) {
+    const mi = monthNames.findIndex((mn) => mn.toLowerCase() === t.toLowerCase().slice(0, 3));
+    if (mi >= 0) month = mi + 1;
+    const yi = /^\d{4}$/.test(t) ? Number(t) : -1;
+    if (yi > 0) year = yi;
+  }
+  if (month > 0 && year > 0) return { y: year, m: month };
+  // Fallback: today.
+  const now = new Date();
+  return { y: now.getUTCFullYear(), m: now.getUTCMonth() + 1 };
+}
+
+const monthShort = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function buildDates(n: number, asOf: string, cad: Cadence): DatePoint[] {
+  const anchor = parseAsOf(asOf);
+  const out: DatePoint[] = [];
+  if (cad === "monthly") {
+    // Walk back n-1 months from (y, m).
+    let y = anchor.y;
+    let m = anchor.m;
+    const stack: DatePoint[] = [];
+    for (let i = 0; i < n; i++) {
+      const decYear = y + (m - 0.5) / 12; // midpoint of the month
+      stack.push({ decYear, label: `${monthShort[m - 1]} ${y}`, year: y });
+      m -= 1;
+      if (m < 1) { m = 12; y -= 1; }
+    }
+    stack.reverse();
+    return stack;
+  }
+  if (cad === "quarterly") {
+    let y = anchor.y;
+    let q = Math.ceil(anchor.m / 3);
+    const stack: DatePoint[] = [];
+    for (let i = 0; i < n; i++) {
+      const decYear = y + (q * 3 - 1.5) / 12;
+      stack.push({ decYear, label: `${y}Q${q}`, year: y });
+      q -= 1;
+      if (q < 1) { q = 4; y -= 1; }
+    }
+    stack.reverse();
+    return stack;
+  }
+  // Daily — interpret each point as one trading day, ~5/week. For a 24-point
+  // placeholder we read it as roughly 5 weeks of daily prints. We map evenly
+  // across one year so the x-axis can still render a meaningful range.
+  // Backend will replace this with real dates; geometry is the same.
+  const yEnd = anchor.y + (anchor.m - 0.5) / 12;
+  const yStart = yEnd - 1.0; // 1-year rolling window per spec sec 9
+  for (let i = 0; i < n; i++) {
+    const t = n === 1 ? 1 : i / (n - 1);
+    const decYear = yStart + t * (yEnd - yStart);
+    const yY = Math.floor(decYear);
+    const mIdx = Math.min(11, Math.max(0, Math.floor((decYear - yY) * 12)));
+    out.push({ decYear, label: `${monthShort[mIdx]} ${yY}`, year: yY });
+  }
+  return out;
+}
+
+// ---- Build series ----------------------------------------------------------
+const series: number[] = heroPrint?.spark ?? [];
+const n = series.length;
+const dates: DatePoint[] = heroPrint?.asOf
+  ? buildDates(n, heroPrint.asOf, seriesCadence)
+  : [];
+
+// Defensive: if no series, render an empty canvas (still reserves 280x140).
+const hasData = n >= 2;
+
+// ---- Value formatter (matches the print's value style) --------------------
+function formatValue(v: number, key: string | undefined): string {
+  if (key === "policy-rate") return `${v.toFixed(2)}%`;
+  if (key === "usdcad") return v.toFixed(3);
+  if (key === "trade-balance") return `${v >= 0 ? "+" : ""}${v.toFixed(1)}`;
+  // Default: 1dp percentage.
+  return `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
+}
+
+function unitForTopTick(key: string | undefined): string {
+  if (key === "usdcad") return ""; // bare level
+  if (key === "trade-balance") return "$B";
+  if (key === "policy-rate") return "%";
+  if (key === "gdp-mm") return "%";
+  return "%";
+}
+
+// ---- Y-axis: 3 ticks (min, mid, max), "nice" rounded ----------------------
+//
+// Pick 3 ticks. For continuous magnitudes (CPI, unemp, HPI, FX, trade,
+// policy rate, GDP m/m) the data range is small enough that we don't need
+// a heroic scaler. Take min/max with a 6% headroom on each end, then round
+// to a "nice" step.
+
+function niceCeil(v: number, step: number): number {
+  return Math.ceil(v / step) * step;
+}
+function niceFloor(v: number, step: number): number {
+  return Math.floor(v / step) * step;
+}
+function chooseStep(range: number): number {
+  if (range <= 0) return 1;
+  const candidates = [0.001, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 25, 50, 100];
+  // Want ~2 intervals = 3 ticks.
+  for (const s of candidates) {
+    if (range / s <= 2.5) return s;
+  }
+  return candidates[candidates.length - 1];
+}
+
+let yMin = 0;
+let yMax = 1;
+const padFactor = 0.06;
+if (hasData) {
+  const rawMin = Math.min(...series);
+  const rawMax = Math.max(...series);
+  const span = rawMax - rawMin || Math.abs(rawMax) || 1;
+  const padded = span * padFactor;
+  const step = chooseStep(span + 2 * padded);
+  // For series that cross zero (HPI, trade), keep zero inside ticks.
+  let lo = niceFloor(rawMin - padded, step);
+  let hi = niceCeil(rawMax + padded, step);
+  if (rawMin < 0 && lo > rawMin) lo -= step;
+  if (rawMax > 0 && hi < rawMax) hi += step;
+  // If the natural ticks straddle zero but min is not far negative, snap lo to zero
+  // for series that are conventionally non-negative (CPI, unemp, policy, FX).
+  const nonNegativeKeys = new Set(["cpi-yoy", "unrate", "policy-rate", "usdcad"]);
+  if (section.chartSeriesKey && nonNegativeKeys.has(section.chartSeriesKey) && lo < 0) lo = 0;
+  yMin = lo;
+  yMax = hi;
+}
+
+function fmtTick(v: number, key: string | undefined, isTop: boolean): string {
+  const unit = isTop ? unitForTopTick(key) : "";
+  if (key === "policy-rate") return `${v.toFixed(v >= 10 ? 1 : v >= 1 ? 2 : 2)}${unit}`;
+  if (key === "usdcad") return `${v.toFixed(2)}`;
+  if (key === "trade-balance") return `${v.toFixed(0)}${unit}`;
+  // Default: 0-1dp.
+  const abs = Math.abs(v);
+  if (abs >= 10) return `${v.toFixed(0)}${unit}`;
+  if (abs >= 1) return `${v.toFixed(0)}${unit}`;
+  return `${v.toFixed(1)}${unit}`;
+}
+
+const yTicks: number[] = hasData
+  ? [yMin, (yMin + yMax) / 2, yMax]
+  : [];
+
+// ---- Scales ----------------------------------------------------------------
+function yScale(v: number): number {
+  if (!hasData || yMax === yMin) return PLOT_Y0 + PLOT_H / 2;
+  return PLOT_Y0 + PLOT_H - ((v - yMin) / (yMax - yMin)) * PLOT_H;
+}
+function xScaleByIndex(i: number): number {
+  if (n <= 1) return PLOT_X0 + PLOT_W / 2;
+  return PLOT_X0 + (i / (n - 1)) * PLOT_W;
+}
+function xScaleByYear(yr: number): number {
+  // Map decimal year onto plot using the series' decYear extents.
+  if (dates.length < 2) return PLOT_X0;
+  const a = dates[0].decYear;
+  const b = dates[dates.length - 1].decYear;
+  if (b === a) return PLOT_X0 + PLOT_W / 2;
+  const t = (yr - a) / (b - a);
+  return PLOT_X0 + t * PLOT_W;
+}
+
+// ---- Coordinate arrays for the data shape ---------------------------------
+const coords: Array<{ x: number; y: number; v: number; label: string }> = [];
+if (hasData) {
+  for (let i = 0; i < n; i++) {
+    coords.push({
+      x: xScaleByIndex(i),
+      y: yScale(series[i]),
+      v: series[i],
+      label: dates[i]?.label ?? "",
+    });
+  }
+}
+
+// Line path (smoothed=false, straight segments per editorial canon).
+function buildLinePath(pts: Array<{ x: number; y: number }>): string {
+  return pts
+    .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
+    .join(" ");
+}
+
+// Step-function path: right-angle steps between meetings (no interpolation).
+// At each transition from (x[i], y[i]) to (x[i+1], y[i+1]) we draw horizontal
+// to x[i+1], then vertical to y[i+1]. Final segment ends at the latest point.
+function buildStepPath(pts: Array<{ x: number; y: number }>): string {
+  if (pts.length === 0) return "";
+  let d = `M${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`;
+  for (let i = 1; i < pts.length; i++) {
+    d += ` L${pts[i].x.toFixed(2)} ${pts[i - 1].y.toFixed(2)}`;
+    d += ` L${pts[i].x.toFixed(2)} ${pts[i].y.toFixed(2)}`;
+  }
+  return d;
+}
+
+const linePath = chartType === "line" ? buildLinePath(coords) : "";
+const stepPath = chartType === "step" ? buildStepPath(coords) : "";
+
+// Bar geometry: thin columns, ~4px wide with 1px gap. With n=24 across
+// ~204px plot width, each bar slot is ~8.5px; bar width 4-5px works.
+let barWidth = 0;
+if (chartType === "bar" && n > 0) {
+  const slot = PLOT_W / n;
+  barWidth = Math.max(2, Math.min(6, slot - 1));
+}
+
+// Bar baseline: the value the bar starts from. If the data crosses zero,
+// use zero; otherwise use the lower y-tick. Pre-compute so the JSX below
+// stays free of inequality chains (Astro's parser otherwise mistakes
+// `<= 0 && yMax >=` for a Fragment opener).
+const barCrossesZero = yMin <= 0 && yMax >= 0;
+const barBaselineV = barCrossesZero ? 0 : yMin;
+const barBaselineY = hasData ? yScale(barBaselineV) : 0;
+
+// ---- Section accent for line color (spec sec 9 per-section mapping) -------
+//
+// Spec sec 9 calls for the section's accent on the line (or series-1 if the
+// section's accent token would clash with chart legibility). The hero only
+// renders the *hero* section's chart, so the accent and the series read as
+// one. We pull straight from the section's `accentVar` (already a CSS var
+// name) and consume it as the stroke color.
+const seriesColorVar = `var(${section.accentVar})`;
+
+// ---- Latest-print marker geometry -----------------------------------------
+const latestIdx = n - 1;
+const latest = hasData ? coords[latestIdx] : null;
+
+// ---- Consensus tick + dashed connector ------------------------------------
+//
+// Fabricate a consensus value: take a small fraction of the typical delta
+// implied by the print's own delta string. v1 placeholder. Once backend
+// surfaces a real consensus number per print, replace `synthConsensus`.
+function synthConsensusValue(actual: number, key: string | undefined): number {
+  // Small hop, 30-50% of typical noise. Bias direction so the surprise reads.
+  if (key === "cpi-yoy") return actual - 0.1; // print beat by 0.1pp
+  if (key === "gdp-mm") return actual + 0.05; // print missed by 0.05pp
+  if (key === "unrate") return actual - 0.05; // print missed (higher) by 0.05pp
+  if (key === "trade-balance") return actual + 0.6; // print missed by ~0.6
+  return actual;
+}
+const consensusV = (showConsensus && latest)
+  ? synthConsensusValue(latest.v, section.chartSeriesKey)
+  : null;
+const consensusY = (consensusV !== null) ? yScale(consensusV) : null;
+
+// For bars: consensus tick sits across the top of the *consensus-expected*
+// bar height (spec sec 9 GDP detail), with a dashed connector down to the
+// actual bar top. For lines/steps: tick sits at the same x as the latest
+// print, with a dashed connector from tick to filled circle.
+const consensusTickHalfWidth = 6; // 12px wide
+const consensusTickX = latest ? latest.x : 0;
+
+// ---- Recession bands (CD Howe BCC dates within window) --------------------
+//
+// CD Howe Business Cycle Council Canada recession dates (recent):
+//   - 2008Q4 - 2009Q2  (peak 2008-10, trough 2009-05)
+//   - 2020Q1 - 2020Q2  (peak 2020-02, trough 2020-04)
+// Spec sec 6: render only bands whose endpoint falls within the chart's
+// x-range. Clip to plot area.
+interface Band { startYear: number; endYear: number; }
+const allBands: Band[] = [
+  { startYear: 2008 + (10 - 0.5) / 12, endYear: 2009 + (5 - 0.5) / 12 },
+  { startYear: 2020 + (2 - 0.5) / 12, endYear: 2020 + (4 - 0.5) / 12 },
+];
+
+let visibleBands: Array<{ x: number; w: number }> = [];
+if (hasData && dates.length >= 2) {
+  const a = dates[0].decYear;
+  const b = dates[dates.length - 1].decYear;
+  for (const band of allBands) {
+    if (band.endYear < a || band.startYear > b) continue;
+    const clippedStart = Math.max(band.startYear, a);
+    const clippedEnd = Math.min(band.endYear, b);
+    const x0 = xScaleByYear(clippedStart);
+    const x1 = xScaleByYear(clippedEnd);
+    visibleBands.push({ x: x0, w: Math.max(1, x1 - x0) });
+  }
+}
+
+// ---- X-axis ticks: 3-4 unique years from the date range -------------------
+//
+// Use the year span. For 5-year windows (CPI, HPI, trade): tick every other
+// year. For 8-year windows (Labour, Policy): tick every other year or every
+// third. For 3-year windows (GDP): yearly. For 1-year (USDCAD): quarterly
+// labels approximated as month abbreviations.
+let xTicks: Array<{ x: number; label: string }> = [];
+if (hasData && dates.length >= 2) {
+  const yearStart = dates[0].year;
+  const yearEnd = dates[dates.length - 1].year;
+  const span = yearEnd - yearStart;
+  if (span >= 6) {
+    // Every 2 years.
+    for (let y = yearStart + (yearStart % 2 === 0 ? 0 : 1); y <= yearEnd; y += 2) {
+      xTicks.push({ x: xScaleByYear(y + 0.5), label: `'${String(y).slice(-2)}` });
+    }
+  } else if (span >= 3) {
+    // Every year.
+    for (let y = yearStart; y <= yearEnd; y++) {
+      xTicks.push({ x: xScaleByYear(y + 0.5), label: `'${String(y).slice(-2)}` });
+    }
+  } else if (span >= 1) {
+    // 1-3 year span: half-yearly ticks.
+    for (let y = yearStart; y <= yearEnd; y++) {
+      xTicks.push({ x: xScaleByYear(y + 0.0), label: `'${String(y).slice(-2)}` });
+    }
+  } else {
+    // <1 year (USDCAD 1y rolling): show 4 evenly-spaced quarterly stamps.
+    const m0 = dates[0];
+    const mN = dates[dates.length - 1];
+    for (let q = 0; q < 4; q++) {
+      const t = q / 3;
+      const decY = m0.decYear + t * (mN.decYear - m0.decYear);
+      const yY = Math.floor(decY);
+      const mIdx = Math.min(11, Math.max(0, Math.floor((decY - yY) * 12)));
+      xTicks.push({ x: PLOT_X0 + t * PLOT_W, label: monthShort[mIdx] });
+    }
+  }
+  // Clamp to plot area and dedupe near the gutters.
+  xTicks = xTicks.filter((t) => t.x >= PLOT_X0 - 1 && t.x <= PLOT_X1 + 1);
+}
+
+// ---- Direct-label y-position (right gutter) -------------------------------
+const directLabelY = latest ? latest.y : PLOT_Y0 + PLOT_H / 2;
+const directLabelX = PLOT_X1 + 4;
+
+// ---- ARIA ----------------------------------------------------------------
+const ariaLabel = heroPrint
+  ? `${heroPrint.indicator}, ${section.label}: ${heroPrint.value} as of ${heroPrint.asOf}`
+  : `${section.label} chart`;
+---
+<div class="hero-chart" data-chart-key={section.chartSeriesKey ?? ""}>
+  <svg
+    class="hero-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+    style={`--series-color: ${seriesColorVar};`}
+  >
+    {/* Recession bands - behind everything else (spec sec 6) */}
+    {visibleBands.map((band) => (
+      <rect
+        class="hero-chart__recession"
+        x={band.x.toFixed(2)}
+        y={PLOT_Y0}
+        width={band.w.toFixed(2)}
+        height={PLOT_H}
+      />
+    ))}
+
+    {/* Y-axis gridlines (3 horizontal in rule-faint) - sit above bands,
+        below data. Topmost and bottommost coincide with the y-extent. */}
+    {hasData && yTicks.map((v) => {
+      const y = yScale(v);
+      const isZero = Math.abs(v) < 1e-9 && yMin < 0 && yMax > 0;
+      return (
+        <line
+          class:list={["hero-chart__gridline", { "hero-chart__gridline--zero": isZero }]}
+          x1={PLOT_X0}
+          y1={y.toFixed(2)}
+          x2={PLOT_X1}
+          y2={y.toFixed(2)}
+        />
+      );
+    })}
+
+    {/* X-axis: single 1px rule in `rule` along the bottom of the plot area */}
+    {hasData && (
+      <line
+        class="hero-chart__xaxis"
+        x1={PLOT_X0}
+        y1={PLOT_Y1.toFixed(2)}
+        x2={PLOT_X1}
+        y2={PLOT_Y1.toFixed(2)}
+      />
+    )}
+
+    {/* X-axis tick marks (3px outward) */}
+    {xTicks.map((t) => (
+      <line
+        class="hero-chart__xtick"
+        x1={t.x.toFixed(2)}
+        y1={PLOT_Y1.toFixed(2)}
+        x2={t.x.toFixed(2)}
+        y2={(PLOT_Y1 + 3).toFixed(2)}
+      />
+    ))}
+
+    {/* Data shape: line / step / bars */}
+    {chartType === "line" && hasData && (
+      <path class="hero-chart__line" d={linePath} fill="none" />
+    )}
+    {chartType === "step" && hasData && (
+      <path class="hero-chart__line hero-chart__line--step" d={stepPath} fill="none" />
+    )}
+    {chartType === "bar" && hasData && coords.map((c) => {
+      // Bar from value to the zero line (or yMin baseline if yMin > 0).
+      const yBase = barBaselineY;
+      const yTop = c.y;
+      const top = Math.min(yBase, yTop);
+      const height = Math.abs(yBase - yTop);
+      return (
+        <rect
+          class="hero-chart__bar"
+          x={(c.x - barWidth / 2).toFixed(2)}
+          y={top.toFixed(2)}
+          width={barWidth.toFixed(2)}
+          height={Math.max(1, height).toFixed(2)}
+        >
+          <title>{`${c.label}: ${formatValue(c.v, section.chartSeriesKey)}`}</title>
+        </rect>
+      );
+    })}
+
+    {/* Invisible hit targets for line/step tooltips — one circle per point,
+        carrying a <title> for the native browser tooltip. Bars have their
+        own titles already. */}
+    {(chartType === "line" || chartType === "step") && hasData && coords.map((c) => (
+      <circle
+        class="hero-chart__hit"
+        cx={c.x.toFixed(2)}
+        cy={c.y.toFixed(2)}
+        r="6"
+      >
+        <title>{`${c.label}: ${formatValue(c.v, section.chartSeriesKey)}`}</title>
+      </circle>
+    ))}
+
+    {/* Consensus tick + dashed connector (spec sec 8) */}
+    {showConsensus && consensusY !== null && latest && (
+      <g class="hero-chart__consensus">
+        {/* Dashed vertical connector from tick to actual print */}
+        <line
+          class="hero-chart__consensus-connector"
+          x1={consensusTickX.toFixed(2)}
+          y1={consensusY.toFixed(2)}
+          x2={consensusTickX.toFixed(2)}
+          y2={latest.y.toFixed(2)}
+        />
+        {/* The tick itself: 12px wide horizontal dash */}
+        <line
+          class="hero-chart__consensus-tick"
+          x1={(consensusTickX - consensusTickHalfWidth).toFixed(2)}
+          y1={consensusY.toFixed(2)}
+          x2={(consensusTickX + consensusTickHalfWidth).toFixed(2)}
+          y2={consensusY.toFixed(2)}
+        >
+          <title>{`Consensus: ${formatValue(consensusV!, section.chartSeriesKey)}`}</title>
+        </line>
+      </g>
+    )}
+
+    {/* Latest-print filled marker (5px dia = r 2.5). For bars the bar is
+        the marker; we skip the circle. */}
+    {(chartType === "line" || chartType === "step") && latest && (
+      <circle
+        class="hero-chart__marker"
+        cx={latest.x.toFixed(2)}
+        cy={latest.y.toFixed(2)}
+        r="2.5"
+      >
+        <title>{`${latest.label}: ${formatValue(latest.v, section.chartSeriesKey)}`}</title>
+      </circle>
+    )}
+
+    {/* Y-axis tick labels — right-aligned in the 32px left gutter */}
+    {hasData && yTicks.map((v, i) => {
+      const isTop = i === yTicks.length - 1;
+      const y = yScale(v);
+      return (
+        <text
+          class="hero-chart__ytick-label"
+          x={(PLOT_X0 - 4).toFixed(2)}
+          y={(y + 3.5).toFixed(2)}
+          text-anchor="end"
+        >{fmtTick(v, section.chartSeriesKey, isTop)}</text>
+      );
+    })}
+
+    {/* X-axis tick labels */}
+    {xTicks.map((t) => (
+      <text
+        class="hero-chart__xtick-label"
+        x={t.x.toFixed(2)}
+        y={(PLOT_Y1 + 12).toFixed(2)}
+        text-anchor="middle"
+      >{t.label}</text>
+    ))}
+
+    {/* Direct label at right terminus - line/step only (spec sec 5) */}
+    {(chartType === "line" || chartType === "step") && directLabel && latest && (
+      <text
+        class="hero-chart__direct-label"
+        x={directLabelX.toFixed(2)}
+        y={(directLabelY + 3.5).toFixed(2)}
+        text-anchor="start"
+      >{directLabel}</text>
+    )}
+  </svg>
+</div>
+
+<style>
+  /* The chart fills its parent's reserved aspect-ratio box. Parent (HeroTile
+   * .hero__chart) sets the 280x140 floor; we follow with width/height 100%.
+   * No CLS — the parent's reservation is honored. */
+  .hero-chart {
+    width: 100%;
+    height: 100%;
+    min-height: 140px;
+    aspect-ratio: 2 / 1;
+    background-color: var(--surface);
+    overflow: visible;
+  }
+
+  .hero-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  /* Recession band - ink at 6% opacity per spec sec 6 */
+  .hero-chart__recession {
+    fill: rgba(21, 23, 26, 0.06);
+  }
+
+  /* Gridlines */
+  .hero-chart__gridline {
+    stroke: var(--rule-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .hero-chart__gridline--zero {
+    stroke: var(--ink-muted);
+  }
+
+  /* X-axis rule + ticks */
+  .hero-chart__xaxis {
+    stroke: var(--rule);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .hero-chart__xtick {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Data line / step */
+  .hero-chart__line {
+    stroke: var(--series-color);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+  }
+  /* Step-functions get crisp corners */
+  .hero-chart__line--step {
+    stroke-linejoin: miter;
+    stroke-linecap: butt;
+    shape-rendering: crispEdges;
+  }
+
+  /* Bars */
+  .hero-chart__bar {
+    fill: var(--series-color);
+  }
+
+  /* Latest-print marker */
+  .hero-chart__marker {
+    fill: var(--series-color);
+    stroke: none;
+  }
+
+  /* Invisible hit target — gives every data point a tooltip surface */
+  .hero-chart__hit {
+    fill: transparent;
+    stroke: none;
+    cursor: default;
+  }
+
+  /* Consensus tick + dashed connector (spec sec 8) */
+  .hero-chart__consensus-tick {
+    stroke: var(--ink-muted);
+    stroke-width: 1;
+    stroke-linecap: butt;
+    shape-rendering: crispEdges;
+  }
+  .hero-chart__consensus-connector {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+    shape-rendering: crispEdges;
+  }
+
+  /* Axis tick labels */
+  .hero-chart__ytick-label,
+  .hero-chart__xtick-label {
+    fill: var(--ink-faint);
+    font-size: 9px; /* renders as ~12px micro at 280x140 -> larger display */
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Direct label at right terminus */
+  .hero-chart__direct-label {
+    fill: var(--series-color);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.01em;
+  }
+</style>
