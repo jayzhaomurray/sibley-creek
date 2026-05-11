@@ -1,0 +1,64 @@
+---
+/*
+ * SourceLine — the canonical "Source: ..." line that lives under a chart
+ * or table. Per design-system.md sec 6: micro size, ink-faint, prefixed
+ * "Source:".
+ *
+ * Canadian institutional readers expect a visible source line; treat as
+ * UX, not decoration.
+ *
+ * Usage:
+ *   <SourceLine>Statistics Canada, table 36-10-0104-01.</SourceLine>
+ *   <SourceLine href="https://...">Bank of Canada weekly financial statistics.</SourceLine>
+ *
+ * If href is provided the source content becomes a link (whole citation,
+ * not just a "link" word). Underline color stays accent per the global
+ * link treatment.
+ */
+
+interface Props {
+  href?: string;
+  prefix?: string;
+  class?: string;
+}
+
+const { href, prefix = "Source", class: className } = Astro.props;
+---
+
+<p class:list={["source-line", className]}>
+  <span class="source-line__prefix">{prefix}:</span>{" "}
+  {href ? (
+    <a class="source-line__link" href={href} rel="noopener">
+      <slot />
+    </a>
+  ) : (
+    <slot />
+  )}
+</p>
+
+<style>
+  .source-line {
+    font-family: var(--font-sans);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-weight: var(--fw-medium);
+    color: var(--ink-faint);
+    margin: 0;
+  }
+
+  .source-line__prefix {
+    /* Same weight as the rest — design-system spec does not bold the
+     * prefix; the colon plus the typographic ritual carries it. */
+    color: var(--ink-faint);
+  }
+
+  .source-line__link {
+    color: var(--ink-faint);
+    text-decoration-color: var(--rule);
+  }
+
+  .source-line__link:hover {
+    color: var(--ink);
+    text-decoration-color: var(--accent);
+  }
+</style>

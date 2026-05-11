@@ -1,0 +1,54 @@
+---
+/*
+ * Citation — inline superscript footnote marker. Per design-system.md
+ * sec 6: superscript number in micro size, accent color, no brackets.
+ *
+ * Renders as <sup> with an anchor when an href is provided so the marker
+ * jumps to a footnote block at the bottom of the article.
+ *
+ * Usage (in MDX / Astro markup):
+ *   ...per Statistics Canada<Citation n={3} href="#fn-3" />.
+ */
+
+interface Props {
+  n: number;
+  href?: string;
+  class?: string;
+  label?: string;
+}
+
+const { n, href, class: className, label } = Astro.props;
+const aria = label ?? `Footnote ${n}`;
+---
+
+{href ? (
+  <sup class:list={["citation", className]}>
+    <a href={href} class="citation__link" aria-label={aria}>{n}</a>
+  </sup>
+) : (
+  <sup class:list={["citation", className]} aria-label={aria}>{n}</sup>
+)}
+
+<style>
+  .citation {
+    font-family: var(--font-sans);
+    font-size: var(--fs-micro);
+    font-weight: var(--fw-medium);
+    color: var(--accent);
+    line-height: 1;
+    /* Tighten the superscript so it doesn't disrupt body line-height. */
+    vertical-align: super;
+    font-variant-position: super;
+  }
+
+  .citation__link {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .citation__link:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    text-underline-offset: 2px;
+  }
+</style>

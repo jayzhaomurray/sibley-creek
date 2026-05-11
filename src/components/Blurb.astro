@@ -1,0 +1,35 @@
+---
+/*
+ * Blurb / standfirst — the serif italic deck that sits under a page hero
+ * headline. Per design-system.md sec 6:
+ *   - Type: deck (19px serif italic, weight 400, ink-muted)
+ *   - Max width: body column (680px)
+ *   - One paragraph, 2-4 sentences. Longer = body prose, not deck.
+ *
+ * Usage:
+ *   <Blurb>Short standfirst paragraph here.</Blurb>
+ */
+
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<p class:list={["blurb", className]}>
+  <slot />
+</p>
+
+<style>
+  .blurb {
+    font-family: var(--font-serif);
+    font-size: var(--fs-deck);
+    line-height: var(--lh-deck);
+    font-style: italic;
+    font-weight: var(--fw-regular);
+    color: var(--ink-muted);
+    max-width: var(--col-body);
+    margin: 0;
+  }
+</style>

@@ -1,0 +1,366 @@
+---
+/*
+ * Homepage — the front of the publication.
+ *
+ * This is a Phase-1 placeholder built against the design system, intended
+ * to expose the typography, layout, and visual rhythm at full fidelity.
+ * Editorial copy here is scaffolding (writer + editorial-director will
+ * replace it). Charts are reserved-space placeholders; chart-builder fills
+ * them in.
+ *
+ * What this page demonstrates:
+ *   - Page hero (display-xl headline + serif italic deck)
+ *   - Body column / wide column rhythm
+ *   - Section index using <Card> in a responsive grid
+ *   - Mini "what we're watching" panel with reserved chart slots
+ *   - SourceLine ritual under data blocks
+ *   - Kicker eyebrow + Callout placement
+ */
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Card from "../components/Card.astro";
+import Kicker from "../components/Kicker.astro";
+import Blurb from "../components/Blurb.astro";
+import Callout from "../components/Callout.astro";
+import SourceLine from "../components/SourceLine.astro";
+import { sections, site } from "../data/sections";
+
+// Placeholder figures for the "what we're watching" panel. Real numbers
+// will come from the backend pipeline.
+const watching = [
+  {
+    indicator: "Headline CPI, y/y",
+    value: "2.3%",
+    delta: "+0.1 pp",
+    deltaDir: "neutral" as const,
+    asOf: "Apr 2026",
+  },
+  {
+    indicator: "Real GDP, q/q SAAR",
+    value: "1.4%",
+    delta: "-0.3 pp",
+    deltaDir: "neg" as const,
+    asOf: "2026Q1",
+  },
+  {
+    indicator: "Unemployment rate",
+    value: "6.1%",
+    delta: "+0.0 pp",
+    deltaDir: "neutral" as const,
+    asOf: "Apr 2026",
+  },
+  {
+    indicator: "BoC policy rate",
+    value: "2.75%",
+    delta: "-25 bps",
+    deltaDir: "pos" as const,
+    asOf: "Apr 16, 2026",
+  },
+];
+
+const lastUpdated = "May 10, 2026";
+---
+<BaseLayout
+  title={site.name}
+  description={site.description}
+>
+  <article class="home">
+
+    {/* ---------------- Hero ---------------- */}
+    <header class="container home__hero">
+      <Kicker>Edition {lastUpdated}</Kicker>
+      <h1 class="home__title">
+        Reading the Canadian economy, one indicator at a time.
+      </h1>
+      <Blurb>
+        A reading-first dashboard for the data that moves Canadian policy
+        and markets - written for analysts and the readers who hold them
+        to a standard. Updated as releases land, set with care.
+      </Blurb>
+
+      <div class="home__hero-meta">
+        <SourceLine>
+          Statistics Canada, Bank of Canada, and other public-release
+          agencies. Each chart cites its own source.
+        </SourceLine>
+      </div>
+    </header>
+
+    {/* ---------------- What we're watching ---------------- */}
+    <section class="container home__watching" aria-labelledby="watching-heading">
+      <div class="home__section-head">
+        <Kicker>What we are watching</Kicker>
+        <h2 id="watching-heading" class="home__section-title">
+          The latest releases, at a glance.
+        </h2>
+        <p class="home__section-deck">
+          Four indicators we re-check every morning. Tap any tile to read
+          the analysis behind the number.
+        </p>
+      </div>
+
+      <ul role="list" class="home__watching-grid">
+        {watching.map((w) => (
+          <li>
+            <Card kicker={w.indicator}>
+              <p class="indicator__value">{w.value}</p>
+              <p class:list={["indicator__delta", `indicator__delta--${w.deltaDir}`]}>
+                {w.delta}
+              </p>
+              <p class="indicator__asof">As of {w.asOf}</p>
+              {/* Reserved space for a sparkline. chart-builder will fill
+                  this with the appropriate <Sparkline> island. */}
+              <div class="indicator__spark" aria-hidden="true"></div>
+            </Card>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    {/* ---------------- Hero chart slot ---------------- */}
+    <section class="container home__hero-chart" aria-labelledby="hero-chart-heading">
+      <div class="home__section-head home__section-head--wide">
+        <Kicker>Chart of the week</Kicker>
+        <h2 id="hero-chart-heading" class="home__section-title">
+          Core inflation cools, but services hold the line.
+        </h2>
+        <p class="home__section-deck">
+          The y/y print is back inside the Bank's target band, yet
+          shelter and services are running well above goods. The
+          decomposition is the story.
+        </p>
+      </div>
+
+      {/* Reserved hero chart canvas. chart-builder owns what renders
+          inside. We hold the 1040px wide column and the source ritual. */}
+      <div class="home__chart-slot wide-col" role="img"
+           aria-label="Chart placeholder. Core CPI decomposition, replaced by chart-builder.">
+        <span class="home__chart-slot-label">Hero chart reserved (1040px wide)</span>
+      </div>
+
+      <div class="home__chart-caption">
+        <SourceLine>
+          Statistics Canada, table 18-10-0004-01. Series seasonally
+          adjusted.
+        </SourceLine>
+      </div>
+    </section>
+
+    {/* ---------------- Section index ---------------- */}
+    <section class="container home__sections" aria-labelledby="sections-heading">
+      <div class="home__section-head">
+        <Kicker>The sections</Kicker>
+        <h2 id="sections-heading" class="home__section-title">
+          Browse the publication.
+        </h2>
+        <p class="home__section-deck">
+          Each section is a small library of charts and short pieces on a
+          single corner of the Canadian economy.
+        </p>
+      </div>
+
+      <ul role="list" class="home__sections-grid">
+        {sections.map((s) => (
+          <li>
+            <Card kicker={s.label} title={s.label} href={`/${s.slug}/`}>
+              <p>{s.kicker}</p>
+            </Card>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    {/* ---------------- Editorial callout ---------------- */}
+    <section class="container home__callout-section">
+      <Callout>
+        <p>
+          We are a slow publication on purpose. A chart we ship is a
+          chart we have read three times and would be willing to hand to
+          a serious reader on the morning of a rate decision.
+        </p>
+        <span class="callout__attribution">The editors</span>
+      </Callout>
+    </section>
+
+  </article>
+
+  <style>
+    /* ---------- Hero ---------- */
+
+    .home__hero {
+      padding-top: var(--s-2);
+    }
+
+    .home__title {
+      max-width: var(--col-body);
+      margin-top: var(--s-4);
+      /* h1 inherits display-xl from base.css; nothing to override. */
+    }
+
+    .home__hero-meta {
+      margin-top: var(--s-6);
+      max-width: var(--col-body);
+    }
+
+    /* ---------- Section heads ---------- */
+
+    .home__section-head {
+      max-width: var(--col-body);
+      margin-bottom: var(--s-6);
+    }
+
+    .home__section-head--wide {
+      max-width: var(--col-wide);
+    }
+
+    .home__section-title {
+      font-family: var(--font-serif);
+      font-size: var(--fs-display-lg);
+      line-height: var(--lh-display-lg);
+      font-weight: var(--fw-semibold);
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      margin-top: var(--s-3);
+    }
+
+    .home__section-deck {
+      font-family: var(--font-serif);
+      font-size: var(--fs-deck);
+      line-height: var(--lh-deck);
+      font-style: italic;
+      font-weight: var(--fw-regular);
+      color: var(--ink-muted);
+      max-width: var(--col-body);
+      margin-top: var(--s-4);
+    }
+
+    /* ---------- Watching ---------- */
+
+    .home__watching {
+      margin-top: var(--s-8);
+    }
+
+    .home__watching-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--s-5);
+      margin: 0;
+    }
+
+    @media (min-width: 640px) {
+      .home__watching-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (min-width: 1200px) {
+      .home__watching-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .indicator__value {
+      font-family: var(--font-serif);
+      font-size: var(--fs-display-md);
+      line-height: var(--lh-display-md);
+      font-weight: var(--fw-semibold);
+      color: var(--ink);
+      margin-top: var(--s-3);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .indicator__delta {
+      font-family: var(--font-mono);
+      font-size: var(--fs-mono-sm);
+      line-height: var(--lh-mono-sm);
+      font-variant-numeric: tabular-nums;
+      margin-top: var(--s-2);
+    }
+
+    .indicator__delta--pos { color: var(--pos); }
+    .indicator__delta--neg { color: var(--neg); }
+    .indicator__delta--neutral { color: var(--neutral); }
+
+    .indicator__asof {
+      font-family: var(--font-sans);
+      font-size: var(--fs-micro);
+      line-height: var(--lh-micro);
+      font-weight: var(--fw-medium);
+      color: var(--ink-faint);
+      margin-top: var(--s-3);
+    }
+
+    .indicator__spark {
+      /* Reserve vertical space for the sparkline so layout doesn't shift
+         when chart-builder hydrates. 40px matches the design system's
+         upper sparkline bound (sec 5). */
+      height: 40px;
+      margin-top: var(--s-4);
+      border-top: 1px dashed var(--rule);
+      /* The dashed border is a development affordance; chart-builder
+         removes it when the sparkline lands. Comment-removable. */
+    }
+
+    /* ---------- Hero chart ---------- */
+
+    .home__hero-chart {
+      margin-top: var(--s-9);
+    }
+
+    .home__chart-slot {
+      /* Reserve a 16:9-ish canvas at the wide column. chart-builder
+         supplies the actual chart at this width. */
+      aspect-ratio: 16 / 9;
+      max-height: 520px;
+      background-color: var(--surface);
+      border: 1px dashed var(--rule);
+      border-radius: var(--radius-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--ink-faint);
+      margin-top: var(--s-2);
+    }
+
+    .home__chart-slot-label {
+      font-family: var(--font-mono);
+      font-size: var(--fs-mono-xs);
+    }
+
+    .home__chart-caption {
+      max-width: var(--col-wide);
+      margin: var(--s-4) auto 0;
+    }
+
+    /* ---------- Sections index ---------- */
+
+    .home__sections {
+      margin-top: var(--s-9);
+    }
+
+    .home__sections-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--s-5);
+      margin: 0;
+    }
+
+    @media (min-width: 640px) {
+      .home__sections-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (min-width: 960px) {
+      .home__sections-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    /* ---------- Callout ---------- */
+
+    .home__callout-section {
+      margin-top: var(--s-9);
+    }
+  </style>
+</BaseLayout>

@@ -1,0 +1,40 @@
+---
+/*
+ * Kicker — the all-caps eyebrow label that sits above a headline,
+ * card title, or chart. Editorial red, letter-spacing 0.08em, label size.
+ *
+ * Per design-system.md sec 2 ("All caps reserved for eyebrow labels...
+ * at label size with letter-spacing 0.08em").
+ *
+ * Renders as <p> by default for landmark/semantic neutrality. Pass
+ * `as="span"` when used inline next to a heading.
+ *
+ * Usage:
+ *   <Kicker>GDP</Kicker>
+ *   <Kicker as="span">Latest release</Kicker>
+ */
+
+interface Props {
+  as?: "p" | "span" | "div";
+  class?: string;
+}
+
+const { as: Tag = "p", class: className } = Astro.props;
+---
+
+<Tag class:list={["kicker", className]}>
+  <slot />
+</Tag>
+
+<style>
+  .kicker {
+    font-family: var(--font-sans);
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
+    font-weight: var(--fw-medium);
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0;
+  }
+</style>

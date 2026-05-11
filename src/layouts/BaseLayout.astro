@@ -1,0 +1,365 @@
+---
+/*
+ * BaseLayout — the page shell for macro-research-department.
+ *
+ * Owns:
+ *   - <html lang="en-CA"> root and meta defaults
+ *   - Font loading + critical CSS injection (tokens, fonts, base)
+ *   - Skip-link + landmark structure (header / main / footer)
+ *   - Page header (publication wordmark + primary nav)
+ *   - Page footer (about, methodology placeholder, copyright)
+ *   - SEO basics: <title>, description, canonical, Open Graph, Twitter card
+ *
+ * Slots:
+ *   default      — page content (rendered inside <main id="main">)
+ *   head         — optional extra <head> additions for a given page
+ *
+ * Props:
+ *   title        — page title shown in the tab + as og:title. Required.
+ *   description  — meta description / og:description. Required.
+ *   canonical    — optional canonical URL override (defaults to current path).
+ *   ogImage      — optional og/twitter image URL (absolute or root-relative).
+ *   pageClass    — optional class added to <body> for page-scoped styling.
+ *
+ * SEO copy ownership lives here (per frontend-designer.md scope) — keep the
+ * defaults edited as the brand crystallizes. Editorial copy lives in pages.
+ */
+
+import "../styles/tokens.css";
+import "../styles/fonts.css";
+import "../styles/base.css";
+
+import { sections, site } from "../data/sections";
+
+interface Props {
+  title: string;
+  description: string;
+  canonical?: string;
+  ogImage?: string;
+  pageClass?: string;
+}
+
+const {
+  title,
+  description,
+  canonical,
+  ogImage,
+  pageClass,
+} = Astro.props;
+
+// Build a fully-qualified URL for canonical / og:url. Astro.site can be
+// undefined during early dev; fall back to a relative path.
+const pathname = Astro.url.pathname;
+const canonicalHref = canonical
+  ?? (Astro.site ? new URL(pathname, Astro.site).toString() : pathname);
+
+const ogImageHref = ogImage
+  ?? (Astro.site ? new URL("/og-default.png", Astro.site).toString() : "/og-default.png");
+
+// Tab title format: "Page title — Publication". Homepage passes the
+// publication name as title and we collapse the duplication.
+const tabTitle = title === site.name ? site.name : `${title} - ${site.name}`;
+
+const currentYear = new Date().getFullYear();
+
+// Active-nav detection: match the section slug to the first path segment.
+const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+
+    <title>{tabTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalHref} />
+
+    {/* Theme color matches paper for browser chrome continuity. */}
+    <meta name="theme-color" content="#FBF8F2" />
+
+    {/* Open Graph / social sharing. */}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalHref} />
+    <meta property="og:locale" content="en_CA" />
+    <meta property="og:image" content={ogImageHref} />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageHref} />
+
+    {/* Favicon. */}
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+
+    {/* Webfont performance: preconnect to amortize TLS / DNS before the
+        first @import resolves. Crossorigin is required for fonts subdomain. */}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <slot name="head" />
+  </head>
+  <body class:list={[pageClass]}>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <header class="site-header" role="banner">
+      <div class="container site-header__inner">
+        <a class="site-header__wordmark" href="/" aria-label={`${site.name} home`}>
+          <span class="site-header__name">{site.name}</span>
+          <span class="site-header__tagline">{site.tagline}</span>
+        </a>
+
+        <nav class="site-nav" aria-label="Primary">
+          <ul role="list" class="site-nav__list">
+            {sections.map((section) => {
+              const isActive = firstSegment === section.slug;
+              return (
+                <li class="site-nav__item">
+                  <a
+                    class:list={["site-nav__link", { "is-active": isActive }]}
+                    href={`/${section.slug}/`}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    {section.label}
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main" class="site-main">
+      <slot />
+    </main>
+
+    <footer class="site-footer" role="contentinfo">
+      <div class="container site-footer__inner">
+        <div class="site-footer__col">
+          <p class="site-footer__name">{site.name}</p>
+          <p class="site-footer__line">{site.tagline}</p>
+        </div>
+        <nav class="site-footer__nav" aria-label="Site information">
+          <ul role="list" class="site-footer__list">
+            <li><a href="/about/">About</a></li>
+            <li><a href="/methodology/">Methodology</a></li>
+            <li><a href="/sources/">Sources</a></li>
+            <li><a href="/accessibility/">Accessibility</a></li>
+          </ul>
+        </nav>
+        <p class="site-footer__copy">
+          (c) {currentYear} {site.name}. Data attributed at point of use.
+        </p>
+      </div>
+    </footer>
+
+    <style>
+      /* ---------- Site header ---------- */
+
+      .site-header {
+        border-bottom: 1px solid var(--rule);
+        background-color: var(--paper);
+      }
+
+      .site-header__inner {
+        display: flex;
+        flex-direction: column;
+        gap: var(--s-5);
+        padding-block: var(--s-6);
+      }
+
+      @media (min-width: 960px) {
+        .site-header__inner {
+          flex-direction: row;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: var(--s-7);
+          padding-block: var(--s-7);
+        }
+      }
+
+      .site-header__wordmark {
+        display: inline-flex;
+        flex-direction: column;
+        gap: var(--s-1);
+        color: var(--ink);
+        text-decoration: none;
+      }
+
+      .site-header__wordmark:hover .site-header__name {
+        color: var(--accent);
+      }
+
+      .site-header__name {
+        font-family: var(--font-serif);
+        font-size: var(--fs-display-md);
+        line-height: var(--lh-display-md);
+        font-weight: var(--fw-semibold);
+        letter-spacing: -0.005em;
+        color: var(--ink);
+        transition: color var(--dur-fast) var(--ease-out);
+      }
+
+      @media (min-width: 960px) {
+        .site-header__name {
+          font-size: var(--fs-display-lg);
+          line-height: var(--lh-display-lg);
+        }
+      }
+
+      .site-header__tagline {
+        font-family: var(--font-serif);
+        font-size: var(--fs-body-sm);
+        line-height: var(--lh-body-sm);
+        font-style: italic;
+        font-weight: var(--fw-regular);
+        color: var(--ink-muted);
+        /* Hide tagline on mobile to keep the header compact; serif italic
+           in the header at narrow widths reads as decoration. */
+        display: none;
+      }
+
+      @media (min-width: 640px) {
+        .site-header__tagline {
+          display: inline;
+        }
+      }
+
+      /* ---------- Primary nav ---------- */
+
+      .site-nav__list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--s-4) var(--s-5);
+        margin: 0;
+      }
+
+      .site-nav__link {
+        font-family: var(--font-sans);
+        font-size: var(--fs-label);
+        line-height: var(--lh-label);
+        font-weight: var(--fw-medium);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--ink-muted);
+        text-decoration: none;
+        padding-block: var(--s-2);
+        border-bottom: 1px solid transparent;
+        transition: color var(--dur-fast) var(--ease-out),
+                    border-color var(--dur-fast) var(--ease-out);
+      }
+
+      .site-nav__link:hover {
+        color: var(--ink);
+        border-bottom-color: var(--accent);
+      }
+
+      .site-nav__link.is-active {
+        color: var(--ink);
+        border-bottom-color: var(--accent);
+      }
+
+      .site-nav__link:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
+        border-radius: 2px;
+      }
+
+      /* ---------- Main ---------- */
+
+      .site-main {
+        padding-block: var(--s-7) var(--s-9);
+      }
+
+      @media (min-width: 960px) {
+        .site-main {
+          padding-block: var(--s-8) var(--s-9);
+        }
+      }
+
+      /* ---------- Site footer ---------- */
+
+      .site-footer {
+        border-top: 1px solid var(--rule);
+        background-color: var(--surface-sunk);
+        margin-top: var(--s-8);
+      }
+
+      .site-footer__inner {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: var(--s-5);
+        padding-block: var(--s-7);
+      }
+
+      @media (min-width: 640px) {
+        .site-footer__inner {
+          grid-template-columns: 1fr auto;
+          align-items: start;
+          gap: var(--s-7);
+        }
+      }
+
+      .site-footer__col {
+        max-width: var(--col-body);
+      }
+
+      .site-footer__name {
+        font-family: var(--font-serif);
+        font-size: var(--fs-display-sm);
+        line-height: var(--lh-display-sm);
+        font-weight: var(--fw-semibold);
+        color: var(--ink);
+        margin: 0;
+      }
+
+      .site-footer__line {
+        font-family: var(--font-serif);
+        font-size: var(--fs-body-sm);
+        line-height: var(--lh-body-sm);
+        font-style: italic;
+        color: var(--ink-muted);
+        margin-top: var(--s-2);
+      }
+
+      .site-footer__list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--s-4);
+        margin: 0;
+      }
+
+      .site-footer__list a {
+        font-family: var(--font-sans);
+        font-size: var(--fs-body-sm);
+        line-height: var(--lh-body-sm);
+        color: var(--ink);
+        text-decoration: underline;
+        text-decoration-color: var(--rule);
+        text-underline-offset: 2px;
+      }
+
+      .site-footer__list a:hover {
+        text-decoration-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .site-footer__copy {
+        grid-column: 1 / -1;
+        font-family: var(--font-sans);
+        font-size: var(--fs-micro);
+        line-height: var(--lh-micro);
+        color: var(--ink-faint);
+        margin: 0;
+        padding-top: var(--s-5);
+        border-top: 1px solid var(--rule);
+      }
+    </style>
+  </body>
+</html>

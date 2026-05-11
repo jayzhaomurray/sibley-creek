@@ -1,0 +1,143 @@
+---
+/*
+ * Card — the surface used for indicator panels, section tiles, and any
+ * grouped block of related material. Per design-system.md sec 6:
+ *   - Background: surface (#FFFFFF)
+ *   - 1px border in rule color (never a shadow)
+ *   - 4px border radius (crisp, not pillowy)
+ *   - 24px padding default, 32px for hero cards
+ *   - Optional kicker (all-caps accent) above title
+ *   - Title at top in display-sm serif (23px)
+ *
+ * Slots:
+ *   default   — body content (charts, prose, mini-tables)
+ *   actions   — optional bottom row (link to deep-dive, etc.)
+ *
+ * Props:
+ *   kicker    — optional eyebrow label (rendered uppercase via Kicker)
+ *   title     — optional card title; renders as <h3> by default
+ *   titleAs   — heading level override ("h2" | "h3" | "h4"). Default h3.
+ *   href      — if provided, the whole card becomes a link surface. The
+ *               title gets a hover underline; no other affordance. This
+ *               keeps the affordance subtle (FT-style) but still
+ *               full-area-clickable for the section index use case.
+ *   hero      — when true, padding bumps to 32px and title to display-md.
+ *   class     — escape hatch for one-off positioning. No visual overrides.
+ *
+ * Usage:
+ *   <Card kicker="GDP" title="Output is stalling" href="/gdp/">
+ *     ... body ...
+ *     <Fragment slot="actions"><a href="/gdp/">Read more</a></Fragment>
+ *   </Card>
+ */
+
+import Kicker from "./Kicker.astro";
+
+interface Props {
+  kicker?: string;
+  title?: string;
+  titleAs?: "h2" | "h3" | "h4";
+  href?: string;
+  hero?: boolean;
+  class?: string;
+}
+
+const {
+  kicker,
+  title,
+  titleAs: TitleTag = "h3",
+  href,
+  hero = false,
+  class: className,
+} = Astro.props;
+
+const Tag = href ? "a" : "article";
+---
+<Tag
+  class:list={["card", { "card--hero": hero, "card--link": Boolean(href) }, className]}
+  href={href}
+>
+  {kicker && <Kicker class="card__kicker">{kicker}</Kicker>}
+  {title && (
+    <TitleTag class:list={["card__title", { "card__title--hero": hero }]}>
+      {title}
+    </TitleTag>
+  )}
+
+  <div class="card__body">
+    <slot />
+  </div>
+
+  <slot name="actions" />
+</Tag>
+
+<style>
+  .card {
+    display: block;
+    background-color: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-card);
+    padding: var(--s-5);
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .card--hero {
+    padding: var(--s-6);
+  }
+
+  .card--link {
+    /* Subtle affordance — the title underline does the work; no shadow,
+       no scale, no border flash. */
+    transition: border-color var(--dur-fast) var(--ease-out);
+  }
+
+  .card--link:hover {
+    border-color: var(--ink-muted);
+  }
+
+  .card--link:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  .card__kicker {
+    margin-bottom: var(--s-3);
+  }
+
+  .card__title {
+    font-family: var(--font-serif);
+    font-size: var(--fs-display-sm);
+    line-height: var(--lh-display-sm);
+    font-weight: var(--fw-semibold);
+    color: var(--ink);
+    margin: 0;
+  }
+
+  .card__title--hero {
+    font-size: var(--fs-display-md);
+    line-height: var(--lh-display-md);
+  }
+
+  .card--link .card__title {
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    transition: text-decoration-color var(--dur-fast) var(--ease-out);
+  }
+
+  .card--link:hover .card__title {
+    text-decoration-color: var(--accent);
+    color: var(--ink);
+  }
+
+  .card__body {
+    margin-top: var(--s-4);
+    color: var(--ink);
+  }
+
+  .card__body:empty {
+    margin-top: 0;
+  }
+</style>

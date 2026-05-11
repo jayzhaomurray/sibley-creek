@@ -1,0 +1,71 @@
+---
+/*
+ * Callout / pull quote — a quietly emphasised passage. Per design-system.md
+ * sec 6:
+ *   - Background: surface-sunk (#F4F0E8)
+ *   - 4px left rule in accent (editorial red)
+ *   - Padding 24px all sides
+ *   - Type: body-lg (19px sans) for the quote, label for attribution
+ *   - No quote-glyph rendering — typography carries it
+ *
+ * Two valid uses:
+ *   1. Pull quote — a passage from the article rendered at higher weight
+ *      for skimmers. attribution optional.
+ *   2. Editorial sidenote — "Worth noting" callout that breaks the flow.
+ *
+ * Slots:
+ *   default      — the callout body
+ *   attribution  — optional attribution line
+ *
+ * Props:
+ *   as           — semantic element ("aside" default, "blockquote" when
+ *                  used as a pull quote of an external source).
+ *   class        — escape hatch.
+ */
+
+interface Props {
+  as?: "aside" | "blockquote" | "div";
+  class?: string;
+}
+
+const { as: Tag = "aside", class: className } = Astro.props;
+---
+<Tag class:list={["callout", className]}>
+  <div class="callout__body">
+    <slot />
+  </div>
+  <slot name="attribution" />
+</Tag>
+
+<style>
+  .callout {
+    background-color: var(--surface-sunk);
+    border-left: 4px solid var(--accent);
+    padding: var(--s-5);
+    max-width: var(--col-body);
+    margin: 0;
+  }
+
+  .callout__body {
+    font-family: var(--font-sans);
+    font-size: var(--fs-body-lg);
+    line-height: var(--lh-body-lg);
+    font-weight: var(--fw-regular);
+    color: var(--ink);
+  }
+
+  /* Attribution slot is plain text styled by the consumer or via the
+     .callout__attribution class for consistency. */
+  .callout :global(.callout__attribution),
+  .callout :global([slot="attribution"]) {
+    font-family: var(--font-sans);
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
+    font-weight: var(--fw-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-muted);
+    margin-top: var(--s-4);
+    display: block;
+  }
+</style>
