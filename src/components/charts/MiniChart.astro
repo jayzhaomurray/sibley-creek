@@ -1,0 +1,387 @@
+---
+/*
+ * MiniChart - the tile-sized index chart for the homepage Path C tiles.
+ *
+ * Sits between Sparkline (decorative, ~160x40) and HeroChart (full chrome,
+ * 280x140) in size and intent. Plot area target: 248x72.
+ *
+ * Path C rules (art-director, homepage index-tile redesign):
+ *   - Single series only.
+ *   - 1px x-axis rule along the bottom of the plot area; NO x-axis labels
+ *     (the tile's eyebrow carries the date context).
+ *   - No y-axis labels EXCEPT an optional final-value direct label floating
+ *     to the right of the last-point dot (e.g. "2.3%").
+ *   - 1 optional horizontal reference rule (CPI 2% target, BoC neutral
+ *     midpoint, etc.) - 1px dashed in `rule` color.
+ *   - 1 optional recession band (rgba(21,23,26,0.06) behind everything).
+ *   - Last-point dot, 3px in series color.
+ *   - No gridlines.
+ *   - No annotation typography (no callouts, no rotated labels).
+ *   - Series color: `--series-1` (data-first) or `--ink-muted` (ambient).
+ *
+ * Implementation choice: hand-rolled server-rendered SVG, mirroring the
+ * Sparkline.astro and HeroChart.astro precedents. Zero client JS. The
+ * shapes here are a polyline, a dashed rule, a band rect, a dot, and a
+ * label - Plot or D3 would dominate the bundle for what reduces to ~40
+ * lines of geometry.
+ *
+ * The plot canvas is a fixed 248x72 viewBox; the SVG fills its parent
+ * (width/height 100%) via preserveAspectRatio="none" so the inscribed
+ * line stretches into whatever box the tile reserves. Strokes use
+ * vector-effect: non-scaling-stroke so weight stays constant under
+ * non-uniform scaling (same trick as Sparkline).
+ *
+ * The right-edge direct label needs space inside the viewBox so it
+ * doesn't clip. We reserve a 32px right gutter (the label sits in it),
+ * so the data plot is effectively 216x72 wide, with the direct label
+ * region from x=216 to x=248. When no finalValueLabel is supplied, we
+ * still keep the gutter so geometry stays stable - this matters when
+ * tiles with and without labels sit next to each other.
+ *
+ * Recession bands: contract is fractional positions in [0, 1] along the
+ * data axis (start <= end). The tile is responsible for computing the
+ * mapping from real dates to fractional positions (the parent knows the
+ * series' time range; MiniChart does not). This keeps MiniChart calendar-
+ * agnostic. Out-of-range bands are clipped to [0, 1].
+ *
+ * Degenerate inputs:
+ *   - data = [] -> render an empty SVG shell that preserves aspect ratio
+ *                  (no marks). Tile's parent reservation handles CLS.
+ *   - data = [v] -> render the last-point dot only, centered horizontally
+ *                   at the data-area right edge, vertically at mid-height.
+ *   - all equal -> line at mid-height (avoid divide-by-zero in y-scale).
+ */
+
+interface RecessionBand {
+  /** Fractional position in [0,1] along the data axis. */
+  start: number;
+  /** Fractional position in [0,1] along the data axis (>= start). */
+  end: number;
+}
+
+interface Props {
+  /** Series points, oldest -> newest. The last value gets the dot + label. */
+  data: number[];
+  /** Series-key hook for future per-section theming. Unused today; reserved. */
+  seriesKey?: string;
+  /** Optional horizontal reference value (e.g. 2 for CPI target). */
+  referenceValue?: number;
+  /**
+   * Optional label for the reference rule. Per Path C spec we don't render
+   * annotation typography inside the plot area; this prop is accepted for
+   * future use and forwarded to the SVG as an aria-only fragment so screen
+   * readers can read "reference: 2% target" without visual chrome.
+   */
+  referenceLabel?: string;
+  /**
+   * Optional recession bands as fractional [0,1] positions along the data
+   * axis. Caller (the tile) computes these from real dates.
+   */
+  recessionBands?: RecessionBand[];
+  /** Direct-label text shown to the right of the last-point dot. */
+  finalValueLabel?: string;
+  /**
+   * Color tier:
+   *   - "data-first" -> --series-1 (deep blue), for hero / load-bearing tiles.
+   *   - "ambient"    -> --ink-muted, for context tiles that recede.
+   */
+  accent: "data-first" | "ambient";
+  /** Accessible name for the SVG (required - the tile owns the wording). */
+  ariaLabel: string;
+  class?: string;
+}
+
+const {
+  data,
+  seriesKey: _seriesKey, // reserved
+  referenceValue,
+  referenceLabel,
+  recessionBands = [],
+  finalValueLabel,
+  accent,
+  ariaLabel,
+  class: className,
+} = Astro.props;
+
+// ---- Geometry constants ----------------------------------------------------
+// Total canvas 248x72 (Path C target plot area). Right gutter reserved for
+// the direct label; everything else is data area.
+const VB_W = 248;
+const VB_H = 72;
+const GUT_R = 32; // direct-label region at the right
+const PAD_X = 1;  // tiny inset so the line doesn't kiss the left edge
+const PAD_Y = 4;  // breathing room for the dot at the top/bottom extremes
+const PLOT_X0 = PAD_X;
+const PLOT_X1 = VB_W - GUT_R;
+const PLOT_Y0 = PAD_Y;
+const PLOT_Y1 = VB_H - 1; // x-axis rule sits on the bottom pixel
+const PLOT_W = PLOT_X1 - PLOT_X0;
+const PLOT_H = PLOT_Y1 - PLOT_Y0;
+
+// ---- Series prep -----------------------------------------------------------
+const points = Array.isArray(data) ? data.filter((v) => Number.isFinite(v)) : [];
+const n = points.length;
+const hasData = n >= 1;
+
+// Y extent
+let yMin = 0;
+let yMax = 1;
+if (n >= 1) {
+  yMin = Math.min(...points);
+  yMax = Math.max(...points);
+  if (yMin === yMax) {
+    // Flat: nudge so the line sits at mid-height of the plot.
+    const eps = Math.abs(yMin) > 0 ? Math.abs(yMin) * 0.5 : 1;
+    yMin -= eps;
+    yMax += eps;
+  }
+}
+
+// If a reference value is supplied, widen y-extent so the rule never falls
+// off-axis (drawing it clamped to the edge would read as the x-axis itself).
+// We also add a 6% headroom around the data extent (matching HeroChart's
+// padFactor) so the reference rule never visually merges with the x-axis
+// rule below or the top edge of the plot when the reference happens to
+// equal yMin or yMax.
+if (typeof referenceValue === "number" && Number.isFinite(referenceValue) && hasData) {
+  if (referenceValue < yMin) yMin = referenceValue;
+  if (referenceValue > yMax) yMax = referenceValue;
+}
+if (hasData) {
+  const span = yMax - yMin || Math.abs(yMax) || 1;
+  const headroom = span * 0.08;
+  yMin -= headroom;
+  yMax += headroom;
+}
+
+function yScale(v: number): number {
+  if (yMax === yMin) return PLOT_Y0 + PLOT_H / 2;
+  return PLOT_Y0 + PLOT_H - ((v - yMin) / (yMax - yMin)) * PLOT_H;
+}
+
+function xScale(i: number, total: number): number {
+  if (total <= 1) return PLOT_X1; // park single point at the right
+  return PLOT_X0 + (i / (total - 1)) * PLOT_W;
+}
+
+// Coordinates for the data line
+const coords: Array<{ x: number; y: number }> = [];
+for (let i = 0; i < n; i++) {
+  coords.push({ x: xScale(i, n), y: yScale(points[i]) });
+}
+
+const linePath = coords.length >= 2
+  ? coords
+      .map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(2)} ${c.y.toFixed(2)}`)
+      .join(" ")
+  : "";
+
+const last = coords[coords.length - 1];
+
+// ---- Reference rule geometry ----------------------------------------------
+const referenceY =
+  typeof referenceValue === "number" && Number.isFinite(referenceValue) && hasData
+    ? yScale(referenceValue)
+    : null;
+
+// ---- Recession bands -------------------------------------------------------
+// Clip fractional [start, end] into the plot's pixel x-range.
+const bands: Array<{ x: number; w: number }> = [];
+for (const b of recessionBands) {
+  if (!b || !Number.isFinite(b.start) || !Number.isFinite(b.end)) continue;
+  const s = Math.max(0, Math.min(1, b.start));
+  const e = Math.max(0, Math.min(1, b.end));
+  if (e <= s) continue;
+  const x0 = PLOT_X0 + s * PLOT_W;
+  const x1 = PLOT_X0 + e * PLOT_W;
+  bands.push({ x: x0, w: Math.max(1, x1 - x0) });
+}
+
+// ---- Color resolution ------------------------------------------------------
+// "data-first" -> --series-1 (workhorse first series).
+// "ambient"    -> --ink-muted (context tiles).
+const seriesColorVar = accent === "ambient" ? "var(--ink-muted)" : "var(--series-1)";
+
+// Direct-label position: pinned to the last-point's y, with a fixed x just
+// past the dot. The label sits inside the right gutter.
+const directLabelX = last ? Math.min(VB_W - 2, last.x + 6) : VB_W - 2;
+const directLabelY = last ? last.y : VB_H / 2;
+
+// Build a screen-reader-only description fragment when a referenceLabel is
+// provided. We don't render the label visually (Path C rule: no annotation
+// typography), but we let assistive tech pick it up via aria-describedby
+// when meaningful. For simplicity we fold it into the SVG title element
+// alongside ariaLabel.
+const fullAriaTitle = referenceLabel
+  ? `${ariaLabel}. Reference: ${referenceLabel}.`
+  : ariaLabel;
+---
+{!hasData ? (
+  <svg
+    class:list={["mini-chart", "mini-chart--empty", className]}
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="none"
+    role="img"
+    aria-label={ariaLabel}
+  ></svg>
+) : (
+  <svg
+    class:list={["mini-chart", className]}
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="none"
+    role="img"
+    aria-label={fullAriaTitle}
+    style={`--mini-color: ${seriesColorVar};`}
+  >
+    {/* Recession bands - behind everything else. Fill is the canonical
+        ink at 6% opacity per design-system sec 3. */}
+    {bands.map((b) => (
+      <rect
+        class="mini-chart__recession"
+        x={b.x.toFixed(2)}
+        y={PLOT_Y0.toFixed(2)}
+        width={b.w.toFixed(2)}
+        height={PLOT_H.toFixed(2)}
+      />
+    ))}
+
+    {/* Optional reference rule (1px dashed in `rule` color). Drawn before
+        the data line so the data crosses on top. Spans the data area
+        only - it stops at the gutter so it doesn't visually collide
+        with the direct label. */}
+    {referenceY !== null && (
+      <line
+        class="mini-chart__reference"
+        x1={PLOT_X0.toFixed(2)}
+        y1={referenceY.toFixed(2)}
+        x2={PLOT_X1.toFixed(2)}
+        y2={referenceY.toFixed(2)}
+      />
+    )}
+
+    {/* X-axis: single 1px rule along the bottom of the plot area. Spans
+        the same x-range as the data area (not the full canvas), so the
+        right-gutter direct label is visually separated from chart chrome. */}
+    <line
+      class="mini-chart__xaxis"
+      x1={PLOT_X0.toFixed(2)}
+      y1={PLOT_Y1.toFixed(2)}
+      x2={PLOT_X1.toFixed(2)}
+      y2={PLOT_Y1.toFixed(2)}
+    />
+
+    {/* Data line (skipped for n == 1 - dot alone communicates a single print) */}
+    {coords.length >= 2 && (
+      <path class="mini-chart__line" d={linePath} fill="none" />
+    )}
+
+    {/* Last-point dot, 3px diameter in series color. Implemented as a
+        zero-radius stroked circle with vector-effect: non-scaling-stroke
+        so the dot stays a true 3px round under preserveAspectRatio="none"
+        non-uniform scaling. Same trick as Sparkline.astro. */}
+    {last && (
+      <circle
+        class="mini-chart__dot"
+        cx={last.x.toFixed(2)}
+        cy={last.y.toFixed(2)}
+        r="0"
+      />
+    )}
+
+    {/* Direct value label at right (optional). Sits in the 32px right
+        gutter, vertically aligned with the last-point dot. Tabular nums
+        so values like "2.3%" align across stacked tiles. */}
+    {finalValueLabel && last && (
+      <text
+        class="mini-chart__direct-label"
+        x={directLabelX.toFixed(2)}
+        y={(directLabelY + 3.5).toFixed(2)}
+        text-anchor="start"
+      >{finalValueLabel}</text>
+    )}
+  </svg>
+)}
+
+<style>
+  /* The chart fills its parent's reserved box. The tile (consumer) sets
+   * the aspect-ratio or fixed dimensions to honor the 248x72 plot target;
+   * we never set our own width/height in absolute units - that would
+   * break CLS on parent-driven layouts. */
+  .mini-chart {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+  .mini-chart--empty {
+    /* Empty-state slot: same box, no marks. The tile's frame keeps the
+     * layout honest; no dashed border (that would be a dev affordance,
+     * not editorial). */
+  }
+
+  /* Recession band - ink at 6% opacity per design-system sec 3 / spec. */
+  .mini-chart__recession {
+    fill: rgba(21, 23, 26, 0.06);
+  }
+
+  /* Reference rule - 1px dashed in rule color. Path C: dashed treatment
+   * distinguishes "editorial anchor" from the solid x-axis below; the
+   * pattern is tight (2 2) so it reads as a line at this small size,
+   * not as Morse. */
+  .mini-chart__reference {
+    stroke: var(--rule);
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+    shape-rendering: crispEdges;
+    vector-effect: non-scaling-stroke;
+    fill: none;
+  }
+
+  /* X-axis: 1px rule in `rule` color (same token as table borders),
+   * crisp-edges for pixel-aligned rendering at the bottom of the plot. */
+  .mini-chart__xaxis {
+    stroke: var(--rule);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+    vector-effect: non-scaling-stroke;
+    fill: none;
+  }
+
+  /* Data line - series color, 1.25px (between Sparkline's 1.25px and
+   * HeroChart's 1.5px - intentionally sits below HeroChart's weight so
+   * the tile reads as a smaller object). non-scaling-stroke keeps the
+   * weight constant under preserveAspectRatio="none". */
+  .mini-chart__line {
+    stroke: var(--mini-color);
+    stroke-width: 1.25;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Last-point dot, 3px diameter in series color. Zero-radius stroked
+   * circle + non-scaling-stroke = a true 3px round dot. */
+  .mini-chart__dot {
+    fill: none;
+    stroke: var(--mini-color);
+    stroke-width: 3;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Direct value label - in series color, weight 500, tabular nums.
+   * Sits in the right gutter at micro size; mirrors HeroChart's direct
+   * label but smaller (the tile already prints the value in mono-sm
+   * above, so this is reinforcement, not new information).
+   * font-size at 10px in the 248x72 viewBox is roughly micro (12px) once
+   * the SVG is rendered at a typical 248-300px CSS width. */
+  .mini-chart__direct-label {
+    fill: var(--mini-color);
+    font-size: 10px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+</style>

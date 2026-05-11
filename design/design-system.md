@@ -1,7 +1,7 @@
 # macro-research-department — Design System
 
-Status: v0.1, living document. Author: art-director.
-Last updated: 2026-05-10.
+Status: v0.2, living document. Author: art-director.
+Last updated: 2026-05-11.
 
 This is the visual constitution. Every page, chart, and component cites this
 document. Frontend-designer and chart-builder implement to this spec. When a
@@ -388,28 +388,390 @@ See section 3 for the colors. Treatment:
 - **Event lines** are foreground. Label rotated 0deg, sitting above the plot
   area in a 16px reserved band. Never crossing other labels.
 
-### Sparkline vs full-chart
+### Three chart tiers: sparkline, mini-chart, full chart
 
-These are different objects with different rules.
+We run a three-tier chart system. Each tier is a different object with
+different rules — confusing one tier for another is the most common visual
+failure mode. The tiers are ordered by ambition, from decorative to
+editorial.
 
-**Sparkline (inline, ~80x20px to ~160x40px):**
+**Tier 1 — Sparkline (inline, ~80x20px to ~160x40px):**
 - No axes, no gridlines, no labels inside the line.
 - Single series, single color (`ink-muted` default, or `accent` if it is
   the page's hero metric).
 - Last point dot at 3px, in series color.
 - Inline number to the right at `mono-sm` size showing the latest value.
 - Optional `pos` / `neg` color on the number only, not the line.
+- Decorative role: the sparkline supports a number; the number is the
+  story.
 
-**Full chart (column-width 680px, or hero 1040px):**
+**Tier 2 — Mini-chart (homepage tiles, ~248x72 plot area):**
+- See full mini-chart spec in Section 5.1 below.
+- Sits between the sparkline (decorative) and the full chart (editorial).
+- Has just enough chrome (x-axis rule, last-point dot+label, optional
+  reference rule, optional recession band) to read as a chart, not as
+  decoration.
+- Single series only. No annotations, no gridlines, no axis labels.
+- Lives on the homepage index tiles; never inside a basics-page panel.
+
+**Tier 3 — Full chart (column-width 680px, or hero 1040px):**
 - Full annotation treatment, full axis treatment.
 - Title, deck, direct labels, source line.
+- This is the only tier that carries editorial argument.
 
-The two should never be confused — a "small chart in a card" is still a
-full chart and gets full chrome.
+**Tier confusion is forbidden.** A "small chart in a basics-page panel" is
+still a full chart and gets full chrome (Section 3 of
+`basics-layer-template.md`). A "chart on a homepage tile" is a mini-chart
+and gets the spec below, not a stripped-down version of a full chart and
+not an inflated sparkline.
+
+---
+
+## 5.1 Mini-chart spec
+
+**Role.** The mini-chart is the chart object that lives on a homepage
+index tile (Section 6.1 below). It must, at glance, communicate one
+shape — the trajectory of one series over the visible window — without
+requiring the reader to study it. It is not a stripped-down basics-page
+chart. It is a different artifact with its own rules.
+
+**Reference lane.** The Economist's "Daily chart" thumbnail at homepage
+scale; FT Markets Data tiles; NYT Upshot "Economy at a glance" mini
+panels. These succeed because they treat the small chart as a designed
+object, not as a shrunken big chart.
+
+### Plot area and frame
+
+- **Plot area target: 248 x 72 px.** This is the *plotting region*, not
+  the full tile width. The tile is 280px wide (Section 6.1); the mini-chart
+  reserves 16px of left padding for the optional final-value label and
+  hangs the plot from there.
+- **No background fill.** The mini-chart sits directly on `surface`
+  (`#FFFFFF`) — the tile background. No card-within-a-card.
+- **No border, no frame.** The x-axis rule below is the only frame
+  element.
+
+### Series
+
+- **One series only.** Mini-charts never carry two series. If the section
+  needs a second series to make sense, that signal belongs on the basics
+  page, not the tile.
+- **Line, not area.** 1.5px stroke. No fill below the line — fills on a
+  mini-chart read as decoration at this scale.
+- **Color tier:**
+  - **Data-first sections** (Inflation, Policy, Labour, GDP) use
+    `--series-1` (`#1F4E79`). These are the sections where the chart is
+    the narrative on the tile.
+  - **Ambient sections** (Markets, Trade, Housing) use `--ink-muted`
+    (`#4A4F57`). These are sections where the editorial line and callout
+    are the narrative and the chart is context. Drawn in slate, the
+    mini-chart visually retreats so the words lead.
+  - Assignment rationale: Inflation, Policy, Labour, and GDP are the four
+    series where the *shape* of the line is itself the story (CPI
+    approaching target, rate path, U-rate trajectory, GDP m/m wobble).
+    Markets (USDCAD is a price-level walk), Trade (a noisy balance), and
+    Housing (a slow HPI drift) are series where the latest *number* —
+    not the shape — leads on the tile.
+
+### Axes
+
+- **X-axis:** 1px solid rule along the bottom of the plot area, in
+  `--rule` (`#D9D3C7`). No tick marks. No date labels — the date is
+  implicit from the tile's eyebrow "as of" stamp.
+- **Y-axis:** No axis line. No gridlines. No tick labels.
+
+### Final-value direct label (optional, recommended)
+
+- A small label sitting to the right of the last-point dot, vertically
+  aligned to it.
+- Type: `mono-xs` (12px Plex Mono), weight 400, color `--ink`.
+- Format: the latest value with units (`2.3%`, `1.378`, `-$2.3B`, `238k`).
+- Hand-tuned position: 6px to the right of the dot. If the last point
+  sits at the top of the plot area, allow the label to drop down 4px to
+  avoid clipping the tile edge.
+- Suppressed only when the value would collide with the tile's right
+  edge or when the callout row directly below already carries the same
+  number prominently. Default: shown.
+
+### Reference rule (optional, max one)
+
+- A single horizontal 1px dashed rule (`2 2` dash pattern), color
+  `--ink-faint` (`#7A7F88`).
+- Use only when the section has one well-known anchor value that gives
+  the line meaning at a glance:
+  - **Inflation:** 2.0% (BoC CPI target).
+  - **Policy:** 2.75% (current BoC midpoint of neutral range — refreshes
+    with the MPR).
+  - All other sections: no reference rule (most series do not have a
+    single canonical anchor; a rule would read as arbitrary).
+- No label on the rule. The eye reads the offset; the page narrative
+  carries the meaning.
+
+### Recession band (optional)
+
+- 1 optional recession band when the visible window covers a recession
+  (rare on the homepage's typical 24-month window, but possible for
+  longer-lookback tiles).
+- Fill: `rgba(21,23,26,0.06)` per Section 3.
+- Sits behind the line, in front of the x-axis rule.
+- No label inside the band on a mini-chart — there is not enough room.
+
+### Last-point dot
+
+- 3px solid circle in the series color (matches the line).
+- Always present. Marks "where we are now" without needing an axis label.
+
+### What the mini-chart does NOT have
+
+- No chart title (the tile eyebrow does the naming).
+- No deck (the editorial line above does the framing).
+- No gridlines, horizontal or vertical.
+- No y-axis tick labels.
+- No x-axis date labels.
+- No annotations, no leader lines, no callouts inside the plot area.
+- No legend (single series — no legend possible).
+- No tooltip on hover. The mini-chart is read at glance; a tooltip would
+  invite study, which belongs on the basics page.
+- No source line under the chart. The tile carries no source attribution
+  at this density — the section page does.
+
+### Mobile variant
+
+- At `sm` and `md` breakpoints the tile compresses to ~328px wide; the
+  mini-chart plot area scales proportionally to ~296 x 72. Stroke,
+  dot size, and label size stay constant — only the plot width changes.
+- The reference rule and last-point label survive the compression.
+- The recession band, if shown, may be clipped at the left edge — that
+  is acceptable; the band is context, not a label.
+
+---
+
+## 5.2 Per-section mini-chart specs
+
+One spec per homepage tile. Each names the canonical series, the optional
+reference rule, the color tier, and any per-section nuance. Series keys
+match `chartSeriesKey` in `src/data/sections.ts`.
+
+### GDP — `gdp-mm`
+
+- Series: Real GDP, m/m % change. 24 monthly points (2-year window).
+- Color tier: **data-first**, `--series-1` (deep blue).
+- Reference rule: **none.** Zero is implicit; the line wobbles around it.
+- Last-point label: `+0.2%`.
+- Note: this is a noisy series. The mini-chart reads as "wobble around
+  zero with a recent soft tilt" — the editorial line above carries
+  the verdict.
+
+### Inflation — `cpi-yoy`
+
+- Series: Headline CPI, y/y % change. 24 monthly points (2-year window).
+- Color tier: **data-first**, `--series-1` (deep blue).
+- Reference rule: **2.0%**, dashed, `--ink-faint`. The BoC target. This
+  is the single most load-bearing reference rule on the homepage —
+  reading the line approaching the target is the story of the entire
+  section.
+- Last-point label: `2.3%`.
+
+### Labour — `unrate`
+
+- Series: Unemployment rate, % of labour force. 24 monthly points.
+- Color tier: **data-first**, `--series-1` (deep blue).
+- Reference rule: **none.** Full-employment NAIRU is contested and
+  drifting; a rule would mislead.
+- Last-point label: `6.1%`.
+- Note: y-axis range tuned to the visible window (typically ~5.0-6.5%)
+  so the rise off the trough is legible. Do not anchor to zero.
+
+### Housing — `hpi-yoy`
+
+- Series: MLS HPI, y/y % change. 24 monthly points.
+- Color tier: **ambient**, `--ink-muted` (slate).
+- Reference rule: **none.** Zero is implicit; the line crosses through
+  it and the crossing reads at a glance.
+- Last-point label: `-1.4%`.
+- Note: the line crosses zero in the visible window. Style the line as
+  a single continuous slate stroke — do not split it into pos/neg
+  segments. The crossing point is the visual event.
+
+### Policy — `policy-rate`
+
+- Series: BoC overnight rate, %. 24 monthly points (steps + holds).
+- Color tier: **data-first**, `--series-1` (deep blue).
+- Reference rule: **2.75% neutral midpoint**, dashed, `--ink-faint`. The
+  current BoC neutral-range midpoint per April 2026 MPR. Refresh the
+  rule value whenever the MPR refreshes the neutral range.
+- Last-point label: `2.75%`.
+- Note: this series is a staircase, not a smooth curve. Render as a
+  step-after line (changes happen on the meeting date, not between).
+
+### Markets — `usdcad`
+
+- Series: USDCAD spot, daily close. ~24 weekly points (sampled weekly
+  Fridays) over the 24-week window.
+- Color tier: **ambient**, `--ink-muted` (slate).
+- Reference rule: **none.** FX has no canonical anchor; rules would be
+  editorial-controversial.
+- Last-point label: `1.378`.
+- Note: sampling is weekly, not daily, to keep the line readable at
+  248px width. Daily data is preserved for the basics page.
+
+### Trade — `trade-balance`
+
+- Series: Merchandise trade balance, $B. 24 monthly points.
+- Color tier: **ambient**, `--ink-muted` (slate).
+- Reference rule: **none.** Zero is implicit; the line crosses it.
+- Last-point label: `-$2.3B`.
+- Note: like Housing, the line crosses zero in the visible window. Same
+  rule: continuous slate stroke, no segmenting.
 
 ---
 
 ## 6. Component visual language
+
+### 6.1 Index tile (homepage section tile)
+
+**Role.** The index tile is the homepage's primary unit of section
+representation. Seven tiles, one per section, arranged in the homepage
+grid. Each tile must, at glance, answer: which section, what is the
+latest reading, what shape is the trajectory, what changed.
+
+The index tile is **not** a basics-page panel and **not** a card. It is
+its own object with its own anatomy. Confusing the tile with the panel
+is a category error — the panel sits on a section page and carries
+editorial weight; the tile sits on the homepage and earns the click.
+
+**Reference lane.** FT homepage section tiles; NYT homepage "Section"
+strips; Economist daily-chart tile arrangement. The discipline: each
+tile is a self-contained piece of evidence, not a teaser graphic.
+
+### Dimensions
+
+- **Width target: 280px.** Tight enough that seven fit in a homepage
+  grid at desktop without scrolling; wide enough to host a 248px
+  mini-chart plot area with 16px of breathing room on either side.
+- **Height target: 190-210px.** Variable within this range based on
+  whether the editorial line wraps to one or two lines. The mini-chart
+  and the callout row are fixed; the editorial line absorbs the height
+  variance.
+
+### Anatomy (top to bottom)
+
+```
+[ EYEBROW ROW                                       ]   label + date
+[ Editorial line, 2 lines max, ~12-16 words         ]   body-sm 500
+[                                                   ]
+[ Mini-chart (248x72 plot area, per Section 5.1)    ]
+[                                                   ]
+[ Value     delta     surprise verb                 ]   callout row
+[ ------------------------------------------------- ]   1px rule (top)
+```
+
+The 1px rule sits at the **top** of the tile, in `--rule`. It separates
+one tile from the one above it in a stacked layout and from the homepage
+strip above the tile grid. No bottom rule, no side rules.
+
+### Eyebrow row
+
+- **Two elements, single line, justified left and right.**
+- **Left:** Section name. `label` size (13px Inter, weight 500),
+  all-caps, letter-spacing `0.08em`, color `--ink-muted`. e.g.,
+  `INFLATION`.
+- **Right:** As-of date stamp. `micro` size (12px Inter, weight 400),
+  tabular figures, color `--ink-faint`. Format: `Apr 2026` or
+  `May 9, 2026` depending on cadence. No leading `AS OF` word — that
+  ritual belongs on the section page.
+- **Spacing:** The eyebrow row sits `s-4` (16px) below the tile's top
+  rule.
+
+### Editorial line
+
+- Owned by `writer`; visual treatment owned here.
+- Type: `body-sm` (15px Inter, weight 500), color `--ink`.
+- 2 lines maximum at the 280px tile width. Aim for ~12-16 words.
+- Sits `s-3` (12px) below the eyebrow row.
+- Line height tight (1.40) — the line must read as a single editorial
+  sentence, not as flowed body copy.
+- Wrap discipline: the writer must be able to predict where the line
+  breaks. Tile width is fixed; the type is set in a single weight; the
+  writer can count.
+
+### Mini-chart
+
+- Per the spec in Section 5.1 above. 248 x 72 plot area, centered in
+  the tile with 16px horizontal padding.
+- Sits `s-4` (16px) below the editorial line.
+- The mini-chart bottom (x-axis rule) sits `s-3` (12px) above the
+  callout row.
+
+### Callout row
+
+A single line carrying the three numbers that summarize the tile's
+state. Three elements, left-aligned, separated by `s-3` (12px):
+
+- **Value.** The headline number. `display-sm` (23px Inter, weight 600,
+  tabular). Color `--ink`. e.g., `2.3%`, `1.378`, `-$2.3B`. Units stay
+  with the number.
+- **Delta.** Change vs. prior period. `mono-xs` (12px Plex Mono,
+  weight 400). Color matches direction: `--pos`, `--neg`, or
+  `--neutral`. Format `+0.1 pp`, `-25 bps`, `+0.4% w/w`. Aligned to
+  the baseline of the value, not its cap.
+- **Surprise verb.** A single-word direction tag from `writer`'s
+  vocabulary: e.g., `beat`, `missed`, `held`, `cut`, `cooled`, `eased`,
+  `widened`. `label` size (13px Inter, weight 500), all-caps,
+  letter-spacing `0.08em`. Color matches direction (`--pos`, `--neg`,
+  `--neutral`). Baseline-aligned with the delta.
+
+The callout row is a single line. It does not wrap. If the verb would
+push the row to wrap at the tile width, the writer picks a shorter
+verb or drops the verb entirely (the delta carries the direction).
+
+### Color and tone
+
+The index tile inherits the design system's restraint:
+- Tile background: `--surface` (`#FFFFFF`).
+- No shadows, no gradients, no rounded-corner pillows beyond the global
+  4px radius.
+- Section accent (per Section 1 of `basics-layer-template.md`) does
+  **not** color the tile background or any frame element. The section
+  identity on the homepage is carried by the eyebrow label only.
+- The mini-chart's series color (data-first blue or ambient slate)
+  carries the chart-visual identity; the tile's own chrome stays
+  monochrome.
+
+### Explicitly NOT on the index tile
+
+These elements belong on the basics-page panel (`basics-layer-template.md`,
+Sections 1, 3, 6, 7, 8) and must not bleed onto the homepage tile:
+
+- **Panel eyebrow code** (e.g., `01`, `02`, `03`). The numbered panel
+  index is a basics-page wayfinding device. The homepage uses the
+  section name, not a number.
+- **Italic deck / standfirst.** The homepage tile carries an editorial
+  line in sans, not a serif italic deck. Decks belong on basics pages
+  where the reader has committed to read.
+- **`AS OF` stamp on its own line.** The homepage compresses freshness
+  into the eyebrow row date. The full `AS OF <indicator> <date>
+  (released <date>)` ritual belongs on the basics page.
+- **Revision tag.** Revisions are basics-page typographic events
+  (Section 5 of `basics-layer-template.md`). On the tile, a revision
+  is invisible — only the latest value shows.
+- **Methodology link.** Methodology affordance lives on the basics-page
+  panel (Section 7). The tile is too dense to host a `Methodology`
+  link without it reading as chartjunk.
+- **Source line.** Source attribution lives on the basics-page panel
+  (Section 8) where the reader has committed. The homepage tile does
+  not carry `Source: Statistics Canada` — the section-page click does.
+- **Serif display headline.** The tile uses `body-sm` Inter for its
+  editorial line. Serif display is reserved for the page hero
+  (`display-xl`) and section openers (`display-lg`/`display-md`).
+  A tile-sized serif headline would compete with the page hero and
+  weaken both.
+
+If any of these elements feel necessary on a homepage tile, the answer
+is almost always: the section page is where they live, and the tile's
+job is to earn the click that gets the reader there.
+
+---
 
 ### Cards
 

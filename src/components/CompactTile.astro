@@ -1,46 +1,59 @@
 ---
 /*
- * CompactTile - the homepage 6-grid tile (stripped to a dashboard cell).
+ * CompactTile - the homepage 6-grid "index tile" (Path C rebuild).
  *
- * Per art-director fixes F3 + F4(a) + F6 + F11 (2026-05-11):
+ * Path C tile rebuild (2026-05-11). The previous compact tile carried a
+ * larger serif section name + indicator label + a tucked-in sparkline next
+ * to the value. The new index-tile anatomy moves the section name into a
+ * micro-caps eyebrow, lifts a single editorial line into the tile body as
+ * the load-bearing prose, replaces the inline sparkline with a wider mini-
+ * chart slot, and pulls the value + delta + a one-word surprise verb into
+ * a single callout row at the bottom.
  *
- *   F3 (strip-down). The tile used to carry an italic-serif headline question
- *       as a deck and a one-line clamped event-blurb. Both came off. The
- *       reader does NOT come to the homepage for editorial prose on six
- *       sections at once; that lives inside each section page. The homepage
- *       compact tile is now a dashboard cell: section name + indicator +
- *       value + delta + sparkline + as-of.
+ * Tile anatomy (top to bottom):
  *
- *   F4 option (a). Section accents are removed from homepage tile chrome
- *       entirely. The top rule is a 1px `rule` line (was 2px accent), the
- *       section name is `ink` (was the section accent), and the sparkline
- *       carries `ink-muted` not the accent. The "rainbow of seven accents"
- *       problem disappears, and Inflation's accent (which collided with the
- *       editorial-red brand color) no longer reads as a logo. Per-section
- *       pages still use accents for wayfinding; this change is homepage-only.
+ *   1. Top 1px monochrome rule (`--rule`), flush with the card border.
+ *   2. Eyebrow row:
+ *        left  - section name, label-size sans, `--ink-muted`, ALL CAPS,
+ *                letter-spacing 0.08em.
+ *        right - as-of date, micro, `--ink-faint`, tabular figures.
+ *      Single row, baseline-aligned.
+ *   3. Editorial line: body-sm Inter weight 500, `--ink`, clamped to 2
+ *      lines, ~12-16 words. Sourced from `section.tileLine`.
+ *   4. Mini-chart slot: aspect-ratio 248/72, max-width 248px. When
+ *      `MiniChart` ships from chart-builder it slots in here. v1 renders
+ *      a dashed-border placeholder so the layout reads at its final size.
+ *   5. Callout row (single line, no wrap):
+ *        value         - Inter weight 600, display-sm, tabular figures.
+ *        delta         - mono-xs, semantic color by `deltaDir`.
+ *        surprise verb - label-size sans, color by direction
+ *                        (pos -> `--pos` "beat", neg -> `--neg` "missed",
+ *                         neutral -> `--ink-muted` "in line").
  *
- *   F6. The numeric value is set in Inter, weight 600, display-sm size, with
- *       tabular figures. Serif numerics fight chart numerics and read as
- *       decorative in a six-tile strip; the dashboard framing wants the sans
- *       digits.
+ * What is NOT in the tile (per Path C):
+ *   - Italic deck headline question (lives on the hero / section page).
+ *   - Numeric eyebrow code ("01" / "02" — section-page wayfinding only).
+ *   - Separate "AS OF" stamp line (folded into the eyebrow row).
+ *   - Revision tag with `[c]` subscript.
+ *   - Methodology link.
+ *   - Source line.
+ *   - Serif display headline (the editorial line is sans body-sm).
+ *   - Inline sparkline (replaced by mini-chart slot).
  *
- *   F11 (peer rows). The two rows of the 6-grid are now visually identical
- *       in dimension and treatment, because the bottom row used to look
- *       lighter only because the top row was carrying more editorial freight.
- *       With F3 applied the rows fall out as peers automatically.
+ * The tile remains a full-area link to the section page.
  *
- * The hero tile retains its blurb body and headline question -- the homepage's
- * editorial voice arrives in exactly one place. The whole tile is still a
- * full-area link to the section page (interaction model unchanged).
+ * Sizing target: ~280px wide x ~190-210px tall on desktop.
  *
  * Props:
- *   section  - the Section record, same shape as SectionTile.
- *
- * The compact tile is NOT used on the section pages.
+ *   section - the Section record. The tile consumes only:
+ *               - section name (`label` / `tileLabel`)
+ *               - `tileLine` (editorial line)
+ *               - hero print's `asOf`, `value`, `delta`, `deltaDir`
+ *             Other Section fields (prints[], blurb, etc.) are unused here.
  */
 
-import type { Section } from "../data/sections";
-import Sparkline from "./Sparkline.astro";
+import type { Section, SectionPrint, SectionSlug } from "../data/sections";
+import MiniChart from "./charts/MiniChart.astro";
 
 interface Props {
   section: Section;
@@ -51,10 +64,109 @@ const { section } = Astro.props;
 const tileLabel = section.tileLabel ?? section.label;
 const href = `/${section.slug}/`;
 
-// One print, the load-bearing one (chartSeriesKey, with prints[0] fallback).
+// Pick the load-bearing print (chartSeriesKey, prints[0] fallback). The
+// tile now surfaces only ONE print — the same one the section page leads
+// with — so the homepage reads as the section's top-of-page summary.
 const heroPrint =
-  section.prints.find((p) => p.key && p.key === section.chartSeriesKey)
+  section.prints.find((p: SectionPrint) => p.key && p.key === section.chartSeriesKey)
     ?? section.prints[0];
+
+// ----------------------------------------------------------------------------
+// Per-section mini-chart spec map (design-system.md Section 5.2).
+//
+// For each section we declare:
+//   - accent:           "data-first" (deep blue) or "ambient" (slate). The
+//                       data-first sections are the four where the line's
+//                       shape is itself the story (Inflation, Policy, Labour,
+//                       GDP); ambient sections (Housing, Markets, Trade) let
+//                       the chart recede so the editorial line leads.
+//   - referenceValue:   Optional horizontal reference rule value. Only set
+//                       on Inflation (2.0% target) and Policy (2.75% neutral
+//                       midpoint per April 2026 MPR). All others omit per
+//                       Section 5.2 — most series have no canonical anchor.
+//   - referenceLabel:   Screen-reader description for the rule. MiniChart
+//                       folds this into the SVG title for assistive tech.
+//   - ariaWindow:       Human-readable description of the visible window,
+//                       used to construct the chart's accessible name. Each
+//                       section's chartSeriesKey series in sections.ts carries
+//                       24 monthly points (~24-month window) except trade's
+//                       terms-of-trade (quarterly) and policy (monthly steps).
+//                       We describe by series semantics, not raw point count.
+// ----------------------------------------------------------------------------
+interface MiniChartSpec {
+  accent: "data-first" | "ambient";
+  referenceValue?: number;
+  referenceLabel?: string;
+  ariaWindow: string;
+}
+
+const miniChartSpecBySlug: Record<SectionSlug, MiniChartSpec> = {
+  gdp: {
+    accent: "data-first",
+    ariaWindow: "Real GDP m/m, last 24 months",
+  },
+  inflation: {
+    accent: "data-first",
+    referenceValue: 2,
+    referenceLabel: "2% target",
+    ariaWindow: "Headline CPI y/y, last 24 months",
+  },
+  labour: {
+    accent: "data-first",
+    ariaWindow: "Unemployment rate, last 24 months",
+  },
+  housing: {
+    accent: "ambient",
+    ariaWindow: "MLS HPI y/y, last 24 months",
+  },
+  policy: {
+    accent: "data-first",
+    referenceValue: 2.75,
+    referenceLabel: "Neutral 2.75%",
+    ariaWindow: "BoC overnight rate, last 24 months",
+  },
+  markets: {
+    accent: "ambient",
+    ariaWindow: "USDCAD, last 24 weeks",
+  },
+  trade: {
+    accent: "ambient",
+    ariaWindow: "Merchandise trade balance, last 24 months",
+  },
+};
+
+const chartSpec: MiniChartSpec = miniChartSpecBySlug[section.slug as SectionSlug];
+
+// finalValueLabel: the print's value is already pre-formatted ("2.3%",
+// "+0.2%", "$71.40", "-$2.3B") in sections.ts, including the unit. The
+// design-system Section 5.2 examples for the direct label match those
+// values verbatim, so we pass `heroPrint.value` straight through. If we
+// later split units off `value` for separate styling, this is the single
+// site to revisit.
+const finalValueLabel = heroPrint?.value;
+
+// Surprise verb derivation: the print's `deltaDir` already encodes whether
+// the latest reading came in better/worse/as-expected relative to consensus
+// (this is the same signal HeroChart uses to position its consensus tick).
+// We map directly:
+//   pos     -> "beat"    -- the print exceeded consensus in the editorial-
+//                           positive direction (lower CPI, higher GDP, etc.)
+//   neg     -> "missed"  -- print fell on the editorial-negative side
+//   neutral -> "in line" -- print landed within rounding of consensus
+// Colors follow the same mapping at the CSS layer.
+type SurpriseDir = "pos" | "neg" | "neutral";
+const surpriseVerb: Record<SurpriseDir, string> = {
+  pos: "beat",
+  neg: "missed",
+  neutral: "in line",
+};
+const deltaDir: SurpriseDir = (heroPrint?.deltaDir ?? "neutral") as SurpriseDir;
+const verb = surpriseVerb[deltaDir];
+
+// Defensive: if a section lacks a tileLine in data, fall back to the section
+// kicker so the tile still renders with editorial content. v1 sets tileLine
+// on every section, so this is belt-and-braces for late data shape edits.
+const tileLine = section.tileLine ?? section.kicker ?? "";
 ---
 <a
   class="ctile"
@@ -63,46 +175,69 @@ const heroPrint =
 >
   <div class="ctile__top-rule" aria-hidden="true"></div>
 
-  <header class="ctile__header">
+  {/* Eyebrow row: section name left, as-of date right. */}
+  <header class="ctile__eyebrow">
     <h3 class="ctile__name">{tileLabel}</h3>
+    {heroPrint?.asOf && (
+      <span class="ctile__asof">{heroPrint.asOf}</span>
+    )}
   </header>
 
+  {/* Editorial line - 2-line clamp at body-sm. The tile's prose voice. */}
+  {tileLine && (
+    <p class="ctile__line">{tileLine}</p>
+  )}
+
+  {/* Mini-chart slot. chart-builder's MiniChart.astro renders inside the
+   * reserved 248x72 aspect-ratio box. Series + per-section reference rule
+   * + color tier come from `miniChartSpecBySlug` above. Sections without a
+   * canonical reference value (GDP, Labour, Housing, Markets, Trade) pass
+   * neither `referenceValue` nor `referenceLabel`; MiniChart omits the
+   * dashed rule entirely in that case.
+   *
+   * Recession bands are intentionally omitted for v1 (per chart-builder's
+   * task spec — we'll wire them in a later pass once the date-to-fraction
+   * mapping helper lands in pipeline/).
+   */}
+  {heroPrint?.spark && heroPrint.spark.length > 0 && (
+    <div class="ctile__chart">
+      <MiniChart
+        data={heroPrint.spark}
+        seriesKey={section.chartSeriesKey}
+        referenceValue={chartSpec.referenceValue}
+        referenceLabel={chartSpec.referenceLabel}
+        finalValueLabel={finalValueLabel}
+        accent={chartSpec.accent}
+        ariaLabel={chartSpec.ariaWindow}
+      />
+    </div>
+  )}
+
+  {/* Callout row: value + delta + surprise verb. Single row, no wrap. */}
   {heroPrint && (
-    <div class="ctile__print">
-      <div class="ctile__print-head">
-        <span class="ctile__print-indicator">{heroPrint.indicator}</span>
-        <span class="ctile__print-asof">{heroPrint.asOf}</span>
-      </div>
-      <div class="ctile__print-body">
-        <div class="ctile__print-numbers">
-          <span class="ctile__print-value">{heroPrint.value}</span>
-          <span class:list={["ctile__print-delta", `ctile__print-delta--${heroPrint.deltaDir}`]}>
-            {heroPrint.delta}
-          </span>
-        </div>
-        <div class="ctile__spark">
-          <Sparkline
-            data={heroPrint.spark ?? []}
-            accent="muted"
-            ariaLabel={`${heroPrint.indicator}, recent trend`}
-          />
-        </div>
-      </div>
+    <div class="ctile__callout">
+      <span class="ctile__value">{heroPrint.value}</span>
+      <span class:list={["ctile__delta", `ctile__delta--${deltaDir}`]}>
+        {heroPrint.delta}
+      </span>
+      <span class:list={["ctile__verb", `ctile__verb--${deltaDir}`]}>
+        {verb}
+      </span>
     </div>
   )}
 </a>
 
 <style>
+  /* Tile shell. Top-aligned content stack with consistent vertical rhythm.
+   * Target ~280px wide x ~190-210px tall on desktop. */
   .ctile {
     display: flex;
     flex-direction: column;
     position: relative;
     background-color: var(--surface);
     border: 1px solid var(--rule);
-    border-top: none;
+    border-top: none; /* top-rule overlay replaces the top border */
     border-radius: var(--radius-card);
-    /* F3: padding can stay tight; the tile carries less now so it does not
-     * need to breathe further. */
     padding: var(--s-3) var(--s-4) var(--s-4);
     color: var(--ink);
     text-decoration: none;
@@ -120,9 +255,9 @@ const heroPrint =
     outline-offset: 2px;
   }
 
-  /* F4(a): the top rule is a 1px `rule` line, monochrome. Sits flush with
-   * the card border (overlaps -1px on each side so the border + rule read
-   * as one continuous edge). No section accent. */
+  /* Top 1px monochrome rule (anatomy item 1). Overlaps the card border by
+   * -1px on each side so the border + rule read as one continuous edge,
+   * matching the hero tile and section-page treatments. */
   .ctile__top-rule {
     position: absolute;
     inset: -1px -1px auto -1px;
@@ -132,77 +267,89 @@ const heroPrint =
     border-top-right-radius: var(--radius-card);
   }
 
-  /* Header: section name only. The italic headline-question deck is gone
-   * (F3) -- that prose lives on the hero and on the per-section pages. */
-  .ctile__header {
-    margin-top: var(--s-1);
-  }
-
-  .ctile__name {
-    font-family: var(--font-serif);
-    font-size: var(--fs-display-sm);
-    line-height: 1.15;
-    font-weight: var(--fw-semibold);
-    /* F4(a): name is ink, not the section accent. */
-    color: var(--ink);
-    letter-spacing: -0.005em;
-    margin: 0;
-  }
-
-  /* Print block: indicator + asof on row 1, value + delta + sparkline on
-   * row 2. The sparkline takes the right half so the row reads as one
-   * compact data card. */
-  .ctile__print {
-    margin-top: var(--s-3);
-    padding-top: var(--s-3);
-    border-top: 1px solid var(--rule-faint);
-  }
-
-  .ctile__print-head {
+  /* Eyebrow row (anatomy item 2): section name + as-of date, baseline-aligned
+   * on a single row, with the as-of stamp pushed right. */
+  .ctile__eyebrow {
+    margin-top: var(--s-2);
     display: flex;
-    justify-content: space-between;
     align-items: baseline;
-    gap: var(--s-2);
+    justify-content: space-between;
+    gap: var(--s-3);
   }
 
-  .ctile__print-indicator {
+  /* Section name. Demoted from the previous serif display-sm header to a
+   * micro-caps eyebrow label. The tile's editorial voice now lives in
+   * .ctile__line below; the name reads as wayfinding, not as a tile title. */
+  .ctile__name {
     font-family: var(--font-sans);
     font-size: var(--fs-label);
     line-height: var(--lh-label);
     font-weight: var(--fw-medium);
     color: var(--ink-muted);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.08em;
+    margin: 0;
   }
 
-  .ctile__print-asof {
+  .ctile__asof {
     font-family: var(--font-sans);
     font-size: var(--fs-micro);
     line-height: var(--lh-micro);
     font-weight: var(--fw-medium);
     color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
 
-  .ctile__print-body {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
-    align-items: center;
-    gap: var(--s-3);
-    margin-top: var(--s-2);
+  /* Editorial line (anatomy item 3). Body-sm Inter at weight 500, ink,
+   * clamped to 2 lines. This is the only editorial prose on the tile;
+   * everything below it is data chrome. */
+  .ctile__line {
+    font-family: var(--font-sans);
+    font-size: var(--fs-body-sm);
+    line-height: var(--lh-body-sm);
+    font-weight: var(--fw-medium);
+    color: var(--ink);
+    margin: var(--s-3) 0 0;
+    /* 2-line clamp. The standard prefix-less `line-clamp` is in baseline
+     * browsers as of mid-2025 but we keep the -webkit- aliases for breadth. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
-  .ctile__print-numbers {
+  /* Mini-chart slot (anatomy item 4). Fixed aspect ratio and max-width per
+   * spec so the MiniChart SVG (preserveAspectRatio="none") fills the exact
+   * box reserved by the tile. CLS is zero on swap. */
+  .ctile__chart {
+    margin-top: var(--s-3);
+    width: 100%;
+    max-width: 248px;
+    aspect-ratio: 248 / 72;
+  }
+
+  /* Callout row (anatomy item 5). value + delta + verb on a single line,
+   * no wrap. Sits directly under the mini-chart with a fixed s-3 top gap
+   * (design-system 6.1: "the mini-chart bottom sits s-3 above the callout
+   * row"). We deliberately do NOT push the callout to the bottom of the
+   * tile via margin-top: auto — when tiles stretch to match the hero
+   * column's height, the extra air must fall BELOW the callout so the
+   * content stays top-aligned. A bottom-anchored callout would put the
+   * gap in the middle of the tile, which reads as a layout bug. */
+  .ctile__callout {
+    margin-top: var(--s-3);
     display: flex;
-    flex-direction: column;
-    gap: var(--s-1);
+    align-items: baseline;
+    gap: var(--s-2);
+    flex-wrap: nowrap;
     min-width: 0;
   }
 
-  /* F6: value moves from serif display to sans tabular. Inter weight 600
-   * at display-sm. The "tnum" feature locks columnar widths so adjacent
-   * tiles' values stack visually even though their digits differ. */
-  .ctile__print-value {
+  /* Value. Inter weight 600 at display-sm with tabular figures, per the
+   * same numeric voice the hero callout uses (F6 echo). */
+  .ctile__value {
     font-family: var(--font-sans);
     font-size: var(--fs-display-sm);
     line-height: 1.05;
@@ -210,35 +357,46 @@ const heroPrint =
     color: var(--ink);
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
+    white-space: nowrap;
   }
 
-  /* Delta stays mono per design-system.md sec 2 (numbers in tables / inline
-   * numerics use Plex Mono). The compact tile delta reads as a numeric
-   * citation next to the lead value, which is the table case. */
-  .ctile__print-delta {
+  /* Delta. Mono-xs per design-system sec 2 (inline numerics use Plex Mono).
+   * Color follows direction. */
+  .ctile__delta {
     font-family: var(--font-mono);
     font-size: var(--fs-mono-xs);
     line-height: var(--lh-mono-xs);
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
-  .ctile__print-delta--pos { color: var(--pos); }
-  .ctile__print-delta--neg { color: var(--neg); }
-  .ctile__print-delta--neutral { color: var(--neutral); }
+  .ctile__delta--pos { color: var(--pos); }
+  .ctile__delta--neg { color: var(--neg); }
+  .ctile__delta--neutral { color: var(--neutral); }
 
-  /* Sparkline slot: tight, fixed aspect ratio so CLS is zero whether or
-   * not data has landed. */
-  .ctile__spark {
-    aspect-ratio: 2.2 / 1;
-    width: 100%;
-    max-height: 38px;
+  /* Surprise verb. Label-size sans, ALL CAPS for parity with eyebrow
+   * treatment, colored by direction (pos / neg / muted neutral). Sits at
+   * the right end of the callout row, no wrap. */
+  .ctile__verb {
+    font-family: var(--font-sans);
+    font-size: var(--fs-label);
+    line-height: var(--lh-label);
+    font-weight: var(--fw-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-left: auto;
+    white-space: nowrap;
   }
 
-  /* F4(a): hover affordance is the card border darkening to ink-muted (set
-   * on `.ctile:hover` above). The name no longer gets an accent-colored
-   * underline because there is no accent on this tile. A subtle 1px ink
-   * underline on hover keeps the link affordance clear without painting
-   * a color onto monochrome chrome. */
+  .ctile__verb--pos { color: var(--pos); }
+  .ctile__verb--neg { color: var(--neg); }
+  .ctile__verb--neutral { color: var(--ink-muted); }
+
+  /* Hover affordance: card border darkens to ink-muted (.ctile:hover above)
+   * and the section name picks up a subtle underline so the link semantic
+   * stays obvious. Same treatment as the prior tile; the previous tile
+   * applied it to a larger serif name, this one applies it to the eyebrow
+   * name. */
   .ctile:hover .ctile__name {
     text-decoration: underline;
     text-decoration-color: var(--ink-muted);
@@ -246,13 +404,15 @@ const heroPrint =
     text-underline-offset: 3px;
   }
 
-  /* Mobile: stack the print body so values get full width. */
-  @media (max-width: 640px) {
-    .ctile__print-body {
-      grid-template-columns: 1fr;
-    }
-    .ctile__spark {
-      max-height: 32px;
+  /* Mobile: no layout changes needed — the tile is already a vertical
+   * stack and the callout row content stays within ~260px even at
+   * small widths. The mini-chart slot uses max-width so it never
+   * overflows. */
+  @media (max-width: 480px) {
+    /* Tighten the chart slot on very narrow widths so the tile fits
+     * single-column layouts without the chart dominating. */
+    .ctile__chart {
+      max-width: 100%;
     }
   }
 </style>

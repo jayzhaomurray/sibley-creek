@@ -1,7 +1,22 @@
 # Basics-Layer Page Template
 
-Status: v0.2, living document. Author: art-director.
+Status: v0.3, living document. Author: art-director.
 Last updated: 2026-05-11.
+
+Changelog:
+- v0.3 (2026-05-11): Added Sections 9.C (Housing), 9.D (Policy: Monetary +
+  Fiscal), 9.E (Markets), 9.F (Trade). All four sections follow the panel
+  grammar established in Sections 1-8 and the per-section conventions
+  established in 9, 9.A, 9.B. No new design-system tokens proposed; all
+  visual treatments reuse existing palette and type tokens. Three section-
+  scoped conventions formalized: (a) Housing CMA-strip layout for CMA-by-
+  CMA reads; (b) Policy two-sub-surface delimiter (Monetary block + visual
+  divider rule + Fiscal block) designed for 8 panels with graceful 6-panel
+  fallback; (c) Markets higher-cadence vintage stamping (date + time-of-day
+  for the daily/weekly series); (d) Trade non-chart reference-table panel
+  treatment (Tariff state).
+- v0.2 (2026-05-11): Added 9.A (Inflation) and 9.B (Labour).
+- v0.1 (2026-05-11): Initial template with GDP worked example.
 
 This document specifies the visual template for **per-section basics-layer
 pages** (GDP, Inflation, Labour, Housing, Policy, Markets, Trade). It is
@@ -1607,6 +1622,1471 @@ spec them together.
 
 ---
 
+## 9.C Housing basics page, all six panels blocked out
+
+Per Section 4.4 of `editorial/dashboard_purpose.md`. Section accent:
+`series-4` (plum, `#7A3E65`).
+
+**Section-level visual rules (Housing only).**
+
+- **CMA-strip layout convention.** Three of the six Housing panels carry
+  a CMA-by-CMA read (prices, inventory/absorption, population-to-stock
+  ratio). For these we adopt a **CMA-strip** sub-layout: a horizontal
+  row of seven slim panels (national + six CMAs in EDR-canonical order:
+  Toronto, Vancouver, Montreal, Calgary, Ottawa, Edmonton). Each strip
+  is ~58px wide, with the national strip 1.4x wider (~82px) and slightly
+  recessed left of the six-CMA row. This is the Housing section's
+  signature visual rhythm — the eye learns the CMA order on panel 1 and
+  carries it across panels 3 and 6.
+- **No national-average headline.** Per EDR 4.4 element 1, the Housing
+  basics page deliberately does **not** publish a national HPI average
+  number on the prices panel. The national strip in the CMA-strip
+  layout shows the national index for *visual orientation* only; the
+  big-number callout on panel 1 surfaces the **six-CMA range** read
+  (highest / lowest Y/Y), not a national mean. This is a hard rule;
+  national-average shorthand obscures the CMA-level dispersion that is
+  the Canadian housing story.
+- **Rate-sensitivity reference scaffold.** Panels 1 (prices), 2
+  (activity), and 5 (mortgage stack) carry a thin secondary axis or
+  reference annotation tying back to the BoC overnight rate trajectory
+  — typically a faded `series-5` (teal) thin dashed line at 1px in the
+  chart-background z-order. The reference is faint, present, and
+  consistent across the three rate-sensitive panels. Other panels do
+  not carry it. This is the visual realization of EDR 4.4's headline
+  question ("is the rate-sensitive sector amplifying or dampening
+  policy").
+- **Cadence mismatch is disclosed.** Housing panels span monthly (MLS,
+  starts, permits, CPI rent), quarterly (CMHC arrears), annual (CMHC
+  RMS, population-to-stock ratio). Each panel's vintage stamp names its
+  cadence explicitly in the reference-period line, and the page-level
+  stamp (per Section 6) will typically read `OLDEST PANEL` on Housing
+  because annual data trails monthly by 9-15 months.
+
+### Housing Panel 1 — Prices (CMA-strip)
+
+- **Eyebrow:** `PRICES`
+- **Title slot:** active-voice sentence on the six-CMA range and any
+  CMA leading or lagging. Writer. Example shape: "*Toronto and
+  Vancouver lead the deceleration; Calgary alone prints positive
+  Y/Y.*"
+- **Chart type:** **CMA-strip composite** — a horizontal row of seven
+  slim time-series panels. Each strip plots a single CMA's (or the
+  national's) MLS HPI Y/Y on the upper half, 6-month annualized on the
+  lower half, last 3 years on a shared x-axis. Strips share x-axis
+  alignment; y-axes are independent per strip (so each CMA's range
+  reads cleanly) but synchronized in scale per the design-system
+  small-multiple convention.
+- **Series colors:**
+  - Y/Y line (upper half of each strip): `series-4` (plum, section
+    accent), 1.5px solid weight 500.
+  - 6-month annualized line (lower half of each strip): `series-4`
+    at 60% opacity, 1.5px solid weight 400. The faster read; visually
+    secondary so the Y/Y headline leads.
+  - National strip: lines in `series-7` (slate), same weights. The
+    national exists for visual orientation; it is not the editorial
+    lead.
+  - BoC rate reference: 1px dashed (`4 2`) `series-5` (teal) at 25%
+    opacity in chart-background z-order, present on each strip.
+    Labeled once at the right rail of the rightmost strip in `micro`
+    `ink-faint` (`BoC rate, ref`).
+- **Direct labels:** Each strip titled at the top in `label` size
+  weight 500 with the CMA name (`Toronto`, `Vancouver`, etc.); the
+  national strip labeled `Canada` in slate weight 400. Most recent
+  Y/Y value displayed at the right terminus of each Y/Y line in
+  `mono-sm` tabular. 6-month annualized value at the right terminus
+  of its line in `mono-sm` tabular at 60% opacity.
+- **Annotations:** A single page-level annotation in chart whitespace
+  identifying the high-Y/Y CMA and the low-Y/Y CMA. No per-strip
+  annotation (the strip IS the annotation).
+- **Recession bands:** `ink` at 6% opacity, spanning all seven strips
+  in vertical alignment. The cross-strip alignment is the point — the
+  reader sees which CMAs were rate-sensitive in past cycles.
+- **Callout:**
+  - Big number: the six-CMA range, e.g., `-3.2% to +1.4%`
+  - Unit: `MLS HPI Y/Y range across six CMAs, March 2026`
+  - Direction row: `[arrow down] Five of six CMAs in Y/Y contraction
+    | Range tightened vs prior month` (no consensus on CMA range)
+- **Vintage:** `AS OF Apr 15, 2026 / Reference: Mar 2026`
+- **Source:** `Canadian Real Estate Association MLS Home Price Index;
+  national series via Bank of Canada Financial Variables Indicators;
+  CMA-level via CREA XLSX bulk download.`
+- **Methodology link:** Important — drawer explains the no-national-
+  average rule, the six-CMA selection, the 6-month annualization
+  construction, and the CREA-vs-BoC-FVI vintage reconciliation.
+
+### Housing Panel 2 — Activity
+
+- **Eyebrow:** `ACTIVITY`
+- **Title slot:** active-voice sentence on starts trajectory, permits
+  lead, and rental vs ownership mix. Writer.
+- **Chart type:** **Two-row composite** inside the panel card.
+  - Row A (top, ~55% of panel chart height): three-line time series
+    of housing starts (with 3M MA overlay), completions, and permits.
+    Permits leads visually; the 3M MA on starts is the headline read.
+    Last 5 years on x-axis. Y-axis: monthly units (thousands).
+  - Row B (bottom, ~45% of panel chart height): stacked-column
+    composition showing CMHC intended-market breakdown (rental vs
+    ownership share) over the same x-axis window, monthly columns.
+- **Series colors:**
+  - Starts: `series-4` (plum, section accent), 1.5px solid weight 500.
+    3M MA overlay: `series-4` at 2px solid weight 600 — the heaviest
+    line.
+  - Completions: `series-7` (slate), 1.5px solid weight 400.
+  - Permits: `series-4` at 60% opacity, 1px dashed (`2 2`), weight
+    400. Dashed treatment signals leading-indicator status.
+  - Rental share (row B bottom band): `series-5` (teal), fill at
+    60% opacity.
+  - Ownership share (row B top band): `series-4` (plum), fill at
+    60% opacity.
+  - BoC rate reference: 1px dashed (`4 2`) `series-5` at 25% opacity
+    in background of row A.
+- **Direct labels:** Line termini for starts/completions/permits in
+  row A. Row B band labels at the right rail (`Rental` / `Ownership`)
+  with current share %.
+- **Annotations:** Row A carries one annotation calling out the
+  permits-vs-starts lead/lag relationship at the most recent print.
+  Row B annotates a notable shift in rental-vs-ownership mix in the
+  last 12 months when present.
+- **Recession bands:** `ink` at 6% opacity, both rows.
+- **Callout:**
+  - Big number: starts 3M MA, e.g., `218k`
+  - Unit: `housing starts SAAR, 3M MA, March 2026`
+  - Direction row: `[arrow down] -12k vs prior 3M | Beat
+    consensus by 8k[c]`
+- **Vintage:** `AS OF Apr 17, 2026 / Reference: Mar 2026`
+- **Source:** `Canada Mortgage and Housing Corporation housing
+  starts; Statistics Canada Table 34-10-0135 (completions); CMHC
+  Starts and Completions Survey (intended-market breakdown).`
+- **Methodology link:** Drawer explains 3M MA construction, the
+  permits-as-leading-indicator convention, and CMHC intended-market
+  category definitions.
+
+### Housing Panel 3 — Inventory and absorption (CMA-strip)
+
+- **Eyebrow:** `INVENTORY AND ABSORPTION`
+- **Title slot:** active-voice sentence on SNLR (sales-to-new-listings)
+  state and months-of-inventory by CMA. Writer.
+- **Chart type:** **CMA-strip composite, two-metric variant** — same
+  horizontal seven-strip rhythm as panel 1, but each strip plots two
+  series: SNLR (upper half of strip, 0-100% axis) and months of
+  inventory (lower half of strip, 0-12 month axis). Last 3 years.
+- **Series colors:**
+  - SNLR line: `series-4` (plum), 1.5px solid weight 500.
+  - Months of inventory: `series-4` at 60% opacity, 1.5px solid
+    weight 400.
+  - National strip: both lines in `series-7` (slate).
+  - SNLR reference bands (background): two horizontal bands per
+    strip's SNLR half marking the BoC's documented balanced-market
+    range (40-60% SNLR per CREA convention). Bands in `ink` at 4%
+    opacity, labeled once at the right rail of the rightmost strip
+    in `micro` `ink-faint`: `Balanced 40-60%`. NOT a classifier —
+    a historical-anchor reference, per the same restraint applied to
+    Labour panel 4's V/U bands.
+- **Direct labels:** Strip titles at top (CMA name); current SNLR
+  and current months-of-inventory at the right terminus of each
+  strip in `mono-sm` tabular.
+- **Annotations:** Page-level annotation in whitespace identifying
+  the tightest-SNLR CMA and the loosest-SNLR CMA.
+- **Recession bands:** `ink` at 6% opacity, vertical alignment
+  across strips.
+- **Callout:**
+  - Big number: tightest CMA's SNLR, e.g., `72%`
+  - Unit: `highest CMA SNLR (Calgary), March 2026; range 38-72%
+    across six CMAs`
+  - Direction row: `[arrow up] +3pp vs Feb | Three CMAs above
+    balanced range`
+- **Vintage:** `AS OF Apr 15, 2026 / Reference: Mar 2026`
+- **Source:** `CREA MLS sales-to-new-listings (national via BoC FVI;
+  CMA via CREA XLSX); months of inventory constructed as active
+  listings divided by monthly sales by macro-research-department.`
+- **Methodology link:** Important — drawer explains the
+  active-listings / monthly-sales construction for months of
+  inventory, the CREA balanced-market band history, and the CMA
+  selection.
+
+### Housing Panel 4 — Rent
+
+- **Eyebrow:** `RENT`
+- **Title slot:** active-voice sentence on the CMHC RMS annual
+  picture, the CPI monthly direction, and Toronto/Vancouver loosening
+  visibility. Writer.
+- **Chart type:** **Dual-cadence composite** inside the panel card.
+  - Sub-view A (top, ~60% of panel chart height): two-line time
+    series. CMHC RMS purpose-built rental Y/Y rent change (annual,
+    one observation per year) plotted as connected points-and-line,
+    alongside StatCan CPI rented-accommodation Y/Y (monthly,
+    continuous line). Last 10 years.
+  - Sub-view B (bottom, ~40% of panel chart height): horizontal bar
+    chart, six bars, showing CPI rent Y/Y by CMA (Toronto, Vancouver,
+    Montreal, Calgary, Ottawa, Edmonton) at the most recent month.
+    Bars in EDR-canonical CMA order.
+- **Series colors:**
+  - CMHC RMS rent change (sub-view A): `series-4` (plum), 1.5px
+    solid line connecting annual observations, with 5px filled
+    circles at each observation. Annual cadence read as discrete
+    events.
+  - CPI rent Y/Y (sub-view A): `series-4` at 60% opacity, 1.5px
+    solid continuous line. The monthly direction read.
+  - CMA bars (sub-view B): all six in `series-4`, 60% opacity,
+    with the highest-Y/Y CMA highlighted at 100% opacity weight
+    500. The bar order is fixed (EDR-canonical); the highlight is
+    data-driven.
+- **Direct labels:** Sub-view A: line termini for both. Sub-view B:
+  each bar labeled at its terminus with CMA name and Y/Y value in
+  `mono-sm` tabular.
+- **Annotations:** Sub-view A annotates the most recent CMHC RMS
+  observation (the annual headline). Sub-view B carries a single
+  annotation in whitespace identifying the loosening direction
+  (Toronto / Vancouver per EDR 4.4 element 4 if visible).
+- **Recession bands:** `ink` at 6% opacity, sub-view A only (sub-view
+  B is a single-point-in-time bar chart and has no time axis).
+- **Callout:**
+  - Big number: CPI rented-accommodation Y/Y, e.g., `5.2%`
+  - Unit: `CPI rented-accommodation, Y/Y, March 2026; CMHC RMS
+    +6.8% in 2025`
+  - Direction row: `[arrow down] -0.4pp vs Feb | Toronto and
+    Vancouver loosening visible at monthly cadence`
+- **Vintage:** Two stamps (cadence mismatch is the point):
+  ```
+  AS OF
+  CPI rent: Apr 15, 2026 (Mar 2026)
+  CMHC RMS: Jan 28, 2026 (2025 survey)
+  ```
+- **Source:** `CMHC Rental Market Survey, October 2025 cycle;
+  Statistics Canada Table 18-10-0004-01 rent sub-series.`
+- **Methodology link:** Drawer explains CMHC RMS as the annual primary
+  citation for rent levels, CPI rent as the monthly direction read,
+  the purpose-built-vs-secondary distinction, and the per-CMA
+  decomposition.
+
+### Housing Panel 5 — Mortgage stack snapshot
+
+- **Eyebrow:** `MORTGAGE STACK SNAPSHOT`
+- **Title slot:** active-voice sentence on the BoC chartpack vintage
+  composition, the OSFI residential mortgage line, and the CMHC RMIR
+  arrears state. Writer.
+- **Chart type:** **Three-block composite** inside the panel card —
+  this is the busiest panel on the Housing page, by design, because the
+  v1 basics treatment is a *cited snapshot* from primary sources rather
+  than an own-construction. The three blocks are visually distinct so
+  the reader sees three pieces of evidence rather than one homogenized
+  read.
+  - Block A (top-left, ~45% width / 55% height): **vintage composition
+    horizontal stacked bar** — a single horizontal bar segmented by
+    fixed-rate term (5y, 3y, 1y, variable) based on the BoC's most
+    recently published Residential Mortgage Market chartpack. The bar
+    is the BoC's reproduced composition; sourcing is to that chartpack
+    issue.
+  - Block B (top-right, ~55% width / 55% height): **OSFI Bank Financial
+    Data residential mortgage line** plotted as a single time series
+    over the last 5 years, monthly. Outstanding residential mortgages
+    on Big-Six balance sheets.
+  - Block C (bottom, full width / 45% height): **arrears time series**
+    — CMHC RMIR (quarterly, the primary citation) plotted as connected
+    points-and-line, with CBA chartered-bank arrears (monthly, the
+    proxy) plotted as a faded background line. Last 8 years.
+- **Series colors:**
+  - Block A segments: `series-4` ramped at 100% / 75% / 50% / 25%
+    opacity for the four term categories, longest term darkest. This
+    is a one-time use of opacity-ramping on a single-series-color
+    categorical encoding; it works because four-or-fewer categories
+    on a single horizontal bar read cleanly with opacity.
+  - Block B (OSFI line): `series-4` at 1.5px solid weight 500.
+  - Block C: CMHC RMIR in `series-4` 1.5px solid weight 500 with
+    5px filled circles at each quarterly observation; CBA proxy in
+    `series-7` at 50% opacity, 1px solid weight 400.
+  - BoC rate reference: 1px dashed (`4 2`) `series-5` at 25%
+    opacity in chart-background of block B and block C — present on
+    the two time-series blocks, not on block A (which is a snapshot,
+    not a trajectory).
+- **Direct labels:** Block A: each segment labeled with term name
+  (`5-year fixed`, `3-year fixed`, etc.) and current % share in
+  `label` size weight 500. Block B: line terminus with current value.
+  Block C: both line termini.
+- **Annotations:** Block A carries a small caption naming the BoC
+  chartpack issue and vintage. Block C annotates the most recent
+  RMIR observation.
+- **Recession bands:** `ink` at 6% opacity, blocks B and C only.
+- **Callout:**
+  - Big number: CMHC RMIR arrears rate, e.g., `0.21%`
+  - Unit: `CMHC residential mortgages in arrears, Q4 2025`
+  - Direction row: `[arrow up] +0.02pp vs Q3 2025 | CBA monthly
+    proxy continues rising`
+- **Vintage:** Three stamps:
+  ```
+  AS OF
+  BoC chartpack: [most recent issue date]
+  OSFI: Apr 22, 2026 (Feb 2026)
+  CMHC RMIR: Mar 30, 2026 (Q4 2025)
+  ```
+- **Source:** `Bank of Canada Residential Mortgage Market chartpack;
+  OSFI Bank Financial Data residential mortgage line; CMHC Residential
+  Mortgages in Arrears (RMIR); Canadian Bankers Association chartered
+  bank arrears (monthly proxy).`
+- **Methodology link:** Important — drawer flags this as a cited-
+  snapshot panel rather than own construction, names the Pillar A
+  deferral for full mortgage-stack reconstruction, and explains the
+  RMIR-vs-CBA-proxy reconciliation.
+
+### Housing Panel 6 — Population-to-housing-stock ratio by CMA
+  (CMA-strip)
+
+- **Eyebrow:** `POPULATION-TO-STOCK RATIO`
+- **Title slot:** active-voice sentence on which CMAs have the
+  tightest population-to-stock ratio and how the trajectory is
+  moving. Writer.
+- **Chart type:** **CMA-strip composite, single-metric variant** —
+  the same horizontal seven-strip rhythm as panels 1 and 3, but each
+  strip plots a single line: persons per dwelling, last 10 years
+  (annual cadence). The longer x-axis window reflects the annual
+  cadence — 10 annual observations is enough to read trajectory.
+- **Series colors:**
+  - Persons-per-dwelling line: `series-4` (plum), 1.5px solid
+    weight 500. 5px filled circles at each annual observation to
+    emphasize the discrete-annual cadence (this is not a continuous
+    monthly series; we visually disclose that).
+  - National strip: `series-7` (slate), same treatment.
+  - No rate-reference dashed line here — population-to-stock is a
+    supply-response measure, not a rate-sensitive one.
+- **Direct labels:** Strip titles at top (CMA name); current ratio
+  at the right terminus of each line in `mono-sm` tabular. A small
+  caption at the bottom of the strip row: `Persons per dwelling,
+  annual, last 10 years.`
+- **Annotations:** Page-level annotation in whitespace identifying
+  the tightest-ratio CMA and the loosest-ratio CMA, with a note on
+  trajectory direction.
+- **Recession bands:** None (the annual cadence does not align
+  cleanly with recession-band placement; we acknowledge this by
+  omission rather than approximating).
+- **Callout:**
+  - Big number: tightest CMA's ratio, e.g., `2.51`
+  - Unit: `persons per dwelling, Toronto, 2024; range 2.10-2.51
+    across six CMAs`
+  - Direction row: `[arrow up] +0.08 vs 2019 baseline | Tightening
+    in five of six CMAs`
+- **Vintage:** `AS OF Apr 30, 2025 / Reference: 2024 (annual)`
+  Note: this panel will typically be the page's `OLDEST PANEL`
+  because annual data trails monthly by 12+ months.
+- **Source:** `Statistics Canada Table 17-10-0135 (annual CMA
+  population); Statistics Canada Table 36-10-0688 (housing stock);
+  ratio construction by macro-research-department.`
+- **Methodology link:** Important — drawer explains the base year
+  selection, intercensal interpolation logic, and Pillar C cross-
+  reference (housing cycle and supply response).
+
+---
+
+## 9.D Policy basics page, all eight elements blocked out
+
+Per Section 4.5 of `editorial/dashboard_purpose.md`. Section accent:
+`series-5` (teal, `#3F7D7C`).
+
+**Section-level visual rules (Policy only).**
+
+- **Two-sub-surface page architecture.** The Policy page is the only
+  one of the seven that hosts two analytically distinct sub-surfaces
+  (monetary and fiscal). The page is rendered as a single basics page
+  with a **visual divider** separating the two blocks. Architecture:
+  - Page header (Section 1) and panel index dots (Section 2) apply
+    once at the top, treating all 8 panels (4 monetary + 4 fiscal)
+    as a single panel sequence. The dots are 8 in number, in two
+    visually grouped clusters of 4 separated by `s-3` (12px) extra
+    gap.
+  - A **sub-surface header rule** appears between the monetary block
+    (panels 1-4) and the fiscal block (panels 5-8). Treatment: a
+    full-width hairline rule in `series-5` (teal, section accent) at
+    40% opacity, identical to the page-header hairline. Above the
+    rule, a small sub-surface eyebrow in `label` size weight 500
+    letter-spacing `0.08em` color `series-5`: `MONETARY` /
+    `FISCAL`. Below the rule, `s-7` (48px) of space, then the next
+    block of panels begins.
+  - The sub-surface eyebrows function as in-page section markers.
+    They are the only typographic ritual that distinguishes this page
+    from the other six. The reader sees clearly that two distinct
+    surfaces share one page.
+- **Graceful 6-panel fallback.** Per the active EDR adjudication, the
+  spec is designed for 8 panels (4 monetary + 4 fiscal). If EDR rules
+  for 6 (e.g., 3+3), the page drops one panel from each block; the
+  drop candidates are flagged per panel below. The sub-surface
+  architecture and divider rule remain unchanged — they are the
+  invariant page structure.
+- **MPR-cadence vs Fiscal-Monitor-cadence asymmetry.** Monetary block
+  panels refresh at BoC fixed-announcement-date or MPR cadence
+  (event-driven, ~8 events/year + 4 MPRs). Fiscal block panels refresh
+  on Fiscal Monitor monthly (with ~2-month lag) plus PBO and provincial
+  budget events. Both blocks display their own as-of stamps per panel;
+  the page-level stamp (Section 6) takes the least-recent across all
+  8 panels per the standard rule. On this page, that will frequently
+  be a fiscal panel (Budget / FES / Article IV vintages).
+- **No accent-color-on-data rule, with one exception.** The teal
+  section accent does **not** color data series on this page (per the
+  cohesion rule from Section 11). The exception is the BoC overnight
+  rate itself, which is plotted in `series-5` on panel 1, because
+  teal IS the section accent and the overnight rate IS the section's
+  central object. This is the same logic that put deep blue on GDP's
+  headline real GDP line, sage green on Labour's per-capita signature,
+  and plum on Housing's MLS HPI. One color, one role.
+
+---
+
+### MONETARY sub-surface (panels 1-4)
+
+### Policy Panel 1 (Monetary) — BoC overnight rate
+
+- **Eyebrow:** `OVERNIGHT RATE`
+- **Title slot:** active-voice sentence on current rate level,
+  distance to neutral, and consecutive-meeting action state. Writer.
+- **Chart type:** **Stepped time-series with shaded neutral band**.
+  BoC overnight rate plotted as a stepped line (rate decisions are
+  discrete events, not continuous changes — the step treatment is the
+  honest visualization). Last 5 years on x-axis. Y-axis: percent. A
+  horizontal shaded band marks the BoC's estimated neutral range
+  (researcher-curated, vintage-stamped, drawn at the *current* MPR
+  vintage value, not historical neutral estimates which drift).
+- **Series colors:**
+  - Overnight rate stepped line: `series-5` (teal, section accent),
+    2px solid weight 600. The section's central object earns the
+    heaviest stroke on the page.
+  - Neutral-range band: `series-5` at 12% opacity fill, with 1px
+    `series-5` solid edges at the band boundaries. Labeled at the
+    right rail `BoC neutral est. [low]-[high]%` in `micro` weight 500
+    `series-5`.
+  - Rate decision event markers: 4px filled circles in `series-5` at
+    each decision date, sitting on the stepped line. Hold decisions
+    use open circles (1.5px stroke, transparent fill).
+- **Direct labels:** Line terminus shows current rate in `mono-sm`
+  weight 500 `series-5`. Neutral-range label as above.
+- **Annotations:** A single annotation on the most recent decision
+  date, showing the action (hold/cut/hike) and the consecutive-
+  meeting state. Writer composes the wording.
+- **Recession bands:** `ink` at 6% opacity.
+- **Callout:**
+  - Big number: current overnight rate, e.g., `2.75%`
+  - Unit: `BoC overnight rate, set Apr 29, 2026; neutral est. 2.25-
+    3.25% (Apr 2026 MPR)`
+  - Direction row: `[arrow flat] Hold for second consecutive meeting
+    | 50 bps above neutral midpoint`
+- **Vintage:** Two stamps:
+  ```
+  AS OF
+  Rate: Apr 29, 2026 (decision date)
+  Neutral: Apr 16, 2026 MPR
+  ```
+- **Source:** `Bank of Canada policy interest rate; Bank of Canada
+  Monetary Policy Report neutral-rate estimate (researcher-curated).`
+- **Methodology link:** Important — drawer explains that the neutral
+  estimate is researcher-curated from the most recent MPR refresh
+  rather than an API series, with the vintage stamp logic.
+- **6-panel drop candidate?** No. This panel is the section's
+  foundation — never drop.
+
+### Policy Panel 2 (Monetary) — Market path
+
+- **Eyebrow:** `MARKET PATH`
+- **Title slot:** active-voice sentence on the 2-year GoC vs overnight
+  read and the OIS-implied path from the most recent MPR. Writer.
+- **Chart type:** **Two-row composite** inside the panel card.
+  - Row A (top, ~60% height): 2-year GoC yield and BoC overnight
+    rate plotted as two time-series lines, last 5 years. The
+    *spread* between them is the basics-layer term-structure read on
+    expectations (positive spread = market pricing hikes; negative =
+    pricing cuts).
+  - Row B (bottom, ~40% height): **OIS-implied BoC path snapshot** —
+    a horizontal step chart showing the market-implied path from the
+    most recent MPR's chart, going forward 8 quarters. This is a
+    *cited* snapshot from the BoC's MPR market-implied curve chart,
+    NOT own OIS forwards construction.
+- **Series colors:**
+  - 2-year GoC (row A): `series-5` (teal), 1.5px solid weight 500.
+  - Overnight rate (row A): `series-5` at 50% opacity, 2px stepped,
+    weight 500.
+  - Spread shading (row A): the region between the two lines fills
+    with `series-5` at 8% opacity. This is the editorial point of
+    the row.
+  - OIS-implied path (row B): `series-5` stepped at 1.5px solid
+    weight 500.
+  - OIS-implied path forward window: rendered with light vertical
+    grid markers in `rule-faint` every 2 quarters; the path itself
+    is the read.
+- **Direct labels:** Row A: line termini for both. Row B: each step's
+  level labeled at its midpoint in `mono-sm` tabular.
+- **Annotations:** Row A annotates the current spread value. Row B
+  carries a single caption identifying the MPR vintage from which the
+  path is cited.
+- **Recession bands:** `ink` at 6% opacity, row A only.
+- **Callout:**
+  - Big number: 2y GoC minus overnight rate spread, e.g., `-0.15pp`
+  - Unit: `2-year GoC minus overnight, May 8, 2026; OIS-implied 12mo
+    path: 2 cuts (Apr MPR)`
+  - Direction row: `[arrow down] -0.20pp vs prior month |
+    Market pricing easing`
+- **Vintage:** Two stamps:
+  ```
+  AS OF
+  GoC 2y: May 8, 2026 (daily)
+  OIS path: Apr 16, 2026 MPR
+  ```
+- **Source:** `Bank of Canada Valet 2-year GoC yield; Bank of Canada
+  policy rate; OIS-implied path cited from BoC Monetary Policy Report
+  market-implied curve chart.`
+- **Methodology link:** Drawer explains the cited-snapshot logic for
+  OIS-implied path (no own forwards construction in v1) and points to
+  Pillar B deep-dive.
+- **6-panel drop candidate?** Possibly. If EDR rules 6 panels, this
+  is a drop candidate because the OIS path is a cited snapshot rather
+  than own construction; the 2y-vs-overnight spread could fold into
+  panel 1 as a second axis.
+
+### Policy Panel 3 (Monetary) — BoC-Fed spread
+
+- **Eyebrow:** `BOC-FED SPREAD`
+- **Title slot:** active-voice sentence on current spread, distribution
+  context, and regime classification. Writer.
+- **Chart type:** **Time-series with distribution-percentile reference
+  scaffold**. BoC overnight rate minus Fed funds upper bound plotted as
+  a single time series, last 35+ years (the full Valet history).
+  Horizontal reference lines mark P50 / P80 / P95 / P99 of the
+  distribution, drawn at `ink-faint` 1px solid with right-rail labels.
+- **Series colors:**
+  - Spread line: `series-5` (teal), 1.5px solid weight 500.
+  - Zero line: `ink-muted`, 1px solid (the spread crosses zero
+    historically and the crossing is editorially meaningful).
+  - Percentile reference lines: `ink-faint` 1px solid, with labels
+    at right rail in `micro` `ink-faint`: `P50` / `P80` / `P95` /
+    `P99`. Symmetric below zero for negative spreads.
+- **Direct labels:** Line terminus with current spread value in
+  `mono-sm` weight 500. Percentile labels at right rail.
+- **Annotations:** A single annotation on the most recent value,
+  noting which percentile band it falls in (the regime classification).
+- **Recession bands:** `ink` at 6% opacity.
+- **Callout:**
+  - Big number: current spread, e.g., `-1.50pp`
+  - Unit: `BoC minus Fed funds upper, May 8, 2026 (P95 negative)`
+  - Direction row: `[arrow flat] Unchanged vs prior week |
+    Within P95 historical band`
+- **Vintage:** `AS OF May 8, 2026 (daily)`
+- **Source:** `Bank of Canada policy interest rate; Federal Reserve
+  H.15 federal funds target range upper bound.`
+- **Methodology link:** Drawer explains the distribution computation
+  (35+ years daily), the percentile-band logic, and the regime-
+  classification framing.
+- **6-panel drop candidate?** No. The BoC-Fed spread is load-bearing
+  for the Markets section's CAD and GoC reads; deep-dive Pillar B
+  refers to this panel. Keep.
+
+### Policy Panel 4 (Monetary) — Balance sheet
+
+- **Eyebrow:** `BALANCE SHEET`
+- **Title slot:** active-voice sentence on settlement balances level,
+  asset composition, and current phase (QE / reinvestment / passive
+  QT / floor maintenance). Writer.
+- **Chart type:** **Stacked-area asset composition** time series. BoC
+  balance-sheet assets stacked by category (settlement balances,
+  Government of Canada securities, term repos, other) over last 8
+  years (covers the COVID QE expansion and subsequent QT).
+- **Series colors:**
+  - Settlement balances: `series-5` (teal, section accent), fill at
+    60% opacity. Bottom of the stack.
+  - GoC securities: `series-1` (deep blue), fill at 60% opacity.
+  - Term repos: `series-7` (slate), fill at 60% opacity.
+  - Other: `series-6` (olive gold), fill at 40% opacity. Top of the
+    stack.
+  - Band edges: 1px `surface` overdraw at boundaries for legibility.
+  - Phase-call vertical markers: 1px solid lines in `ink-faint` at
+    each phase transition date, labeled in `label` weight 500
+    `ink-faint` at the top of the chart: `QE start`, `QE end`,
+    `Passive QT`, `Floor maintenance`. Per EDR 4.5 monetary element
+    4: these are editorial-curated phase calls with cite-to-statement
+    references, not algorithmic classifications.
+- **Direct labels:** Each stack band labeled at the right rail with
+  its current $-value in `mono-sm` tabular, color matching the band
+  fill at full opacity.
+- **Annotations:** A single chart-level annotation in whitespace
+  identifying the current phase and the cite-to-statement reference
+  (writer composes; example: *"Floor maintenance per BoC statement,
+  Mar 2025."*).
+- **Recession bands:** `ink` at 6% opacity, but recession bands on
+  this panel are visually subordinate to phase markers (phases are
+  the editorial frame, not recessions).
+- **Callout:**
+  - Big number: settlement balances, e.g., `$58B`
+  - Unit: `settlement balances, May 1, 2026; total assets $X.XXT`
+  - Direction row: `[arrow flat] +$2B vs prior week | Phase: Floor
+    maintenance`
+- **Vintage:** `AS OF May 1, 2026 (weekly)`
+- **Source:** `Bank of Canada balance sheet, weekly statistical
+  reports.`
+- **Methodology link:** Important — drawer explains the phase-call
+  curation logic, the cite-to-statement convention for each phase
+  transition, and the asset-category definitions.
+- **6-panel drop candidate?** Yes (secondary candidate). The balance
+  sheet is currently in floor-maintenance — a low-news phase. If EDR
+  rules 6 panels, this is the second drop candidate after panel 2.
+  Restore when balance-sheet news becomes load-bearing again.
+
+---
+
+### FISCAL sub-surface (panels 5-8)
+
+(Sub-surface divider rule and `FISCAL` eyebrow appear above these
+panels per the page architecture rule.)
+
+### Policy Panel 5 (Fiscal) — Federal trajectory
+
+- **Eyebrow:** `FEDERAL TRAJECTORY`
+- **Title slot:** active-voice sentence on YTD deficit, debt-service
+  ratio, and PBO-vs-FES baseline delta. Writer.
+- **Chart type:** **Three-block composite** inside the panel card.
+  - Block A (top, ~50% height, full width): Federal deficit YTD time
+    series, monthly cadence from Fiscal Monitor, last 5 fiscal years
+    overlaid as five lines (or as a single cumulative-by-fiscal-year
+    line with terminus markers per year).
+  - Block B (bottom-left, ~50% width / 50% height): Debt-service costs
+    as % of revenues, time series, last 10 years, annual or quarterly.
+  - Block C (bottom-right, ~50% width / 50% height): PBO vs FES
+    baseline projection lines, going forward 5 fiscal years from the
+    current vintage. Two lines with the delta region shaded.
+- **Series colors:**
+  - Block A YTD lines: `series-5` (teal) for current fiscal year at
+    2px weight 600; prior 4 fiscal years in `series-5` at 30/40/
+    50/60% opacity, oldest palest. Sequential opacity ramp on a
+    single hue.
+  - Block B: `series-5` 1.5px solid weight 500.
+  - Block C: PBO line in `series-5` 1.5px solid weight 500; FES
+    baseline in `series-7` (slate) 1.5px solid weight 500. Delta
+    region filled in `series-5` at 15% opacity.
+- **Direct labels:** Block A: each fiscal year line labeled at its
+  terminus with fiscal-year-end value in `mono-sm` tabular. Block B:
+  line terminus. Block C: both line termini labeled with vintage
+  (`PBO Mar 2026`, `FES Nov 2025`).
+- **Annotations:** Block C carries one annotation on the projection
+  delta at year 3 or 5 (writer composes).
+- **Recession bands:** `ink` at 6% opacity, block A only.
+- **Callout:**
+  - Big number: YTD deficit, e.g., `-$32B`
+  - Unit: `federal deficit YTD through Feb 2026; debt service 12.4%
+    of revenues`
+  - Direction row: `[arrow down] -$5B vs prior fiscal year YTD | PBO
+    baseline diverges from FES by $14B at FY28`
+- **Vintage:** Three stamps:
+  ```
+  AS OF
+  Fiscal Monitor: Apr 30, 2026 (Feb 2026)
+  PBO EFO: Mar 5, 2026
+  FES: Nov 21, 2025
+  ```
+- **Source:** `Department of Finance Fiscal Monitor; Parliamentary
+  Budget Officer Economic and Fiscal Outlook; Department of Finance
+  Fall Economic Statement.`
+- **Methodology link:** Important — drawer explains the YTD-by-fiscal-
+  year construction, debt-service-to-revenues definition, and the
+  cited-projection-vintages logic.
+- **6-panel drop candidate?** No. Federal trajectory is the fiscal
+  foundation panel; never drop.
+
+### Policy Panel 6 (Fiscal) — Provincial
+
+- **Eyebrow:** `PROVINCIAL`
+- **Title slot:** active-voice sentence on net debt-to-GDP across the
+  four provinces, latest budget balance vs plan, and any active credit-
+  watch flags. Writer.
+- **Chart type:** **Four-row dumbbell** — same dumbbell pattern as
+  Labour panel 6, here showing net debt-to-GDP for ON, QC, AB, BC.
+  Each row plots current value (filled circle) and value 4 years ago
+  or vs plan (open circle).
+- **Series colors:**
+  - Current values (filled): `series-5` (teal), 6px circles.
+  - Prior/plan values (open): `series-5`, 5px circles, 1.5px stroke
+    transparent fill.
+  - Connecting lines: `series-5` at 60% opacity, 1.5px solid. No
+    pos/neg color encoding on this panel (the editorial valence of
+    rising debt-to-GDP is contestable; we leave color encoding to the
+    Labour-dumbbell precedent and present this panel as a neutral
+    state visual).
+  - Credit-watch flag indicators: where a province has an active flag
+    from Moody's / S&P / Fitch / DBRS Morningstar, a small `accent`
+    (`#A6192E`) caret glyph (`!`) appears immediately right of the
+    province name. `body-sm` `accent` weight 500. Tooltip on hover
+    names the rating agency and action date.
+- **Direct labels:** Province names at left rail in `body-sm` weight
+  500 `ink`. Current values right of filled circle in `mono-sm`
+  tabular. Prior values left of open circle in `mono-sm` tabular
+  `ink-muted`.
+- **Annotations:** A single annotation in chart whitespace identifying
+  the highest-debt province and the trajectory direction.
+- **Recession bands:** None (this is a snapshot, not a time series).
+- **Callout:** Editorial status block (no single number summarizes
+  four provinces):
+  - Status label: `PROVINCIAL DEBT STATE`
+  - Status line: writer-filled, e.g., *"Quebec and Ontario continue
+    to trail Alberta on debt-to-GDP; British Columbia diverged after
+    2023."*
+  - Context line: writer-filled, optionally referencing active
+    credit-watch flags.
+- **Vintage:** Stacked stamps (each province on its own budget
+  cadence):
+  ```
+  AS OF
+  ON: [latest budget date]
+  QC: [latest budget date]
+  AB: [latest budget date]
+  BC: [latest budget date]
+  ```
+- **Source:** `Provincial Budgets (ON, QC, AB, BC); Moody's / S&P /
+  Fitch / DBRS Morningstar rating actions.`
+- **Methodology link:** Drawer explains the net-debt-to-GDP
+  definition, the four-province selection, and the rating-action
+  inclusion criteria.
+- **6-panel drop candidate?** No. Provincial fiscal capacity is a
+  load-bearing read; keep.
+
+### Policy Panel 7 (Fiscal) — Debt management
+
+- **Eyebrow:** `DEBT MANAGEMENT`
+- **Title slot:** active-voice sentence on GoC issuance trajectory,
+  average term, and redemption profile. Writer.
+- **Chart type:** **Two-block composite**.
+  - Block A (top, ~50% height): GoC gross issuance time series,
+    annual, last 10 years, bar chart. Color-coded by term bucket
+    (T-bills, 2y, 5y, 10y, 30y+).
+  - Block B (bottom, ~50% height): Redemption profile bar chart,
+    forward 10 years, showing maturities by fiscal year.
+- **Series colors:**
+  - Issuance bars (block A): five-color categorical from the design-
+    system palette, in EDR-canonical term order: T-bills `series-7`
+    (slate), 2y `series-5` (teal), 5y `series-1` (deep blue), 10y
+    `series-4` (plum), 30y+ `series-6` (olive gold). Stacked.
+  - Redemption bars (block B): `series-5` (teal) at 70% opacity, all
+    same color (the data dimension is fiscal-year, not term).
+  - Average-term overlay line (block A): `ink-muted` 1px solid line
+    on a secondary right-axis showing average issuance term in years.
+- **Direct labels:** Block A: each term-bucket band in the most
+  recent bar labeled at its segment with term name and current
+  $-value. Block B: redemption peaks labeled with fiscal year and
+  $-value.
+- **Annotations:** A single annotation referencing the DMS document
+  vintage and any narrative-relevant coupon-roll callout (writer per
+  EDR 4.5 fiscal element 3 — no own coupon-roll math in v1).
+- **Recession bands:** None (fiscal-year cadence; recession-band
+  alignment is not editorially useful here).
+- **Callout:**
+  - Big number: current fiscal year gross issuance, e.g., `$420B`
+  - Unit: `gross issuance FY26; average term 7.2 years`
+  - Direction row: `[arrow up] +$35B vs FY25 | FY28-FY30 redemption
+    peak: $186B`
+- **Vintage:** `AS OF [most recent DMS publication date]`
+- **Source:** `Department of Finance Debt Management Strategy Annex.`
+- **Methodology link:** Important — drawer explains the cited-from-DMS
+  logic, the term-bucket definitions, and the coupon-roll-deferred
+  scope.
+- **6-panel drop candidate?** Possibly. If EDR rules 6 panels, this is
+  a fiscal-side drop candidate (debt management is steady-state and
+  the DMS Annex itself is the primary citation; the basics-layer chart
+  adds visualization but not analytical lift in normal times).
+
+### Policy Panel 8 (Fiscal) — Fiscal stance vs cycle
+
+- **Eyebrow:** `FISCAL STANCE VS CYCLE`
+- **Title slot:** active-voice sentence on CAPB level, fiscal impulse
+  direction, and consistency-with-monetary-stance read. Writer.
+- **Chart type:** **Two-line time series with shaded impulse**.
+  Cyclically-adjusted primary balance (CAPB) plotted as a single time
+  series, last 10 years, with the year-over-year change (fiscal
+  impulse) shown as a thin secondary series. The cycle reference
+  (output gap from GDP panel 5) overlaid as a contextual line.
+- **Series colors:**
+  - CAPB level: `series-5` (teal), 1.5px solid weight 500. Primary.
+  - Fiscal impulse (Y/Y change in CAPB): `series-5` at 60% opacity,
+    1.5px solid weight 400. Secondary; on a secondary axis.
+  - Output gap (contextual): `series-7` (slate), 1px dashed (`4 2`),
+    weight 400. Tertiary; explicitly subordinate so the reader sees
+    the cyclical reference without confusing it with the CAPB read.
+- **Direct labels:** Three line termini. CAPB labeled `CAPB level`
+  in teal weight 500; impulse labeled `Fiscal impulse (Y/Y)` in teal
+  60% weight 400; output gap labeled `Output gap (ref)` in slate
+  weight 400 with `(ref)` italicized.
+- **Annotations:** A single annotation on the most recent CAPB point
+  and a separate annotation on the impulse direction at the most
+  recent observation.
+- **Recession bands:** `ink` at 6% opacity.
+- **Callout:** Editorial status block (no single number summarizes
+  the consistency read):
+  - Status label: `FISCAL-MONETARY CONSISTENCY`
+  - Status line: writer-filled, e.g., *"Fiscal impulse moderately
+    positive (+0.4pp of GDP, IMF Article IV) while monetary stance
+    held restrictive — divergent through 2026."*
+  - Context line: writer-filled, naming the cited CAPB source (IMF
+    Article IV vs OECD).
+- **Vintage:** `AS OF [most recent IMF Article IV or OECD vintage]`
+- **Source:** `IMF Article IV Canada (CAPB); OECD Economic Survey of
+  Canada (alternative CAPB citation); macro-research-department
+  fiscal-impulse one-line transform.`
+- **Methodology link:** Important — drawer explains the cited-CAPB
+  logic (no own construction in v1), the fiscal-impulse one-line
+  transform, the consistency-with-monetary-stance as prose-level not
+  quantified, and Pillar F deep-dive deferral.
+- **6-panel drop candidate?** Possibly. If EDR rules 6 panels, this
+  is a fiscal-side drop candidate (the CAPB is itself a cited
+  number; the basics-layer chart adds context but not analytical
+  construction). Restore when our own CAPB construction lands in v1.5.
+
+---
+
+## 9.E Markets basics page, all six panels blocked out
+
+Per Section 4.6 of `editorial/dashboard_purpose.md`. Section accent:
+`series-6` (olive gold, `#8A6A2C`).
+
+**Section-level visual rules (Markets only).**
+
+- **Higher-cadence vintage stamping.** Markets is the only section with
+  a daily/weekly cadence on most series per EDR 4.6. The vintage stamp
+  on this page extends from the two-line `AS OF + Reference` format to a
+  **three-line variant** including time-of-day:
+  ```
+  AS OF
+  May 8, 2026
+  Close 16:00 ET
+  ```
+  The third line is in `micro` (12px) Inter weight 400 `ink-faint`,
+  same color/family as the reference line on other sections. The
+  market-close time stamp is the Bay Street allocator's signal that
+  the data is end-of-day, not intraday.
+- **Daily vs weekly vs monthly mix is explicit.** Some Markets panels
+  carry daily series (USDCAD, GoC yields, energy prices), others
+  weekly (Bank stability, FCI), others monthly (CET1, M4 mortgage
+  exposure). Each panel's vintage stamp names its cadence in the
+  third line: `Daily close` / `Weekly close` / `Monthly close`. The
+  page-level stamp (per Section 6) reads the least-recent across all
+  6 panels — typically a monthly panel.
+- **Distribution-percentile reference scaffold convention.** Markets is
+  the section where distribution-context framing matters most (USDCAD
+  P50/P80/P95/P99 per EDR 4.6 element 1; BoC-Fed spread percentiles
+  per Policy panel 3 cross-reference). Where a panel surfaces a
+  percentile classifier, the visual scaffold is identical to Policy
+  Panel 3's: horizontal reference lines in `ink-faint` 1px solid with
+  right-rail labels in `micro` `ink-faint`. This is a cross-section
+  visual ritual — the reader learns it on Policy Panel 3 and re-
+  encounters it on Markets Panel 1.
+- **Canadian-blind-spot caveat treatment.** Two panels (Credit spreads,
+  FCI) ship with v1 caveats that the Canadian variant is deferred to
+  v1.5. Per design-system Section 6 caveat-treatment convention: a
+  small caveat banner sits at the bottom of the panel chart, inside
+  the panel card, above the source line. Treatment: `body-sm` italic
+  `ink-muted`, prefixed with a `series-7` (slate) caret glyph (`>`).
+  No box around the caveat; it reads as a typographic footnote, not
+  a warning.
+
+### Markets Panel 1 — CAD (USDCAD + CEER + percentile classifier)
+
+- **Eyebrow:** `CAD`
+- **Title slot:** active-voice sentence on USDCAD level, CEER trajectory,
+  and percentile-band classification. Writer.
+- **Chart type:** **Two-row composite** inside the panel card.
+  - Row A (top, ~65% height): USDCAD level time series, last 10 years,
+    with percentile reference scaffold (P50/P80/P95/P99 since 1990
+    drawn as horizontal `ink-faint` lines).
+  - Row B (bottom, ~35% height): BoC CEER (nominal effective index)
+    time series, last 10 years, plotted on its own scale.
+- **Series colors:**
+  - USDCAD line (row A): `series-6` (olive gold, section accent),
+    1.5px solid weight 500.
+  - Percentile reference lines (row A): `ink-faint` 1px solid; labels
+    at right rail `P50` / `P80` / `P95` / `P99` in `micro` `ink-faint`.
+  - CEER line (row B): `series-6` at 60% opacity, 1.5px solid weight
+    500. Lighter weight signals secondary read.
+- **Direct labels:** USDCAD line terminus with current level in
+  `mono-sm` weight 500 `series-6`. CEER terminus with current index
+  value.
+- **Annotations:** Row A annotates the current USDCAD value with its
+  percentile band classification (writer composes; example: *"USDCAD
+  1.39, P80-P95 historical band — elevated stress, not extreme."*).
+  Row B annotates the CEER trajectory direction over the last 6 months.
+- **Recession bands:** `ink` at 6% opacity, both rows.
+- **Callout:**
+  - Big number: USDCAD level, e.g., `1.3850`
+  - Unit: `USDCAD spot, May 8, 2026 close; P80-P95 band`
+  - Direction row: `[arrow up] +0.5% vs prior week | CEER -1.2% Y/Y`
+- **Vintage:** Three-line:
+  ```
+  AS OF
+  May 8, 2026
+  Daily close 16:00 ET
+  ```
+- **Source:** `Bank of Canada Valet FXUSDCAD (USDCAD); Bank of Canada
+  CEER nominal effective index.`
+- **Methodology link:** Important — drawer explains the P50/P80/P95/P99
+  computation (35+ years daily data), the percentile-band logic, and
+  the fair-value-model deferral to v1.5 / deep-dive per EDR 4.6
+  element 1.
+
+### Markets Panel 2 — GoC curve (and UST spread)
+
+- **Eyebrow:** `GOC CURVE`
+- **Title slot:** active-voice sentence on curve shape, 10y-2y spread,
+  and GoC-UST 10y spread. Writer.
+- **Chart type:** **Two-block composite**.
+  - Block A (top, ~55% height): four-line time series of 2y, 5y, 10y,
+    30y GoC yields, last 5 years.
+  - Block B (bottom, ~45% height): two-line time series of GoC-UST 2y
+    spread and GoC-UST 10y spread, last 5 years. Term premium overlaid
+    where decomposable (BoC's published series, Valet key TBD per EDR
+    4.6 element 2).
+- **Series colors:**
+  - GoC 2y: `series-6` (olive gold) at 100%, 1.5px solid weight 500.
+  - GoC 5y: `series-6` at 75% opacity, 1.5px solid weight 400.
+  - GoC 10y: `series-6` at 50% opacity, 1.5px solid weight 400.
+  - GoC 30y: `series-6` at 30% opacity, 1.5px solid weight 400.
+    The opacity ramp encodes term — shorter darker, longer paler.
+    Direct labels carry the term names so the encoding is explicit.
+  - GoC-UST 2y spread (block B): `series-6` 1.5px solid weight 500.
+  - GoC-UST 10y spread (block B): `series-6` at 60% opacity, 1.5px
+    solid weight 500.
+  - Term premium overlay (if available): `series-7` (slate) 1px
+    dashed (`4 2`), weight 400. Subordinate visual treatment.
+- **Direct labels:** Each curve line labeled at its terminus with term
+  name (`2y`, `5y`, `10y`, `30y`) and current yield. Spread lines
+  labeled with their full names at termini.
+- **Annotations:** Block A annotates the 10y-2y spread sign (positive
+  / inverted) at the most recent date. Block B annotates current
+  spreads.
+- **Recession bands:** `ink` at 6% opacity, both blocks.
+- **Callout:**
+  - Big number: 10y GoC yield, e.g., `3.42%`
+  - Unit: `10-year GoC, May 8, 2026 close; 10y-2y spread +0.18pp`
+  - Direction row: `[arrow up] +5bp vs prior week | GoC-UST 10y
+    spread -0.78pp`
+- **Vintage:** Three-line: `AS OF May 8, 2026 / Daily close 16:00 ET`
+- **Source:** `Bank of Canada Valet GoC yields; Federal Reserve H.15
+  US Treasury yields (FRED DGS10, DGS2); BoC term-premium series
+  where available.`
+- **Methodology link:** Drawer explains the term-premium decomposition
+  status (Valet key probed; defer own ACM-style decomposition).
+
+### Markets Panel 3 — Credit spreads
+
+- **Eyebrow:** `CREDIT SPREADS`
+- **Title slot:** active-voice sentence on US IG and HY OAS levels and
+  the Canadian-spread blind-spot caveat. Writer.
+- **Chart type:** **Two-line time series**. US IG OAS and US HY OAS
+  plotted on the same x-axis (last 10 years), on a shared y-axis
+  (percent) — though HY runs higher in absolute level, the shared
+  axis is editorially honest about the magnitude difference.
+- **Series colors:**
+  - US IG OAS: `series-6` (olive gold), 1.5px solid weight 500.
+  - US HY OAS: `series-2` (burnt orange — reused as a "risk premium"
+    visual signal across sections; deliberate cross-section color
+    reference), 1.5px solid weight 500.
+- **Direct labels:** Both line termini with current values.
+- **Annotations:** A single annotation on the most recent IG-vs-HY
+  ratio or the most recent absolute level shift.
+- **Recession bands:** `ink` at 6% opacity.
+- **Caveat banner (panel-foot, above source line):**
+  > *> Canadian credit spreads (senior-unsecured-vs-GoC, IG/HY
+  > proxies) deferred to v1.5; US IG/HY OAS shown as risk-appetite
+  > proxy in v1.*
+  Caveat in `body-sm` italic `ink-muted` with the `>` caret in
+  `series-7` (slate) weight 500.
+- **Callout:**
+  - Big number: US IG OAS, e.g., `132bp`
+  - Unit: `ICE BofA US Corporate IG OAS, May 8, 2026`
+  - Direction row: `[arrow up] +6bp vs prior week | US HY OAS +18bp`
+- **Vintage:** Three-line: `AS OF May 8, 2026 / Daily close`
+- **Source:** `FRED BAMLC0A0CM (US IG OAS); FRED BAMLH0A0HYM2 (US HY
+  OAS).`
+- **Methodology link:** Important — drawer explains the Canadian-
+  blind-spot status, the v1.5 plan for Canadian senior-unsecured-vs-
+  GoC, and the FSR scraping approach for Canadian IG/HY proxies.
+
+### Markets Panel 4 — Energy prices
+
+- **Eyebrow:** `ENERGY PRICES`
+- **Title slot:** active-voice sentence on oil benchmarks, WCS
+  differential, AECO gas, and gasoline-channel CPI impulse. Writer.
+- **Chart type:** **Two-block composite**.
+  - Block A (top, ~65% height): four-line time series of WTI, Brent,
+    WCS, and AECO gas (or AECO substitute per EDR 4.6 element 4
+    deferral). Last 5 years. Oil prices on a left axis ($USD/bbl);
+    AECO on a right axis ($CAD/GJ) to accommodate the scale
+    difference.
+  - Block B (bottom, ~35% height): a small horizontal bar showing the
+    *currently constructed* gasoline-channel CPI impulse (per EDR 4.6
+    element 4: already constructed). Bar plotted as a signed
+    contribution to CPI in `series-2` (burnt orange — cross-section
+    reference to Inflation).
+- **Series colors:**
+  - WTI: `series-6` (olive gold), 1.5px solid weight 500.
+  - Brent: `series-6` at 60% opacity, 1.5px solid weight 400.
+  - WCS: `series-6` at 30% opacity, 1.5px solid weight 400. Per EDR
+    4.6 element 4 caveat: "do not surface daily-comparison
+    differential" — the visualization shows WCS in the four-line
+    stack but does NOT show a daily WTI-WCS differential as a
+    separate series.
+  - AECO (right-axis): `series-5` (teal) at 60% opacity, 1.5px solid
+    weight 400. Different hue signals different unit (gas vs oil).
+  - Gasoline-channel CPI bar (block B): `series-2` (burnt orange,
+    pointing right for positive contribution, left for negative).
+- **Direct labels:** Block A: four line termini with current prices.
+  AECO terminus labeled `AECO (right axis)`. Block B: bar labeled
+  with the current impulse value.
+- **Annotations:** Block A annotates the most recent WCS differential
+  in chart whitespace (monthly cadence, per EDR 4.6 element 4 — NOT
+  daily). Block B caption: `Gasoline-channel CPI impulse,
+  trailing 12 months.`
+- **Recession bands:** `ink` at 6% opacity, block A only.
+- **Callout:**
+  - Big number: WTI level, e.g., `$72.40`
+  - Unit: `WTI front-month, May 8, 2026 close; WCS differential
+    -$14.20 (Apr monthly)`
+  - Direction row: `[arrow down] -$1.20 vs prior week | Gasoline-
+    channel CPI impulse +0.08pp`
+- **Vintage:** Three-line variants per series cadence:
+  ```
+  AS OF
+  Oil: May 8, 2026 (daily close)
+  WCS: Apr 30, 2026 (monthly avg)
+  AECO: May 2, 2026 (weekly bid-week)
+  ```
+- **Source:** `EIA / Bloomberg WTI front-month; ICE Brent; Government
+  of Alberta WCS monthly average; NGX AECO bid-week (or substitute
+  per EDR 4.6 element 4 deferral).`
+- **Methodology link:** Drawer explains the WCS monthly-vs-daily
+  caveat, the AECO data-source status, and the gasoline-channel CPI
+  impulse construction.
+
+### Markets Panel 5 — Bank stability
+
+- **Eyebrow:** `BANK STABILITY`
+- **Title slot:** active-voice sentence on Big-Six PCL builds, CET1
+  vs DSB, and uninsured residential exposure. Writer.
+- **Chart type:** **Three-block composite** — the busiest Markets
+  panel because three different bank-stability reads each need their
+  own visualization.
+  - Block A (top, ~40% height, full width): Big-Six PCL build time
+    series, quarterly, last 5 years. Plotted as a stacked or
+    side-by-side bar chart of six banks, or as a single aggregated
+    line with a range envelope (chart-builder's call after seeing the
+    data shape).
+  - Block B (middle, ~30% height, full width): CET1 ratio range across
+    Big-Six vs OSFI Domestic Stability Buffer threshold. Plotted as a
+    horizontal range bar showing min-mean-max CET1 across the six,
+    with the DSB threshold (current 3.5% per OSFI per EDR 4.6 element
+    5) as a vertical reference line.
+  - Block C (bottom, ~30% height, full width): Uninsured residential
+    exposure (OSFI M4) time series, semi-annual cadence, last 5 years.
+- **Series colors:**
+  - Block A: `series-6` (olive gold) for the aggregated read; if
+    side-by-side six bars, `series-6` at 100/85/70/55/40/25% opacity
+    for the six banks in alphabetical or rotating order (no
+    individual bank gets a permanent color identity — they rotate so
+    no bank gets editorial prominence).
+  - Block B: range bar in `series-6` 60% opacity fill; mean point
+    as 6px filled circle in `series-6` 100%; DSB threshold as 1.5px
+    solid `accent` (`#A6192E`) vertical line labeled `OSFI DSB 3.5%`
+    in `accent` weight 500.
+  - Block C: `series-6` 1.5px solid weight 500.
+  - BoC rate reference: 1px dashed (`4 2`) `series-5` (teal) at 25%
+    opacity in background of block A — rate-sensitive linkage.
+- **Direct labels:** Block A: line/bar termini. Block B: min, mean,
+  max labels at their positions; DSB threshold labeled. Block C:
+  line terminus.
+- **Annotations:** Block A annotates the most recent quarter's
+  aggregate PCL build. Block B annotates the lowest-CET1 bank's
+  buffer vs the threshold.
+- **Recession bands:** `ink` at 6% opacity, blocks A and C.
+- **Callout:**
+  - Big number: aggregate Big-Six PCL, e.g., `$3.2B`
+  - Unit: `Big-Six aggregate PCL build, Q1 2026; CET1 range 12.8-
+    14.2%`
+  - Direction row: `[arrow up] +$0.4B vs Q4 2025 | All Big-Six above
+    OSFI DSB`
+- **Vintage:** Three stamps:
+  ```
+  AS OF
+  PCL: [most recent earnings release date] (Q1 2026)
+  CET1: [most recent Pillar 3 disclosure date]
+  M4 uninsured: Mar 31, 2026 (Feb 2026, semi-annual)
+  ```
+- **Source:** `Big-Six earnings releases (PCL builds, manual capture);
+  Big-Six Pillar 3 disclosures (CET1); OSFI Bank Financial Data M4
+  (uninsured residential).`
+- **Methodology link:** Important — drawer explains manual-capture
+  cadence for PCL, the no-permanent-bank-color rule, the DSB
+  reference (current 3.5% level), and the semi-annual M4 scrape
+  status.
+
+### Markets Panel 6 — Financial conditions index
+
+- **Eyebrow:** `FINANCIAL CONDITIONS`
+- **Title slot:** active-voice sentence on the FCI level and what is
+  driving it. Writer.
+- **Chart type:** **Single-line time series with decomposition strip
+  below** — IF BoC FCI is available via Valet (per EDR 4.6 element 6).
+  If unavailable, ships as **two lines** (Chicago Fed NFCI + Canadian
+  prose-only caveat).
+  - Variant A (BoC FCI available): BoC FCI as a single line over last
+    10 years on the main chart; below it, a small contribution-decomp
+    strip showing which sub-components (rates, credit, FX, equities)
+    are driving the level. Decomp strip is a small horizontal stacked
+    bar at a single point in time (most recent observation).
+  - Variant B (BoC FCI unavailable, v1 default): Chicago Fed NFCI as
+    a single line over last 10 years; Canadian-blind-spot caveat
+    banner per the section-level convention.
+- **Series colors:**
+  - FCI line (either variant): `series-6` (olive gold), 1.5px solid
+    weight 500.
+  - Zero line: `ink-muted` 1px solid (FCIs are typically anchored to
+    zero = neutral conditions; the crossing is editorially
+    meaningful).
+  - Tight / loose region shading (variant A only): regions where FCI
+    > 0 (tight) shaded in `neg-soft` at 30% opacity; regions where
+    FCI < 0 (loose) shaded in `pos-soft` at 30% opacity. This is the
+    one place on the Markets page where pos/neg color encoding
+    appears on a chart-background region — it earns its place because
+    the FCI IS a tight/loose state read.
+  - Decomp strip bars (variant A): four categorical colors from the
+    palette in canonical order: rates `series-5`, credit `series-2`,
+    FX `series-6`, equities `series-1`.
+- **Direct labels:** Line terminus with current level. Decomp strip
+  segments labeled with sub-component names and current contributions.
+- **Annotations:** A single annotation on the most recent FCI level
+  with its tight/loose state classification.
+- **Recession bands:** `ink` at 6% opacity.
+- **Caveat banner (variant B only, panel-foot above source line):**
+  > *> Bank of Canada Financial Conditions Index not yet available via
+  > Valet; v1 ships with Chicago Fed NFCI as comparator. Own Canadian
+  > FCI composite deferred to v1.5.*
+- **Callout:**
+  - Big number: FCI level, e.g., `+0.42`
+  - Unit: `BoC FCI (or NFCI proxy), May 8, 2026; tight conditions`
+  - Direction row: `[arrow up] +0.08 vs prior week | Rates dominant
+    contributor`
+- **Vintage:** Three-line: `AS OF May 8, 2026 / Weekly close`
+- **Source:** `Bank of Canada Financial Conditions Index via Valet
+  (if available); else Chicago Fed National Financial Conditions
+  Index via FRED NFCI.`
+- **Methodology link:** Important — drawer explains the FCI source
+  decision tree, the Canadian-FCI-deferred status, and the v1.5 plan
+  for own composite construction.
+
+---
+
+## 9.F Trade basics page, all six panels blocked out
+
+Per Section 4.7 of `editorial/dashboard_purpose.md`. Section accent:
+`series-7` (slate, `#4A4F57`).
+
+**Section-level visual rules (Trade only).**
+
+- **The slate accent is the gentlest of the seven.** Trade's section
+  accent is `series-7` slate (which is also `ink-muted`). This was a
+  deliberate Section 1 mapping decision: Trade is the visually most
+  neutral section and slate is the quietest of the seven hues. The
+  consequence on this page is that the visual identity comes more
+  from the **layout patterns** (partner-share stacking, by-category
+  decomposition, the non-chart Tariff table) than from a strong
+  section-color signal. The slate accent appears in kicker, eyebrow,
+  hairline rule, and panel-index dots — and stays out of the way.
+- **Non-chart reference-table panel.** Panel 4 (Tariff state) is the
+  only non-chart panel on the entire basics layer across all seven
+  sections. Per EDR 4.7 element 4: "Maintained as an editorial
+  reference table... Not a numeric series." The visual treatment is a
+  formal **reference-table card** with the same panel-card outer
+  dimensions as the other Trade panels, so the grid alignment holds.
+  Internal layout per panel 4 spec below.
+- **By-category decomposition is a recurring shape.** Panels 1
+  (merchandise trade decomposition), 2 (current account components),
+  and 6 (FDI by sector) all use a categorical-decomposition pattern.
+  Visual consistency across these three panels: same column-stacking
+  rhythm, same EDR-canonical category order per panel, same
+  direct-labeling treatment. The reader's eye learns the pattern on
+  panel 1 and re-encounters it on 2 and 6.
+- **Partner-share treatment is restrained.** Panel 3 (Partner shares)
+  shows the US dominance + five peer partners. Visual restraint: the
+  US share gets the section accent (slate); the five peer partners
+  share a single muted secondary color (`series-7` at varying
+  opacities). We do NOT rainbow-encode partners — the editorial point
+  is US dominance and the rest, not a six-country comparison.
+
+### Trade Panel 1 — Merchandise trade balance
+
+- **Eyebrow:** `MERCHANDISE TRADE BALANCE`
+- **Title slot:** active-voice sentence on the monthly balance, 3M MA
+  direction, and which HS-section product category is driving.
+  Writer.
+- **Chart type:** **Two-block composite**.
+  - Block A (top, ~55% height): trade balance time series, monthly,
+    last 5 years, plotted as columns (positive surplus columns above
+    zero, negative deficit columns below zero, divergent from zero
+    line). 3M MA overlaid as a line. Headline series and ex-non-
+    monetary-gold variant shown as two lines (per EDR 4.7 element 1).
+  - Block B (bottom, ~45% height): by-category decomposition for the
+    most recent month — a horizontal diverging bar chart, ~12 bars,
+    one per HS-section product category, ordered from largest surplus
+    contributor to largest deficit contributor.
+- **Series colors:**
+  - Block A columns: `series-7` (slate, section accent) at 60% opacity
+    fill, with positive-surplus columns at 100% opacity (slate top
+    of stack) and negative-deficit columns drawn from zero downward.
+    Zero line in `ink-muted` 1px solid.
+  - 3M MA overlay: `series-7` 2px solid weight 600 — the heaviest
+    line on the page.
+  - Ex-non-monetary-gold variant: `series-7` at 50% opacity, 1.5px
+    dashed (`2 2`) weight 400.
+  - Block B bars: each bar in `series-7` at 60% opacity if positive
+    (surplus); same color but pointing leftward if negative (deficit).
+    No category-color encoding — the editorial point is which
+    categories are driving the balance, not which category each is.
+    Most recent month's largest-magnitude category gets a 100% opacity
+    highlight.
+- **Direct labels:** Block A: line termini for both lines (headline
+  and ex-gold). Block B: each bar labeled at its terminus with category
+  name and $-value.
+- **Annotations:** Block A annotates the most recent month's headline
+  balance and 3M MA. Block B caption identifies the largest surplus
+  category and the largest deficit category in chart whitespace.
+- **Recession bands:** `ink` at 6% opacity, block A only.
+- **Callout:**
+  - Big number: most recent month's trade balance, e.g., `+$1.4B`
+  - Unit: `merchandise trade balance, March 2026; 3M MA +$0.9B`
+  - Direction row: `[arrow up] +$0.5B vs Feb | Energy products
+    largest surplus contributor`
+- **Vintage:** `AS OF May 6, 2026 / Reference: Mar 2026 (monthly)`
+- **Source:** `Statistics Canada Tables 12-10-0119-01 (trade balance,
+  BOP basis), 12-10-0121-01 (exports), 12-10-0122-01 (imports);
+  non-monetary-gold-stripped variant constructed by macro-research-
+  department.`
+- **Methodology link:** Important — drawer explains the BOP-basis
+  convention, the 3M MA construction, the non-monetary-gold strip
+  logic, and the HS-section category aggregation.
+
+### Trade Panel 2 — Current account
+
+- **Eyebrow:** `CURRENT ACCOUNT`
+- **Title slot:** active-voice sentence on quarterly current account
+  level, goods/services split, and primary/secondary income reads.
+  Writer.
+- **Chart type:** **Stacked-column composition** time series. Quarterly
+  current account components (goods balance, services balance, primary
+  income, secondary income) stacked as columns over the last 5 years.
+  Total current account balance plotted as a line overlay.
+- **Series colors:**
+  - Goods (bottom band): `series-7` (slate, section accent) at 80%
+    opacity. The largest component in absolute magnitude.
+  - Services: `series-7` at 50% opacity.
+  - Primary income: `series-7` at 30% opacity.
+  - Secondary income: `series-7` at 15% opacity. Top of stack /
+    smallest contributor.
+  - Total current account overlay line: `series-7` 2px solid weight
+    600. The headline read.
+  - Negative components drawn extending downward from zero line; zero
+    line in `ink-muted` 1px solid.
+- **Direct labels:** Each component band labeled at the right rail
+  with component name and most recent quarter's contribution. Total
+  line terminus labeled `Current account` in slate weight 600.
+- **Annotations:** A single annotation in chart whitespace identifying
+  the largest contributor to the most recent quarter's reading and
+  the goods-vs-services split.
+- **Recession bands:** `ink` at 6% opacity.
+- **Callout:**
+  - Big number: most recent quarter's current account, e.g., `-$8.2B`
+  - Unit: `current account balance, Q4 2025; goods +$2.1B, services
+    -$3.4B`
+  - Direction row: `[arrow down] -$2.1B vs Q3 2025 | Services deficit
+    widened`
+- **Vintage:** `AS OF Feb 27, 2026 / Reference: Q4 2025 (quarterly)`
+- **Source:** `Statistics Canada Table 36-10-0014-01.`
+- **Methodology link:** Drawer explains the BPM6 framework, the
+  four-component definitions, and the sustained-vs-one-off prose-
+  level call-out logic per EDR 4.7 element 2.
+
+### Trade Panel 3 — Partner shares
+
+- **Eyebrow:** `PARTNER SHARES`
+- **Title slot:** active-voice sentence on rolling US share trajectory
+  and any structural shifts. Writer.
+- **Chart type:** **Two-row composite**.
+  - Row A (top, ~60% height): rolling-12-month US share of total
+    Canadian merchandise exports + imports, time series, last 15 years.
+    The structural-shift narrative lives here per EDR 4.7 element 3.
+  - Row B (bottom, ~40% height): five-row horizontal bar chart for
+    the most recent 12 months, showing share by peer partner (China,
+    UK, Japan, Mexico, Germany).
+- **Series colors:**
+  - US share line (row A): `series-7` (slate, section accent), 2px
+    solid weight 600. The thickest line on the page.
+  - Peer partner bars (row B): all five in `series-7` at 40% opacity.
+    Equal visual weight; no rainbow encoding.
+  - Reference line at the US share's historical mean: `ink-faint`
+    1px dashed (`4 2`), labeled at right rail `15y mean: X%` in
+    `micro` `ink-faint`.
+- **Direct labels:** Row A: line terminus with current US share value.
+  Row B: each bar labeled with partner name and current share %.
+- **Annotations:** Row A carries one structural-shift annotation in
+  chart whitespace identifying any sustained departure from the
+  15y mean (writer composes).
+- **Recession bands:** `ink` at 6% opacity, row A only.
+- **Callout:**
+  - Big number: US share rolling-12M, e.g., `74.8%`
+  - Unit: `US share of Canadian merchandise trade, rolling 12M, Mar
+    2026`
+  - Direction row: `[arrow down] -1.4pp vs prior year | China share
+    next-largest at 4.2%`
+- **Vintage:** `AS OF May 6, 2026 / Reference: Mar 2026 rolling 12M`
+- **Source:** `Statistics Canada Tables 12-10-0121-01 (exports) and
+  12-10-0122-01 (imports), bilateral.`
+- **Methodology link:** Drawer explains the rolling-12M construction,
+  the structural-shift call-out logic, and the Pillar G/H deep-dive
+  deferrals for energy export decomposition and the US trade
+  relationship.
+
+### Trade Panel 4 — Tariff state (non-chart reference table)
+
+This is the only non-chart panel on the entire basics layer across
+all seven sections.
+
+- **Eyebrow:** `TARIFF STATE`
+- **Title slot:** active-voice sentence on the current US tariff
+  posture and USMCA review milestone status. Writer.
+- **Chart type:** **Reference table**, not a chart. Layout: a formal
+  table inside the panel card, occupying the same canvas the chart
+  would in other panels (~432px wide, ~280px tall on desktop).
+  Treatment per design-system Section 6 table conventions; zebra
+  rows in `surface-sunk`; column headers in `label` size weight 500
+  letter-spacing `0.08em` `ink-muted`.
+- **Table structure:**
+  ```
+  | PRODUCT GROUP    | RATE   | EFFECTIVE   | STATUS / NOTE   |
+  |------------------|--------|-------------|-----------------|
+  | Steel (Sec 232)  | 25%    | Mar 12, 2025| In effect       |
+  | Aluminum (S 232) | 10%    | Mar 12, 2025| In effect       |
+  | Softwood lumber  | 14.5%  | Aug 14, 2025| In effect       |
+  | [further rows...]                                          |
+  ```
+  Plus a footer row in `body-sm` italic `ink-muted` naming the
+  USMCA review milestone status: e.g., *"USMCA review: joint
+  review window opens July 2026."*
+- **Series colors:** None (table). Rate cells with active duty-deposit
+  flags get a small `accent` (`#A6192E`) caret glyph (`!`) immediately
+  after the rate value; hover reveals deposit-status tooltip.
+- **Direct labels:** Table headers as above. No chart, no series
+  labels.
+- **Annotations:** A single chart-foot annotation in `body-sm` italic
+  `ink-muted` immediately below the table, identifying the most
+  recent USTR proclamation date and the next scheduled review event
+  (writer composes).
+- **Recession bands:** None (no chart).
+- **Callout:** Editorial status block (no single number):
+  - Status label: `TARIFF STATE`
+  - Status line: writer-filled, e.g., *"Section 232 steel and
+    aluminum duties remain in effect; softwood lumber AD/CVD
+    duties at 14.5% combined; no new product groups added since
+    August 2025."*
+  - Context line: writer-filled, optionally referencing the USMCA
+    joint-review timing.
+- **Vintage:** `AS OF [most recent USTR proclamation or CBSA notice
+  date]`
+- **Source:** `USTR proclamations; Canada Border Services Agency
+  tariff classifications; Department of Finance retaliatory-tariff
+  notices.`
+- **Methodology link:** Important — drawer explains the editorial-
+  maintenance posture (this is a curated reference table, not a
+  derived numeric series), the inclusion criteria for tariff actions,
+  and the USMCA review milestone definition.
+- **Open question for chart-builder:** Confirm the table-as-panel
+  pattern fits within the standard panel-card structural slot. The
+  callout-equivalent (`TARIFF STATE` editorial status block) sits in
+  the same vertical position as the latest-print callout on other
+  panels, so the grid alignment should hold — but flag any rendering
+  edge cases on mobile (the table may need horizontal scrolling at
+  `sm` breakpoint).
+
+### Trade Panel 5 — Terms of trade
+
+- **Eyebrow:** `TERMS OF TRADE`
+- **Title slot:** active-voice sentence on the StatCan ToT direction
+  and the BoC commodity price index lead. Writer.
+- **Chart type:** **Two-line time series** — StatCan terms of trade
+  index (quarterly) plotted alongside BoC commodity price index
+  (BCPI or BCNE, daily resampled to monthly for visual alignment).
+  Both indexed to a common base year. Last 10 years.
+- **Series colors:**
+  - StatCan ToT: `series-7` (slate, section accent), 1.5px solid
+    weight 500. Discrete-quarterly cadence — connected points-and-
+    line treatment with 5px filled circles at each quarterly
+    observation, signaling the lower-frequency series.
+  - BoC commodity price index (BCPI/BCNE): `series-6` (olive gold —
+    cross-section color reference to Markets/Energy), 1.5px solid
+    weight 500. Continuous monthly line; the higher-frequency
+    leading line.
+- **Direct labels:** Both line termini with current index values and
+  series names (`Terms of trade`, `BoC commodity index`).
+- **Annotations:** A single annotation in chart whitespace identifying
+  the BoC commodity index's lead time vs the ToT (writer composes
+  example: *"BoC commodity index typically leads ToT by ~6 months;
+  current divergence consistent with that pattern."*).
+- **Recession bands:** `ink` at 6% opacity.
+- **Callout:**
+  - Big number: ToT index level, e.g., `108.4`
+  - Unit: `StatCan terms of trade, Q4 2025 (2017 = 100); BoC
+    commodity index +4.2% Y/Y`
+  - Direction row: `[arrow up] +2.1 vs Q3 2025 | BoC commodity index
+    leads`
+- **Vintage:** Two stamps:
+  ```
+  AS OF
+  ToT: Feb 27, 2026 (Q4 2025)
+  BCPI: May 7, 2026 (Apr 2026, monthly avg)
+  ```
+- **Source:** `Statistics Canada Table 36-10-0103-01 (terms of
+  trade); Bank of Canada commodity price index (BCPI / BCNE, Valet).`
+- **Methodology link:** Drawer explains the base-year convention,
+  the BoC commodity index variants (BCPI vs BCNE), and the cadence-
+  mismatch handling (quarterly vs daily resampled).
+
+### Trade Panel 6 — FDI by sector
+
+- **Eyebrow:** `FDI BY SECTOR`
+- **Title slot:** active-voice sentence on FDI inflows and outflows
+  by sector, with any M&A one-off flags. Writer.
+- **Chart type:** **Two-block composite, by-sector decomposition**.
+  - Block A (top, ~50% height): FDI inflows by sector, quarterly,
+    last 5 years. Stacked-column composition by sector (top ~5
+    sectors by absolute size + "other").
+  - Block B (bottom, ~50% height): FDI outflows by sector, same
+    visual treatment, last 5 years.
+- **Series colors:**
+  - Sector bands (both blocks): six-color categorical from the design-
+    system palette in canonical sector order. Top 5 sectors get
+    `series-1` through `series-5`; "other" gets `series-7` (slate).
+    Same color = same sector across inflows and outflows so the eye
+    carries the encoding across both blocks.
+  - Total FDI line overlay (each block): `series-7` (slate) 1.5px
+    solid weight 600. The headline read on each block.
+- **Direct labels:** Each sector band labeled at the right rail in
+  the most recent column with sector name and $-value. Total line
+  termini labeled `Total inflows` / `Total outflows`.
+- **Annotations:** Per EDR 4.7 element 6 — known M&A-driven one-offs
+  flagged in chart whitespace with a small `series-4` (plum) caret
+  glyph (`*`) at the affected quarter, hover tooltip naming the deal
+  and amount. The `*` glyph is a quiet annotation; the editorial
+  caveat is in the methodology drawer.
+- **Recession bands:** `ink` at 6% opacity, both blocks.
+- **Callout:**
+  - Big number: net FDI (inflows - outflows) most recent quarter,
+    e.g., `-$2.4B`
+  - Unit: `net FDI, Q4 2025; inflows $18B, outflows $20.4B`
+  - Direction row: `[arrow down] -$5B vs Q3 2025 | Resources sector
+    largest inflow contributor`
+- **Vintage:** `AS OF Mar 25, 2026 / Reference: Q4 2025 (quarterly)`
+- **Source:** `Statistics Canada Table 36-10-0008-01 (FDI inflows
+  and outflows by sector).`
+- **Methodology link:** Important — drawer explains the sector
+  aggregation rules, the M&A one-off identification logic, and the
+  flag-glyph convention.
+
+---
+
 ## 10. ASCII mockup — GDP basics page
 
 ```
@@ -1810,4 +3290,4 @@ site is one of the original palette entries.
 
 ---
 
-End of basics-layer template v0.1.
+End of basics-layer template v0.3.

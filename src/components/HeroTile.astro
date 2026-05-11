@@ -7,7 +7,17 @@
  * homepage (blurb body + full headline question); the compact tiles in the
  * 6-grid below are stripped to dashboard cells (see CompactTile).
  *
- * Per art-director fixes F4(a) + F5 + F6 + F10 (2026-05-11):
+ * Per art-director fixes F4(a) + F5 + F6 + F10 (2026-05-11) plus
+ * re-eval item 3 (2026-05-11):
+ *
+ *   Re-eval 3. The hero eyebrow rail used to read
+ *       "{SECTION} | MOST RECENT UPDATE". "MOST RECENT UPDATE" is refresh-
+ *       light metadata, not content. Replaced with a content-noun pattern
+ *       "{SECTION} | {HERO KICKER}" where heroKicker names the specific
+ *       release or event in view (e.g. APRIL CPI, APRIL RATE DECISION).
+ *       Source string lives on the Section record (data-driven; backend
+ *       can keep it current as new prints land).
+ *
  *
  *   F4 option (a). Section accents are removed from homepage tile chrome.
  *       The top rule is a 1px `rule` line (was a 3px accent bar), the
@@ -68,6 +78,14 @@ const heroPrint =
 const blurb = section.blurb;
 const showBlurb = blurb.kind !== "none" && blurb.body;
 const isFresh = blurb.kind === "fresh";
+
+// Art-director re-eval (2026-05-11) item 3: hero eyebrow now reads
+// "SECTION | KICKER" where the kicker names a specific release / event,
+// not refresh-light metadata. Falls back to the section's cadence string
+// if a section has no heroKicker (defensive; v1 sets it on every section).
+// CSS uppercases on render so the source string can be sentence-case for
+// future bilingual variants.
+const heroKicker = section.heroKicker ?? section.cadence;
 ---
 <a
   class="hero"
@@ -77,18 +95,26 @@ const isFresh = blurb.kind === "fresh";
   <div class="hero__top-rule" aria-hidden="true"></div>
 
   <div class="hero__grid">
-    {/* Editorial header. F5: section name is the category label (small);
-     * the headline question is the editorial anchor (large italic serif). */}
+    {/* Editorial header. Path C reversal (2026-05-11): the italic-serif
+     * `headlineQuestion` paragraph is dropped from the hero per user
+     * direction. The hero is now eyebrow + callout + event note + chart.
+     * Path C cut 1 already removed the big serif section-name h2 (the
+     * eyebrow carries that). With the question gone too, the hero's
+     * editorial weight shifts entirely to the callout + event note pair.
+     * The headline question continues to live on the section page; the
+     * homepage no longer asks the question, it just shows the print.
+     *
+     * Height impact: dropping the display-md italic question removes
+     * roughly 80-120px from the hero column; combined with the tile
+     * trims (editorial line + surprise verb gone) the two columns now
+     * land much closer in natural height, so `align-items: stretch` on
+     * `.home__compose` ends with minimal residual air. */}
     <div class="hero__head">
       <p class="hero__eyebrow">
         <span class="hero__eyebrow-label">{tileLabel}</span>
         <span class="hero__eyebrow-sep" aria-hidden="true">|</span>
-        <span class="hero__eyebrow-most-recent">Most recent update</span>
+        <span class="hero__eyebrow-kicker">{heroKicker}</span>
       </p>
-
-      <h2 class="hero__name">{tileLabel}</h2>
-
-      <p class="hero__question"><em>{section.headlineQuestion}</em></p>
     </div>
 
     {/* Left editorial column: big-number callout + event-note blurb. */}
@@ -233,46 +259,38 @@ const isFresh = blurb.kind === "fresh";
     color: var(--ink-faint);
   }
 
-  .hero__eyebrow-most-recent {
+  /* Art-director re-eval (2026-05-11) item 3: was `.hero__eyebrow-most-recent`
+   * — renamed to a content-noun class. The kicker now names a specific
+   * release / event sourced from `section.heroKicker`. Visual treatment
+   * unchanged: ink-faint micro-caps, paired with the section-name label
+   * via a separator pipe. */
+  .hero__eyebrow-kicker {
     color: var(--ink-faint);
   }
 
-  /* F5: section name drops to display-sm and is set in ink, not the section
-   * accent. It is a category label, not the page's headline. */
-  .hero__name {
-    font-family: var(--font-serif);
-    font-size: var(--fs-display-sm);
-    line-height: var(--lh-display-sm);
-    font-weight: var(--fw-semibold);
-    color: var(--ink);
-    letter-spacing: -0.005em;
-    margin: 0;
-  }
-
-  /* F5: headline question rises to display-md, italic serif. It is now the
-   * editorial anchor on the homepage -- the only italic-serif voice. */
-  .hero__question {
-    font-family: var(--font-serif);
-    font-size: var(--fs-display-md);
-    line-height: var(--lh-display-md);
-    font-weight: var(--fw-regular);
-    color: var(--ink);
-    margin: var(--s-2) 0 0;
-    /* The question is the page's editorial line; let it run wide enough to
-     * read as one orienting paragraph. ~22em ~ 580px at display-md, well
-     * inside the hero's column at the 1440 viewport. */
-    max-width: 22em;
-  }
-
-  .hero__question em {
-    font-style: italic;
-  }
+  /* Path C cut 1 (2026-05-11): `.hero__name` (the big serif section-name
+   * h2) was dropped from the template — the eyebrow above already carries
+   * the section name. Selectors and the hover affordance that targeted
+   * `.hero__name` are removed.
+   *
+   * Path C reversal (2026-05-11): the italic-serif `.hero__question`
+   * paragraph was also dropped from the template — the homepage hero no
+   * longer carries the section's headline question (that voice now lives
+   * exclusively on the section page). The related selector and its
+   * `em` child rule are removed; nothing on the homepage renders an
+   * italic-serif paragraph anymore. */
 
   /* Big-number callout. F6: serif -> sans (Inter) tabular at display-sm
    * weight 600. Echoes the compact tile values so the dashboard cells and
-   * the hero callout speak the same numeric voice. */
+   * the hero callout speak the same numeric voice.
+   *
+   * Path C reversal (2026-05-11): with the headline-question paragraph
+   * removed from the head block, the callout sits directly under the
+   * eyebrow inside the editorial column. The `--s-3` top margin remains
+   * adequate (eyebrow already supplies a `--s-2` bottom margin and the
+   * grid row-gap separates head from editorial). */
   .hero__callout {
-    margin-top: var(--s-4);
+    margin-top: 0;
   }
 
   .hero__callout-value {
@@ -325,10 +343,14 @@ const isFresh = blurb.kind === "fresh";
   .hero__callout-delta--neutral { color: var(--neutral); }
 
   /* Event note: stays. The hero is the only place editorial prose lives on
-   * the homepage (compact tiles had their blurb body stripped, F3). */
+   * the homepage (compact tiles had their blurb body stripped, F3).
+   *
+   * Path C cuts 2 + 4 (2026-05-11): tightened both the gap above the note
+   * (callout-to-event-note) and the internal top padding from --s-4 to
+   * --s-3. Trims ~8px of vertical air without crowding the rule. */
   .hero__note {
-    margin-top: var(--s-4);
-    padding-top: var(--s-4);
+    margin-top: var(--s-3);
+    padding-top: var(--s-3);
     border-top: 1px solid var(--rule-faint);
   }
 
@@ -369,11 +391,19 @@ const isFresh = blurb.kind === "fresh";
     color: var(--ink-muted);
   }
 
-  /* Chart column: reserved aspect-ratio at narrow widths; fills to height
-   * in the wide-hero layout. */
+  /* Chart column: reserved aspect-ratio at narrow widths; capped height
+   * in the wide-hero layout.
+   *
+   * Path C cut 3 (2026-05-11): the hero chart used to stretch to fill the
+   * column height (`height: 100%` at >=720px), which made the hero balloon
+   * to ~820-880px tall on desktop. We now cap the chart at 240px on
+   * wide layouts. The hero column lands ~720-740px tall, the tiles column
+   * lands ~620-660px, and the residual ~80px gap at the bottom is the
+   * acceptable cost of giving the chart a fixed editorial size rather
+   * than a stretching one. */
   .hero__chart-col {
     display: flex;
-    align-items: stretch;
+    align-items: flex-start;
     min-width: 0;
   }
 
@@ -389,17 +419,18 @@ const isFresh = blurb.kind === "fresh";
 
   @container hero (min-width: 720px) {
     .hero__chart {
+      /* Path C cut 3: fixed cap at 240px, was `height: 100%`. Aspect-ratio
+       * still applies; the cap clamps tall-column overflow. */
       aspect-ratio: auto;
-      height: 100%;
+      height: 240px;
+      max-height: 240px;
     }
   }
 
-  /* F4(a): hover affordance on the name uses ink-muted (no accent). Keeps
-   * the link feedback without re-introducing color on monochrome chrome. */
-  .hero:hover .hero__name {
-    text-decoration: underline;
-    text-decoration-color: var(--ink-muted);
-    text-decoration-thickness: 1px;
-    text-underline-offset: 4px;
-  }
+  /* Path C cut 1 (2026-05-11): the previous hover affordance underlined
+   * `.hero__name` on tile hover. With the section-name h2 dropped from the
+   * template, the hover signal is now carried by the card border darkening
+   * to ink-muted (`.hero:hover` rule above) plus the focus-visible outline.
+   * The headline question is the visual anchor; underlining a question
+   * paragraph on hover would read as broken-link affordance. */
 </style>

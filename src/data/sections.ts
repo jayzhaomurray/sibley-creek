@@ -146,6 +146,26 @@ export interface Section {
    * casing. CSS does the `text-transform: uppercase` on render.
    */
   heroKicker?: string;
+  /**
+   * Homepage compact (index) tile's editorial line. One sentence, ~12-16
+   * words, rendered as body-sm Inter weight 500 and clamped to 2 lines on
+   * the tile. This is the single editorial signal the tile carries beyond
+   * the value/delta callout — it names what moved and why in plain prose,
+   * NOT a headline question. Distinct from `headlineQuestion` (which lives
+   * on the hero and section page) and from `blurb.body` (which is the
+   * longer event note).
+   *
+   * Authored by writer + style-editor. v1 carries placeholders modelled on
+   * the freshest print per section so the layout reads with realistic copy
+   * lengths; real lines arrive in a subsequent pass.
+   *
+   * Path C tile rebuild (2026-05-11): introduced this field as part of the
+   * new index-tile anatomy. The previous compact tile carried only the
+   * indicator + value + sparkline; the tileLine sits between the eyebrow
+   * row and the mini-chart so the tile reads as "section, what moved,
+   * picture, callout" top-to-bottom.
+   */
+  tileLine?: string;
 }
 
 export const sections: Section[] = [
@@ -161,6 +181,8 @@ export const sections: Section[] = [
     updatedAt: Date.UTC(2026, 4, 1, 8, 30),
     chartSeriesKey: "gdp-mm",
     heroKicker: "February GDP",
+    tileLine:
+      "February GDP came in soft on goods-producing industries; services held up.",
     prints: [
       {
         key: "gdp-mm",
@@ -218,6 +240,8 @@ export const sections: Section[] = [
     updatedAt: Date.UTC(2026, 4, 14, 8, 30),
     chartSeriesKey: "cpi-yoy",
     heroKicker: "April CPI",
+    tileLine:
+      "Headline CPI ticked up to 2.3% in April, shelter still doing the work.",
     prints: [
       {
         key: "cpi-yoy",
@@ -278,6 +302,9 @@ export const sections: Section[] = [
     // Most recent LFS landed May 2, 2026 (April 2026 reference period).
     updatedAt: Date.UTC(2026, 4, 2, 8, 30),
     chartSeriesKey: "unrate",
+    heroKicker: "April LFS",
+    tileLine:
+      "April employment softened against consensus; unemployment held at 6.1% as participation slipped.",
     prints: [
       {
         key: "unrate",
@@ -335,6 +362,9 @@ export const sections: Section[] = [
     // CREA April release lands mid-month; placeholder Apr 15, 2026.
     updatedAt: Date.UTC(2026, 3, 15, 9, 0),
     chartSeriesKey: "hpi-yoy",
+    heroKicker: "April MLS HPI",
+    tileLine:
+      "Composite HPI slipped further into negative territory, Toronto and Vancouver leading the drift.",
     prints: [
       {
         key: "hpi-yoy",
@@ -391,6 +421,9 @@ export const sections: Section[] = [
     // Apr 29. Use the later of the two as the stamp.
     updatedAt: Date.UTC(2026, 4, 9, 14, 0),
     chartSeriesKey: "policy-rate",
+    heroKicker: "April rate decision",
+    tileLine:
+      "BoC cut 25 bps to 2.75% and dropped the line about needing more evidence on services inflation.",
     prints: [
       {
         key: "policy-rate",
@@ -454,6 +487,9 @@ export const sections: Section[] = [
     // Markets data refreshes daily; latest stamp May 9, 2026.
     updatedAt: Date.UTC(2026, 4, 9, 21, 0),
     chartSeriesKey: "usdcad",
+    heroKicker: "Weekly close",
+    tileLine:
+      "USDCAD pushed to 1.378 on the week as the BoC-Fed spread ground wider on divergent paths.",
     prints: [
       {
         key: "usdcad",
@@ -511,6 +547,9 @@ export const sections: Section[] = [
     // March merch-trade release landed Apr 3, 2026.
     updatedAt: Date.UTC(2026, 3, 3, 8, 30),
     chartSeriesKey: "trade-balance",
+    heroKicker: "March balance",
+    tileLine:
+      "March merch trade balance widened to -$2.3B, with auto and energy pulling in opposite directions.",
     prints: [
       {
         key: "trade-balance",

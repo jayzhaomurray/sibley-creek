@@ -109,6 +109,38 @@ const consensusKeys = new Set([
 ]);
 const showConsensus = !!(section.chartSeriesKey && consensusKeys.has(section.chartSeriesKey));
 
+// ---- Editorial-reference gridline (design-system sec 5, art-director fix) -
+//
+// "The gridline at the editorial reference point earns extra weight." For
+// the hero chart, the reference is series-specific and answers the section's
+// editorial question:
+//
+//   cpi-yoy     -> 2% (Bank of Canada inflation target — the visual answer
+//                  to "is the 2% target being met?")
+//
+// Other series do NOT carry a forced reference line. Policy rate could
+// arguably mark the BoC neutral midpoint (~2.75%) but that is a contested
+// estimate, not a regime-defining target like the CPI band, so we omit it
+// by default rather than encode an opinion in the visual chrome. If
+// editorial later asks for one, add to the map below.
+//
+// The reference is rendered as a 1px line in `ink-muted` (heavier than
+// rule-faint gridlines, lighter than ink), with an inline `micro` label at
+// the right edge of the plot ("2% target"). It sits above plain gridlines
+// but below data marks. The reference is only drawn when its value falls
+// inside the rendered y-extent; otherwise it would float off-axis and
+// confuse rather than anchor.
+interface EditorialReference {
+  value: number;
+  label: string;
+}
+const editorialReferenceByKey: Record<string, EditorialReference> = {
+  "cpi-yoy": { value: 2, label: "2% target" },
+};
+const editorialReference: EditorialReference | null = section.chartSeriesKey
+  ? editorialReferenceByKey[section.chartSeriesKey] ?? null
+  : null;
+
 // ---- Direct-label wording (spec sec 5 — must fit ~7-8 chars at label) -----
 const directLabelByKey: Record<string, string> = {
   "cpi-yoy": "CPI YoY",
@@ -342,6 +374,18 @@ if (hasData) {
   }
 }
 
+// Editorial-reference gridline position. Only render when the reference
+// value falls inside the rendered y-extent; otherwise the line would draw
+// at the clamped edge and read as a regular gridline tick.
+const editorialRefVisible =
+  !!editorialReference
+  && hasData
+  && editorialReference.value >= yMin
+  && editorialReference.value <= yMax;
+const editorialRefY = editorialRefVisible
+  ? yScale(editorialReference!.value)
+  : null;
+
 // Line path (smoothed=false, straight segments per editorial canon).
 function buildLinePath(pts: Array<{ x: number; y: number }>): string {
   return pts
@@ -555,6 +599,28 @@ const ariaLabel = heroPrint
       />
     ))}
 
+    {/* Editorial-reference gridline (e.g. 2% CPI target). Drawn after
+        standard gridlines and the x-axis rule but before data so the data
+        line crosses the reference; design-system sec 5: "the gridline at
+        the editorial reference point earns extra weight." */}
+    {editorialRefVisible && editorialRefY !== null && (
+      <g class="hero-chart__editorial-ref">
+        <line
+          class="hero-chart__editorial-ref-line"
+          x1={PLOT_X0}
+          y1={editorialRefY.toFixed(2)}
+          x2={PLOT_X1}
+          y2={editorialRefY.toFixed(2)}
+        />
+        <text
+          class="hero-chart__editorial-ref-label"
+          x={(PLOT_X1 - 2).toFixed(2)}
+          y={(editorialRefY - 3).toFixed(2)}
+          text-anchor="end"
+        >{editorialReference!.label}</text>
+      </g>
+    )}
+
     {/* Data shape: line / step / bars */}
     {chartType === "line" && hasData && (
       <path class="hero-chart__line" d={linePath} fill="none" />
@@ -702,6 +768,23 @@ const ariaLabel = heroPrint
   }
   .hero-chart__gridline--zero {
     stroke: var(--ink-muted);
+  }
+
+  /* Editorial-reference gridline (e.g. 2% CPI target). Sits visually between
+   * a faint gridline and ink: same weight as the zero line, but kept as its
+   * own class so future editorial references (e.g. neutral rate, NAIRU)
+   * inherit a single treatment. */
+  .hero-chart__editorial-ref-line {
+    stroke: var(--ink-muted);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .hero-chart__editorial-ref-label {
+    fill: var(--ink-muted);
+    font-size: 9px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
   }
 
   /* X-axis rule + ticks */

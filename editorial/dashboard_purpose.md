@@ -165,10 +165,14 @@ fiscal (federal + provincial) under one roof. Rationale: a Bay Street
 allocator thinks about "the Canadian policy stance" as one composite
 state, and the two sub-surfaces share readers, frameworks, and
 falsification logic. The basics layer of Policy has two clearly
-demarcated surfaces (monetary and fiscal) on the same page; deep
-dives sit beneath. We will split Policy into separate Monetary and
-Fiscal sections in a future pass if Fiscal earns standalone real
-estate -- but in v1, one section.
+demarcated surfaces (monetary and fiscal) on the same page, **eight
+panels total: four monetary, four fiscal**, in that order. Section
+4.5 below enumerates the eight panels; the page is rendered as a
+single eight-panel grid with a visual divider between the monetary
+slate (panels 1-4) and the fiscal slate (panels 5-8). We will split
+Policy into separate Monetary and Fiscal sections in a future pass
+if Fiscal earns standalone real estate -- but in v1, one section,
+eight panels.
 
 For each section, the basics layer is described below. Deep dives are
 listed in Section 5 with their home section noted.
@@ -729,3 +733,4 @@ below.
 - 2026-05-10: Section 4 adjusted post-Wave-1 to reflect actual data coverage and construction cost. Four-state inflation breadth retired as forced classification (preserved as prose vocabulary). Surprise-vs-consensus reframed to BoC MPR central projection (no Big-Six / Reuters consensus citation). GDP contributions simplified to six-bar GFCF (business-vs-residential split deferred to Pillar D). Inflation 3M-AR core, goods-ex-energy / services-ex-shelter derivations, and pass-through panel gated on basket-weight reproducibility. Labour basics-layer panel order locked: LFS headline, per-capita panel (signature), wage band, V/U + Beveridge, immigration trajectory with IRCC annotations, four-province dumbbell dispersion. Housing mortgage-stack-by-vintage and own CAPB construction deferred to deep-dives; v1 basics cites BoC chartpack and IMF/OECD CAPB directly. Financial CAD fair-value model, own FCI composite, full term-premium decomposition, and Canadian credit-spread proxies deferred to v1.5; v1 basics uses USDCAD percentile classifier and US-side comparators with explicit caveats. Trade adds partner shares (China, UK, Japan, Mexico, Germany) and ToT / BCPI / FDI elements; energy-by-mode and auto/metals folded into deep-dives. editorial-director.
 - 2026-05-10: User-override on surprise framing. Surprise is now anchored to market consensus (Bloomberg / Reuters median, or aggregated forecaster median where paid feed unavailable) across GDP, Inflation, and Labour element-1. BoC MPR projection is the fallback when consensus is genuinely unavailable. Reasoning: the voice principle on Big-Six sourcing (Section 7) applies to citation as authority, not to aggregating forecaster numbers as derived consensus inputs. Prior 2026-05-10 framing (BoC MPR as primary anchor) was a too-strict reading of the voice principle. main Claude on user instruction.
 - 2026-05-11: Section 4.6 renamed "Financial" -> "Markets" to align with the homepage label rename in flight. Cross-references in Section 5 deep-dive table and Section 6 cadence table updated accordingly. Editorial rationale: "Markets" is the more honest label for what the section actually covers at the basics layer (CAD, GoC curve, credit spreads, commodity prices, bank capital, FCI). Financial-system stability work is deep-dive territory; the basics layer is markets-data-with-Canadian-lens. editorial-director.
+- 2026-05-11 (Wave 4 adjudication): Section 4.5 Policy page panel count locked at eight (four monetary + four fiscal), not six. Frontend's six-panel placeholder must grow. Rationale: the canon enumerates four monetary elements (overnight rate, market path, BoC-Fed spread, balance sheet) and four fiscal elements (federal trajectory, provincial, debt management, fiscal stance vs cycle); collapsing to six would force editorial-arbitrary deletions from the canonical slate, and the monetary-fiscal divider is exactly the visual affordance the basics layer of a one-section-two-stance Policy page needs. Implementation note: page renders as a single eight-panel grid with a visual divider between panel 4 and panel 5. editorial-director.

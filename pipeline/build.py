@@ -54,7 +54,7 @@ from pipeline.catalog import BOC_VALET_SERIES, STATCAN_SERIES
 from pipeline.catalog.boc_series import BocSpec
 from pipeline.catalog.statcan_series import StatcanSpec, get_url as statcan_url
 from pipeline.fetch import alberta, boc, cpi_basket, crea, dof_fiscal, statcan
-from pipeline.io import SeriesMeta, write_series
+from pipeline.io import SeriesMeta, build_site_data, write_series
 from pipeline.transform import yoy_pct
 from pipeline.transform.derivations import (
     headline_yoy,
@@ -65,9 +65,11 @@ from pipeline.transform.derivations import (
 )
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA_RAW = ROOT / "data" / "raw"
-DATA_PROCESSED = ROOT / "data" / "processed"
-DATA_DERIVED = ROOT / "data" / "derived"
+DATA_ROOT = ROOT / "data"
+DATA_RAW = DATA_ROOT / "raw"
+DATA_PROCESSED = DATA_ROOT / "processed"
+DATA_DERIVED = DATA_ROOT / "derived"
+DATA_SITE = DATA_ROOT / "site"
 
 logger = logging.getLogger("pipeline.build")
 
@@ -654,6 +656,15 @@ def main() -> int:
     _safe("derive_cpi_views", derive_cpi_views, failed)
     _safe("derive_per_capita_employment", derive_per_capita_employment, failed)
     _safe("derive_trade_views", derive_trade_views, failed)
+
+    # 7) Site data bundle. Final step: read selected CSV + .meta.json files
+    #    and emit data/site/sections.json for the Astro side to import at
+    #    build time. Per-section failures are absorbed inside build_site_data
+    #    (a missing series yields a sentinel entry, not an exception), so
+    #    this step never sinks the whole pipeline build.
+    logger.info("--- Site data bundle ---")
+    DATA_SITE.mkdir(parents=True, exist_ok=True)
+    _safe("build_site_data", lambda: build_site_data(DATA_ROOT), failed)
 
     if failed:
         logger.error("Build completed with %d failure(s): %s", len(failed), ", ".join(failed))
