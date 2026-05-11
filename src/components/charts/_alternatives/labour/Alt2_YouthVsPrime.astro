@@ -1,0 +1,41 @@
+---
+/*
+ * Alt2_YouthVsPrime - youth vs prime-age unemployment as two overlaid
+ * lines, with the gap shaded for the recent period.
+ *
+ * What's different. Production Panel 1 carries headline unrate only. This
+ * decomposes the headline into the two cohorts most relevant for cycle
+ * diagnosis: youth (15-24, the cyclically volatile cohort) and prime-age
+ * (25-54, the structural baseline). The widening gap is the editorial
+ * payload.
+ *
+ * Why it might be better. Youth unemployment is a leading indicator of
+ * cycle deterioration; prime-age lags. The pair makes turning points
+ * legible six months earlier than headline alone.
+ *
+ * Data. youth_unemployment_rate.csv + prime_age_unemployment_rate.csv.
+ */
+
+import { readCsv } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const youth = readCsv("youth_unemployment_rate.csv");
+const prime = readCsv("prime_age_unemployment_rate.csv");
+
+const N = 84; // 7y window
+---
+
+<div class="alt-chart" data-panel="alt-labour-2">
+  <AltLineChart
+    primary={youth.slice(-N)}
+    secondary={prime.slice(-N)}
+    primaryLabel="Youth (15-24)"
+    secondaryLabel="Prime (25-54)"
+    unitSuffix="%"
+    yDecimals={1}
+    ariaLabel="Youth vs prime-age unemployment rates, monthly, last seven years."
+  />
+</div>
+
+<AltChartStyle />

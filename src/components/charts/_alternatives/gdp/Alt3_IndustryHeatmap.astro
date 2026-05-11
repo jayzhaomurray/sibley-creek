@@ -1,0 +1,117 @@
+---
+/*
+ * Alt3_IndustryHeatmap - industry-level GDP growth heatmap.
+ *
+ * What's different. Production Panel 2 renders one industry line. This
+ * alternative pivots to a small-multiple heatmap-style bar chart by
+ * industry (goods, services, manufacturing, mining/oil), showing each
+ * industry's Y/Y growth rate as a small horizontal bar over the last
+ * 36 months. Reads four industry CSVs.
+ *
+ * Why it might be better. Cycle dispersion across industries is invisible
+ * in a single-industry line; this view makes it the focal point.
+ *
+ * Data. data/raw/gdp_industry_{goods, services, manufacturing, mining_oil}.csv
+ */
+
+import { readCsv, decYear, tail, yoy, VB, yearTicksFromX } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+
+const series = [
+  { key: "goods", label: "GOODS", data: yoy(readCsv("gdp_industry_goods.csv")) },
+  { key: "services", label: "SERVICES", data: yoy(readCsv("gdp_industry_services.csv")) },
+  { key: "mfg", label: "MANUFACTURING", data: yoy(readCsv("gdp_industry_manufacturing.csv")) },
+  { key: "minoil", label: "MINING & OIL", data: yoy(readCsv("gdp_industry_mining_oil.csv")) },
+];
+
+const N = 36;
+const trimmed = series.map((s) => ({ ...s, data: tail(s.data.filter((p) => p.value !== null), N) }));
+
+// Shared y-scale via the four rows; absolute symmetric for diverging
+let maxAbs = 0;
+for (const s of trimmed) for (const p of s.data) if (typeof p.value === "number") maxAbs = Math.max(maxAbs, Math.abs(p.value));
+if (maxAbs === 0) maxAbs = 1;
+
+// X domain across all visible dates
+const allDates = trimmed[0]!.data.map((p) => p.date);
+const xs = allDates.map(decYear);
+const xMin = xs[0] ?? 0;
+const xMax = xs[xs.length - 1] ?? 1;
+
+// Layout: 4 rows stacked vertically inside 720x405
+const ROW_H = 56;
+const ROW_GAP = 14;
+const ROWS_X0 = 130; // wider gutter for industry labels
+const ROWS_W = VB.W - ROWS_X0 - VB.MR;
+const TOP = VB.MT + 8;
+const xScale = (yr: number) => ROWS_X0 + ((yr - xMin) / (xMax - xMin || 1)) * ROWS_W;
+const xTicks = yearTicksFromX(xMin, xMax, xScale);
+
+const barW = (ROWS_W / Math.max(1, allDates.length)) * 0.7;
+
+// For each industry, find latest non-null
+function latestOf(s: { data: ReturnType<typeof yoy> }) {
+  for (let i = s.data.length - 1; i >= 0; i--) {
+    const p = s.data[i]!;
+    if (typeof p.value === "number") return p;
+  }
+  return null;
+}
+---
+
+<div class="alt-chart" data-panel="alt-gdp-3">
+  <svg
+    class="alt-chart__svg"
+    viewBox={`0 0 ${VB.W} ${VB.H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label="Industry-level real GDP year-over-year, four industries, monthly heatmap."
+  >
+    {trimmed.map((s, idx) => {
+      const rowY = TOP + idx * (ROW_H + ROW_GAP);
+      const rowMid = rowY + ROW_H / 2;
+      const yScale = (v: number) => rowMid - (v / maxAbs) * (ROW_H / 2 - 2);
+      const latest = latestOf(s);
+      return (
+        <g>
+          <line class="alt-chart__zero-line" x1={ROWS_X0} y1={rowMid.toFixed(2)} x2={ROWS_X0 + ROWS_W} y2={rowMid.toFixed(2)} style="stroke-opacity:0.4" />
+          {s.data.map((p) => {
+            if (typeof p.value !== "number") return null;
+            const cx = xScale(decYear(p.date));
+            const y0 = yScale(0);
+            const y1 = yScale(p.value);
+            const op = Math.min(1, Math.abs(p.value) / maxAbs * 1.2 + 0.15);
+            return (
+              <rect
+                class="alt-chart__bar"
+                x={(cx - barW / 2).toFixed(2)}
+                y={Math.min(y0, y1).toFixed(2)}
+                width={barW.toFixed(2)}
+                height={Math.max(0.5, Math.abs(y0 - y1)).toFixed(2)}
+                style={`fill-opacity:${op.toFixed(2)}`}
+              >
+                <title>{`${s.label} ${p.date}: ${(p.value as number).toFixed(2)}% Y/Y`}</title>
+              </rect>
+            );
+          })}
+          <rect class="alt-chart__frame" x={ROWS_X0} y={rowY} width={ROWS_W} height={ROW_H} />
+          <text class="alt-chart__cat-label" x={ROWS_X0 - 10} y={rowMid + 4} text-anchor="end" style="font-weight:600">{s.label}</text>
+          {latest && (
+            <circle class="alt-chart__latest-dot" cx={xScale(decYear(latest.date)).toFixed(2)} cy={yScale(latest.value as number).toFixed(2)} r="3.5">
+              <title>{`Latest ${s.label}: ${latest.date}: ${(latest.value as number).toFixed(2)}%`}</title>
+            </circle>
+          )}
+        </g>
+      );
+    })}
+    {xTicks.map((t) => (
+      <g>
+        <line class="alt-chart__xtick" x1={t.x.toFixed(2)} y1={(TOP + 4 * (ROW_H + ROW_GAP) - ROW_GAP).toFixed(2)} x2={t.x.toFixed(2)} y2={(TOP + 4 * (ROW_H + ROW_GAP) - ROW_GAP + 4).toFixed(2)} />
+        <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(TOP + 4 * (ROW_H + ROW_GAP) - ROW_GAP + 18).toFixed(2)} text-anchor="middle">{t.label}</text>
+      </g>
+    ))}
+    <text class="alt-chart__ytick-label" x={ROWS_X0 - 10} y={TOP + 2} text-anchor="end">+/- Y/Y%</text>
+  </svg>
+</div>
+
+<AltChartStyle />

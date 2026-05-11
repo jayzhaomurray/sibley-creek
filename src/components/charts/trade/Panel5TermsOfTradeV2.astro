@@ -1,0 +1,36 @@
+---
+/*
+ * Panel5TermsOfTradeV2 - editorial audit 2026-05-11 item #8.
+ *
+ * Original wrapper passes data.primary / data.secondary unchanged with
+ * direct-labels "WTI" / "Brent" - but the pipeline already emits
+ * `terms_of_trade` (Index 2017=100, quarterly) as primary in panel-5.
+ * The labels were lying; the chart was actually rendering the ToT index
+ * mis-labelled. V2 keeps the same primary series but with honest
+ * labelling, single line, and no secondary (which arrives in % and gets
+ * suppressed by the units-match guard anyway).
+ *
+ * Quick-win: data is already wired; the V2 only fixes the editorial
+ * surface.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+---
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    primaryLabel="Terms of trade"
+    dataPanelAttr="trade-5-v2"
+    ariaLabel="Canadian terms of trade index, 2017=100, quarterly."
+  />
+) : (
+  <PanelEmpty reason="Terms-of-trade series not available." />
+)}

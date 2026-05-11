@@ -1,0 +1,40 @@
+---
+/*
+ * Alt3_WageGrowthYoY - LFS vs SEPH wage growth (Y/Y).
+ *
+ * What's different. Production Panel 3 shows LFS hourly wages in levels
+ * (all vs permanent). This pivots to Y/Y growth and adds SEPH as a
+ * secondary series. BoC's wage-watch flags the LFS-SEPH gap explicitly.
+ *
+ * Why it might be better. Wage-growth Y/Y is the metric BoC pays
+ * attention to, not levels. The LFS-SEPH pair triangulates: LFS leads,
+ * SEPH lags but is more accurate for payroll wage costs.
+ *
+ * Data. lfs_wages_all.csv, seph_earnings.csv.
+ */
+
+import { readCsv, yoy } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const lfs = yoy(readCsv("lfs_wages_all.csv"));
+const seph = yoy(readCsv("seph_earnings.csv"));
+
+const N = 84;
+---
+
+<div class="alt-chart" data-panel="alt-labour-3">
+  <AltLineChart
+    primary={lfs.slice(-N)}
+    secondary={seph.slice(-N)}
+    primaryLabel="LFS wages"
+    secondaryLabel="SEPH"
+    unitSuffix="%"
+    yDecimals={1}
+    referenceValue={3}
+    referenceLabel="3% trend"
+    ariaLabel="Wage growth year-over-year: LFS hourly wages and SEPH average weekly earnings, monthly."
+  />
+</div>
+
+<AltChartStyle />

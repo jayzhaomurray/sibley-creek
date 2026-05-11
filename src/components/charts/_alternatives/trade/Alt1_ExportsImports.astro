@@ -1,0 +1,43 @@
+---
+/*
+ * Alt1_ExportsImports - total exports vs total imports overlaid.
+ *
+ * What's different. Production Panel 1 shows the trade balance alone.
+ * This shows the two underlying series (exports primary solid, imports
+ * dashed) on a shared axis; the visible gap IS the trade balance.
+ *
+ * Why it might be better. The level of trade flows matters as much as
+ * the balance; a $80B export book on a $1B surplus is a different
+ * economy than a $20B export book on the same surplus.
+ *
+ * Data. trade_exports_total.csv, trade_imports_total.csv.
+ */
+
+import { readCsv } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const exp = readCsv("trade_exports_total.csv");
+const imp = readCsv("trade_imports_total.csv");
+
+// values are CAD millions; convert to billions for chart legibility
+function toB(s: ReturnType<typeof readCsv>) {
+  return s.map((p) => ({ date: p.date, value: typeof p.value === "number" ? p.value / 1000 : null }));
+}
+
+const N = 84;
+---
+
+<div class="alt-chart" data-panel="alt-trade-1">
+  <AltLineChart
+    primary={toB(exp).slice(-N)}
+    secondary={toB(imp).slice(-N)}
+    primaryLabel="Exports"
+    secondaryLabel="Imports"
+    unitSuffix="B"
+    yDecimals={1}
+    ariaLabel="Total Canadian merchandise exports and imports, monthly, CAD billions, last seven years."
+  />
+</div>
+
+<AltChartStyle />

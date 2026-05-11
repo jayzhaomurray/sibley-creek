@@ -1,0 +1,49 @@
+---
+/*
+ * Alt2_UsExportShare - US exports / total exports, with 12-month moving
+ * average overlay.
+ *
+ * What's different. Production trade panels carry total or US in
+ * isolation. This computes the SHARE: how concentrated is Canadian export
+ * activity in the US? With the 12mma, the cycle-bracketed trajectory of
+ * dependence reads as one chart.
+ *
+ * Why it might be better. The single most-cited Canadian macro fact is
+ * "75% of exports go to the US." This chart owns that fact and shows
+ * whether it's rising or falling.
+ *
+ * Data. trade_exports_us.csv / trade_exports_total.csv on aligned dates.
+ */
+
+import { readCsv, tma, type AltPoint } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const us = readCsv("trade_exports_us.csv");
+const total = readCsv("trade_exports_total.csv");
+
+const totalMap = new Map(total.map((p) => [p.date, p.value]));
+const share: AltPoint[] = us.map((p) => {
+  const t = totalMap.get(p.date);
+  if (typeof p.value !== "number" || typeof t !== "number" || t === 0) return { date: p.date, value: null };
+  return { date: p.date, value: (p.value / t) * 100 };
+});
+
+const share12 = tma(share, 12);
+
+const N = 240;
+---
+
+<div class="alt-chart" data-panel="alt-trade-2">
+  <AltLineChart
+    primary={share.slice(-N)}
+    secondary={share12.slice(-N)}
+    primaryLabel="Monthly"
+    secondaryLabel="12mma"
+    unitSuffix="%"
+    yDecimals={1}
+    ariaLabel="US share of total Canadian merchandise exports, monthly and 12-month moving average."
+  />
+</div>
+
+<AltChartStyle />

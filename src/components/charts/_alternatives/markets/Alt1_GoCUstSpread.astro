@@ -1,0 +1,41 @@
+---
+/*
+ * Alt1_GoCUstSpread - 10y GoC minus 10y UST spread.
+ *
+ * What's different. Production Panel 3 carries 10y GoC alone. The Canada
+ * fixed-income story is the basis to US 10s, not the absolute level. This
+ * draws GoC-UST as a single line with a zero crossing.
+ *
+ * Why it might be better. Bay Street fixed income trades the basis, not
+ * the rate. Negative basis (GoC below UST) is the structural Canada-rich
+ * read; recent narrowing matters.
+ *
+ * Data. yield_10yr.csv (GoC) - us_2yr.csv. Note: us_10yr not in pipeline
+ * but we have us_2yr; here we use us_2yr-yield_2yr.csv to keep tenors
+ * matched.
+ */
+
+import { readCsv, diff } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const goc2 = readCsv("yield_2yr.csv");
+const ust2 = readCsv("us_2yr.csv");
+const spread = diff(goc2, ust2);
+
+const N = 1300;
+---
+
+<div class="alt-chart" data-panel="alt-markets-1">
+  <AltLineChart
+    primary={spread.slice(-N)}
+    primaryLabel="GoC2-UST2"
+    unitSuffix="pp"
+    yDecimals={2}
+    referenceValue={0}
+    referenceLabel="Parity"
+    ariaLabel="GoC 2-year minus US Treasury 2-year, daily, last five years."
+  />
+</div>
+
+<AltChartStyle />

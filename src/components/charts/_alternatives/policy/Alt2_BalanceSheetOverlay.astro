@@ -1,0 +1,141 @@
+---
+/*
+ * Alt2_BalanceSheetOverlay - BoC total assets vs settlement balances.
+ *
+ * What's different. Production Panel 4 carries both but renders only the
+ * primary (settlement balances). This alternative is rebuilt as a side-
+ * by-side small multiple so the QE-to-QT trajectory and the settlement-
+ * balances draining read independently.
+ *
+ * Why it might be better. The two move on related but different
+ * mechanisms (asset purchases vs reserve management). Reading them
+ * together compressed onto one axis is misleading; small multiples are
+ * the honest treatment.
+ *
+ * Data. boc_total_assets.csv, boc_settlement_balances.csv.
+ */
+
+import { readCsv, decYear, VB, pickStride, fmtTick, yearTicksFromX, tail, type AltPoint } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+
+const ta = readCsv("boc_total_assets.csv");
+const sb = readCsv("boc_settlement_balances.csv");
+// values are in CAD billions; some sources are millions - normalize to billions if huge
+function normalizeToB(s: AltPoint[]): AltPoint[] {
+  // If max abs value > 100000, divide by 1000 (was in millions)
+  let maxV = 0;
+  for (const p of s) if (typeof p.value === "number") maxV = Math.max(maxV, Math.abs(p.value));
+  if (maxV > 100000) return s.map((p) => ({ date: p.date, value: typeof p.value === "number" ? p.value / 1000 : null }));
+  return s;
+}
+const taB = normalizeToB(ta);
+const sbB = normalizeToB(sb);
+
+const N = 96; // 8y monthly-ish
+const taTail = tail(taB, N);
+const sbTail = tail(sbB, N);
+
+const PANEL_W = 320, GAP = 32;
+const M_L = 64, M_T = 44, M_B = 40;
+const panel_h = VB.H - M_T - M_B;
+const panel_x0_left = M_L;
+const panel_x0_right = panel_x0_left + PANEL_W + GAP;
+
+function domain(s: Array<{ value: number | null }>): [number, number] {
+  let lo = Infinity, hi = -Infinity;
+  for (const p of s) if (typeof p.value === "number") { if (p.value < lo) lo = p.value; if (p.value > hi) hi = p.value; }
+  if (!Number.isFinite(lo)) return [0, 1];
+  const pad = (hi - lo) * 0.10 || 1;
+  return [Math.max(0, lo - pad), hi + pad];
+}
+
+const [loA, hiA] = domain(taTail);
+const [loB, hiB] = domain(sbTail);
+
+const xs = taTail.map((p) => decYear(p.date)).filter((v) => !Number.isNaN(v));
+const xMin = Math.min(...xs, ...sbTail.map((p) => decYear(p.date)).filter((v) => !Number.isNaN(v)));
+const xMax = Math.max(...xs, ...sbTail.map((p) => decYear(p.date)).filter((v) => !Number.isNaN(v)));
+
+function makeScales(x0: number, w: number, yLo: number, yHi: number) {
+  const xScale = (yr: number) => x0 + ((yr - xMin) / (xMax - xMin || 1)) * w;
+  const yScale = (v: number) => M_T + panel_h - ((v - yLo) / (yHi - yLo)) * panel_h;
+  return { xScale, yScale };
+}
+function buildPath(series: Array<{ date: string; value: number | null }>, xScale: (yr: number) => number, yScale: (v: number) => number): string {
+  let d = "", started = false;
+  for (const p of series) {
+    if (typeof p.value !== "number") { started = false; continue; }
+    const xv = decYear(p.date);
+    if (Number.isNaN(xv)) continue;
+    d += `${started ? "L" : "M"}${xScale(xv).toFixed(2)} ${yScale(p.value).toFixed(2)} `;
+    started = true;
+  }
+  return d.trim();
+}
+function makeTicks(lo: number, hi: number): number[] {
+  const stride = pickStride(lo, hi);
+  const out: number[] = [];
+  const start = Math.ceil(lo / stride) * stride;
+  for (let v = start; v <= hi + 1e-9; v += stride) out.push(v);
+  return out;
+}
+
+const A = makeScales(panel_x0_left, PANEL_W, loA, hiA);
+const B = makeScales(panel_x0_right, PANEL_W, loB, hiB);
+const pathA = buildPath(taTail, A.xScale, A.yScale);
+const pathB = buildPath(sbTail, B.xScale, B.yScale);
+const ticksA = makeTicks(loA, hiA);
+const ticksB = makeTicks(loB, hiB);
+const xTicksA = yearTicksFromX(xMin, xMax, A.xScale);
+const xTicksB = yearTicksFromX(xMin, xMax, B.xScale);
+const lastA = [...taTail].reverse().find((p) => typeof p.value === "number");
+const lastB = [...sbTail].reverse().find((p) => typeof p.value === "number");
+---
+
+<div class="alt-chart" data-panel="alt-policy-2">
+  <svg
+    class="alt-chart__svg"
+    viewBox={`0 0 ${VB.W} ${VB.H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label="BoC total assets and settlement balances, side-by-side, monthly, CAD billions."
+  >
+    <g>
+      {ticksA.map((v) => <line class="alt-chart__gridline" x1={panel_x0_left} y1={A.yScale(v).toFixed(2)} x2={panel_x0_left + PANEL_W} y2={A.yScale(v).toFixed(2)} />)}
+      <path class="alt-chart__line" d={pathA} fill="none" />
+      {lastA && <circle class="alt-chart__latest-dot" cx={A.xScale(decYear(lastA.date)).toFixed(2)} cy={A.yScale(lastA.value as number).toFixed(2)} r="4"><title>{`Total assets ${lastA.date}: ${(lastA.value as number).toFixed(0)}B`}</title></circle>}
+      <rect class="alt-chart__frame" x={panel_x0_left} y={M_T} width={PANEL_W} height={panel_h} />
+      <text class="alt-chart__small-multiple-title" x={panel_x0_left} y={M_T - 14}>TOTAL ASSETS</text>
+      {xTicksA.map((t) => (
+        <g>
+          <line class="alt-chart__xtick" x1={t.x.toFixed(2)} y1={(M_T + panel_h).toFixed(2)} x2={t.x.toFixed(2)} y2={(M_T + panel_h + 4).toFixed(2)} />
+          <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(M_T + panel_h + 18).toFixed(2)} text-anchor="middle">{t.label}</text>
+        </g>
+      ))}
+      {ticksA.map((v, i) => {
+        const isTop = i === ticksA.length - 1;
+        return <text class="alt-chart__ytick-label" x={(panel_x0_left - 8).toFixed(2)} y={(A.yScale(v) + 4).toFixed(2)} text-anchor="end">{isTop ? `${fmtTick(v, 0)}B` : fmtTick(v, 0)}</text>;
+      })}
+    </g>
+
+    <g>
+      {ticksB.map((v) => <line class="alt-chart__gridline" x1={panel_x0_right} y1={B.yScale(v).toFixed(2)} x2={panel_x0_right + PANEL_W} y2={B.yScale(v).toFixed(2)} />)}
+      <path class="alt-chart__line" d={pathB} fill="none" />
+      {lastB && <circle class="alt-chart__latest-dot" cx={B.xScale(decYear(lastB.date)).toFixed(2)} cy={B.yScale(lastB.value as number).toFixed(2)} r="4"><title>{`Settlement balances ${lastB.date}: ${(lastB.value as number).toFixed(0)}B`}</title></circle>}
+      <rect class="alt-chart__frame" x={panel_x0_right} y={M_T} width={PANEL_W} height={panel_h} />
+      <text class="alt-chart__small-multiple-title" x={panel_x0_right} y={M_T - 14}>SETTLEMENT BALANCES</text>
+      {xTicksB.map((t) => (
+        <g>
+          <line class="alt-chart__xtick" x1={t.x.toFixed(2)} y1={(M_T + panel_h).toFixed(2)} x2={t.x.toFixed(2)} y2={(M_T + panel_h + 4).toFixed(2)} />
+          <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(M_T + panel_h + 18).toFixed(2)} text-anchor="middle">{t.label}</text>
+        </g>
+      ))}
+      {ticksB.map((v, i) => {
+        const isTop = i === ticksB.length - 1;
+        return <text class="alt-chart__ytick-label" x={(panel_x0_right - 8).toFixed(2)} y={(B.yScale(v) + 4).toFixed(2)} text-anchor="end">{isTop ? `${fmtTick(v, 0)}B` : fmtTick(v, 0)}</text>;
+      })}
+    </g>
+  </svg>
+</div>
+
+<AltChartStyle />

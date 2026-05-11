@@ -1,0 +1,89 @@
+---
+/*
+ * Panel2PerCapitaV2 - editorial audit 2026-05-11 item #9.
+ *
+ * Original renders unemployment_level (millions) + aggregate_hours
+ * (thousands of hours) - two raw level series with no per-capita
+ * arithmetic on the canvas.
+ *
+ * V2 derives per-capita employment Y/Y. Data shape:
+ *
+ *   employment_rate = employment / population_15+ (StatCan v2062817).
+ *
+ * This is by definition a per-capita employment ratio. The Y/Y change
+ * of the employment-rate level captures the per-capita employment
+ * dynamic the audit asks for - the audit's formula
+ * (employment_t/pop_t) / (employment_t-12/pop_t-12) - 1 reduces to the
+ * Y/Y of the employment-rate ratio itself.
+ *
+ *   per_capita_emp_yoy[t] = (employment_rate[t] / employment_rate[t-12] - 1) * 100
+ *
+ * Reading employment_rate.csv at build time via the alternatives'
+ * altUtils helper - the pipeline panel-2 JSON does NOT expose this
+ * series, so the wrapper sources it directly from data/raw/. This is
+ * not a production pattern (production wrappers consume panel_data
+ * JSON only); this V2 lives on the comparison page, not on the section
+ * page.
+ */
+
+import type { PanelSeries, SeriesPoint } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+import { readCsv } from "../_alternatives/_shared/altUtils";
+
+interface Props {
+  // Original signature accepted PanelData; V2 sources its own data and
+  // ignores props (kept here so the comparison page can call it the
+  // same way as the original).
+  data?: unknown;
+}
+
+const _props = Astro.props as Props;
+void _props;
+
+let derived: PanelSeries | null = null;
+try {
+  const empRate = readCsv("employment_rate.csv");
+  const out: SeriesPoint[] = [];
+  for (let i = 0; i < empRate.length; i++) {
+    const here = empRate[i]!;
+    const prev = empRate[i - 12];
+    if (
+      !prev ||
+      typeof prev.value !== "number" ||
+      typeof here.value !== "number" ||
+      prev.value === 0
+    ) {
+      out.push({ date: here.date, value: null });
+    } else {
+      out.push({ date: here.date, value: (here.value / prev.value - 1) * 100 });
+    }
+  }
+  derived = {
+    key: "per_capita_employment_yoy",
+    label: "Per-cap emp Y/Y",
+    data: out,
+    unit: "%",
+    kind: "percent",
+    frequency: "monthly",
+    asOfISO: null,
+    source: "Statistics Canada Table 14-10-0287-01",
+    sourceUrl: "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1410028701",
+    sourceId: "v2062817",
+  };
+} catch (err) {
+  void err;
+  derived = null;
+}
+---
+{derived ? (
+  <PanelLiveChart
+    primary={derived}
+    primaryLabel="Per-cap emp"
+    referenceValue={0}
+    dataPanelAttr="labour-2-v2"
+    ariaLabel="Per-capita employment year-over-year change, percent."
+  />
+) : (
+  <PanelEmpty reason="Per-capita employment derivation requires employment_rate.csv." />
+)}

@@ -1,0 +1,138 @@
+---
+/*
+ * Alt4_UsdCadVsBocFed - USDCAD vs BoC-Fed 2y rate spread, side-by-side
+ * small multiples.
+ *
+ * What's different. Production Panel 1 shows USDCAD alone. This pairs
+ * USDCAD with the BoC-Fed 2y spread as a small-multiple side-by-side, so
+ * the policy-driven FX story is one visual scan. Different units, hence
+ * small multiples (not overlay).
+ *
+ * Why it might be better. The whole story of the loonie since 2022 is
+ * the BoC-Fed rate gap. Side-by-side shows the relationship without
+ * forcing two units onto one axis.
+ *
+ * Data. usdcad.csv, yield_2yr.csv - us_2yr.csv.
+ */
+
+import { readCsv, diff, decYear, VB, pickStride, fmtTick, yearTicksFromX, tail, type AltPoint } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+
+const fx = readCsv("usdcad.csv");
+const goc2 = readCsv("yield_2yr.csv");
+const ust2 = readCsv("us_2yr.csv");
+const spread = diff(goc2, ust2);
+
+const N = 1300;
+const fxTail = tail(fx, N);
+const spTail = tail(spread, N);
+
+const PANEL_W = 320, GAP = 32;
+const M_L = 64, M_T = 44, M_B = 40;
+const panel_h = VB.H - M_T - M_B;
+const panel_x0_left = M_L;
+const panel_x0_right = panel_x0_left + PANEL_W + GAP;
+
+function domain(s: Array<{ value: number | null }>): [number, number] {
+  let lo = Infinity, hi = -Infinity;
+  for (const p of s) if (typeof p.value === "number") { if (p.value < lo) lo = p.value; if (p.value > hi) hi = p.value; }
+  if (!Number.isFinite(lo)) return [0, 1];
+  const pad = (hi - lo) * 0.10 || 1;
+  return [lo - pad, hi + pad];
+}
+const [loA, hiA] = domain(fxTail);
+const [loB, hiB] = domain(spTail);
+
+const allX: number[] = [];
+for (const p of fxTail) { const x = decYear(p.date); if (!Number.isNaN(x)) allX.push(x); }
+for (const p of spTail) { const x = decYear(p.date); if (!Number.isNaN(x)) allX.push(x); }
+const xMin = Math.min(...allX);
+const xMax = Math.max(...allX);
+
+function makeScales(x0: number, w: number, yLo: number, yHi: number) {
+  const xScale = (yr: number) => x0 + ((yr - xMin) / (xMax - xMin || 1)) * w;
+  const yScale = (v: number) => M_T + panel_h - ((v - yLo) / (yHi - yLo)) * panel_h;
+  return { xScale, yScale };
+}
+function buildPath(series: AltPoint[], xScale: (yr: number) => number, yScale: (v: number) => number): string {
+  let d = "", started = false;
+  for (const p of series) {
+    if (typeof p.value !== "number") { started = false; continue; }
+    const xv = decYear(p.date);
+    if (Number.isNaN(xv)) continue;
+    d += `${started ? "L" : "M"}${xScale(xv).toFixed(2)} ${yScale(p.value).toFixed(2)} `;
+    started = true;
+  }
+  return d.trim();
+}
+function makeTicks(lo: number, hi: number): number[] {
+  const stride = pickStride(lo, hi);
+  const out: number[] = [];
+  const start = Math.ceil(lo / stride) * stride;
+  for (let v = start; v <= hi + 1e-9; v += stride) out.push(v);
+  return out;
+}
+
+const A = makeScales(panel_x0_left, PANEL_W, loA, hiA);
+const B = makeScales(panel_x0_right, PANEL_W, loB, hiB);
+const pathA = buildPath(fxTail, A.xScale, A.yScale);
+const pathB = buildPath(spTail, B.xScale, B.yScale);
+const ticksA = makeTicks(loA, hiA);
+const ticksB = makeTicks(loB, hiB);
+const xTicksA = yearTicksFromX(xMin, xMax, A.xScale);
+const xTicksB = yearTicksFromX(xMin, xMax, B.xScale);
+const lastA = [...fxTail].reverse().find((p) => typeof p.value === "number");
+const lastB = [...spTail].reverse().find((p) => typeof p.value === "number");
+const crossesZeroB = loB < 0 && hiB > 0;
+---
+
+<div class="alt-chart" data-panel="alt-markets-4">
+  <svg
+    class="alt-chart__svg"
+    viewBox={`0 0 ${VB.W} ${VB.H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label="USDCAD and BoC-Fed 2-year yield spread, side-by-side small multiples, daily, last five years."
+  >
+    <g>
+      {ticksA.map((v) => <line class="alt-chart__gridline" x1={panel_x0_left} y1={A.yScale(v).toFixed(2)} x2={panel_x0_left + PANEL_W} y2={A.yScale(v).toFixed(2)} />)}
+      <path class="alt-chart__line" d={pathA} fill="none" />
+      {lastA && <circle class="alt-chart__latest-dot" cx={A.xScale(decYear(lastA.date)).toFixed(2)} cy={A.yScale(lastA.value as number).toFixed(2)} r="4"><title>{`USDCAD ${lastA.date}: ${(lastA.value as number).toFixed(4)}`}</title></circle>}
+      <rect class="alt-chart__frame" x={panel_x0_left} y={M_T} width={PANEL_W} height={panel_h} />
+      <text class="alt-chart__small-multiple-title" x={panel_x0_left} y={M_T - 14}>USDCAD</text>
+      {xTicksA.map((t) => (
+        <g>
+          <line class="alt-chart__xtick" x1={t.x.toFixed(2)} y1={(M_T + panel_h).toFixed(2)} x2={t.x.toFixed(2)} y2={(M_T + panel_h + 4).toFixed(2)} />
+          <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(M_T + panel_h + 18).toFixed(2)} text-anchor="middle">{t.label}</text>
+        </g>
+      ))}
+      {ticksA.map((v, i) => {
+        const isTop = i === ticksA.length - 1;
+        return <text class="alt-chart__ytick-label" x={(panel_x0_left - 8).toFixed(2)} y={(A.yScale(v) + 4).toFixed(2)} text-anchor="end">{isTop ? fmtTick(v, 2) : fmtTick(v, 2)}</text>;
+      })}
+    </g>
+
+    <g>
+      {crossesZeroB && <line class="alt-chart__zero-line" x1={panel_x0_right} y1={B.yScale(0).toFixed(2)} x2={panel_x0_right + PANEL_W} y2={B.yScale(0).toFixed(2)} />}
+      {ticksB.map((v) => { if (Math.abs(v) < 1e-9 && crossesZeroB) return null; return <line class="alt-chart__gridline" x1={panel_x0_right} y1={B.yScale(v).toFixed(2)} x2={panel_x0_right + PANEL_W} y2={B.yScale(v).toFixed(2)} />; })}
+      <path class="alt-chart__line" d={pathB} fill="none" />
+      {lastB && <circle class="alt-chart__latest-dot" cx={B.xScale(decYear(lastB.date)).toFixed(2)} cy={B.yScale(lastB.value as number).toFixed(2)} r="4"><title>{`GoC2-UST2 ${lastB.date}: ${(lastB.value as number).toFixed(2)} pp`}</title></circle>}
+      <rect class="alt-chart__frame" x={panel_x0_right} y={M_T} width={PANEL_W} height={panel_h} />
+      <text class="alt-chart__small-multiple-title" x={panel_x0_right} y={M_T - 14}>GOC2-UST2 SPREAD</text>
+      {xTicksB.map((t) => (
+        <g>
+          <line class="alt-chart__xtick" x1={t.x.toFixed(2)} y1={(M_T + panel_h).toFixed(2)} x2={t.x.toFixed(2)} y2={(M_T + panel_h + 4).toFixed(2)} />
+          <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(M_T + panel_h + 18).toFixed(2)} text-anchor="middle">{t.label}</text>
+        </g>
+      ))}
+      {ticksB.map((v, i) => {
+        const isTop = i === ticksB.length - 1;
+        const sign = v > 0 ? "+" : "";
+        const num = fmtTick(v, 2);
+        return <text class="alt-chart__ytick-label" x={(panel_x0_right - 8).toFixed(2)} y={(B.yScale(v) + 4).toFixed(2)} text-anchor="end">{isTop ? `${sign}${num}pp` : `${sign}${num}`}</text>;
+      })}
+    </g>
+  </svg>
+</div>
+
+<AltChartStyle />

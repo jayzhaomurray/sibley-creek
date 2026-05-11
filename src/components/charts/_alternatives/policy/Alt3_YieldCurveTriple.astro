@@ -1,0 +1,42 @@
+---
+/*
+ * Alt3_YieldCurveTriple - 2y, 5y, 10y GoC yields overlaid.
+ *
+ * What's different. Production Panel 2 carries 2y with overnight overlay.
+ * This alternative drops the overnight and brings in 5y and 10y, so the
+ * full GoC curve is on one panel - the curve-shape view a fixed-income
+ * desk reads each morning.
+ *
+ * Why it might be better. The 2s10s slope is the recession signal; you
+ * can't see it without 10y on the chart. The triple-line treatment is
+ * the canonical curve-shape view.
+ *
+ * Data. yield_2yr.csv, yield_5yr.csv, yield_10yr.csv.
+ */
+
+import { readCsv } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const y2 = readCsv("yield_2yr.csv");
+const y5 = readCsv("yield_5yr.csv");
+const y10 = readCsv("yield_10yr.csv");
+
+const N = 520; // ~2y of daily
+---
+
+<div class="alt-chart" data-panel="alt-policy-3">
+  <AltLineChart
+    primary={y2.slice(-N)}
+    secondary={y5.slice(-N)}
+    tertiary={y10.slice(-N)}
+    primaryLabel="2y"
+    secondaryLabel="5y"
+    tertiaryLabel="10y"
+    unitSuffix="%"
+    yDecimals={2}
+    ariaLabel="GoC 2-year, 5-year, and 10-year yields, daily, last two years."
+  />
+</div>
+
+<AltChartStyle />

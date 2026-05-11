@@ -1,0 +1,138 @@
+---
+/*
+ * Panel4PerCapitaV2 - editorial audit 2026-05-11 item #10.
+ *
+ * Original renders quarterly real GDP level + an immigrant-flow proxy
+ * for population - two unrelated levels with no per-capita arithmetic
+ * happening on the canvas.
+ *
+ * V2 derives per-capita GDP Y/Y from the gdp_quarterly + pop_total
+ * raw CSVs:
+ *
+ *   gdp_per_capita[t]     = gdp_quarterly[t] / pop_total[t]
+ *   gdp_per_capita_yoy[t] = (gdp_per_capita[t] / gdp_per_capita[t-4] - 1) * 100
+ *
+ * Both source series are quarterly on the same Jan/Apr/Jul/Oct grid.
+ * If a backend agent has wired `gdp_per_capita_yoy` into
+ * data/site/panel_data/gdp.json by the time this runs, prefer it. The
+ * fallback path below derives inline from raw CSVs - acceptable for
+ * the comparison-page V2 even though it bypasses the production
+ * pipeline (production wrappers must consume panel_data JSON only).
+ */
+
+import type { PanelData, PanelSeries, SeriesPoint } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+import { readCsv } from "../_alternatives/_shared/altUtils";
+import panelDataFile from "../../../../data/site/panel_data/gdp.json";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+void data;
+
+function lookupPipelineSeries(): PanelSeries | null {
+  try {
+    const panels = (panelDataFile as { panels?: Record<string, unknown> }).panels;
+    if (!panels) return null;
+    for (const key of Object.keys(panels)) {
+      const p = panels[key] as Record<string, unknown> | undefined;
+      if (!p) continue;
+      for (const field of ["primary", "secondary", "tertiary"] as const) {
+        const s = p[field] as PanelSeries | undefined;
+        if (s && s.key === "gdp_per_capita_yoy" && Array.isArray(s.data) && s.data.length > 0) {
+          return s;
+        }
+      }
+      const extras = p.extras as Record<string, PanelSeries> | undefined;
+      if (extras) {
+        for (const ek of Object.keys(extras)) {
+          const s = extras[ek];
+          if (s && s.key === "gdp_per_capita_yoy" && Array.isArray(s.data) && s.data.length > 0) {
+            return s;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    void err;
+  }
+  return null;
+}
+
+let derived: PanelSeries | null = lookupPipelineSeries();
+
+if (!derived) {
+  try {
+    const gdp = readCsv("gdp_quarterly.csv");
+    const pop = readCsv("pop_total.csv");
+    const popByDate = new Map<string, number | null>();
+    for (const p of pop) popByDate.set(p.date, p.value);
+
+    // Step 1: per-capita level series on the GDP grid.
+    const perCap: SeriesPoint[] = [];
+    for (const g of gdp) {
+      const popV = popByDate.get(g.date);
+      if (
+        typeof g.value !== "number" ||
+        typeof popV !== "number" ||
+        Number.isNaN(g.value) ||
+        Number.isNaN(popV) ||
+        popV === 0
+      ) {
+        perCap.push({ date: g.date, value: null });
+      } else {
+        // GDP in C$ millions chained 2017; population in persons.
+        // Per-capita = (millions * 1e6) / persons = CAD per person.
+        perCap.push({ date: g.date, value: (g.value * 1e6) / popV });
+      }
+    }
+
+    // Step 2: Y/Y of per-capita = 4-quarter lag.
+    const yoy: SeriesPoint[] = [];
+    for (let i = 0; i < perCap.length; i++) {
+      const here = perCap[i]!;
+      const prev = perCap[i - 4];
+      if (
+        !prev ||
+        typeof prev.value !== "number" ||
+        typeof here.value !== "number" ||
+        prev.value === 0
+      ) {
+        yoy.push({ date: here.date, value: null });
+      } else {
+        yoy.push({ date: here.date, value: (here.value / prev.value - 1) * 100 });
+      }
+    }
+
+    derived = {
+      key: "gdp_per_capita_yoy",
+      label: "Per-cap GDP Y/Y",
+      data: yoy,
+      unit: "%",
+      kind: "percent",
+      frequency: "quarterly",
+      asOfISO: null,
+      source: "Statistics Canada Tables 36-10-0104-01 and 17-10-0009-01",
+      sourceUrl: "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3610010401",
+      sourceId: "gdp_quarterly / pop_total",
+    };
+  } catch (err) {
+    void err;
+    derived = null;
+  }
+}
+---
+{derived ? (
+  <PanelLiveChart
+    primary={derived}
+    primaryLabel="Per-cap GDP"
+    referenceValue={0}
+    dataPanelAttr="gdp-4-v2"
+    ariaLabel="Real per-capita GDP, year-over-year change, percent."
+  />
+) : (
+  <PanelEmpty reason="Per-capita GDP derivation requires gdp_quarterly + pop_total CSVs." />
+)}

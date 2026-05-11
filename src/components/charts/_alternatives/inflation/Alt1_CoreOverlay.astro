@@ -1,0 +1,44 @@
+---
+/*
+ * Alt1_CoreOverlay - three core measures overlaid (trim, median, common).
+ *
+ * What's different. Production Panel 2 shows trim primary and median
+ * secondary. This alternative adds common as a tertiary dashed line so all
+ * three preferred BoC core measures are visible in one chart, with the
+ * 2% target reference. The reader can see when the trio agrees vs disagrees.
+ *
+ * Why it might be better. The dispersion across core measures IS the
+ * editorial signal at turning points. Adding common is one cheap line.
+ *
+ * Data. data/raw/cpi_trim.csv + cpi_median.csv + cpi_common.csv.
+ */
+
+import { readCsv } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const trim = readCsv("cpi_trim.csv");
+const median = readCsv("cpi_median.csv");
+const common = readCsv("cpi_common.csv");
+
+// 60-month window
+const N = 60;
+---
+
+<div class="alt-chart" data-panel="alt-inflation-1">
+  <AltLineChart
+    primary={trim.slice(-N)}
+    secondary={median.slice(-N)}
+    tertiary={common.slice(-N)}
+    primaryLabel="Core-trim"
+    secondaryLabel="Core-median"
+    tertiaryLabel="Core-common"
+    unitSuffix="%"
+    yDecimals={1}
+    referenceValue={2}
+    referenceLabel="2% target"
+    ariaLabel="Three BoC preferred core measures: trim, median, common, monthly, last five years."
+  />
+</div>
+
+<AltChartStyle />

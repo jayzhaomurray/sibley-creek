@@ -1,0 +1,116 @@
+---
+/*
+ * Panel1HeadlineGDPV2 - editorial audit 2026-05-11 item #3.
+ *
+ * Original renders the monthly GDP level + quarterly GDP level (both in
+ * chained CAD). The section's headline question is about growth rates,
+ * not levels - a level line tells the reader nothing about whether the
+ * economy is at potential, growing, or contracting.
+ *
+ * V2 derives both growth-rate series in the wrapper and passes them to
+ * PanelLiveChart as primary (solid, m/m monthly) + secondary (dashed,
+ * Q/Q SAAR quarterly). Both in %, units match.
+ *
+ *   mom_pct[t]  = (gdp_monthly[t] / gdp_monthly[t-1] - 1) * 100
+ *   qoq_saar[t] = ((gdp_quarterly[t] / gdp_quarterly[t-1])^4 - 1) * 100
+ *
+ * NOTE: the audit's preferred treatment was m/m % as bars + Q/Q SAAR
+ * line. PanelLiveChart does not render bars - the wrapper-architecture
+ * forces a two-line treatment. This is an acceptable simplification per
+ * the dispatch brief; PanelBarChart is queued for Phase 2.
+ */
+
+import type { PanelData, PanelSeries, SeriesPoint } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+function pctChange(series: SeriesPoint[]): SeriesPoint[] {
+  const out: SeriesPoint[] = [];
+  for (let i = 0; i < series.length; i++) {
+    const here = series[i]!;
+    const prev = series[i - 1];
+    if (
+      !prev ||
+      typeof prev.value !== "number" ||
+      typeof here.value !== "number" ||
+      prev.value === 0
+    ) {
+      out.push({ date: here.date, value: null });
+    } else {
+      out.push({ date: here.date, value: (here.value / prev.value - 1) * 100 });
+    }
+  }
+  return out;
+}
+
+function qoqSAAR(series: SeriesPoint[]): SeriesPoint[] {
+  const out: SeriesPoint[] = [];
+  for (let i = 0; i < series.length; i++) {
+    const here = series[i]!;
+    const prev = series[i - 1];
+    if (
+      !prev ||
+      typeof prev.value !== "number" ||
+      typeof here.value !== "number" ||
+      prev.value <= 0
+    ) {
+      out.push({ date: here.date, value: null });
+    } else {
+      const ratio = here.value / prev.value;
+      // Annualized via quartic compounding: (q/q ratio)^4 - 1.
+      out.push({ date: here.date, value: (Math.pow(ratio, 4) - 1) * 100 });
+    }
+  }
+  return out;
+}
+
+let primDerived: PanelSeries | null = null;
+let secDerived: PanelSeries | null = null;
+if (data && data.primary) {
+  primDerived = {
+    key: "gdp_mom_pct",
+    label: "GDP m/m",
+    data: pctChange(data.primary.data),
+    unit: "%",
+    kind: "percent",
+    frequency: "monthly",
+    asOfISO: data.primary.asOfISO ?? null,
+    source: data.primary.source ?? null,
+    sourceUrl: data.primary.sourceUrl ?? null,
+    sourceId: data.primary.sourceId ?? null,
+  };
+}
+if (data && data.secondary) {
+  secDerived = {
+    key: "gdp_qoq_saar",
+    label: "Q/Q SAAR",
+    data: qoqSAAR(data.secondary.data),
+    unit: "%",
+    kind: "percent",
+    frequency: "quarterly",
+    asOfISO: data.secondary.asOfISO ?? null,
+    source: data.secondary.source ?? null,
+    sourceUrl: data.secondary.sourceUrl ?? null,
+    sourceId: data.secondary.sourceId ?? null,
+  };
+}
+---
+{primDerived ? (
+  <PanelLiveChart
+    primary={primDerived}
+    secondary={secDerived}
+    primaryLabel="m/m"
+    secondaryLabel="Q/Q SAAR"
+    referenceValue={0}
+    dataPanelAttr="gdp-1-v2"
+    ariaLabel="Headline real GDP growth: monthly m/m percent and quarterly Q/Q SAAR percent."
+  />
+) : (
+  <PanelEmpty reason="GDP level series not available for growth-rate derivation." />
+)}

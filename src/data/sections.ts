@@ -173,8 +173,8 @@ export const sections: Section[] = [
     headlineQuestion:
       "Is the Canadian economy at potential, growing, or contracting?",
     cadence: "Monthly + quarterly",
-    // Most recent monthly GDP print landed May 1, 2026 (StatCan ~60d lag).
-    updatedAt: Date.UTC(2026, 4, 1, 8, 30),
+    // Most recent monthly GDP print released Apr 30, 2026 (Feb 2026 reference period).
+    updatedAt: Date.UTC(2026, 3, 30, 8, 30),
     chartSeriesKey: "gdp-yoy",
     heroKicker: "February GDP",
     tileLine:
@@ -221,9 +221,9 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "Mar 28, 2026",
+      date: "Apr 30, 2026",
       body:
-        "February's monthly GDP came in soft on goods-producing industries; services held. The output gap is closing more slowly than the BoC's April MPR projected, but the per-capita series remains the harder read.",
+        "Real GDP rose 1.0% Y/Y in February, per Statistics Canada, a 0.3pp acceleration from January but still well below the run of 1.5-2.0% readings that ran through last summer. The monthly print held at 0.2% m/m. The output gap widened to negative 1.0% in Q4 2025, half a point softer than Q3 and below the Bank of Canada's potential growth estimate near 1.6%.",
     },
   },
   {
@@ -234,14 +234,13 @@ export const sections: Section[] = [
     headlineQuestion:
       "Is the 2% target being met, and on what measures and what breadth?",
     cadence: "Monthly",
-    // Most recent CPI print landed May 14, 2026 (April 2026 release). This
-    // is currently the freshest section on the page; the homepage hero
-    // selection picks it up automatically.
-    updatedAt: Date.UTC(2026, 4, 14, 8, 30),
+    // Most recent CPI print released Apr 20, 2026 (March 2026 reference period).
+    // April CPI lands May 14; not yet on disk as of 2026-05-11.
+    updatedAt: Date.UTC(2026, 3, 20, 8, 30),
     chartSeriesKey: "cpi-yoy",
-    heroKicker: "April CPI",
+    heroKicker: "March CPI",
     tileLine:
-      "Headline CPI ticked up to 2.3% in April, shelter still doing the work.",
+      "Headline CPI ticked up to 2.3% in March, shelter still doing the work.",
     prints: [
       {
         // The pipeline produces a real value for this row (data/site/sections.json:
@@ -286,10 +285,10 @@ export const sections: Section[] = [
       },
     ],
     blurb: {
-      kind: "fresh",
-      date: "May 14, 2026",
+      kind: "last",
+      date: "Apr 20, 2026",
       body:
-        "April CPI surprised the consensus to the upside by a tenth, but the BoC's preferred cores eased again on a 3-month annualized basis. Shelter is still doing most of the work, with mortgage interest cost the largest single contributor.",
+        "Headline CPI ran at 2.3% Y/Y in the latest print, per Statistics Canada, a 0.5pp acceleration that pushes headline back above the Bank of Canada's 2% target. Core-trim eased a tenth to 2.2% and core-median held at 2.3%, so the underlying signal is steadier than the headline suggests. Both core measures now sit inside the 1-3% band for the third consecutive print.",
     },
   },
   {
@@ -309,7 +308,7 @@ export const sections: Section[] = [
     chartSeriesKey: "unrate",
     heroKicker: "April LFS",
     tileLine:
-      "April employment softened against consensus; unemployment held at 6.1% as participation slipped.",
+      "April employment softened against consensus; unemployment climbed to 6.9% as aggregate hours turned negative Y/Y.",
     prints: [
       {
         // Pipeline produces a real value for this row (unemployment rate,
@@ -343,10 +342,10 @@ export const sections: Section[] = [
       },
     ],
     blurb: {
-      kind: "last",
-      date: "May 2, 2026",
+      kind: "fresh",
+      date: "May 8, 2026",
       body:
-        "April's LFS came in soft on employment but the unemployment rate held flat as participation slipped. The per-capita employment story keeps drifting; the IRCC plan vintage matters here more than the headline.",
+        "The unemployment rate climbed to 6.9% in April, per the Statistics Canada Labour Force Survey, a 0.2pp move that returns the rate to the high end of the recent range. Aggregate hours worked turned negative on a year-over-year basis at -0.5%, the deepest sub-zero reading in this cycle. Wage growth on the LFS-Micro series printed 3.1% Y/Y, up 0.5pp.",
     },
   },
   {
@@ -357,13 +356,13 @@ export const sections: Section[] = [
     headlineQuestion:
       "What is the policy stance, and is it consistent with the cycle?",
     cadence: "Event-driven + monthly",
-    // BoC-Fed spread refreshes daily (May 9, 2026); rate decision was
-    // Apr 29. Use the later of the two as the stamp.
-    updatedAt: Date.UTC(2026, 4, 9, 14, 0),
+    // Apr 29 rate decision is the load-bearing event; daily yields refresh
+    // continuously but the policy stance is anchored to the rate decision.
+    updatedAt: Date.UTC(2026, 3, 29, 14, 0),
     chartSeriesKey: "policy-rate",
     heroKicker: "April rate decision",
     tileLine:
-      "BoC cut 25 bps to 2.75% and dropped the line about needing more evidence on services inflation.",
+      "BoC cut 25 bps to 2.25% and dropped the line about needing more evidence on services inflation.",
     prints: [
       {
         // Pipeline produces a real value for this row (BoC overnight rate,
@@ -406,10 +405,10 @@ export const sections: Section[] = [
       },
     ],
     blurb: {
-      kind: "fresh",
+      kind: "last",
       date: "Apr 29, 2026",
       body:
-        "The Bank cut 25 bps as expected and dropped the line about needing more evidence on services inflation. The MPR's neutral-rate refresh ticked the midpoint down by ten basis points; the press conference leaned into the per-capita weakness more than the inflation print.",
+        "The Bank of Canada cut its overnight rate 25 bps to 2.25% on April 29, taking the policy rate 50 bps below the 2.75% neutral midpoint. The 2y GoC yield closed at 2.94% on May 7, leaving the BoC-Fed 2y spread at -98 bps. The fiscal year-to-date federal budget balance stood at -$25.6B through February, per the Department of Finance Canada fiscal monitor.",
     },
   },
   {
@@ -427,12 +426,12 @@ export const sections: Section[] = [
     headlineQuestion:
       "What external winds are pushing on Canadian inflation, growth, and the CAD?",
     cadence: "Daily (light) + weekly synthesis",
-    // Markets data refreshes daily; latest stamp May 9, 2026.
-    updatedAt: Date.UTC(2026, 4, 9, 21, 0),
+    // Markets data refreshes daily; latest BoC noon-rate stamp May 8, 2026.
+    updatedAt: Date.UTC(2026, 4, 8, 21, 0),
     chartSeriesKey: "usdcad",
     heroKicker: "Weekly close",
     tileLine:
-      "USDCAD pushed to 1.378 on the week as the BoC-Fed spread ground wider on divergent paths.",
+      "USDCAD closed the week at 1.369 as the BoC-Fed 2y spread held near -98 bps.",
     prints: [
       {
         // Pipeline produces a real value for this row (USDCAD, currently 1.369
@@ -476,9 +475,9 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "May 3, 2026",
+      date: "May 8, 2026",
       body:
-        "USDCAD is sitting at the 80th percentile of the post-1990 distribution; not stress yet, but no longer benign. GoC-UST 10y spread continues to grind wider on the BoC-Fed divergence and term premium has done some of the work.",
+        "USDCAD closed May 8 at 1.369, up 0.4% on the week, per Bank of Canada noon rates. The 10y GoC yield closed at 3.53% on May 7, two basis points firmer. WTI rose to $109.76 by May 4, a 4.2% move that keeps crude above $100 for a second consecutive month; the TSX Composite closed near 34.1k, flat on the session.",
     },
   },
   {
@@ -489,12 +488,12 @@ export const sections: Section[] = [
     headlineQuestion:
       "Is Canada's external position structurally shifting under US repricing?",
     cadence: "Monthly + event",
-    // March merch-trade release landed Apr 3, 2026.
-    updatedAt: Date.UTC(2026, 3, 3, 8, 30),
+    // March merch-trade release landed May 5, 2026.
+    updatedAt: Date.UTC(2026, 4, 5, 8, 30),
     chartSeriesKey: "trade-balance",
     heroKicker: "March balance",
     tileLine:
-      "March merch trade balance widened to -$2.3B, with auto and energy pulling in opposite directions.",
+      "March merch trade balance narrowed to -$2.2B on a 3mma basis; US export share fell to 66.1%.",
     prints: [
       {
         key: "trade-balance",
@@ -535,9 +534,9 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "Apr 3, 2026",
+      date: "May 6, 2026",
       body:
-        "Auto and energy carried the March print on opposite shoulders. The US share keeps drifting, but the Section 232 follow-on actions named in March are the variable that matters into the summer USMCA review window.",
+        "The goods trade balance narrowed to -$2.2B on a 3mma basis in March, per Statistics Canada, an $876M improvement from February. The US export share fell 2.5pp to 66.1%, the lowest reading in the available window and the continuation of a year-long drift down from the 76-80% range that held through 2024. The Q4 2025 current account narrowed to -$706M, a $4.6B improvement; terms of trade ticked up 0.6 to 105.5.",
     },
   },
   {
@@ -548,10 +547,10 @@ export const sections: Section[] = [
     headlineQuestion:
       "Is the rate-sensitive sector amplifying or dampening policy?",
     cadence: "Monthly",
-    // CREA April release lands mid-month; placeholder Apr 15, 2026.
+    // CREA April release (March reference period) landed Apr 15, 2026.
     updatedAt: Date.UTC(2026, 3, 15, 9, 0),
     chartSeriesKey: "hpi-yoy",
-    heroKicker: "April MLS HPI",
+    heroKicker: "March MLS HPI",
     tileLine:
       "Composite HPI slipped further into negative territory, Toronto and Vancouver leading the drift.",
     prints: [
@@ -587,7 +586,7 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 15, 2026",
       body:
-        "Toronto and Vancouver kept loosening into the spring market; Calgary held firm. The renewal cohort that prints over the summer is the one to watch, and we still expect the residual transmission to land mostly through consumption.",
+        "The MLS HPI fell 4.6% Y/Y in the latest print, per the Canadian Real Estate Association, a tenth shallower than the prior month but the eighth consecutive negative reading. Housing starts on a 3mma basis stepped down to 241k from 257k, per Canada Mortgage and Housing Corporation. Affordability held at 42.7% of household income in Q4 2025, half a percentage point easier on continued mortgage-cost relief.",
     },
   },
 ];

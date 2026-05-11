@@ -1,0 +1,217 @@
+---
+/*
+ * Alt1_ContributionsStacked - quarterly contributions to GDP growth, stacked.
+ *
+ * What's different. Production Panel 3 falls back to PanelEmpty because the
+ * pipeline only emits the total-pp series. This alternative reads the six
+ * per-component CSVs directly (consumption, government, investment,
+ * exports, imports, inventories) and renders them as a stacked-by-quarter
+ * vertical bar chart with positive contributions above zero and negative
+ * below. The total-contribution line overlays as a 1px dashed pure-ink
+ * trace for cross-check.
+ *
+ * Why it might be better. The single-line total panel cannot answer
+ * "where is growth coming from?", which is the entire editorial purpose
+ * of Q3 of the GDP section. Stacked bars are the canonical journalism
+ * treatment.
+ *
+ * Data. Reads CSVs from data/raw/gdp_contrib_*.csv directly.
+ */
+
+import { readCsv, decYear, tail, pickStride, fmtTick, yearTicksFromX, VB, PLOT } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+
+interface ComponentSeries {
+  key: string;
+  label: string;
+  data: ReturnType<typeof readCsv>;
+}
+
+const components: ComponentSeries[] = [
+  { key: "cons", label: "Consumption", data: readCsv("gdp_contrib_consumption.csv") },
+  { key: "govt", label: "Government", data: readCsv("gdp_contrib_govt.csv") },
+  { key: "inv", label: "Investment", data: readCsv("gdp_contrib_investment.csv") },
+  { key: "exp", label: "Exports", data: readCsv("gdp_contrib_exports.csv") },
+  { key: "imp", label: "Imports", data: readCsv("gdp_contrib_imports.csv") },
+  { key: "inty", label: "Inventories", data: readCsv("gdp_contrib_inventories.csv") },
+];
+const total = readCsv("gdp_total_contribution.csv");
+
+// Align all to the dates of `total`, take last 20 quarters.
+const tailN = 20;
+const dates = tail(total, tailN).map((p) => p.date).filter((d) => !!d);
+const matrix: Record<string, Map<string, number | null>> = {};
+for (const c of components) {
+  matrix[c.key] = new Map(c.data.map((p) => [p.date, p.value]));
+}
+
+// For each quarter, separate positive contributions from negative for stack-
+// from-zero rendering. Imports is naturally negative in growth-accounting;
+// we render its raw sign (StatCan's `gdp_contrib_imports` is signed -- it
+// represents the demand-leakage in pp, typically a small negative number).
+const totalsByDate = new Map(total.map((p) => [p.date, p.value]));
+
+// Compute y-domain from running positive and negative stacks
+let yLo = 0;
+let yHi = 0;
+for (const d of dates) {
+  let pos = 0;
+  let neg = 0;
+  for (const c of components) {
+    const v = matrix[c.key]!.get(d);
+    if (typeof v !== "number" || Number.isNaN(v)) continue;
+    if (v >= 0) pos += v;
+    else neg += v;
+  }
+  if (pos > yHi) yHi = pos;
+  if (neg < yLo) yLo = neg;
+  const t = totalsByDate.get(d);
+  if (typeof t === "number") {
+    if (t > yHi) yHi = t;
+    if (t < yLo) yLo = t;
+  }
+}
+const span = yHi - yLo || 1;
+yLo -= span * 0.08;
+yHi += span * 0.08;
+const yRange = yHi - yLo;
+
+const xs = dates.map((d) => decYear(d));
+const xMin = xs[0] ?? 0;
+const xMax = xs[xs.length - 1] ?? 1;
+const xScale = (yr: number) => PLOT.X0 + ((yr - xMin) / (xMax - xMin || 1)) * PLOT.W;
+const yScale = (v: number) => PLOT.Y0 + PLOT.H - ((v - yLo) / yRange) * PLOT.H;
+const yStride = pickStride(yLo, yHi);
+const yTicks: number[] = [];
+const start = Math.ceil(yLo / yStride) * yStride;
+for (let v = start; v <= yHi + 1e-9; v += yStride) yTicks.push(Number(v.toFixed(3)));
+const crossesZero = yLo < 0 && yHi > 0;
+const xTicks = yearTicksFromX(xMin, xMax, xScale);
+
+// Bar width: 60% of inter-quarter spacing
+const barW = (PLOT.W / Math.max(1, dates.length)) * 0.55;
+
+// Component encoding: vary fill opacity so each component is distinguishable
+// without color. Six steps of 100% / 75% / 55% / 38% / 22% / 10% opacity.
+const opacityByKey: Record<string, number> = {
+  cons: 1.0,
+  govt: 0.75,
+  inv: 0.55,
+  exp: 0.38,
+  imp: 0.22,
+  inty: 0.10,
+};
+
+// Build the total-contribution overlay path
+const totalPathPts = dates.map((d) => {
+  const t = totalsByDate.get(d);
+  return { date: d, value: typeof t === "number" ? t : null };
+});
+let linePath = "";
+let started = false;
+totalPathPts.forEach((p) => {
+  if (typeof p.value !== "number") return;
+  const x = xScale(decYear(p.date));
+  const y = yScale(p.value);
+  linePath += `${started ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)} `;
+  started = true;
+});
+
+// Latest quarter dot (on total line)
+const latest = [...totalPathPts].reverse().find((p) => typeof p.value === "number");
+const latestX = latest ? xScale(decYear(latest.date)) : 0;
+const latestY = latest ? yScale(latest.value as number) : 0;
+
+// Pre-compute stacked bars in the frontmatter so the template stays simple.
+type BarRect = { x: number; y: number; w: number; h: number; opacity: number; date: string; label: string; v: number; };
+const allBars: BarRect[] = [];
+for (const d of dates) {
+  const cx = xScale(decYear(d));
+  let posCum = 0;
+  let negCum = 0;
+  for (const c of components) {
+    const v = matrix[c.key]!.get(d);
+    if (typeof v !== "number" || Number.isNaN(v) || v === 0) continue;
+    let y0: number, y1: number;
+    if (v >= 0) { y0 = yScale(posCum); y1 = yScale(posCum + v); posCum += v; }
+    else { y0 = yScale(negCum); y1 = yScale(negCum + v); negCum += v; }
+    allBars.push({
+      x: cx - barW / 2,
+      y: Math.min(y0, y1),
+      w: barW,
+      h: Math.max(0.5, Math.abs(y0 - y1)),
+      opacity: opacityByKey[c.key] ?? 0.5,
+      date: d,
+      label: c.label,
+      v,
+    });
+  }
+}
+---
+
+<div class="alt-chart" data-panel="alt-gdp-1">
+  <svg
+    class="alt-chart__svg"
+    viewBox={`0 0 ${VB.W} ${VB.H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label="Quarterly contributions to real GDP growth by component, stacked, percentage points."
+  >
+    {yTicks.map((v) => {
+      const yy = yScale(v);
+      if (crossesZero && Math.abs(v) < 1e-9) return null;
+      return <line class="alt-chart__gridline" x1={PLOT.X0} y1={yy.toFixed(2)} x2={PLOT.X1} y2={yy.toFixed(2)} />;
+    })}
+
+    {crossesZero && (
+      <line class="alt-chart__zero-line" x1={PLOT.X0} y1={yScale(0).toFixed(2)} x2={PLOT.X1} y2={yScale(0).toFixed(2)} />
+    )}
+
+    {allBars.map((b) => (
+      <rect
+        class="alt-chart__bar"
+        x={b.x.toFixed(2)}
+        y={b.y.toFixed(2)}
+        width={b.w.toFixed(2)}
+        height={b.h.toFixed(2)}
+        style={`fill-opacity:${b.opacity}`}
+      >
+        <title>{`${b.date} ${b.label}: ${b.v >= 0 ? "+" : ""}${b.v.toFixed(2)} pp`}</title>
+      </rect>
+    ))}
+
+    {linePath && <path class="alt-chart__line-secondary" d={linePath} fill="none" />}
+
+    {latest && (
+      <circle class="alt-chart__latest-dot" cx={latestX.toFixed(2)} cy={latestY.toFixed(2)} r="4">
+        <title>{`Latest total: ${latest.date}: ${(latest.value as number).toFixed(2)} pp`}</title>
+      </circle>
+    )}
+
+    <rect class="alt-chart__frame" x={PLOT.X0} y={PLOT.Y0} width={PLOT.W} height={PLOT.H} />
+
+    {xTicks.map((t) => (
+      <g>
+        <line class="alt-chart__xtick" x1={t.x.toFixed(2)} y1={PLOT.Y1.toFixed(2)} x2={t.x.toFixed(2)} y2={(PLOT.Y1 + 4).toFixed(2)} />
+        <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(PLOT.Y1 + 18).toFixed(2)} text-anchor="middle">{t.label}</text>
+      </g>
+    ))}
+
+    {yTicks.map((v, i) => {
+      const yy = yScale(v);
+      const isTop = i === yTicks.length - 1;
+      const sign = v > 0 ? "+" : "";
+      const num = fmtTick(v, 1);
+      const txt = isTop ? `${sign}${num}pp` : `${sign}${num}`;
+      return (
+        <text class="alt-chart__ytick-label" x={(PLOT.X0 - 8).toFixed(2)} y={(yy + 4).toFixed(2)} text-anchor="end">{txt}</text>
+      );
+    })}
+
+    {latest && (
+      <text class="alt-chart__direct-label" x={(latestX + 10).toFixed(2)} y={(latestY + 4).toFixed(2)} text-anchor="start">Total</text>
+    )}
+  </svg>
+</div>
+
+<AltChartStyle />

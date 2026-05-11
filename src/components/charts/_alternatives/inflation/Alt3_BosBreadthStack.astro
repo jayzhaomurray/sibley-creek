@@ -1,0 +1,138 @@
+---
+/*
+ * Alt3_BosBreadthStack - BoC Business Outlook Survey: firms' inflation
+ * expectations bucketed below 1% / 1-2% / 2-3% / above 3%, rendered as a
+ * 100%-stacked vertical bar chart.
+ *
+ * What's different. Production Panel 5 plots consumer inflation
+ * expectations as a 1y line. This alternative pivots to the BoC's own
+ * business survey breadth, which is a different leading-indicator family.
+ * Stacked bars per BOS round show the share of firms expecting above-3%
+ * (heaviest ink) at the top, target (medium ink) in the middle, below-1%
+ * (lightest ink) at the bottom.
+ *
+ * Why it might be better. Distribution beats average. Business price-
+ * setters drive realized inflation; their breadth movement leads CPI by
+ * several quarters.
+ *
+ * Data. data/raw/bos_dist_below1.csv + bos_dist_1to2.csv + bos_dist_2to3.csv + bos_dist_above3.csv.
+ */
+
+import { readCsv, decYear, VB, PLOT, yearTicksFromX } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+
+const below1 = readCsv("bos_dist_below1.csv");
+const r1to2 = readCsv("bos_dist_1to2.csv");
+const r2to3 = readCsv("bos_dist_2to3.csv");
+const above3 = readCsv("bos_dist_above3.csv");
+
+// Align on common dates (BOS is quarterly)
+const dates = above3.map((p) => p.date);
+const mB = new Map(below1.map((p) => [p.date, p.value]));
+const m12 = new Map(r1to2.map((p) => [p.date, p.value]));
+const m23 = new Map(r2to3.map((p) => [p.date, p.value]));
+const m3 = new Map(above3.map((p) => [p.date, p.value]));
+
+const xs = dates.map(decYear);
+const xMin = xs[0] ?? 0;
+const xMax = xs[xs.length - 1] ?? 1;
+const xScale = (yr: number) => PLOT.X0 + ((yr - xMin) / (xMax - xMin || 1)) * PLOT.W;
+const yScale = (v: number) => PLOT.Y0 + PLOT.H - (v / 100) * PLOT.H;
+const xTicks = yearTicksFromX(xMin, xMax, xScale);
+const yTicks = [0, 25, 50, 75, 100];
+
+const barW = (PLOT.W / Math.max(1, dates.length)) * 0.75;
+
+// Stacking order from bottom to top: below1 -> 1to2 -> 2to3 -> above3
+// Opacity ramp (Vignelli ink density): above3 = 100%, 2to3 = 50%,
+// 1to2 = 28% (target band recedes), below1 = 12%
+const layers = [
+  { key: "below1", map: mB, opacity: 0.12, label: "Below 1%" },
+  { key: "1to2", map: m12, opacity: 0.28, label: "1-2%" },
+  { key: "2to3", map: m23, opacity: 0.50, label: "2-3%" },
+  { key: "above3", map: m3, opacity: 1.0, label: "Above 3%" },
+];
+
+const latestDate = dates[dates.length - 1] ?? "";
+const latestAbove3 = m3.get(latestDate);
+
+// Pre-compute stacked segments in the frontmatter to keep the template tidy.
+type StackSeg = { x: number; y: number; w: number; h: number; opacity: number; date: string; label: string; v: number; };
+const allSegs: StackSeg[] = [];
+for (const d of dates) {
+  const cx = xScale(decYear(d));
+  let cum = 0;
+  for (const L of layers) {
+    const v = L.map.get(d);
+    if (typeof v !== "number") continue;
+    const y0 = yScale(cum);
+    const y1 = yScale(cum + v);
+    allSegs.push({
+      x: cx - barW / 2,
+      y: Math.min(y0, y1),
+      w: barW,
+      h: Math.max(0.5, Math.abs(y0 - y1)),
+      opacity: L.opacity,
+      date: d,
+      label: L.label,
+      v,
+    });
+    cum += v;
+  }
+}
+---
+
+<div class="alt-chart" data-panel="alt-inflation-3">
+  <svg
+    class="alt-chart__svg"
+    viewBox={`0 0 ${VB.W} ${VB.H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label="BoC Business Outlook Survey: share of firms expecting CPI in each band, 100% stacked, quarterly."
+  >
+    {yTicks.map((v) => {
+      const yy = yScale(v);
+      return <line class="alt-chart__gridline" x1={PLOT.X0} y1={yy.toFixed(2)} x2={PLOT.X1} y2={yy.toFixed(2)} />;
+    })}
+
+    {allSegs.map((s) => (
+      <rect
+        class="alt-chart__bar"
+        x={s.x.toFixed(2)}
+        y={s.y.toFixed(2)}
+        width={s.w.toFixed(2)}
+        height={s.h.toFixed(2)}
+        style={`fill-opacity:${s.opacity}`}
+      >
+        <title>{`${s.date} ${s.label}: ${s.v.toFixed(1)}%`}</title>
+      </rect>
+    ))}
+
+    <rect class="alt-chart__frame" x={PLOT.X0} y={PLOT.Y0} width={PLOT.W} height={PLOT.H} />
+
+    {/* Highlight latest above-3% share with red dot at top-of-bar */}
+    {typeof latestAbove3 === "number" && (
+      <circle class="alt-chart__latest-dot" cx={xScale(decYear(latestDate)).toFixed(2)} cy={yScale(100).toFixed(2)} r="4">
+        <title>{`Latest BOS ${latestDate}: ${latestAbove3.toFixed(1)}% of firms expect inflation above 3%`}</title>
+      </circle>
+    )}
+
+    {xTicks.map((t) => (
+      <g>
+        <line class="alt-chart__xtick" x1={t.x.toFixed(2)} y1={PLOT.Y1.toFixed(2)} x2={t.x.toFixed(2)} y2={(PLOT.Y1 + 4).toFixed(2)} />
+        <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(PLOT.Y1 + 18).toFixed(2)} text-anchor="middle">{t.label}</text>
+      </g>
+    ))}
+
+    {yTicks.map((v, i) => {
+      const yy = yScale(v);
+      const isTop = i === yTicks.length - 1;
+      const txt = isTop ? `${v}%` : `${v}`;
+      return <text class="alt-chart__ytick-label" x={(PLOT.X0 - 8).toFixed(2)} y={(yy + 4).toFixed(2)} text-anchor="end">{txt}</text>;
+    })}
+
+    <text class="alt-chart__direct-label" x={(PLOT.X1 + 10).toFixed(2)} y={(yScale(100) + 4).toFixed(2)} text-anchor="start">Above 3%</text>
+  </svg>
+</div>
+
+<AltChartStyle />

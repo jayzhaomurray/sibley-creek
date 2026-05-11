@@ -1,0 +1,192 @@
+---
+/*
+ * AltLineChart - canon-compliant single/dual-series line chart for use by
+ * chart alternatives. Mirrors PanelLiveChart's geometry exactly but takes
+ * raw series in the AltPoint shape and allows per-instance config of unit
+ * suffix, reference rule, and tick decimal precision.
+ *
+ * This is the workhorse renderer for ~70% of alternatives.
+ */
+
+import { decYear, VB, PLOT, pickStride, fmtTick, yearTicksFromX, type AltPoint } from "./altUtils";
+
+interface Props {
+  primary: AltPoint[];
+  secondary?: AltPoint[];
+  tertiary?: AltPoint[];
+  primaryLabel: string;
+  secondaryLabel?: string;
+  tertiaryLabel?: string;
+  unitSuffix?: string;            // "%", "B", "" etc on topmost y-tick
+  yDecimals?: number;
+  referenceValue?: number | null;
+  referenceLabel?: string | null;
+  ariaLabel: string;
+  windowMonths?: number;          // tail
+  showZero?: boolean;
+}
+
+const {
+  primary,
+  secondary,
+  tertiary,
+  primaryLabel,
+  secondaryLabel,
+  tertiaryLabel,
+  unitSuffix = "",
+  yDecimals = 1,
+  referenceValue = null,
+  referenceLabel = null,
+  ariaLabel,
+  windowMonths,
+  showZero = true,
+} = Astro.props as Props;
+
+function tailMonths<T extends AltPoint>(s: T[], n: number | undefined): T[] {
+  if (!n || s.length <= n) return s;
+  return s.slice(s.length - n);
+}
+
+const prim = tailMonths(primary, windowMonths);
+const sec = secondary ? tailMonths(secondary, windowMonths) : [];
+const ter = tertiary ? tailMonths(tertiary, windowMonths) : [];
+
+const allValues: number[] = [];
+for (const p of prim) if (typeof p.value === "number") allValues.push(p.value);
+for (const p of sec) if (typeof p.value === "number") allValues.push(p.value);
+for (const p of ter) if (typeof p.value === "number") allValues.push(p.value);
+
+let yLo = 0, yHi = 1;
+if (allValues.length > 0) {
+  let raw_lo = Math.min(...allValues);
+  let raw_hi = Math.max(...allValues);
+  if (referenceValue !== null) {
+    raw_lo = Math.min(raw_lo, referenceValue);
+    raw_hi = Math.max(raw_hi, referenceValue);
+  }
+  const span = raw_hi - raw_lo || Math.max(1, Math.abs(raw_hi) * 0.1);
+  yLo = raw_lo - span * 0.10;
+  yHi = raw_hi + span * 0.10;
+}
+
+const xs: number[] = [];
+for (const p of prim) { const x = decYear(p.date); if (!Number.isNaN(x)) xs.push(x); }
+for (const p of sec) { const x = decYear(p.date); if (!Number.isNaN(x)) xs.push(x); }
+for (const p of ter) { const x = decYear(p.date); if (!Number.isNaN(x)) xs.push(x); }
+const xMin = xs.length ? Math.min(...xs) : 0;
+const xMax = xs.length ? Math.max(...xs) : 1;
+
+const xScale = (yr: number) => PLOT.X0 + ((yr - xMin) / (xMax - xMin || 1)) * PLOT.W;
+const yScale = (v: number) => PLOT.Y0 + PLOT.H - ((v - yLo) / (yHi - yLo || 1)) * PLOT.H;
+
+function buildPath(series: AltPoint[]): string {
+  let d = "", started = false;
+  for (const p of series) {
+    if (typeof p.value !== "number" || Number.isNaN(p.value)) { started = false; continue; }
+    const xv = decYear(p.date);
+    if (Number.isNaN(xv)) continue;
+    d += `${started ? "L" : "M"}${xScale(xv).toFixed(2)} ${yScale(p.value).toFixed(2)} `;
+    started = true;
+  }
+  return d.trim();
+}
+
+const primPath = buildPath(prim);
+const secPath = buildPath(sec);
+const terPath = buildPath(ter);
+
+function lastReal(s: AltPoint[]): { x: number; y: number; v: number; date: string } | null {
+  for (let i = s.length - 1; i >= 0; i--) {
+    const pt = s[i]!;
+    if (typeof pt.value === "number" && !Number.isNaN(pt.value)) {
+      return { x: xScale(decYear(pt.date)), y: yScale(pt.value), v: pt.value, date: pt.date };
+    }
+  }
+  return null;
+}
+const lastP = lastReal(prim);
+const lastS = lastReal(sec);
+const lastT = lastReal(ter);
+
+const yStride = pickStride(yLo, yHi);
+const yTicks: number[] = [];
+const startY = Math.ceil(yLo / yStride) * yStride;
+for (let v = startY; v <= yHi + 1e-9; v += yStride) yTicks.push(Number(v.toFixed(6)));
+if (yTicks.length === 0) yTicks.push((yLo + yHi) / 2);
+
+const xTicks = yearTicksFromX(xMin, xMax, xScale);
+const crossesZero = showZero && yLo < 0 && yHi > 0;
+const showRef = referenceValue !== null && referenceValue >= yLo && referenceValue <= yHi;
+const refY = showRef ? yScale(referenceValue!) : null;
+
+// Stack secondary label if too close to primary
+let primLabelY = lastP ? lastP.y + 4 : 0;
+let secLabelY = lastS ? lastS.y + 4 : 0;
+let terLabelY = lastT ? lastT.y + 4 : 0;
+if (lastP && lastS && Math.abs(primLabelY - secLabelY) < 12) {
+  secLabelY = primLabelY + (secLabelY >= primLabelY ? 14 : -14);
+}
+if (lastP && lastT && Math.abs(primLabelY - terLabelY) < 12) {
+  terLabelY = primLabelY + (terLabelY >= primLabelY ? 14 : -14);
+}
+if (lastS && lastT && Math.abs(secLabelY - terLabelY) < 12) {
+  terLabelY = secLabelY + 14;
+}
+---
+
+<svg
+  class="alt-chart__svg"
+  viewBox={`0 0 ${VB.W} ${VB.H}`}
+  preserveAspectRatio="xMidYMid meet"
+  role="img"
+  aria-label={ariaLabel}
+>
+  {yTicks.map((v) => {
+    const yy = yScale(v);
+    if (crossesZero && Math.abs(v) < 1e-9) return null;
+    return <line class="alt-chart__gridline" x1={PLOT.X0} y1={yy.toFixed(2)} x2={PLOT.X1} y2={yy.toFixed(2)} />;
+  })}
+
+  {crossesZero && (
+    <line class="alt-chart__zero-line" x1={PLOT.X0} y1={yScale(0).toFixed(2)} x2={PLOT.X1} y2={yScale(0).toFixed(2)} />
+  )}
+
+  {showRef && refY !== null && (
+    <g>
+      <line class="alt-chart__reference-rule" x1={PLOT.X0} y1={refY.toFixed(2)} x2={PLOT.X1} y2={refY.toFixed(2)} />
+      {referenceLabel && <text class="alt-chart__reference-label" x={(PLOT.X1 - 6).toFixed(2)} y={(refY - 5).toFixed(2)} text-anchor="end">{referenceLabel}</text>}
+    </g>
+  )}
+
+  {terPath && <path class="alt-chart__line-tertiary" d={terPath} fill="none" />}
+  {secPath && <path class="alt-chart__line-secondary" d={secPath} fill="none" />}
+  {primPath && <path class="alt-chart__line" d={primPath} fill="none" />}
+
+  {lastP && (
+    <circle class="alt-chart__latest-dot" cx={lastP.x.toFixed(2)} cy={lastP.y.toFixed(2)} r="4">
+      <title>{`Latest: ${lastP.date}: ${lastP.v.toFixed(yDecimals)}${unitSuffix}`}</title>
+    </circle>
+  )}
+
+  <rect class="alt-chart__frame" x={PLOT.X0} y={PLOT.Y0} width={PLOT.W} height={PLOT.H} />
+
+  {xTicks.map((t) => (
+    <g>
+      <line class="alt-chart__xtick" x1={t.x.toFixed(2)} y1={PLOT.Y1.toFixed(2)} x2={t.x.toFixed(2)} y2={(PLOT.Y1 + 4).toFixed(2)} />
+      <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(PLOT.Y1 + 18).toFixed(2)} text-anchor="middle">{t.label}</text>
+    </g>
+  ))}
+
+  {yTicks.map((v, i) => {
+    const yy = yScale(v);
+    const isTop = i === yTicks.length - 1;
+    const sign = v > 0 ? "+" : v < 0 ? "" : "";
+    const num = fmtTick(v, yDecimals);
+    const txt = isTop ? `${sign}${num}${unitSuffix}` : `${sign}${num}`;
+    return <text class="alt-chart__ytick-label" x={(PLOT.X0 - 8).toFixed(2)} y={(yy + 4).toFixed(2)} text-anchor="end">{txt}</text>;
+  })}
+
+  {lastP && <text class="alt-chart__direct-label" x={(lastP.x + 10).toFixed(2)} y={primLabelY.toFixed(2)} text-anchor="start">{primaryLabel}</text>}
+  {lastS && secondaryLabel && <text class="alt-chart__direct-label-secondary" x={(lastS.x + 10).toFixed(2)} y={secLabelY.toFixed(2)} text-anchor="start">{secondaryLabel}</text>}
+  {lastT && tertiaryLabel && <text class="alt-chart__direct-label-secondary" x={(lastT.x + 10).toFixed(2)} y={terLabelY.toFixed(2)} text-anchor="start">{tertiaryLabel}</text>}
+</svg>

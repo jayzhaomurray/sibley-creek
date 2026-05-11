@@ -1,0 +1,73 @@
+---
+/*
+ * Panel3PartnerSharesV2 - editorial audit 2026-05-11 item #2.
+ *
+ * Original (Panel3PartnerShares.astro) renders two raw export levels
+ * (US + total). The editorial argument is the structural-shift narrative -
+ * the rolling US share trajectory. V2 derives:
+ *
+ *   us_share[t] = (trade_exports_us[t] / trade_exports_total[t]) * 100
+ *
+ * Single % line. Unit = "%". Frequency monthly. The pipeline emits both
+ * underlying series in CAD millions on the same monthly grid; we align by
+ * date and emit a single derived PanelSeries to PanelLiveChart.
+ */
+
+import type { PanelData, PanelSeries, SeriesPoint } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// Build the derived US-share series when both source series are present.
+let derived: PanelSeries | null = null;
+if (data && data.primary && data.secondary) {
+  const total = data.primary.data;
+  const us = data.secondary.data;
+  // Index US series by date for an O(N) join.
+  const usByDate = new Map<string, number | null>();
+  for (const p of us) usByDate.set(p.date, p.value);
+  const shareData: SeriesPoint[] = [];
+  for (const p of total) {
+    const usV = usByDate.get(p.date);
+    const totalV = p.value;
+    if (
+      typeof usV !== "number" ||
+      typeof totalV !== "number" ||
+      Number.isNaN(usV) ||
+      Number.isNaN(totalV) ||
+      totalV === 0
+    ) {
+      shareData.push({ date: p.date, value: null });
+    } else {
+      shareData.push({ date: p.date, value: (usV / totalV) * 100 });
+    }
+  }
+  derived = {
+    key: "us_share_of_exports",
+    label: "US share",
+    data: shareData,
+    unit: "%",
+    kind: "percent",
+    frequency: data.primary.frequency ?? "monthly",
+    asOfISO: data.primary.asOfISO ?? null,
+    source: data.primary.source ?? null,
+    sourceUrl: data.primary.sourceUrl ?? null,
+    sourceId: data.primary.sourceId ?? null,
+  };
+}
+---
+{derived ? (
+  <PanelLiveChart
+    primary={derived}
+    primaryLabel="US share"
+    dataPanelAttr="trade-3-v2"
+    ariaLabel="US share of total Canadian merchandise exports, % of total."
+  />
+) : (
+  <PanelEmpty reason="US-share derivation requires both export series." />
+)}

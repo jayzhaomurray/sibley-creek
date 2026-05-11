@@ -1,0 +1,37 @@
+---
+/*
+ * Alt3_WcsDiscount - WTI minus WCS as a single line.
+ *
+ * What's different. The WCS-WTI differential is the chart that tells you
+ * what Alberta producers actually receive at the wellhead vs the global
+ * benchmark. Wide differential means pipeline constraints; tight means
+ * relief. Production has no differential view.
+ *
+ * Why it might be better. One line, one declarative statement. The
+ * differential drives Canadian energy capex and federal royalties.
+ *
+ * Data. wti.csv minus wcs.csv on aligned dates.
+ */
+
+import { readCsv, diff } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const wti = readCsv("wti.csv");
+const wcs = readCsv("wcs.csv");
+const discount = diff(wti, wcs);
+
+const N = 84;
+---
+
+<div class="alt-chart" data-panel="alt-markets-3">
+  <AltLineChart
+    primary={discount.slice(-N)}
+    primaryLabel="WTI-WCS"
+    unitSuffix=" USD"
+    yDecimals={1}
+    ariaLabel="WTI minus WCS oil-price differential, monthly, last seven years."
+  />
+</div>
+
+<AltChartStyle />

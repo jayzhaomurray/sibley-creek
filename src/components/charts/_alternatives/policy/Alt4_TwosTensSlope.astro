@@ -1,0 +1,39 @@
+---
+/*
+ * Alt4_TwosTensSlope - 10y minus 2y GoC slope, with zero line.
+ *
+ * What's different. Recession signal. Production has no slope chart. A
+ * single-line zero-crossing chart of 10y-2y reads as one declarative
+ * statement: "curve is inverted by X bp" / "curve is steepening into X bp."
+ *
+ * Why it might be better. The 2s10s slope is the canonical recession
+ * indicator. Plotting the two yields separately (Alt 3) shows level; the
+ * slope chart shows the diagnostic.
+ *
+ * Data. yield_10yr.csv minus yield_2yr.csv on aligned dates.
+ */
+
+import { readCsv, diff } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const y2 = readCsv("yield_2yr.csv");
+const y10 = readCsv("yield_10yr.csv");
+const slope = diff(y10, y2);
+
+const N = 1300; // ~5y daily
+---
+
+<div class="alt-chart" data-panel="alt-policy-4">
+  <AltLineChart
+    primary={slope.slice(-N)}
+    primaryLabel="10y-2y"
+    unitSuffix="pp"
+    yDecimals={2}
+    referenceValue={0}
+    referenceLabel="Inversion"
+    ariaLabel="GoC 10-year minus 2-year slope, daily, last five years."
+  />
+</div>
+
+<AltChartStyle />

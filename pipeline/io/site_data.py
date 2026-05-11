@@ -371,16 +371,20 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
         SupportingPrintSpec(
             key="gdp-percap-yoy",
             indicator="Per-capita GDP, y/y",
-            primary_series="gdp_per_capita_yoy",  # MISSING (needs pop_total)
+            primary_series="gdp_per_capita_yoy",
             primary_dir="processed",
             unit_display="%",
             value_decimals=1,
             delta_decimals=1,
             delta_unit="pp",
             delta_kind="pp",
-            as_of_format="month-year",
+            as_of_format="quarter",
             transform=None,
-            notes="TK: needs Canada-total quarterly population (pop_total). Not in boc-tracker; backend follow-up will add via StatCan Table 17-10-0009-01.",
+            notes=(
+                "Quarterly real GDP per capita, Y/Y % change. Derived in "
+                "pipeline.build.derive_gdp_per_capita_yoy from gdp_quarterly "
+                "(v62305752) divided by pop_total (v1, Table 17-10-0009-01)."
+            ),
         ),
         SupportingPrintSpec(
             key="output-gap",

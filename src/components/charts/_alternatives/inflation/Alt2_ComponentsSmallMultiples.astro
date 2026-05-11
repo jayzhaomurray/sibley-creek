@@ -1,0 +1,114 @@
+---
+/*
+ * Alt2_ComponentsSmallMultiples - four CPI component lines as a 2x2 grid.
+ *
+ * What's different. Production Panel 4 renders shelter alone. This shows
+ * four components (shelter, food, energy, services-ex-shelter approx) in
+ * a 2x2 grid of small multiples, each indexed to 2019 baseline = 100, so
+ * the reader can compare cumulative price levels across categories.
+ *
+ * Why it might be better. The level comparison (food up 35%, shelter up
+ * 28%, etc.) is the editorial story Bay Street wants. Y/Y momentum lines
+ * lose the cumulative read.
+ *
+ * Data. cpi_shelter.csv, cpi_food.csv, cpi_energy.csv, cpi_services.csv.
+ */
+
+import { readCsv, decYear, indexAt, VB, pickStride, fmtTick, yearTicksFromX, tail, type AltPoint } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+
+interface Panel { key: string; label: string; data: AltPoint[]; }
+
+const panels: Panel[] = [
+  { key: "shelter", label: "SHELTER", data: indexAt(readCsv("cpi_shelter.csv"), "2019-01-01") },
+  { key: "food", label: "FOOD", data: indexAt(readCsv("cpi_food.csv"), "2019-01-01") },
+  { key: "energy", label: "ENERGY", data: indexAt(readCsv("cpi_energy.csv"), "2019-01-01") },
+  { key: "services", label: "SERVICES", data: indexAt(readCsv("cpi_services.csv"), "2019-01-01") },
+];
+
+const N = 84; // 7y window
+const trimmed = panels.map((p) => ({ ...p, data: tail(p.data, N) }));
+
+// Shared y-domain
+let yLo = Infinity, yHi = -Infinity;
+for (const p of trimmed) for (const pt of p.data) if (typeof pt.value === "number") { if (pt.value < yLo) yLo = pt.value; if (pt.value > yHi) yHi = pt.value; }
+if (!Number.isFinite(yLo)) { yLo = 90; yHi = 150; }
+const span = yHi - yLo || 1;
+yLo -= span * 0.08;
+yHi += span * 0.08;
+
+// Shared x-domain
+const allX: number[] = [];
+for (const p of trimmed) for (const pt of p.data) { const x = decYear(pt.date); if (!Number.isNaN(x)) allX.push(x); }
+const xMin = Math.min(...allX);
+const xMax = Math.max(...allX);
+
+// 2x2 layout inside 720x405
+const M_L = 56, M_R = 24, M_T = 36, M_B = 32;
+const GAP_X = 36, GAP_Y = 30;
+const cellW = (VB.W - M_L - M_R - GAP_X) / 2;
+const cellH = (VB.H - M_T - M_B - GAP_Y) / 2;
+
+const yStride = pickStride(yLo, yHi);
+const yTicks: number[] = [];
+const startY = Math.ceil(yLo / yStride) * yStride;
+for (let v = startY; v <= yHi + 1e-9; v += yStride) yTicks.push(Number(v.toFixed(1)));
+---
+
+<div class="alt-chart" data-panel="alt-inflation-2">
+  <svg
+    class="alt-chart__svg"
+    viewBox={`0 0 ${VB.W} ${VB.H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label="CPI components, four small multiples indexed to January 2019 = 100."
+  >
+    {trimmed.map((panel, idx) => {
+      const col = idx % 2;
+      const row = Math.floor(idx / 2);
+      const x0 = M_L + col * (cellW + GAP_X);
+      const y0 = M_T + row * (cellH + GAP_Y);
+      const x1 = x0 + cellW;
+      const y1 = y0 + cellH;
+      const xScale = (yr: number) => x0 + ((yr - xMin) / (xMax - xMin || 1)) * cellW;
+      const yScale = (v: number) => y0 + cellH - ((v - yLo) / (yHi - yLo)) * cellH;
+      let path = "", started = false;
+      for (const pt of panel.data) {
+        if (typeof pt.value !== "number") { started = false; continue; }
+        const xv = decYear(pt.date);
+        if (Number.isNaN(xv)) continue;
+        path += `${started ? "L" : "M"}${xScale(xv).toFixed(2)} ${yScale(pt.value).toFixed(2)} `;
+        started = true;
+      }
+      const last = [...panel.data].reverse().find((p) => typeof p.value === "number");
+      const xTicks = yearTicksFromX(xMin, xMax, xScale).filter((_, i) => i % 2 === 0); // sparser
+      return (
+        <g>
+          {yTicks.map((v) => {
+            const yy = yScale(v);
+            return <line class="alt-chart__gridline" x1={x0} y1={yy.toFixed(2)} x2={x1} y2={yy.toFixed(2)} />;
+          })}
+          <line class="alt-chart__reference-rule" x1={x0} y1={yScale(100).toFixed(2)} x2={x1} y2={yScale(100).toFixed(2)} />
+          <path class="alt-chart__line" d={path} fill="none" />
+          {last && (
+            <circle class="alt-chart__latest-dot" cx={xScale(decYear(last.date)).toFixed(2)} cy={yScale(last.value as number).toFixed(2)} r="3.5">
+              <title>{`${panel.label} ${last.date}: ${(last.value as number).toFixed(1)}`}</title>
+            </circle>
+          )}
+          <rect class="alt-chart__frame" x={x0} y={y0} width={cellW} height={cellH} />
+          <text class="alt-chart__small-multiple-title" x={x0} y={y0 - 8}>{panel.label}</text>
+          {xTicks.map((t) => (
+            <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(y1 + 14).toFixed(2)} text-anchor="middle">{t.label}</text>
+          ))}
+          {row === 0 && col === 0 && yTicks.map((v, i) => {
+            const yy = yScale(v);
+            const isTop = i === yTicks.length - 1;
+            return <text class="alt-chart__ytick-label" x={(x0 - 8).toFixed(2)} y={(yy + 4).toFixed(2)} text-anchor="end">{isTop ? `${fmtTick(v, 0)} idx` : fmtTick(v, 0)}</text>;
+          })}
+        </g>
+      );
+    })}
+  </svg>
+</div>
+
+<AltChartStyle />

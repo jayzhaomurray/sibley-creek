@@ -669,6 +669,42 @@ need a Big-Six intermediary to describe a BoC surprise:
 
 ---
 
+## 8b. Ordering rule for splash-page blurb passes
+
+When a blurb pass writes the splash page (the hero abstract paragraph
+plus the seven section blurbs), **the hero abstract is the LAST piece
+written, not the first.** The seven section blurbs are authored first;
+the hero abstract is then synthesized from them.
+
+**Why.** The hero abstract is a publication-frontmatter paragraph that
+names the state of the Canadian cycle. The cycle reads as the
+aggregate of what each section is saying that day. Writing the hero
+first means guessing at the cycle-level read before the section reads
+are pinned. Writing it last means the hero can pull the most
+load-bearing fact from each section blurb and stitch a single coherent
+cycle paragraph from real, vetted section-level reads.
+
+**Practical sequence for a writer / pipeline dispatch:**
+
+1. Author all seven section blurbs against pipeline data. Vet each.
+2. Once the seven are stable, read them as a set and identify the
+   load-bearing cycle theme (loosening? tightening? mixed? where is
+   the headline tension?).
+3. Author the hero abstract drawing from the section blurbs' actual
+   facts. Do not introduce a new claim in the hero that isn't
+   surfaced or implied by at least one section blurb beneath it.
+
+A hero abstract that contradicts the section blurbs below is a bug;
+the ordering rule prevents it. If a writer finds themselves unable to
+write the hero because the sections "don't agree," that's diagnostic
+information — write what's true about the disagreement.
+
+This rule applies to both Mode 2 automated and human-led blurb passes.
+The auto-blurb pipeline (when it runs autonomously on release days)
+must order its dispatches accordingly: section-level blurb generation
+fires per-section on each release, but the hero-abstract regeneration
+is gated on having ALL seven current-cycle section blurbs in hand.
+
 ## 9. Working notes for style-editor
 
 A short list of edits I make most often, recorded here so the

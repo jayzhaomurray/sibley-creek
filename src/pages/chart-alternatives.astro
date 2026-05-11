@@ -1,0 +1,554 @@
+---
+/*
+ * chart-alternatives - chart-builder review page.
+ *
+ * Not linked from production navigation. URL-accessed only:
+ *   /chart-alternatives
+ *
+ * Renders all alternative chart treatments authored under
+ * src/components/charts/_alternatives/<section>/Alt*.astro, grouped by
+ * section, in a vertical scroll. Each chart sits in a frame matching the
+ * chartbook-unit visual register so the reader can evaluate it in the
+ * same surround a production plate would have.
+ *
+ * The user reads this page, picks the alternatives they want to keep,
+ * and the rest get deleted in a follow-up sweep.
+ */
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+// GDP
+import GdpAlt1 from "../components/charts/_alternatives/gdp/Alt1_ContributionsStacked.astro";
+import GdpAlt2 from "../components/charts/_alternatives/gdp/Alt2_PerCapitaVsTotal.astro";
+import GdpAlt3 from "../components/charts/_alternatives/gdp/Alt3_IndustryHeatmap.astro";
+import GdpAlt4 from "../components/charts/_alternatives/gdp/Alt4_GdpVsCapacity.astro";
+
+// Inflation
+import InfAlt1 from "../components/charts/_alternatives/inflation/Alt1_CoreOverlay.astro";
+import InfAlt2 from "../components/charts/_alternatives/inflation/Alt2_ComponentsSmallMultiples.astro";
+import InfAlt3 from "../components/charts/_alternatives/inflation/Alt3_BosBreadthStack.astro";
+import InfAlt4 from "../components/charts/_alternatives/inflation/Alt4_HeadlineMinusCore.astro";
+
+// Labour
+import LabAlt1 from "../components/charts/_alternatives/labour/Alt1_TripleLabourSeries.astro";
+import LabAlt2 from "../components/charts/_alternatives/labour/Alt2_YouthVsPrime.astro";
+import LabAlt3 from "../components/charts/_alternatives/labour/Alt3_WageGrowthYoY.astro";
+import LabAlt4 from "../components/charts/_alternatives/labour/Alt4_VacanciesVsEI.astro";
+
+// Policy
+import PolAlt1 from "../components/charts/_alternatives/policy/Alt1_BocFedSpread.astro";
+import PolAlt2 from "../components/charts/_alternatives/policy/Alt2_BalanceSheetOverlay.astro";
+import PolAlt3 from "../components/charts/_alternatives/policy/Alt3_YieldCurveTriple.astro";
+import PolAlt4 from "../components/charts/_alternatives/policy/Alt4_TwosTensSlope.astro";
+
+// Markets
+import MktAlt1 from "../components/charts/_alternatives/markets/Alt1_GoCUstSpread.astro";
+import MktAlt2 from "../components/charts/_alternatives/markets/Alt2_OilTriple.astro";
+import MktAlt3 from "../components/charts/_alternatives/markets/Alt3_WcsDiscount.astro";
+import MktAlt4 from "../components/charts/_alternatives/markets/Alt4_UsdCadVsBocFed.astro";
+
+// Trade
+import TrdAlt1 from "../components/charts/_alternatives/trade/Alt1_ExportsImports.astro";
+import TrdAlt2 from "../components/charts/_alternatives/trade/Alt2_UsExportShare.astro";
+import TrdAlt3 from "../components/charts/_alternatives/trade/Alt3_BalanceSmoothing.astro";
+import TrdAlt4 from "../components/charts/_alternatives/trade/Alt4_TermsTradeVsWti.astro";
+
+// Housing
+import HsgAlt1 from "../components/charts/_alternatives/housing/Alt1_HpiMultiCity.astro";
+import HsgAlt2 from "../components/charts/_alternatives/housing/Alt2_StartsSmoothing.astro";
+import HsgAlt3 from "../components/charts/_alternatives/housing/Alt3_MortgageVsHpi.astro";
+import HsgAlt4 from "../components/charts/_alternatives/housing/Alt4_SnlrVsHpi.astro";
+
+interface AltSpec {
+  file: string;
+  title: string;
+  whatDifferent: string;
+  whyBetter: string;
+  dataFields: string;
+  Component: any;
+}
+
+interface SectionSpec {
+  slug: string;
+  name: string;
+  alts: AltSpec[];
+}
+
+const sections: SectionSpec[] = [
+  {
+    slug: "gdp",
+    name: "GDP",
+    alts: [
+      {
+        file: "gdp/Alt1_ContributionsStacked.astro",
+        title: "Contributions stacked",
+        whatDifferent: "Stacked vertical bars by component (consumption, govt, investment, exports, imports, inventories) per quarter, with total-contrib overlay line.",
+        whyBetter: "Production Panel 3 falls back to PanelEmpty; this resurrects the per-component story from raw CSVs.",
+        dataFields: "gdp_contrib_{consumption,govt,investment,exports,imports,inventories}.csv + gdp_total_contribution.csv",
+        Component: GdpAlt1,
+      },
+      {
+        file: "gdp/Alt2_PerCapitaVsTotal.astro",
+        title: "Total vs per-capita GDP, side-by-side",
+        whatDifferent: "Small multiples: total real GDP path and per-capita path indexed to 2019Q4 = 100. Same y-axis for visual comparability.",
+        whyBetter: "The population-padded-GDP critique is the dominant 2020s Canadian macro story; small-multiple makes it impossible to miss.",
+        dataFields: "gdp_quarterly.csv + pop_immigrants.csv + pop_net_npr.csv",
+        Component: GdpAlt2,
+      },
+      {
+        file: "gdp/Alt3_IndustryHeatmap.astro",
+        title: "Industry Y/Y heatmap",
+        whatDifferent: "Four industry Y/Y growth rates as stacked diverging bar rows: goods, services, manufacturing, mining/oil. Ink opacity encodes magnitude.",
+        whyBetter: "Cycle dispersion across industries is invisible in a single-industry line; this puts dispersion in the foreground.",
+        dataFields: "gdp_industry_{goods,services,manufacturing,mining_oil}.csv",
+        Component: GdpAlt3,
+      },
+      {
+        file: "gdp/Alt4_GdpVsCapacity.astro",
+        title: "GDP Y/Y with capacity utilization overlay",
+        whatDifferent: "GDP Y/Y primary line, total capacity utilization secondary dashed line, both quarterly.",
+        whyBetter: "Capacity util alone is a level; paired with GDP Y/Y it tells the cycle-pressure story.",
+        dataFields: "gdp_quarterly.csv (Y/Y derived) + capacity_util_total.csv",
+        Component: GdpAlt4,
+      },
+    ],
+  },
+  {
+    slug: "inflation",
+    name: "Inflation",
+    alts: [
+      {
+        file: "inflation/Alt1_CoreOverlay.astro",
+        title: "Three core measures overlay",
+        whatDifferent: "Trim (primary solid), median (secondary dashed), common (tertiary sparse-dashed) on shared % axis with 2% target reference.",
+        whyBetter: "Production Panel 2 carries trim + median; adding common shows the dispersion across BoC core measures, which IS the editorial signal at turning points.",
+        dataFields: "cpi_trim.csv + cpi_median.csv + cpi_common.csv",
+        Component: InfAlt1,
+      },
+      {
+        file: "inflation/Alt2_ComponentsSmallMultiples.astro",
+        title: "CPI components 2x2 small multiples",
+        whatDifferent: "Four indexed-to-2019 component price levels in a 2x2 grid: shelter, food, energy, services. Each has its own frame and direct dot.",
+        whyBetter: "Cumulative price-level read (food up 35%, shelter up 28%) is what the reader actually wants from a components view; Y/Y momentum lines lose the cumulative read.",
+        dataFields: "cpi_shelter.csv, cpi_food.csv, cpi_energy.csv, cpi_services.csv",
+        Component: InfAlt2,
+      },
+      {
+        file: "inflation/Alt3_BosBreadthStack.astro",
+        title: "BOS breadth distribution stacked",
+        whatDifferent: "100%-stacked bars per BOS round: below-1% / 1-2% / 2-3% / above-3% buckets. Ink opacity tracks distance from target; above-3% reads heaviest.",
+        whyBetter: "Distribution beats average. Business price-setters drive realized inflation; their breadth leads CPI by quarters.",
+        dataFields: "bos_dist_below1.csv + bos_dist_1to2.csv + bos_dist_2to3.csv + bos_dist_above3.csv",
+        Component: InfAlt3,
+      },
+      {
+        file: "inflation/Alt4_HeadlineMinusCore.astro",
+        title: "Headline minus core-trim gap",
+        whatDifferent: "Single zero-crossing line: headline Y/Y minus trim Y/Y. The food/energy noise vs underlying trend diagnostic.",
+        whyBetter: "One line, one declarative statement. The chart a fixed-income desk reads first.",
+        dataFields: "cpi_all_items.csv (Y/Y derived) - cpi_trim.csv",
+        Component: InfAlt4,
+      },
+    ],
+  },
+  {
+    slug: "labour",
+    name: "Labour",
+    alts: [
+      {
+        file: "labour/Alt1_TripleLabourSeries.astro",
+        title: "Unemp + emp rate + participation triple",
+        whatDifferent: "Three LFS series overlaid: unrate primary solid, emprate secondary dashed-4-2, participation tertiary sparse-dashed-2-3. Pure ink throughout.",
+        whyBetter: "The three together tell the full LFS story; participation movement explains how unrate and emprate can move in the same direction.",
+        dataFields: "unemployment_rate.csv + employment_rate.csv + participation_rate.csv",
+        Component: LabAlt1,
+      },
+      {
+        file: "labour/Alt2_YouthVsPrime.astro",
+        title: "Youth vs prime-age unemployment",
+        whatDifferent: "Youth (15-24) primary line over prime-age (25-54) secondary dashed line. Gap is the cyclical-vs-structural decomposition.",
+        whyBetter: "Youth unrate is a leading indicator of cycle deterioration; the pair makes turning points legible six months earlier than headline.",
+        dataFields: "youth_unemployment_rate.csv + prime_age_unemployment_rate.csv",
+        Component: LabAlt2,
+      },
+      {
+        file: "labour/Alt3_WageGrowthYoY.astro",
+        title: "LFS vs SEPH wage growth Y/Y",
+        whatDifferent: "Both series in Y/Y growth (not levels), with 3% trend reference. LFS leads, SEPH is the payroll truth.",
+        whyBetter: "Wage Y/Y is the metric BoC watches; production Panel 3 shows levels which obscure the cycle.",
+        dataFields: "lfs_wages_all.csv (Y/Y) + seph_earnings.csv (Y/Y)",
+        Component: LabAlt3,
+      },
+      {
+        file: "labour/Alt4_VacanciesVsEI.astro",
+        title: "Vacancies vs EI claims, both indexed",
+        whatDifferent: "Both indexed to Jan 2019 = 100 so they share a unitless axis. Vacancies-up + EI-up = mismatch; vacancies-down + EI-up = recession.",
+        whyBetter: "The two-sided cycle read (demand and dislocation) is invisible from either chart alone.",
+        dataFields: "job_vacancy_rate.csv + ei_regular_beneficiaries.csv, both indexed",
+        Component: LabAlt4,
+      },
+    ],
+  },
+  {
+    slug: "policy",
+    name: "Policy",
+    alts: [
+      {
+        file: "policy/Alt1_BocFedSpread.astro",
+        title: "BoC overnight minus Fed funds",
+        whatDifferent: "Spread as a single zero-crossing line. Front-end policy divergence chart.",
+        whyBetter: "The spread, not the level, drives USDCAD and the front-end basis. Production Panel 1 plots BoC alone.",
+        dataFields: "overnight_rate.csv - fed_funds.csv",
+        Component: PolAlt1,
+      },
+      {
+        file: "policy/Alt2_BalanceSheetOverlay.astro",
+        title: "BoC total assets and settlement balances, side-by-side",
+        whatDifferent: "Small multiples: total assets path and settlement balances path each in their own frame.",
+        whyBetter: "Compressed-on-one-axis dual overlay is misleading; the two move on related but different mechanisms.",
+        dataFields: "boc_total_assets.csv + boc_settlement_balances.csv",
+        Component: PolAlt2,
+      },
+      {
+        file: "policy/Alt3_YieldCurveTriple.astro",
+        title: "GoC 2y / 5y / 10y overlay",
+        whatDifferent: "Three yield curves on shared % axis: 2y primary, 5y secondary dashed, 10y tertiary sparse-dashed. The morning desk read.",
+        whyBetter: "Curve shape and parallel shifts both visible. Production Panel 2 pairs 2y with overnight only.",
+        dataFields: "yield_2yr.csv + yield_5yr.csv + yield_10yr.csv",
+        Component: PolAlt3,
+      },
+      {
+        file: "policy/Alt4_TwosTensSlope.astro",
+        title: "GoC 2s10s slope",
+        whatDifferent: "10y minus 2y as a single line with zero (inversion) line. The canonical recession-signal chart.",
+        whyBetter: "Slope IS the diagnostic; level chart (Alt 3) shows context, this chart tells the story.",
+        dataFields: "yield_10yr.csv - yield_2yr.csv",
+        Component: PolAlt4,
+      },
+    ],
+  },
+  {
+    slug: "markets",
+    name: "Markets",
+    alts: [
+      {
+        file: "markets/Alt1_GoCUstSpread.astro",
+        title: "GoC 2y minus UST 2y",
+        whatDifferent: "Front-end basis to US. Single zero-crossing line.",
+        whyBetter: "Bay Street trades the basis, not the rate. Negative basis = Canada-rich; widening = policy divergence.",
+        dataFields: "yield_2yr.csv - us_2yr.csv",
+        Component: MktAlt1,
+      },
+      {
+        file: "markets/Alt2_OilTriple.astro",
+        title: "WTI + Brent + WCS triple",
+        whatDifferent: "Adds Western Canadian Select (heavy crude) to the WTI-Brent pair from production Panel 4.",
+        whyBetter: "WCS is the Canadian price; the WCS-WTI gap drives Alberta capex and federal royalties.",
+        dataFields: "wti.csv + brent.csv + wcs.csv",
+        Component: MktAlt2,
+      },
+      {
+        file: "markets/Alt3_WcsDiscount.astro",
+        title: "WCS-WTI differential",
+        whatDifferent: "Single line: WTI minus WCS. The Alberta wellhead-realization story.",
+        whyBetter: "Wide differential = pipeline constraints; tight = relief. One declarative line.",
+        dataFields: "wti.csv - wcs.csv",
+        Component: MktAlt3,
+      },
+      {
+        file: "markets/Alt4_UsdCadVsBocFed.astro",
+        title: "USDCAD vs GoC2-UST2, side-by-side",
+        whatDifferent: "Small multiples since units differ (price vs %). The policy-driven FX story in one visual scan.",
+        whyBetter: "The whole loonie story since 2022 is the BoC-Fed rate gap. Side-by-side avoids the dual-unit trap.",
+        dataFields: "usdcad.csv + (yield_2yr.csv - us_2yr.csv)",
+        Component: MktAlt4,
+      },
+    ],
+  },
+  {
+    slug: "trade",
+    name: "Trade",
+    alts: [
+      {
+        file: "trade/Alt1_ExportsImports.astro",
+        title: "Total exports + total imports overlay",
+        whatDifferent: "Both flows in CAD billions on shared axis; the visible gap is the trade balance.",
+        whyBetter: "Level of trade flows matters as much as the balance. Production Panel 1 carries the balance alone.",
+        dataFields: "trade_exports_total.csv + trade_imports_total.csv",
+        Component: TrdAlt1,
+      },
+      {
+        file: "trade/Alt2_UsExportShare.astro",
+        title: "US share of exports with 12mma",
+        whatDifferent: "Computed share US/Total with 12-month moving average overlay. The dependence chart.",
+        whyBetter: "The single most-cited Canadian fact ('75% to US') deserves its own chart.",
+        dataFields: "trade_exports_us.csv / trade_exports_total.csv",
+        Component: TrdAlt2,
+      },
+      {
+        file: "trade/Alt3_BalanceSmoothing.astro",
+        title: "Trade balance: 3mma + 12mma + monthly",
+        whatDifferent: "Three temporal scales on one chart: monthly noise, 3mma cycle, 12mma trend.",
+        whyBetter: "Trade prints are revision-noisy; three smoothings discipline the reader away from over-interpreting one month.",
+        dataFields: "trade_balance_total.csv with derived 3mma + 12mma",
+        Component: TrdAlt3,
+      },
+      {
+        file: "trade/Alt4_TermsTradeVsWti.astro",
+        title: "Terms of trade with WTI overlay",
+        whatDifferent: "Both indexed to 2017 = 100 on shared idx axis. Canadian terms-of-trade is essentially a leveraged bet on oil.",
+        whyBetter: "Production Panel 5 carries terms-of-trade alone; the WTI linkage makes the editorial mechanism explicit.",
+        dataFields: "trade.json panel-5 (terms_of_trade) + wti.csv indexed",
+        Component: TrdAlt4,
+      },
+    ],
+  },
+  {
+    slug: "housing",
+    name: "Housing",
+    alts: [
+      {
+        file: "housing/Alt1_HpiMultiCity.astro",
+        title: "MLS HPI Y/Y national + 3 CMAs",
+        whatDifferent: "National solid + Toronto dashed + Vancouver sparse-dashed + Calgary dotted. All pure ink; weight and dash carry identity.",
+        whyBetter: "National HPI averages over wildly different regional cycles. The Calgary-vs-Toronto divergence is the housing story of the past two years.",
+        dataFields: "crea_hpi_{canada,toronto,vancouver,calgary}.csv, all Y/Y derived",
+        Component: HsgAlt1,
+      },
+      {
+        file: "housing/Alt2_StartsSmoothing.astro",
+        title: "Housing starts: 6mma + 3mma + monthly",
+        whatDifferent: "Three smoothings of the SAAR starts series, monthly noise included for honesty.",
+        whyBetter: "Starts are extremely noisy; this trains the reader's eye on the trend rather than the print.",
+        dataFields: "housing_starts.csv with derived 3mma + 6mma",
+        Component: HsgAlt2,
+      },
+      {
+        file: "housing/Alt3_MortgageVsHpi.astro",
+        title: "5yr mortgage rate vs HPI Y/Y",
+        whatDifferent: "Same-axis (both %), pure-ink dual-series overlay showing the transmission channel.",
+        whyBetter: "Mortgage rate alone is a level; paired with HPI Y/Y it's a causal story. BoC cuts show up here as HPI stabilizing.",
+        dataFields: "mortgage_rate_5yr.csv + crea_hpi_canada.csv (Y/Y)",
+        Component: HsgAlt3,
+      },
+      {
+        file: "housing/Alt4_SnlrVsHpi.astro",
+        title: "SNLR with HPI Y/Y overlay",
+        whatDifferent: "SNLR primary with sellers'-market threshold reference (60%); HPI Y/Y secondary. The leading-indicator pair.",
+        whyBetter: "SNLR > 60 leads HPI acceleration by 3-6 months; the overlay makes the leading-indicator argument visible.",
+        dataFields: "crea_snlr.csv + crea_mls_hpi.csv (Y/Y)",
+        Component: HsgAlt4,
+      },
+    ],
+  },
+];
+
+const totalCount = sections.reduce((sum, s) => sum + s.alts.length, 0);
+---
+
+<BaseLayout
+  title="Chart alternatives"
+  description="Internal review page for chart-builder alternative chart treatments. Not for production."
+>
+  <div class="alt-page">
+    <header class="alt-page__head">
+      <p class="alt-page__eyebrow">CHART-BUILDER REVIEW</p>
+      <h1 class="alt-page__title">Chart alternatives</h1>
+      <p class="alt-page__lede">
+        {totalCount} alternative treatments across {sections.length} sections.
+        Each chart consumes data already in the pipeline; review, keep the
+        ones you want, the rest will be deleted in a follow-up sweep.
+      </p>
+    </header>
+
+    {sections.map((section) => (
+      <section class="alt-section" id={`section-${section.slug}`}>
+        <header class="alt-section__head">
+          <h2 class="alt-section__title">{section.name}</h2>
+          <p class="alt-section__count">{section.alts.length} alternative{section.alts.length === 1 ? "" : "s"}</p>
+        </header>
+
+        {section.alts.map((alt) => (
+          <article class="alt-unit">
+            <header class="alt-unit__head">
+              <p class="alt-unit__file">{alt.file}</p>
+              <h3 class="alt-unit__title">{alt.title}</h3>
+            </header>
+
+            <div class="alt-unit__chart">
+              <alt.Component />
+            </div>
+
+            <dl class="alt-unit__meta">
+              <div class="alt-unit__row">
+                <dt>What's different</dt>
+                <dd>{alt.whatDifferent}</dd>
+              </div>
+              <div class="alt-unit__row">
+                <dt>Why it might be better</dt>
+                <dd>{alt.whyBetter}</dd>
+              </div>
+              <div class="alt-unit__row">
+                <dt>Data fields</dt>
+                <dd><code>{alt.dataFields}</code></dd>
+              </div>
+            </dl>
+          </article>
+        ))}
+      </section>
+    ))}
+  </div>
+</BaseLayout>
+
+<style>
+  .alt-page {
+    max-width: 880px;
+    margin: 0 auto;
+    padding-block: 48px 96px;
+  }
+
+  .alt-page__head {
+    padding-bottom: 36px;
+    border-bottom: 1px solid var(--ink);
+    margin-bottom: 48px;
+  }
+  .alt-page__eyebrow {
+    margin: 0 0 12px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .alt-page__title {
+    margin: 0 0 16px;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: clamp(36px, 5vw, 56px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .alt-page__lede {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--ink);
+    max-width: 60ch;
+  }
+
+  .alt-section {
+    margin-bottom: 64px;
+  }
+  .alt-section__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: 12px;
+    margin-bottom: 24px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .alt-section__title {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 32px;
+    letter-spacing: -0.012em;
+    color: var(--ink);
+  }
+  .alt-section__count {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 12px;
+    color: var(--ink);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .alt-unit {
+    padding-block: 28px;
+    border-bottom: 1px solid var(--ink);
+  }
+  .alt-unit:last-child {
+    border-bottom: 0;
+  }
+  .alt-unit__head {
+    margin-bottom: 16px;
+  }
+  .alt-unit__file {
+    margin: 0 0 6px;
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 11px;
+    color: var(--ink);
+    opacity: 0.65;
+  }
+  .alt-unit__title {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 22px;
+    line-height: 1.2;
+    color: var(--ink);
+  }
+
+  .alt-unit__chart {
+    width: 100%;
+    border: 1px solid var(--ink);
+    margin-bottom: 16px;
+    background: var(--paper);
+  }
+  .alt-unit__chart :global(.alt-chart),
+  .alt-unit__chart :global(svg) {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .alt-unit__meta {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .alt-unit__row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 16px;
+    align-items: baseline;
+  }
+  .alt-unit__row dt {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .alt-unit__row dd {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+  .alt-unit__row dd code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink);
+    background: rgba(0,0,0,0.04);
+    padding: 1px 4px;
+  }
+
+  @media (max-width: 640px) {
+    .alt-unit__row {
+      grid-template-columns: 1fr;
+      gap: 4px;
+    }
+  }
+</style>

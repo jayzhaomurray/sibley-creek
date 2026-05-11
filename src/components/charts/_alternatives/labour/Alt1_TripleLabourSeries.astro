@@ -1,0 +1,42 @@
+---
+/*
+ * Alt1_TripleLabourSeries - unemployment + employment + participation
+ * rates overlaid as three pure-ink lines distinguished by weight and dash.
+ *
+ * What's different. Production Panel 1 only shows unrate + emprate, with
+ * participation suppressed. This restores participation as a third
+ * series, faithful to the multi-series adaptation rule in the canon.
+ *
+ * Why it might be better. The three together tell the full LFS story.
+ * Participation movement explains why unrate and emprate can both
+ * deteriorate at once (or both improve).
+ *
+ * Data. data/raw/unemployment_rate.csv, employment_rate.csv, participation_rate.csv.
+ */
+
+import { readCsv } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const un = readCsv("unemployment_rate.csv");
+const emp = readCsv("employment_rate.csv");
+const part = readCsv("participation_rate.csv");
+
+const N = 60;
+---
+
+<div class="alt-chart" data-panel="alt-labour-1">
+  <AltLineChart
+    primary={un.slice(-N)}
+    secondary={emp.slice(-N)}
+    tertiary={part.slice(-N)}
+    primaryLabel="Unemp."
+    secondaryLabel="Emp. rate"
+    tertiaryLabel="Particip."
+    unitSuffix="%"
+    yDecimals={1}
+    ariaLabel="LFS unemployment, employment rate, and participation rate, monthly, last five years."
+  />
+</div>
+
+<AltChartStyle />

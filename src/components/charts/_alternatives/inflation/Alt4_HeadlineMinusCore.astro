@@ -1,0 +1,45 @@
+---
+/*
+ * Alt4_HeadlineMinusCore - headline CPI Y/Y minus core-trim Y/Y, as a
+ * single zero-crossing line measuring the energy/food noise vs the
+ * underlying trend.
+ *
+ * What's different. Production Panel 1 shows headline alone; Panel 2
+ * shows core. Neither shows the gap, which is the "noise from food and
+ * energy" diagnostic that BoC analysts read first.
+ *
+ * Why it might be better. A single zero-crossing line with a recession
+ * band reads as one declarative statement: "underlying is harder/softer
+ * than headline by X pp." This is the chart a fixed-income desk wants.
+ *
+ * Data. cpi_all_items.csv (Y/Y derived) - cpi_trim.csv. Production panel
+ * data exposes the YoY directly via panel_data.
+ */
+
+import { readCsv, yoy, diff } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const cpiLevel = readCsv("cpi_all_items.csv");
+const cpiYoy = yoy(cpiLevel);
+const trim = readCsv("cpi_trim.csv");
+
+const gap = diff(cpiYoy, trim);
+
+// 96 months (8y)
+const N = 96;
+---
+
+<div class="alt-chart" data-panel="alt-inflation-4">
+  <AltLineChart
+    primary={gap.slice(-N)}
+    primaryLabel="Headline-trim"
+    unitSuffix="pp"
+    yDecimals={1}
+    referenceValue={0}
+    referenceLabel="No gap"
+    ariaLabel="Headline CPI year-over-year minus core-trim year-over-year, percentage points."
+  />
+</div>
+
+<AltChartStyle />

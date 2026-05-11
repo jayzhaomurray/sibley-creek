@@ -727,6 +727,68 @@ def derive_gdp_views() -> None:
     write_series(yoy, meta, DATA_PROCESSED)
 
 
+def derive_gdp_per_capita_yoy() -> None:
+    """Quarterly per-capita real GDP, Y/Y % change.
+
+    Inputs:
+        data/raw/gdp_quarterly.csv -- quarterly real GDP (C$ millions chained
+                                       2017, SAAR), StatCan v62305752.
+        data/raw/pop_total.csv     -- quarterly total population (persons),
+                                       StatCan v1 from Table 17-10-0009-01.
+
+    Output:
+        data/processed/gdp_per_capita_yoy.csv
+            date,value -- Y/Y % change in real GDP per capita.
+
+    Why quarterly: pop_total is quarterly; aligning monthly GDP would require
+    a forward-fill/interpolation that introduces sawtooth noise. The Per-capita
+    GDP, Y/Y supporting print (Housing... actually GDP) renders the quarterly
+    cadence stamp ("2025Q4"); this matches the cadence of the underlying
+    StatCan population vintage.
+    """
+    gdp = _read_raw("gdp_quarterly")
+    pop = _read_raw("pop_total")
+    if gdp is None or pop is None:
+        return
+    g = gdp.set_index("date")["value"].sort_index()
+    p = pop.set_index("date")["value"].sort_index()
+    # Inner-join on quarter-start dates.
+    joined = pd.concat([g.rename("gdp"), p.rename("pop")], axis=1).dropna()
+    if joined.empty:
+        logger.warning("derive_gdp_per_capita_yoy: no overlapping quarterly observations")
+        return
+    # GDP / population -> per-capita level (units: chained-2017 C$ per person,
+    # scaled by GDP's units; we don't render the level so absolute scale is
+    # immaterial. Only the Y/Y % matters for the tile).
+    per_cap = (joined["gdp"] / joined["pop"]).dropna()
+    yoy = per_cap.pct_change(4) * 100.0  # 4 quarters = Y/Y
+    yoy = yoy.dropna()
+    if yoy.empty:
+        logger.warning("derive_gdp_per_capita_yoy: insufficient history for Y/Y")
+        return
+    out = yoy.reset_index()
+    out.columns = ["date", "value"]
+
+    spec_g = STATCAN_SERIES["gdp_quarterly"]
+    spec_p = STATCAN_SERIES["pop_total"]
+    meta = SeriesMeta(
+        name="gdp_per_capita_yoy",
+        source="Statistics Canada Web Data Service (derived)",
+        source_url=statcan_url(spec_g),
+        source_id=f"v{spec_g.vector_id}-divided-by-v{spec_p.vector_id}",
+        units="%",
+        frequency="quarterly",
+        notes=(
+            "Year-over-year % change in real GDP per capita, quarterly. Derived "
+            "from quarterly real GDP (v62305752, chained 2017 C$, SAAR) divided "
+            "by quarterly total population (v1, Table 17-10-0009-01). Y/Y % is "
+            "computed on the per-capita level using a 4-quarter lag."
+        ),
+        transform="yoy_pct(periods_per_year=4) on gdp_quarterly/pop_total",
+    )
+    write_series(out, meta, DATA_PROCESSED)
+
+
 def derive_productivity_views() -> None:
     """Compute Y/Y % change for the quarterly business-sector labour productivity index.
 
@@ -1029,6 +1091,7 @@ def main() -> int:
     _safe("derive_cpi_views", derive_cpi_views, failed)
     _safe("derive_cpi_breadth_gt3", derive_cpi_breadth_gt3, failed)
     _safe("derive_gdp_views", derive_gdp_views, failed)
+    _safe("derive_gdp_per_capita_yoy", derive_gdp_per_capita_yoy, failed)
     _safe("derive_productivity_views", derive_productivity_views, failed)
     _safe("derive_trade_views", derive_trade_views, failed)
     _safe("derive_terms_of_trade", derive_terms_of_trade, failed)

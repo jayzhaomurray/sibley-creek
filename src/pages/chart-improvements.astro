@@ -1,0 +1,269 @@
+---
+/*
+ * chart-improvements - V2 comparison page for the editorial audit
+ * 2026-05-11 (see design/chart-editorial-audit-2026-05-11.md).
+ *
+ * Six wrapper-level chart fixes are dispatched as V2 components alongside
+ * the originals. This page renders side-by-side pairs so the user can
+ * compare and decide what to keep tomorrow morning.
+ *
+ * NOT linked from production nav. Excluded from sitemap (astro.config.mjs)
+ * and robots.txt. The /chart-improvements/ route is a comparison harness,
+ * not a reader route.
+ *
+ * Vignelli register throughout: pure paper, pure ink, 1px hairline rules
+ * separating each comparison pair. No color, no card pillows, no chrome.
+ */
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { pickPanel } from "../components/charts/_shared/panelData";
+
+import gdpData from "../../data/site/panel_data/gdp.json";
+import labourData from "../../data/site/panel_data/labour.json";
+import policyData from "../../data/site/panel_data/policy.json";
+import tradeData from "../../data/site/panel_data/trade.json";
+
+// Originals
+import Trade3Orig from "../components/charts/trade/Panel3PartnerShares.astro";
+import Gdp1Orig from "../components/charts/gdp/Panel1HeadlineGDP.astro";
+import Policy3Orig from "../components/charts/policy/Panel3BoCFedSpread.astro";
+import Trade5Orig from "../components/charts/trade/Panel5TermsOfTrade.astro";
+import Labour2Orig from "../components/charts/labour/Panel2PerCapita.astro";
+import Gdp4Orig from "../components/charts/gdp/Panel4PerCapita.astro";
+
+// V2s
+import Trade3V2 from "../components/charts/trade/Panel3PartnerSharesV2.astro";
+import Gdp1V2 from "../components/charts/gdp/Panel1HeadlineGDPV2.astro";
+import Policy3V2 from "../components/charts/policy/Panel3BoCFedSpreadV2.astro";
+import Trade5V2 from "../components/charts/trade/Panel5TermsOfTradeV2.astro";
+import Labour2V2 from "../components/charts/labour/Panel2PerCapitaV2.astro";
+import Gdp4V2 from "../components/charts/gdp/Panel4PerCapitaV2.astro";
+
+const trade3 = pickPanel(tradeData, 3);
+const gdp1 = pickPanel(gdpData, 1);
+const policy3 = pickPanel(policyData, 3);
+const trade5 = pickPanel(tradeData, 5);
+const labour2 = pickPanel(labourData, 2);
+const gdp4 = pickPanel(gdpData, 4);
+
+interface Pair {
+  id: string;
+  section: string;
+  panel: string;
+  title: string;
+  description: string;
+  OriginalComponent: any;
+  V2Component: any;
+  data: unknown;
+}
+
+const pairs: Pair[] = [
+  {
+    id: "trade-3",
+    section: "Trade",
+    panel: "Panel 3 - Partner shares",
+    title: "Item 2: Two raw export levels - US share line",
+    description:
+      "Original ships two parallel rising level lines (US exports + total exports). The reader cannot eyeball \"US share at 66% and falling\" from levels. V2 derives the US share of total exports as a single % line so the structural-shift narrative becomes visible in the chart shape.",
+    OriginalComponent: Trade3Orig,
+    V2Component: Trade3V2,
+    data: trade3,
+  },
+  {
+    id: "gdp-1",
+    section: "GDP",
+    panel: "Panel 1 - Headline GDP",
+    title: "Item 3: GDP levels - m/m growth (solid) + Q/Q SAAR (dashed)",
+    description:
+      "The section's headline question is about growth rates, not levels. Original renders monthly + quarterly level lines (smooth, rising). V2 derives m/m % from monthly GDP as the primary solid line and Q/Q SAAR % from quarterly GDP as the dashed secondary - both in %, zero-line reference for the cycle read.",
+    OriginalComponent: Gdp1Orig,
+    V2Component: Gdp1V2,
+    data: gdp1,
+  },
+  {
+    id: "policy-3",
+    section: "Policy",
+    panel: "Panel 3 - BoC-Fed spread",
+    title: "Item 5: Two parallel 2y yields - the spread itself",
+    description:
+      "Two parallel yield lines force the reader to do the arithmetic visually. V2 derives the Canada-minus-US 2y spread in basis points as a single line with a zero-line reference rule (parity). The cross-zero events become the editorial argument directly.",
+    OriginalComponent: Policy3Orig,
+    V2Component: Policy3V2,
+    data: policy3,
+  },
+  {
+    id: "trade-5",
+    section: "Trade",
+    panel: "Panel 5 - Terms of trade",
+    title: "Item 8: WTI/Brent proxies - actual terms-of-trade index",
+    description:
+      "The original wrapper labelled the chart \"WTI / Brent\" - but the pipeline already emits the StatCan terms-of-trade index (2017=100, quarterly). V2 keeps the same primary series but with honest labelling and drops the proxy secondary. The editorial title finally matches the chart.",
+    OriginalComponent: Trade5Orig,
+    V2Component: Trade5V2,
+    data: trade5,
+  },
+  {
+    id: "labour-2",
+    section: "Labour",
+    panel: "Panel 2 - Per-capita employment",
+    title: "Item 9: Two raw levels - per-capita employment Y/Y",
+    description:
+      "Original surfaces unemployment level (millions) + aggregate hours (thousands of hours) - two unrelated levels with no per-capita arithmetic. V2 derives per-capita employment Y/Y from the employment-rate series (employment divided by 15+ population, by definition). Single line, % Y/Y.",
+    OriginalComponent: Labour2Orig,
+    V2Component: Labour2V2,
+    data: labour2,
+  },
+  {
+    id: "gdp-4",
+    section: "GDP",
+    panel: "Panel 4 - Per-capita GDP",
+    title: "Item 10: Two raw levels - per-capita GDP Y/Y",
+    description:
+      "Original renders quarterly real GDP level + an immigrant-flow proxy for population - two unrelated levels misnamed as a per-capita chart. V2 derives per-capita GDP Y/Y from gdp_quarterly / pop_total at build time. Single % Y/Y line, zero-line reference.",
+    OriginalComponent: Gdp4Orig,
+    V2Component: Gdp4V2,
+    data: gdp4,
+  },
+];
+
+const pageTitle = "Chart improvements - V2 comparison";
+const pageDescription = "Side-by-side V2 chart comparisons from the 2026-05-11 editorial audit. Not a reader route.";
+---
+<BaseLayout title={pageTitle} description={pageDescription}>
+  <div class="cmp">
+    <header class="cmp__header">
+      <p class="cmp__eyebrow">Editorial audit 2026-05-11</p>
+      <h1 class="cmp__title">Chart improvements - V2 comparison</h1>
+      <p class="cmp__lede">
+        Six wrapper-level fixes from the editorial audit. Each pair shows the live
+        production chart (left) and the proposed V2 derivation (right). Pick what
+        survives. Originals are tagged in their frontmatter; deletion is your call.
+      </p>
+    </header>
+
+    {pairs.map((pair) => (
+      <section class="cmp__pair" id={pair.id}>
+        <header class="cmp__pair-head">
+          <p class="cmp__pair-eyebrow">{pair.section} - {pair.panel}</p>
+          <h2 class="cmp__pair-title">{pair.title}</h2>
+          <p class="cmp__pair-desc">{pair.description}</p>
+        </header>
+        <div class="cmp__grid">
+          <figure class="cmp__cell">
+            <figcaption class="cmp__cell-label">Original (live in production)</figcaption>
+            <pair.OriginalComponent data={pair.data} />
+          </figure>
+          <figure class="cmp__cell">
+            <figcaption class="cmp__cell-label">V2 (proposed)</figcaption>
+            <pair.V2Component data={pair.data} />
+          </figure>
+        </div>
+      </section>
+    ))}
+
+    <footer class="cmp__foot">
+      <p>End of comparison. No production behaviour has changed; section pages still render the originals.</p>
+    </footer>
+  </div>
+</BaseLayout>
+
+<style>
+  .cmp {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 48px 32px 96px;
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+  }
+  .cmp__header {
+    border-bottom: 1px solid var(--ink);
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+  }
+  .cmp__eyebrow {
+    margin: 0 0 8px 0;
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .cmp__title {
+    margin: 0 0 12px 0;
+    font-size: 32px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+  .cmp__lede {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+    max-width: 760px;
+  }
+  .cmp__pair {
+    border-top: 1px solid var(--ink);
+    padding-top: 28px;
+    padding-bottom: 32px;
+  }
+  .cmp__pair:first-of-type {
+    border-top: none;
+    padding-top: 0;
+  }
+  .cmp__pair-head {
+    margin-bottom: 20px;
+    max-width: 920px;
+  }
+  .cmp__pair-eyebrow {
+    margin: 0 0 6px 0;
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .cmp__pair-title {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: -0.005em;
+    line-height: 1.25;
+  }
+  .cmp__pair-desc {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .cmp__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .cmp__cell {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .cmp__cell-label {
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--ink);
+    padding-bottom: 4px;
+  }
+  .cmp__foot {
+    margin-top: 32px;
+    border-top: 1px solid var(--ink);
+    padding-top: 16px;
+    font-size: 12px;
+  }
+  .cmp__foot p {
+    margin: 0;
+  }
+  @media (max-width: 920px) {
+    .cmp__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

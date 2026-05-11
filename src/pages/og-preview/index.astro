@@ -1,0 +1,141 @@
+---
+/*
+ * OG card render target.
+ *
+ * Astro dev-toolbar suppression: enabled via Astro.locals.astro? No - in
+ * Astro 6 the dev toolbar is suppressed per-page by exporting a known
+ * directive on the file. The cleanest portable fix is hiding the toolbar
+ * via CSS at screenshot time; we add a global rule below that targets
+ * <astro-dev-toolbar> so it never appears in the captured PNG.
+ *
+ * This page renders the default Open Graph card at exactly 1200x630 px,
+ * per design/og-card.md. It is captured by scripts/render-og-card.mjs
+ * (Playwright + Chromium) and written to public/og-default.png.
+ *
+ * Discipline:
+ *   - Absolute-px positioning. No responsive CSS, no flex-grow, no rem.
+ *     The screenshot pipeline relies on deterministic pixel rails.
+ *   - Bare HTML document. NO BaseLayout - no nav, no footer, no global
+ *     chrome bleeding into the screenshot.
+ *   - noindex,nofollow so search engines don't index this render target.
+ *     robots.txt also disallows /og-preview/.
+ *   - Tokens (--ink, --paper, --accent, --font-sans) come from
+ *     src/styles/tokens.css via @import, so the rendered colors match
+ *     canon without re-stating hex values inline (hex values are repeated
+ *     in absolute-px positions only because the spec authored them
+ *     explicitly as #000000 / #FFFFFF for screenshot determinism).
+ */
+import SleepingGiantMark from "../../components/brand/SleepingGiantMark.astro";
+---
+
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Sibley Creek - OG card render target</title>
+    <style>
+      @import url("/src/styles/fonts.css");
+      @import url("/src/styles/tokens.css");
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #ffffff;
+      }
+
+      /* Suppress Astro dev toolbar so it never bleeds into the screenshot.
+       * In production builds the toolbar is absent anyway, but the
+       * Playwright pipeline runs against `astro dev`, where it would
+       * otherwise dock at the bottom of the viewport and clip into the
+       * 1200x630 capture frame. */
+      astro-dev-toolbar,
+      astro-dev-overlay {
+        display: none !important;
+        visibility: hidden !important;
+      }
+
+      .og-card {
+        position: relative;
+        width: 1200px;
+        height: 630px;
+        background: #ffffff;
+        overflow: hidden;
+      }
+
+      /* Mark hero: 720x180, centered horizontally.
+       * left = (1200 - 720) / 2 = 240. top = 110. */
+      .og-card__mark {
+        position: absolute;
+        left: 240px;
+        top: 110px;
+        width: 720px;
+        height: 180px;
+      }
+
+      /* Wordmark: Manrope 900 / 64px / 0.16em / uppercase.
+       * Left-aligned at x=80, top=410. */
+      .og-card__wordmark {
+        position: absolute;
+        left: 80px;
+        top: 410px;
+        font-family: var(--font-sans);
+        font-weight: 900;
+        font-size: 64px;
+        line-height: 1;
+        letter-spacing: 0.16em;
+        color: #000000;
+        margin: 0;
+        padding: 0;
+      }
+
+      /* Tagline: Manrope 400 / 26px / single line.
+       * top=502 = wordmark top (410) + ~64px cap + 24px gap, per spec. */
+      .og-card__tagline {
+        position: absolute;
+        left: 80px;
+        top: 502px;
+        font-family: var(--font-sans);
+        font-weight: 400;
+        font-size: 26px;
+        line-height: 1.3;
+        color: #000000;
+        margin: 0;
+        padding: 0;
+        max-width: 1040px;
+      }
+
+      /* Source URL: Manrope 600 / 13px / 0.14em uppercase.
+       * Spec says "baseline at y: 575px"; with font-size 13px and
+       * line-height 1, top of the line box is ~562px. Using top=565 here
+       * to seat the cap close to the spec's "cap-top sits ~565". */
+      .og-card__url {
+        position: absolute;
+        left: 80px;
+        top: 565px;
+        font-family: var(--font-sans);
+        font-weight: 600;
+        font-size: 13px;
+        line-height: 1;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #000000;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="og-card" id="og-card">
+      <div class="og-card__mark">
+        <SleepingGiantMark size={720} variant="og" />
+      </div>
+      <div class="og-card__wordmark">SIBLEY CREEK</div>
+      <div class="og-card__tagline">
+        Canadian macroeconomic indicators and analysis, in one place, on a single page.
+      </div>
+      <div class="og-card__url">sibleycreek.ca</div>
+    </div>
+  </body>
+</html>

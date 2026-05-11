@@ -1,0 +1,77 @@
+---
+/*
+ * Panel3BoCFedSpreadV2 - editorial audit 2026-05-11 item #5.
+ *
+ * Original renders two parallel 2y yield lines (Canada + US). The
+ * editorial argument is the SPREAD - a single line crossing zero. V2
+ * derives:
+ *
+ *   spread_bps[t] = (yield_2yr_ca[t] - us_2yr[t]) * 100
+ *
+ * Single bps line. PanelLiveChart's zero-line treatment will render
+ * crisp when the spread crosses zero (the canonical pattern for a
+ * spread chart).
+ *
+ * Date alignment: both series are daily but the Canadian and US
+ * trading calendars don't agree on every observation. Inner-join
+ * by date string. Missing-side gaps emit null and skip in the line.
+ */
+
+import type { PanelData, PanelSeries, SeriesPoint } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+let derived: PanelSeries | null = null;
+if (data && data.primary && data.secondary) {
+  const ca = data.primary.data;
+  const us = data.secondary.data;
+  const usByDate = new Map<string, number | null>();
+  for (const p of us) usByDate.set(p.date, p.value);
+  const spreadData: SeriesPoint[] = [];
+  for (const p of ca) {
+    const caV = p.value;
+    const usV = usByDate.get(p.date);
+    if (
+      typeof caV !== "number" ||
+      typeof usV !== "number" ||
+      Number.isNaN(caV) ||
+      Number.isNaN(usV)
+    ) {
+      spreadData.push({ date: p.date, value: null });
+    } else {
+      // Yields arrive in % (e.g. 2.94). Spread in basis points = (ca - us) * 100.
+      spreadData.push({ date: p.date, value: (caV - usV) * 100 });
+    }
+  }
+  derived = {
+    key: "boc_fed_2y_spread",
+    label: "CA - US 2y",
+    data: spreadData,
+    unit: "bps",
+    kind: "basis_points",
+    frequency: data.primary.frequency ?? "daily",
+    asOfISO: data.primary.asOfISO ?? null,
+    source: data.primary.source ?? null,
+    sourceUrl: data.primary.sourceUrl ?? null,
+    sourceId: data.primary.sourceId ?? null,
+  };
+}
+---
+{derived ? (
+  <PanelLiveChart
+    primary={derived}
+    primaryLabel="CA-US 2y"
+    referenceValue={0}
+    referenceLabel="parity"
+    dataPanelAttr="policy-3-v2"
+    ariaLabel="Canada minus US 2-year yield spread, basis points."
+  />
+) : (
+  <PanelEmpty reason="Spread derivation requires both yield series." />
+)}

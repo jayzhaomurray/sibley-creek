@@ -1,0 +1,42 @@
+---
+/*
+ * Alt2_OilTriple - WTI, Brent, and WCS overlaid.
+ *
+ * What's different. Production Panel 4 carries WTI + Brent. This adds
+ * WCS (Western Canadian Select), the Canadian heavy crude benchmark whose
+ * discount to WTI is the editorial signal for Alberta and the federal
+ * budget.
+ *
+ * Why it might be better. WCS-WTI differential drives Canadian terms of
+ * trade and equalization payments. WTI-Brent alone is a global story; WCS
+ * brings it home.
+ *
+ * Data. wti.csv, brent.csv, wcs.csv.
+ */
+
+import { readCsv } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const wti = readCsv("wti.csv");
+const brent = readCsv("brent.csv");
+const wcs = readCsv("wcs.csv");
+
+const N = 60;
+---
+
+<div class="alt-chart" data-panel="alt-markets-2">
+  <AltLineChart
+    primary={wti.slice(-N)}
+    secondary={brent.slice(-N)}
+    tertiary={wcs.slice(-N)}
+    primaryLabel="WTI"
+    secondaryLabel="Brent"
+    tertiaryLabel="WCS"
+    unitSuffix=" USD"
+    yDecimals={1}
+    ariaLabel="WTI, Brent, and Western Canadian Select crude oil prices, monthly, last five years."
+  />
+</div>
+
+<AltChartStyle />

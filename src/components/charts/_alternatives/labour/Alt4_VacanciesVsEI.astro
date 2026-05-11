@@ -1,0 +1,45 @@
+---
+/*
+ * Alt4_VacanciesVsEI - job vacancy rate vs EI regular beneficiaries
+ * indexed to 2019.
+ *
+ * What's different. Production Panel 4 carries vacancy rate alone. This
+ * juxtaposes the demand side (vacancies) with the dislocation side (EI
+ * claimants), both indexed so the two-sided cycle motion reads.
+ *
+ * Why it might be better. The vacancies-up / EI-up combo signals
+ * structural mismatch; vacancies-down / EI-up is recession. The pair
+ * carries information the level chart cannot.
+ *
+ * Data. job_vacancy_rate.csv (% level), ei_regular_beneficiaries.csv (level, indexed).
+ */
+
+import { readCsv, indexAt } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const vac = readCsv("job_vacancy_rate.csv");
+const ei = readCsv("ei_regular_beneficiaries.csv");
+
+// Index vacancy and EI both to Jan-2019 = 100 for shared axis
+const vacIdx = indexAt(vac, "2019-01-01");
+const eiIdx = indexAt(ei, "2019-01-01");
+
+const N = 60;
+---
+
+<div class="alt-chart" data-panel="alt-labour-4">
+  <AltLineChart
+    primary={vacIdx.slice(-N)}
+    secondary={eiIdx.slice(-N)}
+    primaryLabel="Vacancies"
+    secondaryLabel="EI claims"
+    unitSuffix=" idx"
+    yDecimals={0}
+    referenceValue={100}
+    referenceLabel="2019 baseline"
+    ariaLabel="Job vacancy rate and EI regular beneficiaries, both indexed to January 2019 = 100, monthly."
+  />
+</div>
+
+<AltChartStyle />

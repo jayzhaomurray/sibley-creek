@@ -1,0 +1,46 @@
+---
+/*
+ * Alt3_BalanceSmoothing - trade balance with 3mma and 12mma overlays.
+ *
+ * What's different. Production Panel 1 carries the balance with its 3mma.
+ * This adds 12mma so the reader can see the noise band: monthly noisy
+ * line, 3mma cycle band, 12mma trend line - three temporal scales in
+ * one chart.
+ *
+ * Why it might be better. Trade prints are notoriously revision-noisy;
+ * showing three smoothings disciplines the reader away from over-
+ * interpreting a single month.
+ *
+ * Data. trade_balance_total.csv with derived 3mma + 12mma.
+ */
+
+import { readCsv, tma } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const tb = readCsv("trade_balance_total.csv");
+// Convert to billions
+const tbB = tb.map((p) => ({ date: p.date, value: typeof p.value === "number" ? p.value / 1000 : null }));
+const tb3 = tma(tbB, 3);
+const tb12 = tma(tbB, 12);
+
+const N = 84;
+---
+
+<div class="alt-chart" data-panel="alt-trade-3">
+  <AltLineChart
+    primary={tb3.slice(-N)}
+    secondary={tb12.slice(-N)}
+    tertiary={tbB.slice(-N)}
+    primaryLabel="3mma"
+    secondaryLabel="12mma"
+    tertiaryLabel="Monthly"
+    unitSuffix="B"
+    yDecimals={1}
+    referenceValue={0}
+    referenceLabel="Balanced"
+    ariaLabel="Canadian merchandise trade balance with 3-month and 12-month moving average overlays, CAD billions."
+  />
+</div>
+
+<AltChartStyle />

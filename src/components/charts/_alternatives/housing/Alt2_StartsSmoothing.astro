@@ -1,0 +1,43 @@
+---
+/*
+ * Alt2_StartsSmoothing - housing starts: monthly + 3mma + 6mma overlays.
+ *
+ * What's different. Production Panel 2 carries starts with units-under-
+ * construction overlay. This trades the secondary for a smoothing-
+ * comparison view: noisy monthly, 3mma cycle, 6mma trend.
+ *
+ * Why it might be better. Housing starts are extremely noisy month-to-
+ * month. CMHC and BoC both report 3mma; macro shops report 6mma. Both
+ * smoothings on one chart educates the reader.
+ *
+ * Data. housing_starts.csv with derived 3mma + 6mma.
+ */
+
+import { readCsv, tma } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const starts = readCsv("housing_starts.csv");
+// Scale to thousands for chart legibility (raw is SAAR units)
+const startsK = starts.map((p) => ({ date: p.date, value: typeof p.value === "number" ? p.value / 1000 : null }));
+const s3 = tma(startsK, 3);
+const s6 = tma(startsK, 6);
+
+const N = 60;
+---
+
+<div class="alt-chart" data-panel="alt-housing-2">
+  <AltLineChart
+    primary={s6.slice(-N)}
+    secondary={s3.slice(-N)}
+    tertiary={startsK.slice(-N)}
+    primaryLabel="6mma"
+    secondaryLabel="3mma"
+    tertiaryLabel="Monthly"
+    unitSuffix="k"
+    yDecimals={0}
+    ariaLabel="Canadian housing starts SAAR with 3-month and 6-month moving averages, thousands of units, monthly."
+  />
+</div>
+
+<AltChartStyle />

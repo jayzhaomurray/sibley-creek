@@ -1,0 +1,42 @@
+---
+/*
+ * Alt3_MortgageVsHpi - 5yr mortgage rate (primary, %) vs MLS HPI Y/Y
+ * (secondary, %) on shared axis.
+ *
+ * What's different. Production Panel 5 carries mortgage rate alone. The
+ * transmission channel is the rate-price relationship; overlaying HPI
+ * Y/Y on the same axis (both are percentages, same units) makes the
+ * inverse correlation visible.
+ *
+ * Why it might be better. The mortgage rate alone is a level chart; the
+ * pair is a causal story. Recent BoC cuts show up here first as HPI
+ * Y/Y stabilizing.
+ *
+ * Data. mortgage_rate_5yr.csv (primary), crea_hpi_canada.csv Y/Y (secondary).
+ */
+
+import { readCsv, yoy } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const mr = readCsv("mortgage_rate_5yr.csv");
+const hpi = yoy(readCsv("crea_hpi_canada.csv"));
+
+const N = 84;
+---
+
+<div class="alt-chart" data-panel="alt-housing-3">
+  <AltLineChart
+    primary={mr.slice(-N)}
+    secondary={hpi.slice(-N)}
+    primaryLabel="5y mortgage"
+    secondaryLabel="HPI Y/Y"
+    unitSuffix="%"
+    yDecimals={1}
+    referenceValue={0}
+    referenceLabel="0% HPI"
+    ariaLabel="5-year mortgage rate and MLS HPI year-over-year, monthly, last seven years."
+  />
+</div>
+
+<AltChartStyle />

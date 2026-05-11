@@ -1,0 +1,52 @@
+---
+/*
+ * Alt4_TermsTradeVsWti - terms of trade index alongside WTI price (both
+ * indexed to 2017 = 100).
+ *
+ * What's different. Production Panel 5 shows terms-of-trade alone. This
+ * overlays WTI, both indexed, to show the energy-driven nature of
+ * Canadian terms-of-trade cycles.
+ *
+ * Why it might be better. Canadian terms of trade is essentially a
+ * leveraged bet on oil. Showing the two side-by-side makes the linkage
+ * explicit.
+ *
+ * Data. terms_of_trade (via panel_data trade.json panel-5 primary),
+ * wti.csv, both indexed to Jan 2017.
+ */
+
+import { readCsv, indexAt } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+import tradePanelRaw from "../../../../../data/site/panel_data/trade.json";
+
+// Pull terms_of_trade from panel-5
+const tradePanel = tradePanelRaw as unknown as { panels: Record<string, { primary?: { data: Array<{ date: string; value: number | null }> } | null }> };
+const panel5 = tradePanel.panels["panel-5"];
+const tot = panel5 && panel5.primary ? panel5.primary.data.map((p) => ({ date: p.date, value: typeof p.value === "number" ? p.value : null })) : [];
+
+const wti = readCsv("wti.csv");
+
+// Both indexed to Jan 2017 (terms_of_trade is already 2017=100; wti needs indexing)
+const wtiIdx = indexAt(wti, "2017-01-01");
+const totQ = tot.filter((p) => /-\d{2}-/.test(p.date)); // quarterly already
+
+const N = 40; // quarterly window
+---
+
+<div class="alt-chart" data-panel="alt-trade-4">
+  <AltLineChart
+    primary={totQ.slice(-N)}
+    secondary={wtiIdx.slice(-40 * 3)}
+    primaryLabel="Terms"
+    secondaryLabel="WTI (idx)"
+    unitSuffix=" idx"
+    yDecimals={0}
+    referenceValue={100}
+    referenceLabel="2017 baseline"
+    ariaLabel="Canadian terms of trade alongside WTI crude price, both indexed to 2017 = 100."
+  />
+</div>
+
+<AltChartStyle />

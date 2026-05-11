@@ -38,7 +38,9 @@ export default defineConfig({
   integrations: [
     sitemap({
       filter: (page) =>
-        !page.includes('/_experiments/') && !page.includes('/og-preview/'),
+        !page.includes('/_experiments/') &&
+        !page.includes('/og-preview/') &&
+        !page.includes('/chart-improvements/'),
     }),
   ],
 });

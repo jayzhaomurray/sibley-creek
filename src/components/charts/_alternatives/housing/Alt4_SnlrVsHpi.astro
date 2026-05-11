@@ -1,0 +1,40 @@
+---
+/*
+ * Alt4_SnlrVsHpi - sales-to-new-listings ratio (SNLR) with HPI Y/Y overlay.
+ *
+ * What's different. Production Panel 3 carries SNLR with resales overlay.
+ * SNLR is a leading indicator of HPI Y/Y; the canonical CREA pairing.
+ * This overlays HPI Y/Y so the lead-lag is visible.
+ *
+ * Why it might be better. SNLR > 60 historically precedes HPI Y/Y
+ * acceleration by 3-6 months. The overlay makes the leading-indicator
+ * argument visible without prose.
+ *
+ * Data. crea_snlr.csv + yoy(crea_mls_hpi.csv).
+ */
+
+import { readCsv, yoy } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const snlr = readCsv("crea_snlr.csv");
+const hpi = yoy(readCsv("crea_mls_hpi.csv"));
+
+const N = 96;
+---
+
+<div class="alt-chart" data-panel="alt-housing-4">
+  <AltLineChart
+    primary={snlr.slice(-N)}
+    secondary={hpi.slice(-N)}
+    primaryLabel="SNLR"
+    secondaryLabel="HPI Y/Y"
+    unitSuffix="%"
+    yDecimals={1}
+    referenceValue={60}
+    referenceLabel="Sellers' mkt threshold"
+    ariaLabel="Sales-to-new-listings ratio with MLS HPI year-over-year, monthly."
+  />
+</div>
+
+<AltChartStyle />
