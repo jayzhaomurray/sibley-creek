@@ -43,5 +43,10 @@ erosion notches, reclining on his back. The name signals the
 publication's posture: Canadian, geographically specific, quietly
 durable, indifferent to fashion.
 
+Sibley Creek is written by Jay Zhao-Murray, formerly Canada economics
+data editor at Bloomberg in Ottawa and, before that, a foreign-exchange
+analyst at Monex Canada covering the loonie. He held a research-assistant
+post at the Bank of Canada and studied economics at Western.
+
 New data lands when the Canadian release calendar says it does. New
 deep dives ship when there is something to say.

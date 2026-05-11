@@ -131,6 +131,27 @@ readers who treat Canada as an afterthought.
 
 ## 3. Architecture: tri-modal product, three surfaces
 
+**Data-driven, by design.** Sibley Creek is not a publication that
+happens to include charts; it is a publication built around data, with
+prose narrating it. The discipline applies at every surface:
+
+- The dashboard is almost all data — seven section panels each
+  surfacing a current print + a sparkline, plus a hero stamp of
+  load-bearing headline numbers. The chrome around the data is
+  deliberately spare.
+- The topic pages are narrated chart packs — a vertical stack of
+  charts, each paired with a 2-4 sentence read. The chart is the
+  evidence; the paragraph is the read.
+- The deep dives are research built around a heart of data analysis —
+  long-form essays in which the charts are not decoration but the
+  load-bearing scaffolding the argument hangs from. **A deep dive
+  without charts is not a Sibley Creek deep dive.**
+
+Every editorial output ladders to data. If a claim cannot be plotted
+or cited to a primary source, it does not belong in a Sibley Creek
+piece. Prose justifies its existence by interpreting numbers the
+reader can verify. This is the publication's single hardest line.
+
 Sibley Creek is one publication with three content modes and three
 reader surfaces. The modes and the surfaces map onto each other but
 are not identical: the same data print can land on the homepage as a

@@ -1,0 +1,45 @@
+---
+/*
+ * Panel2CurrentAccountV2 - label-vs-data audit 2026-05-11 item #8.
+ *
+ * Original wrapper labelled the line "Trade bal." and the secondary
+ * "CA goods+inc." - but the pipeline panel-2 primary is now
+ * `current_account_balance` (StatCan 36-10-0018, quarterly SA,
+ * C$ millions) and the secondary is `ca_goods_balance_q` (same units,
+ * same cadence). The page title and editorial copy walk the reader
+ * through the current account; the data is already aligned with that
+ * intent. Only the direct-labels and aria copy were stale.
+ *
+ * V2 keeps the same data wiring and corrects the editorial surface:
+ *   - primaryLabel: "Current account" (was "Trade bal.")
+ *   - secondary suppressed: the components-level stacked decomposition
+ *     belongs to a future Panel 2b. Keeping the secondary line here
+ *     creates two near-identical CA-component lines that crowd the
+ *     canvas without adding signal. Single quarterly headline line is
+ *     the honest reading for this slot.
+ *   - ariaLabel: honest about the single quarterly CA-balance series.
+ *
+ * No derivation; pipeline already emits the right series in C$ millions.
+ * Renderer scales via unitSuffix (C$ millions -> "M" tick suffix).
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+---
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    primaryLabel="Current account"
+    dataPanelAttr="trade-2-v2"
+    ariaLabel="Canadian current account balance, quarterly SA, C$ millions."
+  />
+) : (
+  <PanelEmpty reason="Current-account series not yet emitted." />
+)}

@@ -22,6 +22,7 @@
  */
 
 import { site } from "../../data/sections";
+import { withBase } from "../../lib/urls";
 ---
 <footer class="vig-col" role="contentinfo">
   <div class="vig-col__rules" aria-hidden="true">
@@ -55,6 +56,28 @@ import { site } from "../../data/sections";
       Yahoo Finance.
     </p>
   </div>
+
+  {/*
+   * Secondary nav: institutional pages.
+   *
+   * About + Methodology live in the footer, not the masthead. The masthead
+   * is reserved for the seven sections + Research. This block uses the
+   * micro-caps + hairline-separator vocabulary already established by the
+   * sources label above so it slots cleanly into the colophon's register.
+   */}
+  <nav class="vig-col__secondary" aria-label="Institutional pages">
+    <p class="vig-col__secondary-label">Publication</p>
+    <ul class="vig-col__secondary-list">
+      <li class="vig-col__secondary-item">
+        <a class="vig-col__secondary-link" href={withBase("/about/")}>About</a>
+      </li>
+      <li class="vig-col__secondary-item">
+        <a class="vig-col__secondary-link" href={withBase("/methodology/")}>
+          Methodology
+        </a>
+      </li>
+    </ul>
+  </nav>
 
 </footer>
 
@@ -163,6 +186,82 @@ import { site } from "../../data/sections";
     line-height: 1.55;
     color: var(--ink);
     max-width: 80ch;
+  }
+
+  /* Secondary nav: About / Methodology. Mirrors the Sources block layout
+   * (label column + body column on desktop, stacked on mobile) and the
+   * sources block's hairline-separator entry into the colophon. */
+  .vig-col__secondary {
+    margin: 16px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--ink);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  @media (min-width: 720px) {
+    .vig-col__secondary {
+      grid-template-columns: max-content 1fr;
+      gap: 18px;
+      align-items: baseline;
+    }
+  }
+  .vig-col__secondary-label {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 9.5px;
+    line-height: 1;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .vig-col__secondary-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0;
+  }
+  .vig-col__secondary-item {
+    display: inline-flex;
+    align-items: center;
+  }
+  /* Hairline separator between items: vertical 1px black rule, matching
+   * the wordmark separator vocabulary above. The first item carries no
+   * leading rule. */
+  .vig-col__secondary-item + .vig-col__secondary-item::before {
+    content: "";
+    display: inline-block;
+    width: 1px;
+    height: 10px;
+    background: var(--ink);
+    margin: 0 14px;
+  }
+  .vig-col__secondary-link {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    padding-bottom: 2px;
+    transition:
+      color 80ms linear,
+      border-color 80ms linear;
+  }
+  .vig-col__secondary-link:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .vig-col__secondary-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
   }
 
 </style>

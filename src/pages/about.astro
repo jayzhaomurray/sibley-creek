@@ -1,0 +1,239 @@
+---
+/*
+ * /about/ - institutional About page.
+ *
+ * Source content: editorial/drafts/about_page.md (style-editor pass complete,
+ * TK-free, ~340 words). The body is short and well-bounded, so we render the
+ * prose inline as HTML rather than route it through Astro's markdown loader
+ * (which would add an indirection for a single page with no per-edit churn).
+ * The draft remains the source of truth; if it is rewritten, the inline copy
+ * here is hand-resynced.
+ *
+ * Visual register: Vignelli (per design/design-system.md). One sans (Manrope)
+ * for everything; H1 in display-lg 800; body in body-lg 400; institutional
+ * kicker in micro-caps 600 above the title band. Footer carries the page-end
+ * rule; no pillar / section chrome (this is institutional, not editorial).
+ *
+ * The page is reachable from the footer (VignelliColophon's secondary nav)
+ * and NOT from the masthead - the masthead remains the 7 sections + Research.
+ */
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { site } from "../data/sections";
+
+const pageTitle = "About";
+const pageDesc =
+  "Sibley Creek is a standing, opinionated read of the Canadian macro " +
+  "picture, organized as a small set of sections that mirror how a Canadian " +
+  "institutional desk frames the economy. It exists to help a reader who " +
+  "already knows the basics form a sharper view of Canada than the median " +
+  "Big-Six economics note.";
+---
+<BaseLayout title={pageTitle} description={pageDesc} pageClass="static-page">
+  <article class="static" aria-labelledby="static-h">
+    <header class="static__header">
+      <p class="static__kicker">
+        <span class="static__kicker-tok">{site.name}</span>
+        <span class="static__kicker-sep" aria-hidden="true">|</span>
+        <span class="static__kicker-tok static__kicker-tok--name">About</span>
+      </p>
+
+      <div class="static__band">
+        <h1 id="static-h" class="static__h">About</h1>
+      </div>
+
+      <hr class="static__rule" aria-hidden="true" />
+    </header>
+
+    <div class="static__body markdown-body">
+      <p>
+        Sibley Creek is a standing, opinionated read of the Canadian macro
+        picture, organized as a small set of sections that mirror how a
+        Canadian institutional desk frames the economy and refreshed on
+        cadences that match how those sections actually move. It exists to
+        help a reader who already knows the basics form a sharper view of
+        Canada than the median Big-Six economics note.
+      </p>
+
+      <p>
+        Canada is the subject. The Fed's path, US growth, Chinese demand, and
+        global oil enter only as transmission channels &mdash; into the BoC's
+        reaction function, into Canadian export demand, into Canadian
+        exporter margins. A piece that could run unchanged in a US shop does
+        not belong here.
+      </p>
+
+      <p>
+        The publication runs across seven sections &mdash; GDP, Inflation,
+        Labour, Housing, Policy, Markets, Trade &mdash; each anchored to a
+        single headline question. Is the economy at potential, growing, or
+        contracting? Is the 2% target being met, on what measures and what
+        breadth? How tight is the labour market, and is per-capita output
+        recovering? Each section is a chartbook: a vertical stack of
+        indicators, each paired with a two-to-four-sentence interpretation
+        paragraph. The chart is the evidence; the paragraph is the read.
+      </p>
+
+      <p>
+        Sibley Creek is tri-modal. A live tracker pulls daily-refresh data
+        from primary sources. Short interpretation paragraphs are drafted
+        against each fresh print and pass human review before publish.
+        Slower, human-led deep dives sit inside the section they belong to,
+        dated and contestable. The three modes share one set of sections,
+        one voice, one canon.
+      </p>
+
+      <p>
+        The publication cites Statistics Canada, the Bank of Canada, the
+        Department of Finance, the PBO, the provinces, CMHC, OSFI, C.D.
+        Howe, the IMF, and the OECD &mdash; not bank morning notes. The
+        Big-Six economics desks are competitors to measure against, not
+        voices to quote. Constructed series carry a methodology note one
+        click away.
+      </p>
+
+      <p>
+        The name comes from Sibley Creek, on the Sibley Peninsula in
+        Sleeping Giant Provincial Park on the north shore of Lake Superior.
+        The mark that threads through the masthead, the social cards, and
+        the favicon is the Giant himself &mdash; three flat-topped mesas
+        separated by two erosion notches, reclining on his back. The name
+        signals the publication's posture: Canadian, geographically
+        specific, quietly durable, indifferent to fashion.
+      </p>
+
+      <p>
+        Sibley Creek is written by Jay Zhao-Murray, formerly Canada
+        economics data editor at Bloomberg in Ottawa and, before that, a
+        foreign-exchange analyst at Monex Canada covering the loonie. He
+        held a research-assistant post at the Bank of Canada and studied
+        economics at Western.
+      </p>
+
+      <p>
+        New data lands when the Canadian release calendar says it does. New
+        deep dives ship when there is something to say.
+      </p>
+    </div>
+  </article>
+
+  <style>
+    /* ============================================================
+     * /about/ + /methodology/ - shared "static page" surface.
+     *
+     * Modeled on the /research/<slug>/ deep-dive page, but trimmed:
+     *   - No section kicker (this is institutional, not editorial).
+     *   - No deck or published-date stamp.
+     *   - No "Back to research" foot link.
+     * The body markdown-body rules mirror the deep-dive rules so the
+     * typographic register matches across the site.
+     * ============================================================ */
+
+    .static {
+      width: 100%;
+      max-width: var(--col-wide);
+      margin: 0 auto;
+      padding-top: 28px;
+      padding-bottom: var(--s-9);
+    }
+
+    /* ---- Header band ---- */
+    .static__kicker {
+      margin: 0 0 18px;
+      display: inline-flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0 10px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .static__kicker-tok { display: inline-block; }
+    .static__kicker-tok--name { font-weight: 800; }
+    .static__kicker-sep {
+      color: var(--ink);
+      opacity: 0.32;
+      font-weight: 400;
+    }
+
+    .static__band {
+      border-top: 1px solid var(--ink);
+      padding-top: 18px;
+    }
+    .static__h {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: clamp(36px, 5.5vw, 56px);
+      line-height: 1.05;
+      letter-spacing: -0.018em;
+      color: var(--ink);
+      max-width: 22ch;
+    }
+
+    .static__rule {
+      border: 0;
+      border-top: 2px solid var(--ink);
+      margin: 32px 0 0;
+    }
+
+    /* ---- Body ---- */
+    .static__body {
+      margin-top: var(--s-7);
+      max-width: var(--col-body);
+    }
+
+    .markdown-body h2 {
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: var(--fs-display-md);
+      line-height: var(--lh-display-md);
+      letter-spacing: -0.012em;
+      color: var(--ink);
+      margin: var(--s-8) 0 var(--s-3);
+      max-width: 32ch;
+      padding-bottom: var(--s-3);
+      border-bottom: 1px solid var(--ink);
+    }
+    .markdown-body h2:first-child {
+      margin-top: 0;
+    }
+
+    .markdown-body p {
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: var(--fs-body-lg);
+      line-height: var(--lh-body-lg);
+      color: var(--ink);
+      margin: 0 0 var(--s-5);
+    }
+    .markdown-body p:last-child {
+      margin-bottom: 0;
+    }
+
+    .markdown-body strong,
+    .markdown-body b {
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .markdown-body em,
+    .markdown-body i {
+      font-style: normal;
+      font-weight: 200;
+    }
+
+    .markdown-body a {
+      color: var(--ink);
+      text-decoration-color: var(--ink);
+    }
+    .markdown-body a:hover {
+      color: var(--accent);
+      text-decoration-color: var(--accent);
+    }
+  </style>
+</BaseLayout>

@@ -1,0 +1,301 @@
+---
+/*
+ * /methodology/ - institutional Methodology page.
+ *
+ * Source content: editorial/drafts/methodology_page.md (style-editor pass
+ * complete, TK-free, ~590 words across four H2 sections). The body is
+ * rendered inline as HTML rather than routed through Astro's markdown loader
+ * for the same reason as /about/: a single page with no per-edit churn does
+ * not need the indirection. The draft remains the source of truth.
+ *
+ * Visual register: Vignelli, mirroring /about/. Shared `.static` +
+ * `.markdown-body` surface (defined inline below; identical to /about/ so the
+ * two pages render as a matched pair). H2 sections carry the canonical
+ * 1px hairline underline.
+ */
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { site } from "../data/sections";
+
+const pageTitle = "Methodology";
+const pageDesc =
+  "Sibley Creek is a tracker of Canadian macro built on primary Canadian " +
+  "sources, refreshed on the cadences those sources publish on. This page " +
+  "describes where the data come from, how often they update, how revisions " +
+  "move through, and the editorial rules the publication runs on.";
+---
+<BaseLayout title={pageTitle} description={pageDesc} pageClass="static-page">
+  <article class="static" aria-labelledby="static-h">
+    <header class="static__header">
+      <p class="static__kicker">
+        <span class="static__kicker-tok">{site.name}</span>
+        <span class="static__kicker-sep" aria-hidden="true">|</span>
+        <span class="static__kicker-tok static__kicker-tok--name">
+          Methodology
+        </span>
+      </p>
+
+      <div class="static__band">
+        <h1 id="static-h" class="static__h">Methodology</h1>
+      </div>
+
+      <hr class="static__rule" aria-hidden="true" />
+    </header>
+
+    <div class="static__body markdown-body">
+      <p>
+        Sibley Creek is a tracker of Canadian macro built on primary Canadian
+        sources, refreshed on the cadences those sources publish on. This
+        page describes where the data come from, how often they update, how
+        revisions move through, and the editorial rules the publication
+        runs on.
+      </p>
+
+      <h2>Data sources</h2>
+
+      <p>The live tracker pulls from seven primary sources today.</p>
+
+      <p>
+        <strong>Statistics Canada</strong> is the spine. Consumer prices
+        (headline plus the BoC's core-trim and core-median measures, with
+        sub-aggregates), the Labour Force Survey (employment, unemployment,
+        participation, wages), monthly GDP by industry (Table 36-10-0434),
+        quarterly GDP by expenditure (Table 36-10-0104), merchandise trade,
+        housing starts, and CMA-level population all come directly from
+        StatCan's WDS endpoint by vector ID. <strong>The Bank of
+        Canada</strong> supplies the overnight rate target, GoC benchmark
+        yields from 2y to 30y, the USDCAD spot rate, CORRA, the BoC's
+        commodity price indices, the Canadian Survey of Consumer
+        Expectations, the Business Outlook Survey, and the output gap series
+        from the MPR. <strong>FRED</strong> provides US comparators &mdash;
+        2y and 10y Treasury yields, the fed funds target, the VIX, US IG
+        and HY corporate spreads, WTI, and Brent. <strong>Yahoo
+        Finance</strong> supplies daily closes on the TSX Composite, the
+        S&amp;P 500, and front-month COMEX gold. <strong>CREA</strong>
+        delivers the MLS HPI national plus six CMA aggregates. <strong>The
+        Department of Finance</strong>'s monthly Fiscal Monitor provides
+        the federal budgetary balance, revenues, expenses, and
+        debt-service costs. <strong>The Canadian Bankers
+        Association</strong>'s monthly mortgage-arrears file is wired as a
+        proxy for the broader stock view while CMHC's RMIR series is out
+        of pipeline.
+      </p>
+
+      <p>
+        OSFI Bank Financial Data and the CMHC arrears and Rental Market
+        Survey series are named in the source roster but not yet wired;
+        both are scheduled for a later wave. The Parliamentary Budget
+        Officer's Economic and Fiscal Outlook and BIS peer central-bank
+        rates are also in queue. This page updates when those sources
+        land.
+      </p>
+
+      <h2>Cadence</h2>
+
+      <p>
+        Each section refreshes on the release calendar of its primary
+        trigger. CPI lands mid-month, roughly two weeks after the reference
+        month, and the Inflation chartbook rebuilds on that print. LFS
+        lands the first Friday of the month and drives Labour. Monthly GDP
+        by industry runs roughly 60 days behind reference and drives the
+        GDP section's monthly view; quarterly GDP by expenditure refreshes
+        the expenditure cuts and the current account. Trade releases
+        monthly with about a 30-day lag. The Fiscal Monitor releases
+        monthly with about a two-month lag. Markets refreshes daily on
+        yields, FX, and commodity prices; a weekly synthesis sits on top.
+      </p>
+
+      <p>
+        Policy is event-driven. The BoC's eight fixed announcement dates
+        in 2026 are Jan 28, Mar 18, Apr 29, Jun 10, Jul 15, Sep 2, Oct 28,
+        and Dec 9, with the Monetary Policy Report alongside the January,
+        April, July, and October decisions. The Summary of Deliberations
+        follows two weeks after each decision; the Financial System Review
+        lands in May and November. The Federal Budget (Feb&ndash;Mar) and
+        the Fall Economic Statement (Nov&ndash;Dec) drive the fiscal
+        slate.
+      </p>
+
+      <h2>Vintage and revisions</h2>
+
+      <p>
+        StatCan and the BoC revise their own data. Monthly series typically
+        revise the prior one to three observations on each release; LFS
+        revises the prior month; GDP often revises the prior two quarters.
+        The site shows the latest vintage as-is and lets the next pipeline
+        build flow revisions through. Prior published commentary attached
+        to a chart is not silently restated. The chart at the top of a
+        chartbook unit reflects the current vintage; the paragraph beneath
+        it is the read-of-the-day for the release it shipped on.
+      </p>
+
+      <p>
+        CREA back-revises roughly the prior three months as late-closing
+        sales report in. The federal Public Accounts release each December
+        restates the prior fiscal year for the Fiscal Monitor. The CPI
+        basket updates on a roughly five-year cycle; the current basket
+        applies through about 2029. Cross-basket price levels are not
+        strictly comparable, but year-over-year changes are, because
+        StatCan chains the index across baskets.
+      </p>
+
+      <p>
+        A tile that shows a gap is a real gap. When a primary series CSV
+        is missing or malformed and the loader cannot fill the row with
+        real data, the site leaves the gap visible rather than fill it
+        with a stale or fabricated number. As sources wire in, the
+        placeholders clear.
+      </p>
+
+      <h2>Voice rules that shape the methodology</h2>
+
+      <p>
+        Sibley Creek cites primary Canadian institutions in running prose:
+        Statistics Canada, the Bank of Canada, OSFI, CMHC, the Department
+        of Finance, the PBO, provincial finance ministries, C.D. Howe's
+        Business Cycle Council, the IMF Article IV Canada report, and the
+        OECD Economic Survey of Canada. The Big-Six bank economics desks
+        are read daily as competitors; they are not cited in running prose
+        as authority.
+      </p>
+
+      <p>
+        When market consensus is the natural comparator on a print &mdash;
+        the Bloomberg or Reuters median, or an aggregated forecaster
+        median where the paid feed is unavailable &mdash; it enters as a
+        derived number attached to a comparison, not as a quoted view.
+        When market consensus is genuinely unavailable, the BoC's most
+        recent MPR central projection is the fallback anchor, named
+        directly and dated. Every constructed series carries a methodology
+        note one click away.
+      </p>
+
+      <h2>The auto-blurb pipeline</h2>
+
+      <p>
+        A second mode of the publication is the short interpretation
+        paragraph that fires on a fresh data print. The pipeline drafts a
+        release-context note from verified primary-source claims,
+        re-fetches each cited URL to confirm the claim verbatim, drafts
+        the two-to-four-sentence blurb, fact-checks against the verified
+        cards, and polishes voice. Human editorial review gates publish in
+        every case. The pipeline is built and awaiting its first live run;
+        it turns on across Inflation, Labour, and Policy over the course
+        of 2026. The data-fetch side of Mode 2 is the path that fully
+        automates; the human review gate stays.
+      </p>
+    </div>
+  </article>
+
+  <style>
+    /* Shared static-page surface; mirrors /about/. See about.astro for the
+     * design-system citation. Kept inline (not extracted to a shared
+     * component) because the two pages are the only consumers and the
+     * markup is mostly content, not structure. */
+
+    .static {
+      width: 100%;
+      max-width: var(--col-wide);
+      margin: 0 auto;
+      padding-top: 28px;
+      padding-bottom: var(--s-9);
+    }
+
+    .static__kicker {
+      margin: 0 0 18px;
+      display: inline-flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0 10px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .static__kicker-tok { display: inline-block; }
+    .static__kicker-tok--name { font-weight: 800; }
+    .static__kicker-sep {
+      color: var(--ink);
+      opacity: 0.32;
+      font-weight: 400;
+    }
+
+    .static__band {
+      border-top: 1px solid var(--ink);
+      padding-top: 18px;
+    }
+    .static__h {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: clamp(36px, 5.5vw, 56px);
+      line-height: 1.05;
+      letter-spacing: -0.018em;
+      color: var(--ink);
+      max-width: 22ch;
+    }
+
+    .static__rule {
+      border: 0;
+      border-top: 2px solid var(--ink);
+      margin: 32px 0 0;
+    }
+
+    .static__body {
+      margin-top: var(--s-7);
+      max-width: var(--col-body);
+    }
+
+    .markdown-body h2 {
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: var(--fs-display-md);
+      line-height: var(--lh-display-md);
+      letter-spacing: -0.012em;
+      color: var(--ink);
+      margin: var(--s-8) 0 var(--s-3);
+      max-width: 32ch;
+      padding-bottom: var(--s-3);
+      border-bottom: 1px solid var(--ink);
+    }
+    .markdown-body h2:first-child {
+      margin-top: 0;
+    }
+
+    .markdown-body p {
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: var(--fs-body-lg);
+      line-height: var(--lh-body-lg);
+      color: var(--ink);
+      margin: 0 0 var(--s-5);
+    }
+    .markdown-body p:last-child {
+      margin-bottom: 0;
+    }
+
+    .markdown-body strong,
+    .markdown-body b {
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .markdown-body em,
+    .markdown-body i {
+      font-style: normal;
+      font-weight: 200;
+    }
+
+    .markdown-body a {
+      color: var(--ink);
+      text-decoration-color: var(--ink);
+    }
+    .markdown-body a:hover {
+      color: var(--accent);
+      text-decoration-color: var(--accent);
+    }
+  </style>
+</BaseLayout>
