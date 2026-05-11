@@ -181,9 +181,14 @@ or contracting -- and what is driving it?
 **Basics layer (4-6 elements):**
 1. Headline real GDP -- monthly by industry (StatCan, ~60-day lag)
    and quarterly by expenditure (with Q/Q SAAR and Y/Y). Latest
-   print: date, value, revision direction, and surprise vs. BoC's
-   most-recent MPR central projection (the primary-source anchor;
-   Big-Six / Reuters consensus polls are not cited in basics prose).
+   print: date, value, revision direction, and surprise vs. market
+   consensus (Bloomberg / Reuters median, or aggregated forecaster
+   median where the paid feed is unavailable). BoC's most-recent
+   MPR central projection is the fallback anchor when consensus is
+   genuinely unavailable. The consensus number enters as a derived
+   numerical input, not as a cited opinion -- the voice principle
+   on Big-Six sourcing (Section 7) applies to citation, not to
+   forecast aggregation.
 2. Industry vs. expenditure cross-check -- where the two cuts agree
    and where they diverge. v1: static methodological footnote on
    typical reconciliation gap; dynamic discrepancy commentary is
@@ -211,8 +216,10 @@ measures and what breadth?
 
 **Basics layer (4-6 elements):**
 1. Headline CPI -- Y/Y and 3-month annualized; latest print with
-   surprise vs. BoC's MPR central projection (primary-source
-   anchor; no Big-Six / Reuters consensus citations in basics prose).
+   surprise vs. market consensus (Bloomberg / Reuters median, or
+   aggregated forecaster median where the paid feed is unavailable).
+   BoC's MPR central projection is the fallback anchor when
+   consensus is genuinely unavailable.
 2. BoC preferred core measures -- core-trim and core-median lead
    as the BoC's current preferred pair; common shown as historical
    anchor in hover/footnote with a one-line note that BoC has
@@ -264,8 +271,11 @@ Labour first, demographics second; never demographics-as-opener.
 
 **Basics-layer panel order (6 panels + 2-4-sentence blurb):**
 1. **LFS headline** -- employment, unemployment rate, participation,
-   employment rate. Latest print with surprise vs. BoC's MPR labour
-   projections. First-Friday cadence.
+   employment rate. Latest print with surprise vs. market consensus
+   (Bloomberg / Reuters median, or aggregated forecaster median
+   where the paid feed is unavailable); BoC's MPR labour projections
+   are the fallback anchor when consensus is genuinely unavailable.
+   First-Friday cadence.
 2. **Per-capita panel** (signature) -- side-by-side small multiples:
    employment Y/Y vs employment Y/Y per-capita; aggregate hours Y/Y
    vs per-capita hours Y/Y. This is where the EDR headline question
@@ -717,3 +727,4 @@ below.
 - 2026-05-10: Final pass after role definition sharpened and coordinator merged in. editorial-director.
 - 2026-05-10: Two-layer architecture adopted -- boc-tracker-style sections as v1 navigation, eight pillars folded under sections as deep dives. editorial-director.
 - 2026-05-10: Section 4 adjusted post-Wave-1 to reflect actual data coverage and construction cost. Four-state inflation breadth retired as forced classification (preserved as prose vocabulary). Surprise-vs-consensus reframed to BoC MPR central projection (no Big-Six / Reuters consensus citation). GDP contributions simplified to six-bar GFCF (business-vs-residential split deferred to Pillar D). Inflation 3M-AR core, goods-ex-energy / services-ex-shelter derivations, and pass-through panel gated on basket-weight reproducibility. Labour basics-layer panel order locked: LFS headline, per-capita panel (signature), wage band, V/U + Beveridge, immigration trajectory with IRCC annotations, four-province dumbbell dispersion. Housing mortgage-stack-by-vintage and own CAPB construction deferred to deep-dives; v1 basics cites BoC chartpack and IMF/OECD CAPB directly. Financial CAD fair-value model, own FCI composite, full term-premium decomposition, and Canadian credit-spread proxies deferred to v1.5; v1 basics uses USDCAD percentile classifier and US-side comparators with explicit caveats. Trade adds partner shares (China, UK, Japan, Mexico, Germany) and ToT / BCPI / FDI elements; energy-by-mode and auto/metals folded into deep-dives. editorial-director.
+- 2026-05-10: User-override on surprise framing. Surprise is now anchored to market consensus (Bloomberg / Reuters median, or aggregated forecaster median where paid feed unavailable) across GDP, Inflation, and Labour element-1. BoC MPR projection is the fallback when consensus is genuinely unavailable. Reasoning: the voice principle on Big-Six sourcing (Section 7) applies to citation as authority, not to aggregating forecaster numbers as derived consensus inputs. Prior 2026-05-10 framing (BoC MPR as primary anchor) was a too-strict reading of the voice principle. main Claude on user instruction.
