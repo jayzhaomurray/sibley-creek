@@ -27,7 +27,7 @@ binding constraint on the BoC right now -- the Bank itself is not
 flagging it, and the 2024-25 episode demonstrated that BoC can
 tolerate a -170 bps 2y spread without capitulating. Second, the
 binding constraint is the inflation-expectations chain -- the
-consumer 1y and 5y CSCE measures and the BOS firm distribution --
+consumer 1y and 5y Canadian Survey of Consumer Expectations measures and the Business Outlook Survey firm distribution --
 and that chain is currently moderating toward target, not breaking.
 Third, the 2024-25 episode is the operating precedent, not 1997-98;
 the resolution then came from Fed convergence, not BoC capitulation,
@@ -205,7 +205,7 @@ April is the test of the gasoline-base-effect framing; May and June
 are the test of the decline. A failure to decline would indicate
 broader inflation pressure than the gasoline story explains.
 
-**If credit conditions tighten sharply -- Canadian IG / HY spreads
+**If credit conditions tighten sharply -- Canadian investment-grade / high-yield spreads
 widening 50 bps-plus, bank-funding spreads widening, or mortgage-
 GoC spreads widening -- the credit channel binds even if FX and
 expectations do not.**

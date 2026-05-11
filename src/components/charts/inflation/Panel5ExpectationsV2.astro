@@ -71,7 +71,10 @@ const PANEL_W = 292;
 const GAP = 36;
 const M_L = 56;
 const M_R = 44;
-const M_T = 44;
+const M_T = 64;   // widened from 44 to seat the small-multiple title with a
+                   // clear vertical lane above the panel frame (data peaks
+                   // can sit close to the frame top, so the title needs
+                   // visible separation).
 const M_B = 40;
 const panel_h = VB.H - M_T - M_B;
 const panel_x0_left = M_L;
@@ -79,16 +82,18 @@ const panel_x0_right = panel_x0_left + PANEL_W + GAP;
 void M_R; // budget-documenting; rendering uses panel_x0_right + PANEL_W
 
 // Per-panel y-domains (the two series live on disjoint scales).
-// LEFT: 1.5% to 4.0% gives headroom above the 3.67% Q3 2025 peak while
-// keeping the 2% BoC target visible inside the frame.
+// LEFT: 1.5% to 4.5% covers the historical max (4.26% Q2 2018) with a
+// little breathing room, while keeping the 2% BoC target visible inside
+// the frame. The earlier 4.0% ceiling clipped the 2018 cycle peak.
 const yLoA = 1.5;
-const yHiA = 4.0;
+const yHiA = 4.5;
 const yRangeA = yHiA - yLoA;
 
-// RIGHT: 0% to 60% - the 2022 cycle peak landed near 55% and the floor
-// of zero is structural (the share can't go negative).
+// RIGHT: 0% to 90% - the 2022 cycle peak hit 84% (Q4 2022, BOS); the
+// hardcoded 0-60% ceiling clipped the line. Floor of zero is structural
+// (the share can't go negative).
 const yLoB = 0;
-const yHiB = 60;
+const yHiB = 90;
 const yRangeB = yHiB - yLoB;
 
 // Shared x-domain across both panels. Both series are on the same
@@ -132,8 +137,8 @@ function buildPath(
 
 // Y-ticks. Hand-pick per panel so the axis aligns with editorial-meaningful
 // values (2% BoC target on the left; 0-60% decadal stride on the right).
-const yTicksA = [1.5, 2.0, 2.5, 3.0, 3.5, 4.0];
-const yTicksB = [0, 15, 30, 45, 60];
+const yTicksA = [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5];
+const yTicksB = [0, 30, 60, 90];
 
 function fmtPctTickA(v: number, isTop: boolean): string {
   // Left panel uses one decimal place (1.5%, 2.0%, ...). Top tick keeps "%".

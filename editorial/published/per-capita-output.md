@@ -32,7 +32,7 @@ denominator, not by collapsing productivity; Canadian business-
 sector labour productivity rose 1.1% in 2025, with unit-labour-cost
 growth at 1.2% -- the lowest annual ULC growth since 2017. Second,
 that denominator is now turning fast: the IRCC 2026-2028
-Immigration Levels Plan and the four-quarter NPR contraction
+Immigration Levels Plan and the four-quarter net non-permanent-resident contraction
 already in the data set the trajectory of the per-capita
 denominator through 2028. Third, under any reasonable set of
 assumptions, the per-capita employment ratio retraces a meaningful
@@ -114,7 +114,7 @@ permanent resident admissions." The plan sets the trajectory of
 the per-capita denominator through the end of 2028.
 
 The Bank of Canada has taken the framework on board. The April
-2026 MPR notes that "population growth slowdown is constraining
+2026 Monetary Policy Report notes that "population growth slowdown is constraining
 demand and weighing on housing activity" and that potential output
 growth is expected to slow in 2026 and recover in 2027-2028 as the
 immigration trajectory normalizes. Bank of Canada SAN 2025-14
@@ -134,7 +134,7 @@ supplementary information," November 2025.*
 
 The arithmetic of the closing gap is straightforward. If population
 growth runs at roughly 0.3-0.6% in 2026-2027 (consistent with the
-IRCC plan and the NPR contraction already underway) and employment
+IRCC plan and the net non-permanent-resident contraction already underway) and employment
 grows even modestly -- say 0.5-1.0% over the same window -- the
 employment rate rises mechanically by roughly 0.6 to 0.9 points
 over the next six quarters. That alone closes roughly half of the
@@ -216,7 +216,7 @@ us. The denominator did most of the work.
 The arithmetic, framed as a scenario not a forecast. Holding
 employment at April 2026 levels and letting population grow at
 0.3-0.6% through end-2027 -- a path consistent with the IRCC plan
-and the NPR contraction already in the data -- lands the employment
+and the net non-permanent-resident contraction already in the data -- lands the employment
 rate at 61.1-61.4%, closing roughly half the gap to the pre-COVID
 62.2% baseline. No hiring boom, no investment renaissance, no
 productivity inflection required. Any cyclical recovery on top of
@@ -233,7 +233,7 @@ scenario per assumptions in text. Labelled explicitly as scenario,
 not forecast.*
 
 Under any reasonable parameterization of the inputs that are now
-reasonably well-defined -- the IRCC plan, the observed NPR
+reasonably well-defined -- the IRCC plan, the observed net non-permanent-resident
 contraction, a labour market that loosens but does not break -- the
 per-capita employment ratio retraces a material share of its
 2023-2026 decline within six quarters. The headline-versus-per-

@@ -233,8 +233,8 @@ PROVENANCE: dict[str, Provenance] = {
     "indeed_postings_ca_monthly": _indeed("Index, Feb 1 2020 = 100", "monthly",
         "Indeed Canada postings index, monthly mean of daily SA values (month-start convention)."),
     # ---- Housing ----
-    "housing_starts": _statcan("3410015801", 52300157, "Units, SAAR", "monthly",
-        "Housing starts, Canada total, SAAR."),
+    "housing_starts": _statcan("3410015801", 52300157, "Units (thousands), SAAR", "monthly",
+        "Housing starts, Canada total, SAAR (in thousands)."),
     "new_housing_price_index": _statcan("1810020501", 111955442, "Index, Dec 2016 = 100", "monthly",
         "New Housing Price Index, Canada total, NSA."),
     "residential_permits": _statcan("3410029201", 1675119646, "CAD thousands", "monthly",

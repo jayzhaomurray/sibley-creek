@@ -3,7 +3,7 @@ at 2020-21 contract rates -- the cohort that carried the bulk of
 the renewal-payment-shock distribution -- has now mostly rolled,
 and the mechanical pulse on household cash flows has begun to fade.
 Mortgage interest cost in the CPI tells the story most cleanly: at
-0.28% Y/Y in March 2026, MIC's contribution to inflation is
+0.28% Y/Y in March 2026, its contribution to inflation is
 essentially extinguished, after running near double digits at the
 2023-2024 peak.
 
@@ -135,7 +135,7 @@ to-value ratios that leave little room to refinance into longer-
 amortization products without re-qualification under tighter B-20
 stress-test conventions, and concentration in the Toronto and
 Vancouver CMAs where original nominal loan sizes were largest.
-CMHC RMIR Fall 2025 reports the flow share of new uninsured
+CMHC Residential Mortgage Industry Report Fall 2025 reports the flow share of new uninsured
 mortgages at chartered banks with amortizations longer than 25
 years remained above 60% in Q2 2025 for the fourth consecutive
 year.
@@ -163,7 +163,7 @@ February; March's advance estimate is +0.6% M/M. Positive but not
 strong. The renewal channel does not show up as a single month's
 collapse in retail sales; it shows up as a multi-quarter drag on
 the discretionary-services side, partly offsetting the mechanical
-fade of MIC in the inflation print.
+fade of mortgage interest cost in the inflation print.
 
 SAP 2026-12's section heading is direct: "The labour market is the
 key driver of arrears." The arrears rate ran at 0.2% before the
@@ -208,7 +208,7 @@ lever.
 
 **The wall peaks earlier than this piece claims if**: CMHC's
 mortgage arrears rate (90+ days) stalls or rolls over within the
-next two RMIR releases; CBA's chartered-bank monthly arrears falls
+next two Residential Mortgage Industry Report releases; CBA's chartered-bank monthly arrears falls
 below 0.25% for three consecutive months from the current 0.28%
 reading; and Big-Six writeoffs on residential mortgages trail below
 the current C$168 million four-quarter baseline in the Q2 FY2026
@@ -217,7 +217,7 @@ begun to dissipate faster than the cohort-mechanics model predicts.
 
 **The wall extends past 2027 if**: Canadian unemployment moves
 above 7.5% on a sustained basis (two consecutive quarters), or the
-LFS prints back-to-back monthly increases of 0.2 pp or more. This
+Labour Force Survey prints back-to-back monthly increases of 0.2 pp or more. This
 is the load-bearing trigger after the SAP 2026-12 reframe: a +1 pp
 rise in unemployment adds roughly 10 bps to the arrears rate within
 a year, comparable in magnitude to the entirety of the 2022-2023
@@ -234,7 +234,7 @@ The cheapest test that would resolve the labour-channel reframe is
 the next LFS release (June 6, 2026 for May 2026 data). Labour-
 market deterioration shows up in the LFS first, in the CBA arrears
 series with roughly a one-year lag per SAP 2026-12. If the next
-LFS holds unemployment at or below 6.9% and the Spring 2026 RMIR
+LFS holds unemployment at or below 6.9% and the Spring 2026 Residential Mortgage Industry Report
 shows the regional arrears geography stable, the renewal-wall
 residual is the backward-looking story this piece claims it is. If
 the LFS prints a 50 bps deterioration, the forward read flips to

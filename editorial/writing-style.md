@@ -444,6 +444,61 @@ view.
 
 The second is longer, but every clause does work.
 
+### Acronyms and initialisms
+
+**The test: do peers SAY the acronym out loud, or only write it?**
+If the acronym is how people actually talk to each other, it earns
+a free pass. If it's written-only shorthand, expand it in reader
+prose (it can still ride in labels, citations, and tight chart
+slots where space is the constraint).
+
+**Free pass (use in reader prose, no expansion needed):**
+
+- CPI, GDP, EI, USDCAD — said out loud, recognized broadly.
+- BoC, Fed, StatCan, OSFI, CMHC, CREA, IMF, OECD, PBO, CBA, FRED,
+  ECB, BoE, BoJ — proper-noun institutions; these ARE the names
+  people use.
+
+**Always expand in reader prose** (OK as labels / citations / tight
+chart slots):
+
+- HPI -> "home prices" (the HPI is the measurement tool; "home
+  prices" is the concept the reader thinks about). "MLS HPI" is
+  fine as a citation suffix.
+- SAAR -> "annualized" or "Q/Q annualized." "SAAR" is fine in a
+  chart-axis subtitle or a callout unit.
+- SNLR -> "sales-to-new-listings."
+- FCI -> "financial conditions" (or "financial conditions index"
+  when that distinction matters).
+- OAS -> "spreads" or "credit spreads."
+- NPR -> "net non-permanent residents" (do not let "NPR" stand
+  alone; ambiguous with National Public Radio).
+- RMIR / RMS -> describe the data ("CMHC's residential mortgage
+  industry report" / "CMHC Rental Market Survey").
+- MIC -> "mortgage interest cost."
+- V/U -> "vacancy-to-unemployment ratio."
+- CET1 -> "common-equity tier-1 ratio" on first use.
+- IG / HY (corporate spreads) -> "investment-grade" /
+  "high-yield" in prose; IG / HY OK in chart axes.
+
+**Audience-dependent (expand on first reader-facing use, then OK
+as shorthand inside a single piece):**
+
+- LFS -> "Labour Force Survey" on first use.
+- MPR -> "Monetary Policy Report" on first use.
+- BOS -> "Business Outlook Survey" on first use.
+- CSCE -> "Canadian Survey of Consumer Expectations" on first use.
+- FES -> "Fall Economic Statement" on first use.
+- DSB (OSFI) -> "Domestic Stability Buffer" on first use.
+
+**Where the rule does NOT apply:**
+- The `indicator` field on a section-page plate (tight label).
+- Source citations ("Source: CREA MLS HPI" stays as the proper
+  series name).
+- `chartSeriesKey` and other internal data shapes.
+- Y-axis units / chart-axis subtitles where space is constrained.
+- Pipeline code, design docs, internal markdown drafts.
+
 ### Jargon-as-armor, cut
 
 - "Optionality" (in any prose context that is not a derivatives

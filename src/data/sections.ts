@@ -305,7 +305,7 @@ export const sections: Section[] = [
     // Most recent LFS landed May 2, 2026 (April 2026 reference period).
     updatedAt: Date.UTC(2026, 4, 2, 8, 30),
     chartSeriesKey: "unrate",
-    heroKicker: "April LFS",
+    heroKicker: "April Labour Force Survey",
     tileLine:
       "Unemployment climbed to 6.9% in April; aggregate hours turned negative Y/Y.",
     prints: [
@@ -549,9 +549,9 @@ export const sections: Section[] = [
     // CREA April release (March reference period) landed Apr 15, 2026.
     updatedAt: Date.UTC(2026, 3, 15, 9, 0),
     chartSeriesKey: "hpi-yoy",
-    heroKicker: "March MLS HPI",
+    heroKicker: "March home prices",
     tileLine:
-      "Composite HPI slipped further into negative territory, Toronto and Vancouver leading the drift.",
+      "Composite home prices slipped further into negative territory, Toronto and Vancouver leading the drift.",
     prints: [
       {
         key: "hpi-yoy",
@@ -585,7 +585,7 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 15, 2026",
       body:
-        "The MLS HPI fell 4.6% Y/Y in the latest print, per the Canadian Real Estate Association, a tenth shallower than the prior month but the eighth straight negative reading. Housing starts on a 3mma basis stepped down to 241k from 257k, per Canada Mortgage and Housing Corporation. Affordability held at 42.7% of household income in Q4 2025, half a point easier on continued mortgage-cost relief.",
+        "Home prices fell 4.6% Y/Y on the MLS HPI in the latest print, per the Canadian Real Estate Association, a tenth shallower than the prior month but the eighth straight negative reading. Housing starts on a 3mma basis stepped down to 241k from 257k, per Canada Mortgage and Housing Corporation. Affordability held at 42.7% of household income in Q4 2025, half a point easier on continued mortgage-cost relief.",
     },
   },
 ];
