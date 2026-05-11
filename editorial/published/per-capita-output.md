@@ -1,52 +1,3 @@
-# Pillar E deep dive -- Per-capita output: deceleration or weakness? -- v1 draft
-
-Author: writer (macro-research-department / Sibley Creek).
-Style polish: style-editor. Chart inserts: chart-builder.
-Date: 2026-05-11.
-Status: v1 draft. Mode 3 deep-dive register per
-`editorial/dashboard_purpose.md` Section 7 and
-`editorial/writing-style.md` Section 1. ASCII-only.
-
-Anchors:
-- Insight base: `editorial/insight_base/pillar_e_per_capita_output.md`.
-  Tier legend: CANON / INFERRED / OPEN.
-- Editorial canon: `editorial/dashboard_purpose.md` Section 5 (Pillar E
-  framing), Section 7 (Mode 3 register).
-- Voice: `editorial/writing-style.md` Section 1 (chief-economist
-  prose), Section 2 (numbers and dates), Section 4 (institution
-  names), Section 8 (citation discipline).
-- Productivity link: `src/pages/gdp.astro` Productivity plate
-  ("structural Canadian fight" framing).
-
-Thesis: The per-capita weakness of 2024-2025 is dominated by the
-denominator -- population -- and the denominator is now mechanically
-reversing. The forward path to restoring per-capita employment and
-per-capita output does not require a productivity miracle; it
-requires the IRCC 2026-2028 plan to hold and the prime-age labour
-market not to break. Productivity remains the structural fight, but
-it is not the fight that explains the last three years.
-
-Charts wired into this draft:
-1. Chart E-1: aggregate employment vs employment-rate divergence with
-   population YoY (`/charts/pillar-e/divergence_opens_closes.svg`).
-   Inserted at the close of the Lede.
-2. Chart E-6: net NPR flow + PR landings against IRCC plan trajectory
-   (`/charts/pillar-e/npr_wave.svg`). Inserted inside Section II.
-3. Chart E-2: prime-age vs youth participation, indexed to pre-COVID
-   (`/charts/pillar-e/youth_carries_participation.svg`). Inserted
-   inside Section III.
-4. Chart E-5: per-capita GDP decomposed into GDP/hours, hours/emp,
-   emp/pop (`/charts/pillar-e/denominator_not_productivity.svg`).
-   Inserted inside Section IV.
-5. Chart E-4: scenario fan for emp/pop landing in 2027
-   (`/charts/pillar-e/scenarios_2027.svg`). Inserted inside Section V.
-
-Two insight-base charts (E-3 decomposition and the formal version of
-E-5 with hours-per-worker derivation) are marked OPEN in the insight
-base and are not author-commissioned in this v1.
-
----
-
 ## 1. Page header copy
 
 - Title (deep-dive voice; sentence case; declarative):
@@ -599,7 +550,3 @@ of Canada, Statistics Canada, and IRCC are the load-bearing
 institutions. Where consensus-forecaster numbers appear in
 scenario framing, they are aggregated and unattributed by bank
 name; no Big-Six economics note is cited as an authoritative view.
-
----
-
-End of v1 draft.

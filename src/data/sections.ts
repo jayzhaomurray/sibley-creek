@@ -671,9 +671,11 @@ export const deepDives: DeepDive[] = [
     section: "policy",
     title: "BoC vs. Fed: how far can the divergence run?",
     deck:
-      "TK basis points and counting. We trace the CAD, GoC curve, and credit channels that would force a back-off, and where the breakpoints sit.",
-    publishedAt: "TK",
-    lastUpdated: "TK",
+      "The policy spread sits at the 8th percentile of three decades; USDCAD is at the 67th and strengthening. The binding constraint is not the loonie but the expectations chain.",
+    publishedAt: "2026-05-11",
+    lastUpdated: "2026-05-11",
+    draftPath: "editorial/drafts/deepdive_pillar_b_boc_fed_divergence_v1.md",
+    publishedPath: "editorial/published/boc-fed-divergence.md",
     pillar: "B",
     status: "shipped",
   },
@@ -683,10 +685,24 @@ export const deepDives: DeepDive[] = [
     title: "Per-capita output: deceleration or weakness?",
     deck:
       "The headline labour print is flattering. The per-capita series is not. We separate the population-deceleration story from the cyclical weakness story.",
-    publishedAt: "TK",
+    publishedAt: "2026-05-11",
     lastUpdated: "TK",
+    draftPath: "editorial/drafts/deepdive_pillar_e_per_capita_output_v1.md",
+    publishedPath: "editorial/published/per-capita-output.md",
     pillar: "E",
-    status: "research",
+    status: "drafted",
+  },
+  {
+    slug: "us-tariff-repricing",
+    section: "trade",
+    title: "The reorientation has already happened",
+    deck:
+      "Canada's US export share has dropped ten percentage points in fourteen months. The argument over USMCA is happening on top of a structural break, not in advance of one.",
+    publishedAt: "2026-05-11",
+    lastUpdated: "2026-05-11",
+    draftPath: "editorial/drafts/deepdive_trade_tariffs_v1.md",
+    publishedPath: "editorial/published/us-tariff-repricing.md",
+    status: "shipped",
   },
 ];
 
