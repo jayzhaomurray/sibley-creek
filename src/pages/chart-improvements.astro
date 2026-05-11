@@ -4,12 +4,13 @@
  * 2026-05-11 (see design/chart-editorial-audit-2026-05-11.md +
  * design/chart-label-audit-2026-05-11.md).
  *
- * Eight wrapper-level chart fixes are dispatched as V2 components
- * alongside the originals. This page renders side-by-side pairs so the
- * user can compare and decide what to keep tomorrow morning. Six pairs
- * come from the prior editorial audit; the last two (GDP P5 output gap,
- * Trade P2 current account) come from the 2026-05-11 label-vs-data
- * audit and are label-only corrections (no data swap).
+ * Wrapper-level chart fixes are dispatched as V2 components alongside
+ * the originals. This page renders side-by-side pairs so the user can
+ * compare and decide what to keep. Six pairs come from the prior
+ * editorial audit; the Trade P2 current account pair comes from the
+ * 2026-05-11 label-vs-data audit and is a label-only correction (no
+ * data swap). The GDP P5 output gap pair was retired when the panel
+ * was rebuilt as a single-series chart in production.
  *
  * NOT linked from production nav. Excluded from sitemap (astro.config.mjs)
  * and robots.txt. The /chart-improvements/ route is a comparison harness,
@@ -34,7 +35,6 @@ import Policy3Orig from "../components/charts/policy/Panel3BoCFedSpread.astro";
 import Trade5Orig from "../components/charts/trade/Panel5TermsOfTrade.astro";
 import Labour2Orig from "../components/charts/labour/Panel2PerCapita.astro";
 import Gdp4Orig from "../components/charts/gdp/Panel4PerCapita.astro";
-import Gdp5Orig from "../components/charts/gdp/Panel5OutputGap.astro";
 import Trade2Orig from "../components/charts/trade/Panel2CurrentAccount.astro";
 
 // V2s
@@ -44,7 +44,6 @@ import Policy3V2 from "../components/charts/policy/Panel3BoCFedSpreadV2.astro";
 import Trade5V2 from "../components/charts/trade/Panel5TermsOfTradeV2.astro";
 import Labour2V2 from "../components/charts/labour/Panel2PerCapitaV2.astro";
 import Gdp4V2 from "../components/charts/gdp/Panel4PerCapitaV2.astro";
-import Gdp5V2 from "../components/charts/gdp/Panel5OutputGapV2.astro";
 import Trade2V2 from "../components/charts/trade/Panel2CurrentAccountV2.astro";
 
 const trade3 = pickPanel(tradeData, 3);
@@ -53,7 +52,6 @@ const policy3 = pickPanel(policyData, 3);
 const trade5 = pickPanel(tradeData, 5);
 const labour2 = pickPanel(labourData, 2);
 const gdp4 = pickPanel(gdpData, 4);
-const gdp5 = pickPanel(gdpData, 5);
 const trade2 = pickPanel(tradeData, 2);
 
 interface Pair {
@@ -135,17 +133,6 @@ const pairs: Pair[] = [
     data: gdp4,
   },
   {
-    id: "gdp-5",
-    section: "GDP",
-    panel: "Panel 5 - Output gap",
-    title: "Item 7: Stale \"GDP, quarterly\" label - honest \"Output gap\" label",
-    description:
-      "Pipeline emits the BoC MPR output gap (%, quarterly) as primary and total capacity utilization (%) as secondary -- both lines render fine. The wrapper still labelled the primary \"GDP, quarterly\" (leftover from a prior raw-level panel), so the chart told the reader it was a GDP level while showing a % gap. V2 keeps the data wiring and corrects the direct labels and aria copy. Label-only fix.",
-    OriginalComponent: Gdp5Orig,
-    V2Component: Gdp5V2,
-    data: gdp5,
-  },
-  {
     id: "trade-2",
     section: "Trade",
     panel: "Panel 2 - Current account",
@@ -167,9 +154,9 @@ const pageDescription = "Side-by-side V2 chart comparisons from the 2026-05-11 e
       <p class="cmp__eyebrow">Editorial audit 2026-05-11</p>
       <h1 class="cmp__title">Chart improvements - V2 comparison</h1>
       <p class="cmp__lede">
-        Eight wrapper-level fixes: six from the editorial audit, two from the
-        label-vs-data audit. Each pair shows the live production chart (left)
-        and the proposed V2 (right). Pick what survives.
+        Wrapper-level fixes from the editorial and label-vs-data audits.
+        Each pair shows the live production chart (left) and the proposed
+        V2 (right). Pick what survives.
       </p>
     </header>
 

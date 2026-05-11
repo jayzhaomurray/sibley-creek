@@ -1,0 +1,481 @@
+---
+/*
+ * Panel7PolicyRateDivergence - BoC overnight vs Fed funds, with the
+ * BoC-Fed spread plotted in a slim bottom panel. Monthly, Jan 1996 -
+ * latest joinable month.
+ *
+ * Source of truth for the composition: the deep-dive's chart 1 at
+ * scripts/charts/render_pillar_b_charts.mjs (chartPolicyRateDivergence).
+ * This is the Astro chartbook-canon port of that script for the Policy
+ * section's plate 7.
+ *
+ * Why bespoke (not PanelLiveChart): the chart is two stacked panels in a
+ * single SVG (top: two lines + one MTA red dot on the BoC terminus;
+ * bottom: spread line + zero rule + MTA red dot on the spread terminus).
+ * PanelLiveChart does not support dual-panel layouts; the canon
+ * reference does, in spirit, when extended. We hand-roll the SVG and
+ * apply the Tier-3 chartbook canon (Plex Mono y-ticks, Manrope x-ticks,
+ * 1.5px pure-ink primary, 1px dashed pure-ink secondary, 1px hairline
+ * frames on each panel, 4px MTA red latest-print dots, ink-wash zero
+ * line in the bottom panel).
+ *
+ * Data. Read directly from two raw CSVs:
+ *   - data/raw/overnight_rate.csv  (monthly, "date","value" in %)
+ *   - data/raw/fed_funds.csv       (monthly through 2008, daily 2009+)
+ * Both are git-tracked per the build-time file-refs check. The fed
+ * funds series is resampled to monthly last value, then inner-joined
+ * with the BoC series on the first-of-month date.
+ *
+ * The `data: PanelData | null` prop is accepted for compatibility with
+ * the SectionLayout dispatch shape but is intentionally ignored - the
+ * component owns its own data load.
+ */
+
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import type { PanelData } from "../_shared/panelData";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+// Prop is accepted but unused; data is loaded from raw CSVs below.
+const _unused = Astro.props;
+void _unused;
+
+// ---- CSV utilities -------------------------------------------------------
+interface Point {
+  date: string;
+  value: number;
+}
+
+function parseCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = "";
+  let inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuote) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else { inQuote = false; }
+      } else cur += ch;
+    } else {
+      if (ch === '"') inQuote = true;
+      else if (ch === ",") { out.push(cur); cur = ""; }
+      else cur += ch;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
+function loadSingleSeries(p: string): Point[] {
+  const txt = readFileSync(p, "utf8");
+  const lines = txt.split(/\r?\n/).filter((l) => l.length > 0);
+  const out: Point[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = parseCsvLine(lines[i]);
+    const date = cells[0];
+    const v = parseFloat(cells[1]);
+    if (!date || !Number.isFinite(v)) continue;
+    out.push({ date, value: v });
+  }
+  return out;
+}
+
+function resampleMonthlyLast(series: Point[]): Point[] {
+  const byMonth = new Map<string, Point>();
+  for (const p of series) byMonth.set(p.date.slice(0, 7), p);
+  const out: Point[] = [];
+  for (const [ym] of byMonth) out.push({ date: `${ym}-01`, value: byMonth.get(ym)!.value });
+  out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return out;
+}
+
+function innerJoinOnDate(a: Point[], b: Point[]): [Point[], Point[]] {
+  const bByDate = new Map(b.map((p) => [p.date, p.value]));
+  const aOut: Point[] = [];
+  const bOut: Point[] = [];
+  for (const p of a) {
+    if (bByDate.has(p.date)) {
+      aOut.push({ date: p.date, value: p.value });
+      bOut.push({ date: p.date, value: bByDate.get(p.date)! });
+    }
+  }
+  return [aOut, bOut];
+}
+
+function fmtMonthShort(d: string): string {
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const [y, m] = d.split("-").map((s) => parseInt(s, 10));
+  return `${months[m - 1]} ${y}`;
+}
+
+function niceTicks(min: number, max: number, target = 4): number[] {
+  const range = max - min;
+  if (range === 0) return [min];
+  const rough = range / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const candidates = [1, 2, 2.5, 5, 10].map((m) => m * mag);
+  let step = candidates[0];
+  for (const c of candidates) {
+    if (Math.abs(range / c - target) < Math.abs(range / step - target)) step = c;
+  }
+  const t0 = Math.ceil(min / step) * step;
+  const ticks: number[] = [];
+  for (let v = t0; v <= max + 1e-9; v += step) ticks.push(+v.toFixed(10));
+  return ticks;
+}
+
+// ---- Load + align --------------------------------------------------------
+const ROOT = process.cwd();
+const boc = loadSingleSeries(resolve(ROOT, "data/raw/overnight_rate.csv"));
+let fed = loadSingleSeries(resolve(ROOT, "data/raw/fed_funds.csv"));
+fed = resampleMonthlyLast(fed);
+
+const START = "1996-01-01";
+const bocT = boc.filter((p) => p.date >= START);
+const fedT = fed.filter((p) => p.date >= START);
+const [bocAligned, fedAligned] = innerJoinOnDate(bocT, fedT);
+const n = bocAligned.length;
+const spread: Point[] = bocAligned.map((p, i) => ({
+  date: p.date,
+  value: p.value - fedAligned[i].value,
+}));
+
+// ---- Geometry ------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 56;
+const M_R = 96;
+const M_T = 36;
+const M_B = 44;
+const PLOT_X0 = M_L;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_W = PLOT_X1 - PLOT_X0;
+const PLOT_H = PLOT_Y1 - PLOT_Y0;
+
+// Two-panel split: top ~62% (rates), bottom ~38% (spread), 16px gap.
+const PANEL_GAP = 16;
+const TOP_H = Math.round((PLOT_H - PANEL_GAP) * 0.62);
+const BOT_H = PLOT_H - PANEL_GAP - TOP_H;
+const TOP_Y0 = PLOT_Y0;
+const TOP_Y1 = TOP_Y0 + TOP_H;
+const BOT_Y0 = TOP_Y1 + PANEL_GAP;
+const BOT_Y1 = BOT_Y0 + BOT_H;
+
+// ---- Scales --------------------------------------------------------------
+function xByIndex(i: number): number {
+  return PLOT_X0 + (i / Math.max(1, n - 1)) * PLOT_W;
+}
+
+const topVals = bocAligned.map((p) => p.value).concat(fedAligned.map((p) => p.value));
+const topMax = Math.ceil(Math.max(...topVals));
+function yTop(v: number): number {
+  return TOP_Y1 - ((v - 0) / (topMax - 0)) * (TOP_Y1 - TOP_Y0);
+}
+const topTicks = niceTicks(0, topMax, 4);
+
+const spreadMin = Math.min(...spread.map((p) => p.value));
+const spreadMax = Math.max(...spread.map((p) => p.value));
+const sPad = (spreadMax - spreadMin) * 0.10;
+const sMin = Math.floor(spreadMin - sPad);
+const sMax = Math.ceil(spreadMax + sPad);
+function yBot(v: number): number {
+  return BOT_Y1 - ((v - sMin) / (sMax - sMin)) * (BOT_Y1 - BOT_Y0);
+}
+const botTicks = niceTicks(sMin, sMax, 2);
+const spreadCrossesZero = sMin < 0 && sMax > 0;
+
+// ---- X ticks: 4 anchors, dates from the BoC series -----------------------
+const xTickIdx = [0, Math.floor(n / 3), Math.floor((2 * n) / 3), n - 1];
+const xTickDates = xTickIdx.map((i) => bocAligned[i].date);
+
+// ---- Paths ---------------------------------------------------------------
+function pathFor(arr: Point[], yFn: (v: number) => number): string {
+  let d = "";
+  for (let i = 0; i < arr.length; i++) {
+    d += (i === 0 ? "M" : "L") + xByIndex(i).toFixed(2) + " " + yFn(arr[i].value).toFixed(2) + " ";
+  }
+  return d.trim();
+}
+const bocPath = pathFor(bocAligned, yTop);
+const fedPath = pathFor(fedAligned, yTop);
+const spreadPath = pathFor(spread, yBot);
+
+// ---- Latest-print coordinates -------------------------------------------
+const lastIdx = n - 1;
+const latestDate = bocAligned[lastIdx].date;
+const latestBoc = bocAligned[lastIdx].value;
+const latestFed = fedAligned[lastIdx].value;
+const latestSpread = spread[lastIdx].value;
+const lastX = xByIndex(lastIdx);
+const lastYBoc = yTop(latestBoc);
+const lastYFed = yTop(latestFed);
+const lastYSpread = yBot(latestSpread);
+
+// Stack the secondary Fed label below if it would crowd the BoC label.
+const labelX = Math.min(lastX + 10, PLOT_X1 + M_R - 4);
+let fedLabelY = lastYFed + 4;
+if (Math.abs(lastYFed - lastYBoc) < 13) fedLabelY = lastYBoc + 4 + 14;
+
+const ariaLabel =
+  "BoC overnight rate and Fed funds effective rate, monthly, January 1996 through " +
+  fmtMonthShort(latestDate) +
+  ", with the BoC minus Fed spread plotted on a slim bottom panel. Latest BoC and latest spread highlighted in red.";
+---
+<div class="panel-7-divergence" data-section="policy" data-panel="7">
+  <svg
+    class="panel-7-divergence__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* Top-panel gridlines */}
+    {topTicks.map((t) => {
+      const y = yTop(t);
+      return (
+        <line
+          class="panel-7-divergence__gridline"
+          x1={PLOT_X0}
+          x2={PLOT_X1}
+          y1={y.toFixed(2)}
+          y2={y.toFixed(2)}
+        />
+      );
+    })}
+
+    {/* Bottom-panel gridlines (skip zero - drawn separately) */}
+    {botTicks.map((t) => {
+      if (spreadCrossesZero && Math.abs(t) < 1e-9) return null;
+      const y = yBot(t);
+      return (
+        <line
+          class="panel-7-divergence__gridline"
+          x1={PLOT_X0}
+          x2={PLOT_X1}
+          y1={y.toFixed(2)}
+          y2={y.toFixed(2)}
+        />
+      );
+    })}
+
+    {/* Bottom-panel zero line - heavier than gridlines */}
+    {spreadCrossesZero && (
+      <line
+        class="panel-7-divergence__zero-line"
+        x1={PLOT_X0}
+        x2={PLOT_X1}
+        y1={yBot(0).toFixed(2)}
+        y2={yBot(0).toFixed(2)}
+      />
+    )}
+
+    {/* Top: Fed funds (secondary - 1px dashed pure ink, no dot) */}
+    <path class="panel-7-divergence__line-secondary" d={fedPath} fill="none" />
+
+    {/* Top: BoC overnight (primary - 1.5px solid pure ink) */}
+    <path class="panel-7-divergence__line-primary" d={bocPath} fill="none" />
+
+    {/* Bottom: BoC - Fed spread (primary) */}
+    <path class="panel-7-divergence__line-primary" d={spreadPath} fill="none" />
+
+    {/* Latest-print dot on BoC terminus (top panel) */}
+    <circle
+      class="panel-7-divergence__latest-dot"
+      cx={lastX.toFixed(2)}
+      cy={lastYBoc.toFixed(2)}
+      r="4"
+    >
+      <title>{`BoC: ${fmtMonthShort(latestDate)} ${latestBoc.toFixed(2)}%`}</title>
+    </circle>
+
+    {/* Latest-print dot on Spread terminus (bottom panel) */}
+    <circle
+      class="panel-7-divergence__latest-dot"
+      cx={lastX.toFixed(2)}
+      cy={lastYSpread.toFixed(2)}
+      r="4"
+    >
+      <title>{`Spread: ${fmtMonthShort(latestDate)} ${latestSpread.toFixed(2)} pp`}</title>
+    </circle>
+
+    {/* Top-panel frame */}
+    <rect
+      class="panel-7-divergence__frame"
+      x={PLOT_X0}
+      y={TOP_Y0}
+      width={PLOT_W}
+      height={TOP_H}
+    />
+
+    {/* Bottom-panel frame */}
+    <rect
+      class="panel-7-divergence__frame"
+      x={PLOT_X0}
+      y={BOT_Y0}
+      width={PLOT_W}
+      height={BOT_H}
+    />
+
+    {/* Top y-ticks - Plex Mono, pure ink. Topmost carries unit "%". */}
+    {topTicks.map((t, i) => {
+      const y = yTop(t);
+      const isTop = i === topTicks.length - 1;
+      const lbl = isTop ? `${t.toFixed(0)}%` : t.toFixed(0);
+      return (
+        <text
+          class="panel-7-divergence__ytick-label"
+          x={(PLOT_X0 - 8).toFixed(2)}
+          y={(y + 4).toFixed(2)}
+          text-anchor="end"
+        >{lbl}</text>
+      );
+    })}
+
+    {/* Bottom y-ticks - Plex Mono, pure ink. Topmost carries unit "pp". */}
+    {botTicks.map((t, i) => {
+      const y = yBot(t);
+      const isTop = i === botTicks.length - 1;
+      const lbl = isTop ? `${t.toFixed(1)}pp` : t.toFixed(1);
+      return (
+        <text
+          class="panel-7-divergence__ytick-label"
+          x={(PLOT_X0 - 8).toFixed(2)}
+          y={(y + 4).toFixed(2)}
+          text-anchor="end"
+        >{lbl}</text>
+      );
+    })}
+
+    {/* X-axis tick labels (under bottom panel) - Manrope, pure ink. */}
+    {xTickIdx.map((ix, k) => {
+      const xx = xByIndex(ix);
+      const label = fmtMonthShort(xTickDates[k]);
+      const anchor =
+        k === 0 ? "start" : k === xTickIdx.length - 1 ? "end" : "middle";
+      return (
+        <text
+          class="panel-7-divergence__xtick-label"
+          x={xx.toFixed(2)}
+          y={(BOT_Y1 + 18).toFixed(2)}
+          text-anchor={anchor}
+        >{label}</text>
+      );
+    })}
+
+    {/* Direct end-of-line labels - Manrope, pure ink. BoC + Spread in 600
+        (primary on each panel); Fed in 400 (secondary). */}
+    <text
+      class="panel-7-divergence__direct-label panel-7-divergence__direct-label--primary"
+      x={labelX.toFixed(2)}
+      y={(lastYBoc + 4).toFixed(2)}
+    >BoC</text>
+    <text
+      class="panel-7-divergence__direct-label panel-7-divergence__direct-label--secondary"
+      x={labelX.toFixed(2)}
+      y={fedLabelY.toFixed(2)}
+    >Fed</text>
+    <text
+      class="panel-7-divergence__direct-label panel-7-divergence__direct-label--primary"
+      x={labelX.toFixed(2)}
+      y={(lastYSpread + 4).toFixed(2)}
+    >Spread</text>
+  </svg>
+</div>
+
+<style>
+  /* ----------------------------------------------------------------------
+     Panel7PolicyRateDivergence - Tier-3 chartbook canon, dual-panel.
+     Token surface monochrome (Section 3); accent appears twice (once per
+     panel's latest-print dot).
+     ---------------------------------------------------------------------- */
+  .panel-7-divergence {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+  .panel-7-divergence__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  .panel-7-divergence__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  .panel-7-divergence__zero-line {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 1;
+    shape-rendering: crispEdges;
+  }
+
+  .panel-7-divergence__line-primary {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+  .panel-7-divergence__line-secondary {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .panel-7-divergence__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  .panel-7-divergence__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  .panel-7-divergence__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+  .panel-7-divergence__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .panel-7-divergence__direct-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+  .panel-7-divergence__direct-label--primary {
+    font-weight: var(--fw-semibold);
+  }
+  .panel-7-divergence__direct-label--secondary {
+    font-weight: var(--fw-regular);
+  }
+</style>

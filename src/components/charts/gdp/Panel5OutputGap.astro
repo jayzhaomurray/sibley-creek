@@ -1,33 +1,16 @@
 ---
 /*
- * AUDIT-FLAGGED 2026-05-11 - see design/chart-label-audit-2026-05-11.md
- * Improved version: ./Panel5OutputGapV2.astro
- * Live in production until user reviews comparison page and picks one.
- * Decision pending.
- */
-/*
- * Panel5OutputGap - output gap vs BoC potential.
+ * Panel5OutputGap - BoC MPR output gap, single series.
  *
- * Pipeline emits quarterly GDP plus capacity-utilization total; the
- * BoC potential and the output-gap derivation are not on disk. We
- * render the raw quarterly GDP plus capacity-util as a stand-in until
- * the gap-vs-potential series lands.
+ * Primary: `output_gap_mpr` (BoC MPR output gap, % of potential, quarterly).
+ * Reference rule at 0% marks the potential-output line.
  *
- * Wave 5 methodology resolution (EDR C.1): the canonical primary
- * series becomes BoC MPR `INDINF_OUTGAPMPR_Q` once backend wires it
- * (EDR backend brief item 4). HP-filter is explicitly rejected as
- * the Sibley methodology. When the BoC series lands, this wrapper
- * picks it up via the standard `data.primary` route.
- *
- * Wave 5 fold (EDR brief Section 3): capacity utilization (total +
- * manufacturing) becomes the secondary slack-measure toggle view.
- * Capacity-util shares the "% utilization" frame, distinct from the
- * output-gap "% of potential" frame; the toggle is a true view-switch
- * and is deferred until the centralized toggle pattern lands. Both
- * capacity-util series (`capacity_util_total.csv`,
- * `capacity_util_mfg.csv`) are on disk per EDR brief.
- *
- * Synthetic-data fallback removed.
+ * Single-series rebuild (2026-05-11): the prior version overlaid total
+ * capacity utilization as a secondary, but the cap-util series sits at
+ * 78-82% and anchored the shared y-axis there, visually flattening the
+ * output gap line whose actual range is roughly -2% to +2%. Dropping
+ * cap-util lets the gap fill the canvas and the cycle variation read.
+ * Cap-util may be reintroduced as its own plate later.
  */
 
 import type { PanelData } from "../_shared/panelData";
@@ -43,12 +26,12 @@ const { data = null } = Astro.props;
 {data && data.primary ? (
   <PanelLiveChart
     primary={data.primary}
-    secondary={data.secondary}
-    primaryLabel="GDP, quarterly"
-    secondaryLabel="Cap. util."
+    primaryLabel="Output gap"
+    referenceValue={0}
+    referenceLabel="Potential"
     dataPanelAttr="gdp-5"
-    ariaLabel="Quarterly real GDP and total capacity utilization."
+    ariaLabel="BoC MPR output gap, percent of potential output, quarterly."
   />
 ) : (
-  <PanelEmpty reason="Output-gap-vs-potential series not yet emitted." />
+  <PanelEmpty reason="Output-gap series not yet emitted." />
 )}
