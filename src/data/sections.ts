@@ -147,19 +147,18 @@ export interface Section {
    */
   heroKicker?: string;
   /**
-   * Homepage compact (index) tile's editorial line.
+   * Homepage section panel's one-liner. Renders as `<p class="vig-panel__note">`
+   * below the readout block on each splash panel.
    *
-   * STATUS (2026-05-11): NOT CURRENTLY READ. Path C reversal removed the
-   * editorial-line slot from CompactTile; the tile now renders the load-
-   * bearing print's `indicator` field (e.g. "Headline CPI, y/y") in that
-   * slot instead of a sentence. The field is retained on the Section type
-   * so the data shape stays stable (and so writer/style-editor work
-   * already done isn't lost) but is ignored at render. If a later
-   * editorial direction reinstates a tile-level sentence, this is the
-   * field to wire back in.
+   * **HARD CHAR BUDGET: <= 85 characters.** The slot is styled with
+   * `display: -webkit-box; -webkit-line-clamp: 3; overflow: hidden;
+   * max-width: 44ch;` in SectionPanel.astro. Copy longer than ~85
+   * chars truncates mid-word without visible ellipsis (the labour
+   * tile at 112 chars showed this failure on 2026-05-11).
    *
-   * Historical: one sentence, ~12-16 words, body-sm Inter weight 500,
-   * clamped to 2 lines. Authored by writer + style-editor.
+   * Voice: one sentence, declarative, names the load-bearing print +
+   * the editorial so-what. Sibling-compare to the other 6 sections
+   * before committing — outliers in length truncate.
    */
   tileLine?: string;
 }
@@ -308,7 +307,7 @@ export const sections: Section[] = [
     chartSeriesKey: "unrate",
     heroKicker: "April LFS",
     tileLine:
-      "April employment softened against consensus; unemployment climbed to 6.9% as aggregate hours turned negative Y/Y.",
+      "Unemployment climbed to 6.9% in April; aggregate hours turned negative Y/Y.",
     prints: [
       {
         // Pipeline produces a real value for this row (unemployment rate,
