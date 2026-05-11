@@ -1,20 +1,4 @@
----
-/*
- * Policy - Vignelli chartbook page.
- *
- * Six plates per editorial canon section 4.5 (selected slate across the
- * monetary and fiscal sub-surfaces):
- *   01 BoC overnight rate
- *   02 Market path (2y GoC vs overnight)
- *   03 BoC-Fed spread
- *   04 Balance sheet
- *   05 Federal trajectory
- *   06 Fiscal stance vs cycle
- *
- * No chart components for Policy yet; each plate reserves the chart
- * space with a dashed-border placeholder. chart-builder fills later.
- */
-
+﻿---
 import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
@@ -37,18 +21,18 @@ const plates: Plate[] = [
   {
     id: "plate-1",
     number: "01",
-    indicator: "BoC overnight rate",
+    indicator: "Overnight rate",
     plateIndexLabel: "Overnight rate",
-    asOf: "TK (latest rate decision)",
-    title: "BoC overnight rate at TK following the latest decision.",
+    asOf: "April 29, 2026 (rate decision)",
+    title: "BoC holds the overnight rate at 2.25% for a sixth straight meeting",
     interpretationHtml:
-      "The Bank moved <strong>TK</strong> to <strong>TK</strong>. " +
-      "The current setting sits relative to the latest MPR neutral range as described in the statement; further easing would push policy into accommodative territory. " +
-      "Action state described in the most recent communique.",
+      "The Bank held the overnight rate target at <strong>2.25%</strong> on April 29, the sixth consecutive hold since the 25 bps cut to 2.25% on October 29, 2025. " +
+      "The setting sits inside the BoC's stated 2.25 to 3.25% nominal neutral range; further easing would push policy into accommodative territory. " +
+      "The April Monetary Policy Report describes the current stance as appropriately positioned while the inflation moderation works through.",
     callout: {
-      value: "TK",
-      unit: "BoC overnight rate, TK",
-      delta: "TK vs prior meeting",
+      value: "2.25%",
+      unit: "BoC overnight rate target",
+      delta: "Unchanged at Apr 29 decision",
       direction: "neutral",
     },
     source: "Bank of Canada rate decision and Monetary Policy Report, latest vintage.",
@@ -58,13 +42,14 @@ const plates: Plate[] = [
   {
     id: "plate-2",
     number: "02",
-    indicator: "Market path: 2y GoC vs overnight",
+    indicator: "2y GoC vs overnight",
     plateIndexLabel: "Market path",
-    asOf: "TK",
-    title: "Two-year GoC pricing relative to overnight rate as described in latest MPR.",
-    interpretation:
-      "The 2-year GoC is trading TK relative to the current overnight rate, consistent with TK of easing priced over the next twelve months. " +
-      "The MPR's market-implied curve, refreshed quarterly, remains the primary-source-grade reference for the OIS-implied path; we do not reconstruct OIS forwards in v1 basics.",
+    asOf: "May 7, 2026",
+    title: "Two-year GoC sits 69 bps above the overnight target",
+    interpretationHtml:
+      "The 2-year Government of Canada yield closed at <strong>2.94%</strong> on May 7, roughly <strong>69 bps</strong> above the 2.25% overnight target. " +
+      "The curve is no longer pricing further near-term easing; the gap reflects term premium and a market that has converged toward the Bank's hold. " +
+      "The April MPR's market-implied curve remains the primary-source reference for the full OIS-implied path.",
     source: "BoC Valet (rates); MPR market-implied curve, latest vintage.",
     chartKey: "policy-panel-2",
     data: panel2Data,
@@ -72,18 +57,18 @@ const plates: Plate[] = [
   {
     id: "plate-3",
     number: "03",
-    indicator: "BoC-Fed spread, 2-year",
+    indicator: "Canada 2y minus US 2y",
     plateIndexLabel: "BoC-Fed spread",
-    asOf: "TK",
-    title: "Spread at TK, near the TK percentile of the post-1990 distribution.",
+    asOf: "May 7, 2026",
+    title: "Canada-US 2y spread at minus 98 bps, near the post-2001 floor",
     interpretationHtml:
-      "The Canada-US 2-year spread is at <strong>TK</strong> as the Bank cuts faster than the Fed. " +
-      "On 35+ years of daily data, the current level sits near the TK percentile of the absolute-value distribution - " +
-      "wide, but not at the limits the literature flags as the breakpoint where the FX channel forces a back-off.",
+      "GoC 2y at 2.94% against UST 2y at 3.92% leaves the Canada-US 2y spread at <strong>minus 98 bps</strong>. " +
+      "On daily data since 2001, that reading sits at the 5th percentile of the distribution -- deep, but roughly 70 bps off the all-time minus 170 bps trough reached on February 3, 2025. " +
+      "USDCAD has held below 1.36 through the spring, which is why the FX channel is not currently the binding constraint on the Bank's hold.",
     callout: {
-      value: "TK",
-      unit: "Canada 2y - US 2y, TK",
-      delta: "TK w/w",
+      value: "-98 bps",
+      unit: "Canada 2y minus US 2y",
+      delta: "5th percentile, post-2001",
       direction: "neutral",
     },
     source: "BoC Valet (Canada 2y); FRED DGS2 (US 2y); distribution constructed.",
@@ -93,13 +78,14 @@ const plates: Plate[] = [
   {
     id: "plate-4",
     number: "04",
-    indicator: "Balance sheet: settlement balances and asset composition",
+    indicator: "Settlement balances and assets",
     plateIndexLabel: "Balance sheet",
-    asOf: "TK (weekly statement)",
-    title: "Phase: floor maintenance; settlement balances at the new operating range.",
-    interpretation:
-      "The Bank exited passive quantitative tightening in 2025; the system is now in floor-maintenance phase, with settlement balances stable near the operating range " +
-      "communicated in the Bank's December 2024 framework statement. Asset composition reflects amortization of legacy GBPP holdings.",
+    asOf: "May 6, 2026 (weekly statement)",
+    title: "Settlement balances near $64 billion as floor-maintenance phase continues",
+    interpretationHtml:
+      "Settlement balances stood at <strong>$63.9 billion</strong> on May 6, with total Bank assets at $219.0 billion. " +
+      "The Bank exited passive quantitative tightening in 2025 and the system is now in floor-maintenance phase, with balances oscillating in the operating range communicated in the Bank's December 2024 framework statement. " +
+      "Asset composition continues to reflect the amortization of legacy Government Bond Purchase Programme holdings.",
     source:
       "Bank of Canada weekly statement; Bank operating-framework communications, December 2024.",
     chartKey: "policy-panel-4",
@@ -108,18 +94,19 @@ const plates: Plate[] = [
   {
     id: "plate-5",
     number: "05",
-    indicator: "Federal trajectory: deficit YTD and debt-service costs",
+    indicator: "Federal deficit YTD and debt charges",
     plateIndexLabel: "Federal trajectory",
-    asOf: "TK (Fiscal Monitor)",
-    title: "Year-to-date deficit running TK relative to budget plan.",
+    asOf: "February 28, 2026 (Fiscal Monitor)",
+    title: "Federal deficit at $25.5 billion through the first 11 months of fiscal 2025-26",
     interpretationHtml:
-      "The federal deficit, year-to-date, is <strong>TK</strong>, roughly <strong>TK</strong> relative to the FES plan implied at the same point. " +
-      "Debt-service costs continue to grow faster than revenues. The PBO's most recent Economic and Fiscal Outlook projects a wider full-year balance than the FES baseline.",
+      "The federal balance ran a deficit of <strong>$25.5 billion</strong> over the first 11 months of fiscal 2025-26, on revenues of $453.2 billion and program-plus-debt expenses of $478.8 billion. " +
+      "Public debt charges totalled <strong>$49.3 billion</strong> over the same period, the largest single line outside major transfers. " +
+      "The PBO's most recent Economic and Fiscal Outlook continues to project a wider full-year balance than the FES baseline.",
     callout: {
-      value: "TK",
-      unit: "deficit YTD, TK",
-      delta: "TK vs FES plan",
-      direction: "neutral",
+      value: "-$25.5 bn",
+      unit: "Federal balance, fiscal YTD",
+      delta: "Debt charges $49.3 bn YTD",
+      direction: "neg",
     },
     source:
       "Department of Finance Fiscal Monitor, latest; PBO Economic and Fiscal Outlook, latest.",
@@ -129,13 +116,14 @@ const plates: Plate[] = [
   {
     id: "plate-6",
     number: "06",
-    indicator: "Fiscal stance vs cycle (CAPB)",
+    indicator: "Capacity utilization, output-gap proxy",
     plateIndexLabel: "Fiscal stance",
-    asOf: "IMF Article IV / OECD Economic Survey, latest",
-    title: "Cyclically-adjusted balance has been modestly expansionary against a closing output gap.",
-    interpretation:
-      "Canada's Department of Finance does not publish a cyclically-adjusted primary balance; we cite the IMF Article IV and the OECD Economic Survey, which both put the recent CAPB " +
-      "in modestly expansionary territory. Against an output gap that is closing slowly, that stance is mildly procyclical at the margin. Methodology footnote names the source.",
+    asOf: "Q4 2025 (capacity utilization)",
+    title: "Capacity utilization at 78.5%, well below its post-1996 average",
+    interpretationHtml:
+      "Total-economy capacity utilization stood at <strong>78.5%</strong> in Q4 2025, several points below its post-1996 average and consistent with an output gap that remains negative. " +
+      "Canada's Department of Finance does not publish a cyclically-adjusted primary balance; the IMF Article IV and OECD Economic Survey are the standing references for the stance read. " +
+      "Against a soft real-side cycle, the running federal deficit reads as mildly expansionary at the margin.",
     source:
       "IMF Article IV Canada (latest); OECD Economic Survey of Canada (latest).",
     chartKey: "policy-panel-6",

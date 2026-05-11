@@ -1,4 +1,4 @@
----
+﻿---
 /*
  * Housing - Vignelli chartbook page.
  *
@@ -10,9 +10,6 @@
  *   05 Mortgage stack snapshot (BoC chartpack + OSFI + CMHC arrears)
  *   06 Population-to-housing-stock ratio (by CMA)
  *   07 Housing Affordability (Wave 5; BoC qualifying payment / income)
- *
- * Interpretation prose is placeholder, in publication voice; writer
- * refines.
  */
 
 import SectionLayout from "../layouts/SectionLayout.astro";
@@ -38,121 +35,122 @@ const plates: Plate[] = [
   {
     id: "plate-1",
     number: "01",
-    indicator: "MLS HPI benchmark, national + six CMAs",
+    indicator: "MLS HPI, national + six CMAs, Y/Y",
     plateIndexLabel: "Prices",
-    asOf: "TK",
-    title: "Composite HPI slipped further into negative territory; Toronto and Vancouver lead the drift.",
+    asOf: "Mar 2026",
+    title: "Composite HPI down 4.6% Y/Y; Toronto and Vancouver carry the drift, Montreal runs the other way",
     interpretationHtml:
-      "The national MLS HPI is at <strong>TK y/y</strong>, and the 6-month annualized print is softer still. " +
-      "Toronto and Vancouver are doing most of the drift; Calgary remains firm and Montreal is roughly flat. " +
-      "No national-average headline number is rendered - the CMA cuts tell the story.",
+      "The national MLS HPI sits at <strong>-4.6% Y/Y</strong> in March 2026, the eighth consecutive month in negative territory. " +
+      "Toronto (-7.2%) and Vancouver (-6.8%) lead the decline; Calgary, Ottawa, and Edmonton sit between -1.9 and -2.9%; " +
+      "Montreal alone runs positive at +4.9%. The composite read masks a widening CMA dispersion.",
     callout: {
-      value: "TK",
-      unit: "MLS HPI composite, y/y, TK",
-      delta: "TK vs prior",
+      value: "-4.6%",
+      unit: "MLS HPI composite, Y/Y, Mar 2026",
+      delta: "0.1pp firmer vs Feb",
       direction: "neutral",
     },
-    source: "CREA MLS HPI national + six-CMA bulk file, latest vintage.",
+    source: "CREA MLS HPI national + six-CMA bulk file (April 2026 release).",
     chartKey: "housing-panel-1",
     data: panel1Data,
   },
   {
     id: "plate-2",
     number: "02",
-    indicator: "Activity: starts, completions, permits",
+    indicator: "Starts, units under construction, residential permits",
     plateIndexLabel: "Activity",
-    asOf: "TK (starts) / TK (permits)",
-    title: "Starts (3-month MA) below trend; permits drifting lower as the leading indicator.",
+    asOf: "Mar 2026 (starts) / Feb 2026 (permits)",
+    title: "Starts pulled back to 236K SAAR in March; the under-construction stock is the load-bearing variable",
     interpretation:
-      "Starts on the 3-month moving average sit roughly TK below the post-2020 average; the permits series, which leads starts " +
-      "by a few months, has rolled over modestly. Completions are catching up to the surge in starts from two years ago, " +
-      "with the rental-vs-ownership split skewed to rental on the most recent vintage.",
+      "Housing starts came in at <strong>235.9K SAAR</strong> in March 2026, down from 251.0K in February and below the 2021-2023 average. " +
+      "Units under construction held near 246K SAAR (January), keeping the completions pipeline elevated relative to the pre-2020 norm. " +
+      "Residential permits ran at $8.13 billion in February, modestly above January and consistent with starts stabilizing rather than rolling over further.",
     source:
-      "CMHC starts and completions (Table 34-10-0135); Statistics Canada Table 34-10-0066-01 (building permits).",
+      "Statistics Canada Table 34-10-0158 (starts and units under construction); Statistics Canada Table 34-10-0292 (building permits).",
     chartKey: "housing-panel-2",
     data: panel2Data,
   },
   {
     id: "plate-3",
     number: "03",
-    indicator: "Inventory and absorption",
+    indicator: "Sales-to-new-listings ratio, Canada",
     plateIndexLabel: "Inventory",
-    asOf: "TK",
-    title: "Sales-to-new-listings near TK; balanced-market floor in view.",
+    asOf: "Feb 2026",
+    title: "Sales-to-new-listings at 47.6, the lower edge of balanced",
     interpretationHtml:
-      "The national sales-to-new-listings ratio sits at <strong>TK</strong>, below the post-2010 average and at the lower end of the band CREA calls balanced. " +
-      "Months of inventory by CMA cluster in a range of TK in Toronto and Vancouver and TK in Calgary. " +
-      "A constructed measure - methodology one click away.",
+      "The national sales-to-new-listings ratio sits at <strong>47.6</strong> in February 2026, up from 46.4 in January but below the 50-to-70 band CREA describes as balanced. " +
+      "The resale index has eased to 85.6, leaving Canada in a soft absorption regime rather than an outright buyers' market. " +
+      "CMA-level 12-month resale counts to October 2025 point in the same direction: Toronto and Vancouver are absorbing the most volume relative to their listings overhang.",
     source:
-      "BoC FVI national sales-to-new-listings; CREA XLSX bulk for CMA-level; months-of-inventory constructed.",
+      "Bank of Canada Valet (CREA sales-to-new-listings and resale index); CMA-level 12-month resale counts via BoC Valet.",
     chartKey: "housing-panel-3",
     data: panel3Data,
   },
   {
     id: "plate-4",
     number: "04",
-    indicator: "Rent: CMHC RMS + CPI rent sub-series",
+    indicator: "CPI rent and rented accommodation, Y/Y",
     plateIndexLabel: "Rent",
-    asOf: "TK (RMS) / TK (CPI)",
-    title: "Toronto and Vancouver rents loosened on the most recent monthly read.",
+    asOf: "Mar 2026",
+    title: "CPI rent at 0.9% Y/Y; rented-accommodation prices turned negative",
     interpretation:
-      "The CMHC Rental Market Survey carries the levels and the vacancy direction; the StatCan CPI rented-accommodation sub-series carries the monthly velocity. " +
-      "Toronto and Vancouver are loosening; Calgary and Edmonton are still firmer. The annual RMS print remains the citable source on the level.",
+      "CPI rent decelerated to <strong>0.9% Y/Y</strong> in March 2026, the slowest reading since the 2020-2021 demand vacuum. " +
+      "The rented-accommodation sub-series fell <strong>-2.5% Y/Y</strong>, an outright price decline driven by the unwind of the 2023-2024 newcomer-flow surge. " +
+      "The CMHC Rental Market Survey vacancy print remains the levels anchor; the CPI velocity says the level is now adjusting downward.",
     source:
-      "CMHC Rental Market Survey, latest annual vintage; Statistics Canada Table 18-10-0004-01 (rent sub-series).",
+      "Statistics Canada Table 18-10-0004-01, CPI rent (v41691074) and rented accommodation (v41691073).",
     chartKey: "housing-panel-4",
     data: panel4Data,
   },
   {
     id: "plate-5",
     number: "05",
-    indicator: "Mortgage stack snapshot",
+    indicator: "5-year conventional mortgage rate",
     plateIndexLabel: "Mortgage stack",
-    asOf: "TK (BoC chartpack)",
-    title: "Renewal cohort over the summer is the load-bearing window.",
+    asOf: "May 6, 2026",
+    title: "5-year conventional rate flat at 6.09% since February; the renewal wall has peaked",
     interpretation:
-      "The Bank's most recently published Residential Mortgage Market chartpack remains the cite-grade source on vintage and term composition. " +
-      "OSFI Bank Financial Data on residential exposures, plus CMHC RMIR and CBA chartered-bank arrears, complete the picture. " +
-      "Our own full reconstruction by vintage and term is deep-dive territory, not basics.",
+      "The 5-year conventional mortgage rate has held at <strong>6.09%</strong> for three months, anchored by the BoC's four consecutive holds at 2.25%. " +
+      "The 2020-2021 fixed-rate cohort has now mostly rolled, and the mechanical pulse on household cash flows is fading. " +
+      "The forward arrears risk has rotated to the labour channel; see the deep dive at <a href=\"/research/mortgage-renewal-wall/\">research/mortgage-renewal-wall</a> for the full decomposition.",
     source:
-      "BoC Residential Mortgage Market chartpack; OSFI Bank Financial Data; CMHC RMIR; CBA monthly arrears.",
+      "Bank of Canada Valet (V80691335, 5-year conventional mortgage rate, weekly).",
     chartKey: "housing-panel-5",
     data: panel5Data,
   },
   {
     id: "plate-6",
     number: "06",
-    indicator: "Population-to-housing-stock ratio, by CMA",
+    indicator: "Immigrant flow proxy and housing starts",
     plateIndexLabel: "Supply ratio",
-    asOf: "TK (annual)",
-    title: "Toronto and Vancouver still the tightest on the supply-response denominator.",
+    asOf: "Q4 2025 (immigrants) / Mar 2026 (starts)",
+    title: "Immigrant inflows have stepped down; the supply pipeline is finally running ahead of incremental demand",
     interpretation:
-      "Population per housing unit remains highest in Toronto and Vancouver, where the supply response has been slowest to arrive. " +
-      "Calgary and Edmonton have absorbed faster population growth at flatter ratios. Annual frequency; v1 ships with the methodology note on " +
-      "base year and intercensal interpolation.",
+      "Quarterly immigrant arrivals fell to <strong>83,168</strong> in Q4 2025, down from 102,867 in Q3 and well below the 2022-2024 average that drove the rental squeeze. " +
+      "Housing starts running near 236K SAAR in March now sit above the pace at which the incremental population is forming households. " +
+      "The full population-per-housing-unit ratio by CMA is not yet wired; the flow-vs-flow comparison here is the v1 read.",
     source:
-      "Statistics Canada Tables 17-10-0135 (CMA population) and 36-10-0688 (housing stock).",
+      "Statistics Canada Table 17-10-0040 (immigrants, quarterly); Table 34-10-0158 (housing starts).",
     chartKey: "housing-panel-6",
     data: panel6Data,
   },
   {
     id: "plate-7",
     number: "07",
-    indicator: "Housing affordability: BoC qualifying payment to income",
+    indicator: "BoC qualifying mortgage payment to income",
     plateIndexLabel: "Affordability",
-    asOf: "TK (quarterly)",
-    title: "Affordability index at TK; rate move TK doing the work on the most recent quarter.",
+    asOf: "Q4 2025",
+    title: "Affordability index at 42.7% of income, down 7.7pp from the Q2 2024 peak",
     interpretationHtml:
-      "The BoC's qualifying-mortgage-payment-to-income index, the flow-side complement to the stock-side mortgage snapshot, sits at <strong>TK</strong>. " +
-      "Direction is TK over the latest quarter; the dominant driver is TK (rate move / price move / income move). " +
-      "The 1989-1991, 2007-2008, and 2022-2024 episodes mark the historical anchors against which the current level reads.",
+      "The BoC's qualifying-mortgage-payment-to-income ratio sits at <strong>42.7%</strong> in Q4 2025, down from 43.2% in Q3 and 50.4% at the Q2 2024 peak. " +
+      "The improvement traces to lower qualifying rates &mdash; the 5-year conventional has settled at 6.09% &mdash; partly offset by softer wage growth in the denominator. " +
+      "The index remains well above the 1989-1991 and 2007-2008 stress episodes; the 2022-2024 tightening cycle is still the binding historical anchor.",
     callout: {
-      value: "TK",
-      unit: "affordability index, TK",
-      delta: "TK vs prior quarter",
-      direction: "neutral",
+      value: "42.7%",
+      unit: "qualifying payment / income, Q4 2025",
+      delta: "-0.5pp Q/Q",
+      direction: "neg",
     },
-    source: "Bank of Canada Indicators of Capacity and Inflation Pressures (housing affordability index, qualifying payment / income).",
+    source: "Bank of Canada Valet (INDINF_AFFORD_Q, housing affordability index, qualifying payment / income).",
     chartKey: "housing-panel-7",
     data: panel7Data,
   },

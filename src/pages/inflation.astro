@@ -1,23 +1,4 @@
----
-/*
- * Inflation - Vignelli chartbook page.
- *
- * Six plates per editorial canon section 4.2:
- *   01 Headline CPI
- *   02 BoC preferred core measures (core-trim, core-median)
- *   03 Breadth
- *   04 Sub-aggregates
- *   05 Inflation expectations
- *   06 Pass-through watch
- *
- * Each plate is a ChartbookUnit: real chart on the left, short
- * interpretation paragraph on the right, callout strip, source.
- * Charts dispatched via chartKey to src/components/charts/inflation/.
- *
- * v1: interpretation prose is placeholder, in publication voice.
- * Writer + style-editor refine on release day.
- */
-
+﻿---
 import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
@@ -40,56 +21,63 @@ const plates: Plate[] = [
   {
     id: "plate-1",
     number: "01",
-    indicator: "Headline CPI, year-over-year",
+    indicator: "Headline CPI, Y/Y",
     plateIndexLabel: "Headline CPI",
-    asOf: "TK",
-    title: "Headline CPI printed TK in the latest month, TK relative to consensus.",
+    asOf: "Mar 2026",
+    title: "Headline CPI back to 2.3%, with three-month momentum running hotter",
     interpretationHtml:
-      "Headline CPI printed <strong>TK y/y</strong>, TK relative to consensus and TK relative to the prior month. " +
-      "Shelter is still doing the heavy lifting; mortgage interest cost remains the largest single contributor. " +
-      "Three-month annualized momentum sits a notch above the year-over-year, consistent with a flat near-term path.",
+      "Headline CPI rose <strong>2.3% Y/Y</strong> in March, up 0.5pp from February's 1.8% and back above the BoC's 2% target. " +
+      "The three-month annualized print, near 2.9%, is running above the Y/Y &mdash; the bounce in February's index has carried through. " +
+      "Food and energy contributed most of the reacceleration; shelter no longer leads.",
     callout: {
-      value: "TK",
-      unit: "year-over-year, TK",
-      delta: "TK vs prior",
-      direction: "neutral",
+      value: "2.3%",
+      unit: "Y/Y, Mar 2026",
+      delta: "+0.5pp vs prior",
+      direction: "pos",
     },
     source:
-      "Statistics Canada Table 18-10-0004-01; consensus via Bloomberg.",
+      "Statistics Canada Table 18-10-0004-01.",
     chartKey: "inflation-panel-1",
     data: panel1Data,
   },
   {
     id: "plate-2",
     number: "02",
-    indicator: "BoC preferred core measures (core-trim, core-median)",
-    plateIndexLabel: "Core trio",
-    asOf: "TK",
-    title: "Preferred cores reading TK; core-trim TK against prior month.",
+    indicator: "Core-trim and core-median, Y/Y",
+    plateIndexLabel: "Preferred cores",
+    asOf: "Mar 2026",
+    title: "Core-trim ticks down to 2.2%; core-median holds at 2.3%",
     interpretationHtml:
-      "Core-trim printed <strong>TK</strong> and core-median <strong>TK</strong>. " +
-      "The 3-month annualized profile on both measures sits below the year-over-year, the cleanest sign yet that the underlying impulse is fading. " +
-      "Common is shown for historical anchor only - the Bank has deprioritized it since late 2022.",
+      "Core-trim eased to <strong>2.2% Y/Y</strong> in March, down 0.1pp from February. Core-median held at <strong>2.3%</strong>. " +
+      "Both preferred measures now sit inside the BoC's 1-3% control band and within 0.3pp of the 2% midpoint &mdash; the underlying disinflation has held even as headline turned. " +
+      "Core-common, shown as historical anchor, prints 2.6%; the BoC has deprioritized it since late 2022.",
     callout: {
-      value: "TK",
-      unit: "core-trim, y/y, TK",
-      delta: "TK vs prior",
-      direction: "neutral",
+      value: "2.2%",
+      unit: "core-trim, Y/Y, Mar 2026",
+      delta: "-0.1pp vs prior",
+      direction: "neg",
     },
-    source: "Statistics Canada Table 18-10-0256-01 (BoC preferred cores).",
+    source: "Bank of Canada (CPI-trim, CPI-median, CPI-common).",
     chartKey: "inflation-panel-2",
     data: panel2Data,
   },
   {
     id: "plate-3",
     number: "03",
-    indicator: "Breadth of price pressure",
+    indicator: "Share of CPI basket above 3% Y/Y",
     plateIndexLabel: "Breadth",
-    asOf: "TK",
-    title: "Breadth narrowed; share of basket above 3% still clustered in shelter.",
-    interpretation:
-      "Roughly TK of the CPI basket is now running above 3% year-over-year, down from a peak above two thirds in 2022. " +
-      "The remaining cluster is concentrated in shelter sub-components. Goods breadth has effectively normalized; services breadth is the open question.",
+    asOf: "Mar 2026",
+    title: "Breadth widens: a quarter of the basket back above 3%",
+    interpretationHtml:
+      "The share of CPI components rising more than 3% Y/Y jumped to <strong>27.2%</strong> in March from 22.3% in February &mdash; a 4.9pp widening and the first meaningful breadth expansion since late 2025. " +
+      "The level is still well below the 2022 peak above two thirds, but the direction matches the headline reacceleration. " +
+      "Whether March marks a one-month spike or the start of a broader re-firming is the read to track in April.",
+    callout: {
+      value: "27.2%",
+      unit: "share >3% Y/Y, Mar 2026",
+      delta: "+4.9pp vs prior",
+      direction: "pos",
+    },
     source: "Statistics Canada Table 18-10-0004-01; component shares constructed.",
     chartKey: "inflation-panel-3",
     data: panel3Data,
@@ -97,46 +85,57 @@ const plates: Plate[] = [
   {
     id: "plate-4",
     number: "04",
-    indicator: "Sub-aggregates: shelter, services ex-shelter, goods, food, energy",
+    indicator: "Shelter, services, goods, food, energy, Y/Y",
     plateIndexLabel: "Sub-aggregates",
-    asOf: "TK",
-    title: "Shelter and services-ex-shelter remain the only above-target lines.",
-    interpretation:
-      "Shelter is still printing well above the band and accounts for most of the gap to target. Services-ex-shelter is gradually easing but slowly. " +
-      "Goods-ex-energy is at target and energy is roughly flat year-over-year. The residual stickiness is shelter-resolution-dependent.",
+    asOf: "Mar 2026",
+    title: "Food and energy now lead; shelter has rolled below target",
+    interpretationHtml:
+      "Food rose <strong>4.0% Y/Y</strong> and energy <strong>3.9%</strong> in March &mdash; the two above-target lines and the bulk of the headline reacceleration. " +
+      "Shelter has cooled to 1.7% as mortgage-interest cost faded to 0.7% and rent slowed to 0.9%; the line that drove the 2023-24 overshoot is no longer a source of pressure. " +
+      "Services held at 2.5%, goods at 2.1%. The composition has flipped: the stickiness that remains is in food and energy, not housing.",
+    callout: {
+      value: "1.7%",
+      unit: "shelter, Y/Y, Mar 2026",
+      delta: "+0.2pp vs prior",
+      direction: "pos",
+    },
     source:
-      "Statistics Canada Table 18-10-0004-01 (CPI sub-aggregates); ex- aggregates basket-weighted.",
+      "Statistics Canada Table 18-10-0004-01 (CPI sub-aggregates).",
     chartKey: "inflation-panel-4",
     data: panel4Data,
   },
   {
     id: "plate-5",
     number: "05",
-    indicator: "Inflation expectations: CSCE + BOS",
+    indicator: "Consumer and firm inflation expectations",
     plateIndexLabel: "Expectations",
-    asOf: "TK (CSCE, BOS)",
-    title: "Consumer 1y expectations eased; BOS firms above 3% kept declining.",
+    asOf: "Q1 2026",
+    title: "Firm expectations keep falling; consumer one-year still sticky near 4%",
     interpretationHtml:
-      "The Bank's Canadian Survey of Consumer Expectations one-year measure eased to roughly <strong>TK</strong> from a higher prior print, " +
-      "and the five-year measure held near <strong>TK</strong>. The share of BOS firms expecting CPI above 3% has been falling for several consecutive quarters - " +
-      "still above the long-run baseline, but the direction is unambiguous.",
-    source: "Bank of Canada CSCE and Business Outlook Survey, latest quarterly releases.",
+      "The Canadian Survey of Consumer Expectations one-year measure held at <strong>4.0%</strong> in Q1 2026, essentially unchanged from 4.1% in Q4 and well above realized CPI. The five-year measure eased to <strong>3.0%</strong>. " +
+      "The share of Business Outlook Survey firms expecting CPI above 3% fell to <strong>11%</strong> from 16% in Q4 &mdash; the lowest reading since 2021 and a third of its mid-2024 level. " +
+      "Firms have largely re-anchored; consumers have not yet followed.",
+    callout: {
+      value: "11%",
+      unit: "BOS firms expecting CPI >3%, Q1 2026",
+      delta: "-5pp vs prior",
+      direction: "neg",
+    },
+    source: "Bank of Canada Canadian Survey of Consumer Expectations and Business Outlook Survey, Q1 2026.",
     chartKey: "inflation-panel-5",
     data: panel5Data,
   },
   {
     id: "plate-6",
     number: "06",
-    indicator: "Pass-through watch: FX and wages into goods / services",
+    indicator: "FX and wage pass-through into goods and services",
     plateIndexLabel: "Pass-through",
-    asOf: "TK (CPI); TK (FX)",
-    title: "CAD weakness has not yet shown up in goods-ex-energy; wages still bite into services.",
+    asOf: "Pending wiring",
+    title: "Pass-through panel awaits the ex-energy and ex-shelter derivations",
     interpretation:
-      "USDCAD has drifted weaker over the past year, but goods-ex-energy CPI has stayed near target - the FX pass-through window is open but quiet so far. " +
-      "On the wage side, the gap between LFS-Micro wage growth and services-ex-shelter CPI has narrowed only modestly. " +
-      "Interpretation is prose only; no regression in basics.",
+      "Pairs the FX channel (USDCAD Y/Y against goods-ex-energy CPI) with the wage channel (LFS-Micro wage growth against services-ex-shelter CPI). The two basket-weighted ex-aggregates are not yet in the processed tier; the chart renders once the derivations land.",
     source:
-      "Statistics Canada Tables 18-10-0004-01, 14-10-0064-01; BoC Valet FXUSDCAD.",
+      "Pending: Statistics Canada Tables 18-10-0004-01, 14-10-0064-01; BoC Valet FXUSDCAD.",
     chartKey: "inflation-panel-6",
     data: panel6Data,
   },
