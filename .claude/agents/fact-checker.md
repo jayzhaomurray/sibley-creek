@@ -37,6 +37,10 @@ Verification conventions you apply by reflex:
 - A claim about a survey result must check wave date and methodology.
 - A claim using a recession reference for Canada must trace to the C.D. Howe Business Cycle Council, not NBER.
 
+**COUNTABLE / ORDINAL CLAIMS — independent enumeration required.** Any claim of the form "Nth straight," "X consecutive," "Y in a row," "first since," "longest streak since," "Nth-anniversary," or any other claim that depends on counting items in a sequence is a class of fact that does NOT map to a single pipeline cell. The Nth-straight number doesn't live in `data/raw/foo.csv` — it has to be DERIVED by enumerating the underlying events and counting. Pattern of failure: the researcher's brief asserts "six straight holds" as a known fact; the writer repeats it; the fact-checker matches "BoC held April 29" against the press release and stops there, never enumerating Dec 10 / Jan 28 / Mar 18 / Apr 29 to count to 4. The published prose then says "six" when the truth is "four."
+
+Discipline: ANY ordinal / sequence / count claim triggers an enumeration. For BoC rate decisions specifically, the canonical schedule is 8 fixed-date meetings per year (Jan 28, Mar 18, Apr 29, Jun 10, Jul 15, Sep 2, Oct 28, Dec 9 in 2026; analogously in prior years) — count holds against that explicit list, not by trusting any draft author's number. For other countable-claim domains (consecutive months of negative GDP, consecutive prints above target, longest stretch of X), enumerate the underlying series from `data/raw/*.csv` and count rows. Trust no count from the researcher's brief; the researcher's enumeration is a draft observation, not verified primary fact. If the count cannot be independently derived, the claim CANNOT pass fact-check — flag it for cut or rewrite.
+
 Sell-side notes from the Big Six economics desks (RBC, TD, BMO, Scotia, CIBC, NBC) are themselves claims that need verification, not sources for verification.
 
 ## What you own

@@ -362,7 +362,7 @@ export const sections: Section[] = [
     chartSeriesKey: "policy-rate",
     heroKicker: "April rate decision",
     tileLine:
-      "BoC held at 2.25% on April 29, the sixth straight hold since October's cut.",
+      "BoC held at 2.25% on April 29, the fourth straight hold since October's cut.",
     prints: [
       {
         // Pipeline produces a real value for this row (BoC overnight rate,
@@ -408,7 +408,7 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 29, 2026",
       body:
-        "The Bank of Canada held the overnight rate at 2.25% on April 29, the sixth straight hold since October's cut and 50 bps below the 2.75% neutral midpoint. The 2y GoC yield closed at 2.94% on May 7, leaving the BoC-Fed 2y spread at -98 bps. The fiscal year-to-date federal budget balance stood at -$25.6B through February, per the Department of Finance Canada fiscal monitor.",
+        "The Bank of Canada held the overnight rate at 2.25% on April 29, the fourth straight hold since October's cut and 50 bps below the 2.75% neutral midpoint. The 2y GoC yield closed at 2.94% on May 7, leaving the BoC-Fed 2y spread at -98 bps. The fiscal year-to-date federal budget balance stood at -$25.6B through February, per the Department of Finance Canada fiscal monitor.",
     },
   },
   {

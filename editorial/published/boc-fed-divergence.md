@@ -27,7 +27,7 @@
 ## 2. Lede
 
 > The Bank of Canada's overnight rate target sits at 2.25%, where
-> it has held for six consecutive meetings since October 29, 2025.
+> it has held for four consecutive meetings since October 29, 2025.
 > The Federal Reserve's effective funds rate sits at 3.625%, the
 > midpoint of a 3.50 to 3.75% target range last reset by a 25 bps
 > cut in December 2025. The BoC-Fed policy-rate spread is therefore
