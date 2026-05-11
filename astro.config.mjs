@@ -3,15 +3,14 @@ import { defineConfig } from 'astro/config';
 
 // https://astro.build/config
 //
-// site: the canonical production origin. Used by Astro for absolute
-//   URLs (canonical, OG image, sitemap). Currently the GitHub Pages
-//   origin; will move to the custom domain when DNS lands.
+// site: canonical production origin (custom domain at sibleycreek.ca).
+//   Used by Astro for absolute URLs (canonical, OG image, sitemap).
 //
-// base: '/sibley-creek' - project-page deploy at
-//   jayzhaomurray.github.io/sibley-creek/. Internal links use
-//   `withBase()` from src/lib/urls.ts so the same code renders cleanly
-//   at root (/) on Cloudflare Pages with a custom domain. Migration to
-//   Cloudflare is a one-line edit: drop the `base` field.
+// base: not set. The site serves from root at https://sibleycreek.ca/
+//   thanks to the GitHub Pages CNAME -> public/CNAME pointer. Internal
+//   links route through src/lib/urls.ts `withBase()`, which becomes a
+//   no-op when base is unset (returns the path unchanged). Same component
+//   code works at root here and on any future Cloudflare Pages migration.
 //
 // trailingSlash: 'always' — matches the in-page nav (we link to
 //   "/gdp/" not "/gdp") so canonical and link href stay aligned and we
@@ -23,8 +22,7 @@ import { defineConfig } from 'astro/config';
 // Keep this file minimal. Integrations (sitemap, mdx, etc.) get added
 // here when there is a concrete reader-facing reason — not preemptively.
 export default defineConfig({
-  site: 'https://jayzhaomurray.github.io',
-  base: '/sibley-creek',
+  site: 'https://sibleycreek.ca',
   trailingSlash: 'always',
   build: {
     format: 'directory',
