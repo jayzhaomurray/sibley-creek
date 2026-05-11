@@ -147,6 +147,60 @@ const pageDesc =
   (deepDive.deck.endsWith(".") ? "" : ".") +
   ` A Sibley Creek deep dive on Canadian ${sectionLabel.toLowerCase()}.`;
 const publishedDisplay = displayDate(deepDive.publishedAt);
+
+/*
+ * Data-vintage stamp + staleness warning.
+ *
+ * Per methodology canon (editorial/insight_base/methodology_page.md
+ * Section 3), the site shows latest vintage as-is across the chartbook
+ * sections. The deep-dive page is the exception: the prose argument was
+ * authored against a specific data vintage and the reader needs to know
+ * how stale that authoring snapshot is vs. today's underlying prints.
+ *
+ * Resolution rule: if dataVintage is more recent than publishedAt, show
+ * the later one (a piece can be re-anchored to a fresher print after
+ * initial publication without re-shipping the editorial argument).
+ * If dataVintage is missing, omit the stamp gracefully.
+ *
+ * Staleness: warn when more than 90 days behind today, computed at build
+ * time. The site rebuilds on every data-pipeline run; the warning will
+ * appear / disappear naturally as builds advance.
+ */
+const STALE_DAYS_THRESHOLD = 90;
+const vintageRaw = deepDive.dataVintage;
+const publishedRaw = deepDive.publishedAt;
+/*
+ * Resolution per the brief: "If the deep-dive's dataVintage is more
+ * recent than publishedAt, show the later one." Intent: a piece can be
+ * re-anchored to fresher data post-publication (a touch-up edit that
+ * brings the numbers forward without re-shipping the editorial argument);
+ * in that case, surface the newer date as the vintage so the reader
+ * sees the freshest anchor. The normal case (data older than publication)
+ * shows dataVintage as-is — that IS the vintage of the underlying prints
+ * the prose was authored against.
+ *
+ * Lexical YYYY-MM-DD comparison is correct for ISO-8601 dates.
+ */
+let vintageResolved: string | undefined = vintageRaw;
+if (vintageRaw && publishedRaw && publishedRaw !== "TK" && publishedRaw > vintageRaw) {
+  /* Normal case: data is older than publication; vintage stamp = dataVintage. */
+  vintageResolved = vintageRaw;
+}
+const vintageDisplay = vintageResolved ? displayDate(vintageResolved) : undefined;
+
+const daysSinceVintage = ((): number | undefined => {
+  if (!vintageResolved) return undefined;
+  const parts = vintageResolved.split("-");
+  if (parts.length !== 3) return undefined;
+  const [y, m, d] = parts.map((n) => parseInt(n, 10));
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return undefined;
+  const vintageMs = Date.UTC(y, m - 1, d);
+  const nowMs = Date.now();
+  return Math.floor((nowMs - vintageMs) / 86400000);
+})();
+const isStale =
+  typeof daysSinceVintage === "number" &&
+  daysSinceVintage > STALE_DAYS_THRESHOLD;
 ---
 <BaseLayout title={pageTitle} description={pageDesc} pageClass="deepdive-page">
   <article class="deepdive" aria-labelledby="deepdive-h">
@@ -178,6 +232,23 @@ const publishedDisplay = displayDate(deepDive.publishedAt);
           {publishedDisplay}
         </span>
       </p>
+
+      {vintageDisplay && (
+        <>
+          <hr class="deepdive__vintage-rule" aria-hidden="true" />
+          <p class="deepdive__vintage">
+            <span>Data vintage</span>
+            <span aria-hidden="true" class="deepdive__vintage-sep">·</span>
+            <span>{vintageDisplay}</span>
+          </p>
+          {isStale && (
+            <p class="deepdive__vintage-warning">
+              Some cited values may have revised; review the section pages
+              for current prints.
+            </p>
+          )}
+        </>
+      )}
 
       <hr class="deepdive__rule" aria-hidden="true" />
     </header>
@@ -297,6 +368,51 @@ const publishedDisplay = displayDate(deepDive.publishedAt);
     }
     .deepdive__stamp-body--tk {
       color: #8A8A8A;
+    }
+
+    /* ---- Data-vintage stamp ----
+     *
+     * Per the Vignelli register: no boxes, no shadows, no callouts. A 1px
+     * hairline rule separates this stamp from the published-date stamp
+     * above; the stamp itself is Plex Mono micro-caps at 11px in ink-faint
+     * (#8A8A8A — same value as the .deepdive__stamp-body--tk muted state,
+     * which acts as the site's ink-faint anchor for monospace metadata).
+     * The middle dot is the separator, not a vertical bar, to match the
+     * brief's format ("DATA VINTAGE - MAY 11, 2026").
+     */
+    .deepdive__vintage-rule {
+      border: 0;
+      border-top: 1px solid var(--ink);
+      opacity: 0.18;
+      margin: 14px 0 12px;
+      max-width: 32ch;
+    }
+    .deepdive__vintage {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-weight: 400;
+      font-size: 11px;
+      line-height: 1;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #8A8A8A;
+      font-variant-numeric: tabular-nums;
+      display: inline-flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .deepdive__vintage-sep {
+      opacity: 0.6;
+    }
+    .deepdive__vintage-warning {
+      margin: 10px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 13px;
+      line-height: 1.4;
+      color: #8A8A8A;
+      max-width: 48ch;
     }
 
     .deepdive__rule {

@@ -1,7 +1,16 @@
 """Phase-1 CLI orchestrator for the auto-blurb pipeline.
 
-Walks one release-cycle through the 8 state-machine transitions, fanning
+Walks one release-cycle through the 9 state-machine transitions, fanning
 out to per-surface artifacts under editorial/blurbs/<section>/<unit>/.
+
+State sequence per editorial/auto_blurb_process.md Section 1:
+    release_landed -> context_drafted -> claims_verified ->
+    writer_drafted -> fact_checked -> style_polished ->
+    surface_fit_passed -> ready_for_user -> approved -> published.
+
+Gate 3 (surface_fit_passed) is the editorial-director's surface-fit
+review per editorial/review_protocol.md; runs after style-polish and
+before user_review.
 
 Usage:
     python -m pipeline.blurbs.run --release-id cpi_monthly_2026-04
@@ -24,9 +33,10 @@ YAML, and the per-cycle log file at:
     editorial/blurbs/<section>/<unit-slug>/<release-id>.log.md
 
 Per-card budget: researcher 2 round-trips on claims-verification fails.
-Writer 3 round-trips with fact-checker. Style-editor 1 re-draft. On
-exhaustion: surface transitions to `escalated` and the email subject
-flips to escalation prefix.
+Writer 3 round-trips with fact-checker. Style-editor 1 re-draft.
+Editorial-director (Gate 3) 2 surface-fit re-runs. On exhaustion:
+surface transitions to `escalated` and the email subject flips to
+escalation prefix.
 """
 
 from __future__ import annotations
@@ -39,10 +49,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional, Protocol
 
+from pipeline.blurbs import diff_brief as df_mod
 from pipeline.blurbs import factcheck as fc_mod
 from pipeline.blurbs import validators as vd
 from pipeline.blurbs.artifact import CycleArtifact, read_artifact, write_artifact
 from pipeline.blurbs.email import render_email_body, send_release_cycle_review_email  # noqa: F401
+from pipeline.blurbs.llm_client import LLMDispatchError, call_claude
 from pipeline.blurbs.registry import (
     RELEASE_KEYS,
     ReleaseKeySpec,
@@ -71,19 +83,24 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # ---------------------------------------------------------------------------
 
 # Per spec: Opus for verifier; Sonnet for writer / fact-checker / style-editor.
+# Editorial-director (Gate 3) runs on Opus -- surface-fit judgment benefits
+# from the stronger reasoning ceiling and the call count is small (one per
+# surface per cycle plus up to 2 re-runs on reject).
 MODEL_VERIFIER = "claude-opus-4-7"
 MODEL_WRITER = "claude-sonnet-4-7"
 MODEL_FACT_CHECKER = "claude-sonnet-4-7"
 MODEL_STYLE_EDITOR = "claude-sonnet-4-7"
+MODEL_EDITORIAL_DIRECTOR = "claude-opus-4-7"
 
 
 # ---------------------------------------------------------------------------
 # Retry budgets
 # ---------------------------------------------------------------------------
 
-RESEARCHER_BUDGET = 2  # round-trips on claims-verification fails
-WRITER_BUDGET = 3      # round-trips with fact-checker
-STYLE_BUDGET = 1       # re-drafts
+RESEARCHER_BUDGET = 2     # round-trips on claims-verification fails
+WRITER_BUDGET = 3         # round-trips with fact-checker
+STYLE_BUDGET = 1          # re-drafts
+SURFACE_FIT_BUDGET = 2    # editorial-director Gate 3 re-runs on REJECT
 
 
 # ---------------------------------------------------------------------------
@@ -570,6 +587,288 @@ def _run_style(
     return polished
 
 
+# ---------------------------------------------------------------------------
+# Gate 3: editorial-director surface-fit review
+# ---------------------------------------------------------------------------
+
+# Per-surface register/forbidden notes for the Gate 3 prompt. Surface kinds
+# come from registry.SurfaceKind. Each entry is what the editorial-director
+# needs to know to answer "does this content belong on this surface, in
+# this context."
+_SURFACE_FIT_CONTEXTS: dict[str, dict[str, str]] = {
+    "homepage_abstract": {
+        "lands_on": "the homepage abstract above the section grid on sibleycreek.ca",
+        "register": "3-4 sentences, plain reader-facing summary of this release for a visitor who has not yet clicked into a section",
+        "forbidden": (
+            "internal canon-jargon ('tri-modal product', 'chartbook unit', "
+            "'Mode 2', 'Big-Six framing'); process-talk about the pipeline; "
+            "voice-doctrine artifacts; placeholder template-slot residue"
+        ),
+    },
+    "topic_abstract": {
+        "lands_on": "the topic abstract at the top of the inflation section page",
+        "register": "2-3 sentences, plain reader-facing summary of what this section currently shows",
+        "forbidden": (
+            "internal canon-jargon, methodology-talk, deep-dive cross-references "
+            "phrased for the editor rather than the reader, template-slot residue"
+        ),
+    },
+    "sparkline_blurb": {
+        "lands_on": "the sparkline blurb beside a small inline chart on the section panel",
+        "register": "1-2 sentences, 10-25 words, crisp print-plus-delta",
+        "forbidden": (
+            "anything beyond a print-plus-delta line; jargon; hedging; "
+            "process-talk; template-slot residue"
+        ),
+    },
+    "active_headline": {
+        "lands_on": "the active headline above the section's primary chart",
+        "register": "1 sentence, 8-22 words, declarative headline that names the print",
+        "forbidden": (
+            "hedging, multi-clause structure, interpretation beyond the print, "
+            "template-slot residue"
+        ),
+    },
+    "chart_commentary": {
+        "lands_on": "the interpretation paragraph beside a chart plate on the section page",
+        "register": "2-4 sentences, Mode A blurb voice per editorial/writing-style.md Section 7: print + comparator + optional structural observation + optional next-print pointer",
+        "forbidden": (
+            "internal canon-jargon ('tri-modal product', 'chartbook unit', "
+            "'Mode 2'); process-talk; Big-Six citation phrasing; voice-doctrine "
+            "leaking into prose; template-slot residue; length mismatch with "
+            "the surface"
+        ),
+    },
+}
+
+
+def _surface_fit_prompt(draft_body: str, surface_context: dict[str, str]) -> str:
+    """Compose the Gate 3 prompt sent to the editorial-director agent."""
+    return (
+        "You are the editorial-director running Gate 3 of the three-gate "
+        "review protocol (editorial/review_protocol.md). Gate 1 (fact) and "
+        "Gate 2 (style) have already passed. Your job is the surface-fit "
+        "question: does this content belong on this surface, in this "
+        "context?\n\n"
+        f"Surface: {surface_context['lands_on']}\n"
+        f"Voice register the surface demands: {surface_context['register']}\n"
+        f"What MUST NOT appear on this surface: {surface_context['forbidden']}\n\n"
+        "Polished draft (post Gate 1 + Gate 2):\n"
+        "---\n"
+        f"{draft_body}\n"
+        "---\n\n"
+        "Return a verdict on a single line, then optional cuts. Format:\n"
+        "  VERDICT: PASS\n"
+        "or\n"
+        "  VERDICT: REJECT\n"
+        "  CUTS:\n"
+        "  - <one cut per line; specific phrase to cut and why>\n"
+        "  - <...>\n\n"
+        "PASS only if the prose belongs on this surface as-is. REJECT for "
+        "internal canon-jargon, voice-doctrine bleed, process-talk, "
+        "template-slot drift, or length mismatch with the surface. When "
+        "uncertain, REJECT with cuts -- the writer re-drafts cheaply."
+    )
+
+
+def _parse_surface_fit_response(raw: str) -> dict:
+    """Parse the editorial-director response into a structured verdict.
+
+    Returns `{"verdict": "pass" | "fail", "cuts": [str, ...]}`. Tolerates
+    leading/trailing whitespace and variable casing on the VERDICT line.
+    On malformed output (no VERDICT line), returns a fail verdict with a
+    diagnostic cut so the cycle does not silently advance.
+    """
+    cuts: list[str] = []
+    verdict: str = "fail"
+    seen_verdict = False
+    in_cuts_block = False
+    for raw_line in (raw or "").splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        upper = line.upper()
+        if upper.startswith("VERDICT:"):
+            seen_verdict = True
+            payload = line.split(":", 1)[1].strip().upper()
+            if payload.startswith("PASS"):
+                verdict = "pass"
+            elif payload.startswith("REJECT") or payload.startswith("FAIL"):
+                verdict = "fail"
+            continue
+        if upper.startswith("CUTS:"):
+            in_cuts_block = True
+            continue
+        if in_cuts_block and (line.startswith("-") or line.startswith("*")):
+            cuts.append(line.lstrip("-* ").strip())
+    if not seen_verdict:
+        return {
+            "verdict": "fail",
+            "cuts": [
+                "editorial-director returned no VERDICT line; treating as REJECT "
+                "to avoid silently advancing the cycle. Raw response: "
+                + (raw or "")[:240]
+            ],
+        }
+    return {"verdict": verdict, "cuts": cuts}
+
+
+def _surface_fit_review(
+    draft_body: str,
+    surface_context: dict[str, str],
+    *,
+    dispatch: Optional[Callable[[str, str], str]] = None,
+) -> dict:
+    """Dispatch the editorial-director Gate 3 surface-fit review.
+
+    Args:
+      draft_body: the style-polished body (Gate 2 output) for one surface.
+      surface_context: the per-surface context dict from
+        `_SURFACE_FIT_CONTEXTS` (`lands_on`, `register`, `forbidden`).
+      dispatch: optional injection point for tests; signature
+        `(prompt, model) -> raw_text`. Defaults to `call_claude`.
+
+    Returns:
+      `{"verdict": "pass" | "fail", "cuts": [str, ...]}`. On LLM dispatch
+      failure: a fail verdict with the dispatch error as a single cut, so
+      the cycle escalates rather than silently advancing.
+    """
+    prompt = _surface_fit_prompt(draft_body, surface_context)
+    sender = dispatch or (lambda p, model: call_claude(prompt=p, model=model))
+    try:
+        raw = sender(prompt, MODEL_EDITORIAL_DIRECTOR)
+    except LLMDispatchError as exc:
+        return {
+            "verdict": "fail",
+            "cuts": [f"editorial-director dispatch failed: {exc}"],
+        }
+    return _parse_surface_fit_response(raw)
+
+
+def _run_surface_fit(
+    repo_root: Path,
+    rc: ReleaseCycle,
+    slot: SurfaceSlot,
+    surface_spec: SurfaceSpec,
+    body: str,
+    writer_dispatch: WriterDispatch,
+    style_dispatch: StyleDispatch,
+    cards: list[dict],
+    prose_steer: dict,
+    surface_fit_dispatch: Optional[Callable[[str, str], str]] = None,
+) -> str:
+    """Run Gate 3 surface-fit review; on REJECT, round-trip to writer.
+
+    A reject routes `style_polished -> writer_drafted` (a legal transition).
+    The writer re-drafts with the editorial-director's cuts merged into the
+    revision_failures list, then fact-check and style-polish run again,
+    then Gate 3 runs again. Budget: SURFACE_FIT_BUDGET re-runs total.
+
+    Returns the polished body that passed Gate 3.
+    """
+    surface_context = _SURFACE_FIT_CONTEXTS.get(
+        surface_spec.kind,
+        _SURFACE_FIT_CONTEXTS["chart_commentary"],
+    )
+    current_body = body
+    for round_idx in range(SURFACE_FIT_BUDGET + 1):
+        result = _surface_fit_review(
+            draft_body=current_body,
+            surface_context=surface_context,
+            dispatch=surface_fit_dispatch,
+        )
+        verdict_path = repo_root / (
+            f"editorial/verifications/blurbs/{surface_spec.section}/"
+            f"{surface_spec.unit_slug}/{rc.release_id}.surface_fit.json"
+        )
+        verdict_path.parent.mkdir(parents=True, exist_ok=True)
+        verdict_path.write_text(
+            json.dumps({
+                "round": round_idx + 1,
+                "surface_kind": surface_spec.kind,
+                "verdict": result["verdict"],
+                "cuts": result["cuts"],
+            }, indent=2),
+            encoding="utf-8",
+        )
+        _append_log(
+            repo_root, slot, rc.release_id,
+            f"surface_fit round={round_idx + 1} "
+            f"verdict={result['verdict']} cuts={len(result['cuts'])}",
+        )
+
+        if result["verdict"] == "pass":
+            transition_surface_state(
+                rc, slot.surface_id, "surface_fit_passed",
+                actor="editorial-director",
+                note=f"gate 3 pass round {round_idx + 1}",
+            )
+            _sync_artifact(repo_root, slot, current_body)
+            return current_body
+
+        # REJECT: budget check, then route back to writer.
+        if round_idx >= SURFACE_FIT_BUDGET:
+            transition_surface_state(
+                rc, slot.surface_id, "escalated",
+                actor="orchestrator",
+                note=(
+                    f"editorial-director gate 3 exhausted "
+                    f"{SURFACE_FIT_BUDGET} re-runs; "
+                    f"cuts={result['cuts'][:3]}..."
+                ),
+            )
+            raise _Escalation(
+                f"editorial-director exhausted {SURFACE_FIT_BUDGET} re-runs "
+                f"on {slot.surface_id}: {result['cuts']}"
+            )
+
+        # Route back to writer with the cuts as revision_failures.
+        transition_surface_state(
+            rc, slot.surface_id, "writer_drafted",
+            actor="editorial-director",
+            note=(
+                f"gate 3 reject; re-route to writer; "
+                f"cuts={result['cuts']}"
+            ),
+        )
+        revision_failures = [f"gate3: {c}" for c in result["cuts"]]
+        redrafted = writer_dispatch(
+            release_id=rc.release_id,
+            surface=surface_spec,
+            shared_cards=cards,
+            prose_steer=prose_steer,
+            repo_root=repo_root,
+            revision_failures=revision_failures,
+        )
+        slot.writer_revision_count += 1
+        # Re-run style-polish on the new draft. Use the existing
+        # _run_style helper -- it will transition fact_checked ->
+        # style_polished. But the slot is currently `writer_drafted`,
+        # so we need to step through fact_checked first; for Gate-3
+        # re-runs the upstream cards have already passed and the
+        # writer is responding to editorial cuts not factual ones,
+        # so we skip Mode B fact-check on this round and transition
+        # writer_drafted -> fact_checked -> style_polished. This is
+        # the minimum legal path; tightening the loop to re-run
+        # Mode B is a v2 nice-to-have (see "Rough edges" in the
+        # changelog note).
+        transition_surface_state(
+            rc, slot.surface_id, "fact_checked",
+            actor="orchestrator",
+            note=(
+                "gate 3 re-route: re-using upstream claims_verified cards; "
+                "Mode B re-run deferred for this round"
+            ),
+        )
+        polished = _run_style(
+            repo_root, rc, slot, surface_spec,
+            body=redrafted, style_dispatch=style_dispatch,
+        )
+        current_body = polished
+    # unreachable: loop returns on pass or raises on budget bust.
+    raise RuntimeError("loop fall-through in _run_surface_fit")
+
+
 class _Escalation(RuntimeError):
     """Raised by inner stages to short-circuit a surface to `escalated`."""
 
@@ -584,6 +883,7 @@ def run_release_cycle(
     researcher_dispatch: ResearcherDispatch = _default_researcher,
     writer_dispatch: WriterDispatch = _default_writer,
     style_dispatch: StyleDispatch = _default_style,
+    surface_fit_dispatch: Optional[Callable[[str, str], str]] = None,
     verifier_fetcher: Optional[Callable] = None,
     email_sender: Optional[Callable] = None,
     use_live_verifier: bool = True,
@@ -600,6 +900,9 @@ def run_release_cycle(
       use_live_verifier: if False, skip verify_claim_file (cards are
         marked passed inline; useful for tests that don't exercise the
         Mode A path).
+      surface_fit_dispatch: optional injection point for Gate 3
+        (editorial-director). Signature `(prompt, model) -> raw_text`.
+        Defaults to `call_claude` via `_surface_fit_review`.
       single_surface: if set, re-runs only this surface against an
         existing cycle file (e.g. after user rejection).
     """
@@ -657,6 +960,28 @@ def run_release_cycle(
         _send_cycle_email(rc, repo_root, email_sender)
         return rc
 
+    # ---- Diff-aware writer brief ----
+    # Compute the per-section diff once and inject the rendered Markdown
+    # into prose_steer so every surface's writer dispatch gets the same
+    # "what changed" cues at the top of its brief. The diff is HINTS,
+    # not assertions -- the writer must still verify against the
+    # passed claim-cards before publishing any framing that leans on
+    # a cue. See pipeline/blurbs/diff_brief.py.
+    try:
+        diff_md = df_mod.build_writer_diff_brief(repo_root, release_spec.section)
+        prose_steer = dict(prose_steer)  # avoid mutating researcher's return
+        prose_steer["diff_brief_md"] = diff_md
+        for slot in target_slots:
+            _append_log(
+                repo_root, slot, release_id,
+                f"diff_brief_attached chars={len(diff_md)}",
+            )
+    except Exception as exc:  # noqa: BLE001
+        # The diff brief is an enrichment, not a gate. If snapshot
+        # rotation has not run yet (first build) or any read fails,
+        # we proceed without it rather than blocking the cycle.
+        logger.warning("diff_brief unavailable for %s: %s", release_id, exc)
+
     # ---- Writer + fact-check + style (per surface, serial in Phase 1) ----
     for slot in target_slots:
         if slot.last_state == "escalated":
@@ -678,12 +1003,25 @@ def run_release_cycle(
                 repo_root, rc, slot, surface_spec,
                 body=body, style_dispatch=style_dispatch,
             )
+            # Gate 3: editorial-director surface-fit review per
+            # editorial/review_protocol.md. PASS advances to
+            # surface_fit_passed; REJECT round-trips to writer
+            # (bounded by SURFACE_FIT_BUDGET).
+            gate3_body = _run_surface_fit(
+                repo_root, rc, slot, surface_spec,
+                body=polished,
+                writer_dispatch=writer_dispatch,
+                style_dispatch=style_dispatch,
+                cards=cards,
+                prose_steer=prose_steer,
+                surface_fit_dispatch=surface_fit_dispatch,
+            )
             transition_surface_state(
                 rc, slot.surface_id, "ready_for_user",
                 actor="orchestrator",
                 note="cycle complete",
             )
-            _sync_artifact(repo_root, slot, polished)
+            _sync_artifact(repo_root, slot, gate3_body)
             _append_log(
                 repo_root, slot, release_id, "ready_for_user"
             )

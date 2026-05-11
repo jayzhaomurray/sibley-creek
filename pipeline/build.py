@@ -1098,6 +1098,18 @@ def main() -> int:
     _safe("derive_current_account_views", derive_current_account_views, failed)
     _safe("derive_federal_fiscal_ytd", derive_federal_fiscal_ytd, failed)
 
+    # 6b) Snapshot the PRIOR vintage of data/site/* before step 7
+    #     overwrites it. This feeds the diff-aware writer brief (see
+    #     pipeline/blurbs/diff_brief.py). Last-12 rotation keeps disk
+    #     usage bounded. Failures here do not block the build.
+    logger.info("--- Snapshot prior site-data vintage ---")
+    try:
+        from pipeline.blurbs.diff_brief import snapshot_current_payload
+        snap_path = snapshot_current_payload(ROOT)
+        logger.info("snapshot written: %s", snap_path)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("snapshot step failed (non-fatal): %s", exc)
+
     # 7) Site data bundle. Final step: read selected CSV + .meta.json files
     #    and emit data/site/sections.json for the Astro side to import at
     #    build time. Per-section failures are absorbed inside build_site_data

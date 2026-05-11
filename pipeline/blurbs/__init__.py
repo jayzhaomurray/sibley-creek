@@ -26,4 +26,5 @@ __all__ = [
     "email",
     "run",
     "approve_cycle",
+    "diff_brief",
 ]

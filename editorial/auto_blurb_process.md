@@ -56,6 +56,13 @@ Every blurb-cycle is a finite-state object. State transitions are
 gated by the named agent's pass. Failed gates either retry (with a
 budgeted retry count) or escalate to the user.
 
+The three named review gates (fact-check, style-polish, surface-fit)
+are the canonical pre-publish gates per `editorial/review_protocol.md`.
+The state machine names them as `fact_checked`, `style_polished`,
+and `surface_fit_passed` respectively. Surface-fit (Gate 3) is owned
+by editorial-director and runs after style-polish so the polished
+prose is what gets judged for surface appropriateness.
+
 States, in order:
 
 1. `pending_release` -- the release is calendared but the upstream
@@ -95,14 +102,22 @@ States, in order:
    style-editor.
 7. `style_polished` -- style-editor has polished voice against
    `editorial/writing-style.md` Section 7 Mode A. Owner handoff to
+   editorial-director for surface-fit review (Gate 3).
+8. `surface_fit_passed` -- editorial-director has run Gate 3 per
+   `editorial/review_protocol.md` and the polished draft has cleared
+   the surface-fit question (does this content belong on this
+   surface, in this context). Catches internal canon-jargon
+   ("tri-modal product", "chartbook unit", "Mode 2"), voice doctrine
+   bleeding into reader-facing prose, process-talk, template-slot
+   drift, and length mismatch with the surface. Owner handoff to
    user.
-8. `user_review` -- email lands in user inbox; draft file is in
+9. `user_review` -- email lands in user inbox; draft file is in
    `editorial/blurbs/<section>/<unit-slug>/<release-id>.md` with
    `status: ready_for_user`. User opens, reads, rewrites if desired,
    sets `status: approved`. Owner: user.
-9. `approved` -- user-approved. The build picks it up on the next
-   render pass.
-10. `published` -- the build has rendered the approved blurb into the
+10. `approved` -- user-approved. The build picks it up on the next
+    render pass.
+11. `published` -- the build has rendered the approved blurb into the
     live site. Terminal state.
 
 Each transition has a gate, an owner, a fail policy, and an escalation.
@@ -115,7 +130,8 @@ Each transition has a gate, an owner, a fail policy, and an escalation.
 | `claims_verified` | `writer_drafted` | Writer returns a 2-4 sentence Mode 2 body that passes voice-validator pre-checks (word count 25-95, sentence count 2-4, ASCII-only, no banned constructions in `writing-style.md` Section 6) | writer | Writer flags an unresolved TK or returns prose that fails mechanical pre-checks | Up to two writer re-runs; on third failure escalate to user |
 | `writer_drafted` | `fact_checked` | Fact-checker verifies all numeric tokens within rounding tolerance, all dates against the release calendar, no TK leakage, no Big-Six citation, no banned-source phrasing | fact-checker | Numeric mismatch, TK in body, banned-source phrasing, source URL 404 | Up to two re-drafts (return to writer); on third failure escalate to user with the trace |
 | `fact_checked` | `style_polished` | Style-editor returns a polished version (Mode A voice) or asserts the draft already meets the bar | style-editor | Hedging tic, banned cliche, jargon-as-armor, register slip toward Mode B | One re-polish if first pass is rejected by self-check; on second failure escalate to user with diff |
-| `style_polished` | `user_review` | Email to jayzhaomurray@outlook.com sent; file written to disk with `status: ready_for_user` | pipeline orchestrator | SMTP failure | Retry email 3x at exponential backoff (1m, 5m, 30m); after that, fall back to writing only `editorial/blurbs/_inbox.md` and surface a desktop-notification path |
+| `style_polished` | `surface_fit_passed` | editorial-director returns surface-fit-PASS or surface-fit-REJECT with cuts (Gate 3 per `editorial/review_protocol.md`) | editorial-director | Internal canon-jargon ("tri-modal product", "chartbook unit", "Mode 2", "Big-Six framing"), voice-doctrine or process-talk bleeding into reader-facing prose, template-slot drift, length mismatch with the surface | Return to writer with the editorial-director's cut list; counts against the Gate 3 re-run budget (max 2 re-runs per cycle). On budget exhaustion, escalate to user with both versions and the cut list attached |
+| `surface_fit_passed` | `user_review` | Email to jayzhaomurray@outlook.com sent; file written to disk with `status: ready_for_user` | pipeline orchestrator | SMTP failure | Retry email 3x at exponential backoff (1m, 5m, 30m); after that, fall back to writing only `editorial/blurbs/_inbox.md` and surface a desktop-notification path |
 | `user_review` | `approved` | User edits file front-matter from `status: ready_for_user` to `status: approved` and commits | user | User sets `status: rejected` (rare) or leaves draft idle | If idle past one full release-cycle for that series, the draft is auto-retired (`status: stale`); the next cycle's draft becomes the live blurb. Per v1 Section 8.6 |
 | `approved` | `published` | The Astro build picks the file up on next push to `main` or on the hourly rebuild | backend-engineer (build) | Build error | Loud failure; the prior approved blurb continues to render |
 
@@ -693,13 +709,14 @@ release_date: 2026-05-14
 created_at: 2026-05-14T08:32:15Z
 last_state: ready_for_user
 state_history:
-  - [release_landed,    2026-05-14T08:30:00Z, scheduler]
-  - [context_drafted,   2026-05-14T08:35:00Z, researcher]
-  - [claims_verified,   2026-05-14T08:37:00Z, fact-checker (claims mode)]
-  - [writer_drafted,    2026-05-14T08:39:00Z, writer]
-  - [fact_checked,      2026-05-14T08:41:00Z, fact-checker (draft mode)]
-  - [style_polished,    2026-05-14T08:43:00Z, style-editor]
-  - [ready_for_user,    2026-05-14T08:43:00Z, orchestrator]
+  - [release_landed,     2026-05-14T08:30:00Z, scheduler]
+  - [context_drafted,    2026-05-14T08:35:00Z, researcher]
+  - [claims_verified,    2026-05-14T08:37:00Z, fact-checker (claims mode)]
+  - [writer_drafted,     2026-05-14T08:39:00Z, writer]
+  - [fact_checked,       2026-05-14T08:41:00Z, fact-checker (draft mode)]
+  - [style_polished,     2026-05-14T08:43:00Z, style-editor]
+  - [surface_fit_passed, 2026-05-14T08:44:00Z, editorial-director (gate 3)]
+  - [ready_for_user,     2026-05-14T08:44:00Z, orchestrator]
 researcher_context_path: research/blurb_context/cpi_monthly_2026-04/panel-1-headline-cpi.md
 researcher_revision_count: 0    # increments on each claims_verified failure routing back to researcher; max 2 before escalation
 claims_verified_path: editorial/verifications/blurbs/inflation/panel-1-headline-cpi/cpi_monthly_2026-04.claims.json
@@ -823,6 +840,28 @@ Two classes:
   will cut"), Mode 3 register slip. Style-editor returns the
   cycle to writer with a one-paragraph note. Budget: one
   re-draft. On second failure, escalate to user.
+
+### 4.4a Surface-fit rejects (Gate 3)
+
+The editorial-director runs Gate 3 on the style-polished body per
+`editorial/review_protocol.md`. The verdict is one of:
+
+- **PASS.** The polished prose belongs on the named surface in its
+  context. Cycle advances `style_polished -> surface_fit_passed ->
+  user_review`.
+- **REJECT with cuts.** The prose carries internal canon-jargon,
+  voice-doctrine bleed, process-talk, template-slot drift, or is
+  length-mismatched to the surface. Editorial-director returns a
+  cut list. The cycle returns to `writer_drafted` for a re-draft
+  that addresses the cuts. Budget: 2 Gate 3 re-runs per cycle. On
+  budget exhaustion, escalate to user with both versions (pre-Gate-3
+  polished draft and the editorial-director's cut list) attached.
+
+What Gate 3 catches that the upstream gates do not: fact-check asks
+"are the numbers true," style-polish asks "is the voice on canon,"
+surface-fit asks "should any of this be on this surface at all." A
+draft can pass both upstream gates and still ship internal jargon
+or a slot the surface does not need; Gate 3 is the answer.
 
 ### 4.5 Source URL 404 during fact-check
 
@@ -966,6 +1005,7 @@ Every cycle has a complete agent history. Two surfaces:
    2026-05-14T08:37:00Z writer writer_drafted retry-1 ok
    2026-05-14T08:38:00Z fact-checker fact_checked ok
    2026-05-14T08:40:00Z style-editor style_polished ok
+   2026-05-14T08:41:00Z editorial-director surface_fit_passed ok
    2026-05-14T08:42:00Z orchestrator email_sent to=jay...@outlook.com
    2026-05-14T09:15:00Z user status_change ready_for_user->approved
    2026-05-14T09:20:00Z build published commit=abc1234
@@ -1500,6 +1540,18 @@ End of document.
 
 - 2026-05-11: Initial v2 version. Multi-agent process design.
   Supersedes researcher's v1 single-LLM design. editorial-director.
+- 2026-05-11 (addendum 2): Insert `surface_fit_passed` state between
+  `style_polished` and `user_review`. Wires Gate 3 of the canonical
+  three-gate review protocol (`editorial/review_protocol.md`) into the
+  auto-blurb state machine: editorial-director runs surface-fit
+  review on the polished body and either PASSes the draft to the user
+  inbox or REJECTs with a cut list that routes the cycle back to the
+  writer. Re-run budget: 2 Gate 3 round-trips before escalation.
+  Section 4.4a documents the verdict shape. Motivation: the upstream
+  fact-check + style-polish gates do not ask "does this content
+  belong on this surface" -- the same drift pattern that put lipsum
+  and "tri-modal product" canon-jargon on the About page would recur
+  in every blurb without Gate 3 in the cycle. editorial-director.
 - 2026-05-11 (addendum): Insert `claims_verified` state between
   `context_drafted` and `writer_drafted`. Add claim-card schema
   (Section 1.2), verifier behavior and five-reason failure

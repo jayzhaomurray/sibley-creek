@@ -32,6 +32,7 @@ SurfaceState = Literal[
     "writer_drafted",
     "fact_checked",
     "style_polished",
+    "surface_fit_passed",
     "ready_for_user",
     "approved",
     "published",
@@ -44,19 +45,23 @@ SurfaceState = Literal[
 # `rejected` and `escalated` are terminal-ish: only legal exit is back to
 # the user surface (user re-approves or operator re-runs).
 LEGAL_TRANSITIONS: dict[str, set[str]] = {
-    "release_landed":   {"context_drafted", "escalated"},
-    "context_drafted":  {"claims_verified", "escalated"},
-    "claims_verified":  {"writer_drafted", "context_drafted", "escalated"},
+    "release_landed":     {"context_drafted", "escalated"},
+    "context_drafted":    {"claims_verified", "escalated"},
+    "claims_verified":    {"writer_drafted", "context_drafted", "escalated"},
     # context_drafted re-entry: round-trip back to researcher on
     # verifier failure (bounded by researcher_revision_count).
-    "writer_drafted":   {"fact_checked", "writer_drafted", "escalated"},
-    "fact_checked":     {"style_polished", "writer_drafted", "escalated"},
-    "style_polished":   {"ready_for_user", "writer_drafted", "escalated"},
-    "ready_for_user":   {"approved", "rejected"},
-    "approved":         {"published"},
-    "published":        set(),
-    "rejected":         set(),
-    "escalated":        {"ready_for_user"},  # operator may rescue
+    "writer_drafted":     {"fact_checked", "writer_drafted", "escalated"},
+    "fact_checked":       {"style_polished", "writer_drafted", "escalated"},
+    "style_polished":     {"surface_fit_passed", "writer_drafted", "escalated"},
+    # surface_fit_passed -> writer_drafted re-entry: round-trip back to
+    # writer on editorial-director Gate 3 reject (bounded by Gate 3
+    # re-run budget; see pipeline/blurbs/run.py SURFACE_FIT_BUDGET).
+    "surface_fit_passed": {"ready_for_user", "escalated"},
+    "ready_for_user":     {"approved", "rejected"},
+    "approved":           {"published"},
+    "published":          set(),
+    "rejected":           set(),
+    "escalated":          {"ready_for_user"},  # operator may rescue
 }
 
 

@@ -622,6 +622,25 @@ export interface DeepDive {
   /** Display string for the "Updated" stamp. */
   lastUpdated: string;
   /**
+   * ISO date string (YYYY-MM-DD) representing the latest data vintage the
+   * deep-dive's prose was authored against. Rendered on /research/<slug>/
+   * as a "Data vintage" stamp below the published-date stamp; auto-computes
+   * a freshness warning when more than 90 days stale.
+   *
+   * Per methodology canon (editorial/insight_base/methodology_page.md
+   * Section 3, "show latest vintage as-is, revisions flow through"), the
+   * site's section pages always reflect the most recent print. The
+   * deep-dive page is the exception: prose was authored against a specific
+   * vintage and the argument cannot silently re-anchor as the data
+   * underneath revises. This stamp tells the reader how stale the cited
+   * values may be vs. the prose argument.
+   *
+   * Source convention: take the latest dated source named in the
+   * piece's data-stamp paragraph (typically in the frontmatter). For
+   * pieces with no explicit data-stamp paragraph, use the authoring date.
+   */
+  dataVintage?: string;
+  /**
    * Writer's working markdown body under `editorial/drafts/`. NOT rendered
    * on the public site — this is the scratchpad with TKs, voice notes,
    * and unresolved fact-check items.
@@ -659,6 +678,10 @@ export const deepDives: DeepDive[] = [
       "The 2026 renewal cohort is the largest single tranche in the stack. We map where the residual transmission lands through 2027.",
     publishedAt: "2026-05-11",
     lastUpdated: "TK",
+    // Latest dated source in the data-stamp paragraph is the BoC April 2026
+    // MPR (April 29, 2026); CREA MLS HPI April 2026 ties on month but the
+    // MPR release date is the most specific anchor.
+    dataVintage: "2026-04-29",
     draftPath: "editorial/drafts/deepdive_pillar_a_mortgage_renewal_wall_v1.md",
     publishedPath: "editorial/published/mortgage-renewal-wall.md",
     // Legacy fields retained so /experiments/* keeps building. Not rendered in production.
@@ -673,6 +696,7 @@ export const deepDives: DeepDive[] = [
       "The policy spread sits at the 8th percentile of three decades; USDCAD is at the 67th and strengthening. The binding constraint is not the loonie but the expectations chain.",
     publishedAt: "2026-05-11",
     lastUpdated: "2026-05-11",
+    dataVintage: "2026-05-11",
     draftPath: "editorial/drafts/deepdive_pillar_b_boc_fed_divergence_v1.md",
     publishedPath: "editorial/published/boc-fed-divergence.md",
     pillar: "B",
@@ -686,6 +710,7 @@ export const deepDives: DeepDive[] = [
       "The headline labour print is flattering. The per-capita series is not. We separate the population-deceleration story from the cyclical weakness story.",
     publishedAt: "2026-05-11",
     lastUpdated: "TK",
+    dataVintage: "2026-05-11",
     draftPath: "editorial/drafts/deepdive_pillar_e_per_capita_output_v1.md",
     publishedPath: "editorial/published/per-capita-output.md",
     pillar: "E",
@@ -699,6 +724,7 @@ export const deepDives: DeepDive[] = [
       "Canada's US export share has dropped ten percentage points in fourteen months. The argument over USMCA is happening on top of a structural break, not in advance of one.",
     publishedAt: "2026-05-11",
     lastUpdated: "2026-05-11",
+    dataVintage: "2026-05-11",
     draftPath: "editorial/drafts/deepdive_trade_tariffs_v1.md",
     publishedPath: "editorial/published/us-tariff-repricing.md",
     status: "shipped",
