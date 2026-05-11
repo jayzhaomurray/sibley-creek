@@ -1,27 +1,23 @@
 ---
 /*
- * Housing - basics-layer section page (placeholder).
+ * Housing - Vignelli chartbook page.
  *
- * Six panels per editorial canon section 4.4:
- *   1. Prices
- *   2. Activity
- *   3. Inventory and absorption
- *   4. Rent
- *   5. Mortgage stack snapshot
- *   6. Population-to-housing-stock ratio
+ * Six plates per editorial canon section 4.4:
+ *   01 Prices (MLS HPI national + six CMAs)
+ *   02 Activity (starts, completions, permits)
+ *   03 Inventory and absorption (sales-to-new-listings, months of inventory)
+ *   04 Rent (CMHC RMS + CPI rent sub-series)
+ *   05 Mortgage stack snapshot (BoC chartpack + OSFI + CMHC arrears)
+ *   06 Population-to-housing-stock ratio (by CMA)
  *
- * Why this file is sparse:
- *   Navigation-skeleton placeholder. Writer + style-editor own panel
- *   titles, decks, callouts, and source citations. Backend pipeline owns
- *   vintage stamps and numeric values. Chart-builder hydrates chart slots.
- *   Frontend reserves panel order, eyebrows, anchors, and the page shell.
- *
- * Mirrors src/pages/gdp.astro structure; see that file for the worked
- * example with finished placeholder copy.
+ * No chart components for Housing yet; each plate reserves the chart
+ * space with a dashed-border placeholder. chart-builder fills later.
+ * Interpretation prose is placeholder, in publication voice; writer
+ * refines.
  */
 
 import SectionLayout from "../layouts/SectionLayout.astro";
-import type { Panel } from "../layouts/SectionLayout.astro";
+import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
 
 const section = sections.find((s) => s.slug === "housing");
@@ -29,91 +25,114 @@ if (!section) {
   throw new Error("Housing section not found in src/data/sections.ts");
 }
 
-const pageAsOf = {
-  label: "Placeholder release",
-  releaseDate: "TBD",
-};
-
-const placeholderText = "Placeholder. Writer to populate.";
-const placeholderMethodology = "Placeholder. Methodology to be documented by editorial.";
-const placeholderSource = "Source citation TBD.";
-const placeholderVintage = { releaseDate: "TBD" };
-
-const panels: Panel[] = [
+const plates: Plate[] = [
   {
-    id: "panel-1",
-    eyebrow: "Prices",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-1",
+    number: "01",
+    indicator: "MLS HPI benchmark, national + six CMAs",
+    plateIndexLabel: "Prices",
+    asOf: "Apr 2026; released May 15, 2026",
+    title: "Composite HPI slipped further into negative territory; Toronto and Vancouver lead the drift.",
+    interpretationHtml:
+      "The national MLS HPI is down <strong>-1.4% y/y</strong>, and the 6-month annualized print is softer still. " +
+      "Toronto and Vancouver are doing most of the drift; Calgary remains firm and Montreal is roughly flat. " +
+      "No national-average headline number is rendered - the CMA cuts tell the story.",
+    callout: {
+      value: "-1.4%",
+      unit: "MLS HPI composite, y/y, April 2026",
+      delta: "-0.3 pp vs Mar",
+      direction: "neg",
+    },
+    source: "CREA MLS HPI national + six-CMA bulk file, April 2026 vintage.",
   },
   {
-    id: "panel-2",
-    eyebrow: "Activity",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-2",
+    number: "02",
+    indicator: "Activity: starts, completions, permits",
+    plateIndexLabel: "Activity",
+    asOf: "Apr 2026 (starts) / Mar 2026 (permits)",
+    title: "Starts (3-month MA) below trend; permits drifting lower as the leading indicator.",
+    interpretation:
+      "Starts on the 3-month moving average sit roughly twenty thousand below the post-2020 average; the permits series, which leads starts " +
+      "by a few months, has rolled over modestly. Completions are catching up to the surge in starts from two years ago, " +
+      "with the rental-vs-ownership split skewed to rental on the most recent vintage.",
+    source:
+      "CMHC starts and completions (Table 34-10-0135); Statistics Canada Table 34-10-0066-01 (building permits).",
   },
   {
-    id: "panel-3",
-    eyebrow: "Inventory and absorption",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-3",
+    number: "03",
+    indicator: "Inventory and absorption",
+    plateIndexLabel: "Inventory",
+    asOf: "Apr 2026",
+    title: "Sales-to-new-listings near 0.42; balanced-market floor in view.",
+    interpretationHtml:
+      "The national sales-to-new-listings ratio sits at <strong>0.42</strong>, below the post-2010 average and at the lower end of the band CREA calls balanced. " +
+      "Months of inventory by CMA cluster between four and six in Toronto and Vancouver and below three in Calgary. " +
+      "A constructed measure - methodology one click away.",
+    source:
+      "BoC FVI national sales-to-new-listings; CREA XLSX bulk for CMA-level; months-of-inventory constructed.",
   },
   {
-    id: "panel-4",
-    eyebrow: "Rent",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-4",
+    number: "04",
+    indicator: "Rent: CMHC RMS + CPI rent sub-series",
+    plateIndexLabel: "Rent",
+    asOf: "Oct 2025 (RMS) / Apr 2026 (CPI)",
+    title: "Toronto and Vancouver rents loosened on the most recent monthly read.",
+    interpretation:
+      "The CMHC Rental Market Survey carries the levels and the vacancy direction; the StatCan CPI rented-accommodation sub-series carries the monthly velocity. " +
+      "Toronto and Vancouver are loosening; Calgary and Edmonton are still firmer. The annual RMS print remains the citable source on the level.",
+    source:
+      "CMHC Rental Market Survey, October 2025; Statistics Canada Table 18-10-0004-01 (rent sub-series).",
   },
   {
-    id: "panel-5",
-    eyebrow: "Mortgage stack snapshot",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-5",
+    number: "05",
+    indicator: "Mortgage stack snapshot",
+    plateIndexLabel: "Mortgage stack",
+    asOf: "Q1 2026 (BoC chartpack)",
+    title: "Renewal cohort over the summer is the load-bearing window.",
+    interpretation:
+      "The Bank's most recently published Residential Mortgage Market chartpack remains the cite-grade source on vintage and term composition. " +
+      "OSFI Bank Financial Data on residential exposures, plus CMHC RMIR and CBA chartered-bank arrears, complete the picture. " +
+      "Our own full reconstruction by vintage and term is Pillar A deep-dive territory, not basics.",
+    source:
+      "BoC Residential Mortgage Market chartpack; OSFI Bank Financial Data; CMHC RMIR; CBA monthly arrears.",
   },
   {
-    id: "panel-6",
-    eyebrow: "Population-to-housing-stock ratio",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-6",
+    number: "06",
+    indicator: "Population-to-housing-stock ratio, by CMA",
+    plateIndexLabel: "Supply ratio",
+    asOf: "2025 (annual)",
+    title: "Toronto and Vancouver still the tightest on the supply-response denominator.",
+    interpretation:
+      "Population per housing unit remains highest in Toronto and Vancouver, where the supply response has been slowest to arrive. " +
+      "Calgary and Edmonton have absorbed faster population growth at flatter ratios. Annual frequency; v1 ships with the methodology note on " +
+      "base year and intercensal interpolation.",
+    source:
+      "Statistics Canada Tables 17-10-0135 (CMA population) and 36-10-0688 (housing stock).",
   },
 ];
 
 const pageTitle = "Housing";
-const pageDescription = `${section.headlineQuestion} The macro-research-department Housing section: prices, activity, inventory, rent, mortgage stack, and supply-vs-population ratios.`;
+const pageDescription =
+  "Housing chartbook: prices (MLS HPI), starts and permits, sales and inventory, rents, the mortgage stack, " +
+  "and the population-to-housing-stock ratio. Six plates of chart-with-interpretation.";
+
+const lede =
+  "Six plates trace the rate-sensitive sector: prices and activity, inventory and rents, the mortgage stack that carries " +
+  "the household balance sheet, and the supply ratio against the population it has to absorb.";
 ---
 <SectionLayout
   slug="housing"
   sectionIndex={4}
-  sectionName="Housing"
-  sectionLabel={section.label}
-  accentVar={section.accentVar}
+  sectionLabel="Housing"
   headlineQuestion={section.headlineQuestion}
-  pageAsOf={pageAsOf}
-  panels={panels}
+  lede={lede}
+  latestReleaseLabel="MLS HPI, Apr 2026 - released May 15, 2026"
+  plates={plates}
   title={pageTitle}
   description={pageDescription}
 />

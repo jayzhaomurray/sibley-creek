@@ -2,43 +2,55 @@
 /*
  * TitleStatement - homepage academic title block (production).
  *
- * Promoted from src/components/experiments/academic-vignelli/TitleStatement.astro.
- * Same structure; references the production design tokens (var(--ink),
- * var(--accent), var(--font-sans), var(--font-mono)) so the panel inherits
- * the Vignelli register from tokens.css.
+ * 3-cell summary stamp now reads from src/data/site_data_loader.ts so the
+ * load-bearing headline numbers (CPI, BoC overnight rate, Unemployment
+ * rate) flow from the pipeline payload. If any of the three is not yet
+ * wired, that cell renders an explicit em-dash + "[ NOT WIRED ]" marker
+ * instead of a fake number.
  *
- * Eyebrow: micro-caps in Manrope SemiBold, generous letter-spacing. Dot
- *          separators rendered as 4px black squares (Vignelli / Knoll
- *          catalogue dot).
- * Headline: Manrope ExtraBold (800), tight tracking. The date is the
- *           "key kicker" in signal red - the publication's brand moment.
- * Abstract: Manrope ExtraLight (200) - weight contrast against the
- *           headline. No italic, no serif.
- * Stamp:    3-column hairline grid. K labels in micro-caps, V values
- *           in Plex Mono regular. Black hairlines.
+ * Lede / abstract: visibly Latin lorem ipsum. The homepage abstract is
+ * editorial copy not yet authored; rather than pretending with a paraphrase
+ * we make the gap obvious so the next pass picks it up.
  */
 
-import type { Section } from "../../data/sections";
+import { enrichedBySlug, PLACEHOLDER } from "../../data/site_data_loader";
 
 interface Props {
   dateLine: string;
-  abstract: string;
-  sections: Section[];
 }
 
-const { dateLine, abstract, sections } = Astro.props;
+const { dateLine } = Astro.props;
 
-const stamp = [
-  { label: "Headline CPI, y/y", section: "inflation" },
-  { label: "BoC overnight rate", section: "policy" },
-  { label: "Unemployment rate", section: "labour" },
-].map((row) => {
-  const s = sections.find((x) => x.slug === row.section);
-  const p = s?.prints.find((x) => x.indicator === row.label) ?? s?.prints[0];
+type StampCellSource = {
+  /** Cell label rendered in micro-caps. Always real (canon). */
+  label: string;
+  /** Section slug to look up in the enriched payload. */
+  section: "inflation" | "policy" | "labour";
+  /** Optional indicator filter (when a section may carry multiple prints). */
+  indicator?: string;
+};
+
+const stampSources: StampCellSource[] = [
+  { label: "Headline CPI, y/y", section: "inflation", indicator: "Headline CPI, y/y" },
+  { label: "BoC overnight rate", section: "policy", indicator: "BoC overnight rate" },
+  { label: "Unemployment rate", section: "labour", indicator: "Unemployment rate" },
+];
+
+interface StampCell {
+  label: string;
+  value: string | null;
+  asOf: string | null;
+}
+
+const stamp: StampCell[] = stampSources.map((row) => {
+  const s = enrichedBySlug[row.section];
+  if (!s) return { label: row.label, value: null, asOf: null };
+  const p =
+    s.prints.find((x) => x.indicator === row.indicator) ?? s.loadBearing;
   return {
     label: row.label,
-    value: p?.value ?? "",
-    asOf: p?.asOf ?? "",
+    value: p.value,
+    asOf: p.asOf,
   };
 });
 ---
@@ -54,15 +66,29 @@ const stamp = [
     <span class="vig-title__h-line">Canadian Macro Overview</span>
     <span class="vig-title__h-date">{dateLine}</span>
   </h1>
-  <p class="vig-title__abs">{abstract}</p>
+  <p class="vig-title__abs vig-title__placeholder">
+    {PLACEHOLDER.loremLong}
+  </p>
 
   <dl class="vig-title__stamp" aria-label="Headline numbers at a glance">
     {stamp.map((row) => (
       <div class="vig-title__stamp-row">
         <dt class="vig-title__stamp-k">{row.label}</dt>
         <dd class="vig-title__stamp-v">
-          <span class="vig-title__stamp-num">{row.value}</span>
-          <span class="vig-title__stamp-asof">{row.asOf}</span>
+          {row.value !== null ? (
+            <span class="vig-title__stamp-num">{row.value}</span>
+          ) : (
+            <span class="vig-title__stamp-num vig-title__placeholder vig-title__placeholder--mono">
+              {PLACEHOLDER.value}
+            </span>
+          )}
+          {row.asOf !== null ? (
+            <span class="vig-title__stamp-asof">{row.asOf}</span>
+          ) : (
+            <span class="vig-title__stamp-asof vig-title__placeholder vig-title__placeholder--micro">
+              {PLACEHOLDER.notWired}
+            </span>
+          )}
         </dd>
       </div>
     ))}
@@ -208,5 +234,22 @@ const stamp = [
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--ink);
+  }
+
+  /* Placeholder ink. Tokens.css resolves --ink-faint to pure black under
+   * the Vignelli canon, so this component hard-codes a mid-gray so the
+   * lorem ipsum / em-dash markers visibly read as placeholders. */
+  .vig-title__placeholder {
+    color: #8A8A8A;
+  }
+  .vig-title__placeholder--mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .vig-title__placeholder--micro {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
   }
 </style>

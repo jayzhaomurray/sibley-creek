@@ -66,9 +66,11 @@ const canonicalHref = canonical
 const ogImageHref = ogImage
   ?? (Astro.site ? new URL("/og-default.png", Astro.site).toString() : "/og-default.png");
 
-// Tab title format: "Page title - Publication". Homepage passes the
-// publication name as title and we collapse the duplication.
-const tabTitle = title === site.name ? site.name : `${title} - ${site.name}`;
+// Tab title format: "Page title | Publication" (e.g. "GDP | Sibley Creek").
+// Homepage passes the publication name as title and we collapse the
+// duplication so the tab reads "Sibley Creek" rather than "Sibley Creek |
+// Sibley Creek".
+const tabTitle = title === site.name ? site.name : `${title} | ${site.name}`;
 ---
 <!doctype html>
 <html lang="en-CA">

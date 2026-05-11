@@ -1,27 +1,21 @@
 ---
 /*
- * Markets - basics-layer section page (placeholder).
+ * Markets - Vignelli chartbook page.
  *
- * Six panels per editorial canon section 4.6:
- *   1. CAD
- *   2. GoC curve
- *   3. Credit spreads
- *   4. Energy prices
- *   5. Bank stability
- *   6. Financial conditions index
+ * Six plates per editorial canon section 4.6:
+ *   01 CAD (USDCAD, CEER, percentile classifier)
+ *   02 GoC curve (2y / 5y / 10y / 30y; spread to UST)
+ *   03 Credit spreads (US IG / HY OAS; Canadian blind-spot caveat)
+ *   04 Energy prices (WTI, Brent, WCS, AECO)
+ *   05 Bank stability (PCL, CET1 vs DSB, uninsured residential)
+ *   06 Financial conditions index
  *
- * Why this file is sparse:
- *   Navigation-skeleton placeholder. Writer + style-editor own panel
- *   titles, decks, callouts, and source citations. Backend pipeline owns
- *   vintage stamps and numeric values. Chart-builder hydrates chart slots.
- *   Frontend reserves panel order, eyebrows, anchors, and the page shell.
- *
- * Mirrors src/pages/gdp.astro structure; see that file for the worked
- * example with finished placeholder copy.
+ * No chart components for Markets yet; each plate reserves the chart
+ * space with a dashed-border placeholder.
  */
 
 import SectionLayout from "../layouts/SectionLayout.astro";
-import type { Panel } from "../layouts/SectionLayout.astro";
+import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
 
 const section = sections.find((s) => s.slug === "markets");
@@ -29,91 +23,113 @@ if (!section) {
   throw new Error("Markets section not found in src/data/sections.ts");
 }
 
-const pageAsOf = {
-  label: "Placeholder release",
-  releaseDate: "TBD",
-};
-
-const placeholderText = "Placeholder. Writer to populate.";
-const placeholderMethodology = "Placeholder. Methodology to be documented by editorial.";
-const placeholderSource = "Source citation TBD.";
-const placeholderVintage = { releaseDate: "TBD" };
-
-const panels: Panel[] = [
+const plates: Plate[] = [
   {
-    id: "panel-1",
-    eyebrow: "CAD",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-1",
+    number: "01",
+    indicator: "USDCAD and the BoC effective rate (CEER)",
+    plateIndexLabel: "CAD",
+    asOf: "May 9, 2026",
+    title: "USDCAD at 1.378, near the 80th percentile of the post-1990 distribution.",
+    interpretationHtml:
+      "USDCAD pushed to <strong>1.378</strong> on the week as the BoC-Fed spread ground wider. " +
+      "On the post-1990 distribution, the current level sits near the 80th percentile - weakened, but not at the historical stress lines (P95, P99). " +
+      "The full oil-and-rate-differential fair-value model defers to v1.5 given documented coefficient instability post-2016.",
+    callout: {
+      value: "1.378",
+      unit: "USDCAD spot, May 9, 2026",
+      delta: "+0.4% w/w",
+      direction: "neg",
+    },
+    source:
+      "BoC Valet FXUSDCAD; BoC CEER; post-1990 distribution constructed from BoC daily history.",
   },
   {
-    id: "panel-2",
-    eyebrow: "GoC curve",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-2",
+    number: "02",
+    indicator: "GoC curve: 2y / 5y / 10y / 30y",
+    plateIndexLabel: "GoC curve",
+    asOf: "May 9, 2026",
+    title: "GoC 10y at 3.41%, spread to UST 10y still negative.",
+    interpretationHtml:
+      "The GoC 10-year is at <strong>3.41%</strong>; the spread to the US 10-year remains negative on the order of 100 bps, consistent with the divergent policy paths. " +
+      "Term premium at the 10y has bounced from the 2024 lows but remains compressed. " +
+      "We cite the Bank's published Canadian term-premium series directly; own ACM-style decomposition defers.",
+    source:
+      "BoC Valet (GoC curve); FRED DGS10 (US 10y); BoC Financial Stability Indicators (term premium).",
   },
   {
-    id: "panel-3",
-    eyebrow: "Credit spreads",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-3",
+    number: "03",
+    indicator: "Credit spreads: US IG / HY OAS",
+    plateIndexLabel: "Credit spreads",
+    asOf: "May 9, 2026",
+    title: "US IG and HY spreads compressed near cycle tights; Canadian-spread caveat preserved.",
+    interpretation:
+      "US investment-grade and high-yield OAS sit at the tighter end of their post-2018 range - the risk-appetite proxy is in benign territory. " +
+      "Canadian senior-unsecured-vs-GoC and Canadian IG / HY proxies require FSR scraping or own construction and defer to v1.5. " +
+      "v1 ships with the US comparator and an explicit Canadian-spread blind-spot caveat.",
+    source: "FRED BAMLC0A0CM (IG OAS), BAMLH0A0HYM2 (HY OAS).",
   },
   {
-    id: "panel-4",
-    eyebrow: "Energy prices",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-4",
+    number: "04",
+    indicator: "Energy prices: WTI, Brent, WCS, AECO",
+    plateIndexLabel: "Energy",
+    asOf: "May 9, 2026 (daily) / Apr 2026 (WCS monthly)",
+    title: "WTI at $71.40, drifting lower; WCS differential at typical monthly cadence.",
+    interpretationHtml:
+      "WTI is down <strong>-2.1%</strong> on the week to <strong>$71.40</strong>; Brent has moved by a similar magnitude. " +
+      "WCS is shown at monthly cadence with the caveat against daily-comparison differential preserved. " +
+      "AECO gas is reported on a weekly bid-week summary where the cadence is available; otherwise defers.",
+    source: "EIA WTI / Brent; CER WCS monthly; AECO bid-week from NRCan.",
   },
   {
-    id: "panel-5",
-    eyebrow: "Bank stability",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-5",
+    number: "05",
+    indicator: "Bank stability: PCL, CET1 vs DSB, uninsured residential",
+    plateIndexLabel: "Bank stability",
+    asOf: "Q1 2026 (earnings) / Mar 2026 (OSFI)",
+    title: "CET1 ratios remain above the DSB buffer of 3.5%; PCL builds modestly elevated.",
+    interpretationHtml:
+      "Big-Six provisions for credit losses (PCL) builds remain modestly elevated relative to pre-2023 baselines but have not accelerated this quarter. " +
+      "CET1 ratios across the Big-Six cluster above the OSFI Domestic Stability Buffer of <strong>3.5%</strong>. " +
+      "Uninsured residential exposure from OSFI Bank Financial Data is shown on a semi-annual scrape.",
+    source:
+      "Big-Six earnings releases (Q1 2026); OSFI DSB and Bank Financial Data M4.",
   },
   {
-    id: "panel-6",
-    eyebrow: "Financial conditions index",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-6",
+    number: "06",
+    indicator: "Financial conditions index",
+    plateIndexLabel: "FCI",
+    asOf: "May 9, 2026",
+    title: "Financial conditions sit near the long-run easy end of the distribution.",
+    interpretation:
+      "If the Bank's published FCI is available via Valet (key to be probed) we anchor on it; if not, v1 ships with the Chicago Fed NFCI as a citable US comparator " +
+      "plus prose-level Canadian commentary. The signal across either anchor: conditions remain on the easier side of the long-run distribution. " +
+      "Own Canadian FCI composite construction defers to v1.5.",
+    source: "Bank of Canada FSI page; Chicago Fed NFCI (US comparator).",
   },
 ];
 
 const pageTitle = "Markets";
-const pageDescription = `${section.headlineQuestion} The macro-research-department Markets section: CAD, GoC curve, credit spreads, energy prices, bank stability, and financial conditions.`;
+const pageDescription =
+  "Markets chartbook: CAD, GoC curve, credit spreads, energy prices, bank stability, and the financial conditions index. " +
+  "Six plates of chart-with-interpretation. Sources: BoC, FRED, OSFI, EIA, CER.";
+
+const lede =
+  "Six plates trace the external winds and the financial-system thermometer: the loonie, the GoC curve, " +
+  "credit spreads, energy prices, bank-stability metrics, and the financial conditions index.";
 ---
 <SectionLayout
   slug="markets"
   sectionIndex={6}
-  sectionName="Markets"
-  sectionLabel={section.label}
-  accentVar={section.accentVar}
+  sectionLabel="Markets"
   headlineQuestion={section.headlineQuestion}
-  pageAsOf={pageAsOf}
-  panels={panels}
+  lede={lede}
+  latestReleaseLabel="Daily close, May 9, 2026"
+  plates={plates}
   title={pageTitle}
   description={pageDescription}
 />

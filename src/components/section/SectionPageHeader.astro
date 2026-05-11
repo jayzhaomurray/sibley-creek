@@ -1,0 +1,310 @@
+---
+/*
+ * SectionPageHeader - the page header band that sits below the site
+ * masthead on every topic page.
+ *
+ * Vignelli register (matches the homepage):
+ *   - Pure white paper, pure black ink. MTA red (#E63946) only on
+ *     brand-signal moments (the section number in the kicker).
+ *   - Manrope is the only sans family. Weight contrast is the hierarchy
+ *     device: 200 (lede), 400 (plate index), 600 (kicker / labels),
+ *     900 (the headline question).
+ *   - IBM Plex Mono is reserved for the latest-release stamp.
+ *   - 1px black hairline rules separate the kicker row from the
+ *     headline question and a 2px black rule closes the band.
+ *
+ * Anatomy (top to bottom):
+ *   1. Kicker row: SIBLEY CREEK | SECTION N OF 7 | <SECTION NAME>
+ *      mono-caps with tight tracking; pipe separators.
+ *   2. Headline question: Manrope ExtraBlack (900), tight tracking,
+ *      max-width tuned to ~22ch so the line breaks editorially.
+ *   3. Lede paragraph: Manrope ExtraLight (200) body-lg, max-width
+ *      tuned to ~64ch so it reads as a paragraph rather than a slab.
+ *   4. Latest-release stamp: Plex Mono micro, right-aligned, prefixed
+ *      with a mono-caps "Latest release" label.
+ *   5. Plate index: tracked Plex Mono numerals (01, 02, ...) linking
+ *      down the page to each chartbook unit. Aria-labelled.
+ *   6. 2px black rule closes the band.
+ *
+ * Props:
+ *   - publication      Site / publication name (left of the kicker).
+ *   - sectionIndex     1..7 for "SECTION N OF 7".
+ *   - sectionTotal     Total sections (default 7).
+ *   - sectionLabel     Section short name (right of the kicker).
+ *   - headlineQuestion The EDR-canonical headline question (h1).
+ *   - lede             2-3 sentence lede. Placeholder OK for v1.
+ *   - latestReleaseLabel  Label string for the stamp (eg "April CPI,
+ *                          released May 14, 2026").
+ *   - plates           Array of { number, anchor, label } for the
+ *                      plate index. `anchor` is the in-page anchor id
+ *                      and matches the corresponding ChartbookUnit.
+ */
+
+interface PlateIndexEntry {
+  number: string;
+  anchor: string;
+  label: string;
+}
+
+interface Props {
+  publication: string;
+  sectionIndex: number;
+  sectionTotal?: number;
+  sectionLabel: string;
+  headlineQuestion: string;
+  lede: string;
+  latestReleaseLabel: string;
+  plates: PlateIndexEntry[];
+}
+
+const {
+  publication,
+  sectionIndex,
+  sectionTotal = 7,
+  sectionLabel,
+  headlineQuestion,
+  lede,
+  latestReleaseLabel,
+  plates,
+} = Astro.props;
+---
+<header class="section-header" aria-labelledby="section-headline">
+  <p class="section-header__kicker">
+    <span class="section-header__kicker-tok">{publication}</span>
+    <span class="section-header__kicker-sep" aria-hidden="true">|</span>
+    <span class="section-header__kicker-tok">
+      Section <span class="section-header__kicker-num">{sectionIndex}</span>
+      of {sectionTotal}
+    </span>
+    <span class="section-header__kicker-sep" aria-hidden="true">|</span>
+    <span class="section-header__kicker-tok section-header__kicker-tok--name">
+      {sectionLabel}
+    </span>
+  </p>
+
+  <div class="section-header__band">
+    <h1 id="section-headline" class="section-header__h">
+      {headlineQuestion}
+    </h1>
+    <p class="section-header__stamp">
+      <span class="section-header__stamp-label">Latest release</span>
+      <span class="section-header__stamp-body">{latestReleaseLabel}</span>
+    </p>
+  </div>
+
+  <p class="section-header__lede">{lede}</p>
+
+  <nav class="section-header__plates" aria-label="Plates on this page">
+    <ol role="list" class="section-header__plates-list">
+      {plates.map((plate) => (
+        <li class="section-header__plates-item">
+          <a
+            class="section-header__plate-link"
+            href={`#${plate.anchor}`}
+            aria-label={`Plate ${plate.number}: ${plate.label}`}
+          >
+            <span class="section-header__plate-num">{plate.number}</span>
+            <span class="section-header__plate-label">{plate.label}</span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  </nav>
+
+  <hr class="section-header__rule" aria-hidden="true" />
+</header>
+
+<style>
+  .section-header {
+    padding-block: 28px 0;
+  }
+
+  /* ---- Kicker row ---- */
+  .section-header__kicker {
+    margin: 0 0 18px;
+    display: inline-flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0 10px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .section-header__kicker-tok {
+    display: inline-block;
+  }
+  .section-header__kicker-tok--name {
+    /* The active section name on the right is heavier so the eye lands. */
+    font-weight: 800;
+  }
+  .section-header__kicker-num {
+    color: var(--accent);
+    font-weight: 800;
+  }
+  .section-header__kicker-sep {
+    color: var(--ink);
+    opacity: 0.32;
+    font-weight: 400;
+  }
+
+  /* ---- Headline band: headline question + latest-release stamp ---- */
+  .section-header__band {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 28px;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--ink);
+    padding-top: 18px;
+  }
+  .section-header__h {
+    margin: 0;
+    font-family: var(--font-sans);
+    /* Manrope ExtraBold (Black weight not in stock at 900 across all
+     * weights -- 800 is the Vignelli display weight used on the
+     * homepage). */
+    font-weight: 800;
+    font-size: clamp(28px, 4vw, 44px);
+    line-height: 1.05;
+    letter-spacing: -0.018em;
+    color: var(--ink);
+    max-width: 22ch;
+    text-transform: none;
+  }
+  .section-header__stamp {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .section-header__stamp-label {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .section-header__stamp-body {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    max-width: 32ch;
+  }
+
+  /* ---- Lede ---- */
+  .section-header__lede {
+    margin: 18px 0 0;
+    font-family: var(--font-sans);
+    /* ExtraLight against the 800 headline keeps the Vignelli
+     * weight-contrast hierarchy reading at first glance. */
+    font-weight: 200;
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--ink);
+    max-width: 64ch;
+  }
+
+  /* ---- Plate index ---- */
+  .section-header__plates {
+    margin-top: 28px;
+  }
+  .section-header__plates-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    align-items: stretch;
+    border-top: 1px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
+  }
+  .section-header__plates-item {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    border-right: 1px solid var(--ink);
+  }
+  .section-header__plates-item:last-child {
+    border-right: 0;
+  }
+  .section-header__plate-link {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    text-decoration: none;
+    color: var(--ink);
+    width: 100%;
+    border-bottom: 1px solid transparent;
+    transition: background-color 80ms linear;
+  }
+  .section-header__plate-link:hover {
+    background-color: var(--ink);
+    color: var(--paper);
+  }
+  .section-header__plate-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .section-header__plate-num {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    color: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  .section-header__plate-label {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.04em;
+    color: inherit;
+    text-transform: none;
+  }
+
+  /* ---- 2px closing rule ---- */
+  .section-header__rule {
+    border: 0;
+    border-top: 2px solid var(--ink);
+    margin: 28px 0 0;
+  }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 720px) {
+    .section-header__band {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .section-header__stamp {
+      align-items: flex-start;
+      text-align: left;
+    }
+    .section-header__plates-list {
+      flex-direction: column;
+    }
+    .section-header__plates-item {
+      border-right: 0;
+      border-bottom: 1px solid var(--ink);
+    }
+    .section-header__plates-item:last-child {
+      border-bottom: 0;
+    }
+  }
+</style>

@@ -1,27 +1,21 @@
 ---
 /*
- * Trade - basics-layer section page (placeholder).
+ * Trade - Vignelli chartbook page.
  *
- * Six panels per editorial canon section 4.7:
- *   1. Merchandise trade balance
- *   2. Current account
- *   3. Partner shares
- *   4. Tariff state
- *   5. Terms of trade
- *   6. FDI by sector
+ * Six plates per editorial canon section 4.7:
+ *   01 Merchandise trade balance
+ *   02 Current account
+ *   03 Partner shares (US, China, UK, Japan, Mexico, ...)
+ *   04 Tariff state
+ *   05 Terms of trade
+ *   06 FDI by sector
  *
- * Why this file is sparse:
- *   Navigation-skeleton placeholder. Writer + style-editor own panel
- *   titles, decks, callouts, and source citations. Backend pipeline owns
- *   vintage stamps and numeric values. Chart-builder hydrates chart slots.
- *   Frontend reserves panel order, eyebrows, anchors, and the page shell.
- *
- * Mirrors src/pages/gdp.astro structure; see that file for the worked
- * example with finished placeholder copy.
+ * No chart components for Trade yet; each plate reserves the chart
+ * space with a dashed-border placeholder.
  */
 
 import SectionLayout from "../layouts/SectionLayout.astro";
-import type { Panel } from "../layouts/SectionLayout.astro";
+import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
 
 const section = sections.find((s) => s.slug === "trade");
@@ -29,91 +23,124 @@ if (!section) {
   throw new Error("Trade section not found in src/data/sections.ts");
 }
 
-const pageAsOf = {
-  label: "Placeholder release",
-  releaseDate: "TBD",
-};
-
-const placeholderText = "Placeholder. Writer to populate.";
-const placeholderMethodology = "Placeholder. Methodology to be documented by editorial.";
-const placeholderSource = "Source citation TBD.";
-const placeholderVintage = { releaseDate: "TBD" };
-
-const panels: Panel[] = [
+const plates: Plate[] = [
   {
-    id: "panel-1",
-    eyebrow: "Merchandise trade balance",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-1",
+    number: "01",
+    indicator: "Merchandise trade balance, monthly + 3M MA",
+    plateIndexLabel: "Merch balance",
+    asOf: "Mar 2026; released Apr 3, 2026",
+    title: "March merchandise balance widened to -$2.3B; auto and energy in opposite directions.",
+    interpretationHtml:
+      "The March merchandise balance came in at <strong>-$2.3B</strong>, a deeper deficit than February. " +
+      "Auto exports pulled down on weaker US assembly schedules; energy exports pulled up on price and volume. " +
+      "Non-monetary-gold-stripped variant gives a cleaner momentum read - both lines remain below the cycle average.",
+    callout: {
+      value: "-$2.3B",
+      unit: "merchandise trade balance, BOP basis, Mar 2026",
+      delta: "-$1.1B m/m",
+      direction: "neg",
+    },
+    source:
+      "Statistics Canada Tables 12-10-0119-01 (balance), 12-10-0121-01 (exports), 12-10-0122-01 (imports).",
   },
   {
-    id: "panel-2",
-    eyebrow: "Current account",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-2",
+    number: "02",
+    indicator: "Current account: goods, services, primary income",
+    plateIndexLabel: "Current account",
+    asOf: "2025 Q4; released Mar 2, 2026",
+    title: "Current account in modest deficit; services surplus continues to narrow.",
+    interpretation:
+      "The Q4 current account was in modest deficit, with goods turning slightly negative on the quarter and services surplus continuing its trend narrowing. " +
+      "Primary income remains the largest single drag - foreign-claim service costs are sticky against a flatter Canadian growth path. " +
+      "Sustained drivers vs one-offs are called out in the blurb.",
+    source: "Statistics Canada Table 36-10-0014-01.",
   },
   {
-    id: "panel-3",
-    eyebrow: "Partner shares",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-3",
+    number: "03",
+    indicator: "Partner shares: US, China, UK, Japan, Mexico",
+    plateIndexLabel: "Partner shares",
+    asOf: "Mar 2026",
+    title: "US export share still drifting; mid-70s plateau eroded to 73%.",
+    interpretationHtml:
+      "The US share of Canadian merchandise exports is at <strong>73.1%</strong>, down from a mid-70s plateau and continuing a slow secular drift. " +
+      "China and Mexico carry most of the offset on the import side; the UK and Japan have remained roughly flat. " +
+      "The drift is structural rather than cyclical.",
+    callout: {
+      value: "73.1%",
+      unit: "US share of merchandise exports, Mar 2026",
+      delta: "-0.4 pp y/y",
+      direction: "neutral",
+    },
+    source: "Statistics Canada Table 12-10-0121-01 (exports by country).",
   },
   {
-    id: "panel-4",
-    eyebrow: "Tariff state",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-4",
+    number: "04",
+    indicator: "Tariff state: US trade actions affecting Canada",
+    plateIndexLabel: "Tariff state",
+    asOf: "Currently effective (as of May 2026)",
+    title: "Section 232 follow-on actions named in March are the variable into the USMCA review window.",
+    interpretation:
+      "We maintain a one-page log of currently effective US tariff actions affecting Canadian exporters: Section 232 follow-ons, " +
+      "Section 301 carve-outs, and bilateral countermeasures where active. The summer 2026 USMCA review window is the live variable; " +
+      "named Section 232 follow-ons from March 2026 are the immediate exposure.",
+    source:
+      "USTR / DoC effective tariff actions log; Global Affairs Canada countermeasures notices.",
   },
   {
-    id: "panel-5",
-    eyebrow: "Terms of trade",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-5",
+    number: "05",
+    indicator: "Terms of trade",
+    plateIndexLabel: "Terms of trade",
+    asOf: "Q1 2026",
+    title: "Terms of trade slipped to 104.6; commodity export prices easing relative to imports.",
+    interpretationHtml:
+      "The terms-of-trade index slipped to <strong>104.6</strong> in Q1, with commodity export prices easing relative to the import basket. " +
+      "Still well above 100 - net favorable - but the trajectory has rolled over from the late-2024 peak. " +
+      "The income channel from terms-of-trade improvement that supported Q3 2024 has reversed.",
+    callout: {
+      value: "104.6",
+      unit: "terms-of-trade index, Q1 2026 (index 2017 = 100)",
+      delta: "-0.8 vs Q4 2025",
+      direction: "neg",
+    },
+    source: "Statistics Canada Table 36-10-0014-01 (terms of trade derived).",
   },
   {
-    id: "panel-6",
-    eyebrow: "FDI by sector",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-6",
+    number: "06",
+    indicator: "FDI by sector: inward and outward",
+    plateIndexLabel: "FDI",
+    asOf: "2025 Q4",
+    title: "Inward FDI still concentrated in oil and gas extraction and finance.",
+    interpretation:
+      "Inward direct-investment flows in Q4 remained concentrated in oil and gas extraction, finance, and manufacturing. " +
+      "Outward flows by sector skew further toward finance and real estate. The pattern has been consistent across recent quarters; " +
+      "no new sector has emerged as a marginal source of inward capital.",
+    source: "Statistics Canada Table 36-10-0008-01 (FDI by industry).",
   },
 ];
 
 const pageTitle = "Trade";
-const pageDescription = `${section.headlineQuestion} The macro-research-department Trade section: merchandise trade balance, current account, partner shares, tariff state, terms of trade, and FDI.`;
+const pageDescription =
+  "Trade chartbook: merchandise balance, current account, partner shares, tariff state, terms of trade, and FDI. " +
+  "Six plates of chart-with-interpretation. Sources: Statistics Canada, USTR, Global Affairs Canada.";
+
+const lede =
+  "Six plates trace Canada's external position: the merchandise balance and the current account, the partner-share drift, " +
+  "the currently effective US tariff state, the terms of trade, and the sectoral pattern of foreign direct investment.";
 ---
 <SectionLayout
   slug="trade"
   sectionIndex={7}
-  sectionName="Trade"
-  sectionLabel={section.label}
-  accentVar={section.accentVar}
+  sectionLabel="Trade"
   headlineQuestion={section.headlineQuestion}
-  pageAsOf={pageAsOf}
-  panels={panels}
+  lede={lede}
+  latestReleaseLabel="Merchandise trade, Mar 2026 - released Apr 3, 2026"
+  plates={plates}
   title={pageTitle}
   description={pageDescription}
 />

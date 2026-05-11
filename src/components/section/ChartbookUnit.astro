@@ -1,0 +1,476 @@
+---
+/*
+ * ChartbookUnit - the atom of a topic page.
+ *
+ * One unit is: indicator eyebrow, headline title sentence, a real chart
+ * on the left, a 2-4 sentence interpretation paragraph on the right, a
+ * callout strip with the big number + delta + direction glyph, and a
+ * source line. Hairline rule separates consecutive units.
+ *
+ * Vignelli register, matching the homepage:
+ *   - Pure white paper, pure black ink, MTA red (#E63946) accent
+ *     reserved for the plate number ("PLATE 01") brand signal.
+ *   - Manrope only: 200 / 400 / 600 / 800. Weight is the hierarchy
+ *     device. IBM Plex Mono for the as-of stamp, callout delta, and
+ *     source line.
+ *   - Direction encoded by black glyphs (top-pointing / bottom-pointing
+ *     triangles / em dash), NEVER by color.
+ *
+ * Anatomy:
+ *   [eyebrow row]   PLATE 01   |   Indicator name                As of ...
+ *   [title row]     Headline title sentence. Manrope ExtraBold, 28-32px.
+ *   [body 2-col]    [ Chart, ~60% width                ] [ Interpretation
+ *                   [ Real chart (>= 900px), stacks on   ]   paragraph,
+ *                   [ mobile)                            ]   ~40% width,
+ *                                                          max-width 360px ]
+ *   [callout strip] BIG NUMBER  +0.2 pp     (triangle)
+ *                   28-36px Manrope Black   12px Plex Mono
+ *   [source line]   Source: Statistics Canada Table 36-10-0434-01.
+ *                   12px Plex Mono micro
+ *
+ * Slots:
+ *   - default (named: "chart"): the real chart component
+ *   - "interpretation": optional override for the interpretation
+ *     paragraph (writer's draft). If omitted, the `interpretation`
+ *     prop is rendered.
+ *
+ * The chart slot is the responsibility of chart-builder; this
+ * component reserves the space and sets the surrounding chrome.
+ *
+ * Props are documented inline below.
+ */
+
+interface CalloutSpec {
+  /** Big number value, eg "+0.2%". Manrope ExtraBold, display-md. */
+  value: string;
+  /** Unit / period qualifier, eg "month-over-month, March 2026". */
+  unit?: string;
+  /** Delta vs prior period, pre-formatted. eg "+0.1 pp vs Feb". */
+  delta?: string;
+  /** Direction of the delta. Drives glyph selection only - never color. */
+  direction?: "pos" | "neg" | "neutral";
+}
+
+interface Props {
+  /** Plate number, eg "01". Rendered as "PLATE 01" in the eyebrow. */
+  plateNumber: string;
+  /** Indicator label, eg "Headline real GDP, month-over-month". */
+  indicator: string;
+  /** Anchor id for the plate index. */
+  anchorId: string;
+  /** As-of stamp body. eg "Mar 2026; released May 1, 2026". */
+  asOf: string;
+  /**
+   * Headline title sentence. Declarative; written by writer. eg
+   * "Monthly GDP rose 0.2% in March, on consensus."
+   */
+  title: string;
+  /**
+   * Interpretation paragraph. 2-4 sentences in publication voice.
+   * Placeholder text accepted in v1. May contain inline <strong>
+   * tags via the `interpretationHtml` prop instead.
+   */
+  interpretation?: string;
+  /**
+   * Raw HTML for the interpretation paragraph. Takes precedence over
+   * `interpretation`. Use this when the writer's prose needs inline
+   * <strong> Manrope 600 emphasis on key numbers.
+   */
+  interpretationHtml?: string;
+  /**
+   * Callout strip below the chart-prose pair. Big number, delta,
+   * direction glyph. Optional; omit for plates whose narrative is the
+   * interpretation alone.
+   */
+  callout?: CalloutSpec;
+  /** Source citation, eg "Statistics Canada Table 36-10-0434-01." */
+  source: string;
+  /**
+   * Whether to render the chart slot or a dashed-border placeholder.
+   * Set false on sections (Housing, Policy, Markets, Trade) where the
+   * chart components have not yet landed. Default: true.
+   */
+  hasChart?: boolean;
+}
+
+const {
+  plateNumber,
+  indicator,
+  anchorId,
+  asOf,
+  title,
+  interpretation,
+  interpretationHtml,
+  callout,
+  source,
+  hasChart = true,
+} = Astro.props;
+
+function dirGlyph(d?: "pos" | "neg" | "neutral"): string {
+  if (d === "pos") return "▲"; // black up-pointing triangle
+  if (d === "neg") return "▼"; // black down-pointing triangle
+  return "—"; // em dash for neutral / unknown
+}
+---
+<section
+  class="chartbook-unit"
+  id={anchorId}
+  aria-labelledby={`${anchorId}-title`}
+>
+  {/* Eyebrow row: plate N + indicator + as-of stamp */}
+  <header class="chartbook-unit__eyebrow">
+    <p class="chartbook-unit__eyebrow-left">
+      <span class="chartbook-unit__plate">
+        <span class="chartbook-unit__plate-word">Plate</span>
+        <span class="chartbook-unit__plate-n">{plateNumber}</span>
+      </span>
+      <span class="chartbook-unit__eyebrow-sep" aria-hidden="true">|</span>
+      <span class="chartbook-unit__indicator">{indicator}</span>
+    </p>
+    <p class="chartbook-unit__asof">
+      <span class="chartbook-unit__asof-label">As of</span>
+      <span class="chartbook-unit__asof-body">{asOf}</span>
+    </p>
+  </header>
+
+  {/* Title row: declarative headline sentence */}
+  <h2 id={`${anchorId}-title`} class="chartbook-unit__title">
+    {title}
+  </h2>
+
+  {/* Body: chart left, interpretation right */}
+  <div class="chartbook-unit__body">
+    <figure class="chartbook-unit__chart-wrap">
+      {hasChart ? (
+        <div class="chartbook-unit__chart">
+          <slot name="chart">
+            {/* Fallback if a unit declares hasChart but does not pass
+             * a chart slot - render the placeholder. */}
+            <div
+              class="chartbook-unit__chart-placeholder"
+              role="img"
+              aria-label={`${indicator} chart placeholder`}
+            >
+              <span class="chartbook-unit__chart-note">Chart to follow</span>
+            </div>
+          </slot>
+        </div>
+      ) : (
+        <div
+          class="chartbook-unit__chart-placeholder"
+          role="img"
+          aria-label={`${indicator} chart placeholder`}
+        >
+          <span class="chartbook-unit__chart-note">Chart to follow</span>
+        </div>
+      )}
+    </figure>
+
+    <div class="chartbook-unit__prose">
+      <slot name="interpretation">
+        {interpretationHtml ? (
+          <p
+            class="chartbook-unit__interpretation"
+            set:html={interpretationHtml}
+          />
+        ) : (
+          <p class="chartbook-unit__interpretation">
+            {interpretation ?? "Placeholder. Writer to populate."}
+          </p>
+        )}
+      </slot>
+    </div>
+  </div>
+
+  {/* Callout strip: big number + delta + direction glyph */}
+  {callout && (
+    <div class="chartbook-unit__callout">
+      <p class="chartbook-unit__callout-value">{callout.value}</p>
+      <div class="chartbook-unit__callout-meta">
+        {callout.unit && (
+          <span class="chartbook-unit__callout-unit">{callout.unit}</span>
+        )}
+        {callout.delta && (
+          <span class="chartbook-unit__callout-delta">
+            <span
+              class="chartbook-unit__callout-glyph"
+              aria-label={`Direction: ${callout.direction ?? "neutral"}`}
+            >
+              {dirGlyph(callout.direction)}
+            </span>
+            <span class="chartbook-unit__callout-delta-val">
+              {callout.delta}
+            </span>
+          </span>
+        )}
+      </div>
+    </div>
+  )}
+
+  {/* Source line */}
+  <footer class="chartbook-unit__foot">
+    <p class="chartbook-unit__source">
+      <span class="chartbook-unit__source-label">Source:</span>
+      <span class="chartbook-unit__source-text">{source}</span>
+    </p>
+  </footer>
+</section>
+
+<style>
+  /* Vertical rhythm: tight inside the unit; hairline rule between
+   * consecutive units carries the unit boundary. */
+  .chartbook-unit {
+    padding-block: 36px 36px;
+    border-bottom: 1px solid var(--ink);
+  }
+
+  /* ---- Eyebrow row ---- */
+  .chartbook-unit__eyebrow {
+    margin: 0 0 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .chartbook-unit__eyebrow-left {
+    margin: 0;
+    display: inline-flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0 10px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .chartbook-unit__plate {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .chartbook-unit__plate-word {
+    color: var(--ink);
+  }
+  .chartbook-unit__plate-n {
+    color: var(--accent);
+    font-weight: 800;
+    font-family: var(--font-mono);
+    letter-spacing: 0.08em;
+  }
+  .chartbook-unit__eyebrow-sep {
+    color: var(--ink);
+    opacity: 0.32;
+    font-weight: 400;
+  }
+  .chartbook-unit__indicator {
+    /* The indicator name is not all-caps; it reads as a label. */
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    color: var(--ink);
+  }
+  .chartbook-unit__asof {
+    margin: 0;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    font-family: var(--font-sans);
+    text-align: right;
+  }
+  .chartbook-unit__asof-label {
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .chartbook-unit__asof-body {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- Title row ---- */
+  .chartbook-unit__title {
+    margin: 0 0 22px;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: clamp(22px, 2.4vw, 30px);
+    line-height: 1.15;
+    letter-spacing: -0.012em;
+    color: var(--ink);
+    max-width: 32ch;
+  }
+
+  /* ---- Body: chart + interpretation ---- */
+  .chartbook-unit__body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  @media (min-width: 900px) {
+    .chartbook-unit__body {
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+      gap: 32px;
+    }
+  }
+
+  .chartbook-unit__chart-wrap {
+    margin: 0;
+    min-width: 0;
+  }
+  .chartbook-unit__chart {
+    /* The live chart fills its container; the chart component owns
+     * its own aspect ratio. The wrap preserves a target 5:3 by
+     * default when the chart is a placeholder. */
+    width: 100%;
+    background: var(--paper);
+    border: 1px solid var(--ink);
+    padding: 0;
+    overflow: hidden;
+  }
+  .chartbook-unit__chart > :global(svg),
+  .chartbook-unit__chart > :global(.gdp-panel-chart),
+  .chartbook-unit__chart > :global(.inflation-panel-chart),
+  .chartbook-unit__chart > :global(.labour-panel-chart),
+  .chartbook-unit__chart > :global(div) {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* Dashed-border placeholder for sections without chart components yet.
+   * Same outer rectangle dimensions as the live chart so the unit
+   * layout doesn't shift between sections. */
+  .chartbook-unit__chart-placeholder {
+    width: 100%;
+    aspect-ratio: 5 / 3;
+    border: 1px dashed var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--paper);
+  }
+  .chartbook-unit__chart-note {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  /* Interpretation column */
+  .chartbook-unit__prose {
+    min-width: 0;
+  }
+  .chartbook-unit__interpretation {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--ink);
+    max-width: 360px;
+  }
+  .chartbook-unit__interpretation :global(strong) {
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  /* ---- Callout strip ---- */
+  .chartbook-unit__callout {
+    margin-top: 28px;
+    padding-top: 16px;
+    border-top: 1px solid var(--ink);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .chartbook-unit__callout-value {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: clamp(28px, 3vw, 36px);
+    line-height: 1;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .chartbook-unit__callout-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .chartbook-unit__callout-unit {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 1.3;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    max-width: 36ch;
+  }
+  .chartbook-unit__callout-delta {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .chartbook-unit__callout-glyph {
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 10px;
+  }
+
+  /* ---- Source line ---- */
+  .chartbook-unit__foot {
+    margin-top: 16px;
+  }
+  .chartbook-unit__source {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--ink);
+  }
+  .chartbook-unit__source-label {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-right: 8px;
+  }
+  .chartbook-unit__source-text {
+    color: var(--ink);
+  }
+
+  /* Last unit on the page drops its bottom rule - the page footer
+   * carries the closing boundary. Parent layout sets a modifier. */
+  :global(.chartbook-stack > .chartbook-unit:last-child) {
+    border-bottom: 0;
+  }
+</style>

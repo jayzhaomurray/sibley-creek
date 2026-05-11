@@ -21,11 +21,23 @@
  *   - Black hairlines between blocks.
  */
 
-import { site, nextRelease } from "../../data/sections";
+import { site } from "../../data/sections";
+import { PLACEHOLDER } from "../../data/site_data_loader";
 
 const today = new Date();
 const produced = today.toISOString().slice(0, 10);
 const currentYear = today.getFullYear();
+
+/*
+ * Next-release stamp: not yet pipeline-driven. The Canadian release-calendar
+ * loader is on backend's plate but no JSON payload carries this field yet,
+ * so the slot renders an explicit "NOT WIRED" marker rather than the
+ * hand-typed canon value that previously lived in src/data/sections.ts.
+ *
+ * When backend adds `nextRelease` to data/site/sections.json (or a sibling
+ * file), import it via site_data_loader.ts and swap `nextReleaseDisplay`
+ * for the real {label, date, agency} tuple.
+ */
 ---
 <footer class="vig-col" role="contentinfo">
   <div class="vig-col__rules" aria-hidden="true">
@@ -50,11 +62,9 @@ const currentYear = today.getFullYear();
     <div class="vig-col__stamp">
       <dt>Next release</dt>
       <dd>
-        <span class="vig-col__stamp-strong">{nextRelease.label}</span>
-        <span class="vig-col__stamp-sep" aria-hidden="true"></span>
-        <span class="vig-col__stamp-soft">{nextRelease.date}</span>
-        <span class="vig-col__stamp-sep" aria-hidden="true"></span>
-        <span class="vig-col__stamp-soft">{nextRelease.agency}</span>
+        <span class="vig-col__stamp-placeholder">
+          {PLACEHOLDER.nextReleaseNotWired}
+        </span>
       </dd>
     </div>
     <div class="vig-col__stamp">
@@ -211,6 +221,19 @@ const currentYear = today.getFullYear();
     width: 1px;
     height: 9px;
     background: var(--ink);
+  }
+  /* Mid-gray placeholder ink so the [ NOT WIRED ] marker reads as a stub
+   * against the surrounding real chrome (Produced date, Edition, copyright).
+   * Hard-coded because --ink-faint resolves to pure black under the
+   * Vignelli canon (see tokens.css). */
+  .vig-col__stamp-placeholder {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #8A8A8A;
   }
 
   .vig-col__nav {

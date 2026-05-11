@@ -1,34 +1,25 @@
 ---
 /*
- * Inflation - basics-layer section page (placeholder).
+ * Inflation - Vignelli chartbook page.
  *
- * Six panels per editorial canon section 4.2:
- *   1. Headline CPI
- *   2. Core trio
- *   3. Breadth
- *   4. Sub-aggregates
- *   5. Inflation expectations
- *   6. Pass-through watch
+ * Six plates per editorial canon section 4.2:
+ *   01 Headline CPI
+ *   02 BoC preferred core measures (core-trim, core-median)
+ *   03 Breadth
+ *   04 Sub-aggregates
+ *   05 Inflation expectations
+ *   06 Pass-through watch
  *
- * Why this file is sparse:
- *   This is the navigation-skeleton placeholder. Writer + style-editor own
- *   panel titles, decks, callouts, and source citations. Backend pipeline
- *   owns vintage stamps and numeric values. Chart-builder hydrates chart
- *   slots. Frontend is reserving the structure: panel order, eyebrows,
- *   anchors, and the page shell.
+ * Each plate is a ChartbookUnit: real chart on the left, short
+ * interpretation paragraph on the right, callout strip, source.
+ * Charts dispatched via chartKey to src/components/charts/inflation/.
  *
- * What this page is NOT:
- *   - A homepage (that is /).
- *   - A deep-dive (those rotate into separate pages under /inflation/...).
- *   - A chart canvas. Each panel reserves a chart slot with a dashed-border
- *     placeholder; chart-builder hydrates them later.
- *
- * Mirrors src/pages/gdp.astro structure; see that file for the worked
- * example with finished placeholder copy.
+ * v1: interpretation prose is placeholder, in publication voice.
+ * Writer + style-editor refine on release day.
  */
 
 import SectionLayout from "../layouts/SectionLayout.astro";
-import type { Panel } from "../layouts/SectionLayout.astro";
+import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
 
 const section = sections.find((s) => s.slug === "inflation");
@@ -36,100 +27,124 @@ if (!section) {
   throw new Error("Inflation section not found in src/data/sections.ts");
 }
 
-const pageAsOf = {
-  label: "Placeholder release",
-  releaseDate: "TBD",
-};
-
-// Panel placeholders. Eyebrows are the canonical EDR labels from
-// editorial/dashboard_purpose.md section 4.2. Title / deck / source /
-// methodology bodies are short scaffolding strings only - writer fills in.
-const placeholderText = "Placeholder. Writer to populate.";
-const placeholderMethodology = "Placeholder. Methodology to be documented by editorial.";
-const placeholderSource = "Source citation TBD.";
-const placeholderVintage = { releaseDate: "TBD" };
-
-const panels: Panel[] = [
+const plates: Plate[] = [
   {
-    id: "panel-1",
-    eyebrow: "Headline CPI",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-1",
+    number: "01",
+    indicator: "Headline CPI, year-over-year",
+    plateIndexLabel: "Headline CPI",
+    asOf: "Apr 2026; released May 14, 2026",
+    title: "Headline CPI ticked up to 2.3% in April, a tenth above consensus.",
+    interpretationHtml:
+      "Headline CPI printed <strong>2.3% y/y</strong>, a tenth firmer than consensus and a tenth above March. " +
+      "Shelter is still doing the heavy lifting; mortgage interest cost remains the largest single contributor. " +
+      "Three-month annualized momentum sits a notch above the year-over-year, consistent with a flat near-term path.",
+    callout: {
+      value: "2.3%",
+      unit: "year-over-year, April 2026",
+      delta: "+0.1 pp vs Mar",
+      direction: "pos",
+    },
+    source:
+      "Statistics Canada Table 18-10-0004-01; consensus via Bloomberg.",
     chartKey: "inflation-panel-1",
   },
   {
-    id: "panel-2",
-    eyebrow: "Core trio",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-2",
+    number: "02",
+    indicator: "BoC preferred core measures (core-trim, core-median)",
+    plateIndexLabel: "Core trio",
+    asOf: "Apr 2026; released May 14, 2026",
+    title: "Both preferred cores eased again; core-trim down a tenth.",
+    interpretationHtml:
+      "Core-trim eased to <strong>2.6%</strong> and core-median held at <strong>2.5%</strong>. " +
+      "The 3-month annualized profile on both measures sits below the year-over-year, the cleanest sign yet that the underlying impulse is fading. " +
+      "Common is shown for historical anchor only - the Bank has deprioritized it since late 2022.",
+    callout: {
+      value: "2.6%",
+      unit: "core-trim, y/y, April 2026",
+      delta: "-0.1 pp vs Mar",
+      direction: "neg",
+    },
+    source: "Statistics Canada Table 18-10-0256-01 (BoC preferred cores).",
     chartKey: "inflation-panel-2",
   },
   {
-    id: "panel-3",
-    eyebrow: "Breadth",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-3",
+    number: "03",
+    indicator: "Breadth of price pressure",
+    plateIndexLabel: "Breadth",
+    asOf: "Apr 2026",
+    title: "Breadth narrowed; share of basket above 3% still clustered in shelter.",
+    interpretation:
+      "Just under a third of the CPI basket is now running above 3% year-over-year, down from a peak above two thirds in 2022. " +
+      "The remaining cluster is concentrated in shelter sub-components. Goods breadth has effectively normalized; services breadth is the open question.",
+    source: "Statistics Canada Table 18-10-0004-01; component shares constructed.",
     chartKey: "inflation-panel-3",
   },
   {
-    id: "panel-4",
-    eyebrow: "Sub-aggregates",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-4",
+    number: "04",
+    indicator: "Sub-aggregates: shelter, services ex-shelter, goods, food, energy",
+    plateIndexLabel: "Sub-aggregates",
+    asOf: "Apr 2026",
+    title: "Shelter and services-ex-shelter remain the only above-target lines.",
+    interpretation:
+      "Shelter is still printing well above the band and accounts for most of the gap to target. Services-ex-shelter is gradually easing but slowly. " +
+      "Goods-ex-energy is at target and energy is roughly flat year-over-year. The residual stickiness is shelter-resolution-dependent.",
+    source:
+      "Statistics Canada Table 18-10-0004-01 (CPI sub-aggregates); ex- aggregates basket-weighted.",
     chartKey: "inflation-panel-4",
   },
   {
-    id: "panel-5",
-    eyebrow: "Inflation expectations",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-5",
+    number: "05",
+    indicator: "Inflation expectations: CSCE + BOS",
+    plateIndexLabel: "Expectations",
+    asOf: "2026 Q1 (CSCE, BOS)",
+    title: "Consumer 1y expectations eased; BOS firms above 3% kept declining.",
+    interpretationHtml:
+      "The Bank's Canadian Survey of Consumer Expectations one-year measure eased to roughly <strong>3.4%</strong> from a higher Q4 print, " +
+      "and the five-year measure held near <strong>2.5%</strong>. The share of BOS firms expecting CPI above 3% has been falling for four consecutive quarters - " +
+      "still above the long-run baseline, but the direction is unambiguous.",
+    source: "Bank of Canada CSCE and Business Outlook Survey, 2026 Q1 releases.",
     chartKey: "inflation-panel-5",
   },
   {
-    id: "panel-6",
-    eyebrow: "Pass-through watch",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-6",
+    number: "06",
+    indicator: "Pass-through watch: FX and wages into goods / services",
+    plateIndexLabel: "Pass-through",
+    asOf: "Apr 2026 (CPI); May 9, 2026 (FX)",
+    title: "CAD weakness has not yet shown up in goods-ex-energy; wages still bite into services.",
+    interpretation:
+      "USDCAD has drifted weaker over the past year, but goods-ex-energy CPI has stayed near target - the FX pass-through window is open but quiet so far. " +
+      "On the wage side, the gap between LFS-Micro wage growth and services-ex-shelter CPI has narrowed only modestly. " +
+      "Interpretation is prose only; no regression in basics.",
+    source:
+      "Statistics Canada Tables 18-10-0004-01, 14-10-0064-01; BoC Valet FXUSDCAD.",
     chartKey: "inflation-panel-6",
   },
 ];
 
 const pageTitle = "Inflation";
-const pageDescription = `${section.headlineQuestion} The macro-research-department Inflation section: headline CPI, BoC preferred cores, breadth, sub-aggregates, expectations, and pass-through.`;
+const pageDescription =
+  "Inflation chartbook: headline CPI, BoC preferred cores, breadth, sub-aggregates, expectations, and FX / wage pass-through. " +
+  "Six plates of chart-with-interpretation. Sources: Statistics Canada, Bank of Canada.";
+
+const lede =
+  "Six plates trace where prices sit relative to the Bank's 2% target: the headline print, the preferred cores, " +
+  "the breadth of pressure across the basket, the sub-aggregate composition, expectations from households and firms, " +
+  "and the FX and wage channels feeding pass-through.";
 ---
 <SectionLayout
   slug="inflation"
   sectionIndex={2}
-  sectionName="Inflation"
-  sectionLabel={section.label}
-  accentVar={section.accentVar}
+  sectionLabel="Inflation"
   headlineQuestion={section.headlineQuestion}
-  pageAsOf={pageAsOf}
-  panels={panels}
+  lede={lede}
+  latestReleaseLabel="Headline CPI, Apr 2026 - released May 14, 2026"
+  plates={plates}
   title={pageTitle}
   description={pageDescription}
 />

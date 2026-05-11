@@ -1,27 +1,21 @@
 ---
 /*
- * Labour - basics-layer section page (placeholder).
+ * Labour - Vignelli chartbook page.
  *
- * Six panels per editorial canon section 4.3:
- *   1. LFS headline
- *   2. Per-capita panel
- *   3. Wage band
- *   4. Vacancies and slack
- *   5. Population and immigration
- *   6. Regional dispersion
+ * Six plates per editorial canon section 4.3:
+ *   01 LFS headline
+ *   02 Per-capita panel (signature)
+ *   03 Wage band
+ *   04 Vacancies and slack
+ *   05 Population and immigration (supply trajectory)
+ *   06 Regional dispersion (four-province dumbbell)
  *
- * Why this file is sparse:
- *   Navigation-skeleton placeholder. Writer + style-editor own panel
- *   titles, decks, callouts, and source citations. Backend pipeline owns
- *   vintage stamps and numeric values. Chart-builder hydrates chart slots.
- *   Frontend reserves panel order, eyebrows, anchors, and the page shell.
- *
- * Mirrors src/pages/gdp.astro structure; see that file for the worked
- * example with finished placeholder copy.
+ * Charts dispatched via chartKey to src/components/charts/labour/.
+ * v1: interpretation prose is placeholder, in publication voice.
  */
 
 import SectionLayout from "../layouts/SectionLayout.astro";
-import type { Panel } from "../layouts/SectionLayout.astro";
+import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
 
 const section = sections.find((s) => s.slug === "labour");
@@ -29,97 +23,125 @@ if (!section) {
   throw new Error("Labour section not found in src/data/sections.ts");
 }
 
-const pageAsOf = {
-  label: "Placeholder release",
-  releaseDate: "TBD",
-};
-
-const placeholderText = "Placeholder. Writer to populate.";
-const placeholderMethodology = "Placeholder. Methodology to be documented by editorial.";
-const placeholderSource = "Source citation TBD.";
-const placeholderVintage = { releaseDate: "TBD" };
-
-const panels: Panel[] = [
+const plates: Plate[] = [
   {
-    id: "panel-1",
-    eyebrow: "LFS headline",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-1",
+    number: "01",
+    indicator: "LFS headline: employment, unemployment, participation",
+    plateIndexLabel: "LFS headline",
+    asOf: "Apr 2026; released May 2, 2026",
+    title: "April employment softened; unemployment held at 6.1% as participation slipped.",
+    interpretationHtml:
+      "Employment rose <strong>+12k</strong>, a touch below the +25k Bloomberg consensus, with most of the print in part-time. " +
+      "The unemployment rate held at <strong>6.1%</strong> because the participation rate slipped a tenth - " +
+      "a flatter headline than the underlying flows suggest. The employment rate continues its slow descent.",
+    callout: {
+      value: "6.1%",
+      unit: "unemployment rate, April 2026",
+      delta: "+0.0 pp vs Mar",
+      direction: "neutral",
+    },
+    source: "Statistics Canada Table 14-10-0287-01; consensus via Bloomberg.",
     chartKey: "labour-panel-1",
   },
   {
-    id: "panel-2",
-    eyebrow: "Per-capita - signature",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-2",
+    number: "02",
+    indicator: "Per-capita: employment and hours, y/y",
+    plateIndexLabel: "Per-capita",
+    asOf: "Apr 2026",
+    title: "Per-capita employment keeps drifting even as aggregate flatters.",
+    interpretationHtml:
+      "Aggregate employment is up <strong>+1.4% y/y</strong>; employment per capita is down <strong>-1.2%</strong>. " +
+      "Aggregate hours show the same divergence at a similar magnitude. The headline keeps flattering; " +
+      "the per-capita series tells the harder story. Pillar E resolves which side - population or weakness - is doing the work.",
+    callout: {
+      value: "-1.2%",
+      unit: "employment per capita, y/y",
+      delta: "vs +1.4% aggregate",
+      direction: "neg",
+    },
+    source:
+      "Statistics Canada Tables 14-10-0287-01 and 17-10-0009-01; per-capita calculation by Sibley Creek.",
     chartKey: "labour-panel-2",
   },
   {
-    id: "panel-3",
-    eyebrow: "Wage band",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-3",
+    number: "03",
+    indicator: "Wage band: LFS, SEPH, BoC LFS-Micro vs services CPI",
+    plateIndexLabel: "Wage band",
+    asOf: "Apr 2026 (LFS) / Feb 2026 (SEPH)",
+    title: "Wage measures cluster between 3.4% and 4.5%; dispersion still wide.",
+    interpretationHtml:
+      "LFS all-employee, LFS permanent, SEPH, and the Bank's composition-adjusted LFS-Micro now sit between <strong>3.4%</strong> and <strong>4.5%</strong> year-over-year. " +
+      "Dispersion is wider than usual; the gap between the LFS-Micro adjusted series and the headline LFS reading tells a slower-easing story than the front-line number suggests. " +
+      "Services-ex-shelter CPI is the relevant comparator.",
+    source:
+      "Statistics Canada Tables 14-10-0064-01 (LFS), 14-10-0220-01 (SEPH); BoC LFS-Micro series.",
     chartKey: "labour-panel-3",
   },
   {
-    id: "panel-4",
-    eyebrow: "Vacancies and slack",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-4",
+    number: "04",
+    indicator: "Vacancies and slack: V/U ratio and Beveridge",
+    plateIndexLabel: "Vacancies",
+    asOf: "Feb 2026 (JVWS)",
+    title: "V/U ratio at the lower end of the tight-but-easing band.",
+    interpretation:
+      "The vacancy rate (3-month moving average) has eased toward the bottom of its post-2017 range, and the vacancy-to-unemployment ratio " +
+      "is now near 0.55, below the cycle peak but still above pre-pandemic. The Beveridge scatter has moved along the curve rather than off it - " +
+      "consistent with slack normalizing rather than a structural shift.",
+    source: "Statistics Canada Job Vacancy and Wage Survey (JVWS) Table 14-10-0432-01.",
     chartKey: "labour-panel-4",
   },
   {
-    id: "panel-5",
-    eyebrow: "Supply trajectory",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-5",
+    number: "05",
+    indicator: "Supply trajectory: PR + NPR inflows, IRCC plan",
+    plateIndexLabel: "Supply trajectory",
+    asOf: "Q1 2026; current IRCC levels plan",
+    title: "NPR inflows have rolled over since the October 2024 plan; PR holding.",
+    interpretationHtml:
+      "Permanent-resident inflows remain near the current plan's range. Non-permanent-resident inflows " +
+      "have rolled over since the <strong>October 2024</strong> structural-break pivot. The supply trajectory now implied by the plan " +
+      "is materially flatter than the path realized through 2024 - the per-capita arithmetic depends on whether it holds.",
+    source: "IRCC Levels Plan; Statistics Canada Table 17-10-0008-01.",
     chartKey: "labour-panel-5",
   },
   {
-    id: "panel-6",
-    eyebrow: "Regional dispersion",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-6",
+    number: "06",
+    indicator: "Regional dispersion: ON, QC, AB, BC vs Canada",
+    plateIndexLabel: "Regional",
+    asOf: "Apr 2026",
+    title: "Ontario unemployment loosening fastest; Alberta tightening on net.",
+    interpretation:
+      "Twelve months of movement separates the four-province slate: Ontario's unemployment rate has risen most among the four and now sits above the national average, " +
+      "while Alberta has tightened modestly on net. Quebec and BC remain within a tenth or two of where they were a year ago. " +
+      "The national average masks a clear east-west pattern in the dispersion.",
+    source: "Statistics Canada Table 14-10-0287-01 (LFS by province).",
     chartKey: "labour-panel-6",
   },
 ];
 
 const pageTitle = "Labour";
-const pageDescription = `${section.headlineQuestion} The macro-research-department Labour section: LFS headline, per-capita output, wages, vacancies, population, and regional dispersion.`;
+const pageDescription =
+  "Labour chartbook: LFS headline, per-capita employment and hours, the wage band, vacancies and slack, the IRCC supply trajectory, " +
+  "and regional dispersion across the four largest provinces. Six plates of chart-with-interpretation.";
+
+const lede =
+  "Six plates trace the Canadian labour market: the headline LFS print, the per-capita cut that the aggregate obscures, " +
+  "the band of wage measures, vacancies and slack, the population supply trajectory implied by the IRCC plan, " +
+  "and the regional pattern under the national rate.";
 ---
 <SectionLayout
   slug="labour"
   sectionIndex={3}
-  sectionName="Labour"
-  sectionLabel={section.label}
-  accentVar={section.accentVar}
+  sectionLabel="Labour"
   headlineQuestion={section.headlineQuestion}
-  pageAsOf={pageAsOf}
-  panels={panels}
+  lede={lede}
+  latestReleaseLabel="LFS, Apr 2026 - released May 2, 2026"
+  plates={plates}
   title={pageTitle}
   description={pageDescription}
 />

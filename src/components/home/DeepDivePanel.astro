@@ -2,20 +2,21 @@
 /*
  * DeepDivePanel - homepage working-papers panel (production).
  *
- * Promoted from src/components/experiments/academic-vignelli/DeepDivePanel.astro.
- * Same structure; references production design tokens.
+ * Pillar titles ARE canon (editorial/dashboard_purpose.md sec 5). Status,
+ * last-updated date, and deck copy are not yet pipeline-driven, so those
+ * three slots render explicit placeholders instead of hand-typed values.
  *
  * Aesthetic:
  *  - One sans family. Weight contrast as hierarchy.
  *  - Black hairlines between entries.
  *  - Row number rendered like a Knoll-catalogue entry code: 01 / 02 / 03
  *    in Plex Mono, regular, padded.
- *  - Status (research / drafted / shipped) encoded in BLACK weight contrast
- *    rather than color. "Shipped" is the only status that gets the red
- *    signal mark - a small filled square.
+ *  - Placeholder status / date strings live in mono micro-caps faint gray;
+ *    deck slot renders visible lorem ipsum.
  */
 
 import type { DeepDive } from "../../data/sections";
+import { PLACEHOLDER } from "../../data/site_data_loader";
 
 interface Props {
   deepDives: DeepDive[];
@@ -24,14 +25,10 @@ interface Props {
 
 const { deepDives, figureNum } = Astro.props;
 
-const ordered = [...deepDives].sort((a, b) =>
-  a.lastUpdated < b.lastUpdated ? 1 : -1,
-);
-
-const statusLabel = (s: "research" | "drafted" | "shipped") =>
-  s === "shipped" ? "Shipped"
-  : s === "drafted" ? "Drafted"
-  : "In research";
+// Deep-dive ordering: titles + pillar codes are canon, but `lastUpdated`
+// stamps are hand-typed so we cannot use them for real recency ordering
+// yet. Preserve the canon array order until a pipeline source exists.
+const ordered = deepDives;
 ---
 <article class="vig-dd" aria-labelledby="vig-dd-h">
   <header class="vig-dd__head">
@@ -49,9 +46,8 @@ const statusLabel = (s: "research" | "drafted" | "shipped") =>
     </p>
   </header>
 
-  <p class="vig-dd__lede">
-    Current deep dives by the department. Pillar codes follow the editorial
-    canon. Updated as drafts move.
+  <p class="vig-dd__lede vig-dd__placeholder">
+    {PLACEHOLDER.loremShort}
   </p>
 
   <ol class="vig-dd__list" role="list">
@@ -66,16 +62,17 @@ const statusLabel = (s: "research" | "drafted" | "shipped") =>
             <span class="vig-dd__row-sep" aria-hidden="true"></span>
             <span class="vig-dd__section">{dd.section}</span>
             <span class="vig-dd__row-sep" aria-hidden="true"></span>
-            <span class={`vig-dd__status vig-dd__status--${dd.status}`}>
-              {dd.status === "shipped" && (
-                <span class="vig-dd__status-mark" aria-hidden="true"></span>
-              )}
-              {statusLabel(dd.status)}
+            <span class="vig-dd__status vig-dd__placeholder vig-dd__placeholder--micro">
+              {PLACEHOLDER.statusPending}
             </span>
           </p>
           <h3 class="vig-dd__title">{dd.title}</h3>
-          <p class="vig-dd__deck">{dd.deck}</p>
-          <p class="vig-dd__stamp">Updated {dd.lastUpdated}</p>
+          <p class="vig-dd__deck vig-dd__placeholder">
+            {PLACEHOLDER.loremMid}
+          </p>
+          <p class="vig-dd__stamp vig-dd__placeholder vig-dd__placeholder--micro">
+            Updated {PLACEHOLDER.notWired}
+          </p>
         </div>
       </li>
     ))}
@@ -214,15 +211,6 @@ const statusLabel = (s: "research" | "drafted" | "shipped") =>
     align-items: center;
     gap: 5px;
   }
-  .vig-dd__status-mark {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    background: var(--accent);
-  }
-  .vig-dd__status--shipped { color: var(--ink); font-weight: 800; }
-  .vig-dd__status--drafted { color: var(--ink); font-weight: 600; }
-  .vig-dd__status--research { color: var(--ink); font-weight: 400; }
 
   .vig-dd__title {
     margin: 6px 0 0;
@@ -251,5 +239,18 @@ const statusLabel = (s: "research" | "drafted" | "shipped") =>
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--ink);
+  }
+
+  /* Placeholder ink: --ink-faint resolves to pure black under the Vignelli
+   * canon, so a hard-coded mid-gray gives the lorem / [ NOT WIRED ] markers
+   * visible softening. Pairs with mono micro-caps for date / status slots. */
+  .vig-dd__placeholder {
+    color: #8A8A8A;
+  }
+  .vig-dd__placeholder--micro {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
   }
 </style>

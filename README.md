@@ -1,7 +1,9 @@
-# Macro Research Department
+# Sibley Creek
 
 A small dashboard surfacing Canadian macroeconomic indicators. Static site
-built with Astro, data pipeline written in Python.
+built with Astro, data pipeline written in Python. The project directory
+(`macro-research-department`) and package name keep the original slug; only
+the human-facing publication brand is "Sibley Creek".
 
 > Scope and editorial intent: see `editorial/dashboard_purpose.md`
 > Visual specification and design system: see `design/design-system.md`

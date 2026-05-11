@@ -1,37 +1,22 @@
 ---
 /*
- * Policy - basics-layer section page (placeholder).
+ * Policy - Vignelli chartbook page.
  *
- * Editorial canon section 4.5 splits Policy into a monetary sub-surface
- * (4 elements) and a fiscal sub-surface (4 elements). For the v1
- * navigation-skeleton placeholder we surface six panels as the
- * load-bearing slate; the monetary / fiscal split is editorial / writer
- * territory once the canonical six-panel narrative is locked.
+ * Six plates per editorial canon section 4.5 (selected slate across the
+ * monetary and fiscal sub-surfaces):
+ *   01 BoC overnight rate
+ *   02 Market path (2y GoC vs overnight)
+ *   03 BoC-Fed spread
+ *   04 Balance sheet
+ *   05 Federal trajectory
+ *   06 Fiscal stance vs cycle
  *
- * Six panels per editorial canon section 4.5 (selected slate):
- *   1. BoC overnight rate
- *   2. Market path (2y GoC vs overnight; OIS-implied)
- *   3. BoC-Fed spread
- *   4. Balance sheet
- *   5. Federal trajectory
- *   6. Fiscal stance vs cycle
- *
- * Why this file is sparse:
- *   Navigation-skeleton placeholder. Writer + style-editor own panel
- *   titles, decks, callouts, and source citations. Backend pipeline owns
- *   vintage stamps and numeric values. Chart-builder hydrates chart slots.
- *   Frontend reserves panel order, eyebrows, anchors, and the page shell.
- *
- * Open question for editorial-director: do we keep this six-panel slate or
- * surface eight panels (full monetary + fiscal sub-surfaces) when the page
- * is wired through to real content?
- *
- * Mirrors src/pages/gdp.astro structure; see that file for the worked
- * example with finished placeholder copy.
+ * No chart components for Policy yet; each plate reserves the chart
+ * space with a dashed-border placeholder. chart-builder fills later.
  */
 
 import SectionLayout from "../layouts/SectionLayout.astro";
-import type { Panel } from "../layouts/SectionLayout.astro";
+import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
 
 const section = sections.find((s) => s.slug === "policy");
@@ -39,91 +24,121 @@ if (!section) {
   throw new Error("Policy section not found in src/data/sections.ts");
 }
 
-const pageAsOf = {
-  label: "Placeholder release",
-  releaseDate: "TBD",
-};
-
-const placeholderText = "Placeholder. Writer to populate.";
-const placeholderMethodology = "Placeholder. Methodology to be documented by editorial.";
-const placeholderSource = "Source citation TBD.";
-const placeholderVintage = { releaseDate: "TBD" };
-
-const panels: Panel[] = [
+const plates: Plate[] = [
   {
-    id: "panel-1",
-    eyebrow: "BoC overnight rate",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-1",
+    number: "01",
+    indicator: "BoC overnight rate",
+    plateIndexLabel: "Overnight rate",
+    asOf: "Apr 29, 2026 (rate decision)",
+    title: "BoC cut 25 bps to 2.75%, the midpoint of the April-MPR neutral range.",
+    interpretationHtml:
+      "The Bank cut <strong>-25 bps</strong> to <strong>2.75%</strong> and dropped the line about needing more evidence on services inflation. " +
+      "The current setting sits at the midpoint of the April-MPR neutral range; further easing would push policy into accommodative territory. " +
+      "Three consecutive cuts; the action state is cutting, not holding.",
+    callout: {
+      value: "2.75%",
+      unit: "BoC overnight rate, Apr 29, 2026",
+      delta: "-25 bps vs Mar meeting",
+      direction: "neg",
+    },
+    source: "Bank of Canada rate decision and Monetary Policy Report, April 2026.",
   },
   {
-    id: "panel-2",
-    eyebrow: "Market path",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-2",
+    number: "02",
+    indicator: "Market path: 2y GoC vs overnight",
+    plateIndexLabel: "Market path",
+    asOf: "May 9, 2026",
+    title: "Two-year GoC is pricing roughly one more cut by year-end.",
+    interpretation:
+      "The 2-year GoC is trading below the current overnight rate, consistent with another 25 basis points of easing priced over the next twelve months. " +
+      "The MPR's market-implied curve, refreshed quarterly, remains the primary-source-grade reference for the OIS-implied path; we do not reconstruct OIS forwards in v1 basics.",
+    source: "BoC Valet (rates); MPR market-implied curve, Apr 2026.",
   },
   {
-    id: "panel-3",
-    eyebrow: "BoC-Fed spread",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-3",
+    number: "03",
+    indicator: "BoC-Fed spread, 2-year",
+    plateIndexLabel: "BoC-Fed spread",
+    asOf: "May 9, 2026",
+    title: "Spread at -152 bps, near the 80th percentile of the post-1990 distribution.",
+    interpretationHtml:
+      "The Canada-US 2-year spread has ground wider to <strong>-152 bps</strong> as the Bank cuts faster than the Fed. " +
+      "On 35+ years of daily data, the current level sits near the 80th percentile of the absolute-value distribution - " +
+      "wide, but not at the limits the literature flags as the breakpoint where the FX channel forces a back-off.",
+    callout: {
+      value: "-152 bps",
+      unit: "Canada 2y - US 2y, May 9, 2026",
+      delta: "-8 bps w/w",
+      direction: "neg",
+    },
+    source: "BoC Valet (Canada 2y); FRED DGS2 (US 2y); distribution constructed.",
   },
   {
-    id: "panel-4",
-    eyebrow: "Balance sheet",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-4",
+    number: "04",
+    indicator: "Balance sheet: settlement balances and asset composition",
+    plateIndexLabel: "Balance sheet",
+    asOf: "Apr 30, 2026 (weekly statement)",
+    title: "Phase: floor maintenance; settlement balances at the new operating range.",
+    interpretation:
+      "The Bank exited passive quantitative tightening in 2025; the system is now in floor-maintenance phase, with settlement balances stable near the operating range " +
+      "communicated in the Bank's December 2024 framework statement. Asset composition reflects amortization of legacy GBPP holdings.",
+    source:
+      "Bank of Canada weekly statement; Bank operating-framework communications, December 2024.",
   },
   {
-    id: "panel-5",
-    eyebrow: "Federal trajectory",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-5",
+    number: "05",
+    indicator: "Federal trajectory: deficit YTD and debt-service costs",
+    plateIndexLabel: "Federal trajectory",
+    asOf: "Feb 2026 (Fiscal Monitor)",
+    title: "Year-to-date deficit running $4.1B wider than budget plan.",
+    interpretationHtml:
+      "The federal deficit, year-to-date through February, is <strong>$38.2B</strong>, roughly <strong>$4.1B</strong> wider than the FES plan implied at the same point. " +
+      "Debt-service costs continue to grow faster than revenues. The PBO's most recent Economic and Fiscal Outlook projects a wider full-year balance than the FES baseline.",
+    callout: {
+      value: "$38.2B",
+      unit: "deficit YTD, Feb 2026",
+      delta: "+$4.1B vs FES plan",
+      direction: "neg",
+    },
+    source:
+      "Department of Finance Fiscal Monitor, Feb 2026; PBO Economic and Fiscal Outlook, latest.",
   },
   {
-    id: "panel-6",
-    eyebrow: "Fiscal stance vs cycle",
-    title: placeholderText,
-    deck: placeholderText,
-    vintage: placeholderVintage,
-    editorialStatus: placeholderText,
-    source: placeholderSource,
-    methodology: { body: placeholderMethodology },
+    id: "plate-6",
+    number: "06",
+    indicator: "Fiscal stance vs cycle (CAPB)",
+    plateIndexLabel: "Fiscal stance",
+    asOf: "IMF Article IV / OECD Economic Survey, latest",
+    title: "Cyclically-adjusted balance has been modestly expansionary against a closing output gap.",
+    interpretation:
+      "Canada's Department of Finance does not publish a cyclically-adjusted primary balance; we cite the IMF Article IV and the OECD Economic Survey, which both put the recent CAPB " +
+      "in modestly expansionary territory. Against an output gap that is closing slowly, that stance is mildly procyclical at the margin. Methodology footnote names the source.",
+    source:
+      "IMF Article IV Canada (latest); OECD Economic Survey of Canada (latest).",
   },
 ];
 
 const pageTitle = "Policy";
-const pageDescription = `${section.headlineQuestion} The macro-research-department Policy section: BoC overnight rate, market path, BoC-Fed spread, balance sheet, federal trajectory, and fiscal stance vs cycle.`;
+const pageDescription =
+  "Policy chartbook: BoC overnight rate, market path, BoC-Fed spread, balance sheet, federal trajectory, and fiscal stance against the cycle. " +
+  "Six plates of chart-with-interpretation. Sources: Bank of Canada, Department of Finance, PBO, IMF, OECD.";
+
+const lede =
+  "Six plates trace the Canadian policy stance, monetary and fiscal: the rate decision and its market path, the spread to the Fed, " +
+  "the balance sheet, the federal trajectory, and where the cyclically-adjusted fiscal stance sits relative to the cycle.";
 ---
 <SectionLayout
   slug="policy"
   sectionIndex={5}
-  sectionName="Policy"
-  sectionLabel={section.label}
-  accentVar={section.accentVar}
+  sectionLabel="Policy"
   headlineQuestion={section.headlineQuestion}
-  pageAsOf={pageAsOf}
-  panels={panels}
+  lede={lede}
+  latestReleaseLabel="BoC rate decision, Apr 29, 2026"
+  plates={plates}
   title={pageTitle}
   description={pageDescription}
 />

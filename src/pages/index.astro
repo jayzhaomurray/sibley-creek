@@ -2,52 +2,38 @@
 /*
  * Homepage - Canadian Macro Overview (Vignelli register, production canon).
  *
- * 2026-05-11: This page replaces the previous Layout-B (Hero + 6) homepage.
- * The Vignelli aesthetic - promoted out of /experiments/splash-academic-
- * vignelli/ - is now the production homepage.
+ * 2026-05-11: This page now wires the pipeline payload at build time. Every
+ * load-bearing numeric on the homepage flows from
+ * data/site/sections.json via src/data/site_data_loader.ts. Fields the
+ * pipeline does not yet produce render as explicit placeholders so the
+ * gaps are obvious at a glance:
+ *
+ *   - real numbers           -> from JSON
+ *   - missing numbers        -> "----" in mono mid-gray
+ *   - missing asOf stamps    -> "[ NOT WIRED ]" in mono micro-caps
+ *   - missing chart series   -> dashed-border empty box, "DATA NOT YET WIRED"
+ *   - missing editorial copy -> visible Latin lorem ipsum
  *
  * Layout:
  *   1. Title Statement: eyebrow + headline ("Canadian Macro Overview" + date
- *      in signal red) + abstract + 3-cell headline-numbers stamp.
+ *      in signal red) + lorem-ipsum abstract + 3-cell headline-numbers stamp
+ *      sourced from the pipeline.
  *   2. Indicator panel grid: 2 x 4 hairline-bordered cells. Seven section
  *      panels + an eighth "Working papers" cell.
- *
- * Masthead and colophon are owned by BaseLayout (Vignelli chrome); this
- * page renders only the body.
- *
- * Hero selection / rate-rail composition is NOT part of this layout. The
- * Vignelli register treats all seven sections as equal panels in the
- * editorial grid; the title statement carries the date / publication
- * voice. If we want a "hero of the day" in v1.1 we'll do it in the title
- * statement, not by re-introducing the hero-and-six split.
- *
- * What this page is NOT:
- *   - A chart canvas. Each panel renders its own small load-bearing chart
- *     inline (SVG, black line + red latest-point dot). chart-builder may
- *     hydrate these later via dispatch keys; the static SVG is the v1
- *     baseline.
- *   - An experiment route. The Vignelli experiment under /experiments/
- *     splash-academic-vignelli/ remains live for visual comparison; this
- *     page is the canonical homepage.
  */
 
 import BaseLayout from "../layouts/BaseLayout.astro";
 import TitleStatement from "../components/home/TitleStatement.astro";
 import SectionPanel from "../components/home/SectionPanel.astro";
 import DeepDivePanel from "../components/home/DeepDivePanel.astro";
-import {
-  sections,
-  deepDives,
-  site,
-  type Section,
-} from "../data/sections";
+import { deepDives, site } from "../data/sections";
+import { enrichedSections, type EnrichedSection } from "../data/site_data_loader";
 
 // Canonical section ordering. Seven sections + one working-papers cell.
-const ordered: Section[] = (
-  ["gdp", "inflation", "labour", "housing", "policy", "markets", "trade"] as const
-)
-  .map((slug) => sections.find((s) => s.slug === slug))
-  .filter((s): s is Section => Boolean(s));
+const SLUG_ORDER = ["gdp", "inflation", "labour", "housing", "policy", "markets", "trade"] as const;
+const ordered: EnrichedSection[] = SLUG_ORDER
+  .map((slug) => enrichedSections.find((s) => s.slug === slug))
+  .filter((s): s is EnrichedSection => Boolean(s));
 
 // Title-statement date line. Always reflects today.
 const today = new Date();
@@ -57,13 +43,7 @@ const longDate = today.toLocaleDateString("en-CA", {
   year: "numeric",
 });
 
-const abstract =
-  "A reading-first summary of the Canadian macro picture as of " +
-  longDate +
-  ". Seven indicator domains, each rendered as a compact panel with one " +
-  "load-bearing chart, the latest headline reading, and a small table of " +
-  "supporting prints. Working papers index follows the section grid.";
-
+// SEO description is brand boilerplate (not a print) - keep it real.
 const pageDesc =
   `Canadian macro overview for ${longDate}. Seven indicator domains - GDP, ` +
   "inflation, labour, housing, monetary policy, markets, trade - each with " +
@@ -76,11 +56,7 @@ const pageDesc =
   showMastheadRail={true}
 >
   <article class="home">
-    <TitleStatement
-      dateLine={longDate}
-      abstract={abstract}
-      sections={sections}
-    />
+    <TitleStatement dateLine={longDate} />
 
     <section class="home__grid" aria-label="Indicator panels">
       <h2 class="visually-hidden">Indicator panels</h2>

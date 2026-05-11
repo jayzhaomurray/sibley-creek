@@ -1,36 +1,28 @@
 ---
 /*
- * GDP - basics-layer section page.
+ * GDP - Vignelli chartbook page.
  *
- * Implements the template specified in design/basics-layer-template.md.
- * Worked example: editorial/dashboard_purpose.md section 4.1.
+ * Six plates per editorial canon section 4.1, in EDR-fixed order:
+ *   01 Headline real GDP
+ *   02 Industry vs expenditure cross-check
+ *   03 Contributions to quarterly growth
+ *   04 Per-capita real GDP
+ *   05 Output gap vs BoC potential
+ *   06 Recession state (C.D. Howe BCC)
  *
- * What this page is:
- *   The state-of-the-section view for GDP. Six panels in EDR-fixed order:
- *     1. Headline real GDP
- *     2. Industry vs expenditure cross-check
- *     3. Contributions to quarterly growth
- *     4. Per-capita real GDP
- *     5. Versus BoC potential (output gap)
- *     6. Recession state (C.D. Howe BCC)
+ * Each plate is a ChartbookUnit: chart on the left, 2-4 sentence
+ * interpretation on the right (vertical stack on mobile), callout strip
+ * below, source line. The chart is a real chart (no sparkline tier),
+ * dispatched via chartKey to a per-plate component from
+ * src/components/charts/gdp/Panel*.astro.
  *
- * What this page is NOT:
- *   - A homepage (that is /).
- *   - A deep-dive (those rotate into separate pages under /gdp/...).
- *   - A chart canvas. Each panel reserves a chart slot with a dashed-border
- *     placeholder; chart-builder hydrates them later.
- *
- * Ownership notes:
- *   - Panel titles + decks below are placeholder copy following the spec's
- *     worked-example wording. Writer + style-editor own the final wording;
- *     this page sets the typographic frame.
- *   - Panel numeric values are placeholders; backend pipeline replaces
- *     them at build time once the data layer lands.
- *   - SectionLayout owns the header / dots / grid / panel chrome.
+ * v1: interpretation prose is placeholder copy in publication voice
+ * (Manrope 400 body-lg, ~360px column width). Writer fills via release-
+ * day auto-draft + human rewrite.
  */
 
 import SectionLayout from "../layouts/SectionLayout.astro";
-import type { Panel } from "../layouts/SectionLayout.astro";
+import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
 
 const section = sections.find((s) => s.slug === "gdp");
@@ -38,196 +30,137 @@ if (!section) {
   throw new Error("GDP section not found in src/data/sections.ts");
 }
 
-// Page-level "LATEST RELEASE" stamp - the freshest release across panels.
-// Per template section 6 (page-level vs panel-level): the page-level stamp
-// shows the most recent vintage on the page; the per-panel stamps remain
-// the truth for each panel. EDR has flagged "least-recent" as an open
-// question; we ship most-recent as spec'd.
-const pageAsOf = {
-  label: "Monthly GDP by industry, Mar 2026",
-  releaseDate: "May 1, 2026",
-};
-
-const panels: Panel[] = [
-  // ---- Panel 1: Headline real GDP ----
+const plates: Plate[] = [
   {
-    id: "panel-1",
-    chartKey: "gdp-panel-1",
-    eyebrow: "Headline real GDP",
+    id: "plate-1",
+    number: "01",
+    indicator: "Headline real GDP, month-over-month",
+    plateIndexLabel: "Headline GDP",
+    asOf: "Mar 2026; released May 1, 2026",
     title: "Monthly GDP rose 0.2% in March, on consensus.",
-    deck:
-      "The economy advanced for the second consecutive month, but the year-over-year pace remains below the BoC's potential estimate.",
-    vintage: {
-      releaseDate: "May 1, 2026",
-      reference: "Mar 2026",
-    },
+    interpretationHtml:
+      "Monthly GDP advanced <strong>+0.2%</strong> in March, the second consecutive monthly gain and in line with the Bloomberg consensus. " +
+      "Goods-producing industries did the heavy lifting; services held steady. The year-over-year pace, near <strong>1.8%</strong>, " +
+      "still sits below the Bank's estimate of trend, leaving the gap to potential open.",
     callout: {
       value: "+0.2%",
       unit: "month-over-month, March 2026",
+      delta: "+0.1 pp vs Feb",
       direction: "pos",
-      deltaPrior: "+0.1pp vs Feb",
-      surprise: {
-        verb: "Beat",
-        text: "consensus by 0.1pp",
-        anchor: "c",
-      },
-      revision: "up",
     },
-    source:
-      "Statistics Canada Table 36-10-0434-01; consensus via Bloomberg.",
-    methodology: {
-      body:
-        "Series: StatCan Table 36-10-0434-01, monthly GDP by industry, seasonally adjusted, chained 2017 dollars. No construction on top. Released ~60 days after the reference month.",
-    },
+    source: "Statistics Canada Table 36-10-0434-01; consensus via Bloomberg.",
+    chartKey: "gdp-panel-1",
   },
-
-  // ---- Panel 2: Industry vs expenditure cross-check ----
   {
-    id: "panel-2",
-    chartKey: "gdp-panel-2",
-    eyebrow: "Industry vs expenditure",
+    id: "plate-2",
+    number: "02",
+    indicator: "Industry vs expenditure cross-check",
+    plateIndexLabel: "Industry vs expenditure",
+    asOf: "Mar 2026 (industry) / Q1 2026 (expenditure)",
     title: "Industry and expenditure cuts agree on direction this quarter.",
-    deck:
-      "A 0.1pp gap on the level sits within the typical reconciliation range; no editorial divergence to call.",
-    vintage: {
-      releaseDate: "",
-      secondary: [
-        { label: "Industry", date: "May 1, 2026", ref: "Mar 2026" },
-        { label: "Expenditure", date: "May 30, 2026", ref: "Q1 2026" },
-      ],
-    },
-    editorialStatus:
-      "Cross-check: Industry and expenditure cuts agree in direction this quarter; gap of 0.1pp on the level, within typical range.",
+    interpretation:
+      "The two cuts agree in direction with a level gap of roughly 0.1 percentage point, well inside the typical reconciliation range. " +
+      "No editorial divergence to call: industry and expenditure are telling the same story about Q1, even where the path of monthly prints differs.",
     source:
-      "Statistics Canada Tables 36-10-0434-01 and 36-10-0104-01.",
-    methodology: {
-      body:
-        "Two series rendered on a single plot at native frequency; the quarterly expenditure series is step-held across its reference quarter to read alongside the monthly industry series. Reconciliation gap is the level difference between the two cuts at the most recent overlapping period.",
-    },
+      "Statistics Canada Tables 36-10-0434-01 (industry) and 36-10-0104-01 (expenditure).",
+    chartKey: "gdp-panel-2",
   },
-
-  // ---- Panel 3: Contributions to quarterly growth ----
   {
-    id: "panel-3",
-    chartKey: "gdp-panel-3",
-    eyebrow: "Contributions to growth",
+    id: "plate-3",
+    number: "03",
+    indicator: "Contributions to quarterly growth, Q1 2026",
+    plateIndexLabel: "Contributions",
+    asOf: "Q1 2026; released May 30, 2026",
     title: "Q1 growth led by consumption and exports; imports drag.",
-    deck:
-      "The six-category decomposition shows a broad-based contribution profile, with inventories the smallest of the six.",
-    vintage: {
-      releaseDate: "May 30, 2026",
-      reference: "Q1 2026",
-    },
+    interpretationHtml:
+      "Real GDP advanced <strong>+1.4% q/q SAAR</strong>, with consumption and exports each contributing roughly six tenths and imports subtracting four. " +
+      "Inventories were the smallest of the six categories - a clean expansion profile rather than a stockbuild story. " +
+      "Business-vs-residential investment split is deep-dive territory.",
     callout: {
       value: "+1.4%",
       unit: "quarterly, annualized, Q1 2026",
+      delta: "+0.6 pp vs Q4 2025",
       direction: "pos",
-      deltaPrior: "+0.6pp vs Q4 2025",
-      surprise: {
-        verb: "Beat",
-        text: "consensus by 0.2pp",
-        anchor: "c",
-      },
     },
     source: "Statistics Canada Table 36-10-0104-01.",
-    methodology: {
-      body:
-        "Six-bar GFCF decomposition: consumption, government, gross fixed capital formation, inventories, exports, imports. Imports rendered negative; bars sum to the headline Q/Q SAAR. Business-vs-residential investment split is deep-dive territory (Pillar D), not in basics.",
-    },
+    chartKey: "gdp-panel-3",
   },
-
-  // ---- Panel 4: Per-capita real GDP ----
   {
-    id: "panel-4",
-    chartKey: "gdp-panel-4",
-    eyebrow: "Per-capita real GDP",
+    id: "plate-4",
+    number: "04",
+    indicator: "Per-capita real GDP, year-over-year",
+    plateIndexLabel: "Per-capita",
+    asOf: "Q1 2026; released May 30, 2026",
     title:
-      "Per-capita output remains in contraction for the seventh consecutive quarter.",
-    deck:
-      "Aggregate growth is holding up; per-capita is the harder read, and the divergence is structural rather than cyclical.",
-    vintage: {
-      releaseDate: "May 30, 2026",
-      reference: "Q1 2026",
-    },
+      "Per-capita output contracted for the seventh consecutive quarter.",
+    interpretationHtml:
+      "Per-capita real GDP fell <strong>-1.0% y/y</strong>, the seventh consecutive quarterly contraction. " +
+      "Aggregate growth keeps holding up; per-capita keeps drifting. The divergence is structural rather than cyclical - " +
+      "population growth is doing the work the headline cannot.",
     callout: {
       value: "-1.0%",
       unit: "year-over-year, Q1 2026",
+      delta: "7 consecutive quarters of contraction",
       direction: "neg",
-      deltaPrior: "7 consecutive quarters of contraction",
-      // No surprise field - per-capita is a derived calculation, not
-      // directly forecast.
     },
     source:
-      "Statistics Canada Tables 36-10-0104-01 and 17-10-0009-01; per-capita calculation by macro-research-department.",
-    methodology: {
-      body:
-        "Per-capita real GDP = chained-dollar real GDP (StatCan Table 36-10-0104-01) divided by quarterly population estimate (Table 17-10-0009-01, mid-quarter). Denominator choice: total population, mid-period estimate. Sensitivity to working-age-population denominator is documented in the project's per-capita methodology note (linked from /methodology/).",
-    },
+      "Statistics Canada Tables 36-10-0104-01 and 17-10-0009-01; per-capita calculation by Sibley Creek.",
+    chartKey: "gdp-panel-4",
   },
-
-  // ---- Panel 5: Versus BoC potential ----
   {
-    id: "panel-5",
-    chartKey: "gdp-panel-5",
-    eyebrow: "Output gap",
+    id: "plate-5",
+    number: "05",
+    indicator: "Output gap vs BoC potential",
+    plateIndexLabel: "Output gap",
+    asOf: "Q1 2026; April MPR vintage",
     title: "Output sits 0.5% below the BoC's central potential estimate.",
-    deck:
-      "The gap is closing more slowly than the April MPR projected; potential growth has been revised down twice this year.",
-    vintage: {
-      releaseDate: "",
-      secondary: [
-        { label: "Real GDP", date: "May 30, 2026", ref: "Q1 2026" },
-        { label: "Potential", date: "Apr 16, 2026", ref: "MPR" },
-      ],
-    },
+    interpretationHtml:
+      "The gap closed a touch to <strong>-0.5%</strong> in Q1, but more slowly than the April MPR projected. " +
+      "Potential growth has been revised down twice this year; the closing pace is the result of a slower numerator " +
+      "more than a faster denominator.",
     callout: {
       value: "-0.5%",
       unit: "Q1 2026, BoC central estimate",
+      delta: "+0.2 pp vs Q4 2025",
       direction: "pos",
-      deltaPrior: "+0.2pp vs Q4 2025",
-      // No surprise - no consensus on output gap.
     },
     source:
       "BoC Valet INDINF_OUTGAPMPR_Q; Statistics Canada Table 36-10-0104-01.",
-    methodology: {
-      body:
-        "Output gap reads directly from BoC Valet series INDINF_OUTGAPMPR_Q (Bank of Canada central estimate, MPR cadence). The Real GDP vs potential overlay indexes both series to 2019Q4 = 100; the shaded region between them is the output gap. The BoC's potential-output series is revised on each MPR; we do not construct our own.",
-    },
+    chartKey: "gdp-panel-5",
   },
-
-  // ---- Panel 6: Recession state ----
   {
-    id: "panel-6",
-    chartKey: "gdp-panel-6",
-    eyebrow: "Recession state",
+    id: "plate-6",
+    number: "06",
+    indicator: "Recession state, C.D. Howe Business Cycle Council",
+    plateIndexLabel: "Recession state",
+    asOf: "Communique dated Mar 14, 2026",
     title: "Expansion continues since Q3 2020 per C.D. Howe BCC.",
-    deck:
-      "No reclassification since the BCC's most recent communique; amplitude, duration, and scope all consistent with mature expansion.",
-    vintage: {
-      releaseDate: "Mar 14, 2026",
-    },
-    editorialStatus:
-      "Current state: Expansion since 2020Q3. Amplitude, duration, scope at trough: per BCC's most recent dating committee minutes.",
+    interpretation:
+      "No reclassification since the BCC's most recent communique. The Council's three trough criteria - amplitude, duration, scope - " +
+      "are all consistent with mature expansion. We do not redate independently.",
     source: "C.D. Howe Business Cycle Council communiques.",
-    methodology: {
-      body:
-        "Cycle dating is taken directly from the C.D. Howe Business Cycle Council's published communiques; we do not redate independently. The timeline visual shows BCC-dated recessions and expansions back 20+ years, with the current state highlighted in the section accent.",
-    },
+    chartKey: "gdp-panel-6",
   },
 ];
 
 const pageTitle = "GDP";
-const pageDescription = `${section.headlineQuestion} The macro-research-department GDP section: monthly and quarterly real GDP, contributions to growth, per-capita output, output gap, and recession state - sourced from Statistics Canada, the Bank of Canada, and the C.D. Howe Business Cycle Council.`;
+const pageDescription =
+  "GDP chartbook: monthly and quarterly real GDP, contributions to growth, per-capita output, output gap, and recession state. " +
+  "Six plates of chart-with-interpretation. Sources: Statistics Canada, Bank of Canada, C.D. Howe Business Cycle Council.";
+
+const lede =
+  "Six plates trace the state of Canadian real output: the monthly print, the quarterly cross-check, " +
+  "the decomposition of growth, the per-capita cut, the gap to potential, and the BCC's recession state. " +
+  "Each plate carries a chart and a short reading of what it means today.";
 ---
 <SectionLayout
   slug="gdp"
   sectionIndex={1}
-  sectionName="GDP"
-  sectionLabel={section.label}
-  accentVar={section.accentVar}
+  sectionLabel="GDP"
   headlineQuestion={section.headlineQuestion}
-  pageAsOf={pageAsOf}
-  panels={panels}
+  lede={lede}
+  latestReleaseLabel="Monthly GDP by industry, Mar 2026 - released May 1, 2026"
+  plates={plates}
   title={pageTitle}
   description={pageDescription}
 />
