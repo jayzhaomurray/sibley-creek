@@ -3,37 +3,52 @@
  * SleepingGiantFavicon - Sibley Creek's brand mark, at favicon scale.
  *
  * At 32px wide, the full 4:1 reclining silhouette compresses to 32x8
- * and reads as a meaningless smudge. The favicon-variant solves the
- * legibility problem by CROPPING the silhouette to its most
- * recognizable portion: the head's cliff face, the throat dip, and the
- * Adam's Apple bump. To any Thunder Bay resident, this is the shape
- * they read first - the cliff plus the famous "Adam's Apple" notch is
- * the silhouette's iconic moment.
+ * and reads as a meaningless smudge. Worse: the multi-mesa structure
+ * of the canonical mark (head plateau, throat notch, chin, Adam's apple
+ * notch, body plateau, knees, feet) cannot be legibly compressed into
+ * 32 pixels. The favicon-variant solves the legibility problem by
+ * CROPPING to a 3-feature signature: head MESA (flat-topped, not
+ * pointed), throat notch (the deepest notch), and the start of the
+ * chin mesa. The red dot sits at the chin's rightmost terminus.
+ *
+ * Why these three features. The head's outboard cliff plus the throat
+ * notch is the silhouette's iconic moment - any Thunder Bay resident
+ * reads the Giant by the dramatic cliff and the deep notch first. The
+ * chin start gives the favicon a "what comes next" cue: the eye sees
+ * the head mesa, the notch, and the beginning of another mesa rising -
+ * enough to imply the multi-mesa structure without trying to fit it
+ * all in 32 pixels.
  *
  * Discipline (inherits from SleepingGiantMark.astro):
  *
  *   - SINGLE CONTINUOUS PATH. One M, cubic beziers throughout, no lifts.
  *   - PURE INK stroke (`var(--ink)`). No fill.
- *   - ONE MTA red dot at the rightmost terminus (the Adam's Apple bump).
+ *   - ONE MTA red dot at the rightmost terminus (the chin start).
  *     Same brand-signal pattern as the canonical mark: line ends with a
  *     red dot at the right.
  *   - 32 x 32 viewBox (1:1) - the legible square favicon scale. The
  *     stroke is HEAVIER (2.25px) so the line reads cleanly at the 16px
  *     and 32px raster sizes the browser will rasterize this SVG into.
+ *   - FLAT-TOPPED head mesa, not a pointed peak. Same correction as the
+ *     canonical mark - the Giant is a formation of mesas, plateaus not
+ *     summits.
  *
  * Anatomy of the cropped silhouette (32 x 32 viewBox):
  *
- *   - (2, 28)   left baseline (lake, behind the head)
- *   - rise sharply into the head cliff
- *   - (10, 6)   head peak / forehead apex (the cliff top)
- *   - face descent
- *   - (18, 18)  throat dip (Adam's Apple notch bottom)
- *   - (26, 14)  Adam's Apple bump - the rightmost terminus + dot
+ *   - (2, 28)   left baseline (lake, behind the head's outboard cliff)
+ *   - steep cliff rise (the 250m southern cliff face)
+ *   - (8, 4) - (20, 4)  head mesa plateau, flat-topped, ~12 units wide;
+ *               24 units above the y=28 lake baseline
+ *   - dramatic throat-notch descent
+ *   - (24, 22)  throat notch bottom - the deepest notch in the silhouette
+ *   - rise onto the start of the chin mesa
+ *   - (28, 16)  chin start - rightmost terminus, red dot pinned here
  *
- * The reader sees: vertical cliff on the left, peak, slope down to the
- * throat notch, the small bump, and the red dot pinned at the bump.
- * The negative space below the line is Lake Superior; above is sky.
- * That's the brand in 32 pixels.
+ * The reader sees: a sharp cliff on the left, a flat-topped plateau
+ * across the top, a dramatic slope down to the deep notch, the chin
+ * starting to rise, and the red dot pinned at that rise. The negative
+ * space below the line is Lake Superior; above is sky. That's the
+ * brand in 32 pixels.
  *
  * Usage:
  *
@@ -67,19 +82,36 @@ interface Props {
 
 const { size = 32, withAccent = true, class: className } = Astro.props;
 
-// Cropped silhouette - head + Adam's Apple. Single continuous path.
-// One M, then cubic beziers only. No lifts. ASCII path data.
+// Cropped silhouette - head mesa + throat notch + chin start. Single
+// continuous path. One M, then cubic beziers only. No lifts. ASCII path
+// data.
+//
+// Proportions: head mesa plateau at y=4 (24 units above the y=28 lake
+// baseline); throat notch bottom at y=22 (6 units above); chin start at
+// y=16 (12 units above). Flat-topped head plateau is the dominant
+// recognition feature.
+//
+// Bezier discipline for plateau flatness: the segment entering the head
+// plateau lands at y=4; the segment across the plateau uses control
+// points sharing y=4 to enforce a horizontal tangent at the top.
 const headPath = [
-  "M 2 28",                          // lake baseline, left edge
-  "C 4 22, 6 14, 8 8",               // rise sharply into the head's cliff
-  "C 9 5, 11 5, 12 7",               // head peak / forehead apex (sharp)
-  "C 14 10, 16 14, 18 18",           // face slope down to the throat notch
-  "C 20 19, 22 17, 26 14",           // small Adam's Apple bump (terminus)
+  // Lake baseline, behind the head's outboard cliff.
+  "M 2 28",
+  // Sharp cliff rise to the head plateau. Near-vertical: control points
+  // hug x=3 and x=5 while y plunges from 28 to 4.
+  "C 3 22, 5 8, 8 4",
+  // Head mesa plateau, flat top from (8,4) to (20,4). Control points
+  // share y=4 to enforce a horizontal tangent across the plateau.
+  "C 12 4, 16 4, 20 4",
+  // Throat notch descent to (24, 22) - the deepest notch.
+  "C 22 4, 23 16, 24 22",
+  // Rise onto the chin start at (28, 16) - rightmost terminus + dot.
+  "C 25 22, 27 18, 28 16",
 ].join(" ");
 
 // Rightmost terminus anchor for the red dot - matches the last C endpoint.
-const dotCX = 26;
-const dotCY = 14;
+const dotCX = 28;
+const dotCY = 16;
 const dotR = 2.5;
 ---
 
@@ -90,7 +122,7 @@ const dotR = 2.5;
   viewBox="0 0 32 32"
   preserveAspectRatio="xMidYMid meet"
   role="img"
-  aria-label="Sibley Creek favicon: cropped head and Adam's Apple of the Sleeping Giant"
+  aria-label="Sibley Creek favicon: cropped head mesa, throat notch, and chin start of the Sleeping Giant"
 >
   <title>Sibley Creek</title>
   <path class="sg-fav__line" d={headPath} />

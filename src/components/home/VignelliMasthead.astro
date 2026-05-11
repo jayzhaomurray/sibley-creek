@@ -34,6 +34,8 @@
  */
 
 import { site, sections } from "../../data/sections";
+import { withBase } from "../../lib/urls";
+import SleepingGiantMark from "../brand/SleepingGiantMark.astro";
 
 interface Props {
   /**
@@ -53,7 +55,8 @@ const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
 ---
 <header class="vig-mast" role="banner">
   <div class="vig-mast__row">
-    <a class="vig-mast__mark-link" href="/" aria-label={`${site.name} home`}>
+    <a class="vig-mast__mark-link" href={withBase("/")} aria-label={`${site.name} home`}>
+      <SleepingGiantMark size={120} variant="inline" class="vig-mast__sigil" />
       <span class="vig-mast__mark">{site.name}</span>
     </a>
 
@@ -65,7 +68,7 @@ const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
             <li class="vig-mast__nav-item">
               <a
                 class:list={["vig-mast__nav-link", { "is-active": isActive }]}
-                href={`/${section.slug}/`}
+                href={withBase(`/${section.slug}/`)}
                 aria-current={isActive ? "page" : undefined}
               >
                 {section.label}
@@ -76,7 +79,7 @@ const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
         <li class="vig-mast__nav-item">
           <a
             class:list={["vig-mast__nav-link", { "is-active": firstSegment === "research" }]}
-            href="/research/"
+            href={withBase("/research/")}
             aria-current={firstSegment === "research" ? "page" : undefined}
           >
             Research
@@ -105,8 +108,15 @@ const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
     color: var(--ink);
     text-decoration: none;
     flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
     border-bottom: 1px solid transparent;
     transition: border-color 80ms linear;
+  }
+  .vig-mast__sigil {
+    display: block;
+    flex: 0 0 auto;
   }
   .vig-mast__mark-link:hover {
     border-bottom-color: var(--ink);

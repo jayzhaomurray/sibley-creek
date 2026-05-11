@@ -36,6 +36,7 @@ import "../styles/fonts.css";
 import "../styles/base.css";
 
 import { site } from "../data/sections";
+import { withBase } from "../lib/urls";
 import VignelliMasthead from "../components/home/VignelliMasthead.astro";
 import VignelliColophon from "../components/home/VignelliColophon.astro";
 
@@ -64,7 +65,7 @@ const canonicalHref = canonical
   ?? (Astro.site ? new URL(pathname, Astro.site).toString() : pathname);
 
 const ogImageHref = ogImage
-  ?? (Astro.site ? new URL("/og-default.png", Astro.site).toString() : "/og-default.png");
+  ?? (Astro.site ? new URL(withBase("/og-default.png"), Astro.site).toString() : withBase("/og-default.png"));
 
 // Tab title format: "Page title | Publication" (e.g. "GDP | Sibley Creek").
 // Homepage passes the publication name as title and we collapse the
@@ -100,9 +101,12 @@ const tabTitle = title === site.name ? site.name : `${title} | ${site.name}`;
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImageHref} />
 
-    {/* Favicon. */}
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" href="/favicon.ico" sizes="any" />
+    {/* Favicon - Sleeping Giant cropped silhouette (head mesa + throat
+        notch + chin start, red dot at chin terminus). SVG-only; all modern
+        browsers honor SVG favicons. No .ico fallback shipped because the
+        previous .ico was the Astro default and serving the wrong mark is
+        worse than no fallback. */}
+    <link rel="icon" type="image/svg+xml" href={withBase("/favicon.svg")} />
 
     {/* Webfont performance: preconnect to amortize TLS / DNS before the
         first @import resolves. Crossorigin is required for fonts subdomain. */}

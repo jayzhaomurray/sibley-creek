@@ -1,0 +1,60 @@
+name: Deploy to GitHub Pages
+
+# Trigger on master pushes plus manual dispatch from the Actions tab.
+# Site data is checked in (data/site/sections.json + panel_data/), so this
+# workflow does NOT run the Python pipeline - it only builds the Astro
+# site against the cached payload. The data refresh runs separately in
+# build-financial-daily.yml / build-monthly.yml.
+on:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment; queue subsequent pushes so a fast
+# follow-up doesn't kill an in-flight publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Astro site
+        # Uses package.json `build` script: `astro check && astro build`.
+        # Site config in astro.config.mjs sets base='/sibley-creek' so the
+        # output is path-prefixed correctly for jayzhaomurray.github.io/sibley-creek/.
+        run: npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

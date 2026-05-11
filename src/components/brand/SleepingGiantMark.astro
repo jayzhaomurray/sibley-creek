@@ -22,44 +22,66 @@
  *     circle. This mirrors the chart canon's latest-print dot: every
  *     visual element on this site ends with one red moment at the right.
  *     ON by default; toggle off only for pure-ink exports.
- *   - Simplified silhouette, NOT topographic. Vignelli's NYC Subway
- *     Diagram is the spiritual exemplar: it bears no geographic
- *     correspondence to Manhattan but is instantly recognizable. Same
- *     here - capture the reclining figure as the eye reads it from
- *     Thunder Bay, without trying to be a topo map.
+ *   - Simplified silhouette, NOT topographic. The Giant is geologically a
+ *     "formation of mesas and sills" (Wikipedia) - flat-topped diabase
+ *     plateaus separated by erosion notches. The mark captures the
+ *     multi-mesa structure rather than the single-peak shape the eye
+ *     wrongly remembers. Flat tops, not pointed peaks.
  *
  * Orientation (deliberate flip from the photographed view):
  *
- *   The canonical photograph of the Sleeping Giant from Thunder Bay shows
- *   the figure reclining with head to one side and feet to the other.
- *   For this brand mark we orient HEAD-LEFT, FEET-RIGHT so the red
- *   accent dot sits at the rightmost terminus, matching the chart
- *   latest-print dot convention threaded across every visual element on
- *   the site. Recognition of the reclining figure does not depend on the
- *   cartographic orientation; the brand-system consistency does.
- *   Vignelli would do the same.
+ *   In the canonical Thunder Bay photograph the HEAD is on the RIGHT
+ *   (since Thunder Bay sits west of the peninsula, looking east; north
+ *   is to the viewer's left). For this brand mark we FLIP the view so
+ *   HEAD is on the LEFT and FEET are on the RIGHT - the red accent dot
+ *   then sits at the rightmost terminus, matching the chart latest-print
+ *   dot convention threaded across every visual element on the site.
+ *   Recognition of the reclining figure does not depend on cartographic
+ *   orientation; brand-system consistency does. Vignelli would do the
+ *   same.
  *
  *   The single path runs left-to-right as:
  *
- *     - (4, 72)      left baseline (lake surface, behind the head)
- *     - sharp rise into the head's cliff face (the highest point)
- *     - head peak / forehead apex around (32, 10) - the apex of the mark
- *     - face slope down to the throat
- *     - throat dip (Adam's Apple notch bottom) around (78, 38)
- *     - small Adam's Apple bump around (94, 30)
- *     - long rise onto the broad chest plateau
- *     - chest plateau (sustained near-apex) around (122-170, 18)
- *     - stomach dip around (200, 28)
- *     - knee rise around (228, 22)
- *     - over the knee, shin descent begins
- *     - long shin / leg descent
- *     - foot mesa terminus around (304, 46) - the rightmost point
+ *     - (4, 72)       left baseline (lake surface, behind the head)
+ *     - SHARP CLIFF rise (the 250m southern cliff face of the head, the
+ *       most dramatic vertical in the silhouette)
+ *     - HEAD MESA plateau, flat-topped, around y=8 from x=18 to x=43
+ *       (~25 units of near-horizontal plateau, the tallest single feature)
+ *     - THROAT NOTCH bottom around (58, 50) - the DEEPEST notch in the
+ *       silhouette; a dramatic plunge from the head plateau down 42 units
+ *     - CHIN MESA, smaller flat-topped bump, around y=32 from x=66 to
+ *       x=81 (~15 units of subtle plateau)
+ *     - ADAM'S APPLE NOTCH bottom around (92, 42) - SHALLOWER than the
+ *       throat notch; the chin-to-body transition
+ *     - BODY/CHEST MESA, long flat-topped plateau roughly the same
+ *       height as the head, around y=12 from x=108 to x=188 (~80 units
+ *       of plateau - the longest mesa, the silhouette's visual mass)
+ *     - gradual descent off the body's western flank
+ *     - subtle KNEE rise around (228, 40)
+ *     - continued descent through shin
+ *     - FOOT stretch, near-flat at y=58 from roughly x=274 to x=304
+ *     - foot terminus at (304, 58) - red dot pinned here
  *
- *   The path terminates at the foot mesa. The red dot sits at that
- *   terminus. The line does NOT continue past the dot down to the lake
- *   on the right - terminating at the foot is the cleaner Vignelli move
- *   and lets the dot read as a terminal stamp (same logic as a chart's
+ *   The path terminates at the foot. The red dot sits at that terminus.
+ *   The line does NOT continue past the dot down to the lake on the
+ *   right - terminating at the foot is the cleaner Vignelli move and
+ *   lets the dot read as a terminal stamp (same logic as a chart's
  *   line terminating at its latest-print dot).
+ *
+ *   Critical recognition rules:
+ *
+ *     1. THREE distinct flat-topped mesa sections (head, chin, body) -
+ *        NOT one peak with undulations. v1 and v2 of this mark both
+ *        treated the silhouette as a single dominant peak with a long
+ *        cascade; that failed recognition. The Giant is three mesas.
+ *     2. TWO notches between the three mesas. The throat notch (between
+ *        head and chin) is DEEPER than the Adam's apple notch (between
+ *        chin and body).
+ *     3. Head and body of COMPARABLE HEIGHT - body is the widest mesa
+ *        (the visual mass), head is slightly taller and dramatically
+ *        more vertical on its outboard cliff face.
+ *     4. FLAT TOPS, not pointed peaks. The mesa plateaus are
+ *        near-horizontal at their summits.
  *
  * ViewBox: 320 x 80 (4:1 aspect). Wide landscape. The Giant is a
  * reclining figure read horizontally; the viewBox echoes that.
@@ -117,27 +139,63 @@ const strokeWidth = isInline ? 1.5 : 2;
 const dotR = isInline ? 3 : 4;
 
 // The single continuous path - 320 x 80 viewBox.
-// Head on the left (apex), foot on the right (terminus + dot).
+// Head on the left, foot on the right (terminus + dot).
 // One M, then cubic beziers only. No lifts. ASCII path data.
+//
+// Multi-mesa structure (corrected v3):
+//   - Head mesa top at y=8, plateau from x~18 to x~43
+//   - Throat notch bottom at y=50 (deepest)
+//   - Chin mesa top at y=32, plateau from x~66 to x~81
+//   - Adam's apple notch bottom at y=42 (shallower than throat)
+//   - Body mesa top at y=12, long plateau from x~108 to x~188
+//   - Knee rise to y=40 around x=228
+//   - Foot stretch at y=58 from x~274 to x=304
+//
+// Bezier discipline for mesa flatness: at each plateau, the segments
+// entering and leaving the plateau use control points with the SAME y
+// as the plateau endpoints, which produces a near-horizontal tangent
+// at the top. At each cliff face, control points are pulled vertically
+// (small x delta, large y delta) to produce a near-vertical edge.
 const giantPath = [
-  "M 4 72",                            // left baseline (lake, behind the head)
-  "C 10 56, 14 32, 22 18",             // rise off the lake into the head's cliff
-  "C 26 12, 30 8, 34 10",              // head peak / forehead apex (32,10)
-  "C 40 12, 48 18, 56 24",             // face slope down toward the throat
-  "C 64 30, 72 36, 78 38",             // throat dip / Adam's Apple notch bottom
-  "C 84 38, 90 34, 96 30",             // small Adam's Apple bump
-  "C 104 26, 112 22, 122 20",          // long rise onto the chest plateau
-  "C 138 17, 154 17, 170 18",          // chest plateau (sustained near-apex)
-  "C 184 20, 194 24, 202 28",          // descent off the chest into stomach
-  "C 210 30, 218 28, 228 22",          // stomach dip up into the knee rise
-  "C 236 19, 244 22, 252 28",          // over the knee
-  "C 262 33, 272 38, 282 42",          // shin descent
-  "C 292 45, 300 46, 304 46",          // foot mesa terminus (rightmost)
+  // Lake baseline on the left, behind the head's outboard cliff.
+  "M 4 72",
+  // Sharp cliff rise from the lake to the head plateau (the iconic
+  // 250m southern cliff face). Near-vertical: control points hug x=8
+  // and x=12 while y plunges from 72 to 8.
+  "C 8 60, 12 20, 18 8",
+  // Head mesa plateau: flat top from (18,8) to (43,8). Control points
+  // share y=8 to enforce a horizontal tangent across the plateau.
+  "C 26 8, 35 8, 43 8",
+  // Throat notch descent: from the head plateau down to the deepest
+  // notch bottom at (58, 50). 42-unit plunge in 15 horizontal units -
+  // the silhouette's most dramatic single feature.
+  "C 50 8, 54 36, 58 50",
+  // Rise out of the throat notch onto the chin mesa at (66, 32).
+  "C 60 50, 63 36, 66 32",
+  // Chin mesa plateau: short flat top from (66,32) to (81,32).
+  "C 72 32, 76 32, 81 32",
+  // Adam's apple notch descent to (92, 42) - SHALLOWER than throat.
+  "C 85 32, 89 40, 92 42",
+  // Rise out of Adam's apple notch onto the body plateau at (108, 12).
+  // Body height (12) is just below head height (8) - comparable mass.
+  "C 96 42, 102 18, 108 12",
+  // Body mesa plateau, long flat top from (108,12) to (188,12). This
+  // is the longest mesa - the silhouette's visual mass. Control points
+  // share y=12 to enforce a horizontal tangent across the full plateau.
+  "C 135 12, 162 12, 188 12",
+  // Gradual descent off the body's western flank into the knees.
+  "C 204 14, 218 28, 228 40",
+  // Subtle knee rise / plateau - small undulation, not a peak.
+  "C 238 42, 248 44, 258 48",
+  // Shin descent toward the feet.
+  "C 266 52, 270 56, 274 58",
+  // Foot stretch, near-flat at y=58 to the terminus at (304, 58).
+  "C 284 58, 294 58, 304 58",
 ].join(" ");
 
 // Foot-terminus anchor for the red dot. Matches the last C endpoint.
 const dotCX = 304;
-const dotCY = 46;
+const dotCY = 58;
 ---
 
 <svg

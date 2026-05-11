@@ -17,6 +17,7 @@
 
 import type { DeepDive } from "../../data/sections";
 import { PLACEHOLDER } from "../../data/site_data_loader";
+import { withBase } from "../../lib/urls";
 
 interface Props {
   deepDives: DeepDive[];
@@ -67,7 +68,7 @@ function displayDate(raw?: string): string {
         <span class="vig-dd__fig-n">{figureNum}.</span>
       </p>
       <h2 id="vig-dd-h" class="vig-dd__h">
-        <a class="vig-dd__h-link" href="/research/">Research</a>
+        <a class="vig-dd__h-link" href={withBase("/research/")}>Research</a>
       </h2>
     </div>
   </header>
@@ -107,7 +108,7 @@ function displayDate(raw?: string): string {
             * row's link target switches to its own slug page automatically. */}
           <a
             class="vig-dd__row-link"
-            href={isPublished ? `/research/${dd.slug}/` : "/research/"}
+            href={isPublished ? withBase(`/research/${dd.slug}/`) : withBase("/research/")}
           >
             {RowBody}
           </a>

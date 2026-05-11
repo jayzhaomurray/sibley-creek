@@ -21,9 +21,18 @@ identity, threaded into the visual system.
 component. A single Astro component, inline SVG, zero client JS.
 
 The silhouette is **one continuous SVG path** (one `M`, then cubic
-beziers only - no lifts). The path runs left-to-right as: head (left)
-to chest plateau to knees to foot (rightmost terminus). At the foot
-terminus, one MTA red filled circle sits as the brand-signal dot.
+beziers only - no lifts). The path runs left-to-right as: head MESA
+(left, flat-topped) -> throat notch (deepest) -> chin MESA (small flat
+plateau) -> Adam's apple notch (shallower) -> body MESA (long flat
+plateau, ~head height) -> knees -> foot (rightmost terminus). At the
+foot terminus, one MTA red filled circle sits as the brand-signal dot.
+
+The Sleeping Giant is geologically a "formation of mesas and sills"
+(Wikipedia) - flat-topped diabase plateaus separated by erosion
+notches. v1 and v2 of this mark wrongly treated the silhouette as a
+single dominant peak with a long undulating cascade; that failed
+recognition. The corrected v3 reads as THREE distinct flat-topped
+mesas with TWO notches between them. Flat tops, not pointed peaks.
 
 The component takes three props:
 
@@ -41,8 +50,9 @@ much wider than tall.
 A separate favicon component lives at
 `src/components/brand/SleepingGiantFavicon.astro`. The favicon is
 NOT a scaled-down version of the canonical mark - it is a cropped
-treatment showing only the head and Adam's Apple, at 32 x 32 viewBox
-with a heavier stroke. See Section 6 below.
+treatment showing the head mesa, the throat notch, and the start of
+the chin, at 32 x 32 viewBox with a heavier stroke. See Section 6
+below.
 
 ---
 
@@ -51,38 +61,67 @@ with a heavier stroke. See Section 6 below.
 Head on the LEFT. Foot on the RIGHT. The red accent dot sits at the
 rightmost terminus, on the foot.
 
-This is a DELIBERATE FLIP from the canonical Thunder Bay vantage. The
-reason is brand-system consistency, not cartography: every visual
-element on Sibley Creek's site has a single red moment at the right
-end of the line (the chart latest-print dot, the colophon rule with
-the red preceding the publication mark, etc.). The Sleeping Giant
-mark obeys the same discipline. Recognition of the reclining figure
-does not depend on the cartographic orientation; the brand-system
-consistency does. Vignelli would do the same.
+This is a DELIBERATE FLIP from the canonical Thunder Bay vantage. In
+real photographs from Thunder Bay the head is on the RIGHT (Thunder
+Bay sits west of the Sibley Peninsula, looking east; north is to the
+viewer's left). We flip horizontally so the brand-signal red dot lands
+at the rightmost terminus, matching the chart latest-print dot
+convention threaded across every visual element on the site.
+Recognition of the reclining figure does not depend on cartographic
+orientation; the brand-system consistency does. Vignelli would do the
+same.
 
 The reader reads left to right (Western reading order). The eye
-enters the mark at the head's cliff, traces along the chest plateau,
-descends past the knees and shin, and lands on the red dot at the
-foot. The red dot is the eye's exit point - the brand-signal kicker.
+enters the mark at the head's outboard cliff, climbs onto the head
+mesa, drops into the throat notch, climbs the chin, drops into the
+Adam's apple notch, climbs onto the long body mesa, descends through
+the knees and shin, and lands on the red dot at the foot. The red
+dot is the eye's exit point - the brand-signal kicker.
 
 ---
 
 ## 3. The silhouette anatomy
 
 The path is a simplified Vignelli read of the landform, not a topo
-map. Six anatomical waypoints, head to foot:
+map. The Giant is a multi-mesa formation: THREE distinct flat-topped
+plateaus (head, chin, body) separated by TWO erosion notches (throat,
+Adam's apple). The recognition handle is the multi-mesa structure
+PLUS the deep throat notch PLUS the body's long flat plateau roughly
+matching the head's height.
 
-| # | Waypoint | Approx (x, y) | What the reader sees |
-|---|----------|---------------|----------------------|
-| 1 | Lake baseline (north) | (4, 72)   | The line emerges from the water on the left |
-| 2 | Head peak / cliff apex | (32, 10)  | The apex of the mark - sharp rise to the highest point |
-| 3 | Throat dip (Adam's Apple notch bottom) | (78, 38) | A clear dip; the silhouette's most recognizable single feature |
-| 4 | Adam's Apple bump | (96, 30)  | A small bump above the notch |
-| 5 | Chest plateau | (122-170, 18) | Long sustained near-apex; the broad chest |
-| 6 | Knee rise | (228, 22)  | A second peak, smaller than the chest |
-| 7 | Foot mesa terminus | (304, 46)  | Rightmost point - dot sits here |
+| # | Waypoint | Approx (x, y) | Height above lake (units) | What the reader sees |
+|---|----------|---------------|---------------------------|----------------------|
+| 1 | Lake baseline (left) | (4, 72) | 0 | The line emerges from the water on the left, behind the head's outboard cliff |
+| 2 | Head mesa, west edge | (18, 8) | 64 | The 250m southern cliff face has just landed at the head plateau - sharp cliff |
+| 3 | Head mesa, east edge | (43, 8) | 64 | The head's flat plateau (~25 units wide) - flat-topped, NOT pointed |
+| 4 | Throat notch bottom | (58, 50) | 22 | The DEEPEST notch in the silhouette; 42-unit plunge from the head |
+| 5 | Chin mesa, west edge | (66, 32) | 40 | Small mesa rising out of the throat notch |
+| 6 | Chin mesa, east edge | (81, 32) | 40 | Chin's short flat plateau (~15 units wide) |
+| 7 | Adam's apple notch bottom | (92, 42) | 30 | Shallower notch than the throat (10-unit drop, vs 42 for throat) |
+| 8 | Body mesa, west edge | (108, 12) | 60 | Body plateau begins - height comparable to head, just 4 units lower |
+| 9 | Body mesa, east edge | (188, 12) | 60 | Body's long flat plateau (~80 units wide) - the longest mesa, the visual mass |
+| 10 | Knee rise | (228, 40) | 32 | Subtle undulation on the descent off the body |
+| 11 | Shin descent | (258, 48) | 24 | Gradual descent toward the lake level |
+| 12 | Foot terminus | (304, 58) | 14 | Rightmost point - near-flat foot stretch; red dot sits here |
 
-The line terminates at the foot (step 7) rather than continuing down
+Critical recognition rules:
+
+1. **Three flat-topped mesas**, not one peak. Head, chin, body. v1
+   and v2 of this mark wrongly treated the silhouette as a single
+   dominant peak with a long cascade. Corrected v3 reads as three
+   distinct plateaus.
+2. **Two notches**. Throat notch (between head and chin) is deeper
+   than Adam's apple notch (between chin and body). The throat
+   notch is the silhouette's most dramatic single moment.
+3. **Head and body comparable in height** (y=8 vs y=12). The body
+   is the widest mesa (~80 units of plateau, the visual mass); the
+   head is slightly taller and dramatically more vertical on its
+   outboard cliff.
+4. **Flat tops, not pointed peaks**. Bezier control points at each
+   plateau share the plateau's y-coordinate, enforcing a near-
+   horizontal tangent at the top.
+
+The line terminates at the foot (step 12) rather than continuing down
 to the lake on the right. This is intentional: terminating at the
 foot lets the red dot read as a terminal brand stamp (same logic as
 a chart's line terminating at its latest-print dot). The figure is a
@@ -90,10 +129,10 @@ silhouette, not a closed shape; the eye does not expect it to land
 on the water on the right.
 
 On the LEFT, the line DOES anchor to the lake baseline at (4, 72)
-because the head's cliff face genuinely rises out of the water on the
-north side. Asymmetric, but defensible: the left side is where the
-eye enters and needs grounding; the right side is where the eye exits
-on the brand-signal dot.
+because the head's outboard cliff genuinely rises out of the water.
+Asymmetric, but defensible: the left side is where the eye enters
+and needs grounding; the right side is where the eye exits on the
+brand-signal dot.
 
 ---
 
@@ -176,9 +215,9 @@ with the red dot on or off.
   (NOT the canonical mark - see Section 6).
 - **Size.** 32 x 32. Browser rasterizes to 16 x 16 for the tab; the
   SVG carries enough stroke weight to survive the downsample.
-- **Dot.** ON. The red dot at the Adam's Apple bump is the only
-  red moment in the favicon - it threads the publication's accent
-  through the browser tab.
+- **Dot.** ON. The red dot at the chin start is the only red moment
+  in the favicon - it threads the publication's accent through the
+  browser tab.
 - **Position.** Used as `/favicon.svg` (and fallback `/favicon.ico`
   rasterized from the same source) via the standard HTML link
   element in `BaseLayout`. Frontend-designer owns the wiring; not
@@ -202,32 +241,38 @@ with the red dot on or off.
 not ship the full silhouette at favicon scale; do not ship a
 wordmark-letter S; do not ship a bare red dot.**
 
-### Option A (chosen): cropped head + Adam's Apple
+### Option A (chosen): cropped head mesa + throat notch + chin start
 
 `src/components/brand/SleepingGiantFavicon.astro`. 32 x 32 viewBox.
-A single continuous path showing only the head's cliff face, the
-peak, the face descent, the throat notch, and the Adam's Apple bump.
-The red dot sits at the rightmost terminus on the bump.
+A single continuous path showing the head's outboard cliff face, the
+flat-topped head mesa, the throat notch descent, and the start of the
+chin mesa. The red dot sits at the rightmost terminus on the chin
+start.
 
 **Why this wins.**
 
-1. **The head IS the iconic moment.** Any Thunder Bay resident reads
-   the Sleeping Giant by the cliff face plus the Adam's Apple notch
-   first. The chest plateau is sustained but visually quieter; the
-   foot is the brand-signal moment but anatomically generic. The
-   head is the recognition handle.
+1. **The head mesa + throat notch IS the iconic moment.** Any Thunder
+   Bay resident reads the Sleeping Giant by the dramatic cliff face
+   and the deep throat notch first. The body plateau is sustained but
+   visually quieter at favicon scale; the foot is the brand-signal
+   moment but anatomically generic. The head + throat is the
+   recognition handle.
 2. **It survives the raster.** A 32 x 32 cropped silhouette at 2.25px
    stroke rasterizes to a legible mark at the 16px browser-tab size.
-   The full 4:1 silhouette at 32px wide would compress to 32 x 8 and
-   read as a smudge.
+   The full 4:1 multi-mesa silhouette at 32px wide would compress to
+   32 x 8 and read as a smudge - and the three-mesa structure cannot
+   be legibly compressed into that strip regardless.
 3. **It preserves the brand-pattern.** The cropped favicon still
-   terminates with a red dot at the rightmost point (the Adam's Apple
-   bump, not the foot). The pattern `[line][rightmost red dot]` is
-   intact.
-4. **Geographic identity preserved.** The favicon still says "Sleeping
-   Giant" because the cliff + notch is the silhouette's strongest
-   visual signature. A wordmark `S` would erase the place; a bare red
-   dot would erase the figure.
+   terminates with a red dot at the rightmost point (the chin start,
+   not the foot). The pattern `[line][rightmost red dot]` is intact.
+4. **It implies the multi-mesa structure.** Showing the head mesa
+   followed by a notch followed by the start of another mesa cues
+   the eye that more mesas lie beyond - the favicon is a fragment
+   that points at the whole silhouette, not a different silhouette.
+5. **Geographic identity preserved.** The favicon still says "Sleeping
+   Giant" because the flat-topped cliff + throat notch is the
+   silhouette's strongest visual signature. A wordmark `S` would
+   erase the place; a bare red dot would erase the figure.
 
 ### Option B (rejected): wordmark letter `S`
 
@@ -252,40 +297,68 @@ as a brand. Rejecting for register confusion.
 ### 7.1 Canonical mark (`SleepingGiantMark.astro`)
 
 ViewBox `0 0 320 80`. One M, twelve cubic-bezier segments, no lifts.
-The full path string:
+The Vignelli simplification is about visual elements (single ink line,
+no fill, no decoration), not about segment count; the multi-mesa
+structure requires more segments than v1/v2 used. The full path string:
 
 ```
 M 4 72
-C 10 56, 14 32, 22 18
-C 26 12, 30 8, 34 10
-C 40 12, 48 18, 56 24
-C 64 30, 72 36, 78 38
-C 84 38, 90 34, 96 30
-C 104 26, 112 22, 122 20
-C 138 17, 154 17, 170 18
-C 184 20, 194 24, 202 28
-C 210 30, 218 28, 228 22
-C 236 19, 244 22, 252 28
-C 262 33, 272 38, 282 42
-C 292 45, 300 46, 304 46
+C 8 60, 12 20, 18 8
+C 26 8, 35 8, 43 8
+C 50 8, 54 36, 58 50
+C 60 50, 63 36, 66 32
+C 72 32, 76 32, 81 32
+C 85 32, 89 40, 92 42
+C 96 42, 102 18, 108 12
+C 135 12, 162 12, 188 12
+C 204 14, 218 28, 228 40
+C 238 42, 248 44, 258 48
+C 266 52, 270 56, 274 58
+C 284 58, 294 58, 304 58
 ```
 
-Red dot: `<circle cx="304" cy="46" r="3" />` (inline variant) or
+Segment-by-segment read:
+
+1. `M 4 72` - lake baseline (left edge, behind the head's cliff).
+2. `C 8 60, 12 20, 18 8` - sharp cliff rise to head plateau west edge.
+3. `C 26 8, 35 8, 43 8` - head mesa plateau (flat top, y=8 throughout).
+4. `C 50 8, 54 36, 58 50` - throat notch descent (deepest notch).
+5. `C 60 50, 63 36, 66 32` - rise onto chin mesa west edge.
+6. `C 72 32, 76 32, 81 32` - chin mesa plateau (flat top, y=32).
+7. `C 85 32, 89 40, 92 42` - Adam's apple notch (shallower).
+8. `C 96 42, 102 18, 108 12` - rise onto body mesa west edge.
+9. `C 135 12, 162 12, 188 12` - body mesa plateau (flat top, y=12).
+10. `C 204 14, 218 28, 228 40` - descent off body into the knee rise.
+11. `C 238 42, 248 44, 258 48` - knee/shin undulation.
+12. `C 266 52, 270 56, 274 58` - shin descent to foot level.
+13. `C 284 58, 294 58, 304 58` - foot stretch (flat, y=58 throughout).
+
+Red dot: `<circle cx="304" cy="58" r="3" />` (inline variant) or
 `r="4"` (og variant). Filled in `var(--accent)`, no stroke.
 
 ### 7.2 Favicon (`SleepingGiantFavicon.astro`)
 
 ViewBox `0 0 32 32`. One M, four cubic-bezier segments, no lifts.
+Cropped to head mesa + throat notch + chin start - the three-feature
+signature that survives the 16-32px raster.
 
 ```
 M 2 28
-C 4 22, 6 14, 8 8
-C 9 5, 11 5, 12 7
-C 14 10, 16 14, 18 18
-C 20 19, 22 17, 26 14
+C 3 22, 5 8, 8 4
+C 12 4, 16 4, 20 4
+C 22 4, 23 16, 24 22
+C 25 22, 27 18, 28 16
 ```
 
-Red dot: `<circle cx="26" cy="14" r="2.5" />`. Filled in `var(--accent)`,
+Segment-by-segment read:
+
+1. `M 2 28` - lake baseline (left edge).
+2. `C 3 22, 5 8, 8 4` - sharp cliff rise to head plateau west edge.
+3. `C 12 4, 16 4, 20 4` - head mesa plateau (flat top, y=4).
+4. `C 22 4, 23 16, 24 22` - throat notch descent.
+5. `C 25 22, 27 18, 28 16` - rise onto chin start (terminus).
+
+Red dot: `<circle cx="28" cy="16" r="2.5" />`. Filled in `var(--accent)`,
 no stroke.
 
 ---
