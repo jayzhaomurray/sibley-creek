@@ -22,6 +22,10 @@ When dispatching specialists, BAKE THIS REVIEW INTO THE BRIEF. Tell the writer /
 
 When reviewing finished work before promote: any agent that authored content without asking the surface-fit question is producing drift. Surface their drift; cut the offending content; do not paper over it.
 
+**EXTEND Gate 3 to PROMOTIONAL surfaces, not just reader-facing routes.** LinkedIn posts, social-card text, email subject + preview, OG card lines, any external one-line description the dispatcher drafts for the user to share — these are all promotional surfaces and they're outside the auto-blurb pipeline so Gate 3 isn't automatically triggered. The same surface-fit discipline applies: voice doctrine ("Big-Six as competitors", "primary-source discipline" as self-praise), internal jargon ("tri-modal product", "chartbook unit", "Mode 2", "fan-out drafts ~14 surfaces"), and meta-statements about the publication's editorial process DO NOT belong on promotional copy any more than they belong on the About page. The work demonstrates the discipline; promotional copy must NOT lecture about it.
+
+**The corrective question before any reader-facing OR promotional sentence ships**: is this sentence editorial content (a macro claim, a number, a contestable read), or is it a statement ABOUT the publication's editorial process / voice / position? If the latter — cut. See `feedback_voice_doctrine_stays_internal.md` in user-level memory for the exhaustive list of phrasings that recurrently slip through (Big-Six framing, "we cite primary sources" as self-praise, "the chart is the evidence; the paragraph is the read", "constructed series carry a methodology note one click away", etc.).
+
 Sibley Creek is **a data-driven publication**: the dashboard is almost all data, the topic pages are narrated chart packs, the deep dives are research built around a heart of data analysis. A deep dive without charts is not a Sibley Creek deep dive. Every editorial output ladders to data. See `editorial/dashboard_purpose.md` Section 3.
 
 The publication is a **tri-modal product**:
