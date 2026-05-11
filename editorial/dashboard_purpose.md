@@ -1,27 +1,35 @@
-# Dashboard Purpose: macro-research-department
+# Dashboard Purpose: Sibley Creek
 
 Foundation document. Authored by editorial-director.
 All downstream work (research scoping, prose, charts, design) anchors here.
 Quote this doc. Do not reinterpret it.
 
+Project directory and package name remain `macro-research-department` for
+continuity of tooling. The publication name is **Sibley Creek**, named
+after Sibley Creek on the Sibley Peninsula in Sleeping Giant Provincial
+Park (Silver Islet area, Lake Superior). The name signals the
+publication's posture: Canadian, geographically specific, quietly
+durable, indifferent to fashion.
+
 ---
 
 ## 1. Mission
 
-**What this is.** macro-research-department is a standing, opinionated read
-of the **Canadian** macro picture, organized as a small set of sections
-that mirror how a Canadian institutional desk actually frames the
-economy, and refreshed on cadences that match how those sections
-actually move. Each section has two layers: a **basics layer** that
-gives a reader a clean state-of-the-section view at 7am, and a
-**deep-dive layer** of opinionated, dated, contestable pieces on the
-load-bearing questions inside that section. It exists to help a reader
-who already knows the basics form a sharper view of Canada than the
-median Big-Six economics note: where the Bay Street consensus on the
-BoC, the housing cycle, the mortgage stack, productivity, the external
-sector, the US trade relationship, the labour market, or the fiscal
-trajectory is wrong, where it is right but priced, and where the honest
-answer is "we do not yet know."
+**What this is.** Sibley Creek is a standing, opinionated read of the
+**Canadian** macro picture, organized as a small set of sections that
+mirror how a Canadian institutional desk actually frames the economy,
+and refreshed on cadences that match how those sections actually move.
+The publication is a **tri-modal product**: a live tracker (daily-
+refresh data), automated event blurbs (LLM-generated interpretation
+paragraphs on data prints, human-reviewed before publish), and ad-hoc
+deep-dive research (human-led long-form pieces on the eight pillars).
+The three modes share one set of sections, one voice, one canon. It
+exists to help a reader who already knows the basics form a sharper
+view of Canada than the median Big-Six economics note: where the Bay
+Street consensus on the BoC, the housing cycle, the mortgage stack,
+productivity, the external sector, the US trade relationship, the
+labour market, or the fiscal trajectory is wrong, where it is right
+but priced, and where the honest answer is "we do not yet know."
 
 Canada is the subject. Foreign macro -- the Fed, the US growth pulse,
 Chinese demand, global oil -- enters this publication only as a
@@ -52,12 +60,15 @@ C.D. Howe, IRPP, IMF Article IV, OECD) are the citations of record.
   sizes. We describe the Canadian macro state; readers translate to
   portfolios.
 - Not evergreen at the deep-dive layer. Deep dives rotate as the
-  Canadian regime rotates. The basics layer is permanent (we will
+  Canadian regime rotates. The basics tracker is permanent (we will
   always have an Inflation section); the deep dives inside each
   section are not (a deep dive that mattered in 2024 is not guaranteed
   shelf space in 2026).
 - Not a US-macro publication with a maple-leaf wrapper. If a piece
   could run unchanged in a US shop, it does not belong here.
+- Not a magazine. We do not publish in editions, volumes, or issues.
+  There is no monthly cover, no curated lede, no editorial hero on
+  the homepage. The dashboard is indicator-first.
 
 **Editorial posture in one line.** Cover the basics of Canadian macro
 cleanly. Inside each section, ask a small number of load-bearing
@@ -118,33 +129,77 @@ readers who treat Canada as an afterthought.
 
 ---
 
-## 3. Architecture: two layers
+## 3. Architecture: tri-modal product, three surfaces
 
-The dashboard has two content layers, in the same set of sections.
+Sibley Creek is one publication with three content modes and three
+reader surfaces. The modes and the surfaces map onto each other but
+are not identical: the same data print can land on the homepage as a
+panel tile, in the section page as a chart with a fresh interpretation
+paragraph, and inside a deep-dive essay as a scaffolding atom.
 
-**Layer 1 -- Section basics (v1 launch content).** Every section has a
-state-of-the-section view. At-a-glance Canadian macro for that
-section, anchored to the most recent prints. Tight, repeatable,
-updated on the section's cadence. This is what a Bay Street allocator
-opens at 7am to see where Canada stands. A reader leaving the basics
-layer of any section should be able to answer the section's headline
-question in plain English. The basics layer must be live across all
-sections before deep dives begin shipping in volume; we do not want
-deep-dive readers landing on a section page with no basics underneath.
+**Three content modes.**
 
-**Layer 2 -- Deep dives.** Inside each section, a small slate of
-opinionated, dated, contestable pieces on the load-bearing questions
-in that section. Deep dives are where the publication earns its keep
-against the Big-Six consensus. They rotate. Each deep dive lives in
-exactly one home section (cross-references allowed; co-ownership is
-not). The current slate of deep-dive topics is the eight pillars
-inherited from the prior editorial pass (see Section 5).
+**Mode 1 -- Live tracker.** Daily-refresh data from StatCan, Bank of
+Canada Valet, FRED, Yahoo, CREA, and the Department of Finance Fiscal
+Monitor. Pipeline-driven, no human in the loop on the data layer.
+This is the substrate everything else sits on. The tracker is the
+publication's spine: if it goes stale, nothing else matters.
+
+**Mode 2 -- Automated event blurbs.** LLM-generated interpretation
+paragraphs triggered on data prints (CPI release, LFS release, BoC
+decision, etc.). Two to four sentences, written to the voice canon
+in Section 7, human-reviewed before publish. Eventually fully
+automated on the data-fetch side; the human review gate stays.
+Mode 2 is the bridge between the spine and the prose: it makes the
+tracker speakable.
+
+**Mode 3 -- Deep-dive research.** Human-led long-form pieces on the
+eight pillars (Section 5). Slow output by design -- one person, one
+question at a time, dated and contestable. Mode 3 is where Sibley
+Creek earns its keep against the Big-Six consensus.
+
+**Three reader surfaces.**
+
+**Surface 1 -- Homepage (the dashboard).** A 30-second orientation. A
+panel grid in the Vignelli visual canon: uniform tiles, no editorial
+hero, no curated lede, no magazine-style framing. Seven section
+cells plus a working-papers cell for active deep dives.
+Indicator-first and indicator-rich: each tile surfaces the most
+recent print, the direction, and an anchor chart. The homepage exists
+to answer one question -- "where does Canada stand right now?" -- and
+to route the reader into the relevant section.
+
+**Surface 2 -- Topic pages (scrolling chartbooks).** One per section
+(`/gdp/`, `/inflation/`, `/labour/`, `/housing/`, `/policy/`,
+`/markets/`, `/trade/`). Each topic page is a chartbook: a section
+header (headline question, current state in one sentence), a plate
+index linking to each chart, then a vertical stack of **chartbook
+units**. Each chartbook unit is a single indicator's chart paired
+with a two-to-four-sentence interpretation paragraph -- the
+publication's editorial atom. The chart is the evidence; the
+paragraph is the read. Together they are the smallest unit of
+content that carries the Sibley Creek voice.
+
+**Surface 3 -- Deep dives.** Long-form essays scaffolded by
+chart-paragraph atoms throughout. Each deep dive lives within its
+home section (Pillar A inside `/housing/`, Pillar B inside `/policy/`,
+etc.) and is reachable from the section's chartbook index and from
+the homepage working-papers cell. Cross-references between sections
+are allowed; co-ownership is not.
+
+**Why this works.** The chartbook unit (chart + paragraph) is the
+editorial atom. It is the same atom in Mode 2 (auto-blurb on a fresh
+print, attached to a chart that already exists on the topic page)
+and in Mode 3 (deep-dive prose, scaffolded by atoms that the writer
+controls). The atom carries the voice; the surfaces arrange the atoms
+at different densities -- terse on the homepage, full on the topic
+page, sustained inside a deep dive.
 
 What this architecture is not: it is not "boc-tracker but bigger."
 The section skeleton is borrowed because it matches how a Canadian
 macro desk frames the economy; nothing else about boc-tracker is
-inherited. Voice, visual identity, depth of analysis, and the
-opinionated deep-dive layer are this publication's own.
+inherited. Voice, visual canon, the chartbook unit, the tri-modal
+product, and the opinionated deep-dive layer are Sibley Creek's own.
 
 ---
 
@@ -164,25 +219,33 @@ cross-references from a unified Labour section.
 fiscal (federal + provincial) under one roof. Rationale: a Bay Street
 allocator thinks about "the Canadian policy stance" as one composite
 state, and the two sub-surfaces share readers, frameworks, and
-falsification logic. The basics layer of Policy has two clearly
-demarcated surfaces (monetary and fiscal) on the same page, **eight
-panels total: four monetary, four fiscal**, in that order. Section
-4.5 below enumerates the eight panels; the page is rendered as a
-single eight-panel grid with a visual divider between the monetary
-slate (panels 1-4) and the fiscal slate (panels 5-8). We will split
-Policy into separate Monetary and Fiscal sections in a future pass
-if Fiscal earns standalone real estate -- but in v1, one section,
-eight panels.
+falsification logic. The topic page for Policy has two clearly
+demarcated surfaces (monetary and fiscal), **eight chartbook units
+total: four monetary, four fiscal**, in that order. Section 4.5
+below enumerates the eight; the topic page is rendered as a single
+vertical stack with a visual divider between the monetary slate
+(units 1-4) and the fiscal slate (units 5-8). We will split Policy
+into separate Monetary and Fiscal sections in a future pass if
+Fiscal earns standalone real estate -- but in v1, one section,
+eight units.
 
-For each section, the basics layer is described below. Deep dives are
-listed in Section 5 with their home section noted.
+**The chartbook unit as editorial atom.** For each section below,
+the "basics" enumeration lists the chartbook units of that topic
+page. Each element is one chart paired with a two-to-four-sentence
+interpretation paragraph; the prose lands in the paragraph, not in
+section-level chrome. Headlines and per-unit titles are drafted by
+writer and polished by style-editor; this doc owns the scope of
+what each headline must communicate.
+
+For each section, the topic-page chartbook is described below. Deep
+dives are listed in Section 5 with their home section noted.
 
 ### 4.1 GDP
 
 **Headline question.** Is the Canadian economy at potential, growing,
 or contracting -- and what is driving it?
 
-**Basics layer (4-6 elements):**
+**Chartbook units (4-6):**
 1. Headline real GDP -- monthly by industry (StatCan, ~60-day lag)
    and quarterly by expenditure (with Q/Q SAAR and Y/Y). Latest
    print: date, value, revision direction, and surprise vs. market
@@ -218,7 +281,7 @@ or contracting -- and what is driving it?
 **Headline question.** Is the BoC's 2% target being met, and on what
 measures and what breadth?
 
-**Basics layer (4-6 elements):**
+**Chartbook units (4-6):**
 1. Headline CPI -- Y/Y and 3-month annualized; latest print with
    surprise vs. market consensus (Bloomberg / Reuters median, or
    aggregated forecaster median where the paid feed is unavailable).
@@ -264,16 +327,16 @@ through aggregate weakness?
 
 **Headline number.** Unemployment rate (the recognized institutional
 anchor across BoC, StatCan, OECD, IMF). The per-capita panel
-(element 2 below) is the analytical second look directly beneath
+(unit 2 below) is the analytical second look directly beneath
 the headline. The two-step structure is deliberate: the unemployment
 rate is the *what*; the per-capita panel is the *so what*.
 
 **Demographics placement.** No standalone Demographics subheading.
 Population surfaces twice -- as the denominator in the per-capita
-panel (element 2), and as the supply-side trajectory (element 5).
+panel (unit 2), and as the supply-side trajectory (unit 5).
 Labour first, demographics second; never demographics-as-opener.
 
-**Basics-layer panel order (6 panels + 2-4-sentence blurb):**
+**Chartbook units (6, in order):**
 1. **LFS headline** -- employment, unemployment rate, participation,
    employment rate. Latest print with surprise vs. market consensus
    (Bloomberg / Reuters median, or aggregated forecaster median
@@ -282,8 +345,8 @@ Labour first, demographics second; never demographics-as-opener.
    First-Friday cadence.
 2. **Per-capita panel** (signature) -- side-by-side small multiples:
    employment Y/Y vs employment Y/Y per-capita; aggregate hours Y/Y
-   vs per-capita hours Y/Y. This is where the EDR headline question
-   sits.
+   vs per-capita hours Y/Y. This is where the section headline
+   question sits.
 3. **Wage band** -- four measures (LFS all-employee, LFS permanent,
    SEPH, BoC's composition-adjusted LFS-Micro) shown as a band, with
    dispersion called out; CPI services Y/Y as comparator line.
@@ -305,17 +368,17 @@ Labour first, demographics second; never demographics-as-opener.
    value to surface the "loosening fastest" call-out. Matches
    Housing's six-CMA convention rather than ten-province clutter.
 
-**Boundary with Pillar E (deep-dive).** The basics blurb *surfaces*
+**Boundary with Pillar E (deep-dive).** The Labour blurbs *surface*
 the per-capita-vs-aggregate divergence; Pillar E resolves whether
 population deceleration or aggregate weakness explains it. The
-basics layer must not pre-empt the deep-dive.
+chartbook layer must not pre-empt the deep-dive.
 
 ### 4.4 Housing
 
 **Headline question.** Is the rate-sensitive sector amplifying or
 dampening policy, and is supply arriving where population is settling?
 
-**Basics layer (4-6 elements):**
+**Chartbook units (4-6):**
 1. Prices -- MLS HPI benchmark, national plus six CMAs (Toronto,
    Vancouver, Montreal, Calgary, Ottawa, Edmonton); Y/Y and
    6-month annualized. No national-average headline number. CMA-
@@ -332,7 +395,7 @@ dampening policy, and is supply arriving where population is settling?
    rent sub-series (Table 18-10-0004-01) for the monthly direction
    read. Toronto / Vancouver loosening direction visible at
    monthly frequency.
-5. Mortgage stack snapshot -- v1 basics cites BoC's most recently
+5. Mortgage stack snapshot -- v1 cites BoC's most recently
    published Residential Mortgage Market chartpack for the
    vintage / term composition, plus OSFI Bank Financial Data
    residential mortgage line and CMHC arrears (RMIR; with CBA
@@ -351,18 +414,18 @@ dampening policy, and is supply arriving where population is settling?
 **Headline question.** What is the Canadian policy stance --
 monetary and fiscal -- and is it consistent with the cycle?
 
-**Basics layer (monetary sub-surface, 3-4 elements):**
+**Chartbook units, monetary sub-surface (4):**
 1. BoC overnight rate -- current level, distance to estimated
    neutral band (researcher-curated value extracted from the most
    recent April-MPR refresh, with vintage stamp; not an API
    series), consecutive-meeting action state (on hold / cutting /
    hiking).
-2. Market path -- 2-year GoC vs. overnight as the basics-layer
-   term-structure read on expectations; the OIS-implied BoC path
-   is cited from the BoC MPR's market-implied curve chart on a
-   quarterly cadence (primary-source-grade; we do not construct
-   our own OIS forwards in v1 basics). Full OIS-implied path
-   construction defers to Pillar B deep-dive.
+2. Market path -- 2-year GoC vs. overnight as the term-structure
+   read on expectations; the OIS-implied BoC path is cited from
+   the BoC MPR's market-implied curve chart on a quarterly cadence
+   (primary-source-grade; we do not construct our own OIS forwards
+   in v1). Full OIS-implied path construction defers to Pillar B
+   deep-dive.
 3. BoC-Fed spread -- current level, distribution context (P50/P80/
    P95/P99 from 35+ years of daily data), regime classification
    (editorial interpretation grounded in the cited distribution).
@@ -370,22 +433,22 @@ monetary and fiscal -- and is it consistent with the cycle?
    phase (QE / reinvestment / passive QT / floor maintenance) as
    editorial-curated phase call with cite-to-statement timeline.
 
-**Basics layer (fiscal sub-surface, 3-4 elements):**
-1. Federal trajectory -- DoF Fiscal Monitor latest (monthly,
+**Chartbook units, fiscal sub-surface (4):**
+5. Federal trajectory -- DoF Fiscal Monitor latest (monthly,
    ~2-month lag, fetched by pipeline); federal deficit YTD; debt-
    service costs as % of revenues; PBO Economic and Fiscal Outlook
    vs. FES/Budget baseline delta (researcher-curated comparison of
    two cited projection vintages).
-2. Provincial -- net debt-to-GDP for ON, QC, AB, BC from each
+6. Provincial -- net debt-to-GDP for ON, QC, AB, BC from each
    province's budget; latest budget balance vs. plan; any active
    credit-watch flags from Moody's / S&P / Fitch / DBRS
    Morningstar published rating actions.
-3. Debt management -- GoC issuance trajectory, average term, and
+7. Debt management -- GoC issuance trajectory, average term, and
    redemption profile cited directly from the DoF Debt Management
    Strategy Annex; coupon-roll framing reads off the DMS narrative
    and redemption-profile table. No own construction of coupon-
    roll math in v1.
-4. Fiscal stance vs. cycle -- cyclically-adjusted primary balance
+8. Fiscal stance vs. cycle -- cyclically-adjusted primary balance
    cited from IMF Article IV Canada or OECD Economic Survey of
    Canada with methodology footnote naming the source. Canada's
    DoF does not publish a CAPB; we explicitly do not construct our
@@ -395,13 +458,16 @@ monetary and fiscal -- and is it consistent with the cycle?
    construction and a formal fiscal-monetary consistency index are
    Pillar F deep-dive territory.
 
+The Policy topic page renders as a single eight-unit vertical
+stack with a visual divider between unit 4 and unit 5.
+
 ### 4.6 Markets
 
 **Headline question.** What external winds are pushing on Canadian
 inflation, growth, and the CAD -- and where are Canadian markets and
 the financial system tight or loose?
 
-**Basics layer (4-6 elements):**
+**Chartbook units (4-6):**
 1. CAD -- USDCAD level (BoC Valet `FXUSDCAD` for consistency with
    BoC charts); BoC nominal effective index (CEER); USDCAD
    percentile classifier (P50/P80/P95/P99 since 1990) as the
@@ -409,14 +475,14 @@ the financial system tight or loose?
    corridor. The full oil-and-rate-differential fair-value model
    (rolling-window regression with confidence bands) defers to
    v1.5 / deep-dive given documented coefficient instability post-
-   2016; v1 basics shows the percentile classifier instead.
+   2016; v1 shows the percentile classifier instead.
 2. GoC curve -- 2y, 5y, 10y, 30y; spread to UST at the 2y and 10y
    (add US 10y via FRED `DGS10`); term premium where decomposable
    (BoC's published Canadian term-premium series at the 10y from
    the Financial Stability Indicators page, Valet key to be
    probed; if unavailable, cite the BoC FSI page directly and
    defer own ACM-style decomposition).
-3. Credit spreads -- v1 basics ships with US IG and HY OAS as the
+3. Credit spreads -- v1 ships with US IG and HY OAS as the
    risk-appetite proxy (FRED `BAMLC0A0CM`, `BAMLH0A0HYM2`) with
    an explicit Canadian-spread blind-spot caveat. Canadian
    senior-unsecured-vs-GoC and Canadian IG/HY proxies require
@@ -445,7 +511,7 @@ the financial system tight or loose?
 **Headline question.** Is Canada's external position structurally
 shifting, and how is the US trade relationship repricing exporters?
 
-**Basics layer (4-6 elements):**
+**Chartbook units (4-6):**
 1. Merchandise trade balance -- monthly (BOP basis, StatCan
    Table 12-10-0119-01), with three-month moving average;
    surplus/deficit decomposition by major HS-section product
@@ -460,9 +526,8 @@ shifting, and how is the US trade relationship repricing exporters?
    Germany. The structural-shift narrative is in the rolling US
    share trajectory. (Energy export decomposition by mode --
    pipeline incl. TMX, rail, marine, LNG netbacks -- is Pillar G
-   deep-dive territory; v1 basics shows aggregate energy export
-   value/volume from Table 25-10-0044-01 and 12-10-0121 energy
-   line.)
+   deep-dive territory; v1 shows aggregate energy export value/
+   volume from Table 25-10-0044-01 and 12-10-0121 energy line.)
 4. Tariff state -- live US tariff actions on Canadian goods
    (rates, products, duty deposits); USMCA review milestone
    status. Maintained as an editorial reference table sourced
@@ -475,10 +540,9 @@ shifting, and how is the US trade relationship repricing exporters?
    Table 36-10-0008-01, quarterly; known M&A-driven one-offs
    flagged in methodology note.
 
-Auto and metals as a standalone basics element is folded into
-element 1's by-category decomposition; their cross-border
-production flows live in Pillar H (US trade relationship) deep-
-dive.
+Auto and metals as a standalone unit is folded into unit 1's
+by-category decomposition; their cross-border production flows
+live in Pillar H (US trade relationship) deep-dive.
 
 ---
 
@@ -487,8 +551,8 @@ dive.
 Deep dives are the load-bearing questions inside each section. They
 are opinionated, dated, and contestable; they ship at the cadence the
 underlying question actually moves on; they rotate as the Canadian
-regime rotates. The current slate is eight, inherited and unchanged
-from the prior editorial pass. Each is homed in exactly one section.
+regime rotates. The current slate is eight, inherited and unchanged.
+Each is homed in exactly one section.
 
 | # | Deep dive | Home section | Cross-references |
 |---|---|---|---|
@@ -523,7 +587,9 @@ text); most likely candidates to be added are not yet named.
 
 Refresh rates are matched to how fast each section's underlying data
 and narrative actually move, and to the Canadian release calendar.
-Over-refreshing is a tax on the reader.
+Over-refreshing is a tax on the reader. There is no edition,
+volume, or issue cadence -- Sibley Creek does not publish in
+editions.
 
 The 2026 Canadian release calendar this anchors to:
 - BoC fixed announcement dates: Jan 28, Mar 18, Apr 29, Jun 10, Jul
@@ -536,9 +602,9 @@ The 2026 Canadian release calendar this anchors to:
 - Federal Budget: Feb-Mar; Fall Economic Statement: Nov-Dec; Fiscal
   Monitor: monthly with a two-month lag.
 
-**Basics-layer cadence by section:**
+**Tracker cadence by section:**
 
-| Section | Basics cadence | Primary trigger |
+| Section | Cadence | Primary trigger |
 |---|---|---|
 | GDP | Monthly + quarterly | StatCan monthly GDP by industry; quarterly GDP by expenditure |
 | Inflation | Monthly | StatCan CPI (mid-month) |
@@ -549,9 +615,15 @@ The 2026 Canadian release calendar this anchors to:
 | Markets | Daily (light) + weekly synthesis | BoC Valet daily series; weekly close summary |
 | Trade | Monthly + event | StatCan merchandise trade; quarterly current account; USMCA / 232 / 301 events |
 
-**Deep-dive cadence** follows the underlying question, not a fixed
-schedule. A deep dive ships when it has something to say. Cadence
-guidance per deep dive was established in the prior pass.
+**Mode 2 (auto-blurb) cadence.** Driven by data prints. When a
+release lands, the relevant chartbook unit's interpretation paragraph
+is regenerated; the new paragraph passes human review before it
+goes live. The chart refreshes on the pipeline cadence; the
+paragraph refreshes with each meaningful print.
+
+**Mode 3 (deep-dive) cadence** follows the underlying question, not
+a fixed schedule. A deep dive ships when it has something to say.
+Cadence guidance per deep dive was established in the prior pass.
 
 **Annual peak periods.** Federal Budget (Feb-Mar), provincial budget
 season (Feb-May), Fall Economic Statement (Nov-Dec), and any active
@@ -563,6 +635,31 @@ the listed cycle when these are live.
 ## 7. Voice principles
 
 Directional only. style-editor formalizes. These are the bearings.
+
+**The editorial atom.** The chartbook unit -- one chart plus a
+two-to-four-sentence interpretation paragraph -- is where the voice
+lands. Voice carries through prose attached to evidence; not through
+magazine-style framing, not through a curated lede, not through a
+section editor's column. Strip away the chart and the paragraph
+should still read as a defensible sentence about Canada; strip away
+the paragraph and the chart should still be legible. They are
+co-equal.
+
+**Two voice postures by mode.**
+- **Mode 2 (auto-blurb on data print).** Posture: terse, factual,
+  observation-first. Two to four sentences. State the print, place
+  it in context (vs. consensus, vs. prior, vs. cycle), name what it
+  changes about the read. No speculation beyond what the print
+  supports. Eventually generated automatically and reviewed by a
+  human before publish. Cadence: as fast as the data lands.
+- **Mode 3 (deep-dive prose, human-led).** Posture: opinionated,
+  dated, scaffolded by chart-paragraph atoms throughout the piece.
+  Each atom advances the argument; the atoms together do the work
+  the prose claims. Cadence: slow. Ships when there is something
+  to say. Voice is sharper than Mode 2 but inherits Mode 2's
+  discipline on numbers and citation.
+
+**Both modes share the canon below.**
 
 - **Canadian context first.** We do not assume the reader cares about
   US macro for its own sake. US developments are explained only insofar
@@ -579,7 +676,7 @@ Directional only. style-editor formalizes. These are the bearings.
   would leave a P1 reader with the same view they walked in with, it
   does not ship as is. "Confirming the consensus with sharper
   evidence" is acceptable; "restating the consensus" is not. The
-  basics layer is held to a different bar -- a basics block exists to
+  Mode 2 blurbs are held to a different bar -- a blurb exists to
   ground the reader in current state, not to move a view.
 - **Skeptical of consensus, but not contrarian for sport.** When we
   agree with the Bay Street consensus we say so. When we disagree we
@@ -596,6 +693,9 @@ Directional only. style-editor formalizes. These are the bearings.
 - **No breathlessness, no doom, no hype.** No "shocking," no
   "stunning," no "Canada's Lehman moment," no "this changes
   everything." Cycles are long. Most days nothing changes. Say so.
+- **Canadian English.** Labour, not labor. Centre, not center.
+  Programme is too far; program is fine. Use the Canadian
+  spelling where Canadian institutional usage does.
 - **Cite primary sources.** Statistics Canada, Bank of Canada, OSFI,
   CMHC, Department of Finance, PBO, provincial finance ministries,
   C.D. Howe Business Cycle Council, IRPP, BIS, IMF Article IV Canada,
@@ -610,6 +710,13 @@ Directional only. style-editor formalizes. These are the bearings.
 
 Decisions, not deferrals.
 
+- **No editions, volumes, or issues.** Sibley Creek does not publish
+  in a magazine cadence. No monthly cover, no "this week's edition,"
+  no curated lede. The homepage is indicator-first; deep dives ship
+  when they ship.
+- **No editorial hero on the homepage.** The homepage is a panel
+  grid of indicators. No featured essay slot, no rotating banner,
+  no human-curated front-of-book.
 - **No standalone US-macro pillars.** US developments appear only as
   transmission channels into Canada. If a piece could run unchanged
   in a US shop, it does not belong here.
@@ -658,60 +765,72 @@ Decisions, not deferrals.
 
 ## 9. Success criteria at six months (November 2026)
 
-A healthy dashboard in November 2026 looks like this. Testable; the
-editorial-director can be held to them.
+A healthy Sibley Creek in November 2026 looks like this. Testable;
+the editorial-director can be held to them.
 
-1. **All seven sections are live at the basics layer**, refreshed on
-   their stated cadence for three consecutive months ending October
-   2026. No section is a stub. The basics layer never goes stale by
-   more than one release cycle.
+1. **All seven sections are live as topic-page chartbooks**, refreshed
+   on their stated cadence for three consecutive months ending October
+   2026. No section is a stub. No chartbook unit's chart goes stale
+   by more than one release cycle; no unit's interpretation paragraph
+   is older than the chart it sits on.
 
-2. **At least five deep dives have shipped substantively**, with at
+2. **The homepage panel grid is live and indicator-first**, with all
+   seven section cells plus a working-papers cell rendering current
+   data. No editorial hero, no curated lede; the homepage answers
+   "where does Canada stand right now" in 30 seconds.
+
+3. **Mode 2 (auto-blurb) is operating on at least three sections** --
+   Inflation, Labour, and Policy (monetary) at minimum -- with each
+   blurb passing human review before publish. The human review
+   gate stays; full automation of the data-fetch side is the path,
+   not the destination.
+
+4. **At least five deep dives have shipped substantively**, with at
    least one in each of: Housing (Pillar A or C), Policy (Pillar B
    or F), Labour (Pillar E), GDP (Pillar D), and Trade (Pillar G or
    H). Each shipped deep dive has either been aged well or had its
    post-mortem published if it broke against us.
 
-3. **At least five published deep-dive calls materially diverge
+5. **At least five published deep-dive calls materially diverge
    from the Bay Street consensus**, with named falsification
    conditions, across the BoC terminal rate or BoC-Fed spread,
    Canadian housing trajectory, per-capita real GDP path, federal
    debt-service ratio, and the US-trade-relationship transmission.
 
-4. **Citations are habitual and traceable.** A reader auditing any
+6. **Citations are habitual and traceable.** A reader auditing any
    piece can trace every load-bearing number to a primary Canadian
    source within one click. Zero pieces in the November 2026 archive
    cite a bank morning note as a primary source.
 
-5. **Methodology pages exist and are non-trivial.** For every
+7. **Methodology pages exist and are non-trivial.** For every
    constructed chart, a methodology note explains the construction,
    the data vintage, and the sensitivity to key assumptions. No
    black boxes.
 
-6. **Cadence discipline holds.** Basics layers refresh within 5
+8. **Cadence discipline holds.** Tracker layers refresh within 5
    business days of the relevant Canadian release. BoC
-   rate-decision basics update within 24 hours of the decision; the
-   Summary of Deliberations is reflected within 5 business days.
+   rate-decision tracker updates within 24 hours of the decision;
+   the Summary of Deliberations is reflected within 5 business days.
 
-7. **The deep-dive slate has rotated at least once.** Either we have
+9. **The deep-dive slate has rotated at least once.** Either we have
    added a deep dive (something became load-bearing that was not in
    May 2026) or retired or merged one (a deep dive resolved or
    stopped moving against its named falsification triggers). If the
    November deep-dive list is identical to the May list, we are not
    paying attention.
 
-8. **A reader from any of the three Canadian personas can answer,
-   in one sentence, what this dashboard is for**, and can name the
-   section they would go to for any of the headline questions in
-   Section 4. Tested by a one-question reader survey in October
-   2026, n>=20 across P1/P2/P3.
+10. **A reader from any of the three Canadian personas can answer,
+    in one sentence, what Sibley Creek is for**, and can name the
+    section they would go to for any of the headline questions in
+    Section 4. Tested by a one-question reader survey in October
+    2026, n>=20 across P1/P2/P3.
 
-9. **No piece has required a correction larger than a footnote.**
-   Methodology disagreements are welcome. Factual errors that
-   change the conclusion are not. Target: zero conclusion-changing
-   corrections in the November 2026 archive.
+11. **No piece has required a correction larger than a footnote.**
+    Methodology disagreements are welcome. Factual errors that
+    change the conclusion are not. Target: zero conclusion-changing
+    corrections in the November 2026 archive.
 
-10. **A v2 roadmap exists.** Specifically: a written decision on FR
+12. **A v2 roadmap exists.** Specifically: a written decision on FR
     edition (go/no-go by January 2027 based on reader analytics), a
     written decision on splitting Policy into separate Monetary and
     Fiscal sections, and a written decision on international
@@ -734,3 +853,4 @@ below.
 - 2026-05-10: User-override on surprise framing. Surprise is now anchored to market consensus (Bloomberg / Reuters median, or aggregated forecaster median where paid feed unavailable) across GDP, Inflation, and Labour element-1. BoC MPR projection is the fallback when consensus is genuinely unavailable. Reasoning: the voice principle on Big-Six sourcing (Section 7) applies to citation as authority, not to aggregating forecaster numbers as derived consensus inputs. Prior 2026-05-10 framing (BoC MPR as primary anchor) was a too-strict reading of the voice principle. main Claude on user instruction.
 - 2026-05-11: Section 4.6 renamed "Financial" -> "Markets" to align with the homepage label rename in flight. Cross-references in Section 5 deep-dive table and Section 6 cadence table updated accordingly. Editorial rationale: "Markets" is the more honest label for what the section actually covers at the basics layer (CAD, GoC curve, credit spreads, commodity prices, bank capital, FCI). Financial-system stability work is deep-dive territory; the basics layer is markets-data-with-Canadian-lens. editorial-director.
 - 2026-05-11 (Wave 4 adjudication): Section 4.5 Policy page panel count locked at eight (four monetary + four fiscal), not six. Frontend's six-panel placeholder must grow. Rationale: the canon enumerates four monetary elements (overnight rate, market path, BoC-Fed spread, balance sheet) and four fiscal elements (federal trajectory, provincial, debt management, fiscal stance vs cycle); collapsing to six would force editorial-arbitrary deletions from the canonical slate, and the monetary-fiscal divider is exactly the visual affordance the basics layer of a one-section-two-stance Policy page needs. Implementation note: page renders as a single eight-panel grid with a visual divider between panel 4 and panel 5. editorial-director.
+- 2026-05-11: Architecture canonicalized: tri-modal product (dashboard / chartbook / deep-dive), Vignelli visual canon, Sibley Creek name. Prior Layout B / Hero+6 / Path C iterations retired. Publication renamed from "Macro Research Department" placeholder to Sibley Creek (project directory and package.json keep `macro-research-department` for tooling continuity). Section 1 mission rewritten to lead with tri-modal product. Section 3 architecture rewritten as tri-modal product / three reader surfaces (homepage panel grid, topic-page chartbooks, deep dives); two-layer "basics + deep dives" framing absorbed into surfaces. Section 4 reframed: chartbook unit (one chart + one 2-4 sentence interpretation paragraph) named as the editorial atom; "basics layer" / "elements" / "panels" terminology unified to "chartbook units." Section 7 voice: editorial atom defined; Mode A (auto-blurb, eventually automated) and Mode B (deep-dive prose, human-led) postures distinguished; Canadian English principle made explicit. Section 8 out-of-scope: explicit exclusions added for editions / volumes / issues, magazine-style edition framing, and editorial hero on homepage. Section 9 success criteria expanded from 10 to 12 to cover homepage panel grid live (new criterion 2) and Mode 2 operating on at least three sections (new criterion 3); November 2026 horizon preserved. editorial-director.

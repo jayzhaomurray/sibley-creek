@@ -1,952 +1,1035 @@
-# macro-research-department — Design System
+# macro-research-department - Design System
 
-Status: v0.2, living document. Author: art-director.
+Status: v1.0, living document. Author: art-director.
 Last updated: 2026-05-11.
 
 This is the visual constitution. Every page, chart, and component cites this
 document. Frontend-designer and chart-builder implement to this spec. When a
-constraint forces deviation, raise it back to art-director — do not silently
+constraint forces deviation, raise it back to art-director - do not silently
 relax the bar.
+
+---
+
+## Changelog
+
+- **v1.0 (2026-05-11) - Vignelli canonicalization.** Full rewrite. The
+  publication has chosen the Vignelli register as its production identity:
+  pure white paper, pure black ink, a single MTA red accent, Manrope as the
+  only sans family (weight contrast as hierarchy), IBM Plex Mono for data,
+  direction encoded by glyph not color, 1px pure-black hairline rules. The
+  prior FT / warm-paper / burgundy / Source Serif register (v0.1 - v0.2) is
+  retired. All production code in `src/styles/tokens.css`,
+  `src/styles/base.css`, and `src/components/**` has already migrated; this
+  document is the matching canon. The basics-layer-template and hero-chart-
+  spec are deprecated; the chartbook-template.md replaces them.
+- v0.2 (2026-05-11): Added mini-chart spec (Section 5.1) and per-section
+  mini-chart matrix (5.2). Index-tile component spec (6.1).
+- v0.1 (2026-05-11): Initial canon - FT / warm-paper / Source Serif
+  register. Retired in v1.0.
 
 ---
 
 ## 1. Visual identity statement
 
-**Reference lane: FT visual journalism, with Reuters Graphics restraint and a
-small dose of Pudding-style hand-tuned annotation.**
+**Reference lane: Massimo Vignelli, Josef Mueller-Brockmann, Lella Vignelli,
+the Knoll catalogues, the NYC Subway Diagram, Edward Tufte's data-ink
+discipline.**
 
-We are an **editorial-grade Canadian macro research dashboard**. The reader is
-a serious adult — a policy analyst, a journalist, a Bay Street economist, an
-informed citizen. They came for a paragraph and a chart that tells them
-something true about the Canadian economy. Not a dashboard with KPI tiles. Not
-a fintech app with glowing gradients. Not a marketing site with hero
-animations. The page should feel like it was set, not assembled.
+We are an editorial-grade Canadian macro research dashboard set in the
+Vignelli register. The page is paper-white, the ink is pure black, the rules
+are hairline, and one signal red carries every brand-accent moment we
+permit. Type is one sans family (Manrope) across the entire page, with
+weight contrast - not size, not italic, not color - doing the hierarchy
+work. Numerical data is set in IBM Plex Mono so the reader knows at a
+glance that what they are reading is a measurement, not a designed
+flourish. Direction is encoded by ASCII glyph (up-pointing triangle,
+down-pointing triangle, em dash). Hue is never a direction; it is reserved
+for the publication's voice.
+
+The reader is a serious adult - a policy analyst, a journalist, a Bay
+Street economist, an informed citizen. They came for one chart and one
+paragraph that tell them something true about the Canadian economy. The
+page should feel like it was **set, not assembled**: the same care a 1960s
+Knoll catalogue showed for a chair specification, we show for a CPI print.
+
+**Lineage.** The decisions in this document descend from a specific
+typographic tradition:
+
+- **Massimo Vignelli** - the discipline of using a single sans family
+  across an entire system (Helvetica for him, Manrope for us). The belief
+  that designers do not need decoration to design well; they need
+  restraint and proportion. The 1972 NYC Subway Diagram is the spiritual
+  exemplar: one accent color (MTA red, our `--accent`), one hairline rule
+  vocabulary, one weight-contrast hierarchy, no extra ink. Vignelli's own
+  Unimark identity for the MTA - the way a single red moment carries the
+  brand across an otherwise monochrome diagram - is the rule we live by.
+- **Josef Mueller-Brockmann** - the Swiss grid, the modular spacing
+  scale, the rejection of decorative typography. The 4/8/16/24/32/64/128
+  scale we use is a direct Mueller-Brockmann descendant.
+- **Lella Vignelli** - the partnership's eye for proportion at small
+  sizes: how a 10px micro-cap eyebrow with `0.22em` tracking can carry the
+  same authority as a 40px headline if its proportions are right.
+- **The Knoll catalogues (1950s-1970s)** - the model for the chartbook
+  unit. Each catalogue page was: an indicator name, a plate number, a
+  specification table, a single photographic plate, a source line. We
+  borrow that anatomy wholesale for the section pages: a plate number
+  (`PLATE 01`), an indicator name, a chart, a prose interpretation, a
+  source line.
+- **The NYC Subway Diagram (1972)** - the one-accent rule. MTA red
+  (#E63946) is reserved for **brand-signal moments only**: the figure
+  number in a panel eyebrow, the latest-print dot on a chart, the focus
+  ring on keyboard navigation, the hover transition on a link, the
+  selection highlight. Never on data direction. Never on chrome.
+- **Edward Tufte, _The Visual Display of Quantitative Information_** -
+  the data-ink ratio. Every mark on a chart earns its place. Gridlines
+  are anchors, not features. Axis chrome is the hairline minimum that
+  conveys range. Annotations, when they exist, sit in white space - they
+  do not overlay data.
 
 **What this commits us to:**
 
-- **Off-white page, near-black ink.** The page reads like a printed broadsheet
-  feature. Pure white (#FFFFFF) is for product surfaces; we are not a product.
-- **A serif for display, a humanist sans for body and UI.** Serif headlines
-  signal "this was written by someone." Sans body keeps long reading and
-  numeric tables legible at small sizes.
-- **Charts that look drawn, not generated.** Direct labels over legends.
-  Annotations placed by hand. Axis chrome muted to near-invisible. Recessions
-  shaded like a footnote, not like a warning.
-- **One accent color, used sparingly.** A single editorial red. Categorical
-  palettes are restrained; we use color to mean things, not to decorate.
-- **Light mode only, v1.** Dark mode is deferred. Justification in section 3.
+- **Pure white paper, pure black ink.** No warm paper. No near-black.
+  `#FFFFFF` and `#000000`. The page is not a print broadsheet; it is a
+  Swiss typographic specification.
+- **Manrope, one family, full weight ladder.** 200 (ExtraLight) for ledes
+  and decks; 400 (Regular) for body and table data; 600 (SemiBold) for
+  micro-caps eyebrows and chart labels; 800 (ExtraBold) for headlines and
+  emphasis; 900 (Black) for the wordmark. **Weight contrast is the
+  hierarchy device** - we do not promote a thought by making it larger
+  or coloring it red; we promote it by making it heavier.
+- **IBM Plex Mono for data only.** Numeric values in tables and callouts,
+  stamps (`AS OF`, `LATEST RELEASE`), plate numbers in mono caps. Plex
+  Mono signals: this is a measurement, not a designed number.
+- **One accent color, used sparingly.** MTA red `#E63946`. Brand-signal
+  moments only (see Section 3 for the full rules). Never on data.
+- **1px pure-black hairlines.** Between sections, between table rows,
+  around chart frames, between panels. No warm grays; no taupe; no rule
+  weight other than 1px (or 2px for a section-closing rule).
+- **Direction by glyph, not color.** Up-pointing triangle (`U+25B2`),
+  down-pointing triangle (`U+25BC`), em dash (`U+2014`). Pos/neg
+  green/red are retired for direction encoding.
+- **Light mode only, v1.** Dark mode is deferred.
 
 **What this commits us against:**
 
-- No neon. No gradients on data. No drop shadows on cards. No glassmorphism.
-- No emoji in UI. No icon-driven navigation.
-- No "data viz as decoration" — every mark earns its place.
-- No animated number tickers, no scroll-jacking, no entrance animations on
-  every element.
+- No serif. No italic except true emphasis (and even then, weight
+  contrast is preferred). No multiple sans families.
+- No warm paper. No off-white. No cream. No paper texture overlay.
+- No green for positive, no red for negative. Hue is brand, not data.
+- No drop shadows. No gradients. No glassmorphism. No card-radius
+  pillows.
+- No icon-driven navigation. No emoji in UI. No decorative chart marks.
+- No entrance animations. No staggered reveals. No hover-only data.
+  No parallax. No number tickers.
 
-**Exemplars to study (and what we take from each):**
+**Exemplars (what to study, and what to take from each):**
 
-- *FT — "Climate Graphic of the Week" series.* Take: muted page, single hero
-  chart, direct labeling, generous margins, serif headline + sans deck.
-- *FT — John Burn-Murdoch's Covid charts (2020-22).* Take: small multiples
-  with shared y-axis, country callouts in series color, recession-shading
-  discipline.
-- *Reuters Graphics — "The Collapse of the Quebec Bridge" (and similar
-  long-form).* Take: restrained palette, typographic confidence, willingness to
-  let one chart fill the column.
-- *NYT Upshot — "How Trump Reshaped..." style pieces.* Take: annotation
-  typography that competes with body copy, not chart chrome.
-- *The Economist — Daily Chart.* Take: red accent discipline, deck-style
-  subtitles in italic, source line as a typographic ritual.
-- *The Pudding — "Pockets" / "Wine & Math."* Take (selectively): the courage
-  to hand-tune. We borrow the spirit, not the playfulness.
+- **Massimo Vignelli + Unimark, NYC Subway Diagram (1972).** Take: the
+  one-accent rule, the hairline rule vocabulary, the willingness to let
+  a single red moment carry the brand across an otherwise monochrome
+  system.
+- **Vignelli Associates, Knoll furniture catalogues (1967-1979).** Take:
+  the plate anatomy. A plate number, an indicator name, a specification,
+  one image (one chart), a source line. Nothing else on the page.
+- **Josef Mueller-Brockmann, _Grid Systems in Graphic Design_ (1981).**
+  Take: the modular spacing scale; the discipline of column-based
+  layout; the rejection of arbitrary white space.
+- **Edward Tufte, _The Visual Display of Quantitative Information_
+  (1983).** Take: data-ink ratio; small multiples discipline; the rule
+  that every annotation must anchor to a specific datum.
+- **A. M. Cassandre / Roger Excoffon, mid-century French rail and
+  shipping posters.** Take (in spirit, not literally): the courage to
+  let typography do the visual work without illustration.
 
-We are **not** The Pudding (too playful), **not** Bloomberg Terminal (too
-dense, too dark, too utilitarian), **not** The Economist's website (too
-branded-red-everywhere). We sit closest to FT long-form features.
+We are **not** FT (too warm, too serif). **Not** The Economist (red on
+everything). **Not** Bloomberg Terminal (too dense, too dark). **Not** NYT
+Upshot (too journalistic-warm). We sit closest to a Swiss-school exhibition
+catalogue: the IBM annual report Paul Rand designed; the Unimark MTA
+specification; the Knoll showroom guide.
 
 ---
 
 ## 2. Typography
 
-**Pairing: serif display + humanist sans body + monospace for numerics in
-tables.**
+**One sans family. Weight contrast is the hierarchy device. Mono for
+data.**
 
 ### Families
 
-- **Display (headlines, deck, chart titles):**
-  `"Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif`
-  - Open-source, designed for editorial reading at multiple sizes.
-  - Has a true italic (not slanted roman) — required for decks and emphasis.
-  - Fallback to Georgia preserves serif feel on systems without webfonts.
+- **Sans (the only display + body family):**
+  `"Manrope", "Helvetica Neue", Helvetica, Arial, sans-serif`
+  - Open-source humanist sans. Ships an ExtraLight (200) through Black
+    (900) range, which is precisely what the Vignelli weight-contrast
+    hierarchy requires.
+  - Used for every text element on the page: wordmark, headline,
+    headline-question, lede, deck, body, label, eyebrow, axis tick,
+    direct chart label, source line prefix, button.
+  - Token: `--font-sans`.
 
-- **Body and UI (paragraphs, captions, labels, buttons, navigation):**
-  `"Inter", "Inter var", -apple-system, BlinkMacSystemFont, "Segoe UI",
-  Roboto, "Helvetica Neue", Arial, sans-serif`
-  - Humanist sans with strong numerics, designed for screens.
-  - Tabular figures available via `font-feature-settings: "tnum"`.
-  - System-font fallback chain keeps render-blocking low if Inter fails.
+- **Mono (data only):**
+  `"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace`
+  - Plex Mono pairs visually with Manrope (both humanist proportions).
+  - Used for: numeric table cells, the readout value in a homepage
+    panel, the latest-release stamp, the source line citation body, the
+    plate number on a chartbook eyebrow, the `AS OF` body, the as-of
+    body in any panel eyebrow.
+  - Plex Mono signals to the reader: "what you are reading is a
+    measurement, vintaged to a specific moment." Never used decoratively.
+  - Token: `--font-mono`.
 
-- **Monospace (data tables, code, inline figures where alignment matters):**
-  `"IBM Plex Mono", "JetBrains Mono", "Consolas", "Menlo", monospace`
-  - Plex Mono pairs visually with Inter (both humanist).
-  - Used for: table numerics, source-code blocks, raw release dates.
+- **Serif (deprecated, aliased to sans):**
+  `--font-serif` resolves to the same value as `--font-sans` so any
+  legacy component that still references it falls back to Manrope
+  cleanly. **Do not introduce new references to `--font-serif`.** The
+  serif register is retired in v1.0.
 
-**Why this pairing:** Serif heads signal editorial authority and slow the eye
-at the top of the page. Inter handles dense numerical context and long
-captions without fatigue. Plex Mono is reserved — when readers see it, they
-know they are looking at a raw number, not a designed one.
+### Weight ladder - the hierarchy
+
+Weights are doing the work that size, italic, and color would do in a less
+disciplined system. The ladder, in order of editorial promotion:
+
+| Weight | Token (legacy alias)             | Role                                                   |
+|--------|----------------------------------|--------------------------------------------------------|
+| 200    | `--fw-extralight`                | Lede paragraphs, deck under headlines, lorem placeholders. The "quiet" weight that signals "this is context, not the lead." |
+| 400    | `--fw-regular`                   | Body prose, table data, axis tick labels, direct chart labels.        |
+| 600    | `--fw-medium` / `--fw-semibold`  | Micro-caps eyebrows (with letter-spacing), chart prose interpretation `<strong>`, kicker tokens, table headers, button labels, source-line "Source:" prefix. |
+| 800    | `--fw-extrabold`                 | Headlines (display-xl through display-sm), section headline question, the plate number numeral after the word "PLATE", emphasized indicator names in the load-bearing print row of a table.   |
+| 900    | (not tokenized; inline)          | The site wordmark (`SIBLEY CREEK`) only. Reserved.     |
+
+**Promotion rule.** To draw a reader's eye to a phrase, **first try weight
+contrast** (bump a Regular run to SemiBold, or a SemiBold to ExtraBold). If
+weight contrast is not enough, **only then** consider an accent-red token
+(the brand-signal class). Italic is not in the toolkit. Color is not in the
+toolkit (for non-brand emphasis).
 
 ### Scale
 
-Modular scale at ratio 1.20 (minor third), base 16px. Capped on both ends —
-we do not need 64px display type for a research site, and we do not need
-10px body.
+Modular scale at ratio 1.20 (minor third), base 16px. Capped on both ends.
 
-| Token        | Size  | Line height | Weight | Family  | Role                                      |
-|--------------|-------|-------------|--------|---------|-------------------------------------------|
-| `display-xl` | 40px  | 1.10        | 600    | Serif   | Page hero headline (one per page max)     |
-| `display-lg` | 33px  | 1.15        | 600    | Serif   | Section opener                            |
-| `display-md` | 28px  | 1.20        | 600    | Serif   | Chart title (hero charts only)            |
-| `display-sm` | 23px  | 1.25        | 600    | Serif   | Subsection / card title                   |
-| `deck`       | 19px  | 1.45        | 400 it | Serif   | Deck / standfirst under headlines         |
-| `body-lg`    | 19px  | 1.55        | 400    | Sans    | Lede paragraph                            |
-| `body`       | 17px  | 1.55        | 400    | Sans    | Default body copy                         |
-| `body-sm`    | 15px  | 1.50        | 400    | Sans    | Captions, chart titles when inline        |
-| `label`      | 13px  | 1.40        | 500    | Sans    | Chart axis labels, UI labels              |
-| `micro`      | 12px  | 1.40        | 500    | Sans    | Source lines, footnotes, tick labels      |
-| `mono-sm`    | 14px  | 1.45        | 400    | Mono    | Inline numerics in tables                 |
-| `mono-xs`    | 12px  | 1.40        | 400    | Mono    | Table cells, dates, ISO codes             |
+| Token        | Size  | Line height | Default weight | Family role | Role                                            |
+|--------------|-------|-------------|----------------|-------------|-------------------------------------------------|
+| `display-xl` | 40px  | 1.10        | 800            | Sans        | Page hero headline (one per page max).          |
+| `display-lg` | 33px  | 1.15        | 800            | Sans        | Section opener.                                 |
+| `display-md` | 28px  | 1.20        | 800            | Sans        | Chartbook unit title, hero panel title.         |
+| `display-sm` | 23px  | 1.25        | 800            | Sans        | Indicator panel headline, callout big number.   |
+| `deck`       | 19px  | 1.45        | 200            | Sans        | Deck / lede under a headline (ExtraLight).      |
+| `body-lg`    | 19px  | 1.55        | 400            | Sans        | Lede paragraph in body flow.                    |
+| `body`       | 17px  | 1.55        | 400            | Sans        | Default body copy.                              |
+| `body-sm`    | 15px  | 1.50        | 400            | Sans        | Chartbook interpretation prose; captions.       |
+| `label`      | 13px  | 1.40        | 600            | Sans        | Eyebrow micro-caps, chart axis label.           |
+| `micro`      | 12px  | 1.40        | 600            | Sans        | Source-line prefix, footnotes, tick labels.     |
+| `mono-sm`    | 14px  | 1.45        | 400            | Mono        | Table numeric column.                           |
+| `mono-xs`    | 12px  | 1.40        | 400            | Mono        | Stamp body, source citation body, plate-number numeral, table micro stamp. |
+
+### Letter-spacing rules
+
+The Vignelli register is precise about tracking; these are not negotiable.
+
+- **Display sizes (`display-xl`, `display-lg`, `display-md`,
+  `display-sm`):** tight tracking. `-0.018em` to `-0.005em` depending on
+  size, larger sizes tracked tighter. The `display-xl` headline runs at
+  `-0.015em`; the `display-md` chartbook title at `-0.012em`. **Tight on
+  display.**
+- **Body (`body`, `body-sm`, `body-lg`):** natural tracking. `0`.
+- **Micro-caps eyebrows (`label`, `micro` when set in `text-transform:
+  uppercase`):** **generous tracking, `0.18em` to `0.22em`.** This is
+  the signature Vignelli move - tight display, generous micro-caps. The
+  eyebrow `SECTION 1 OF 7 | INFLATION` is set at `0.22em` tracking; the
+  source-line prefix `SOURCE:` at `0.18em`; the figure-number eyebrow
+  `FIGURE 1.` at `0.22em`.
+- **Wordmark (the site name, set in 900 Black):** `0.16em` tracking,
+  uppercase, 16px.
+- **Plex Mono data:** natural tracking (`0`). Never tracked.
 
 ### Treatment rules
 
-- **Numbers in body prose use Inter with tabular figures.** No exceptions —
-  prevents column shimmy in numeric paragraphs.
-- **Numbers in charts use Inter, tabular, weight 500 for emphasized
-  callouts and 400 for axis ticks.** Never serif — serif numerics in chart
-  context read as decorative.
-- **Numbers in tables use Plex Mono.** Right-aligned, tabular.
-- **Units stay with their number.** `2.4%` not `2.4 %`. `$1.2B` not
-  `$1.2 B`. `bps` joined with thin space: `25 bps` in source, rendered
-  as `25 bps`.
-- **Italic is reserved.** Deck/standfirst, publication names, emphasis in
-  prose. Not for UI labels.
-- **All caps reserved for eyebrow labels** (`KICKER`, `SECTION`) at
-  `label` size with letter-spacing `0.08em`. Never for headlines.
-- **Line length: 62-72 characters for body prose.** Enforced via
-  `max-width` on text columns, not via per-element widths.
+- **Numbers in body prose use Manrope with tabular figures.** Manrope
+  ships `font-feature-settings: "tnum"`; we enable it globally in
+  `:root`. Prevents column shimmy in numeric paragraphs.
+- **Numbers in tables use Plex Mono.** Right-aligned, tabular,
+  weight 400.
+- **Numbers in callouts (the big-number readout on a panel) use Plex
+  Mono** at 30px regular, tabular. This is the one place where the
+  callout value reads bigger than its surrounding caption - the Plex
+  Mono regular at 30px holds the eye without needing 800 weight.
+- **Units stay with their number.** `2.3%` not `2.3 %`. `$1.2B` not
+  `$1.2 B`. `25 bps` joined with a regular space.
+- **Italic is retired.** No italic deck, no italic emphasis. Where
+  emphasis is needed, promote weight. The legacy `.deck` utility was
+  italic serif in v0.x; it is now ExtraLight sans (200).
+- **All caps is reserved for eyebrow labels** (`KICKER`, `SECTION`,
+  `AS OF`, `LATEST RELEASE`, `PLATE`, `SOURCE`, `FIGURE`) at `micro` or
+  `label` size with `0.18em - 0.22em` tracking. Never for headlines.
+  Never for body.
+- **Line length: 60-68 characters for body prose, 22-32 characters for
+  headlines.** Enforced via `max-width` on text columns and headline
+  elements - not via per-element widths. The section headline question
+  is constrained to ~22ch so it breaks editorially.
 
 ---
 
 ## 3. Color palette
 
-**One serious neutral system, one editorial red accent, a disciplined chart
-palette. Light mode only in v1.**
+**One serious neutral system (pure white + pure black), one signal red
+accent. Light mode only in v1.**
 
-### Light mode only — justification
+### Light mode only - justification
 
 Dark mode doubles the design and test surface. For an editorial site whose
-primary reading mode is daytime desktop / morning commute, the cost is not
-justified at v1. Charts tuned for dark backgrounds require different palettes
-(higher chroma, different contrast targets), different shading patterns for
-recessions, and different annotation typography weights. Revisit at v2 only
-if reader analytics show meaningful evening/mobile-dark reading.
+primary reading mode is daytime desktop, the cost is not justified at v1.
+The Vignelli register is **defined** by its paper-white ground; a "dark
+Vignelli" would be a different system. Revisit at v2 only if reader
+analytics show meaningful evening reading.
 
-### Neutrals — the page
+### Neutrals - the page
 
-| Token          | Hex       | Role                                              |
-|----------------|-----------|---------------------------------------------------|
-| `paper`        | `#FBF8F2` | Page background. Warm off-white. Broadsheet feel. |
-| `surface`      | `#FFFFFF` | Cards, chart canvases. Slightly brighter than page. |
-| `surface-sunk` | `#F4F0E8` | Pulled-back panels (footnotes, sidenotes).        |
-| `ink`          | `#15171A` | Primary text. Near-black, not pure black.          |
-| `ink-muted`    | `#4A4F57` | Secondary text, decks.                            |
-| `ink-faint`    | `#7A7F88` | Captions, source lines, axis tick labels.         |
-| `rule`         | `#D9D3C7` | Rule lines, table borders, card edges.            |
-| `rule-faint`   | `#ECE7DC` | Gridlines, sub-table dividers.                    |
+| Token          | Hex       | Role                                                  |
+|----------------|-----------|-------------------------------------------------------|
+| `--paper`      | `#FFFFFF` | Page background. Pure white. The Vignelli ground.     |
+| `--surface`    | `#FFFFFF` | Cards, chart canvases. Identical to paper - we are not layering surfaces; everything sits on paper. |
+| `--surface-sunk` | `#FFFFFF` | Reserved for legacy components; resolves to paper.   |
+| `--ink`        | `#000000` | Primary text. Pure black, **not warm-black**. Mueller-Brockmann would be appalled by a near-black on a paper-white system. |
+| `--ink-muted`  | `#000000` | Aliased to ink. The Vignelli canon does not soften ink; if a thing should be quieter, drop its weight (200) instead of its hue. |
+| `--ink-faint`  | `#000000` | Aliased to ink. Where a true faint chrome rendering is needed (e.g. the pipe separator between nav labels), compose **opacity** (e.g. `opacity: 0.32`) onto the pure-black token at the call site. |
+| `--rule`       | `#000000` | Rule lines, table borders, panel edges. 1px hairlines in pure black.  |
+| `--rule-faint` | `#000000` | Aliased to rule. There is no "faint rule" in the Vignelli register; if a rule should be quieter, it should not exist.  |
 
-**Why warm off-white (#FBF8F2):** Pure white feels like a product UI. Warm
-off-white feels like paper. FT, NYT print supplements, Reuters long-form all
-use a warmth in the page color. It also reduces the contrast burn of
-near-black text without sacrificing legibility (#15171A on #FBF8F2 is
-contrast ratio 15.2:1, well above WCAG AAA for body text).
+**Why pure white (`#FFFFFF`):** the Vignelli register **is** the paper-white
+register. Any warmth in the page color (cream, off-white, ivory) instantly
+breaks the system. The page reads as a Swiss specification, not as a print
+broadsheet.
 
-### Accent — editorial red
+**Why pure black (`#000000`):** weight contrast carries the entire
+hierarchy; we cannot afford to soften ink with a warm-black hex, because
+then a 200 ExtraLight at 12px against a near-black background loses
+legibility on a low-contrast display. Pure black at every weight remains
+legible. The reader's eye does the softening, by tracking weight.
 
-| Token         | Hex       | Role                                       |
-|---------------|-----------|--------------------------------------------|
-| `accent`      | `#A6192E` | Editorial red. Logo, hero kicker, key UI accents. |
-| `accent-soft` | `#F1D9DC` | Background wash for callout boxes (sparingly). |
+**The `--ink-faint` opacity-composition pattern.** In a few places the
+visual chrome genuinely benefits from a tinted gray: the pipe separator
+between masthead nav labels, the eyebrow separator pipe in section
+headers, the cap rule between an indicator and a value in a callout
+row. The pattern is: **use the `--ink-faint` token (which resolves to
+pure black) and apply CSS `opacity` at the call site** to soften it -
+typically `0.32` for a "visible restraint" chrome and `0.5` for a
+subtler hint. This pattern keeps the token surface monochrome (so a
+future token revision can give `--ink-faint` a real tinted value without
+code change) while letting individual chrome elements be quieter.
 
-One color. Used to signal "this is the publication's voice." Never used to
-encode data values (because that would conflict with semantic red — see
-below). Borrowed in spirit from Economist red and Reuters orange, tuned
-slightly cooler and more burgundy to feel Canadian-establishment rather than
-British-news-magazine.
+**Decision flagged:** the all-pure-black token surface forces every
+"placeholder" or "muted" rendering to hand-code a mid-gray (e.g. the
+`#8A8A8A` hard-coded in `SectionPanel.astro` `.vig-panel__placeholder`).
+We have considered reifying a proper mid-gray token (e.g. `--ink-gray:
+#8A8A8A`) but elected to keep the all-black token surface as the
+discipline and let placeholder ink be a hard-coded escape hatch. See
+"Decisions flagged" at the end of this document.
 
-### Semantic colors — for data
+### Accent - signal red
 
-| Token            | Hex       | Role                                          |
-|------------------|-----------|-----------------------------------------------|
-| `pos`            | `#1F6B3A` | Positive change, growth, beats expectations.  |
-| `pos-soft`       | `#D4E5D8` | Positive fill / background wash.              |
-| `neg`            | `#B23A2F` | Negative change, contraction, misses.         |
-| `neg-soft`       | `#EAD3CE` | Negative fill / background wash.              |
-| `neutral`        | `#5A6470` | Flat, no change, "as expected."               |
-| `neutral-soft`   | `#DDE0E4` | Neutral fill.                                 |
+| Token            | Hex       | Role                                                           |
+|------------------|-----------|----------------------------------------------------------------|
+| `--accent`       | `#E63946` | Signal red (MTA red, Vignelli). Brand-signal moments only.      |
+| `--accent-soft`  | `#FAD4D7` | Reserved for legacy compositions; not used on the production homepage. |
 
-**Note:** `neg` (`#B23A2F`) is intentionally close to but distinct from
-`accent` (`#A6192E`). Accent is brand; neg is data. They should never appear
-adjacent — if they would, swap accent to ink for that surface.
+**MTA red (#E63946):** Vignelli's red for the 1972 NYC Subway Diagram is
+the canonical reference. We use a slightly warmer rendering tuned for
+sRGB screens, but it sits within the same family. One accent color, used
+**only on brand-signal moments**:
 
-**Pos/neg green-red convention:** We use it because the audience is
-finance-literate and inversion would create friction. We do not use it
-decoratively — only for actual directional data values (change vs prior,
-surprise vs consensus). Color-blind-safety is handled via shape and
-position, not by abandoning the convention.
+- **The latest-print dot on a chart.** A 3px filled circle in `--accent`
+  marks "where we are now" on the homepage panel mini-charts. This is
+  the **single use of `--accent` on data**, and it is decorative
+  signage rather than data encoding - the dot's *position* is the data;
+  the dot's *color* says "this is the latest, brand-signed point."
+- **The figure number in a panel eyebrow.** `FIGURE 1.` - the
+  numeral `1.` renders in `--accent` 800 weight; the word "Figure"
+  renders in pure ink 600 weight. The contrast says "this is the figure
+  we are talking about" - a brand stamp.
+- **The plate number in a chartbook unit eyebrow.** `PLATE 01` - the
+  `01` renders in `--accent`; the word "Plate" in pure ink. Same logic
+  as the figure number.
+- **The section number in a section page header kicker.** In `SECTION
+  3 OF 7`, the `3` renders in `--accent` 800; the rest is pure ink 600.
+- **Focus rings on keyboard navigation.** `outline: 2px solid
+  var(--accent)` with `outline-offset: 3px`. The signal red is the
+  publication's accessibility tell - keyboard users see the brand color
+  the moment focus lands.
+- **Link hover.** Link text and underline transition to `--accent` on
+  hover. 100ms ease-out. The publication's voice gently surfaces on
+  reader intent.
+- **Selection highlight.** `::selection { background-color: var(--accent);
+  color: var(--paper); }`. The brand red marks what the reader has
+  chosen.
+- **Key kicker stamps and one-token accents** in research-note eyebrows
+  (e.g. the word `INDEPENDENT` in `RESEARCH NOTE | CANADIAN MACRO |
+  INDEPENDENT` renders in accent red to surface the publication's
+  editorial stance).
 
-### Chart series palette — categorical
+**Never used on data direction.** Pos/neg encoding is glyph-driven (see
+Section 4). A chart line is **never** red unless the chart is making a
+brand-signal statement (and the only chart we currently do that on is the
+latest-point dot, which is a 3px ornament, not a data stroke).
 
-Ordered, hand-tuned. Drawn from FT and Economist tradition but rebalanced for
-warm off-white background.
+**Never used adjacently to itself.** If two accent-red moments would
+collide visually (e.g. a figure number eyebrow next to a focus ring on
+a link), one of them retreats to pure ink for that surface.
 
-| Token       | Hex       | Notes                                          |
-|-------------|-----------|------------------------------------------------|
-| `series-1`  | `#1F4E79` | Deep blue. Default first series.               |
-| `series-2`  | `#C9772A` | Burnt orange. Default second series.           |
-| `series-3`  | `#5B7553` | Sage green. Tertiary.                          |
-| `series-4`  | `#7A3E65` | Plum. Quaternary.                              |
-| `series-5`  | `#3F7D7C` | Teal.                                          |
-| `series-6`  | `#8A6A2C` | Olive gold.                                    |
-| `series-7`  | `#4A4F57` | Slate (= `ink-muted`). For "other" / baseline. |
+### Semantic / data tokens (retained, retired for direction)
 
-Rules:
-- Never use more than 5 series in a single chart. If you need more, switch
-  to small multiples.
-- Series 1 + 2 (deep blue + burnt orange) are the workhorse two-series
-  pair. They are color-blind distinguishable (tested against deuteranopia
-  and protanopia simulations) and read well against `paper`.
-- `series-7` (slate) is reserved for the "rest of category" or "Canada
-  average" line — it visually retreats.
+| Token            | Hex (resolved) | Role                                              |
+|------------------|----------------|---------------------------------------------------|
+| `--pos`          | `#000000`      | Aliased to ink. **Retired for direction encoding.** |
+| `--pos-soft`     | `#FFFFFF`      | Aliased to paper. Retired.                          |
+| `--neg`          | `#000000`      | Aliased to ink. **Retired for direction encoding.** |
+| `--neg-soft`     | `#FFFFFF`      | Aliased to paper. Retired.                          |
+| `--neutral`      | `#000000`      | Aliased to ink.                                     |
+| `--neutral-soft` | `#FFFFFF`      | Aliased to paper.                                   |
 
-### Chart series palette — sequential (for choropleths, heatmaps)
+**The Vignelli direction rule:** direction is encoded by **glyph** -
+`U+25B2` (up-pointing triangle) for positive, `U+25BC` (down-pointing
+triangle) for negative, `U+2014` (em dash) for neutral / unchanged. The
+glyph renders in **pure ink (`#000000`)** at all times. The hue red /
+green / amber traffic-light convention is retired across the system.
 
-Single-hue ramps. Choose the ramp that matches the encoded meaning:
+The `--pos` / `--neg` tokens remain defined (resolving to ink and paper)
+for two narrow reasons:
+1. Legacy components that still reference them fall back cleanly.
+2. A future need for true semantic color (e.g. error states in a form,
+   not data direction) can rehydrate these tokens without code-rewrite.
 
-- **Sequential blue** (e.g., for magnitudes where higher = more):
-  `#EDF2F7 -> #C5D5E4 -> #8FB0CC -> #5C8AB1 -> #2E6594 -> #1F4E79`
-- **Sequential orange** (for an alternate hue if blue is taken):
-  `#FBEBDA -> #F0CDA0 -> #DDA76A -> #C9772A -> #9A5818 -> #6E3D0F`
-- **Diverging (signed magnitudes around zero):**
-  `#B23A2F -> #D89589 -> #EAD3CE -> #F4F0E8 -> #D4E5D8 -> #7FAE89 -> #1F6B3A`
-  Anchored on `surface-sunk` at zero so the page reads through.
+We **do not** use `--pos` / `--neg` on data marks for direction. Ever.
 
-5-7 stops max. No 11-step ramps — they pretend to a precision the data does
-not have.
+### Categorical chart series (retained for multi-series charts)
 
-### Recession / event shading
+The categorical palette below is retained for future multi-series section-
+page charts (Phase 2 work). On the homepage and the current section
+chartbook units, charts are **single series**, drawn in `--ink` (pure
+black) with an `--accent` latest-point dot. Multi-series charts that
+need to distinguish two or more lines consume the palette below; in
+practice the first two are the workhorse pair.
 
-- **Recession bands:** `#15171A` at 6% opacity (i.e., `rgba(21,23,26,0.06)`).
-  Reads as a tint, never as a block. Label with `micro` size text at the
-  top edge of the band, not inside it.
-- **Event lines (e.g., rate decision, GDP release):** 1px solid `ink-faint`,
-  dashed (`4 2`), with a `micro` label rotated 0deg sitting above the chart
-  area, never crossing axis labels.
+| Token         | Hex       | Notes                                            |
+|---------------|-----------|--------------------------------------------------|
+| `--series-1`  | `#1F4E79` | Deep blue. First series.                         |
+| `--series-2`  | `#C9772A` | Burnt orange. Second series.                     |
+| `--series-3`  | `#5B7553` | Sage green. Tertiary.                            |
+| `--series-4`  | `#7A3E65` | Plum. Quaternary.                                |
+| `--series-5`  | `#3F7D7C` | Teal.                                            |
+| `--series-6`  | `#8A6A2C` | Olive gold.                                      |
+| `--series-7`  | `#4A4F57` | Slate. "Other" / "Canada average" / context line. |
 
----
+**Default series color on a single-series chart in the Vignelli register
+is `--ink` (#000000)**, not `--series-1`. The categorical palette is for
+multi-series charts where the eye needs to distinguish; single-series
+charts read better as black-on-white. **Latest-point dot is always
+`--accent` (#E63946), regardless of line color.**
 
-## 4. Density and rhythm
+### Section accents (retained, off the homepage)
 
-### Spacing scale (base 4px)
+Each section has a categorical token assigned for Phase 2 section-page
+wayfinding (e.g. a section's plate eyebrow may pick up its own hue, or
+a multi-series section chart may consume its assigned token for the
+primary series). **The homepage panel grid does NOT consume these on
+chrome** - Vignelli is one accent (signal red) only on the homepage.
 
-| Token    | Value | Use                                                |
-|----------|-------|----------------------------------------------------|
-| `s-0`    | 0     | -                                                  |
-| `s-1`    | 4px   | Inline icon-to-label, tight micro                  |
-| `s-2`    | 8px   | Chart tick to label, table cell padding-y          |
-| `s-3`    | 12px  | Label to value, dense list rows                    |
-| `s-4`    | 16px  | Default paragraph spacing, card padding-y small    |
-| `s-5`    | 24px  | Card padding default, between body paragraphs      |
-| `s-6`    | 32px  | Chart to caption, section internal                 |
-| `s-7`    | 48px  | Between sections within a page                     |
-| `s-8`    | 72px  | Major section break, hero margins                  |
-| `s-9`    | 112px | Page top/bottom, before footer                     |
-
-Vertical rhythm is paragraph-driven, not grid-locked. Charts break the
-rhythm intentionally — they should feel like a different object on the page,
-not a flowed block.
-
-### Grid
-
-- **12-column grid**, gutter 24px, with a `content` track and an optional
-  `wide` track for hero charts that breathe past the body column.
-- **Body column max-width: 680px** (yields ~66 characters at body size — the
-  sweet spot for serious reading).
-- **Wide chart max-width: 1040px.** Hero charts only. Set the chart at this
-  width and let body text live in the 680px column above/below.
-- **Page max-width: 1200px** with a 32px gutter on either side at desktop,
-  contracting to 16px at mobile.
-
-### Breakpoints
-
-| Token | Min width | Notes                                          |
-|-------|-----------|------------------------------------------------|
-| `sm`  | 0         | Mobile default. Single column, charts stack.    |
-| `md`  | 640px     | Larger phones / small tablets.                  |
-| `lg`  | 960px     | Tablet landscape, small laptop.                 |
-| `xl`  | 1200px    | Desktop default.                                |
-| `2xl` | 1440px    | Large desktop. No wider canvas — just margin.   |
-
-Mobile is a citizen, not an afterthought. Hero charts must have a
-small-screen variant designed (typically: fewer series, larger labels, axis
-abbreviation). That is `chart-builder`'s job to implement, but the spec
-comes from art-director per chart.
-
----
-
-## 5. Chart aesthetic principles
-
-Principles, not pixel specs. Each hero chart gets its own visual spec from
-art-director before `chart-builder` builds.
-
-### Axes
-
-- **Y-axis:** No axis line. Labels float left of the chart area. Ticks
-  inferred from gridlines.
-- **X-axis:** Single 1px rule in `rule` color along the bottom of the plot
-  area. Tick marks 4px, outward. Labels in `micro` size, `ink-faint`.
-- **Zero line:** When the chart includes negative values, draw the zero
-  line at 1px in `ink-muted` (darker than gridlines but lighter than ink).
-  Otherwise omit the zero line — the x-axis is the zero.
-- **Axis titles:** Almost never used. Unit belongs in the chart title or
-  on the topmost y-tick (e.g., `4% per year`). If you need an axis title to
-  understand the chart, the chart title is failing.
-
-### Gridlines
-
-- **Horizontal gridlines only.** Vertical gridlines almost never (exception:
-  small multiples with a shared x-time-axis where the eye needs anchor).
-- **Color: `rule-faint` (`#ECE7DC`).** They are anchors, not features.
-- **Density: 4-6 horizontal gridlines max.** More is noise.
-- **The gridline at zero is `ink-muted`, not `rule-faint`** (see above).
-
-### Label hierarchy
-
-In order of importance — title and direct labels first, axis chrome last.
-
-1. **Chart title** (`display-md` for hero, `body-sm` weight 600 for inline).
-   Active voice. Owned by `writer`.
-2. **Deck / standfirst** (`body-sm` italic, `ink-muted`). One sentence
-   answering "so what?"
-3. **Direct series labels** at the end of each line, in series color,
-   weight 500, `label` size. Replaces legends wherever possible.
-4. **Annotations** — see below.
-5. **Axis tick labels** (`micro`, `ink-faint`).
-6. **Source line** (`micro`, `ink-faint`, prefixed `Source:`).
-
-### Series color rules
-
-- **One series:** `series-1` (deep blue).
-- **Two series with comparison:** `series-1` (focus) + `series-7` (slate,
-  recedes). Use this when one series is the story and the other is context.
-- **Two series with parity:** `series-1` + `series-2`.
-- **Three to five series:** `series-1` through `series-5` in order, unless
-  semantic encoding (e.g., political party, region) overrides ordering.
-- **One highlighted series + many context series:** highlight in `accent`
-  (the editorial red), context in `rule` at 1.5px. Only use `accent` on
-  data when the chart is making an editorial argument about one series, and
-  this must be approved by art-director.
-
-### Annotations
-
-Annotations are the difference between a chart and a story. Treatment rules:
-
-- **Typography:** `body-sm` (15px) Inter, weight 400 normally, weight 500
-  for the inline "anchor word." Color: `ink` for the primary annotation,
-  `ink-muted` for secondary.
-- **Leader lines:** 1px `ink-muted`, no arrowhead. Lines are straight or
-  single-elbow — no curves, no S-curves. End the leader 4px short of the
-  data point (let the eye close the gap).
-- **Placement:** Hand-tuned. Annotations go in white space, not over data.
-  If you cannot place an annotation in white space, the chart needs more
-  margin.
-- **Anchor:** Every annotation anchors to a specific data point or region.
-  Floating annotations forbidden.
-- **Length:** 1-2 short clauses, max ~12 words. Longer thoughts belong in
-  body prose.
-- **Wording:** Owned by `writer`. Visual treatment owned here.
+| Section   | Token                          | Resolves to            |
+|-----------|--------------------------------|------------------------|
+| GDP       | `--section-accent-gdp`         | `--series-1` deep blue |
+| Inflation | `--section-accent-inflation`   | `--accent` signal red  |
+| Labour    | `--section-accent-labour`      | `--series-3` sage      |
+| Housing   | `--section-accent-housing`     | `--series-2` orange    |
+| Policy    | `--section-accent-policy`      | `--series-4` plum      |
+| Markets   | `--section-accent-markets`     | `--series-5` teal      |
+| Trade     | `--section-accent-trade`       | `--series-6` olive     |
 
 ### Recession / event shading
 
-See section 3 for the colors. Treatment:
-
-- **Recession bands** sit *behind* gridlines and *behind* data. They are
-  context, not features.
-- **Recession labels** at top edge in `micro` `ink-faint`. Format:
-  `Recession (2008Q4-2009Q2)`. Only label the most recent or most relevant
-  recession in any given chart — labeling all of them is noise.
-- **Event lines** are foreground. Label rotated 0deg, sitting above the plot
-  area in a 16px reserved band. Never crossing other labels.
-
-### Three chart tiers: sparkline, mini-chart, full chart
-
-We run a three-tier chart system. Each tier is a different object with
-different rules — confusing one tier for another is the most common visual
-failure mode. The tiers are ordered by ambition, from decorative to
-editorial.
-
-**Tier 1 — Sparkline (inline, ~80x20px to ~160x40px):**
-- No axes, no gridlines, no labels inside the line.
-- Single series, single color (`ink-muted` default, or `accent` if it is
-  the page's hero metric).
-- Last point dot at 3px, in series color.
-- Inline number to the right at `mono-sm` size showing the latest value.
-- Optional `pos` / `neg` color on the number only, not the line.
-- Decorative role: the sparkline supports a number; the number is the
-  story.
-
-**Tier 2 — Mini-chart (homepage tiles, ~248x72 plot area):**
-- See full mini-chart spec in Section 5.1 below.
-- Sits between the sparkline (decorative) and the full chart (editorial).
-- Has just enough chrome (x-axis rule, last-point dot+label, optional
-  reference rule, optional recession band) to read as a chart, not as
-  decoration.
-- Single series only. No annotations, no gridlines, no axis labels.
-- Lives on the homepage index tiles; never inside a basics-page panel.
-
-**Tier 3 — Full chart (column-width 680px, or hero 1040px):**
-- Full annotation treatment, full axis treatment.
-- Title, deck, direct labels, source line.
-- This is the only tier that carries editorial argument.
-
-**Tier confusion is forbidden.** A "small chart in a basics-page panel" is
-still a full chart and gets full chrome (Section 3 of
-`basics-layer-template.md`). A "chart on a homepage tile" is a mini-chart
-and gets the spec below, not a stripped-down version of a full chart and
-not an inflated sparkline.
+- **Recession bands:** ink at 6% opacity, rendered as
+  `rgba(21, 23, 26, 0.06)` (the legacy near-black hex chosen for its
+  visual quietness at 6% - using pure-black at 6% reads slightly heavier
+  in practice). Sits behind gridlines and behind data. Reads as a tint,
+  never as a block.
+- **Recession labels:** at chartbook scale, labeled at top of band in
+  `micro` size pure ink 600 weight, e.g. `Recession (2008Q4-2009Q2)`.
+  Only label the most recent or most relevant recession in any chart.
+  At mini-chart scale (panel grid), no label - the tint reads as
+  context for the pattern-matching reader.
+- **Event lines:** 1px solid pure ink, dashed `4 2`, with a `micro`
+  label sitting above the plot area. Reserved for editorial moments
+  (e.g. a rate decision, a release date).
 
 ---
 
-## 5.1 Mini-chart spec
+## 4. Direction-by-glyph rule
 
-**Role.** The mini-chart is the chart object that lives on a homepage
-index tile (Section 6.1 below). It must, at glance, communicate one
-shape — the trajectory of one series over the visible window — without
-requiring the reader to study it. It is not a stripped-down basics-page
-chart. It is a different artifact with its own rules.
+**The Vignelli direction rule.** Direction (positive / negative / neutral
+change) is encoded by an ASCII triangle glyph in pure ink. Color does not
+encode direction.
 
-**Reference lane.** The Economist's "Daily chart" thumbnail at homepage
-scale; FT Markets Data tiles; NYT Upshot "Economy at a glance" mini
-panels. These succeed because they treat the small chart as a designed
-object, not as a shrunken big chart.
+| Direction | Glyph (Unicode)  | Codepoint | Role                                         |
+|-----------|------------------|-----------|----------------------------------------------|
+| Positive  | up-pointing triangle (filled, `U+25B2`) | `U+25B2`   | Positive change. Higher value. Growth.       |
+| Negative  | down-pointing triangle (filled, `U+25BC`) | `U+25BC`   | Negative change. Lower value. Contraction.   |
+| Neutral   | em dash (`U+2014`)                       | `U+2014`   | No change. As expected. Flat.                |
 
-### Plot area and frame
+**Render at default text weight in pure ink.** The glyph is part of the
+typographic flow; it sits inline with the numeric delta. e.g.
+`U+25B2 +0.2pp` or `U+25BC -0.1pp` or `U+2014 0.0pp`.
 
-- **Plot area target: 248 x 72 px.** This is the *plotting region*, not
-  the full tile width. The tile is 280px wide (Section 6.1); the mini-chart
-  reserves 16px of left padding for the optional final-value label and
-  hangs the plot from there.
-- **No background fill.** The mini-chart sits directly on `surface`
-  (`#FFFFFF`) — the tile background. No card-within-a-card.
-- **No border, no frame.** The x-axis rule below is the only frame
-  element.
+**Rationale.** Three problems with hue-encoded direction:
 
-### Series
+1. **Color blindness.** Red-green deuteranopia and protanopia affect ~8%
+   of men; the convention is genuinely user-hostile without redundant
+   encoding. Glyph encoding is fully accessible at the data layer.
+2. **Brand collision.** Our brand is `--accent` (signal red). A red used
+   on data direction (negative) collides semantically with red used on
+   brand-signal (latest-print dot, focus ring). Either we accept the
+   collision and the reader has to context-switch, or we encode
+   differently. We chose the latter.
+3. **Editorial register.** Hue-coded directions read as a trading
+   dashboard. The Vignelli register is a research publication. A glyph
+   reads as typography; typography is what a research publication does.
 
-- **One series only.** Mini-charts never carry two series. If the section
-  needs a second series to make sense, that signal belongs on the basics
-  page, not the tile.
-- **Line, not area.** 1.5px stroke. No fill below the line — fills on a
-  mini-chart read as decoration at this scale.
-- **Color tier:**
-  - **Data-first sections** (Inflation, Policy, Labour, GDP) use
-    `--series-1` (`#1F4E79`). These are the sections where the chart is
-    the narrative on the tile.
-  - **Ambient sections** (Markets, Trade, Housing) use `--ink-muted`
-    (`#4A4F57`). These are sections where the editorial line and callout
-    are the narrative and the chart is context. Drawn in slate, the
-    mini-chart visually retreats so the words lead.
-  - Assignment rationale: Inflation, Policy, Labour, and GDP are the four
-    series where the *shape* of the line is itself the story (CPI
-    approaching target, rate path, U-rate trajectory, GDP m/m wobble).
-    Markets (USDCAD is a price-level walk), Trade (a noisy balance), and
-    Housing (a slow HPI drift) are series where the latest *number* —
-    not the shape — leads on the tile.
-
-### Axes
-
-- **X-axis:** 1px solid rule along the bottom of the plot area, in
-  `--rule` (`#D9D3C7`). No tick marks. No date labels — the date is
-  implicit from the tile's eyebrow "as of" stamp.
-- **Y-axis:** No axis line. No gridlines. No tick labels.
-
-### Final-value direct label (optional, recommended)
-
-- A small label sitting to the right of the last-point dot, vertically
-  aligned to it.
-- Type: `mono-xs` (12px Plex Mono), weight 400, color `--ink`.
-- Format: the latest value with units (`2.3%`, `1.378`, `-$2.3B`, `238k`).
-- Hand-tuned position: 6px to the right of the dot. If the last point
-  sits at the top of the plot area, allow the label to drop down 4px to
-  avoid clipping the tile edge.
-- Suppressed only when the value would collide with the tile's right
-  edge or when the callout row directly below already carries the same
-  number prominently. Default: shown.
-
-### Reference rule (optional, max one)
-
-- A single horizontal 1px dashed rule (`2 2` dash pattern), color
-  `--ink-faint` (`#7A7F88`).
-- Use only when the section has one well-known anchor value that gives
-  the line meaning at a glance:
-  - **Inflation:** 2.0% (BoC CPI target).
-  - **Policy:** 2.75% (current BoC midpoint of neutral range — refreshes
-    with the MPR).
-  - All other sections: no reference rule (most series do not have a
-    single canonical anchor; a rule would read as arbitrary).
-- No label on the rule. The eye reads the offset; the page narrative
-  carries the meaning.
-
-### Recession band (optional)
-
-- 1 optional recession band when the visible window covers a recession
-  (rare on the homepage's typical 24-month window, but possible for
-  longer-lookback tiles).
-- Fill: `rgba(21,23,26,0.06)` per Section 3.
-- Sits behind the line, in front of the x-axis rule.
-- No label inside the band on a mini-chart — there is not enough room.
-
-### Last-point dot
-
-- 3px solid circle in the series color (matches the line).
-- Always present. Marks "where we are now" without needing an axis label.
-
-### What the mini-chart does NOT have
-
-- No chart title (the tile eyebrow does the naming).
-- No deck (the editorial line above does the framing).
-- No gridlines, horizontal or vertical.
-- No y-axis tick labels.
-- No x-axis date labels.
-- No annotations, no leader lines, no callouts inside the plot area.
-- No legend (single series — no legend possible).
-- No tooltip on hover. The mini-chart is read at glance; a tooltip would
-  invite study, which belongs on the basics page.
-- No source line under the chart. The tile carries no source attribution
-  at this density — the section page does.
-
-### Mobile variant
-
-- At `sm` and `md` breakpoints the tile compresses to ~328px wide; the
-  mini-chart plot area scales proportionally to ~296 x 72. Stroke,
-  dot size, and label size stay constant — only the plot width changes.
-- The reference rule and last-point label survive the compression.
-- The recession band, if shown, may be clipped at the left edge — that
-  is acceptable; the band is context, not a label.
+**Edge case:** when a directional badge is needed at small size (e.g. in
+a table row), the glyph renders at the table's data weight (Plex Mono
+400). It is not stylized further.
 
 ---
 
-## 5.2 Per-section mini-chart specs
+## 5. Chart visual rules
 
-One spec per homepage tile. Each names the canonical series, the optional
-reference rule, the color tier, and any per-section nuance. Series keys
-match `chartSeriesKey` in `src/data/sections.ts`.
+Three chart tiers, each a distinct object with its own discipline.
+Confusing tiers is the most common failure mode.
 
-### GDP — `gdp-mm`
+### Tier 1 - Sparkline (~160 x 40 inline, decorative)
 
-- Series: Real GDP, m/m % change. 24 monthly points (2-year window).
-- Color tier: **data-first**, `--series-1` (deep blue).
-- Reference rule: **none.** Zero is implicit; the line wobbles around it.
-- Last-point label: `+0.2%`.
-- Note: this is a noisy series. The mini-chart reads as "wobble around
-  zero with a recent soft tilt" — the editorial line above carries
-  the verdict.
+Production component: `src/components/Sparkline.astro`.
 
-### Inflation — `cpi-yoy`
+- **Role.** Decorative line accompanying a number elsewhere on the page.
+  The sparkline supports the number; the number is the story.
+- **Geometry.** Hand-rolled SVG, 160 x 40 viewBox, stretched into a
+  consumer-defined aspect-ratio box.
+- **Shape rules.** One series, line only (no area fill). 1.25px stroke,
+  rounded line-join, vector-effect non-scaling-stroke to keep weight
+  constant under non-uniform scaling.
+- **Color.** Default `--ink-muted` (which resolves to pure ink). Accent
+  variant available (`--accent`) for the rare case where a sparkline is
+  a brand-signal moment. No section accent.
+- **Last-point dot.** 3px diameter in the same color as the line.
+- **No chrome.** No axes, no gridlines, no labels, no tooltips. The
+  consumer renders the value to the right of the sparkline at
+  `mono-sm`. No source line, no annotation.
 
-- Series: Headline CPI, y/y % change. 24 monthly points (2-year window).
-- Color tier: **data-first**, `--series-1` (deep blue).
-- Reference rule: **2.0%**, dashed, `--ink-faint`. The BoC target. This
-  is the single most load-bearing reference rule on the homepage —
-  reading the line approaching the target is the story of the entire
-  section.
-- Last-point label: `2.3%`.
+### Tier 2 - Mini-chart (~248 x 72, single-series with light chrome)
 
-### Labour — `unrate`
+Production component: `src/components/charts/MiniChart.astro`.
 
-- Series: Unemployment rate, % of labour force. 24 monthly points.
-- Color tier: **data-first**, `--series-1` (deep blue).
-- Reference rule: **none.** Full-employment NAIRU is contested and
-  drifting; a rule would mislead.
-- Last-point label: `6.1%`.
-- Note: y-axis range tuned to the visible window (typically ~5.0-6.5%)
-  so the rise off the trough is legible. Do not anchor to zero.
+- **Role.** The chart object that lives on a homepage **panel** (Section
+  6) and on small contextual surfaces. Reads "at glance" - one series,
+  one shape, light chrome.
+- **Geometry.** 248 x 72 viewBox, with a 32px right gutter reserved for
+  the optional direct-label of the final value. Vector-effect
+  non-scaling-stroke throughout.
+- **Shape rules.** One series. 1.25px stroke. No area fill. Reference
+  rule (1px dashed in `--rule`, which is pure ink) optional, max one,
+  for a single editorial anchor (e.g. the 2% CPI target). Recession
+  band optional, ink at 6% opacity. Last-point dot 3px in series color.
+- **Color tier.** Two tiers:
+  - `data-first` -> `--series-1` (deep blue). Used when the line's
+    shape is itself the story.
+  - `ambient` -> `--ink-muted` (pure ink). Used when the latest number
+    leads and the line is context.
+  - **Production note:** on the current homepage panel grid
+    (`SectionPanel.astro`), the load-bearing chart renders in pure
+    black with an `--accent` (signal red) latest-point dot, overriding
+    the abstract MiniChart color tiers. The Vignelli register prefers
+    black-line / red-dot on the homepage; the MiniChart's blue and
+    slate tiers remain available for non-homepage uses.
+- **Chrome.** 1px x-axis rule along the bottom of the plot area in
+  pure ink. No tick marks, no x-axis date labels (the consumer surface
+  carries the date stamp in its eyebrow). No y-axis line, no y-axis
+  tick labels EXCEPT the optional direct-label of the final value to
+  the right of the last-point dot.
+- **What it does NOT have.** No title, no deck, no annotations, no
+  leader lines, no legend, no hover tooltip, no source line. Those
+  live on the parent surface.
 
-### Housing — `hpi-yoy`
+### Tier 3 - Full chart (chartbook scale)
 
-- Series: MLS HPI, y/y % change. 24 monthly points.
-- Color tier: **ambient**, `--ink-muted` (slate).
-- Reference rule: **none.** Zero is implicit; the line crosses through
-  it and the crossing reads at a glance.
-- Last-point label: `-1.4%`.
-- Note: the line crosses zero in the visible window. Style the line as
-  a single continuous slate stroke — do not split it into pos/neg
-  segments. The crossing point is the visual event.
+Production components: `src/components/charts/inflation/Panel*.astro`,
+`src/components/charts/gdp/Panel*.astro`,
+`src/components/charts/labour/Panel*.astro`.
 
-### Policy — `policy-rate`
+- **Role.** The chart object that carries an editorial argument. Lives
+  inside a `ChartbookUnit` (Section 6) on a section page.
+- **Geometry.** ~540 x 295 viewBox typical (plot area ~432 x 243),
+  rendered at 5:3 or 4:3 aspect ratio responsive width. Each panel
+  chart owns its viewBox; the chartbook unit reserves the frame.
+- **Shape rules.** Single series by default; multi-series permitted
+  when the editorial point requires it (e.g. CPI headline + 3M
+  annualized). Line in pure ink at 1.5px stroke; secondary series in
+  `--ink` at 1px (or in `--accent` if the section has an editorial
+  color, with explicit art-director approval). No area fills except
+  the diverging zero-band treatment for series that cross zero (e.g.
+  trade balance) - and even that is monochrome (a 6% ink wash on the
+  negative side, no positive fill).
+- **Color rule.** **One color on data per chart, plus a latest-point
+  dot.** The default is: pure ink line + `--accent` latest-point dot.
+  Multi-series exceptions: the secondary series uses 1px ink with a
+  dashed pattern to recede, not a second color. Section-page wayfinding
+  is carried by the section accent in the eyebrow only (Phase 2).
+- **Chrome.**
+  - Hairline 1px black plot frame (a rectangle around the plot area).
+  - 3-4 horizontal gridlines in pure ink at low opacity (compose via
+    `stroke-opacity` or `opacity` at the call site - the canonical
+    treatment is 1px black at 100% for axis-anchor lines and 0.5px or
+    1px with stroke-opacity 0.2 for gridlines; chart-builder hand-tunes
+    per panel).
+  - Y-axis tick labels right-aligned in left gutter, Manrope 400 at
+    `micro` size, pure ink. Topmost tick carries the unit (e.g. `4%`).
+  - X-axis tick labels below the plot area, Manrope 400 at `micro`
+    size, pure ink, 3-5 ticks max.
+  - Latest-point marker: 3-5px filled circle in `--accent`. The
+    publication's brand stamp on the latest print.
+  - Direct labels at series terminus, Manrope 600 at `label` size, in
+    pure ink. Replaces legends.
+- **Annotations.**
+  - **Typography.** Manrope at `body-sm` (15px), weight 400 normally,
+    weight 600 for the inline "anchor word." Color pure ink.
+  - **Leader lines.** 1px pure ink, no arrowhead. Straight or single-
+    elbow. End 4px short of the data point.
+  - **Placement.** Hand-tuned. Annotations sit in white space, never
+    over data. If white space is unavailable, the chart needs more
+    margin.
+  - **Length.** 1-2 short clauses, ~12 words max. Longer thoughts
+    belong in the interpretation prose alongside the chart.
+  - **Wording.** Owned by `writer`. Visual treatment owned here.
+- **Hover.** A native SVG `<title>` element on each data point gives
+  date + value in the browser's default tooltip. No custom hover
+  tooltip, no crosshair, no animated reveal. Zero client JS.
 
-- Series: BoC overnight rate, %. 24 monthly points (steps + holds).
-- Color tier: **data-first**, `--series-1` (deep blue).
-- Reference rule: **2.75% neutral midpoint**, dashed, `--ink-faint`. The
-  current BoC neutral-range midpoint per April 2026 MPR. Refresh the
-  rule value whenever the MPR refreshes the neutral range.
-- Last-point label: `2.75%`.
-- Note: this series is a staircase, not a smooth curve. Render as a
-  step-after line (changes happen on the meeting date, not between).
+### Hero chart - deprecated
 
-### Markets — `usdcad`
+The "homepage hero chart" concept is **retired in v1.0**. The Vignelli
+homepage uses a panel grid: each of the 7 sections renders as a
+`SectionPanel` with a tier-2 mini-chart embedded. There is no
+single-chart hero. `HeroChart.astro` survives in the codebase as a
+mini-chart variant; new work should consume `MiniChart.astro` or build
+a section-specific panel chart.
 
-- Series: USDCAD spot, daily close. ~24 weekly points (sampled weekly
-  Fridays) over the 24-week window.
-- Color tier: **ambient**, `--ink-muted` (slate).
-- Reference rule: **none.** FX has no canonical anchor; rules would be
-  editorial-controversial.
-- Last-point label: `1.378`.
-- Note: sampling is weekly, not daily, to keep the line readable at
-  248px width. Daily data is preserved for the basics page.
+### Axis treatment summary
 
-### Trade — `trade-balance`
+Across all tiers:
+- **Pure ink** for axis lines and tick marks (no warm grays).
+- **Tick marks 3-4px outward,** never inward.
+- **Y-axis line:** omitted (gridlines do the work) except where the plot
+  has a hairline frame - then the frame's left edge is the y-axis.
+- **X-axis line:** 1px pure ink along the bottom of the plot.
+- **Zero line:** when the data crosses zero, draw the zero line in 1px
+  pure ink at 100% opacity, slightly heavier than gridlines.
+- **Axis titles:** almost never. Unit goes on the topmost y-tick. If a
+  title is needed to understand the chart, the chart title is failing.
 
-- Series: Merchandise trade balance, $B. 24 monthly points.
-- Color tier: **ambient**, `--ink-muted` (slate).
-- Reference rule: **none.** Zero is implicit; the line crosses it.
-- Last-point label: `-$2.3B`.
-- Note: like Housing, the line crosses zero in the visible window. Same
-  rule: continuous slate stroke, no segmenting.
+### Gridline treatment
+
+- **Horizontal only.** Vertical gridlines never (exception: small
+  multiples with shared x-axis time anchor).
+- **Color: pure ink at low opacity** (compose `stroke-opacity: 0.15` to
+  `0.20` at the call site). The token surface stays monochrome; opacity
+  carries the quietness.
+- **Density: 3-5 gridlines.** More reads as noise.
+- **Zero line is heavier than gridlines** (full opacity).
+
+### Small multiples
+
+When a story needs multiples (e.g. CPI headline / core trim / core
+median), the chartbook unit renders a 2-up or 3-up grid. Each panel:
+- Identical y-axis range (forced) so eye-comparison is honest.
+- Identical x-axis range (forced).
+- A 1px ink hairline separates the panels.
+- Each panel's title in `label` size, pure ink, 600 weight, sits above.
+- One source line at the bottom of the whole grid, not per panel.
+
+### Hand-tuning approach
+
+The Vignelli register is anti-template. **Every chart is hand-tuned by
+chart-builder against an art-director per-chart visual spec.** Generic
+chart components are forbidden; each panel is its own Astro component
+with its own SVG geometry and its own annotation hand-placement. The
+target is the Knoll catalogue plate, not the Tableau dashboard.
 
 ---
 
 ## 6. Component visual language
 
-### 6.1 Index tile (homepage section tile)
+### 6.1 Index-tile / homepage panel
 
-**Role.** The index tile is the homepage's primary unit of section
-representation. Seven tiles, one per section, arranged in the homepage
-grid. Each tile must, at glance, answer: which section, what is the
-latest reading, what shape is the trajectory, what changed.
+Production component: `src/components/home/SectionPanel.astro`.
 
-The index tile is **not** a basics-page panel and **not** a card. It is
-its own object with its own anatomy. Confusing the tile with the panel
-is a category error — the panel sits on a section page and carries
-editorial weight; the tile sits on the homepage and earns the click.
+The homepage renders 7 panels in a 2- or 3-column grid (one per
+section). Each panel is a self-contained piece of evidence: a figure
+number, an indicator name, a headline question, a mini-chart, a callout
+readout, and a 4-row indicators table.
 
-**Reference lane.** FT homepage section tiles; NYT homepage "Section"
-strips; Economist daily-chart tile arrangement. The discipline: each
-tile is a self-contained piece of evidence, not a teaser graphic.
-
-### Dimensions
-
-- **Width target: 280px.** Tight enough that seven fit in a homepage
-  grid at desktop without scrolling; wide enough to host a 248px
-  mini-chart plot area with 16px of breathing room on either side.
-- **Height target: 190-210px.** Variable within this range based on
-  whether the editorial line wraps to one or two lines. The mini-chart
-  and the callout row are fixed; the editorial line absorbs the height
-  variance.
-
-### Anatomy (top to bottom)
+**Anatomy (top to bottom):**
 
 ```
-[ EYEBROW ROW                                       ]   label + date
-[ Editorial line, 2 lines max, ~12-16 words         ]   body-sm 500
-[                                                   ]
-[ Mini-chart (248x72 plot area, per Section 5.1)    ]
-[                                                   ]
-[ Value     delta     surprise verb                 ]   callout row
-[ ------------------------------------------------- ]   1px rule (top)
++-------------- panel (paper, no fill, no border)  --------------+
+| FIGURE 1.                                  Monthly           |
+| Inflation                                                    |
+| ----------------------------------------------------------    |  <- 1px black
+| Question paragraph (200 weight, 14px, max 56ch).             |
+|                                                              |
+| [ Chart (320 x 110 inline SVG, 1px black plot frame,         |  Headline indicator name (10px micro-caps)
+|   pure-black line, 3px MTA red latest-point dot,             |  Latest value (Plex Mono 30px regular)
+|   3 mono y-ticks, EARLIEST / asOf x-axis stamps) ]           |  Delta with U+25B2/U+25BC glyph + as-of stamp
+|                                                              |
+| Fig. 1. Indicator name, recent history. Last obs marked.     |
+|                                                              |
+| ----------------------------------------------------------    |  <- 1px black
+| INDICATOR             VALUE     CHANGE       AS OF           |
+| ----------------------------------------------------------    |
+| Indicator 1           2.3%     U+25B2 +0.1   Apr 2026         |
+| Indicator 2           ...                                    |
+| Indicator 3           ...                                    |
+| Indicator 4           ...                                    |
++--------------------------------------------------------------+
 ```
 
-The 1px rule sits at the **top** of the tile, in `--rule`. It separates
-one tile from the one above it in a stacked layout and from the homepage
-strip above the tile grid. No bottom rule, no side rules.
+**Discipline.**
+- **Panel background:** `--paper` (pure white). No fill, no card pillow.
+- **Panel frame:** none. Rules between sections of the panel carry the
+  structure. Adjacent panels are separated by the parent grid gap, not
+  by panel borders.
+- **Figure eyebrow:** `FIGURE` in micro-caps 600 ink + numeral in 800
+  `--accent` (signal red). The figure number is a brand stamp.
+- **Section heading:** Manrope 800 at 22px, pure ink, line-height 1.05,
+  underline on hover (border-bottom, not text-decoration).
+- **Headline question:** Manrope 200 (ExtraLight) at 14px, pure ink,
+  max-width 56ch. The Vignelli weight-contrast moment: the 200 question
+  against the 800 heading above.
+- **Chart:** 320 x 110 viewBox, 1px black plot frame, pure-black 1.5px
+  line, 3-tick y-axis (Plex Mono 8px), x-axis EARLIEST / asOf stamps in
+  Manrope 600 micro-caps. 3px MTA red latest-point dot (the only
+  non-ink color in the panel chrome).
+- **Readout (right column of the body, on md+):**
+  - Indicator label: 10px micro-caps 600.
+  - Value: Plex Mono 30px regular (the "data is a measurement" moment).
+  - Delta row: glyph + Plex Mono value + as-of stamp in 10px micro-caps
+    on the right. Glyph in pure ink, regardless of direction.
+- **Indicators table:** 4 rows, 1px black hairlines between rows.
+  Header row in 9.5px micro-caps 600. Data rows in Plex Mono regular
+  for values and deltas. Load-bearing row's indicator name gets 800
+  weight; its value stays Plex Mono regular (weight contrast is at the
+  name, not the value).
 
-### Eyebrow row
+### 6.2 Chartbook unit
 
-- **Two elements, single line, justified left and right.**
-- **Left:** Section name. `label` size (13px Inter, weight 500),
-  all-caps, letter-spacing `0.08em`, color `--ink-muted`. e.g.,
-  `INFLATION`.
-- **Right:** As-of date stamp. `micro` size (12px Inter, weight 400),
-  tabular figures, color `--ink-faint`. Format: `Apr 2026` or
-  `May 9, 2026` depending on cadence. No leading `AS OF` word — that
-  ritual belongs on the section page.
-- **Spacing:** The eyebrow row sits `s-4` (16px) below the tile's top
-  rule.
+Production component: `src/components/section/ChartbookUnit.astro`.
 
-### Editorial line
+Used on every section page. One unit = one indicator. See
+`design/chartbook-template.md` for the full anatomy and per-section
+adaptations.
 
-- Owned by `writer`; visual treatment owned here.
-- Type: `body-sm` (15px Inter, weight 500), color `--ink`.
-- 2 lines maximum at the 280px tile width. Aim for ~12-16 words.
-- Sits `s-3` (12px) below the eyebrow row.
-- Line height tight (1.40) — the line must read as a single editorial
-  sentence, not as flowed body copy.
-- Wrap discipline: the writer must be able to predict where the line
-  breaks. Tile width is fixed; the type is set in a single weight; the
-  writer can count.
+### 6.3 Section page header
 
-### Mini-chart
+Production component: `src/components/section/SectionPageHeader.astro`.
 
-- Per the spec in Section 5.1 above. 248 x 72 plot area, centered in
-  the tile with 16px horizontal padding.
-- Sits `s-4` (16px) below the editorial line.
-- The mini-chart bottom (x-axis rule) sits `s-3` (12px) above the
-  callout row.
+Used at the top of every section page below the masthead. See
+`design/chartbook-template.md` for the full spec.
 
-### Callout row
+### 6.4 Site masthead
 
-A single line carrying the three numbers that summarize the tile's
-state. Three elements, left-aligned, separated by `s-3` (12px):
+Production component: `src/components/home/VignelliMasthead.astro`.
 
-- **Value.** The headline number. `display-sm` (23px Inter, weight 600,
-  tabular). Color `--ink`. e.g., `2.3%`, `1.378`, `-$2.3B`. Units stay
-  with the number.
-- **Delta.** Change vs. prior period. `mono-xs` (12px Plex Mono,
-  weight 400). Color matches direction: `--pos`, `--neg`, or
-  `--neutral`. Format `+0.1 pp`, `-25 bps`, `+0.4% w/w`. Aligned to
-  the baseline of the value, not its cap.
-- **Surprise verb.** A single-word direction tag from `writer`'s
-  vocabulary: e.g., `beat`, `missed`, `held`, `cut`, `cooled`, `eased`,
-  `widened`. `label` size (13px Inter, weight 500), all-caps,
-  letter-spacing `0.08em`. Color matches direction (`--pos`, `--neg`,
-  `--neutral`). Baseline-aligned with the delta.
+- **Wordmark:** Manrope 900 Black at 16px, uppercase, `0.16em` tracking.
+  Left of a flex row.
+- **Primary nav:** 7 section labels, micro-caps 600 at 11px, `0.12em`
+  tracking, pipe separators in `--ink-faint` at `opacity: 0.32`. Active
+  section underlined via border-bottom.
+- **Closing rule:** 1px pure black hairline.
 
-The callout row is a single line. It does not wrap. If the verb would
-push the row to wrap at the tile width, the writer picks a shorter
-verb or drops the verb entirely (the delta carries the direction).
+### 6.5 Data tables
 
-### Color and tone
+- **Header row:** 9.5-10px micro-caps 600 in pure ink, `0.16em` to
+  `0.22em` tracking. 1px black bottom rule.
+- **Data rows:** Manrope 400 for text columns, Plex Mono 400 for
+  numeric columns. 1px black rule between rows.
+- **No zebra striping.** Period.
+- **Numeric columns right-aligned, tabular nums** (`font-variant-
+  numeric: tabular-nums`).
+- **Load-bearing row** (the indicator that drives the panel's headline)
+  gets its indicator-name cell in 800 weight; its value cell stays
+  Plex Mono 400. Hierarchy through weight at the name, not at the data.
+- **Sort indicator (when needed):** ASCII glyph (`U+25B2` / `U+25BC`)
+  in pure ink at the column header, never a colored icon.
 
-The index tile inherits the design system's restraint:
-- Tile background: `--surface` (`#FFFFFF`).
-- No shadows, no gradients, no rounded-corner pillows beyond the global
-  4px radius.
-- Section accent (per Section 1 of `basics-layer-template.md`) does
-  **not** color the tile background or any frame element. The section
-  identity on the homepage is carried by the eyebrow label only.
-- The mini-chart's series color (data-first blue or ambient slate)
-  carries the chart-visual identity; the tile's own chrome stays
-  monochrome.
+### 6.6 Callouts - deprecated
 
-### Explicitly NOT on the index tile
+The legacy `Callout.astro` (background `--surface-sunk`, 4px left rule
+in accent) is **dropped from the canon.** The Vignelli register does
+not use background-filled callouts. Where a callout is needed, the
+equivalent is: a weight-contrast paragraph (Manrope 800 emphasis word
+inside a Manrope 400 sentence), or a discrete `body-sm` paragraph
+preceded by a 1px hairline rule. The component remains in the codebase
+for legacy pages but new work does not use it.
 
-These elements belong on the basics-page panel (`basics-layer-template.md`,
-Sections 1, 3, 6, 7, 8) and must not bleed onto the homepage tile:
+### 6.7 Citations and source lines
 
-- **Panel eyebrow code** (e.g., `01`, `02`, `03`). The numbered panel
-  index is a basics-page wayfinding device. The homepage uses the
-  section name, not a number.
-- **Italic deck / standfirst.** The homepage tile carries an editorial
-  line in sans, not a serif italic deck. Decks belong on basics pages
-  where the reader has committed to read.
-- **`AS OF` stamp on its own line.** The homepage compresses freshness
-  into the eyebrow row date. The full `AS OF <indicator> <date>
-  (released <date>)` ritual belongs on the basics page.
-- **Revision tag.** Revisions are basics-page typographic events
-  (Section 5 of `basics-layer-template.md`). On the tile, a revision
-  is invisible — only the latest value shows.
-- **Methodology link.** Methodology affordance lives on the basics-page
-  panel (Section 7). The tile is too dense to host a `Methodology`
-  link without it reading as chartjunk.
-- **Source line.** Source attribution lives on the basics-page panel
-  (Section 8) where the reader has committed. The homepage tile does
-  not carry `Source: Statistics Canada` — the section-page click does.
-- **Serif display headline.** The tile uses `body-sm` Inter for its
-  editorial line. Serif display is reserved for the page hero
-  (`display-xl`) and section openers (`display-lg`/`display-md`).
-  A tile-sized serif headline would compete with the page hero and
-  weaken both.
+- **Source line under a chart:** Plex Mono 11px regular for the citation
+  body, preceded by a Manrope 10px micro-caps 600 `SOURCE:` prefix with
+  `0.18em` tracking. Pure ink throughout.
+- **Inline citation marker:** superscript Plex Mono digit in pure ink,
+  no brackets. The marker is a typographic event, not an icon.
+- **Footnote block at page bottom:**
+  - Heading: `SOURCES` or `NOTES` in micro-caps 600.
+  - Items: Plex Mono 12px for the digit, Manrope 15px for the text,
+    hanging indent.
 
-If any of these elements feel necessary on a homepage tile, the answer
-is almost always: the section page is where they live, and the tile's
-job is to earn the click that gets the reader there.
+### 6.8 Latest-release stamp
 
----
+Used in section page headers and any "this data is current as of" moment.
+Two parts:
+- **Label:** `LATEST RELEASE` in Manrope 10px micro-caps 600, `0.22em`
+  tracking, pure ink.
+- **Body:** `April CPI, released May 14, 2026` in Plex Mono 12px regular,
+  pure ink. Tabular nums.
 
-### Cards
+### 6.9 Buttons
 
-- Background `surface` (`#FFFFFF`).
-- 1px border in `rule` (`#D9D3C7`) — not a shadow, never a shadow.
-- Border radius: 4px. Crisp, not pillowy.
-- Padding: `s-5` (24px) default, `s-6` (32px) for hero cards.
-- Title at top: `display-sm` (23px serif).
-- Optional kicker eyebrow above title: `label` all-caps, `accent` color,
-  letter-spacing 0.08em.
-
-### Callouts / pull quotes
-
-- Background `surface-sunk` (`#F4F0E8`).
-- 4px left rule in `accent` (editorial red).
-- Padding `s-5` (24px) all sides.
-- Type: `body-lg` (19px sans) for the quote, `label` for the attribution.
-- No quote marks rendered as glyphs — typography carries it.
-
-### Tables
-
-- Header row: `label` size, `ink-muted`, weight 500, all caps,
-  letter-spacing 0.04em. 1px bottom rule in `ink-muted`.
-- Body rows: `body-sm` for text columns, `mono-sm` for numeric columns.
-- Numeric columns right-aligned. Text columns left-aligned. Mixed never.
-- Row dividers: `rule-faint` (`#ECE7DC`), 1px. Or no dividers if rows are
-  short and `s-3` (12px) vertical padding gives enough rhythm.
-- No zebra striping. Period.
-- Hover row: background `surface-sunk` (subtle). Optional, not required.
-- Sortable column indicator: a `mono-xs` arrow glyph (`^` / `v`) in
-  `ink-faint`, never a colored icon.
-
-### Blurbs / standfirst
-
-- Below page hero headline.
-- Type: `deck` (19px serif italic, weight 400, `ink-muted`).
-- Max-width matches body column (680px).
-- One paragraph, 2-4 sentences. If longer, it is body prose, not a deck.
-
-### Citations and footnotes
-
-- Inline citation marker: superscript number in `micro` size, `accent`
-  color, no brackets. E.g., `(per Statistics Canada<sup>3</sup>)`.
-- Footnote block at bottom of article:
-  - Heading: `label` all-caps `Notes` or `Sources`.
-  - Items: `body-sm`, hanging indent so the number aligns with body,
-    text indents past it.
-  - `ink-muted` color, but linked terms in `ink`.
-- Source line under charts: `micro` `ink-faint`, prefix `Source:` followed
-  by the citation. No clickable underline inside the chart frame — the
-  source line links via the surrounding caption.
-
-### Buttons (UI, sparingly used)
-
-- Primary: `ink` background, `paper` text, 4px radius, padding `s-3 s-5`.
-  Hover: lighten to `ink-muted`.
-- Secondary: transparent, 1px `ink` border, `ink` text.
-- Tertiary / link: underlined inline link in `ink` with `accent` underline
-  color (1px offset 2px). Hover: full underline becomes `accent` text.
-- Never gradients. Never shadows. Never icon-only buttons without an
-  accessible label.
-
-### Form inputs (when needed)
-
-- 1px `rule` border, `surface` background, `body-sm` Inter, 4px radius.
-- Focus: 2px `ink` border, no glow.
+- **Primary:** `--ink` background, `--paper` text, no border-radius
+  (`--radius-card: 0`), padding `s-3 s-5`. Hover: background transitions
+  to `--accent`.
+- **Secondary:** transparent background, 1px `--ink` border, ink text.
+  Hover: background `--ink`, text `--paper`.
+- **Tertiary / link:** underlined inline link in `--ink`. Hover: text
+  and underline transition to `--accent`.
+- **No gradients. No shadows. No radii.** The 0px radius is a Vignelli
+  rule; rounded buttons are a UI-product affordance, not an editorial
+  one.
 
 ---
 
-## 7. Iconography
+## 7. Density and rhythm
 
-**Stance: text-first. Icons are exceptions, not a system.**
+### Grid
 
-We are an editorial site. Most navigation, status, and meaning should be
-carried by typography and layout, not by a glyph. When we do use an icon,
-it is functional, monochrome, and from a single restrained set.
+- **16-column conceptual grid** for layouts that need precision; in
+  practice most layouts use the `.container` track (max 1240px) with
+  internal flex / grid. The 12-column grid of v0.x is retired in favor
+  of a flexible 16-column model.
+- **Body column max-width: 680px** (`--col-body`). ~64-66 characters at
+  body size.
+- **Wide column max-width: 1040px** (`--col-wide`). For chart units
+  that breathe past the body column.
+- **Page max-width: 1240px** (`--col-page`). 40px gutter desktop,
+  24px gutter mobile.
 
-### When we use icons
+### Spacing scale
 
-- **External link indicator** next to outbound links. Small arrow-NE glyph.
-- **Expand/collapse** on disclosure components.
-- **Sort direction** in tables (the `^` / `v` mentioned above — these are
-  type, not icons, which is the point).
-- **Share / copy-link** affordances on charts (if requested by editorial).
+Mueller-Brockmann modular. Base 4px.
 
-### When we do not use icons
+| Token  | Value | Use                                              |
+|--------|-------|--------------------------------------------------|
+| `s-0`  | 0     | -                                                |
+| `s-1`  | 4px   | Inline glyph-to-label, tight micro               |
+| `s-2`  | 8px   | Chart tick to label, table cell padding-y        |
+| `s-3`  | 12px  | Label to value, dense list rows                  |
+| `s-4`  | 16px  | Default paragraph spacing, panel internal        |
+| `s-5`  | 24px  | Between body paragraphs, chartbook source margin |
+| `s-6`  | 32px  | Chartbook body grid gap                          |
+| `s-7`  | 48px  | Between sections within a page                   |
+| `s-8`  | 72px  | Major section break                              |
+| `s-9`  | 112px | Page top / bottom, before footer                 |
 
-- No icons in navigation labels. The label is the label.
-- No icons in card headers as decoration.
-- No "info" `(i)` icons on every chart — if the chart needs explaining, it
-  needs a deck, not a tooltip.
-- No emoji anywhere in shipped UI.
+Larger compound rhythms (e.g. 64px between a section header and the
+first chartbook unit) compose from `s-7 + s-3` or are hand-set per
+template - the scale above is the atomic unit.
 
-### Set
+### Breakpoints
 
-**Lucide** (`lucide-icons`), at 16px or 20px, stroke-width 1.5, color
-`ink-muted` default, `ink` on hover. Lucide is open, complete, and visually
-neutral — it does not impose a brand of its own. Frontend-designer should
-import only the specific glyphs used, not the whole set.
+| Token | Min width | Notes                                       |
+|-------|-----------|---------------------------------------------|
+| `sm`  | 0         | Mobile. Single column.                       |
+| `md`  | 640px     | Larger phones, small tablets.                |
+| `lg`  | 960px     | Tablet landscape, small laptop.              |
+| `xl`  | 1200px    | Desktop default.                             |
+| `2xl` | 1440px    | Large desktop. Margin grows, content does not. |
 
 ---
 
-## 8. Motion and interaction
+## 8. Iconography
 
-**Stance: restrained. Motion serves comprehension, never decoration.**
+**Text-first. ASCII glyphs preferred over icon fonts.**
+
+The Vignelli register treats icons as a failure mode. If a thing can be
+named with a word, it gets a word. If a direction can be encoded by an
+ASCII triangle, no SVG icon is needed.
+
+**Where we use ASCII glyphs:**
+- Direction: `U+25B2` / `U+25BC` / `U+2014`.
+- Pipe separator in nav and eyebrows: `|` (regular ASCII pipe).
+- Sort indicator: `U+25B2` / `U+25BC`.
+- En dash for ranges: `U+2013`.
+- Em dash for emphasis / pauses / placeholders: `U+2014`.
+
+**Where we do not use icons:**
+- Navigation labels. The word is the label.
+- Section eyebrows. The figure number is a stamp; no decorative icon.
+- Chart annotations. Typography carries the annotation; no info-icon.
+- Buttons. Text-only.
+- Status indicators. A typographic stamp, not a colored dot.
+
+**The single icon-set fallback** for genuinely necessary icons (e.g. an
+external-link affordance, an expand-collapse on a disclosure) is
+**Lucide** at 16px, stroke-width 1.5, color pure ink. Imported per-glyph,
+never as a bulk set. Used sparingly.
+
+**No emoji.** Anywhere. In shipped UI. (Per the user's repository
+instructions: ASCII-only.)
+
+---
+
+## 9. Motion and interaction
+
+**Restrained. Motion serves comprehension, never decoration.**
 
 ### What we animate
 
-- **Tooltip / annotation reveals on chart hover:** 120ms ease-out fade.
-  Tooltip background `surface`, 1px `rule` border, no shadow, `body-sm`
-  inside.
+- **Link hover:** 100ms ease-out color + text-decoration-color
+  transition to `--accent`.
+- **Button hover:** 100ms ease-out background-color transition.
+- **Underline border on mark/nav-link hover:** 80ms linear.
+- **Tooltip reveal on chart hover:** native browser SVG `<title>`
+  tooltip - no JS, no fade.
 - **Disclosure expand/collapse:** 200ms ease-in-out height transition.
-- **Page navigation focus rings:** instant (no animation on focus).
-- **Link underline thickness on hover:** 100ms color/thickness transition.
 
 ### What we never animate
 
-- **Entrance animations on page load.** No fade-up paragraphs, no
-  staggered card reveals. The page renders and is there.
-- **Number tickers / count-up.** A number is a number. Animating it
-  pretends to a discovery moment the reader is not having.
-- **Scroll-triggered chart redraws** as the primary interaction. We may
-  do a scrollytelling piece occasionally, but it is a deliberate format
-  choice, not the default.
-- **Hover effects on non-interactive elements.** If it does not do
-  something on click, it does not respond on hover.
+- **Entrance animations on page load.** The page renders and is there.
+  No fade-up paragraphs. No staggered card reveals.
+- **Number tickers / count-up.** A number is a measurement.
+- **Scroll-triggered chart redraws** as the default. Scrollytelling, if
+  done, is a deliberate format choice for a specific feature, not the
+  default.
+- **Hover effects on non-interactive elements.**
 - **Parallax. Ever.**
+- **Focus rings.** Instant. `outline: 2px solid var(--accent); outline-
+  offset: 3px;` with no transition.
 
 ### Reduced motion
 
-Respect `prefers-reduced-motion: reduce`. Under reduced motion:
-- Disclosure becomes instant.
-- Tooltip fade becomes instant.
-- Any future scrollytelling pieces fall back to a stacked, all-revealed
-  layout.
-
-### Interaction model for charts
-
-- **Default state shows the story.** A chart at rest must communicate its
-  point without any hover. Hover is for precise values, not for the
-  takeaway.
-- **Tooltips give precision, not narrative.** Tooltip content: date, value,
-  unit. That is it. The narrative lives in the title, deck, and
-  annotations.
-- **Mobile: tap to read tooltip, tap-elsewhere to dismiss.** No
-  hover-equivalent hacks.
-- **No crosshair lines across the full chart on hover** unless the chart
-  is a multi-series time-series where comparing values at a date is the
-  point. Default: dot + tooltip only.
+`prefers-reduced-motion: reduce` collapses all durations to 0.01ms via
+the global rule in `base.css`. Disclosure becomes instant; hover color
+transitions become instant; scrollytelling fallback to a stacked,
+all-revealed layout.
 
 ---
 
-## Appendix A — Token summary (for implementation)
+## 10. Cohesion rules
+
+How charts and surrounding page share design language. When a chart
+feels native to its page rather than pasted in, this section is doing
+its job.
+
+- **The chart's plot frame is the same 1px black hairline as the panel
+  table's row dividers and the section header's closing rule.** One
+  hairline vocabulary across the entire page.
+- **The chart's tick labels are the same Plex Mono regular as the
+  table's numeric column.** A reader's eye reading a y-tick reads
+  the same family weight and style as a reader reading a table cell -
+  the chart's number reads as a measurement, the table's number reads
+  as a measurement, they are the same kind of object.
+- **The chart's direct label is the same Manrope 600 micro-caps as the
+  eyebrow.** A "PLATE 01" in the eyebrow and a "CPI YoY" at the line
+  terminus are visually the same kind of stamp.
+- **The chart's latest-point dot is the same `--accent` signal red as
+  the plate-number numeral in the eyebrow.** The brand-signal moment
+  threads across the panel.
+- **The chart's recession band is the same 6% ink wash as any other
+  background tint on the page.** One wash treatment.
+- **The chart's prose interpretation is the same Manrope 400 body-sm
+  as the panel's lede.** Chart-adjacent prose reads as continuous
+  with chart-non-adjacent prose; the chart and the prose are one
+  object.
+- **The chart's source line is the same Plex Mono 11px as the section's
+  citation block.** Source attribution is a single typographic ritual,
+  not a chart-specific affordance.
+
+If a chart and its surrounding page feel like two objects, the
+cohesion has failed. Fix at the chart's typographic chrome (axis
+labels, direct labels, source line), not at the page's container.
+
+---
+
+## 11. Decisions flagged for the user
+
+- **Mid-gray token.** All `--ink-*` tokens currently resolve to pure
+  black. Placeholder ink (e.g. the `[ NOT WIRED ]` stamps and the
+  faint chrome on lorem-ipsum copy in homepage panels) is hard-coded
+  `#8A8A8A` at the call site (e.g. `SectionPanel.astro`
+  `.vig-panel__placeholder`). We have chosen to keep the token surface
+  monochrome rather than reify a mid-gray token. The opacity-
+  composition pattern (token + `opacity` at the call site) handles
+  most chrome cases. Placeholder ink remains a hard-coded escape
+  hatch. **If placeholder ink becomes pervasive across components, we
+  should revisit and either (a) reify `--ink-placeholder: #8A8A8A` as
+  a real token, or (b) standardize on opacity-composition for
+  placeholder copy too.**
+- **MTA red rendering.** `#E63946` is the production rendering. It is
+  slightly warmer than the canonical 1972 MTA red (closer to a 1960s
+  Knoll catalogue red than a transit-signage red). If editorial wants
+  a cooler / more orthodox MTA red (e.g. `#EE352E` or `#D7202F`), this
+  is a one-token swap; no other code needs to change.
+- **Section accents on chartbook pages.** The Vignelli homepage uses
+  one accent only (`--accent`). Section pages may pick up their
+  assigned `--section-accent-*` token on the plate-number eyebrow and
+  primary chart series (Phase 2). The decision of "homepage = one
+  accent, section pages = per-section accent" is a deliberate split;
+  if editorial wants total uniformity (one accent everywhere, even on
+  section pages), say so and the `--section-accent-*` tokens collapse
+  to `--accent`.
+- **The categorical chart palette.** `--series-1` through `--series-7`
+  retain their pre-Vignelli hex values (deep blue, burnt orange, etc.)
+  Phase 2 section-page multi-series charts will consume them. If
+  editorial wants the categorical palette to also Vignelli-ize
+  (monochrome with weight / dash-pattern distinctions instead of
+  hue), this is a Phase 2 decision and should be raised before the
+  first multi-series section chart lands.
+- **Callout component retirement.** `Callout.astro` is deprecated in
+  the canon but remains in the codebase. New work should not use it.
+  We have not flagged it for deletion because Phase 2 may revive a
+  callout pattern with a Vignelli-compatible treatment (e.g. a 1px
+  ink top + bottom rule sandwich with no fill).
+
+---
+
+## Appendix A - Token summary (the production reality)
 
 ```
-/* Colors */
---paper:        #FBF8F2;
+/* Color: neutrals */
+--paper:        #FFFFFF;
 --surface:      #FFFFFF;
---surface-sunk: #F4F0E8;
---ink:          #15171A;
---ink-muted:    #4A4F57;
---ink-faint:    #7A7F88;
---rule:         #D9D3C7;
---rule-faint:   #ECE7DC;
+--surface-sunk: #FFFFFF;
+--ink:          #000000;
+--ink-muted:    #000000;
+--ink-faint:    #000000;
+--rule:         #000000;
+--rule-faint:   #000000;
 
---accent:       #A6192E;
---accent-soft:  #F1D9DC;
+/* Color: accent (signal red, MTA / Vignelli) */
+--accent:       #E63946;
+--accent-soft:  #FAD4D7;
 
---pos:          #1F6B3A;
---pos-soft:     #D4E5D8;
---neg:          #B23A2F;
---neg-soft:     #EAD3CE;
---neutral:      #5A6470;
---neutral-soft: #DDE0E4;
+/* Color: semantic (retired for direction; defined for legacy) */
+--pos:          #000000;
+--pos-soft:     #FFFFFF;
+--neg:          #000000;
+--neg-soft:     #FFFFFF;
+--neutral:      #000000;
+--neutral-soft: #FFFFFF;
 
+/* Color: categorical chart series (Phase 2 multi-series) */
 --series-1:     #1F4E79;
 --series-2:     #C9772A;
 --series-3:     #5B7553;
@@ -955,32 +1038,86 @@ Respect `prefers-reduced-motion: reduce`. Under reduced motion:
 --series-6:     #8A6A2C;
 --series-7:     #4A4F57;
 
+/* Color: section accents (Phase 2 section-page wayfinding) */
+--section-accent-gdp:       var(--series-1);
+--section-accent-inflation: var(--accent);
+--section-accent-labour:    var(--series-3);
+--section-accent-housing:   var(--series-2);
+--section-accent-policy:    var(--series-4);
+--section-accent-markets:   var(--series-5);
+--section-accent-trade:     var(--series-6);
+
 /* Spacing */
+--s-0: 0;
 --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
 --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 72px; --s-9: 112px;
 
 /* Type families */
---font-serif: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
---font-sans:  "Inter", "Inter var", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
---font-mono:  "IBM Plex Mono", "JetBrains Mono", "Consolas", "Menlo", monospace;
+--font-sans:  "Manrope", "Helvetica Neue", Helvetica, Arial, sans-serif;
+--font-serif: var(--font-sans);  /* aliased for legacy */
+--font-mono:  "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+/* Type weights */
+--fw-extralight: 200;
+--fw-regular:    400;
+--fw-medium:     600;
+--fw-semibold:   600;
+--fw-extrabold:  800;
+/* Black (900) is reserved for the wordmark only; not tokenized. */
 
 /* Layout */
---col-body:  680px;
---col-wide:  1040px;
---col-page:  1200px;
+--col-body:        680px;
+--col-wide:        1040px;
+--col-page:        1240px;
+--gutter-desktop:  40px;
+--gutter-mobile:   24px;
+
+/* Borders */
+--radius-card:  0;
+--border-hair:  1px;
+
+/* Motion */
+--dur-fast:        100ms;
+--dur-tooltip:     120ms;
+--dur-disclosure:  200ms;
+--ease-out:        cubic-bezier(0.22, 1, 0.36, 1);
+--ease-in-out:     cubic-bezier(0.65, 0, 0.35, 1);
 ```
 
 ---
 
-## Appendix B — Open questions / to revisit
+## Appendix B - Component map (what is real, what is deprecated)
 
-- Print stylesheet — defer to v1.1. If we get a "print this page" request
-  from readers, design then.
-- Dark mode — deferred, see section 3.
-- Brand mark / logo — out of scope for v1 visual identity. If editorial
-  requests one, art-director will design separately.
-- Data table sort/filter UX — defer to first table that actually needs it.
-- Localization (FR) — Canadian context, likely needed eventually. Type
-  scale and spacing should accommodate French (~20% longer copy on
-  average). Body column 680px is generous enough; chart labels will need
-  per-chart review.
+**Production (live in v1.0):**
+- `src/components/home/VignelliMasthead.astro`
+- `src/components/home/TitleStatement.astro`
+- `src/components/home/SectionPanel.astro`
+- `src/components/home/DeepDivePanel.astro`
+- `src/components/home/VignelliColophon.astro`
+- `src/components/section/SectionPageHeader.astro`
+- `src/components/section/ChartbookUnit.astro`
+- `src/components/charts/MiniChart.astro`
+- `src/components/charts/inflation/Panel1HeadlineCPI.astro`
+- `src/components/charts/inflation/Panel2CoreTrio.astro`
+- `src/components/charts/inflation/Panel3Breadth.astro`
+- `src/components/charts/inflation/Panel4SubAggregates.astro`
+- `src/components/charts/inflation/Panel5Expectations.astro`
+- `src/components/charts/inflation/Panel6PassThrough.astro`
+- `src/components/charts/gdp/Panel1HeadlineGDP.astro` ... `Panel6RecessionState.astro`
+- `src/components/charts/labour/Panel1LFSHeadline.astro` ... `Panel6RegionalDumbbell.astro`
+- `src/components/Sparkline.astro` (tier 1 sparkline; in use)
+
+**Deprecated (in codebase but not part of the v1.0 canon; new work
+should not use):**
+- `src/components/charts/HeroChart.astro` - the hero-chart concept is
+  retired; this component remains as a mini-chart variant for legacy
+  pages.
+- `src/components/Callout.astro` - background-filled callout; the
+  Vignelli register does not use it.
+- `src/components/Blurb.astro`, `Card.astro`, `Kicker.astro`,
+  `SectionTile.astro`, `CompactTile.astro`, `DeepDiveCard.astro`,
+  `HeroTile.astro` - pre-Vignelli scaffolding. Some may be revived in
+  Phase 2 with Vignelli-compatible treatments; others are slated for
+  removal.
+- `src/components/experiments/**` - the experiments dir is the design
+  R&D playground; not production.
