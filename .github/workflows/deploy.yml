@@ -45,27 +45,18 @@ jobs:
       - name: Check build-time file references
         run: node scripts/check_buildtime_file_refs.mjs
 
-      # Playwright browsers for the visual-regression gate below. Pinned
-      # to chromium to keep install time bounded (~30s). If install hits
-      # a transient mirror snag we can `continue-on-error` on this step
-      # and the visual step temporarily; do not silently skip both.
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
       - name: Build Astro site
         # Uses package.json `build` script: `astro check && astro build`.
-        # Site config in astro.config.mjs sets base='/sibley-creek' so the
-        # output is path-prefixed correctly for jayzhaomurray.github.io/sibley-creek/.
         run: npm run build
 
-      # Visual-regression gate. `test:visual` overlays fixtures, has
-      # Playwright's webServer rebuild + preview the site, runs the snapshot
-      # suite against committed baselines under tests/visual/__snapshots__/,
-      # and restores fixtures on exit. If a baseline is stale because of
-      # a legit layout change, re-baseline locally with
-      # `npm run test:visual:update` and push.
-      - name: Run visual regression
-        run: npm run test:visual
+      # NOTE: visual regression gate temporarily disabled.
+      # Playwright snapshot filenames are platform-suffixed by default
+      # (`*-win32.png` for Windows local, `*-linux.png` for CI Ubuntu).
+      # Baselines committed locally on Windows are not portable to Linux
+      # CI without either (a) generating Linux baselines via a separate
+      # workflow_dispatch + commit, or (b) configuring Playwright's
+      # `snapshotPathTemplate` to strip the platform suffix. Re-enable
+      # this step after either fix lands.
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
