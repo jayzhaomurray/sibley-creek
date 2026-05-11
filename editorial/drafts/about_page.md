@@ -35,13 +35,13 @@ the IMF, and the OECD -- not bank morning notes. The Big-Six
 economics desks are competitors to measure against, not voices to
 quote. Constructed series carry a methodology note one click away.
 
-The name comes from Sibley Creek, on the Sibley Peninsula in Sleeping
-Giant Provincial Park on the north shore of Lake Superior. The mark
-that threads through the masthead, the social cards, and the favicon
-is the Giant himself -- three flat-topped mesas separated by two
-erosion notches, reclining on his back. The name signals the
-publication's posture: Canadian, geographically specific, quietly
-durable, indifferent to fashion.
+The name comes from Sibley Creek, a small stream on the Sibley
+Peninsula in Sleeping Giant Provincial Park on the north shore of Lake
+Superior. We took the creek rather than the Giant because naming the
+publication after the landmark would have overclaimed -- the creek is
+the more honest address. The brand mark uses the Giant: three
+flat-topped mesas separated by two erosion notches, reclining on his
+back.
 
 Sibley Creek is written by Jay Zhao-Murray, formerly Canada economics
 data editor at Bloomberg in Ottawa and, before that, a foreign-exchange
