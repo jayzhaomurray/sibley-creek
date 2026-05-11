@@ -1,0 +1,225 @@
+---
+/*
+ * Academic-textbook DeepDivePanel - occupies the 8th cell of the grid as
+ * "Working Papers" in the mid-century journal register.
+ *
+ * Reads like the back-of-the-book papers index: PLATE VIII header,
+ * numbered list with pillar codes set in mono, italic deck.
+ */
+
+import type { DeepDive } from "../../../data/sections";
+
+interface Props {
+  deepDives: DeepDive[];
+  /**
+   * Sequential figure index across the grid (8 in the canonical ordering).
+   * Retained for parity with SectionPanel's prop shape and for future
+   * use if a figure caption is reinstated on this panel. Not rendered
+   * today (the panel's plate index is the load-bearing identifier).
+   */
+  figureNum: string;
+  plate: string;
+}
+
+const { deepDives, plate } = Astro.props;
+
+const ordered = [...deepDives].sort((a, b) =>
+  a.lastUpdated < b.lastUpdated ? 1 : -1,
+);
+
+const statusLabel = (s: "research" | "drafted" | "shipped") =>
+  s === "shipped" ? "Shipped"
+  : s === "drafted" ? "Drafted"
+  : "In research";
+---
+<article class="atx-dd" aria-labelledby="atx-dd-h">
+  <header class="atx-dd__head">
+    <div class="atx-dd__head-left">
+      <p class="atx-dd__plate">
+        <span class="atx-dd__plate-word">Plate</span>
+        <span class="atx-dd__plate-num">{plate}</span>
+      </p>
+      <h2 id="atx-dd-h" class="atx-dd__h">Working Papers</h2>
+    </div>
+    <p class="atx-dd__count">
+      {ordered.length} active
+    </p>
+  </header>
+
+  <p class="atx-dd__lede">
+    Current deep dives by the department. Pillar codes follow the editorial
+    canon. Updated as drafts move through research, drafted, and shipped.
+  </p>
+
+  <ol class="atx-dd__list" role="list">
+    {ordered.map((dd, i) => (
+      <li class="atx-dd__row">
+        <div class="atx-dd__row-num" aria-hidden="true">
+          <span class="atx-dd__row-num-n">{String(i + 1).padStart(2, "0")}</span>
+        </div>
+        <div class="atx-dd__row-body">
+          <p class="atx-dd__row-meta">
+            <span class="atx-dd__pillar">Pillar {dd.pillar}</span>
+            <span class="atx-dd__row-sep" aria-hidden="true">&middot;</span>
+            <span class="atx-dd__section">{dd.section}</span>
+            <span class="atx-dd__row-sep" aria-hidden="true">&middot;</span>
+            <span class={`atx-dd__status atx-dd__status--${dd.status}`}>{statusLabel(dd.status)}</span>
+          </p>
+          <h3 class="atx-dd__title">{dd.title}</h3>
+          <p class="atx-dd__deck"><em>{dd.deck}</em></p>
+          <p class="atx-dd__stamp">Updated {dd.lastUpdated}</p>
+        </div>
+      </li>
+    ))}
+  </ol>
+</article>
+
+<style>
+  .atx-dd {
+    background: var(--atx-panel);
+    border: 0.5px solid var(--atx-rule);
+    border-top: 2px solid var(--atx-forest);
+    padding: 16px 20px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 100%;
+    position: relative;
+    z-index: 2;
+  }
+
+  .atx-dd__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 0.5px solid var(--atx-rule);
+    padding-bottom: 9px;
+  }
+  .atx-dd__plate {
+    margin: 0;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    font-family: var(--atx-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--atx-ink-soft);
+  }
+  .atx-dd__plate-num {
+    color: var(--atx-brick);
+    font-weight: 500;
+    letter-spacing: 0.12em;
+  }
+  .atx-dd__h {
+    margin: 6px 0 0;
+    font-family: var(--atx-display);
+    font-weight: 700;
+    font-size: 22px;
+    line-height: 1.05;
+    letter-spacing: 0.04em;
+    color: var(--atx-ink);
+    font-variant: small-caps;
+    text-transform: lowercase;
+  }
+  .atx-dd__count {
+    margin: 0;
+    font-family: var(--atx-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--atx-ink-soft);
+  }
+
+  .atx-dd__lede {
+    margin: 0;
+    font-family: var(--atx-body);
+    font-weight: 300;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--atx-ink);
+    max-width: 56ch;
+  }
+
+  .atx-dd__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-top: 1px solid var(--atx-forest);
+  }
+  .atx-dd__row {
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    gap: 10px;
+    padding: 11px 0 13px;
+    border-bottom: 0.5px solid var(--atx-rule);
+  }
+  .atx-dd__row:last-child {
+    border-bottom: 0;
+  }
+  .atx-dd__row-num {
+    font-family: var(--atx-mono);
+    font-size: 11px;
+    line-height: 1;
+    color: var(--atx-ochre);
+    padding-top: 3px;
+  }
+  .atx-dd__row-num-n {
+    font-variant-numeric: tabular-nums;
+  }
+  .atx-dd__row-body { min-width: 0; }
+
+  .atx-dd__row-meta {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    font-family: var(--atx-mono);
+    font-size: 9.5px;
+    line-height: 1.1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--atx-ink-soft);
+  }
+  .atx-dd__pillar { color: var(--atx-forest); font-weight: 500; }
+  .atx-dd__section { color: var(--atx-ink); }
+  .atx-dd__row-sep { color: var(--atx-rule); }
+  .atx-dd__status { font-weight: 500; }
+  .atx-dd__status--shipped { color: var(--atx-forest); }
+  .atx-dd__status--drafted { color: var(--atx-ochre); }
+  .atx-dd__status--research { color: var(--atx-ink-soft); }
+
+  .atx-dd__title {
+    margin: 6px 0 0;
+    font-family: var(--atx-display);
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 1.25;
+    color: var(--atx-ink);
+  }
+  .atx-dd__deck {
+    margin: 5px 0 0;
+    font-family: var(--atx-body);
+    font-weight: 400;
+    font-style: italic;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--atx-ink);
+    max-width: 52ch;
+  }
+  .atx-dd__stamp {
+    margin: 7px 0 0;
+    font-family: var(--atx-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--atx-ink-soft);
+  }
+</style>

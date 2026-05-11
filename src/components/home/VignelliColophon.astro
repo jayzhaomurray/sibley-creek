@@ -1,0 +1,258 @@
+---
+/*
+ * VignelliColophon - site-wide page footer for the production canon.
+ *
+ * Adapted from src/components/experiments/academic-vignelli/Colophon.astro,
+ * promoted out of the experiments dir. Differences from the splash version:
+ *
+ *   - Reads `site` + `nextRelease` from data/sections.ts (no props for
+ *     publication / nextRelease shape; the footer is always-on chrome).
+ *   - Drops the "This page is a design experiment..." disclaimer line; this
+ *     is the production footer. The placeholder-vintage caveat is still
+ *     present as a single short sentence.
+ *   - "Produced" stamp uses the current date so the footer always reflects
+ *     the build.
+ *
+ * Aesthetic discipline:
+ *   - Two stacked rules above the row: signal red 2px + pure black 1px.
+ *     The single brand-signal moment in the footer.
+ *   - One sans family (Manrope) for everything; values that are numeric
+ *     (next-release date, produced date) use IBM Plex Mono regular.
+ *   - Black hairlines between blocks.
+ */
+
+import { site, nextRelease } from "../../data/sections";
+
+const today = new Date();
+const produced = today.toISOString().slice(0, 10);
+const currentYear = today.getFullYear();
+---
+<footer class="vig-col" role="contentinfo">
+  <div class="vig-col__rules" aria-hidden="true">
+    <hr class="vig-col__rule vig-col__rule--signal" />
+    <hr class="vig-col__rule vig-col__rule--ink" />
+  </div>
+
+  <div class="vig-col__row">
+    <p class="vig-col__mark">
+      <span class="vig-col__mark-name">{site.name}</span>
+      <span class="vig-col__sep" aria-hidden="true"></span>
+      <span class="vig-col__sub">Independent research.</span>
+    </p>
+    <p class="vig-col__notes">
+      Series are placeholder values for the v1 release. Reported values match
+      the most recently published vintage; revisions are not reconciled
+      across releases.
+    </p>
+  </div>
+
+  <dl class="vig-col__stamps">
+    <div class="vig-col__stamp">
+      <dt>Next release</dt>
+      <dd>
+        <span class="vig-col__stamp-strong">{nextRelease.label}</span>
+        <span class="vig-col__stamp-sep" aria-hidden="true"></span>
+        <span class="vig-col__stamp-soft">{nextRelease.date}</span>
+        <span class="vig-col__stamp-sep" aria-hidden="true"></span>
+        <span class="vig-col__stamp-soft">{nextRelease.agency}</span>
+      </dd>
+    </div>
+    <div class="vig-col__stamp">
+      <dt>Produced</dt>
+      <dd><span class="vig-col__stamp-soft">{produced}</span></dd>
+    </div>
+    <div class="vig-col__stamp">
+      <dt>Edition</dt>
+      <dd><span class="vig-col__stamp-soft">v1</span></dd>
+    </div>
+  </dl>
+
+  <nav class="vig-col__nav" aria-label="Site information">
+    <ul role="list" class="vig-col__nav-list">
+      <li><a href="/about/">About</a></li>
+      <li><a href="/methodology/">Methodology</a></li>
+      <li><a href="/sources/">Sources</a></li>
+      <li><a href="/accessibility/">Accessibility</a></li>
+    </ul>
+  </nav>
+
+  <p class="vig-col__copy">
+    (c) {currentYear} {site.name}. Data attributed at point of use.
+  </p>
+</footer>
+
+<style>
+  .vig-col {
+    padding-block: 22px 32px;
+  }
+  .vig-col__rules {
+    margin: 0 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .vig-col__rule {
+    border: 0;
+    margin: 0;
+  }
+  .vig-col__rule--signal {
+    border-top: 2px solid var(--accent);
+  }
+  .vig-col__rule--ink {
+    border-top: 1px solid var(--ink);
+  }
+  .vig-col__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  @media (min-width: 720px) {
+    .vig-col__row {
+      grid-template-columns: 1fr 2fr;
+      gap: 32px;
+    }
+  }
+  .vig-col__mark {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.3;
+    color: var(--ink);
+  }
+  .vig-col__mark-name {
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 12px;
+  }
+  .vig-col__sep {
+    display: inline-block;
+    width: 1px;
+    height: 11px;
+    background: var(--ink);
+  }
+  .vig-col__sub {
+    color: var(--ink);
+    font-weight: 200;
+    font-size: 13px;
+  }
+  .vig-col__notes {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 200;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--ink);
+    max-width: 76ch;
+  }
+
+  .vig-col__stamps {
+    margin: 18px 0 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    border-top: 1px solid var(--ink);
+    padding-top: 12px;
+  }
+  @media (min-width: 720px) {
+    .vig-col__stamps {
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 20px;
+    }
+  }
+  .vig-col__stamp {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .vig-col__stamp dt {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 9.5px;
+    line-height: 1;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink);
+    flex: 0 0 auto;
+  }
+  .vig-col__stamp dd {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    line-height: 1.2;
+    color: var(--ink);
+  }
+  .vig-col__stamp-strong {
+    color: var(--ink);
+    font-weight: 800;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+  .vig-col__stamp-soft {
+    color: var(--ink);
+    font-weight: 400;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+  }
+  .vig-col__stamp-sep {
+    display: inline-block;
+    width: 1px;
+    height: 9px;
+    background: var(--ink);
+  }
+
+  .vig-col__nav {
+    margin-top: 18px;
+    padding-top: 12px;
+    border-top: 1px solid var(--ink);
+  }
+  .vig-col__nav-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .vig-col__nav-list a {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    padding-bottom: 1px;
+    transition: border-color 80ms linear;
+  }
+  .vig-col__nav-list a:hover {
+    border-bottom-color: var(--ink);
+  }
+  .vig-col__nav-list a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  .vig-col__copy {
+    margin: 14px 0 0;
+    font-family: var(--font-sans);
+    font-weight: 200;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--ink);
+  }
+</style>

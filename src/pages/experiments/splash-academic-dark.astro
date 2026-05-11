@@ -1,0 +1,278 @@
+---
+/*
+ * Splash experiment: Lane I-Dark — GDPNow Academic, dark theme.
+ *
+ * Aesthetic variation on Lane I. Layout identical to splash-gdpnow.astro:
+ * small institutional masthead, brief title statement, seven sections in
+ * a 2x4 grid with the 8th cell occupied by "Working papers" (deep dives),
+ * colophon. No hero, no motion, zero JS.
+ *
+ * Theme differs from Lane I:
+ *   - Bloomberg-Terminal-academic dark
+ *   - Page #0E1014 charcoal, panels #15181D (lift)
+ *   - Warm off-white ink #E8E6DC
+ *   - Electric teal accent #3FC8C5 (replaces gold)
+ *   - Muted slate #7A8088 secondary
+ *   - Dark hairline #2A2F36
+ *   - Low-saturation dark-mode signal colors
+ *   - Display serif Lora 400; body Source Sans 3 300/400; data IBM Plex Mono
+ *
+ * Entirely self-contained: no production homepage components, no shared
+ * design tokens. Aesthetic choices scoped under
+ * `src/components/experiments/academic-dark/`.
+ *
+ * Reads (read-only): src/data/sections.ts.
+ * Does not touch: pipeline/, design/, editorial/, .claude/,
+ *                 src/pages/index.astro, other splash experiments.
+ */
+
+import {
+  sections,
+  deepDives,
+  nextRelease,
+  site,
+  type Section,
+} from "../../data/sections";
+
+import Masthead from "../../components/experiments/academic-dark/Masthead.astro";
+import TitleStatement from "../../components/experiments/academic-dark/TitleStatement.astro";
+import SectionPanel from "../../components/experiments/academic-dark/SectionPanel.astro";
+import DeepDivePanel from "../../components/experiments/academic-dark/DeepDivePanel.astro";
+import Colophon from "../../components/experiments/academic-dark/Colophon.astro";
+
+// Canonical section ordering — matches Lane I exactly.
+const ordered: Section[] = (
+  ["gdp", "inflation", "labour", "housing", "policy", "markets", "trade"] as const
+)
+  .map((slug) => sections.find((s) => s.slug === slug))
+  .filter((s): s is Section => Boolean(s));
+
+// Title-statement date line, sentence-case month per the lane spec.
+const today = new Date(Date.UTC(2026, 4, 11)); // May 11, 2026
+const longDate = today.toLocaleDateString("en-CA", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+// Produced stamp for the colophon.
+const produced = today.toISOString().slice(0, 10);
+const edition = "Lane I-Dark · Bloomberg-Terminal-academic dark";
+
+const pageTitle = `${site.name} — Canadian Macro Overview, ${longDate}`;
+const pageDesc =
+  "A staff-page academic splash for Canadian macro on a dark Bloomberg-terminal palette: seven indicator panels with small precise charts, headline readings, and three working papers. Calm, institutional, reading-first.";
+
+const abstract =
+  "A reading-first summary of the Canadian macro picture as of " +
+  longDate +
+  ". Seven indicator domains, each rendered as a compact panel with one " +
+  "load-bearing chart, the latest headline reading, and a small table of " +
+  "supporting prints. Working papers index follows the section grid.";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#0E1014" />
+    <meta name="color-scheme" content="dark" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta property="og:locale" content="en_CA" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=Source+Sans+3:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+  </head>
+  <body class="dark-body">
+    <a class="dark-skip" href="#dark-main">Skip to main content</a>
+
+    <div class="dark-shell">
+      <Masthead publication={site.name} asOf={longDate} edition="Lane I-Dark" />
+
+      <main id="dark-main" class="dark-main">
+        <TitleStatement
+          dateLine={longDate}
+          abstract={abstract}
+          sections={sections}
+        />
+
+        <section class="dark-grid" aria-label="Indicator panels">
+          <h2 class="dark-vh">Indicator panels</h2>
+          {ordered.map((s, i) => (
+            <div class="dark-grid__cell">
+              <SectionPanel section={s} figureNum={String(i + 1)} />
+            </div>
+          ))}
+          {/* 8th cell: working papers */}
+          <div class="dark-grid__cell">
+            <DeepDivePanel deepDives={deepDives} figureNum="8" />
+          </div>
+        </section>
+
+        <Colophon
+          publication={site.name}
+          nextLabel={nextRelease.label}
+          nextDate={nextRelease.date}
+          nextAgency={nextRelease.agency}
+          produced={produced}
+          edition={edition}
+        />
+      </main>
+    </div>
+
+    <style is:global>
+      /* ===========================================================
+       * Lane I-Dark — GDPNow Academic, dark theme.
+       * Bloomberg-Terminal-academic dark palette + three font families.
+       * =========================================================== */
+      :root {
+        --dark-page: #0E1014;
+        --dark-panel: #15181D;
+        --dark-ink: #E8E6DC;
+        --dark-teal: #3FC8C5;
+        --dark-slate: #7A8088;
+        --dark-rule: #2A2F36;
+        --dark-pos: #5BC97A;
+        --dark-neg: #E07A6D;
+
+        --dark-display: "Lora", "Cormorant Garamond", Georgia, "Times New Roman", serif;
+        --dark-body: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        --dark-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+        --dark-max: 1240px;
+        --dark-gutter: 24px;
+      }
+
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--dark-page);
+        color: var(--dark-ink);
+      }
+      body.dark-body {
+        font-family: var(--dark-body);
+        font-weight: 300;
+        font-size: 15px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "kern" 1, "liga" 1;
+        font-variant-numeric: lining-nums;
+        min-height: 100vh;
+      }
+
+      a {
+        color: var(--dark-teal);
+      }
+
+      h1, h2, h3, h4 {
+        margin: 0;
+      }
+
+      ::selection {
+        background: rgba(63, 200, 197, 0.28);
+        color: var(--dark-ink);
+      }
+
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--dark-teal);
+        outline-offset: 3px;
+      }
+
+      .dark-skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+      }
+      .dark-skip:focus {
+        position: static;
+        display: inline-block;
+        margin: 8px 0 0 12px;
+        background: var(--dark-teal);
+        color: var(--dark-page);
+        padding: 6px 10px;
+        font-family: var(--dark-mono);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-decoration: none;
+      }
+
+      .dark-vh {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
+
+    <style>
+      .dark-shell {
+        width: 100%;
+        max-width: var(--dark-max);
+        margin: 0 auto;
+        padding: 0 var(--dark-gutter) 0;
+      }
+      @media (min-width: 1100px) {
+        .dark-shell {
+          padding-inline: 40px;
+        }
+      }
+
+      .dark-main {
+        padding-block: 0 0;
+      }
+
+      .dark-grid {
+        margin-top: 28px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+      @media (min-width: 760px) {
+        .dark-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 20px;
+        }
+      }
+      @media (min-width: 1100px) {
+        .dark-grid {
+          gap: 24px;
+        }
+      }
+      .dark-grid__cell {
+        min-width: 0;
+        display: flex;
+      }
+      .dark-grid__cell > * {
+        width: 100%;
+      }
+    </style>
+  </body>
+</html>

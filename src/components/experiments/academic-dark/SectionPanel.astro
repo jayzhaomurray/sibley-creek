@@ -1,0 +1,492 @@
+---
+/*
+ * Academic-Dark SectionPanel — aesthetic variant of Lane I section panel.
+ *
+ * Structurally identical to gdpnow/SectionPanel.astro:
+ *   header strip   - figure label, section title, cadence
+ *   italic question
+ *   chart + readout (2-col on >=600px)
+ *   small indicator table
+ *
+ * Only theme differs: panel sits slightly lighter than page background so
+ * it lifts, hairlines are dark, chart strokes are teal, plot frame fill
+ * is panel color, signal positives/negatives use lower-saturation
+ * dark-mode-friendly hues.
+ */
+
+import type { Section, SectionPrint } from "../../../data/sections";
+
+interface Props {
+  section: Section;
+  figureNum: string;
+}
+
+const { section, figureNum } = Astro.props as Props;
+
+const loadBearing: SectionPrint = section.chartSeriesKey
+  ? section.prints.find((p: SectionPrint) => p.key === section.chartSeriesKey) ?? section.prints[0]
+  : section.prints[0];
+
+const series: number[] = loadBearing.spark ?? [0, 0.2, 0.3, 0.4];
+
+// Chart geometry preserved from Lane I.
+const W = 320;
+const H = 110;
+const PAD_L = 28;
+const PAD_R = 8;
+const PAD_T = 10;
+const PAD_B = 18;
+
+const plotW = W - PAD_L - PAD_R;
+const plotH = H - PAD_T - PAD_B;
+
+const minV = Math.min(...series);
+const maxV = Math.max(...series);
+const rangeRaw = maxV - minV || 1;
+const yMin = minV - rangeRaw * 0.12;
+const yMax = maxV + rangeRaw * 0.12;
+const yRange = yMax - yMin || 1;
+
+function xOf(i: number): number {
+  return PAD_L + (i / (series.length - 1)) * plotW;
+}
+function yOf(v: number): number {
+  return PAD_T + (1 - (v - yMin) / yRange) * plotH;
+}
+
+const pts = series.map((v: number, i: number) => `${xOf(i).toFixed(2)},${yOf(v).toFixed(2)}`);
+const linePath = "M " + pts.join(" L ");
+
+function fmtTick(v: number): string {
+  const a = Math.abs(v);
+  if (a >= 100) return v.toFixed(0);
+  if (a >= 10) return v.toFixed(1);
+  return v.toFixed(2);
+}
+const ticks = [yMin, (yMin + yMax) / 2, yMax].map((v) => ({
+  v,
+  y: yOf(v),
+  label: fmtTick(v),
+}));
+
+const lastX = xOf(series.length - 1);
+const lastY = yOf(series[series.length - 1] as number);
+
+const zeroInRange = yMin < 0 && yMax > 0;
+const zeroY = zeroInRange ? yOf(0) : null;
+
+const deltaClass = (d: "pos" | "neg" | "neutral") =>
+  d === "pos" ? "dark-panel__delta--pos"
+  : d === "neg" ? "dark-panel__delta--neg"
+  : "dark-panel__delta--neutral";
+
+const allPrints = section.prints;
+---
+<article
+  class="dark-panel"
+  id={`panel-${section.slug}`}
+  aria-labelledby={`panel-${section.slug}-h`}
+>
+  <header class="dark-panel__head">
+    <div class="dark-panel__head-left">
+      <p class="dark-panel__eyebrow">
+        <span class="dark-panel__fig">Figure {figureNum}.</span>
+      </p>
+      <h2 id={`panel-${section.slug}-h`} class="dark-panel__h">
+        <a class="dark-panel__h-link" href={`/${section.slug}/`}>{section.label}</a>
+      </h2>
+    </div>
+    <p class="dark-panel__cadence">{section.cadence}</p>
+  </header>
+
+  <p class="dark-panel__question">{section.headlineQuestion}</p>
+
+  <div class="dark-panel__body">
+    <figure class="dark-panel__fig-wrap">
+      <svg
+        class="dark-panel__svg"
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label={`${loadBearing.indicator}. Latest: ${loadBearing.value} (${loadBearing.asOf}). Change: ${loadBearing.delta}.`}
+      >
+        {/* Plot frame */}
+        <rect
+          x={PAD_L}
+          y={PAD_T}
+          width={plotW}
+          height={plotH}
+          fill="#10131A"
+          stroke="#2A2F36"
+          stroke-width="0.5"
+        />
+        {/* Y-axis tick labels + gridlines */}
+        {ticks.map((t) => (
+          <>
+            <line
+              x1={PAD_L}
+              x2={PAD_L + plotW}
+              y1={t.y}
+              y2={t.y}
+              stroke="#22272E"
+              stroke-width="0.4"
+              stroke-dasharray="1.5 2.5"
+            />
+            <text
+              x={PAD_L - 4}
+              y={t.y}
+              text-anchor="end"
+              dominant-baseline="middle"
+              font-family="IBM Plex Mono, ui-monospace, monospace"
+              font-size="8"
+              fill="#7A8088"
+            >
+              {t.label}
+            </text>
+          </>
+        ))}
+        {/* Zero line if applicable */}
+        {zeroY !== null && (
+          <line
+            x1={PAD_L}
+            x2={PAD_L + plotW}
+            y1={zeroY}
+            y2={zeroY}
+            stroke="#7A8088"
+            stroke-width="0.5"
+          />
+        )}
+        {/* Main series */}
+        <path
+          d={linePath}
+          fill="none"
+          stroke="#3FC8C5"
+          stroke-width="1.4"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
+        {/* Last point */}
+        <circle cx={lastX} cy={lastY} r="2.4" fill="#3FC8C5" stroke="#15181D" stroke-width="0.6" />
+        {/* X-axis baseline */}
+        <line
+          x1={PAD_L}
+          x2={PAD_L + plotW}
+          y1={PAD_T + plotH}
+          y2={PAD_T + plotH}
+          stroke="#E8E6DC"
+          stroke-width="0.5"
+        />
+        {/* X-axis end-labels */}
+        <text
+          x={PAD_L}
+          y={H - 4}
+          text-anchor="start"
+          font-family="IBM Plex Mono, ui-monospace, monospace"
+          font-size="8"
+          fill="#7A8088"
+        >
+          earliest
+        </text>
+        <text
+          x={PAD_L + plotW}
+          y={H - 4}
+          text-anchor="end"
+          font-family="IBM Plex Mono, ui-monospace, monospace"
+          font-size="8"
+          fill="#7A8088"
+        >
+          {loadBearing.asOf}
+        </text>
+      </svg>
+      <figcaption class="dark-panel__cap">
+        <span class="dark-panel__cap-mark">Fig. {figureNum}.</span>
+        {loadBearing.indicator}, recent history.
+        Last observation marked.
+      </figcaption>
+    </figure>
+
+    <aside class="dark-panel__readout" aria-label="Headline reading">
+      <p class="dark-panel__readout-k">{loadBearing.indicator}</p>
+      <p class="dark-panel__readout-v">
+        <span class="dark-panel__readout-num">{loadBearing.value}</span>
+      </p>
+      <p class="dark-panel__readout-meta">
+        <span class:list={["dark-panel__delta", deltaClass(loadBearing.deltaDir)]}>{loadBearing.delta}</span>
+        <span class="dark-panel__readout-asof">{loadBearing.asOf}</span>
+      </p>
+      {section.blurb.body && (
+        <p class="dark-panel__note">
+          {section.blurb.body}
+        </p>
+      )}
+    </aside>
+  </div>
+
+  <table class="dark-panel__table" aria-label={`${section.label} indicators table`}>
+    <thead>
+      <tr>
+        <th scope="col" class="dark-panel__th dark-panel__th--ind">Indicator</th>
+        <th scope="col" class="dark-panel__th dark-panel__th--val">Value</th>
+        <th scope="col" class="dark-panel__th dark-panel__th--delta">Change</th>
+        <th scope="col" class="dark-panel__th dark-panel__th--asof">As of</th>
+      </tr>
+    </thead>
+    <tbody>
+      {allPrints.map((p: SectionPrint) => (
+        <tr class={p === loadBearing ? "dark-panel__tr dark-panel__tr--primary" : "dark-panel__tr"}>
+          <td class="dark-panel__td dark-panel__td--ind">{p.indicator}</td>
+          <td class="dark-panel__td dark-panel__td--val">{p.value}</td>
+          <td class:list={["dark-panel__td", "dark-panel__td--delta", deltaClass(p.deltaDir)]}>{p.delta}</td>
+          <td class="dark-panel__td dark-panel__td--asof">{p.asOf}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</article>
+
+<style>
+  .dark-panel {
+    background: var(--dark-panel);
+    border: 1px solid var(--dark-rule);
+    padding: 16px 18px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 100%;
+  }
+
+  .dark-panel__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--dark-rule);
+    padding-bottom: 8px;
+  }
+  .dark-panel__head-left { min-width: 0; }
+  .dark-panel__eyebrow {
+    margin: 0;
+    font-family: var(--dark-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--dark-slate);
+  }
+  .dark-panel__fig {
+    color: var(--dark-teal);
+  }
+  .dark-panel__h {
+    margin: 4px 0 0;
+    font-family: var(--dark-display);
+    font-weight: 400;
+    font-size: 20px;
+    line-height: 1.1;
+    letter-spacing: 0;
+    color: var(--dark-ink);
+  }
+  .dark-panel__h-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 0.5px solid transparent;
+    transition: color 100ms linear, border-color 100ms linear;
+  }
+  .dark-panel__h-link:hover {
+    color: var(--dark-teal);
+    border-bottom-color: var(--dark-teal);
+  }
+  .dark-panel__h-link:focus-visible {
+    outline: 2px solid var(--dark-teal);
+    outline-offset: 3px;
+  }
+  .dark-panel__cadence {
+    margin: 0;
+    font-family: var(--dark-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--dark-slate);
+    white-space: nowrap;
+  }
+
+  .dark-panel__question {
+    margin: 0;
+    font-family: var(--dark-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 13.5px;
+    line-height: 1.4;
+    color: var(--dark-ink);
+    max-width: 56ch;
+  }
+
+  .dark-panel__body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  @media (min-width: 600px) {
+    .dark-panel__body {
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+  }
+
+  .dark-panel__fig-wrap {
+    margin: 0;
+    min-width: 0;
+  }
+  .dark-panel__svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .dark-panel__cap {
+    margin: 4px 0 0;
+    font-family: var(--dark-body);
+    font-weight: 300;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--dark-slate);
+  }
+  .dark-panel__cap-mark {
+    font-style: italic;
+    font-family: var(--dark-display);
+    color: var(--dark-ink);
+    margin-right: 3px;
+  }
+
+  .dark-panel__readout {
+    min-width: 0;
+    padding-left: 0;
+  }
+  @media (min-width: 600px) {
+    .dark-panel__readout {
+      border-left: 1px solid var(--dark-rule);
+      padding-left: 14px;
+    }
+  }
+  .dark-panel__readout-k {
+    margin: 0;
+    font-family: var(--dark-body);
+    font-weight: 300;
+    font-style: italic;
+    font-size: 12px;
+    line-height: 1.2;
+    color: var(--dark-slate);
+  }
+  .dark-panel__readout-v {
+    margin: 4px 0 0;
+    line-height: 1;
+  }
+  .dark-panel__readout-num {
+    font-family: var(--dark-mono);
+    font-weight: 500;
+    font-size: 28px;
+    line-height: 1;
+    letter-spacing: -0.005em;
+    color: var(--dark-teal);
+    font-variant-numeric: tabular-nums;
+  }
+  .dark-panel__readout-meta {
+    margin: 6px 0 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-family: var(--dark-mono);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.02em;
+  }
+  .dark-panel__readout-asof {
+    color: var(--dark-slate);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+  .dark-panel__note {
+    margin: 10px 0 0;
+    font-family: var(--dark-body);
+    font-weight: 300;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--dark-ink);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 44ch;
+  }
+
+  .dark-panel__delta {
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+  .dark-panel__delta--pos { color: var(--dark-pos); }
+  .dark-panel__delta--neg { color: var(--dark-neg); }
+  .dark-panel__delta--neutral { color: var(--dark-slate); }
+
+  .dark-panel__table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-family: var(--dark-mono);
+    font-size: 11px;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+    color: var(--dark-ink);
+    border-top: 1px solid var(--dark-rule);
+  }
+  .dark-panel__th {
+    text-align: left;
+    font-weight: 500;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--dark-slate);
+    padding: 6px 6px 5px 0;
+    border-bottom: 1px solid var(--dark-rule);
+  }
+  .dark-panel__th--val,
+  .dark-panel__th--delta,
+  .dark-panel__th--asof {
+    text-align: right;
+    padding-right: 0;
+    padding-left: 6px;
+  }
+  .dark-panel__td {
+    padding: 5px 6px 5px 0;
+    border-bottom: 0.5px dotted var(--dark-rule);
+  }
+  .dark-panel__tr:last-child .dark-panel__td {
+    border-bottom: 0;
+  }
+  .dark-panel__td--ind {
+    font-family: var(--dark-body);
+    font-weight: 300;
+    color: var(--dark-ink);
+  }
+  .dark-panel__td--val,
+  .dark-panel__td--delta,
+  .dark-panel__td--asof {
+    text-align: right;
+    padding-right: 0;
+    padding-left: 6px;
+  }
+  .dark-panel__td--asof {
+    color: var(--dark-slate);
+    text-transform: uppercase;
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+  }
+  .dark-panel__tr--primary .dark-panel__td--ind {
+    color: var(--dark-teal);
+    font-weight: 500;
+  }
+  .dark-panel__tr--primary .dark-panel__td--val {
+    font-weight: 500;
+    color: var(--dark-ink);
+  }
+</style>

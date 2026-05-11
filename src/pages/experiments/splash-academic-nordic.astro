@@ -1,0 +1,283 @@
+---
+/*
+ * Splash experiment: Splash I-Nordic — GDPNow layout, Scandinavian product
+ * minimalist register.
+ *
+ * Aesthetic variation on Lane I. Layout is IDENTICAL (masthead, title
+ * statement, 2x4 panel grid with working-papers in the 8th cell,
+ * colophon). The aesthetic shifts to Nordic/Scandinavian product clean:
+ * pure-white canvas, very faint stone panels, graphite ink, deep navy
+ * accent, restrained terracotta on key data signals. All-sans
+ * typography — DM Sans for display + body, JetBrains Mono for data,
+ * NO serif anywhere. Tabular numerals throughout. Airier than Lane I.
+ *
+ * Self-contained: own component directory under
+ * `src/components/experiments/academic-nordic/`. No production-homepage
+ * imports, no shared design tokens.
+ *
+ * Reads (read-only): src/data/sections.ts.
+ */
+
+import {
+  sections,
+  deepDives,
+  nextRelease,
+  site,
+  type Section,
+} from "../../data/sections";
+
+import Masthead from "../../components/experiments/academic-nordic/Masthead.astro";
+import TitleStatement from "../../components/experiments/academic-nordic/TitleStatement.astro";
+import SectionPanel from "../../components/experiments/academic-nordic/SectionPanel.astro";
+import DeepDivePanel from "../../components/experiments/academic-nordic/DeepDivePanel.astro";
+import Colophon from "../../components/experiments/academic-nordic/Colophon.astro";
+
+const ordered: Section[] = (
+  ["gdp", "inflation", "labour", "housing", "policy", "markets", "trade"] as const
+)
+  .map((slug) => sections.find((s) => s.slug === slug))
+  .filter((s): s is Section => Boolean(s));
+
+const today = new Date(Date.UTC(2026, 4, 11)); // May 11, 2026
+const longDate = today.toLocaleDateString("en-CA", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+const produced = today.toISOString().slice(0, 10);
+const edition = "Splash I-Nordic - Scandinavian product clean";
+
+const pageTitle = `${site.name} - Canadian Macro Overview, ${longDate}`;
+const pageDesc =
+  "A Scandinavian product-clean splash for Canadian macro: seven indicator panels with small precise charts, headline readings, and three working papers. All-sans, restrained, white-canvas.";
+
+const abstract =
+  "A reading-first summary of the Canadian macro picture as of " +
+  longDate +
+  ". Seven indicator domains, each rendered as a compact panel with one " +
+  "load-bearing chart, the latest headline reading, and a small table of " +
+  "supporting prints. Working papers index follows the section grid.";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#FFFFFF" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta property="og:locale" content="en_CA" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@300;400;500&display=swap"
+    />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+  </head>
+  <body class="nor-body">
+    <a class="nor-skip" href="#nor-main">Skip to main content</a>
+
+    <div class="nor-shell">
+      <Masthead publication={site.name} asOf={longDate} edition="Splash I-Nordic" />
+
+      <main id="nor-main" class="nor-main">
+        <TitleStatement
+          dateLine={longDate}
+          abstract={abstract}
+          sections={sections}
+        />
+
+        <section class="nor-grid" aria-label="Indicator panels">
+          <h2 class="nor-vh">Indicator panels</h2>
+          {ordered.map((s, i) => (
+            <div class="nor-grid__cell">
+              <SectionPanel section={s} figureNum={String(i + 1)} />
+            </div>
+          ))}
+          <div class="nor-grid__cell">
+            <DeepDivePanel deepDives={deepDives} figureNum="8" />
+          </div>
+        </section>
+
+        <Colophon
+          publication={site.name}
+          nextLabel={nextRelease.label}
+          nextDate={nextRelease.date}
+          nextAgency={nextRelease.agency}
+          produced={produced}
+          edition={edition}
+        />
+      </main>
+    </div>
+
+    <style is:global>
+      /* ===========================================================
+       * Splash I-Nordic - Scandinavian product clean.
+       *
+       * Palette: 8 colors total.
+       *   --nor-canvas    pure white background (#FFFFFF)
+       *   --nor-stone     very faint stone panel (#FAFAF7)
+       *   --nor-ink       graphite (#15171A)
+       *   --nor-navy      deep Nordic navy (#1B3358)
+       *   --nor-terra     warm terracotta (#C26F3D), key signals only
+       *   --nor-hairline  ultra-thin rule (#E8E7E2)
+       *   --nor-pos       muted positive (#3F7D4F)
+       *   --nor-neg       muted negative (#B23A2F)
+       *   --nor-gray      derived secondary text (mid-stone)
+       *
+       * Typography: all-sans. NO serif.
+       *   --nor-display   DM Sans heavy weight, tight tracking
+       *   --nor-body      DM Sans light/regular
+       *   --nor-mono      JetBrains Mono light, tabular numerals
+       * =========================================================== */
+      :root {
+        --nor-canvas: #FFFFFF;
+        --nor-stone: #FAFAF7;
+        --nor-ink: #15171A;
+        --nor-navy: #1B3358;
+        --nor-terra: #C26F3D;
+        --nor-hairline: #E8E7E2;
+        --nor-pos: #3F7D4F;
+        --nor-neg: #B23A2F;
+        --nor-gray: #6B6F76;
+
+        --nor-display: "DM Sans", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        --nor-body: "DM Sans", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        --nor-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+        --nor-max: 1240px;
+        --nor-gutter: 28px;
+      }
+
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--nor-canvas);
+        color: var(--nor-ink);
+      }
+      body.nor-body {
+        font-family: var(--nor-body);
+        font-weight: 400;
+        font-size: 15px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "kern" 1, "liga" 1, "ss01" 1;
+        font-variant-numeric: tabular-nums lining-nums;
+        min-height: 100vh;
+      }
+
+      a {
+        color: var(--nor-navy);
+      }
+
+      h1, h2, h3, h4 {
+        margin: 0;
+        font-feature-settings: "kern" 1, "liga" 1;
+      }
+
+      ::selection {
+        background: rgba(194, 111, 61, 0.22);
+        color: var(--nor-ink);
+      }
+
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--nor-navy);
+        outline-offset: 3px;
+      }
+
+      .nor-skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+      }
+      .nor-skip:focus {
+        position: static;
+        display: inline-block;
+        margin: 8px 0 0 12px;
+        background: var(--nor-navy);
+        color: var(--nor-canvas);
+        padding: 8px 12px;
+        font-family: var(--nor-body);
+        font-weight: 500;
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        text-decoration: none;
+      }
+
+      .nor-vh {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
+
+    <style>
+      .nor-shell {
+        width: 100%;
+        max-width: var(--nor-max);
+        margin: 0 auto;
+        padding: 0 var(--nor-gutter) 0;
+      }
+      @media (min-width: 1100px) {
+        .nor-shell {
+          padding-inline: 48px;
+        }
+      }
+
+      .nor-main {
+        padding-block: 0 0;
+      }
+
+      .nor-grid {
+        margin-top: 36px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 22px;
+      }
+      @media (min-width: 760px) {
+        .nor-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 26px;
+        }
+      }
+      @media (min-width: 1100px) {
+        .nor-grid {
+          gap: 32px;
+        }
+      }
+      .nor-grid__cell {
+        min-width: 0;
+        display: flex;
+      }
+      .nor-grid__cell > * {
+        width: 100%;
+      }
+    </style>
+  </body>
+</html>

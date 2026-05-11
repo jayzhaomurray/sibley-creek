@@ -1,0 +1,222 @@
+---
+/*
+ * Academic-Warm DeepDivePanel — eighth cell of the 2x4 grid, all-serif
+ * warm-cream register. Numbered list of working papers with pillar codes,
+ * italic decks, and update stamps.
+ */
+
+import type { DeepDive } from "../../../data/sections";
+
+interface Props {
+  deepDives: DeepDive[];
+  figureNum: string;
+}
+
+const { deepDives, figureNum } = Astro.props;
+
+const ordered = [...deepDives].sort((a, b) =>
+  a.lastUpdated < b.lastUpdated ? 1 : -1,
+);
+
+const statusLabel = (s: "research" | "drafted" | "shipped") =>
+  s === "shipped" ? "Shipped"
+  : s === "drafted" ? "Drafted"
+  : "In research";
+---
+<article class="aw-dd" aria-labelledby="aw-dd-h">
+  <header class="aw-dd__head">
+    <div class="aw-dd__head-left">
+      <p class="aw-dd__eyebrow">
+        <span class="aw-dd__fig">Figure {figureNum}.</span>
+      </p>
+      <h2 id="aw-dd-h" class="aw-dd__h">
+        Working papers
+      </h2>
+    </div>
+    <p class="aw-dd__count">{ordered.length} active</p>
+  </header>
+
+  <p class="aw-dd__lede">
+    Current deep dives by the department. Pillar codes follow the editorial
+    canon. Updated as drafts move.
+  </p>
+
+  <ol class="aw-dd__list" role="list">
+    {ordered.map((dd, i) => (
+      <li class="aw-dd__row">
+        <div class="aw-dd__row-num" aria-hidden="true">
+          <span class="aw-dd__row-num-n">{String(i + 1).padStart(2, "0")}</span>
+        </div>
+        <div class="aw-dd__row-body">
+          <p class="aw-dd__row-meta">
+            <span class="aw-dd__pillar">Pillar {dd.pillar}</span>
+            <span class="aw-dd__row-sep" aria-hidden="true">&middot;</span>
+            <span class="aw-dd__section">{dd.section}</span>
+            <span class="aw-dd__row-sep" aria-hidden="true">&middot;</span>
+            <span class={`aw-dd__status aw-dd__status--${dd.status}`}>{statusLabel(dd.status)}</span>
+          </p>
+          <h3 class="aw-dd__title">{dd.title}</h3>
+          <p class="aw-dd__deck"><em>{dd.deck}</em></p>
+          <p class="aw-dd__stamp">Updated {dd.lastUpdated}</p>
+        </div>
+      </li>
+    ))}
+  </ol>
+</article>
+
+<style>
+  .aw-dd {
+    background: var(--aw-panel);
+    border: 0.5px solid var(--aw-hairline);
+    padding: 18px 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 100%;
+    position: relative;
+  }
+  .aw-dd::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 22px;
+    height: 1.5px;
+    background: var(--aw-burgundy);
+  }
+
+  .aw-dd__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 0.5px solid var(--aw-hairline);
+    padding-bottom: 10px;
+  }
+  .aw-dd__eyebrow {
+    margin: 0;
+    font-family: var(--aw-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 11.5px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--aw-ochre);
+  }
+  .aw-dd__fig {
+    color: var(--aw-burgundy);
+  }
+  .aw-dd__h {
+    margin: 5px 0 0;
+    font-family: var(--aw-display);
+    font-weight: 600;
+    font-size: 23px;
+    line-height: 1.1;
+    color: var(--aw-ink);
+  }
+  .aw-dd__count {
+    margin: 0;
+    font-family: var(--aw-display);
+    font-style: italic;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--aw-ochre);
+  }
+
+  .aw-dd__lede {
+    margin: 0;
+    font-family: var(--aw-body);
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--aw-ink);
+    max-width: 56ch;
+  }
+
+  .aw-dd__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-top: 0.5px solid var(--aw-hairline);
+  }
+  .aw-dd__row {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 10px;
+    padding: 12px 0 14px;
+    border-bottom: 0.5px solid var(--aw-hairline);
+  }
+  .aw-dd__row:last-child {
+    border-bottom: 0;
+  }
+  .aw-dd__row-num {
+    font-family: var(--aw-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 1;
+    color: var(--aw-burgundy);
+    padding-top: 3px;
+  }
+  .aw-dd__row-num-n {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .aw-dd__row-body { min-width: 0; }
+
+  .aw-dd__row-meta {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    font-family: var(--aw-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 10.5px;
+    line-height: 1.1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--aw-ochre);
+  }
+  .aw-dd__pillar { color: var(--aw-burgundy); }
+  .aw-dd__section { color: var(--aw-ink); }
+  .aw-dd__row-sep { color: var(--aw-ochre); opacity: 0.6; }
+  .aw-dd__status { font-weight: 500; }
+  .aw-dd__status--shipped { color: var(--aw-burgundy); }
+  .aw-dd__status--drafted { color: var(--aw-ochre); }
+  .aw-dd__status--research { color: var(--aw-ochre); opacity: 0.7; }
+
+  .aw-dd__title {
+    margin: 6px 0 0;
+    font-family: var(--aw-display);
+    font-weight: 600;
+    font-size: 17px;
+    line-height: 1.22;
+    color: var(--aw-ink);
+    letter-spacing: -0.005em;
+  }
+  .aw-dd__deck {
+    margin: 5px 0 0;
+    font-family: var(--aw-body);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--aw-ink);
+    max-width: 52ch;
+  }
+  .aw-dd__stamp {
+    margin: 7px 0 0;
+    font-family: var(--aw-display);
+    font-style: italic;
+    font-size: 10.5px;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--aw-ochre);
+  }
+</style>

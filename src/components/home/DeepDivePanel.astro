@@ -1,0 +1,255 @@
+---
+/*
+ * DeepDivePanel - homepage working-papers panel (production).
+ *
+ * Promoted from src/components/experiments/academic-vignelli/DeepDivePanel.astro.
+ * Same structure; references production design tokens.
+ *
+ * Aesthetic:
+ *  - One sans family. Weight contrast as hierarchy.
+ *  - Black hairlines between entries.
+ *  - Row number rendered like a Knoll-catalogue entry code: 01 / 02 / 03
+ *    in Plex Mono, regular, padded.
+ *  - Status (research / drafted / shipped) encoded in BLACK weight contrast
+ *    rather than color. "Shipped" is the only status that gets the red
+ *    signal mark - a small filled square.
+ */
+
+import type { DeepDive } from "../../data/sections";
+
+interface Props {
+  deepDives: DeepDive[];
+  figureNum: string;
+}
+
+const { deepDives, figureNum } = Astro.props;
+
+const ordered = [...deepDives].sort((a, b) =>
+  a.lastUpdated < b.lastUpdated ? 1 : -1,
+);
+
+const statusLabel = (s: "research" | "drafted" | "shipped") =>
+  s === "shipped" ? "Shipped"
+  : s === "drafted" ? "Drafted"
+  : "In research";
+---
+<article class="vig-dd" aria-labelledby="vig-dd-h">
+  <header class="vig-dd__head">
+    <div class="vig-dd__head-left">
+      <p class="vig-dd__eyebrow">
+        <span class="vig-dd__fig">Figure</span>
+        <span class="vig-dd__fig-n">{figureNum}.</span>
+      </p>
+      <h2 id="vig-dd-h" class="vig-dd__h">
+        Working papers
+      </h2>
+    </div>
+    <p class="vig-dd__count">
+      {ordered.length} active
+    </p>
+  </header>
+
+  <p class="vig-dd__lede">
+    Current deep dives by the department. Pillar codes follow the editorial
+    canon. Updated as drafts move.
+  </p>
+
+  <ol class="vig-dd__list" role="list">
+    {ordered.map((dd, i) => (
+      <li class="vig-dd__row">
+        <div class="vig-dd__row-num" aria-hidden="true">
+          <span class="vig-dd__row-num-n">{String(i + 1).padStart(2, "0")}</span>
+        </div>
+        <div class="vig-dd__row-body">
+          <p class="vig-dd__row-meta">
+            <span class="vig-dd__pillar">Pillar {dd.pillar}</span>
+            <span class="vig-dd__row-sep" aria-hidden="true"></span>
+            <span class="vig-dd__section">{dd.section}</span>
+            <span class="vig-dd__row-sep" aria-hidden="true"></span>
+            <span class={`vig-dd__status vig-dd__status--${dd.status}`}>
+              {dd.status === "shipped" && (
+                <span class="vig-dd__status-mark" aria-hidden="true"></span>
+              )}
+              {statusLabel(dd.status)}
+            </span>
+          </p>
+          <h3 class="vig-dd__title">{dd.title}</h3>
+          <p class="vig-dd__deck">{dd.deck}</p>
+          <p class="vig-dd__stamp">Updated {dd.lastUpdated}</p>
+        </div>
+      </li>
+    ))}
+  </ol>
+</article>
+
+<style>
+  .vig-dd {
+    background: var(--paper);
+    padding: 18px 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 100%;
+  }
+
+  .vig-dd__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--ink);
+    padding-bottom: 10px;
+  }
+  .vig-dd__head-left { min-width: 0; }
+  .vig-dd__eyebrow {
+    margin: 0;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .vig-dd__fig {
+    color: var(--ink);
+  }
+  .vig-dd__fig-n {
+    color: var(--accent);
+    font-weight: 800;
+    letter-spacing: 0.1em;
+  }
+  .vig-dd__h {
+    margin: 6px 0 0;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 22px;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .vig-dd__count {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  .vig-dd__lede {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 200;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink);
+    max-width: 56ch;
+  }
+
+  .vig-dd__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-top: 1px solid var(--ink);
+  }
+  .vig-dd__row {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 12px;
+    padding: 12px 0 14px;
+    border-bottom: 1px solid var(--ink);
+  }
+  .vig-dd__row:last-child {
+    border-bottom: 0;
+  }
+  .vig-dd__row-num {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--ink);
+    padding-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .vig-dd__row-num-n {
+    display: inline-block;
+    border-bottom: 1px solid var(--ink);
+    padding: 0 0 2px 0;
+  }
+  .vig-dd__row-body { min-width: 0; }
+
+  .vig-dd__row-meta {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 9.5px;
+    line-height: 1.1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .vig-dd__pillar { color: var(--ink); font-weight: 800; }
+  .vig-dd__section { color: var(--ink); }
+  .vig-dd__row-sep {
+    display: inline-block;
+    width: 3px;
+    height: 3px;
+    background: var(--ink);
+  }
+  .vig-dd__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .vig-dd__status-mark {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+  }
+  .vig-dd__status--shipped { color: var(--ink); font-weight: 800; }
+  .vig-dd__status--drafted { color: var(--ink); font-weight: 600; }
+  .vig-dd__status--research { color: var(--ink); font-weight: 400; }
+
+  .vig-dd__title {
+    margin: 6px 0 0;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 15px;
+    line-height: 1.2;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+  }
+  .vig-dd__deck {
+    margin: 5px 0 0;
+    font-family: var(--font-sans);
+    font-weight: 200;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--ink);
+    max-width: 52ch;
+  }
+  .vig-dd__stamp {
+    margin: 8px 0 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+</style>

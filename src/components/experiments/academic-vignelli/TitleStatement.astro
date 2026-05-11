@@ -1,0 +1,209 @@
+---
+/*
+ * Vignelli TitleStatement — academic title block. Same content shape and
+ * slots as Lane I; aesthetic is single-family sans with weight contrast.
+ *
+ * Eyebrow: micro-caps in Manrope SemiBold, generous letter-spacing.
+ *          The dot separators rendered as 2px black squares (Vignelli
+ *          MTA / Knoll catalogue dot).
+ * Headline: Manrope ExtraBold (800), tight tracking. The date is the
+ *           "key kicker" in signal red — the publication's brand moment
+ *           on the page.
+ * Abstract: Manrope ExtraLight (200) — weight contrast against the
+ *           headline. No italic, no serif.
+ * Stamp:    A 3-column hairline grid. K labels in micro-caps, V values
+ *           in Plex Mono regular. Black hairlines.
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  dateLine: string;
+  abstract: string;
+  sections: Section[];
+}
+
+const { dateLine, abstract, sections } = Astro.props;
+
+const stamp = [
+  { label: "Headline CPI, y/y", section: "inflation" },
+  { label: "BoC overnight rate", section: "policy" },
+  { label: "Unemployment rate", section: "labour" },
+].map((row) => {
+  const s = sections.find((x) => x.slug === row.section);
+  const p = s?.prints.find((x) => x.indicator === row.label) ?? s?.prints[0];
+  return {
+    label: row.label,
+    value: p?.value ?? "",
+    asOf: p?.asOf ?? "",
+  };
+});
+---
+<section class="vig-title" aria-labelledby="vig-title-h">
+  <p class="vig-title__eyebrow">
+    <span class="vig-title__eyebrow-tok">Research note</span>
+    <span class="vig-title__eyebrow-dot" aria-hidden="true"></span>
+    <span class="vig-title__eyebrow-tok">Canadian macro</span>
+    <span class="vig-title__eyebrow-dot" aria-hidden="true"></span>
+    <span class="vig-title__eyebrow-tok vig-title__eyebrow-tok--accent">Independent</span>
+  </p>
+  <h1 id="vig-title-h" class="vig-title__h">
+    <span class="vig-title__h-line">Canadian Macro Overview</span>
+    <span class="vig-title__h-date">{dateLine}</span>
+  </h1>
+  <p class="vig-title__abs">{abstract}</p>
+
+  <dl class="vig-title__stamp" aria-label="Headline numbers at a glance">
+    {stamp.map((row) => (
+      <div class="vig-title__stamp-row">
+        <dt class="vig-title__stamp-k">{row.label}</dt>
+        <dd class="vig-title__stamp-v">
+          <span class="vig-title__stamp-num">{row.value}</span>
+          <span class="vig-title__stamp-asof">{row.asOf}</span>
+        </dd>
+      </div>
+    ))}
+  </dl>
+</section>
+
+<style>
+  .vig-title {
+    padding-block: 32px 28px;
+    border-bottom: 1px solid var(--vig-ink);
+  }
+  .vig-title__eyebrow {
+    margin: 0 0 14px;
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0 10px;
+    font-family: var(--vig-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--vig-ink);
+  }
+  .vig-title__eyebrow-tok {
+    display: inline-block;
+  }
+  .vig-title__eyebrow-tok--accent {
+    color: var(--vig-signal);
+  }
+  .vig-title__eyebrow-dot {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    background: var(--vig-ink);
+  }
+
+  .vig-title__h {
+    margin: 0;
+    font-family: var(--vig-sans);
+    font-weight: 800;
+    font-size: clamp(28px, 3.6vw, 40px);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    color: var(--vig-ink);
+    max-width: 22ch;
+    text-transform: none;
+  }
+  .vig-title__h-line {
+    display: block;
+  }
+  .vig-title__h-date {
+    display: block;
+    color: var(--vig-signal);
+    font-weight: 800;
+    margin-top: 2px;
+  }
+
+  .vig-title__abs {
+    margin: 16px 0 0;
+    font-family: var(--vig-sans);
+    font-weight: 200;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--vig-ink);
+    max-width: 64ch;
+  }
+
+  .vig-title__stamp {
+    margin: 22px 0 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    border-top: 1px solid var(--vig-ink);
+    border-bottom: 1px solid var(--vig-ink);
+  }
+  @media (min-width: 720px) {
+    .vig-title__stamp {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  .vig-title__stamp-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px 12px 0;
+    border-bottom: 1px solid var(--vig-ink);
+  }
+  @media (min-width: 720px) {
+    .vig-title__stamp-row {
+      border-bottom: 0;
+      border-right: 1px solid var(--vig-ink);
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 14px 18px;
+    }
+    .vig-title__stamp-row:first-child {
+      padding-left: 0;
+    }
+    .vig-title__stamp-row:last-child {
+      border-right: 0;
+    }
+  }
+  .vig-title__stamp-row:last-child {
+    border-bottom: 0;
+  }
+  .vig-title__stamp-k {
+    margin: 0;
+    font-family: var(--vig-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--vig-ink);
+  }
+  .vig-title__stamp-v {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  @media (min-width: 720px) {
+    .vig-title__stamp-v {
+      margin-top: 8px;
+    }
+  }
+  .vig-title__stamp-num {
+    font-family: var(--vig-mono);
+    font-weight: 400;
+    font-size: 20px;
+    line-height: 1;
+    letter-spacing: 0;
+    color: var(--vig-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .vig-title__stamp-asof {
+    font-family: var(--vig-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--vig-ink);
+  }
+</style>

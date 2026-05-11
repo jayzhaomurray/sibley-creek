@@ -6,12 +6,21 @@
  *   2. Root + page defaults
  *   3. Typography utilities matching the design system scale
  *   4. Layout tracks (.container, .body-col, .wide-col)
- *   5. Table base styles (per design-system.md section 6)
+ *   5. Table base styles
  *   6. Link, button, focus-ring defaults
  *   7. Reduced motion
  *   8. Skip link
  *
  * No component-specific styles live here; they live with their components.
+ *
+ * 2026-05-11 - Vignelli canonicalization:
+ *   - Headings (h1-h4) and display utilities now render in Manrope (sans)
+ *     at weight 800, not Source Serif 4 semibold.
+ *   - The .deck utility loses its italic-serif treatment; it is now sans
+ *     ExtraLight (weight 200) to preserve weight-contrast hierarchy.
+ *   - Selection color is signal red.
+ *   - Focus rings use signal red (the publication's brand accent moment).
+ *   - Borders are pure black hairlines.
  */
 
 /* ---------- 1. Reset ---------- */
@@ -53,10 +62,11 @@ html {
   font-family: var(--font-sans);
   font-size: var(--fs-body);
   line-height: var(--lh-body);
-  /* Tabular figures everywhere by default — prevents column shimmy in
-   * numeric paragraphs (design-system.md sec 2: "Numbers in body prose
-   * use Inter with tabular figures. No exceptions"). */
-  font-feature-settings: "tnum" 1, "kern" 1;
+  /* Tabular figures everywhere by default - prevents column shimmy in
+   * numeric paragraphs. ss01 enables Manrope's stylistic-set 01 (clean
+   * lower-case alternates) for editorial reading. */
+  font-feature-settings: "tnum" 1, "kern" 1, "liga" 1, "ss01" 1;
+  font-variant-numeric: lining-nums tabular-nums;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -69,17 +79,14 @@ body {
 }
 
 /* ---------- 3. Typography utilities ---------- */
-/* Class-based so they can be applied to whatever semantic element fits. */
 
 .display-xl,
 .display-lg,
 .display-md,
 .display-sm {
-  font-family: var(--font-serif);
-  font-weight: var(--fw-semibold);
+  font-family: var(--font-sans);
+  font-weight: 800;
   color: var(--ink);
-  /* Editorial serif heads breathe; tighten letter-spacing slightly at
-   * larger sizes to keep optical weight even. */
   letter-spacing: -0.005em;
 }
 
@@ -105,15 +112,15 @@ body {
   line-height: var(--lh-display-sm);
 }
 
+/* The deck utility - previously italic serif, now ExtraLight sans for
+ * weight-contrast hierarchy against the 800 display weight above. */
 .deck {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--fs-deck);
   line-height: var(--lh-deck);
-  font-style: italic;
-  font-weight: var(--fw-regular);
-  color: var(--ink-muted);
-  /* 680px column is the body sweet spot; standfirst matches per
-   * design-system.md sec 6 "Blurbs / standfirst". */
+  font-style: normal;
+  font-weight: 200;
+  color: var(--ink);
   max-width: var(--col-body);
 }
 
@@ -121,86 +128,86 @@ body {
   font-family: var(--font-sans);
   font-size: var(--fs-body-lg);
   line-height: var(--lh-body-lg);
-  font-weight: var(--fw-regular);
+  font-weight: 400;
 }
 
 .body {
   font-family: var(--font-sans);
   font-size: var(--fs-body);
   line-height: var(--lh-body);
-  font-weight: var(--fw-regular);
+  font-weight: 400;
 }
 
 .body-sm {
   font-family: var(--font-sans);
   font-size: var(--fs-body-sm);
   line-height: var(--lh-body-sm);
-  font-weight: var(--fw-regular);
+  font-weight: 400;
 }
 
 .label {
   font-family: var(--font-sans);
   font-size: var(--fs-label);
   line-height: var(--lh-label);
-  font-weight: var(--fw-medium);
+  font-weight: 600;
 }
 
 .micro {
   font-family: var(--font-sans);
   font-size: var(--fs-micro);
   line-height: var(--lh-micro);
-  font-weight: var(--fw-medium);
-  color: var(--ink-faint);
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .mono-sm {
   font-family: var(--font-mono);
   font-size: var(--fs-mono-sm);
   line-height: var(--lh-mono-sm);
-  font-weight: var(--fw-regular);
+  font-weight: 400;
 }
 
 .mono-xs {
   font-family: var(--font-mono);
   font-size: var(--fs-mono-xs);
   line-height: var(--lh-mono-xs);
-  font-weight: var(--fw-regular);
+  font-weight: 400;
 }
 
-/* Default heading sizing — if a page author writes <h1> they should not
+/* Default heading sizing - if a page author writes <h1> they should not
  * have to remember the class. h1 maps to display-xl, h2 to display-lg,
  * etc. Class utilities still win for one-offs. */
 h1 {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--fs-display-xl);
   line-height: var(--lh-display-xl);
-  font-weight: var(--fw-semibold);
+  font-weight: 800;
   letter-spacing: -0.015em;
   color: var(--ink);
 }
 
 h2 {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--fs-display-lg);
   line-height: var(--lh-display-lg);
-  font-weight: var(--fw-semibold);
+  font-weight: 800;
   letter-spacing: -0.01em;
   color: var(--ink);
 }
 
 h3 {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--fs-display-md);
   line-height: var(--lh-display-md);
-  font-weight: var(--fw-semibold);
+  font-weight: 800;
   color: var(--ink);
 }
 
 h4 {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--fs-display-sm);
   line-height: var(--lh-display-sm);
-  font-weight: var(--fw-semibold);
+  font-weight: 800;
   color: var(--ink);
 }
 
@@ -210,7 +217,6 @@ p {
   line-height: var(--lh-body);
 }
 
-/* Paragraph rhythm inside the body column. */
 .prose > * + * {
   margin-top: var(--s-5);
 }
@@ -220,8 +226,6 @@ p {
 }
 
 .prose p {
-  /* 62-72 character target enforced by the body column max-width, not
-   * per-element. See design-system.md sec 2. */
   color: var(--ink);
 }
 
@@ -234,7 +238,7 @@ p {
   padding-inline: var(--gutter-mobile);
 }
 
-@media (min-width: 640px) {
+@media (min-width: 1100px) {
   .container {
     padding-inline: var(--gutter-desktop);
   }
@@ -250,7 +254,7 @@ p {
   margin-inline: auto;
 }
 
-/* ---------- 5. Tables (per design-system.md sec 6) ---------- */
+/* ---------- 5. Tables ---------- */
 
 table {
   width: 100%;
@@ -265,8 +269,8 @@ table caption {
   text-align: left;
   font-family: var(--font-sans);
   font-size: var(--fs-micro);
-  font-weight: var(--fw-medium);
-  color: var(--ink-faint);
+  font-weight: 600;
+  color: var(--ink);
   padding-bottom: var(--s-3);
 }
 
@@ -274,17 +278,17 @@ th {
   text-align: left;
   font-family: var(--font-sans);
   font-size: var(--fs-label);
-  font-weight: var(--fw-medium);
-  color: var(--ink-muted);
+  font-weight: 600;
+  color: var(--ink);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  border-bottom: 1px solid var(--ink-muted);
+  border-bottom: 1px solid var(--ink);
   padding: var(--s-3) var(--s-4);
 }
 
 td {
   padding: var(--s-3) var(--s-4);
-  border-bottom: 1px solid var(--rule-faint);
+  border-bottom: 1px solid var(--ink);
   vertical-align: baseline;
 }
 
@@ -301,7 +305,7 @@ td.num {
   line-height: var(--lh-mono-sm);
 }
 
-/* No zebra striping. Period. (design-system.md sec 6) */
+/* No zebra striping. */
 
 tbody tr:last-child td {
   border-bottom: none;
@@ -312,7 +316,7 @@ tbody tr:last-child td {
 a {
   color: var(--ink);
   text-decoration-line: underline;
-  text-decoration-color: var(--accent);
+  text-decoration-color: var(--ink);
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
   transition: color var(--dur-fast) var(--ease-out),
@@ -325,13 +329,13 @@ a:hover {
 }
 
 a:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-  border-radius: 2px;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 0;
 }
 
 /* Button base. Variants applied via .btn-primary / .btn-secondary /
- * .btn-link, per design-system.md sec 6. */
+ * .btn-link. */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -339,7 +343,7 @@ a:focus-visible {
   font-family: var(--font-sans);
   font-size: var(--fs-body-sm);
   line-height: 1;
-  font-weight: var(--fw-medium);
+  font-weight: 600;
   padding: var(--s-3) var(--s-5);
   border-radius: var(--radius-card);
   border: 1px solid transparent;
@@ -357,8 +361,8 @@ a:focus-visible {
 }
 
 .btn-primary:hover {
-  background-color: var(--ink-muted);
-  border-color: var(--ink-muted);
+  background-color: var(--accent);
+  border-color: var(--accent);
   color: var(--paper);
 }
 
@@ -379,7 +383,7 @@ a:focus-visible {
   padding: 0;
   color: var(--ink);
   text-decoration: underline;
-  text-decoration-color: var(--accent);
+  text-decoration-color: var(--ink);
   text-underline-offset: 2px;
 }
 
@@ -391,20 +395,18 @@ a:focus-visible {
 button:focus-visible,
 [type="button"]:focus-visible,
 [type="submit"]:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
-/* Global focus ring for keyboard nav — 2px ink, no glow per
- * design-system.md sec 6 (form inputs) extended site-wide. */
+/* Global focus ring for keyboard nav - signal red, the publication's
+ * brand-signal accent. */
 :focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 /* ---------- 7. Reduced motion ---------- */
-/* Set up now so future chart-builder hover transitions inherit the
- * fallback. (design-system.md sec 8.) */
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -427,10 +429,12 @@ button:focus-visible,
   background-color: var(--ink);
   color: var(--paper);
   font-family: var(--font-sans);
-  font-size: var(--fs-body-sm);
-  font-weight: var(--fw-medium);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   text-decoration: none;
-  border-radius: var(--radius-card);
+  border-radius: 0;
   transform: translateY(-150%);
   transition: transform var(--dur-fast) var(--ease-out);
   z-index: 100;
@@ -446,6 +450,6 @@ button:focus-visible,
 /* ---------- 9. Selection ---------- */
 
 ::selection {
-  background-color: var(--accent-soft);
-  color: var(--ink);
+  background-color: var(--accent);
+  color: var(--paper);
 }

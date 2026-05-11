@@ -1,0 +1,286 @@
+---
+/*
+ * Splash experiment: Academic Textbook - 1960s mid-century academic
+ * journal register.
+ *
+ * Layout identical to Lane I (Atlanta Fed GDPNow Academic): institutional
+ * masthead, title statement with summary stamp, 2x4 panel grid (seven
+ * indicator panels + working papers in the eighth cell), colophon at the
+ * foot.
+ *
+ * Aesthetic differs: aged off-white paper, brighter panel field, warm
+ * black ink, deep forest/olive primary, ochre and brick secondaries.
+ * Display in Crimson Pro heavy small-caps; body in Roboto Slab; data in
+ * Cutive Mono (typewriter). Subtle paper-fiber feTurbulence overlay at
+ * 0.05 opacity. Panel headers carry small "Plate I, Plate II..." indices
+ * in the manner of a mid-century textbook atlas.
+ *
+ * Self-contained: no production homepage components, no shared design
+ * tokens. Aesthetic choices scoped under
+ * src/components/experiments/academic-textbook/.
+ *
+ * Reads: src/data/sections.ts.
+ * Does not touch: pipeline/, design/, editorial/, .claude/,
+ *                 src/pages/index.astro, other splash experiments.
+ */
+
+import {
+  sections,
+  deepDives,
+  nextRelease,
+  site,
+  type Section,
+} from "../../data/sections";
+
+import PaperFiber from "../../components/experiments/academic-textbook/PaperFiber.astro";
+import Masthead from "../../components/experiments/academic-textbook/Masthead.astro";
+import TitleStatement from "../../components/experiments/academic-textbook/TitleStatement.astro";
+import SectionPanel from "../../components/experiments/academic-textbook/SectionPanel.astro";
+import DeepDivePanel from "../../components/experiments/academic-textbook/DeepDivePanel.astro";
+import Colophon from "../../components/experiments/academic-textbook/Colophon.astro";
+
+const ordered: Section[] = (
+  ["gdp", "inflation", "labour", "housing", "policy", "markets", "trade"] as const
+)
+  .map((slug) => sections.find((s) => s.slug === slug))
+  .filter((s): s is Section => Boolean(s));
+
+const today = new Date(Date.UTC(2026, 4, 11)); // May 11, 2026
+const longDate = today.toLocaleDateString("en-CA", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+const produced = today.toISOString().slice(0, 10);
+const edition = "Academic Textbook · Mid-Century";
+
+const pageTitle = `${site.name} — Canadian Macro Overview, ${longDate}`;
+const pageDesc =
+  "A mid-century academic-journal splash for Canadian macro: seven indicator plates with small precise charts, headline readings, and three working papers. Aged-paper aesthetic, reading-first.";
+
+const abstract =
+  "A reading-first summary of the Canadian macro picture as of " +
+  longDate +
+  ". Seven indicator domains, each rendered as a compact plate with one " +
+  "load-bearing chart, the latest headline reading, and a small table of " +
+  "supporting prints. A working-papers index follows as Plate VIII.";
+
+const romanPlates = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#F2EDE0" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta property="og:locale" content="en_CA" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,500;0,600;0,700;0,800;1,500;1,600;1,700&family=Roboto+Slab:wght@300;400;500;600&family=Cutive+Mono&display=swap"
+    />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+  </head>
+  <body class="atx-body">
+    <a class="atx-skip" href="#atx-main">Skip to main content</a>
+
+    <PaperFiber />
+
+    <div class="atx-shell">
+      <Masthead publication={site.name} asOf={longDate} edition="Mid-Century" />
+
+      <main id="atx-main" class="atx-main">
+        <TitleStatement
+          dateLine={longDate}
+          abstract={abstract}
+          sections={sections}
+        />
+
+        <section class="atx-grid" aria-label="Indicator plates">
+          <h2 class="atx-vh">Indicator plates</h2>
+          {ordered.map((s, i) => (
+            <div class="atx-grid__cell">
+              <SectionPanel
+                section={s}
+                figureNum={String(i + 1)}
+                plate={romanPlates[i] ?? String(i + 1)}
+              />
+            </div>
+          ))}
+          <div class="atx-grid__cell">
+            <DeepDivePanel
+              deepDives={deepDives}
+              figureNum="8"
+              plate={romanPlates[7] ?? "VIII"}
+            />
+          </div>
+        </section>
+
+        <Colophon
+          publication={site.name}
+          nextLabel={nextRelease.label}
+          nextDate={nextRelease.date}
+          nextAgency={nextRelease.agency}
+          produced={produced}
+          edition={edition}
+        />
+      </main>
+    </div>
+
+    <style is:global>
+      /* ===========================================================
+       * Academic Textbook - 1960s mid-century journal register.
+       * Six-color palette + three font families.
+       * =========================================================== */
+      :root {
+        --atx-paper: #F2EDE0;     /* aged off-white page */
+        --atx-panel: #F8F4E8;     /* brighter panel field */
+        --atx-ink: #1A1612;       /* warm black */
+        --atx-ink-soft: #6B5F3E;  /* muted tobacco for meta */
+        --atx-forest: #3C4D2A;    /* deep forest/olive primary */
+        --atx-ochre: #A88331;     /* muted ochre secondary */
+        --atx-brick: #A6493F;     /* muted brick secondary */
+        --atx-rule: #C9C0A8;      /* hairline rule */
+
+        --atx-display: "Crimson Pro", "Cormorant Garamond", "Times New Roman", Georgia, serif;
+        --atx-body: "Roboto Slab", "Rockwell", "Courier New", Georgia, serif;
+        --atx-mono: "Cutive Mono", "Courier Prime", "Courier New", ui-monospace, monospace;
+
+        --atx-max: 1240px;
+        --atx-gutter: 24px;
+      }
+
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--atx-paper);
+        color: var(--atx-ink);
+      }
+      body.atx-body {
+        font-family: var(--atx-body);
+        font-weight: 400;
+        font-size: 15px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "kern" 1, "liga" 1;
+        font-variant-numeric: lining-nums tabular-nums;
+        min-height: 100vh;
+      }
+
+      a {
+        color: var(--atx-forest);
+      }
+
+      h1, h2, h3, h4 {
+        margin: 0;
+      }
+
+      ::selection {
+        background: rgba(168, 131, 49, 0.28);
+        color: var(--atx-ink);
+      }
+
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--atx-ochre);
+        outline-offset: 3px;
+      }
+
+      .atx-skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+      }
+      .atx-skip:focus {
+        position: static;
+        display: inline-block;
+        margin: 8px 0 0 12px;
+        background: var(--atx-forest);
+        color: var(--atx-paper);
+        padding: 6px 10px;
+        font-family: var(--atx-mono);
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        text-decoration: none;
+      }
+
+      .atx-vh {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
+
+    <style>
+      .atx-shell {
+        width: 100%;
+        max-width: var(--atx-max);
+        margin: 0 auto;
+        padding: 0 var(--atx-gutter) 0;
+        position: relative;
+        z-index: 2;
+      }
+      @media (min-width: 1100px) {
+        .atx-shell {
+          padding-inline: 40px;
+        }
+      }
+
+      .atx-main {
+        padding-block: 0 0;
+      }
+
+      .atx-grid {
+        margin-top: 28px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+      @media (min-width: 760px) {
+        .atx-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 20px;
+        }
+      }
+      @media (min-width: 1100px) {
+        .atx-grid {
+          gap: 24px;
+        }
+      }
+      .atx-grid__cell {
+        min-width: 0;
+        display: flex;
+      }
+      .atx-grid__cell > * {
+        width: 100%;
+      }
+    </style>
+  </body>
+</html>

@@ -1,0 +1,130 @@
+---
+/*
+ * Nordic Masthead — Scandinavian product-clean header.
+ *
+ * Same structural slots as Lane I (publication mark, institutional rail,
+ * back link, hairline rule). All-sans typography, tight tracking on the
+ * mark, wider tracking on the small-caps eyebrows of the rail. The rule
+ * is ultra-thin and stone-toned rather than navy.
+ */
+
+interface Props {
+  publication: string;
+  asOf: string;
+  edition: string;
+}
+
+const { publication, asOf, edition } = Astro.props;
+---
+<header class="nor-mast" role="banner">
+  <div class="nor-mast__row">
+    <p class="nor-mast__mark">{publication}</p>
+    <nav class="nor-mast__nav" aria-label="Institutional rail">
+      <span class="nor-mast__nav-item">
+        <span class="nor-mast__nav-k">Series</span>
+        <span class="nor-mast__nav-v">Research note</span>
+      </span>
+      <span class="nor-mast__nav-sep" aria-hidden="true">/</span>
+      <span class="nor-mast__nav-item">
+        <span class="nor-mast__nav-k">As of</span>
+        <span class="nor-mast__nav-v">{asOf}</span>
+      </span>
+      <span class="nor-mast__nav-sep" aria-hidden="true">/</span>
+      <span class="nor-mast__nav-item">
+        <span class="nor-mast__nav-k">Edition</span>
+        <span class="nor-mast__nav-v">{edition}</span>
+      </span>
+      <span class="nor-mast__nav-sep nor-mast__nav-sep--push" aria-hidden="true">/</span>
+      <a class="nor-mast__back" href="/">Return to production homepage</a>
+    </nav>
+  </div>
+  <hr class="nor-mast__rule" aria-hidden="true" />
+</header>
+
+<style>
+  .nor-mast {
+    padding-top: 22px;
+  }
+  .nor-mast__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 14px 28px;
+    padding-bottom: 14px;
+  }
+  .nor-mast__mark {
+    margin: 0;
+    font-family: var(--nor-display);
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 1;
+    letter-spacing: -0.015em;
+    color: var(--nor-navy);
+    flex: 0 0 auto;
+  }
+  .nor-mast__nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 14px;
+    margin-left: auto;
+    font-family: var(--nor-body);
+    font-size: 11px;
+    line-height: 1;
+    color: var(--nor-gray);
+  }
+  .nor-mast__nav-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .nor-mast__nav-k {
+    color: var(--nor-gray);
+    text-transform: uppercase;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+  }
+  .nor-mast__nav-v {
+    color: var(--nor-ink);
+    font-family: var(--nor-mono);
+    font-weight: 300;
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+    letter-spacing: 0;
+  }
+  .nor-mast__nav-sep {
+    color: var(--nor-gray);
+    opacity: 0.5;
+  }
+  .nor-mast__nav-sep--push {
+    margin-left: 4px;
+  }
+  .nor-mast__back {
+    color: var(--nor-navy);
+    text-decoration: none;
+    border-bottom: 1px solid var(--nor-hairline);
+    padding-bottom: 1px;
+    font-size: 11px;
+    transition: border-color 120ms ease, color 120ms ease;
+  }
+  .nor-mast__back:hover {
+    color: var(--nor-terra);
+    border-bottom-color: var(--nor-terra);
+  }
+  .nor-mast__back:focus-visible {
+    outline: 2px solid var(--nor-navy);
+    outline-offset: 3px;
+  }
+  .nor-mast__rule {
+    border: 0;
+    border-top: 1px solid var(--nor-hairline);
+    margin: 0;
+  }
+
+  @media (max-width: 720px) {
+    .nor-mast__nav {
+      margin-left: 0;
+    }
+  }
+</style>

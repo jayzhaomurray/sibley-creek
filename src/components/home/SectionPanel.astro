@@ -1,0 +1,521 @@
+---
+/*
+ * SectionPanel - homepage indicator panel (production).
+ *
+ * Promoted from src/components/experiments/academic-vignelli/SectionPanel.astro.
+ * Same structure; references production design tokens.
+ *
+ * Aesthetic:
+ *  - No fill. Panel is white with a 1px black hairline (the cell border in
+ *    the parent grid supplies the bottom + right rules).
+ *  - One sans family (Manrope). Weights: 200 / 400 / 600 / 800.
+ *  - Tabular data in Plex Mono regular (one weight only).
+ *  - Deltas encoded by ^ / v glyphs + sign in pure black. Hue is NEVER
+ *    used to encode direction.
+ *  - Chart: black 1.5px line, black axis labels, black hairline frame.
+ *    Latest-print dot is the only red on the chart.
+ *  - "Figure N." eyebrow numeral is red as the brand signal.
+ */
+
+import type { Section } from "../../data/sections";
+
+interface Props {
+  section: Section;
+  figureNum: string;
+}
+
+const { section, figureNum } = Astro.props;
+
+const loadBearing = section.chartSeriesKey
+  ? section.prints.find((p) => p.key === section.chartSeriesKey) ?? section.prints[0]
+  : section.prints[0];
+
+const series = loadBearing.spark ?? [0, 0.2, 0.3, 0.4];
+
+const W = 320;
+const H = 110;
+const PAD_L = 30;
+const PAD_R = 8;
+const PAD_T = 10;
+const PAD_B = 18;
+
+const plotW = W - PAD_L - PAD_R;
+const plotH = H - PAD_T - PAD_B;
+
+const minV = Math.min(...series);
+const maxV = Math.max(...series);
+const rangeRaw = maxV - minV || 1;
+const yMin = minV - rangeRaw * 0.12;
+const yMax = maxV + rangeRaw * 0.12;
+const yRange = yMax - yMin || 1;
+
+function xOf(i: number): number {
+  return PAD_L + (i / (series.length - 1)) * plotW;
+}
+function yOf(v: number): number {
+  return PAD_T + (1 - (v - yMin) / yRange) * plotH;
+}
+
+const pts = series.map((v, i) => `${xOf(i).toFixed(2)},${yOf(v).toFixed(2)}`);
+const linePath = "M " + pts.join(" L ");
+
+function fmtTick(v: number): string {
+  const a = Math.abs(v);
+  if (a >= 100) return v.toFixed(0);
+  if (a >= 10) return v.toFixed(1);
+  return v.toFixed(2);
+}
+const ticks = [yMin, (yMin + yMax) / 2, yMax].map((v) => ({
+  v,
+  y: yOf(v),
+  label: fmtTick(v),
+}));
+
+const lastX = xOf(series.length - 1);
+const lastY = yOf(series[series.length - 1] as number);
+
+const zeroInRange = yMin < 0 && yMax > 0;
+const zeroY = zeroInRange ? yOf(0) : null;
+
+function dirGlyph(d: "pos" | "neg" | "neutral"): string {
+  if (d === "pos") return "▲"; // black up-pointing triangle
+  if (d === "neg") return "▼"; // black down-pointing triangle
+  return "—";                  // em dash for neutral
+}
+
+const allPrints = section.prints;
+---
+<article
+  class="vig-panel"
+  id={`panel-${section.slug}`}
+  aria-labelledby={`panel-${section.slug}-h`}
+>
+  <header class="vig-panel__head">
+    <div class="vig-panel__head-left">
+      <p class="vig-panel__eyebrow">
+        <span class="vig-panel__fig">Figure</span>
+        <span class="vig-panel__fig-n">{figureNum}.</span>
+      </p>
+      <h2 id={`panel-${section.slug}-h`} class="vig-panel__h">
+        <a class="vig-panel__h-link" href={`/${section.slug}/`}>{section.label}</a>
+      </h2>
+    </div>
+    <p class="vig-panel__cadence">{section.cadence}</p>
+  </header>
+
+  <p class="vig-panel__question">{section.headlineQuestion}</p>
+
+  <div class="vig-panel__body">
+    <figure class="vig-panel__fig-wrap">
+      <svg
+        class="vig-panel__svg"
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label={`${loadBearing.indicator}. Latest: ${loadBearing.value} (${loadBearing.asOf}). Change: ${loadBearing.delta}.`}
+      >
+        <rect
+          x={PAD_L}
+          y={PAD_T}
+          width={plotW}
+          height={plotH}
+          fill="#FFFFFF"
+          stroke="#000000"
+          stroke-width="1"
+        />
+        {ticks.map((t) => (
+          <text
+            x={PAD_L - 5}
+            y={t.y}
+            text-anchor="end"
+            dominant-baseline="middle"
+            font-family="IBM Plex Mono, ui-monospace, monospace"
+            font-size="8"
+            fill="#000000"
+          >
+            {t.label}
+          </text>
+        ))}
+        {zeroY !== null && (
+          <line
+            x1={PAD_L}
+            x2={PAD_L + plotW}
+            y1={zeroY}
+            y2={zeroY}
+            stroke="#000000"
+            stroke-width="0.5"
+            stroke-dasharray="2 2"
+          />
+        )}
+        <path
+          d={linePath}
+          fill="none"
+          stroke="#000000"
+          stroke-width="1.5"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
+        <circle cx={lastX} cy={lastY} r="3" fill="#E63946" stroke="#FFFFFF" stroke-width="1" />
+        <text
+          x={PAD_L}
+          y={H - 4}
+          text-anchor="start"
+          font-family="Manrope, Helvetica, Arial, sans-serif"
+          font-weight="600"
+          font-size="8"
+          letter-spacing="1.4"
+          fill="#000000"
+        >
+          EARLIEST
+        </text>
+        <text
+          x={PAD_L + plotW}
+          y={H - 4}
+          text-anchor="end"
+          font-family="Manrope, Helvetica, Arial, sans-serif"
+          font-weight="600"
+          font-size="8"
+          letter-spacing="1.4"
+          fill="#000000"
+        >
+          {loadBearing.asOf.toUpperCase()}
+        </text>
+      </svg>
+      <figcaption class="vig-panel__cap">
+        <span class="vig-panel__cap-mark">Fig. {figureNum}.</span>
+        {loadBearing.indicator}, recent history. Last observation marked.
+      </figcaption>
+    </figure>
+
+    <aside class="vig-panel__readout" aria-label="Headline reading">
+      <p class="vig-panel__readout-k">{loadBearing.indicator}</p>
+      <p class="vig-panel__readout-v">
+        <span class="vig-panel__readout-num">{loadBearing.value}</span>
+      </p>
+      <p class="vig-panel__readout-meta">
+        <span class="vig-panel__delta" aria-label={`Change ${loadBearing.delta}, direction ${loadBearing.deltaDir}`}>
+          <span class="vig-panel__delta-glyph" aria-hidden="true">{dirGlyph(loadBearing.deltaDir)}</span>
+          <span class="vig-panel__delta-val">{loadBearing.delta}</span>
+        </span>
+        <span class="vig-panel__readout-asof">{loadBearing.asOf}</span>
+      </p>
+      {section.blurb.body && (
+        <p class="vig-panel__note">
+          {section.blurb.body}
+        </p>
+      )}
+    </aside>
+  </div>
+
+  <table class="vig-panel__table" aria-label={`${section.label} indicators table`}>
+    <thead>
+      <tr>
+        <th scope="col" class="vig-panel__th vig-panel__th--ind">Indicator</th>
+        <th scope="col" class="vig-panel__th vig-panel__th--val">Value</th>
+        <th scope="col" class="vig-panel__th vig-panel__th--delta">Change</th>
+        <th scope="col" class="vig-panel__th vig-panel__th--asof">As of</th>
+      </tr>
+    </thead>
+    <tbody>
+      {allPrints.map((p) => (
+        <tr class={p === loadBearing ? "vig-panel__tr vig-panel__tr--primary" : "vig-panel__tr"}>
+          <td class="vig-panel__td vig-panel__td--ind">{p.indicator}</td>
+          <td class="vig-panel__td vig-panel__td--val">{p.value}</td>
+          <td class="vig-panel__td vig-panel__td--delta">
+            <span class="vig-panel__td-glyph" aria-hidden="true">{dirGlyph(p.deltaDir)}</span>
+            <span class="vig-panel__td-delta-val">{p.delta}</span>
+          </td>
+          <td class="vig-panel__td vig-panel__td--asof">{p.asOf}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</article>
+
+<style>
+  .vig-panel {
+    background: var(--paper);
+    padding: 18px 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 100%;
+  }
+
+  .vig-panel__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--ink);
+    padding-bottom: 10px;
+  }
+  .vig-panel__head-left { min-width: 0; }
+  .vig-panel__eyebrow {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .vig-panel__fig {
+    color: var(--ink);
+  }
+  .vig-panel__fig-n {
+    color: var(--accent);
+    font-weight: 800;
+    letter-spacing: 0.1em;
+  }
+  .vig-panel__h {
+    margin: 6px 0 0;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 22px;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .vig-panel__h-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 80ms linear;
+  }
+  .vig-panel__h-link:hover {
+    border-bottom-color: var(--ink);
+  }
+  .vig-panel__h-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+  .vig-panel__cadence {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .vig-panel__question {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 200;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--ink);
+    max-width: 56ch;
+  }
+
+  .vig-panel__body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  @media (min-width: 600px) {
+    .vig-panel__body {
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+  }
+
+  .vig-panel__fig-wrap {
+    margin: 0;
+    min-width: 0;
+  }
+  .vig-panel__svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .vig-panel__cap {
+    margin: 6px 0 0;
+    font-family: var(--font-sans);
+    font-weight: 200;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--ink);
+  }
+  .vig-panel__cap-mark {
+    font-weight: 600;
+    color: var(--ink);
+    margin-right: 4px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 10px;
+  }
+
+  .vig-panel__readout {
+    min-width: 0;
+    padding-left: 0;
+  }
+  @media (min-width: 600px) {
+    .vig-panel__readout {
+      border-left: 1px solid var(--ink);
+      padding-left: 16px;
+    }
+  }
+  .vig-panel__readout-k {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .vig-panel__readout-v {
+    margin: 8px 0 0;
+    line-height: 1;
+  }
+  .vig-panel__readout-num {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 30px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .vig-panel__readout-meta {
+    margin: 10px 0 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    line-height: 1;
+  }
+  .vig-panel__delta {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .vig-panel__delta-glyph {
+    font-size: 9px;
+    line-height: 1;
+    color: var(--ink);
+  }
+  .vig-panel__delta-val {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    color: var(--ink);
+  }
+  .vig-panel__readout-asof {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .vig-panel__note {
+    margin: 12px 0 0;
+    font-family: var(--font-sans);
+    font-weight: 200;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--ink);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 44ch;
+  }
+
+  .vig-panel__table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--ink);
+    border-top: 1px solid var(--ink);
+  }
+  .vig-panel__th {
+    text-align: left;
+    font-weight: 600;
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink);
+    padding: 8px 8px 7px 0;
+    border-bottom: 1px solid var(--ink);
+  }
+  .vig-panel__th--val,
+  .vig-panel__th--delta,
+  .vig-panel__th--asof {
+    text-align: right;
+    padding-right: 0;
+    padding-left: 6px;
+  }
+  .vig-panel__td {
+    padding: 7px 8px 7px 0;
+    border-bottom: 1px solid var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .vig-panel__tr:last-child .vig-panel__td {
+    border-bottom: 0;
+  }
+  .vig-panel__td--ind {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    color: var(--ink);
+  }
+  .vig-panel__td--val,
+  .vig-panel__td--delta,
+  .vig-panel__td--asof {
+    text-align: right;
+    padding-right: 0;
+    padding-left: 6px;
+  }
+  .vig-panel__td--val {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    color: var(--ink);
+  }
+  .vig-panel__td--delta {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    color: var(--ink);
+  }
+  .vig-panel__td-glyph {
+    font-size: 9px;
+    margin-right: 3px;
+    color: var(--ink);
+  }
+  .vig-panel__td-delta-val {
+    color: var(--ink);
+  }
+  .vig-panel__td--asof {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .vig-panel__tr--primary .vig-panel__td--ind {
+    font-weight: 800;
+    color: var(--ink);
+  }
+  .vig-panel__tr--primary .vig-panel__td--val {
+    font-weight: 400;
+    color: var(--ink);
+  }
+</style>

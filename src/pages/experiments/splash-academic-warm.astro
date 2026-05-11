@@ -1,0 +1,303 @@
+---
+/*
+ * Splash experiment: Splash I-Warm — GDPNow layout in warm editorial-magazine
+ * register. Layout-identical to Lane I (Atlanta-Fed-style academic splash);
+ * aesthetic shifts from cool calm sans/serif to a warm cream all-serif
+ * editorial-magazine treatment.
+ *
+ * - Background: warm cream paper (#F5EFE2), panels slightly brighter (#FAF5E8).
+ * - Ink: deep warm brown-black (#1F1A12).
+ * - Accent: burgundy (#7A1B26). Secondary: muted ochre (#8C6F3E).
+ * - Type: Cormorant Garamond (display, italic question subheads, headline
+ *   numerals at large sizes) + Source Serif 4 (body, tabular figures inside
+ *   tight table rows where Cormorant tabular widths get uneven).
+ * - Subtle paper grain: SVG feTurbulence multiplied at 0.04 opacity.
+ * - Charts: burgundy line, ochre last-point dot.
+ *
+ * Entirely self-contained: no production homepage components, no shared
+ * design tokens. Reads from src/data/sections.ts only. Zero JS.
+ */
+
+import {
+  sections,
+  deepDives,
+  nextRelease,
+  site,
+  type Section,
+} from "../../data/sections";
+
+import Masthead from "../../components/experiments/academic-warm/Masthead.astro";
+import TitleStatement from "../../components/experiments/academic-warm/TitleStatement.astro";
+import SectionPanel from "../../components/experiments/academic-warm/SectionPanel.astro";
+import DeepDivePanel from "../../components/experiments/academic-warm/DeepDivePanel.astro";
+import Colophon from "../../components/experiments/academic-warm/Colophon.astro";
+
+// Canonical section ordering, matched to Lane I.
+const ordered: Section[] = (
+  ["gdp", "inflation", "labour", "housing", "policy", "markets", "trade"] as const
+)
+  .map((slug) => sections.find((s) => s.slug === slug))
+  .filter((s): s is Section => Boolean(s));
+
+const today = new Date(Date.UTC(2026, 4, 11)); // May 11, 2026
+const longDate = today.toLocaleDateString("en-CA", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+const produced = today.toISOString().slice(0, 10);
+const edition = "Splash I-Warm · Editorial Magazine";
+
+const pageTitle = `${site.name} — Canadian Macro Overview, ${longDate}`;
+const pageDesc =
+  "A warm editorial-magazine variant of the academic-staff-page splash for Canadian macro: seven indicator panels with small precise charts, headline readings, and three working papers. All-serif, cream paper, burgundy accent.";
+
+const abstract =
+  "A reading-first summary of the Canadian macro picture as of " +
+  longDate +
+  ". Seven indicator domains, each rendered as a compact panel with one " +
+  "load-bearing chart, the latest headline reading, and a small table of " +
+  "supporting prints. Working papers index follows the section grid.";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#F5EFE2" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta property="og:locale" content="en_CA" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&display=swap"
+    />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+  </head>
+  <body class="aw-body">
+    <a class="aw-skip" href="#aw-main">Skip to main content</a>
+
+    {/* Paper-grain overlay — SVG turbulence multiplied at very low opacity.
+        aria-hidden because purely decorative; pointer-events none. */}
+    <svg
+      class="aw-grain"
+      aria-hidden="true"
+      focusable="false"
+      xmlns="http://www.w3.org/2000/svg"
+      width="100%"
+      height="100%"
+      preserveAspectRatio="none"
+    >
+      <filter id="aw-grain-filter">
+        <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" />
+        <feColorMatrix
+          type="matrix"
+          values="0 0 0 0 0.12
+                  0 0 0 0 0.10
+                  0 0 0 0 0.07
+                  0 0 0 0.6 0"
+        />
+      </filter>
+      <rect width="100%" height="100%" filter="url(#aw-grain-filter)" />
+    </svg>
+
+    <div class="aw-shell">
+      <Masthead publication={site.name} asOf={longDate} edition="Splash I-Warm" />
+
+      <main id="aw-main" class="aw-main">
+        <TitleStatement
+          dateLine={longDate}
+          abstract={abstract}
+          sections={sections}
+        />
+
+        <section class="aw-grid" aria-label="Indicator panels">
+          <h2 class="aw-vh">Indicator panels</h2>
+          {ordered.map((s, i) => (
+            <div class="aw-grid__cell">
+              <SectionPanel section={s} figureNum={String(i + 1)} />
+            </div>
+          ))}
+          <div class="aw-grid__cell">
+            <DeepDivePanel deepDives={deepDives} figureNum="8" />
+          </div>
+        </section>
+
+        <Colophon
+          publication={site.name}
+          nextLabel={nextRelease.label}
+          nextDate={nextRelease.date}
+          nextAgency={nextRelease.agency}
+          produced={produced}
+          edition={edition}
+        />
+      </main>
+    </div>
+
+    <style is:global>
+      /* ===========================================================
+       * Splash I-Warm — warm cream all-serif tokens.
+       * Five-color palette + two serif families. No mono, no sans.
+       * =========================================================== */
+      :root {
+        --aw-paper: #F5EFE2;
+        --aw-panel: #FAF5E8;
+        --aw-ink: #1F1A12;
+        --aw-burgundy: #7A1B26;
+        --aw-ochre: #8C6F3E;
+        --aw-hairline: #D8CFB7;
+
+        --aw-display: "Cormorant Garamond", "EB Garamond", Garamond, Georgia, "Times New Roman", serif;
+        --aw-body: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
+
+        --aw-max: 1240px;
+        --aw-gutter: 24px;
+      }
+
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--aw-paper);
+        color: var(--aw-ink);
+      }
+      body.aw-body {
+        font-family: var(--aw-body);
+        font-weight: 400;
+        font-size: 15px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "kern" 1, "liga" 1, "onum" 0;
+        font-variant-numeric: lining-nums;
+        min-height: 100vh;
+        position: relative;
+      }
+
+      a {
+        color: var(--aw-burgundy);
+      }
+
+      h1, h2, h3, h4 {
+        margin: 0;
+      }
+
+      ::selection {
+        background: rgba(122, 27, 38, 0.20);
+        color: var(--aw-ink);
+      }
+
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--aw-burgundy);
+        outline-offset: 3px;
+      }
+
+      .aw-skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+      }
+      .aw-skip:focus {
+        position: static;
+        display: inline-block;
+        margin: 8px 0 0 12px;
+        background: var(--aw-burgundy);
+        color: var(--aw-paper);
+        padding: 6px 12px;
+        font-family: var(--aw-display);
+        font-style: italic;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-decoration: none;
+      }
+
+      .aw-vh {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      /* Paper-grain overlay: fixed, full-viewport, multiplied at ~0.04. */
+      .aw-grain {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
+        z-index: 1;
+        opacity: 0.04;
+        mix-blend-mode: multiply;
+      }
+    </style>
+
+    <style>
+      .aw-shell {
+        width: 100%;
+        max-width: var(--aw-max);
+        margin: 0 auto;
+        padding: 0 var(--aw-gutter) 0;
+        position: relative;
+        z-index: 2;
+      }
+      @media (min-width: 1100px) {
+        .aw-shell {
+          padding-inline: 40px;
+        }
+      }
+
+      .aw-main {
+        padding-block: 0 0;
+      }
+
+      .aw-grid {
+        margin-top: 28px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+      @media (min-width: 760px) {
+        .aw-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 22px;
+        }
+      }
+      @media (min-width: 1100px) {
+        .aw-grid {
+          gap: 26px;
+        }
+      }
+      .aw-grid__cell {
+        min-width: 0;
+        display: flex;
+      }
+      .aw-grid__cell > * {
+        width: 100%;
+      }
+    </style>
+  </body>
+</html>

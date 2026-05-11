@@ -1,0 +1,143 @@
+---
+/*
+ * Academic-textbook Masthead - mid-century university press register.
+ *
+ * Display wordmark in heavy Crimson Pro small-caps with a tight letter-
+ * spaced rail of meta below (Cutive Mono). Double-rule beneath in deep
+ * olive: a thin upper rule and a thicker lower rule, the classic textbook
+ * cover treatment.
+ */
+
+interface Props {
+  publication: string;
+  asOf: string;
+  edition: string;
+}
+
+const { publication, asOf, edition } = Astro.props;
+---
+<header class="atx-mast" role="banner">
+  <div class="atx-mast__row">
+    <p class="atx-mast__mark">{publication}</p>
+    <nav class="atx-mast__nav" aria-label="Institutional rail">
+      <span class="atx-mast__nav-item">
+        <span class="atx-mast__nav-k">Series</span>
+        <span class="atx-mast__nav-v">Research Bulletin</span>
+      </span>
+      <span class="atx-mast__nav-sep" aria-hidden="true">|</span>
+      <span class="atx-mast__nav-item">
+        <span class="atx-mast__nav-k">As of</span>
+        <span class="atx-mast__nav-v">{asOf}</span>
+      </span>
+      <span class="atx-mast__nav-sep" aria-hidden="true">|</span>
+      <span class="atx-mast__nav-item">
+        <span class="atx-mast__nav-k">Edition</span>
+        <span class="atx-mast__nav-v">{edition}</span>
+      </span>
+      <span class="atx-mast__nav-sep atx-mast__nav-sep--push" aria-hidden="true">|</span>
+      <a class="atx-mast__back" href="/">Return to production homepage</a>
+    </nav>
+  </div>
+  <div class="atx-mast__rules" aria-hidden="true">
+    <hr class="atx-mast__rule atx-mast__rule--thin" />
+    <hr class="atx-mast__rule atx-mast__rule--thick" />
+  </div>
+</header>
+
+<style>
+  .atx-mast {
+    padding-top: 22px;
+    position: relative;
+    z-index: 2;
+  }
+  .atx-mast__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px 24px;
+    padding-bottom: 12px;
+  }
+  .atx-mast__mark {
+    margin: 0;
+    font-family: var(--atx-display);
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--atx-ink);
+    font-variant: small-caps;
+    flex: 0 0 auto;
+  }
+  .atx-mast__nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 12px;
+    margin-left: auto;
+    font-family: var(--atx-mono);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    color: var(--atx-ink-soft);
+  }
+  .atx-mast__nav-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .atx-mast__nav-k {
+    color: var(--atx-ink-soft);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+  }
+  .atx-mast__nav-v {
+    color: var(--atx-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .atx-mast__nav-sep {
+    color: var(--atx-rule);
+  }
+  .atx-mast__nav-sep--push {
+    margin-left: 4px;
+  }
+  .atx-mast__back {
+    color: var(--atx-forest);
+    text-decoration: none;
+    border-bottom: 0.5px solid var(--atx-forest);
+    padding-bottom: 1px;
+    font-family: var(--atx-mono);
+    transition: color 100ms linear, border-color 100ms linear;
+  }
+  .atx-mast__back:hover {
+    color: var(--atx-brick);
+    border-bottom-color: var(--atx-brick);
+  }
+  .atx-mast__back:focus-visible {
+    outline: 2px solid var(--atx-ochre);
+    outline-offset: 3px;
+  }
+
+  .atx-mast__rules {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .atx-mast__rule {
+    border: 0;
+    margin: 0;
+  }
+  .atx-mast__rule--thin {
+    border-top: 0.5px solid var(--atx-forest);
+  }
+  .atx-mast__rule--thick {
+    border-top: 2.5px solid var(--atx-forest);
+  }
+
+  @media (max-width: 720px) {
+    .atx-mast__nav {
+      margin-left: 0;
+    }
+  }
+</style>

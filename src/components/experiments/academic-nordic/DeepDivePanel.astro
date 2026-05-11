@@ -1,0 +1,213 @@
+---
+/*
+ * Nordic DeepDivePanel — 8th cell, Scandinavian product clean.
+ * Same numbered working-papers list as Lane I, all-sans, light weights,
+ * terracotta reserved for the active status pill only.
+ */
+
+import type { DeepDive } from "../../../data/sections";
+
+interface Props {
+  deepDives: DeepDive[];
+  figureNum: string;
+}
+
+const { deepDives, figureNum } = Astro.props;
+
+const ordered = [...deepDives].sort((a, b) =>
+  a.lastUpdated < b.lastUpdated ? 1 : -1,
+);
+
+const statusLabel = (s: "research" | "drafted" | "shipped") =>
+  s === "shipped" ? "Shipped"
+  : s === "drafted" ? "Drafted"
+  : "In research";
+---
+<article class="nor-dd" aria-labelledby="nor-dd-h">
+  <header class="nor-dd__head">
+    <div class="nor-dd__head-left">
+      <p class="nor-dd__eyebrow">
+        <span class="nor-dd__fig">Figure {figureNum}</span>
+      </p>
+      <h2 id="nor-dd-h" class="nor-dd__h">
+        Working papers
+      </h2>
+    </div>
+    <p class="nor-dd__count">
+      {ordered.length} active
+    </p>
+  </header>
+
+  <p class="nor-dd__lede">
+    Current deep dives by the department. Pillar codes follow the editorial
+    canon. Updated as drafts move.
+  </p>
+
+  <ol class="nor-dd__list" role="list">
+    {ordered.map((dd, i) => (
+      <li class="nor-dd__row">
+        <div class="nor-dd__row-num" aria-hidden="true">
+          <span class="nor-dd__row-num-n">{String(i + 1).padStart(2, "0")}</span>
+        </div>
+        <div class="nor-dd__row-body">
+          <p class="nor-dd__row-meta">
+            <span class="nor-dd__pillar">Pillar {dd.pillar}</span>
+            <span class="nor-dd__row-sep" aria-hidden="true">/</span>
+            <span class="nor-dd__section">{dd.section}</span>
+            <span class="nor-dd__row-sep" aria-hidden="true">/</span>
+            <span class={`nor-dd__status nor-dd__status--${dd.status}`}>{statusLabel(dd.status)}</span>
+          </p>
+          <h3 class="nor-dd__title">{dd.title}</h3>
+          <p class="nor-dd__deck">{dd.deck}</p>
+          <p class="nor-dd__stamp">Updated {dd.lastUpdated}</p>
+        </div>
+      </li>
+    ))}
+  </ol>
+</article>
+
+<style>
+  .nor-dd {
+    background: var(--nor-stone);
+    border: 1px solid var(--nor-hairline);
+    padding: 22px 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 100%;
+  }
+
+  .nor-dd__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--nor-hairline);
+    padding-bottom: 12px;
+  }
+  .nor-dd__eyebrow {
+    margin: 0;
+    font-family: var(--nor-body);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--nor-gray);
+  }
+  .nor-dd__fig {
+    color: var(--nor-terra);
+  }
+  .nor-dd__h {
+    margin: 8px 0 0;
+    font-family: var(--nor-display);
+    font-weight: 600;
+    font-size: 20px;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    color: var(--nor-ink);
+  }
+  .nor-dd__count {
+    margin: 0;
+    font-family: var(--nor-body);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--nor-gray);
+  }
+
+  .nor-dd__lede {
+    margin: 0;
+    font-family: var(--nor-body);
+    font-weight: 300;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--nor-ink);
+    max-width: 56ch;
+  }
+
+  .nor-dd__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-top: 1px solid var(--nor-hairline);
+  }
+  .nor-dd__row {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    gap: 12px;
+    padding: 14px 0 16px;
+    border-bottom: 1px solid var(--nor-hairline);
+  }
+  .nor-dd__row:last-child {
+    border-bottom: 0;
+  }
+  .nor-dd__row-num {
+    font-family: var(--nor-mono);
+    font-weight: 300;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--nor-gray);
+    padding-top: 3px;
+  }
+  .nor-dd__row-num-n {
+    font-variant-numeric: tabular-nums;
+  }
+  .nor-dd__row-body { min-width: 0; }
+
+  .nor-dd__row-meta {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    font-family: var(--nor-body);
+    font-size: 9.5px;
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--nor-gray);
+  }
+  .nor-dd__pillar { color: var(--nor-navy); }
+  .nor-dd__section { color: var(--nor-ink); }
+  .nor-dd__row-sep { color: var(--nor-gray); opacity: 0.5; }
+  .nor-dd__status { font-weight: 500; }
+  .nor-dd__status--shipped { color: var(--nor-navy); }
+  .nor-dd__status--drafted { color: var(--nor-terra); }
+  .nor-dd__status--research { color: var(--nor-gray); }
+
+  .nor-dd__title {
+    margin: 7px 0 0;
+    font-family: var(--nor-display);
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    color: var(--nor-ink);
+  }
+  .nor-dd__deck {
+    margin: 5px 0 0;
+    font-family: var(--nor-body);
+    font-weight: 300;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--nor-ink);
+    max-width: 52ch;
+  }
+  .nor-dd__stamp {
+    margin: 8px 0 0;
+    font-family: var(--nor-mono);
+    font-weight: 300;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--nor-gray);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

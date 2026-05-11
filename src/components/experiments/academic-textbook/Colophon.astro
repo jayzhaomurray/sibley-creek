@@ -1,0 +1,168 @@
+---
+/*
+ * Academic-textbook Colophon - the back-of-book imprint in mid-century
+ * journal register. Double rule above, italic mark, body notes, and a
+ * tabular stamps row in Cutive Mono.
+ */
+
+interface Props {
+  publication: string;
+  nextLabel: string;
+  nextDate: string;
+  nextAgency: string;
+  produced: string;
+  edition: string;
+}
+
+const { publication, nextLabel, nextDate, nextAgency, produced, edition } = Astro.props;
+---
+<footer class="atx-col" role="contentinfo">
+  <div class="atx-col__rules" aria-hidden="true">
+    <hr class="atx-col__rule atx-col__rule--thick" />
+    <hr class="atx-col__rule atx-col__rule--thin" />
+  </div>
+  <div class="atx-col__row">
+    <p class="atx-col__mark">
+      <span class="atx-col__mark-name">{publication}</span>
+      <span class="atx-col__sep" aria-hidden="true">&mdash;</span>
+      <span class="atx-col__sub">Independent research.</span>
+    </p>
+    <p class="atx-col__notes">
+      Series are placeholder values for the v1 splash. Reported values match
+      the most recently published vintage; revisions are not reconciled
+      across releases. This page is a design experiment in the register of a
+      mid-century academic journal and is not a research product.
+    </p>
+  </div>
+  <dl class="atx-col__stamps">
+    <div class="atx-col__stamp">
+      <dt>Next release</dt>
+      <dd>
+        <span class="atx-col__stamp-strong">{nextLabel}</span>
+        <span class="atx-col__stamp-soft">{nextDate} &middot; {nextAgency}</span>
+      </dd>
+    </div>
+    <div class="atx-col__stamp">
+      <dt>Produced</dt>
+      <dd><span class="atx-col__stamp-soft">{produced}</span></dd>
+    </div>
+    <div class="atx-col__stamp">
+      <dt>Edition</dt>
+      <dd><span class="atx-col__stamp-soft">{edition}</span></dd>
+    </div>
+  </dl>
+</footer>
+
+<style>
+  .atx-col {
+    padding-block: 22px 32px;
+    position: relative;
+    z-index: 2;
+  }
+  .atx-col__rules {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: 0 0 16px;
+  }
+  .atx-col__rule {
+    border: 0;
+    margin: 0;
+  }
+  .atx-col__rule--thick {
+    border-top: 2.5px solid var(--atx-forest);
+  }
+  .atx-col__rule--thin {
+    border-top: 0.5px solid var(--atx-forest);
+  }
+  .atx-col__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  @media (min-width: 720px) {
+    .atx-col__row {
+      grid-template-columns: 1fr 2fr;
+      gap: 32px;
+    }
+  }
+  .atx-col__mark {
+    margin: 0;
+    font-family: var(--atx-display);
+    font-style: italic;
+    font-weight: 600;
+    font-size: 14.5px;
+    line-height: 1.35;
+    color: var(--atx-forest);
+  }
+  .atx-col__mark-name {
+    font-style: italic;
+  }
+  .atx-col__sep {
+    color: var(--atx-rule);
+    margin: 0 6px;
+    font-style: normal;
+  }
+  .atx-col__sub {
+    color: var(--atx-ink);
+    font-style: italic;
+  }
+  .atx-col__notes {
+    margin: 0;
+    font-family: var(--atx-body);
+    font-weight: 300;
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: var(--atx-ink-soft);
+    max-width: 76ch;
+  }
+
+  .atx-col__stamps {
+    margin: 18px 0 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    border-top: 0.5px solid var(--atx-rule);
+    padding-top: 12px;
+  }
+  @media (min-width: 720px) {
+    .atx-col__stamps {
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 18px;
+    }
+  }
+  .atx-col__stamp {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .atx-col__stamp dt {
+    margin: 0;
+    font-family: var(--atx-mono);
+    font-size: 9.5px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--atx-ink-soft);
+    flex: 0 0 auto;
+  }
+  .atx-col__stamp dd {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    font-family: var(--atx-mono);
+    font-size: 11px;
+    line-height: 1.2;
+    color: var(--atx-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .atx-col__stamp-strong {
+    color: var(--atx-ink);
+    font-weight: 500;
+  }
+  .atx-col__stamp-soft {
+    color: var(--atx-ink-soft);
+  }
+</style>

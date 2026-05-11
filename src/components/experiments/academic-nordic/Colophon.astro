@@ -1,0 +1,154 @@
+---
+/*
+ * Nordic Colophon — Scandinavian product clean footer.
+ * Same three slots as Lane I (mark, notes, stamps). All-sans, light weights,
+ * stone hairlines, no italics.
+ */
+
+interface Props {
+  publication: string;
+  nextLabel: string;
+  nextDate: string;
+  nextAgency: string;
+  produced: string;
+  edition: string;
+}
+
+const { publication, nextLabel, nextDate, nextAgency, produced, edition } = Astro.props;
+---
+<footer class="nor-col" role="contentinfo">
+  <hr class="nor-col__rule" aria-hidden="true" />
+  <div class="nor-col__row">
+    <p class="nor-col__mark">
+      <span class="nor-col__mark-name">{publication}</span>
+      <span class="nor-col__sep" aria-hidden="true">/</span>
+      <span class="nor-col__sub">Independent research</span>
+    </p>
+    <p class="nor-col__notes">
+      Series are placeholder values for the v1 splash. Reported values match
+      the most recently published vintage; revisions are not reconciled
+      across releases. This page is a design experiment and not a research
+      product.
+    </p>
+  </div>
+  <dl class="nor-col__stamps">
+    <div class="nor-col__stamp">
+      <dt>Next release</dt>
+      <dd>
+        <span class="nor-col__stamp-strong">{nextLabel}</span>
+        <span class="nor-col__stamp-soft">{nextDate} &middot; {nextAgency}</span>
+      </dd>
+    </div>
+    <div class="nor-col__stamp">
+      <dt>Produced</dt>
+      <dd><span class="nor-col__stamp-soft">{produced}</span></dd>
+    </div>
+    <div class="nor-col__stamp">
+      <dt>Edition</dt>
+      <dd><span class="nor-col__stamp-soft">{edition}</span></dd>
+    </div>
+  </dl>
+</footer>
+
+<style>
+  .nor-col {
+    padding-block: 28px 40px;
+  }
+  .nor-col__rule {
+    border: 0;
+    border-top: 1px solid var(--nor-hairline);
+    margin: 0 0 22px;
+  }
+  .nor-col__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  @media (min-width: 720px) {
+    .nor-col__row {
+      grid-template-columns: 1fr 2fr;
+      gap: 36px;
+    }
+  }
+  .nor-col__mark {
+    margin: 0;
+    font-family: var(--nor-display);
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+    color: var(--nor-navy);
+  }
+  .nor-col__mark-name {
+    color: var(--nor-navy);
+  }
+  .nor-col__sep {
+    color: var(--nor-gray);
+    margin: 0 6px;
+    font-weight: 300;
+  }
+  .nor-col__sub {
+    color: var(--nor-ink);
+    font-weight: 400;
+  }
+  .nor-col__notes {
+    margin: 0;
+    font-family: var(--nor-body);
+    font-weight: 300;
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--nor-gray);
+    max-width: 76ch;
+  }
+
+  .nor-col__stamps {
+    margin: 22px 0 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    border-top: 1px solid var(--nor-hairline);
+    padding-top: 14px;
+  }
+  @media (min-width: 720px) {
+    .nor-col__stamps {
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 24px;
+    }
+  }
+  .nor-col__stamp {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .nor-col__stamp dt {
+    margin: 0;
+    font-family: var(--nor-body);
+    font-size: 9.5px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--nor-gray);
+    flex: 0 0 auto;
+  }
+  .nor-col__stamp dd {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    font-family: var(--nor-mono);
+    font-weight: 300;
+    font-size: 11px;
+    line-height: 1.2;
+    color: var(--nor-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .nor-col__stamp-strong {
+    color: var(--nor-ink);
+    font-weight: 400;
+  }
+  .nor-col__stamp-soft {
+    color: var(--nor-gray);
+  }
+</style>

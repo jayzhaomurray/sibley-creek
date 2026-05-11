@@ -1,502 +1,129 @@
 ---
 /*
- * Homepage - Layout B (Hero + 6).
+ * Homepage - Canadian Macro Overview (Vignelli register, production canon).
  *
- * Replaces R1 (3-col grid with orphan) per user direction.
+ * 2026-05-11: This page replaces the previous Layout-B (Hero + 6) homepage.
+ * The Vignelli aesthetic - promoted out of /experiments/splash-academic-
+ * vignelli/ - is now the production homepage.
  *
  * Layout:
- *   1. Thin date strip with next-release indicator (top of page).
- *   2. Hero + 6-grid composition.
- *      - Hero: the section with the most-recent `updatedAt` (rotates with
- *        each new data print). Renders as a wide HeroTile carrying a real
- *        chart slot (280x140 floor, dashed-border placeholder), big-number
- *        callout, full headline question, and 2-3 sentence event-blurb.
- *      - 6 compact tiles in a 3x2 grid.
- *        * Top row (3 cells): the other three of
- *          {Inflation, GDP, Labour, Policy} that aren't the hero. These are
- *          the "macro core" — the section the hero displaced still appears
- *          near the top of the page.
- *        * Bottom row (3 cells): always Housing, Trade, Markets - the
- *          rate-sensitive, external, and cross-asset rail.
- *   3. Deep-dives strip - compressed to a chip row to keep the page inside
- *      the 1440x900 no-scroll budget.
+ *   1. Title Statement: eyebrow + headline ("Canadian Macro Overview" + date
+ *      in signal red) + abstract + 3-cell headline-numbers stamp.
+ *   2. Indicator panel grid: 2 x 4 hairline-bordered cells. Seven section
+ *      panels + an eighth "Working papers" cell.
  *
- * Hero selection is computed at build time via Math.max(updatedAt). The
- * page composition is otherwise static; no client JS ships.
+ * Masthead and colophon are owned by BaseLayout (Vignelli chrome); this
+ * page renders only the body.
  *
- * No-scroll constraint:
- *   The page (header + datestrip + hero+6 + deep-dives chip row + footer)
- *   must fit in 1440x900 desktop without scrolling. Mobile may scroll;
- *   below 960px the hero stacks above the 6-grid, which becomes 2 cols then
- *   1 col.
+ * Hero selection / rate-rail composition is NOT part of this layout. The
+ * Vignelli register treats all seven sections as equal panels in the
+ * editorial grid; the title statement carries the date / publication
+ * voice. If we want a "hero of the day" in v1.1 we'll do it in the title
+ * statement, not by re-introducing the hero-and-six split.
  *
  * What this page is NOT:
- *   - A hero in the marketing sense. The publication's voice arrives via
- *     the section composition; the hero is editorial wayfinding (which
- *     section moved today), not a sales pitch.
- *   - A chart canvas. The hero's chart slot is reserved; chart-builder
- *     hydrates later via `data-chart-key`.
- *   - A feed. Sections do not stream; the hero changes only when an
- *     `updatedAt` value changes upstream.
+ *   - A chart canvas. Each panel renders its own small load-bearing chart
+ *     inline (SVG, black line + red latest-point dot). chart-builder may
+ *     hydrate these later via dispatch keys; the static SVG is the v1
+ *     baseline.
+ *   - An experiment route. The Vignelli experiment under /experiments/
+ *     splash-academic-vignelli/ remains live for visual comparison; this
+ *     page is the canonical homepage.
  */
 
 import BaseLayout from "../layouts/BaseLayout.astro";
-import HeroTile from "../components/HeroTile.astro";
-import CompactTile from "../components/CompactTile.astro";
-import DeepDiveCard from "../components/DeepDiveCard.astro";
+import TitleStatement from "../components/home/TitleStatement.astro";
+import SectionPanel from "../components/home/SectionPanel.astro";
+import DeepDivePanel from "../components/home/DeepDivePanel.astro";
 import {
   sections,
   deepDives,
-  nextRelease,
   site,
   type Section,
-  type SectionSlug,
 } from "../data/sections";
 
-// ---- Hero selection (build-time) ----
-//
-// The hero is the section with the maximum updatedAt timestamp. We do not
-// hard-code a slug; new data landing in any section's updatedAt flips the
-// hero on next build. Backend will keep these values current via the
-// release-calendar pipeline.
-//
-// If multiple sections tie (extremely unlikely with millisecond precision),
-// reduce() picks the first one encountered. Editorial ordering would be a
-// later refinement; v1 ships with the simple max.
-const heroSection: Section = sections.reduce((a, b) =>
-  (b.updatedAt ?? 0) > (a.updatedAt ?? 0) ? b : a,
-);
+// Canonical section ordering. Seven sections + one working-papers cell.
+const ordered: Section[] = (
+  ["gdp", "inflation", "labour", "housing", "policy", "markets", "trade"] as const
+)
+  .map((slug) => sections.find((s) => s.slug === slug))
+  .filter((s): s is Section => Boolean(s));
 
-// ---- 6-grid composition ----
-//
-// Fixed editorial structure per user direction:
-//   - Bottom row: Housing, Trade, Markets, in that order, always.
-//   - Top row: the other three of {Inflation, GDP, Labour, Policy} that
-//     aren't the hero. If the hero is e.g. Inflation, top row =
-//     {GDP, Labour, Policy} in canonical order. If the hero happens to be
-//     Housing / Trade / Markets, the bottom row still keeps its identity
-//     and the top row picks up the four "macro core" sections minus the
-//     hero, dropping the canonically-last one to keep at 3.
-//
-// This is a homepage composition choice; the underlying section identity
-// (slug, accent, route) is unaffected.
-
-const MACRO_CORE: SectionSlug[] = ["inflation", "gdp", "labour", "policy"];
-const RATE_RAIL: SectionSlug[] = ["housing", "trade", "markets"];
-
-const sectionBySlugRef = Object.fromEntries(sections.map((s) => [s.slug, s])) as
-  Record<SectionSlug, Section>;
-
-// Bottom row stays fixed.
-const bottomRow: Section[] = RATE_RAIL.map((slug) => sectionBySlugRef[slug]);
-
-// Top row: macro-core minus the hero (if hero is in macro-core). If the
-// hero is in the rate rail, we still need three cells in the top row, so
-// pick the first 3 of macro-core in canonical order.
-let topRow: Section[];
-if (MACRO_CORE.includes(heroSection.slug)) {
-  topRow = MACRO_CORE
-    .filter((slug) => slug !== heroSection.slug)
-    .map((slug) => sectionBySlugRef[slug]);
-} else {
-  // Hero is in the rate rail (Housing/Trade/Markets). The rate rail stays
-  // intact at the bottom. The macro core slots into the top, taking the
-  // first 3 in canonical order. (Edge case; v1 placeholder data won't hit
-  // this, but we handle it so the page never produces an empty cell.)
-  topRow = MACRO_CORE.slice(0, 3).map((slug) => sectionBySlugRef[slug]);
-}
-
-const sixGrid: Section[] = [...topRow, ...bottomRow];
-
-// ---- Deep dives lookup (unchanged from R1) ----
-const sectionBySlug = Object.fromEntries(sections.map((s) => [s.slug, s]));
-
-// ---- Date strip text ----
-const editionDate = new Date().toLocaleDateString("en-CA", {
-  weekday: "long",
-  year: "numeric",
+// Title-statement date line. Always reflects today.
+const today = new Date();
+const longDate = today.toLocaleDateString("en-CA", {
   month: "long",
   day: "numeric",
+  year: "numeric",
 });
+
+const abstract =
+  "A reading-first summary of the Canadian macro picture as of " +
+  longDate +
+  ". Seven indicator domains, each rendered as a compact panel with one " +
+  "load-bearing chart, the latest headline reading, and a small table of " +
+  "supporting prints. Working papers index follows the section grid.";
+
+const pageDesc =
+  `Canadian macro overview for ${longDate}. Seven indicator domains - GDP, ` +
+  "inflation, labour, housing, monetary policy, markets, trade - each with " +
+  "a load-bearing chart and the latest prints. Independent research.";
 ---
 <BaseLayout
   title={site.name}
-  description={site.description}
+  description={pageDesc}
   pageClass="home-page"
+  showMastheadRail={true}
 >
   <article class="home">
+    <TitleStatement
+      dateLine={longDate}
+      abstract={abstract}
+      sections={sections}
+    />
 
-    {/* ---------------- Date strip ----------------
-     * F9 (art-director): the strip used to read
-     *   EDITION . Monday, May 11, 2026   NEXT RELEASE . CPI, April 2026 . Tue, May 21 . Statistics Canada
-     * which had three units of eyebrow noise (the agency suffix, the dot
-     * between indicator and date, the loud caps). The simplified form is:
-     *   Edition: Monday, May 11, 2026   Next release: CPI, April -- Tue, May 21
-     * One label per side, indicator and date joined by an em-dash, no agency.
-     * The agency is implicit for v1 (every release here is StatCan or BoC);
-     * if a non-StatCan release ever ships on the strip we re-introduce it on
-     * that print only, not as a permanent fixture.
-     */}
-    <div class="container home__datestrip" aria-label="Edition and upcoming release">
-      <p class="home__edition">
-        <span class="home__edition-label">Edition:</span>
-        <span class="home__edition-date">{editionDate}</span>
-      </p>
-      <p class="home__next">
-        <span class="home__next-label">Next release:</span>
-        <span class="home__next-body">
-          <span class="home__next-title">{nextRelease.label}</span>
-          <span class="home__next-sep" aria-hidden="true">--</span>
-          <span class="home__next-date">{nextRelease.date}</span>
-        </span>
-      </p>
-    </div>
-
-    {/* ---------------- Hero + 6-grid composition ---------------- */}
-    <section
-      class="container home__compose"
-      aria-labelledby="sections-heading"
-    >
-      <h2 id="sections-heading" class="visually-hidden">Sections</h2>
-
-      <div class="home__hero">
-        <HeroTile section={heroSection} />
+    <section class="home__grid" aria-label="Indicator panels">
+      <h2 class="visually-hidden">Indicator panels</h2>
+      {ordered.map((s, i) => (
+        <div class="home__cell">
+          <SectionPanel section={s} figureNum={String(i + 1)} />
+        </div>
+      ))}
+      {/* 8th cell: working papers */}
+      <div class="home__cell">
+        <DeepDivePanel deepDives={deepDives} figureNum="8" />
       </div>
-
-      <ul role="list" class="home__six">
-        {sixGrid.map((section) => (
-          <li class="home__six-cell">
-            <CompactTile section={section} />
-          </li>
-        ))}
-      </ul>
     </section>
-
-    {/* ---------------- Current Deep Dives (chip row) ---------------- */}
-    {/* Art-director re-eval (2026-05-11) item 5: dropped the italic-serif
-     * byline "The questions the publication is working on now." that used
-     * to sit under the CURRENT DEEP DIVES kicker. It was editorial chrome
-     * that the three cards do not need; the kicker alone signals the
-     * section. The burgundy kicker is retained. The labelledby reference
-     * now targets the kicker so the section retains an accessible name. */}
-    <section
-      class="container home__deepdives"
-      aria-labelledby="deepdives-heading"
-    >
-      <div class="home__deepdives-head">
-        <h2 id="deepdives-heading" class="home__deepdives-kicker">Current Deep Dives</h2>
-      </div>
-
-      <ul role="list" class="home__deepdives-grid">
-        {deepDives.map((dd) => {
-          const section = sectionBySlug[dd.section];
-          if (!section) return null;
-          return (
-            <li class="home__deepdives-cell">
-              <DeepDiveCard item={dd} section={section} />
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-
   </article>
 
   <style>
-    /* ---------- Page-scoped shell tightening ----------
-     * The 1440x900 no-scroll budget needs the homepage to lay out tighter
-     * than section pages. We override BaseLayout's <main> padding from the
-     * page side (via .home-page on <body>) instead of changing the global
-     * layout shell, so deep-dive and section pages keep their breathing
-     * room. */
-    :global(body.home-page .site-main) {
-      padding-block: var(--s-5) var(--s-6);
-    }
-
-    /* Tighten the site footer top-margin only on the homepage to claw back
-     * vertical pixels for the no-scroll target. */
-    :global(body.home-page .site-footer) {
-      margin-top: var(--s-5);
-    }
-
-    :global(body.home-page .site-footer__inner) {
-      padding-block: var(--s-5);
-    }
-
-    /* The homepage shrinks the site header on desktop too — the wordmark
-     * + nav row are visible on every page; on the homepage we keep them
-     * compact so the hero gets the height. */
-    @media (min-width: 960px) {
-      :global(body.home-page .site-header__inner) {
-        padding-block: var(--s-5);
-      }
-    }
-
-    /* ---------- Date strip ---------- */
-
-    .home__datestrip {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: var(--s-2) var(--s-5);
-      padding-block: var(--s-2) var(--s-3);
-      border-bottom: 1px solid var(--rule);
-      margin-bottom: var(--s-4);
-    }
-
-    .home__edition,
-    .home__next {
-      margin: 0;
-      font-family: var(--font-sans);
-      font-size: var(--fs-micro);
-      line-height: var(--lh-micro);
-      display: inline-flex;
-      flex-wrap: wrap;
-      align-items: baseline;
-      gap: var(--s-2);
-    }
-
-    /* F9: labels now read as quiet sentence-case ("Edition:", "Next release:")
-     * in the same micro-size sans as the dates. The previous all-caps eyebrow
-     * with 0.08em tracking was too loud for a date strip that lives above the
-     * hero. Casing comes from the source string, not text-transform. */
-    .home__edition-label,
-    .home__next-label {
-      font-weight: var(--fw-medium);
-      color: var(--ink-muted);
-      letter-spacing: 0;
-    }
-
-    .home__edition-date {
-      font-family: var(--font-sans);
-      font-size: var(--fs-micro);
-      line-height: var(--lh-micro);
-      font-weight: var(--fw-medium);
-      color: var(--ink);
-      font-variant-numeric: tabular-nums;
-      letter-spacing: 0;
-    }
-
-    .home__next-body {
-      display: inline-flex;
-      flex-wrap: wrap;
-      align-items: baseline;
-      gap: var(--s-2);
-      color: var(--ink-muted);
-    }
-
-    .home__next-title {
-      color: var(--ink);
-      font-weight: var(--fw-medium);
-    }
-
-    .home__next-sep { color: var(--ink-faint); }
-
-    .home__next-date {
-      color: var(--ink-muted);
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* ---------- Hero + 6 composition ----------
-     * Mobile and small tablet: hero stacks above the 6-grid (the 3x2 grid
-     * collapses to 2 cols then 1 col).
-     * Desktop (>=1200px): hero on the left at ~ 5/12 of the row, the 6-grid
-     * fills the remaining 7/12 as a 3-col grid (rendering 3x2 from a flat
-     * list of 6 cells). This puts the hero in the eye's natural anchor
-     * position and lets the 6 tiles read as a Markets-Data-style summary
-     * strip.
-     *
-     * Art-director re-eval (2026-05-11) item 1 -> Path C revision: user
-     * requires hero column height == 6-grid column height (no uneven bottom
-     * edge). We restore `align-items: stretch` so the 6-grid (which is the
-     * shorter of the two columns at Path C content density: editorial line
-     * + mini-chart + callout row, ~210-230px per tile natural, ~440-460px
-     * for two rows) stretches its tiles to match the hero. The extra air
-     * lands at the bottom of each tile (CompactTile keeps content top-
-     * aligned by NOT auto-pushing its callout) so the visual outcome reads
-     * as "tiles with a little tail air" rather than "tiles with a giant
-     * middle gap" or "uneven column edges".
-     */
-
-    .home__compose {
+    .home__grid {
+      margin-top: 28px;
       display: grid;
       grid-template-columns: 1fr;
-      gap: var(--s-4);
-      align-items: stretch;
+      gap: 0;
+      /* Vignelli / Knoll catalogue: panels meet at shared 1px black
+       * hairlines. We collapse the gap and use the panel borders to form a
+       * continuous grid. */
+      border-top: 1px solid var(--ink);
+      border-left: 1px solid var(--ink);
     }
-
-    @media (min-width: 1200px) {
-      .home__compose {
-        grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-        gap: var(--s-5);
-      }
-    }
-
-    .home__hero {
-      display: flex;
-      min-width: 0;
-    }
-
-    .home__hero > :global(.hero) {
-      flex: 1 1 auto;
-    }
-
-    /* 6-grid: 1 col on mobile, 2 cols at md, 3 cols at lg+. The "3x2"
-     * structure is intrinsic to the flat list of 6 + a 3-col template.
-     *
-     * At the desktop breakpoint where the hero sits beside the grid we
-     * also force two equal-height rows (`grid-template-rows: repeat(2, 1fr)`)
-     * so that when `.home__compose` stretches this ul to match the hero
-     * column's height, the surplus distributes evenly across both rows
-     * rather than pooling at the bottom of the grid container. Without
-     * the explicit 1fr rows, grid rows stay at auto and the extra
-     * height becomes a single gap at the bottom edge. */
-    .home__six {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: var(--s-3);
-      margin: 0;
-    }
-
-    @media (min-width: 640px) {
-      .home__six {
+    @media (min-width: 760px) {
+      .home__grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
-
-    @media (min-width: 960px) {
-      .home__six {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: var(--s-4);
-      }
-    }
-
-    @media (min-width: 1200px) {
-      .home__six {
-        grid-template-rows: repeat(2, 1fr);
-      }
-    }
-
-    .home__six-cell {
-      display: flex;
+    .home__cell {
       min-width: 0;
-    }
-
-    .home__six-cell > :global(.ctile) {
-      flex: 1 1 auto;
-    }
-
-    /* ---------- Deep dives (chip row) ----------
-     * Tighter than R1's full-card strip so the page fits the 1440x900
-     * budget. The cards retain their internal structure; the strip
-     * wrapper just compresses spacing.
-     */
-
-    .home__deepdives {
-      margin-top: var(--s-5);
-    }
-
-    .home__deepdives-head {
-      max-width: var(--col-body);
-      margin-bottom: var(--s-3);
-      padding-bottom: var(--s-2);
-      border-bottom: 1px solid var(--rule);
       display: flex;
-      flex-wrap: wrap;
-      align-items: baseline;
-      gap: var(--s-3) var(--s-4);
+      border-right: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+    }
+    .home__cell > :global(*) {
+      width: 100%;
     }
 
-    /* Art-director re-eval (2026-05-11) item 5: this kicker is now the
-     * only thing in `.home__deepdives-head` -- the italic-serif byline that
-     * used to sit beside it was dropped. Promoted from <p> to <h2> so the
-     * section's accessible name comes from a real heading; visual unchanged.
-     * Burgundy (--accent), label-size sans, 0.08em tracking. */
-    .home__deepdives-kicker {
-      font-family: var(--font-sans);
-      font-size: var(--fs-label);
-      line-height: var(--lh-label);
-      font-weight: var(--fw-medium);
-      color: var(--accent);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin: 0;
-    }
-
-    .home__deepdives-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      align-items: stretch;
-      gap: var(--s-4);
-      margin: 0;
-    }
-
-    @media (min-width: 640px) {
-      .home__deepdives-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    @media (min-width: 960px) {
-      .home__deepdives-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-    }
-
-    .home__deepdives-cell {
-      display: flex;
-      min-width: 0;
-    }
-
-    .home__deepdives-cell > :global(.dd) {
-      flex: 1 1 auto;
-      /* Compress deep-dive cards on the homepage so the strip reads as a
-       * chip row inside the 1440x900 no-scroll budget. The dd component
-       * keeps its full styling on a dedicated deep-dives index page; this
-       * is a homepage-only concession.
-       */
-      padding: var(--s-3) var(--s-4);
-    }
-
-    /* Inside the homepage chip row only: clamp the deck to one line and
-     * tighten the meta row spacing. We do not touch the deep-dive page
-     * itself (where the deck breathes). The global :global descent here
-     * is the explicit hook into the dd component scoped to this page. */
-    .home__deepdives-cell > :global(.dd) > :global(.dd__deck) {
-      display: -webkit-box;
-      -webkit-line-clamp: 1;
-      line-clamp: 1;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      margin-top: var(--s-2);
-    }
-
-    .home__deepdives-cell > :global(.dd) > :global(.dd__title) {
-      font-size: var(--fs-body-lg);
-      line-height: 1.25;
-      margin-top: var(--s-2);
-    }
-
-    .home__deepdives-cell > :global(.dd) > :global(.dd__meta) {
-      padding-top: var(--s-3);
-      margin-top: var(--s-2);
-      border-top: 1px solid var(--rule-faint);
-    }
-
-    /* Art-director re-eval (2026-05-11) item 2: neutralize the section badge
-     * color on the homepage deep-dive cards. The HOUSING / POLICY / LABOUR
-     * badges were rendering in their section accents (orange / plum / green),
-     * which reintroduced the rainbow that F4(a) eliminated on the compact
-     * tiles and hero. On the homepage the badge is set in `ink-muted` micro-
-     * caps. Color-coding is reserved for a future /deep-dives index page
-     * where the badge is the wayfinding spine. */
-    .home__deepdives-cell > :global(.dd) :global(.dd__badge-section) {
-      color: var(--ink-muted);
-    }
-
-    /* ---------- a11y utility ---------- */
-
+    /* a11y utility - visually hidden but available to screen readers */
     .visually-hidden {
       position: absolute;
       width: 1px;

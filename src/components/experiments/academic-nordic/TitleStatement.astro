@@ -1,0 +1,178 @@
+---
+/*
+ * Nordic TitleStatement — Scandinavian product title block.
+ *
+ * Same slot composition as Lane I (eyebrow, large title, abstract, three
+ * stamp tiles). Display in heavy sans with tight tracking, abstract in
+ * light sans, stamps in mono light. Generous whitespace; airier than Lane I.
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  dateLine: string;
+  abstract: string;
+  sections: Section[];
+}
+
+const { dateLine, abstract, sections } = Astro.props;
+
+const stamp = [
+  { label: "Headline CPI, y/y", section: "inflation" },
+  { label: "BoC overnight rate", section: "policy" },
+  { label: "Unemployment rate", section: "labour" },
+].map((row) => {
+  const s = sections.find((x) => x.slug === row.section);
+  const p = s?.prints.find((x) => x.indicator === row.label) ?? s?.prints[0];
+  return {
+    label: row.label,
+    value: p?.value ?? "",
+    asOf: p?.asOf ?? "",
+  };
+});
+---
+<section class="nor-title" aria-labelledby="nor-title-h">
+  <p class="nor-title__eyebrow">Research note &middot; Canadian macro &middot; Independent</p>
+  <h1 id="nor-title-h" class="nor-title__h">
+    Canadian Macro Overview
+    <span class="nor-title__date">{dateLine}</span>
+  </h1>
+  <p class="nor-title__abs">{abstract}</p>
+
+  <dl class="nor-title__stamp" aria-label="Headline numbers at a glance">
+    {stamp.map((row) => (
+      <div class="nor-title__stamp-row">
+        <dt class="nor-title__stamp-k">{row.label}</dt>
+        <dd class="nor-title__stamp-v">
+          <span class="nor-title__stamp-num">{row.value}</span>
+          <span class="nor-title__stamp-asof">{row.asOf}</span>
+        </dd>
+      </div>
+    ))}
+  </dl>
+</section>
+
+<style>
+  .nor-title {
+    padding-block: 36px 32px;
+    border-bottom: 1px solid var(--nor-hairline);
+  }
+  .nor-title__eyebrow {
+    margin: 0 0 18px;
+    font-family: var(--nor-body);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--nor-gray);
+  }
+  .nor-title__h {
+    margin: 0;
+    font-family: var(--nor-display);
+    font-weight: 700;
+    font-size: clamp(30px, 4.2vw, 46px);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    color: var(--nor-ink);
+    max-width: 22ch;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .nor-title__date {
+    color: var(--nor-navy);
+    font-weight: 400;
+    font-size: clamp(18px, 2.4vw, 24px);
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  .nor-title__abs {
+    margin: 20px 0 0;
+    font-family: var(--nor-body);
+    font-weight: 300;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--nor-ink);
+    max-width: 62ch;
+  }
+
+  .nor-title__stamp {
+    margin: 32px 0 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    border-top: 1px solid var(--nor-hairline);
+    border-bottom: 1px solid var(--nor-hairline);
+  }
+  @media (min-width: 720px) {
+    .nor-title__stamp {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  .nor-title__stamp-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--nor-hairline);
+  }
+  @media (min-width: 720px) {
+    .nor-title__stamp-row {
+      border-bottom: 0;
+      border-right: 1px solid var(--nor-hairline);
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 18px 20px;
+    }
+    .nor-title__stamp-row:last-child {
+      border-right: 0;
+    }
+    .nor-title__stamp-row:first-child {
+      padding-left: 0;
+    }
+  }
+  .nor-title__stamp-row:last-child {
+    border-bottom: 0;
+  }
+  .nor-title__stamp-k {
+    margin: 0;
+    font-family: var(--nor-body);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    line-height: 1.2;
+    color: var(--nor-gray);
+  }
+  .nor-title__stamp-v {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  @media (min-width: 720px) {
+    .nor-title__stamp-v {
+      margin-top: 10px;
+    }
+  }
+  .nor-title__stamp-num {
+    font-family: var(--nor-mono);
+    font-size: 22px;
+    line-height: 1;
+    font-weight: 300;
+    letter-spacing: -0.01em;
+    color: var(--nor-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .nor-title__stamp-asof {
+    font-family: var(--nor-mono);
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 300;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--nor-gray);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

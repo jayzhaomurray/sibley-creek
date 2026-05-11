@@ -1,0 +1,135 @@
+---
+/*
+ * Academic-Dark Masthead — aesthetic variant of Lane I masthead.
+ *
+ * Identical structural composition to gdpnow/Masthead.astro: small
+ * institutional header, publication-mark in serif italic, one-line
+ * institutional rail, "back to production" link, single bottom rule.
+ *
+ * Only theme tokens differ: deep-charcoal background inherits from
+ * <body>, ink is warm off-white, accent is electric teal, secondary
+ * accent is muted slate, hairline is dark.
+ */
+
+interface Props {
+  publication: string;
+  asOf: string; // formatted date
+  edition: string; // "Lane I-Dark"
+}
+
+const { publication, asOf, edition } = Astro.props;
+---
+<header class="dark-mast" role="banner">
+  <div class="dark-mast__row">
+    <p class="dark-mast__mark">
+      <em>{publication}</em>
+    </p>
+    <nav class="dark-mast__nav" aria-label="Institutional rail">
+      <span class="dark-mast__nav-item">
+        <span class="dark-mast__nav-k">Series</span>
+        <span class="dark-mast__nav-v">Research note</span>
+      </span>
+      <span class="dark-mast__nav-sep" aria-hidden="true">|</span>
+      <span class="dark-mast__nav-item">
+        <span class="dark-mast__nav-k">As of</span>
+        <span class="dark-mast__nav-v">{asOf}</span>
+      </span>
+      <span class="dark-mast__nav-sep" aria-hidden="true">|</span>
+      <span class="dark-mast__nav-item">
+        <span class="dark-mast__nav-k">Edition</span>
+        <span class="dark-mast__nav-v">{edition}</span>
+      </span>
+      <span class="dark-mast__nav-sep dark-mast__nav-sep--push" aria-hidden="true">|</span>
+      <a class="dark-mast__back" href="/">Return to production homepage</a>
+    </nav>
+  </div>
+  <hr class="dark-mast__rule" aria-hidden="true" />
+</header>
+
+<style>
+  .dark-mast {
+    padding-top: 18px;
+  }
+  .dark-mast__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px 24px;
+    padding-bottom: 10px;
+  }
+  .dark-mast__mark {
+    margin: 0;
+    font-family: var(--dark-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 17px;
+    line-height: 1;
+    letter-spacing: 0.005em;
+    color: var(--dark-teal);
+    flex: 0 0 auto;
+  }
+  .dark-mast__mark em {
+    font-style: italic;
+  }
+  .dark-mast__nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 12px;
+    margin-left: auto;
+    font-family: var(--dark-mono);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    color: var(--dark-slate);
+  }
+  .dark-mast__nav-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .dark-mast__nav-k {
+    color: var(--dark-slate);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+  .dark-mast__nav-v {
+    color: var(--dark-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .dark-mast__nav-sep {
+    color: var(--dark-slate);
+    opacity: 0.5;
+  }
+  .dark-mast__nav-sep--push {
+    margin-left: 4px;
+  }
+  .dark-mast__back {
+    color: var(--dark-teal);
+    text-decoration: none;
+    border-bottom: 0.5px solid var(--dark-teal);
+    padding-bottom: 1px;
+    transition: color 100ms linear, border-color 100ms linear;
+  }
+  .dark-mast__back:hover {
+    color: var(--dark-ink);
+    border-bottom-color: var(--dark-ink);
+  }
+  .dark-mast__back:focus-visible {
+    outline: 2px solid var(--dark-teal);
+    outline-offset: 3px;
+  }
+  .dark-mast__rule {
+    border: 0;
+    border-top: 1px solid var(--dark-teal);
+    margin: 0;
+    opacity: 0.7;
+  }
+
+  @media (max-width: 720px) {
+    .dark-mast__nav {
+      margin-left: 0;
+    }
+  }
+</style>

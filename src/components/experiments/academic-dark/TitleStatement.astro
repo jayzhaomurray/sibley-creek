@@ -1,0 +1,176 @@
+---
+/*
+ * Academic-Dark TitleStatement — aesthetic variant of Lane I title block.
+ *
+ * Identical composition to gdpnow/TitleStatement.astro: eyebrow, serif
+ * title with italic date, abstract, three-cell headline-stamp grid.
+ * Only palette + type weights differ for dark theme.
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  dateLine: string;
+  abstract: string;
+  sections: Section[];
+}
+
+const { dateLine, abstract, sections } = Astro.props;
+
+const stamp = [
+  {
+    label: "Headline CPI, y/y",
+    section: "inflation",
+  },
+  {
+    label: "BoC overnight rate",
+    section: "policy",
+  },
+  {
+    label: "Unemployment rate",
+    section: "labour",
+  },
+].map((row) => {
+  const s = sections.find((x) => x.slug === row.section);
+  const p = s?.prints.find((x) => x.indicator === row.label) ?? s?.prints[0];
+  return {
+    label: row.label,
+    value: p?.value ?? "",
+    asOf: p?.asOf ?? "",
+  };
+});
+---
+<section class="dark-title" aria-labelledby="dark-title-h">
+  <p class="dark-title__eyebrow">Research note &middot; Canadian macro &middot; Independent</p>
+  <h1 id="dark-title-h" class="dark-title__h">
+    Canadian Macro Overview, <span class="dark-title__date">{dateLine}</span>
+  </h1>
+  <p class="dark-title__abs">{abstract}</p>
+
+  <dl class="dark-title__stamp" aria-label="Headline numbers at a glance">
+    {stamp.map((row) => (
+      <div class="dark-title__stamp-row">
+        <dt class="dark-title__stamp-k">{row.label}</dt>
+        <dd class="dark-title__stamp-v">
+          <span class="dark-title__stamp-num">{row.value}</span>
+          <span class="dark-title__stamp-asof">{row.asOf}</span>
+        </dd>
+      </div>
+    ))}
+  </dl>
+</section>
+
+<style>
+  .dark-title {
+    padding-block: 28px 24px;
+    border-bottom: 0.5px solid var(--dark-rule);
+  }
+  .dark-title__eyebrow {
+    margin: 0 0 10px;
+    font-family: var(--dark-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dark-slate);
+  }
+  .dark-title__h {
+    margin: 0;
+    font-family: var(--dark-display);
+    font-weight: 400;
+    font-size: clamp(26px, 3.4vw, 36px);
+    line-height: 1.15;
+    letter-spacing: 0;
+    color: var(--dark-ink);
+    max-width: 36ch;
+  }
+  .dark-title__date {
+    color: var(--dark-teal);
+    font-style: italic;
+    font-weight: 400;
+  }
+  .dark-title__abs {
+    margin: 12px 0 0;
+    font-family: var(--dark-body);
+    font-weight: 300;
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: var(--dark-ink);
+    max-width: 64ch;
+  }
+
+  .dark-title__stamp {
+    margin: 20px 0 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    border-top: 0.5px solid var(--dark-rule);
+    border-bottom: 0.5px solid var(--dark-rule);
+  }
+  @media (min-width: 720px) {
+    .dark-title__stamp {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  .dark-title__stamp-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 0.5px dashed var(--dark-rule);
+  }
+  @media (min-width: 720px) {
+    .dark-title__stamp-row {
+      border-bottom: 0;
+      border-right: 0.5px solid var(--dark-rule);
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 12px 16px;
+    }
+    .dark-title__stamp-row:last-child {
+      border-right: 0;
+    }
+    .dark-title__stamp-row:first-child {
+      padding-left: 0;
+    }
+  }
+  .dark-title__stamp-row:last-child {
+    border-bottom: 0;
+  }
+  .dark-title__stamp-k {
+    margin: 0;
+    font-family: var(--dark-body);
+    font-size: 12px;
+    line-height: 1.2;
+    color: var(--dark-slate);
+    font-style: italic;
+  }
+  .dark-title__stamp-v {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  @media (min-width: 720px) {
+    .dark-title__stamp-v {
+      margin-top: 4px;
+    }
+  }
+  .dark-title__stamp-num {
+    font-family: var(--dark-mono);
+    font-size: 18px;
+    line-height: 1;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--dark-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .dark-title__stamp-asof {
+    font-family: var(--dark-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--dark-slate);
+  }
+</style>

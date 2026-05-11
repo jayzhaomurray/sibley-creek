@@ -1,0 +1,194 @@
+---
+/*
+ * Vignelli Colophon — same content slots as Lane I:
+ *   wordmark | independent-research note | notes paragraph
+ *   stamps grid: next release | produced | edition
+ *
+ * Aesthetic: single sans family, weight-contrast hierarchy, black hairlines,
+ * one red mark (the title rule above the colophon — the publication's
+ * brand line).
+ */
+
+interface Props {
+  publication: string;
+  nextLabel: string;
+  nextDate: string;
+  nextAgency: string;
+  produced: string;
+  edition: string;
+}
+
+const { publication, nextLabel, nextDate, nextAgency, produced, edition } = Astro.props;
+---
+<footer class="vig-col" role="contentinfo">
+  <div class="vig-col__rules" aria-hidden="true">
+    <hr class="vig-col__rule vig-col__rule--signal" />
+    <hr class="vig-col__rule vig-col__rule--ink" />
+  </div>
+  <div class="vig-col__row">
+    <p class="vig-col__mark">
+      <span class="vig-col__mark-name">{publication}</span>
+      <span class="vig-col__sep" aria-hidden="true"></span>
+      <span class="vig-col__sub">Independent research.</span>
+    </p>
+    <p class="vig-col__notes">
+      Series are placeholder values for the v1 splash. Reported values match
+      the most recently published vintage; revisions are not reconciled
+      across releases. This page is a design experiment and not a research
+      product.
+    </p>
+  </div>
+  <dl class="vig-col__stamps">
+    <div class="vig-col__stamp">
+      <dt>Next release</dt>
+      <dd>
+        <span class="vig-col__stamp-strong">{nextLabel}</span>
+        <span class="vig-col__stamp-sep" aria-hidden="true"></span>
+        <span class="vig-col__stamp-soft">{nextDate}</span>
+        <span class="vig-col__stamp-sep" aria-hidden="true"></span>
+        <span class="vig-col__stamp-soft">{nextAgency}</span>
+      </dd>
+    </div>
+    <div class="vig-col__stamp">
+      <dt>Produced</dt>
+      <dd><span class="vig-col__stamp-soft">{produced}</span></dd>
+    </div>
+    <div class="vig-col__stamp">
+      <dt>Edition</dt>
+      <dd><span class="vig-col__stamp-soft">{edition}</span></dd>
+    </div>
+  </dl>
+</footer>
+
+<style>
+  .vig-col {
+    padding-block: 22px 32px;
+  }
+  .vig-col__rules {
+    margin: 0 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .vig-col__rule {
+    border: 0;
+    margin: 0;
+  }
+  .vig-col__rule--signal {
+    border-top: 2px solid var(--vig-signal);
+  }
+  .vig-col__rule--ink {
+    border-top: 1px solid var(--vig-ink);
+  }
+  .vig-col__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  @media (min-width: 720px) {
+    .vig-col__row {
+      grid-template-columns: 1fr 2fr;
+      gap: 32px;
+    }
+  }
+  .vig-col__mark {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    font-family: var(--vig-sans);
+    font-size: 13px;
+    line-height: 1.3;
+    color: var(--vig-ink);
+  }
+  .vig-col__mark-name {
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 12px;
+  }
+  .vig-col__sep {
+    display: inline-block;
+    width: 1px;
+    height: 11px;
+    background: var(--vig-ink);
+  }
+  .vig-col__sub {
+    color: var(--vig-ink);
+    font-weight: 200;
+    font-size: 13px;
+  }
+  .vig-col__notes {
+    margin: 0;
+    font-family: var(--vig-sans);
+    font-weight: 200;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--vig-ink);
+    max-width: 76ch;
+  }
+
+  .vig-col__stamps {
+    margin: 18px 0 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    border-top: 1px solid var(--vig-ink);
+    padding-top: 12px;
+  }
+  @media (min-width: 720px) {
+    .vig-col__stamps {
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 20px;
+    }
+  }
+  .vig-col__stamp {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .vig-col__stamp dt {
+    margin: 0;
+    font-family: var(--vig-sans);
+    font-weight: 600;
+    font-size: 9.5px;
+    line-height: 1;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--vig-ink);
+    flex: 0 0 auto;
+  }
+  .vig-col__stamp dd {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    font-family: var(--vig-sans);
+    font-size: 11px;
+    line-height: 1.2;
+    color: var(--vig-ink);
+  }
+  .vig-col__stamp-strong {
+    color: var(--vig-ink);
+    font-weight: 800;
+    font-family: var(--vig-sans);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+  .vig-col__stamp-soft {
+    color: var(--vig-ink);
+    font-weight: 400;
+    font-family: var(--vig-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+  }
+  .vig-col__stamp-sep {
+    display: inline-block;
+    width: 1px;
+    height: 9px;
+    background: var(--vig-ink);
+  }
+</style>

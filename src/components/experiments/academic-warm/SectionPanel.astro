@@ -1,0 +1,515 @@
+---
+/*
+ * Academic-Warm SectionPanel — Lane I's panel structure (header strip,
+ * question subhead, chart + headline readout, supporting table), rendered
+ * in the warm-cream editorial-magazine register.
+ *
+ * - Burgundy chart line, ochre last-point dot, hairline cream plot field.
+ * - Display numerals in Cormorant Garamond with lining tabular figures.
+ * - Table values in Source Serif 4 tabular-nums to keep alignment honest
+ *   at small sizes (Cormorant tabular widths are uneven below ~12px).
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  section: Section;
+  figureNum: string;
+}
+
+const { section, figureNum } = Astro.props;
+
+const loadBearing = section.chartSeriesKey
+  ? section.prints.find((p) => p.key === section.chartSeriesKey) ?? section.prints[0]
+  : section.prints[0];
+
+const series = loadBearing.spark ?? [0, 0.2, 0.3, 0.4];
+
+// Chart geometry — same calm proportions as Lane I.
+const W = 320;
+const H = 110;
+const PAD_L = 28;
+const PAD_R = 8;
+const PAD_T = 10;
+const PAD_B = 18;
+
+const plotW = W - PAD_L - PAD_R;
+const plotH = H - PAD_T - PAD_B;
+
+const minV = Math.min(...series);
+const maxV = Math.max(...series);
+const rangeRaw = maxV - minV || 1;
+const yMin = minV - rangeRaw * 0.12;
+const yMax = maxV + rangeRaw * 0.12;
+const yRange = yMax - yMin || 1;
+
+function xOf(i: number): number {
+  return PAD_L + (i / (series.length - 1)) * plotW;
+}
+function yOf(v: number): number {
+  return PAD_T + (1 - (v - yMin) / yRange) * plotH;
+}
+
+const pts = series.map((v, i) => `${xOf(i).toFixed(2)},${yOf(v).toFixed(2)}`);
+const linePath = "M " + pts.join(" L ");
+
+function fmtTick(v: number): string {
+  const a = Math.abs(v);
+  if (a >= 100) return v.toFixed(0);
+  if (a >= 10) return v.toFixed(1);
+  return v.toFixed(2);
+}
+const ticks = [yMin, (yMin + yMax) / 2, yMax].map((v) => ({
+  v,
+  y: yOf(v),
+  label: fmtTick(v),
+}));
+
+const lastX = xOf(series.length - 1);
+const lastY = yOf(series[series.length - 1] as number);
+
+const zeroInRange = yMin < 0 && yMax > 0;
+const zeroY = zeroInRange ? yOf(0) : null;
+
+const deltaClass = (d: "pos" | "neg" | "neutral") =>
+  d === "pos" ? "aw-panel__delta--pos"
+  : d === "neg" ? "aw-panel__delta--neg"
+  : "aw-panel__delta--neutral";
+
+const allPrints = section.prints;
+---
+<article
+  class="aw-panel"
+  id={`panel-${section.slug}`}
+  aria-labelledby={`panel-${section.slug}-h`}
+>
+  <header class="aw-panel__head">
+    <div class="aw-panel__head-left">
+      <p class="aw-panel__eyebrow">
+        <span class="aw-panel__fig">Figure {figureNum}.</span>
+      </p>
+      <h2 id={`panel-${section.slug}-h`} class="aw-panel__h">
+        <a class="aw-panel__h-link" href={`/${section.slug}/`}>{section.label}</a>
+      </h2>
+    </div>
+    <p class="aw-panel__cadence">{section.cadence}</p>
+  </header>
+
+  <p class="aw-panel__question">{section.headlineQuestion}</p>
+
+  <div class="aw-panel__body">
+    <figure class="aw-panel__fig-wrap">
+      <svg
+        class="aw-panel__svg"
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label={`${loadBearing.indicator}. Latest: ${loadBearing.value} (${loadBearing.asOf}). Change: ${loadBearing.delta}.`}
+      >
+        {/* Plot frame */}
+        <rect
+          x={PAD_L}
+          y={PAD_T}
+          width={plotW}
+          height={plotH}
+          fill="#FBF7EC"
+          stroke="#D8CFB7"
+          stroke-width="0.5"
+        />
+        {/* Y-axis tick labels + gridlines */}
+        {ticks.map((t) => (
+          <>
+            <line
+              x1={PAD_L}
+              x2={PAD_L + plotW}
+              y1={t.y}
+              y2={t.y}
+              stroke="#E4DBC2"
+              stroke-width="0.4"
+              stroke-dasharray="1.5 2.5"
+            />
+            <text
+              x={PAD_L - 4}
+              y={t.y}
+              text-anchor="end"
+              dominant-baseline="middle"
+              font-family="Source Serif 4, Cormorant Garamond, Georgia, serif"
+              font-style="italic"
+              font-size="8.5"
+              fill="#8C6F3E"
+            >
+              {t.label}
+            </text>
+          </>
+        ))}
+        {/* Zero line if applicable */}
+        {zeroY !== null && (
+          <line
+            x1={PAD_L}
+            x2={PAD_L + plotW}
+            y1={zeroY}
+            y2={zeroY}
+            stroke="#8C6F3E"
+            stroke-width="0.5"
+          />
+        )}
+        {/* Main series — burgundy */}
+        <path
+          d={linePath}
+          fill="none"
+          stroke="#7A1B26"
+          stroke-width="1.5"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
+        {/* Last point — ochre dot, cream halo */}
+        <circle cx={lastX} cy={lastY} r="2.6" fill="#8C6F3E" stroke="#FAF5E8" stroke-width="0.8" />
+        {/* X-axis baseline */}
+        <line
+          x1={PAD_L}
+          x2={PAD_L + plotW}
+          y1={PAD_T + plotH}
+          y2={PAD_T + plotH}
+          stroke="#1F1A12"
+          stroke-width="0.5"
+        />
+        {/* X-axis end-labels */}
+        <text
+          x={PAD_L}
+          y={H - 4}
+          text-anchor="start"
+          font-family="Source Serif 4, Georgia, serif"
+          font-style="italic"
+          font-size="8.5"
+          fill="#8C6F3E"
+        >
+          earliest
+        </text>
+        <text
+          x={PAD_L + plotW}
+          y={H - 4}
+          text-anchor="end"
+          font-family="Source Serif 4, Georgia, serif"
+          font-style="italic"
+          font-size="8.5"
+          fill="#8C6F3E"
+        >
+          {loadBearing.asOf}
+        </text>
+      </svg>
+      <figcaption class="aw-panel__cap">
+        <span class="aw-panel__cap-mark">Fig. {figureNum}.</span>
+        {loadBearing.indicator}, recent history.
+        Last observation marked.
+      </figcaption>
+    </figure>
+
+    <aside class="aw-panel__readout" aria-label="Headline reading">
+      <p class="aw-panel__readout-k">{loadBearing.indicator}</p>
+      <p class="aw-panel__readout-v">
+        <span class="aw-panel__readout-num">{loadBearing.value}</span>
+      </p>
+      <p class="aw-panel__readout-meta">
+        <span class:list={["aw-panel__delta", deltaClass(loadBearing.deltaDir)]}>{loadBearing.delta}</span>
+        <span class="aw-panel__readout-asof">{loadBearing.asOf}</span>
+      </p>
+      {section.blurb.body && (
+        <p class="aw-panel__note">
+          {section.blurb.body}
+        </p>
+      )}
+    </aside>
+  </div>
+
+  <table class="aw-panel__table" aria-label={`${section.label} indicators table`}>
+    <thead>
+      <tr>
+        <th scope="col" class="aw-panel__th aw-panel__th--ind">Indicator</th>
+        <th scope="col" class="aw-panel__th aw-panel__th--val">Value</th>
+        <th scope="col" class="aw-panel__th aw-panel__th--delta">Change</th>
+        <th scope="col" class="aw-panel__th aw-panel__th--asof">As of</th>
+      </tr>
+    </thead>
+    <tbody>
+      {allPrints.map((p) => (
+        <tr class={p === loadBearing ? "aw-panel__tr aw-panel__tr--primary" : "aw-panel__tr"}>
+          <td class="aw-panel__td aw-panel__td--ind">{p.indicator}</td>
+          <td class="aw-panel__td aw-panel__td--val">{p.value}</td>
+          <td class:list={["aw-panel__td", "aw-panel__td--delta", deltaClass(p.deltaDir)]}>{p.delta}</td>
+          <td class="aw-panel__td aw-panel__td--asof">{p.asOf}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</article>
+
+<style>
+  .aw-panel {
+    background: var(--aw-panel);
+    border: 0.5px solid var(--aw-hairline);
+    padding: 18px 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 100%;
+    position: relative;
+  }
+  /* Subtle warm corner accent — top-left burgundy rule, like a folio mark. */
+  .aw-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 22px;
+    height: 1.5px;
+    background: var(--aw-burgundy);
+  }
+
+  .aw-panel__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 0.5px solid var(--aw-hairline);
+    padding-bottom: 10px;
+  }
+  .aw-panel__head-left { min-width: 0; }
+  .aw-panel__eyebrow {
+    margin: 0;
+    font-family: var(--aw-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 11.5px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--aw-ochre);
+  }
+  .aw-panel__fig {
+    color: var(--aw-burgundy);
+  }
+  .aw-panel__h {
+    margin: 5px 0 0;
+    font-family: var(--aw-display);
+    font-weight: 600;
+    font-size: 23px;
+    line-height: 1.1;
+    letter-spacing: -0.005em;
+    color: var(--aw-ink);
+  }
+  .aw-panel__h-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 0.5px solid transparent;
+    transition: color 120ms linear, border-color 120ms linear;
+  }
+  .aw-panel__h-link:hover {
+    color: var(--aw-burgundy);
+    border-bottom-color: var(--aw-burgundy);
+  }
+  .aw-panel__h-link:focus-visible {
+    outline: 2px solid var(--aw-burgundy);
+    outline-offset: 3px;
+  }
+  .aw-panel__cadence {
+    margin: 0;
+    font-family: var(--aw-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--aw-ochre);
+    white-space: nowrap;
+  }
+
+  .aw-panel__question {
+    margin: 0;
+    font-family: var(--aw-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 15.5px;
+    line-height: 1.35;
+    color: var(--aw-ink);
+    max-width: 54ch;
+  }
+
+  .aw-panel__body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  @media (min-width: 600px) {
+    .aw-panel__body {
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+  }
+
+  .aw-panel__fig-wrap {
+    margin: 0;
+    min-width: 0;
+  }
+  .aw-panel__svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .aw-panel__cap {
+    margin: 6px 0 0;
+    font-family: var(--aw-body);
+    font-size: 11.5px;
+    line-height: 1.45;
+    color: var(--aw-ochre);
+    font-style: italic;
+  }
+  .aw-panel__cap-mark {
+    font-style: italic;
+    font-family: var(--aw-display);
+    font-weight: 600;
+    color: var(--aw-burgundy);
+    margin-right: 3px;
+  }
+
+  .aw-panel__readout {
+    min-width: 0;
+    padding-left: 0;
+  }
+  @media (min-width: 600px) {
+    .aw-panel__readout {
+      border-left: 0.5px solid var(--aw-hairline);
+      padding-left: 16px;
+    }
+  }
+  .aw-panel__readout-k {
+    margin: 0;
+    font-family: var(--aw-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.2;
+    color: var(--aw-ochre);
+  }
+  .aw-panel__readout-v {
+    margin: 4px 0 0;
+    line-height: 1;
+  }
+  .aw-panel__readout-num {
+    font-family: var(--aw-display);
+    font-weight: 500;
+    font-size: 36px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    color: var(--aw-burgundy);
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .aw-panel__readout-meta {
+    margin: 8px 0 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-family: var(--aw-body);
+    font-size: 12px;
+    line-height: 1;
+    letter-spacing: 0.01em;
+  }
+  .aw-panel__readout-asof {
+    color: var(--aw-ochre);
+    text-transform: uppercase;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    font-style: italic;
+  }
+  .aw-panel__note {
+    margin: 12px 0 0;
+    font-family: var(--aw-body);
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--aw-ink);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 44ch;
+  }
+
+  .aw-panel__delta {
+    font-variant-numeric: tabular-nums lining-nums;
+    font-weight: 500;
+    font-family: var(--aw-body);
+  }
+  .aw-panel__delta--pos { color: var(--aw-burgundy); }
+  .aw-panel__delta--neg { color: var(--aw-ochre); }
+  .aw-panel__delta--neutral { color: var(--aw-ochre); opacity: 0.75; }
+
+  .aw-panel__table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-family: var(--aw-body);
+    font-size: 12px;
+    line-height: 1.45;
+    font-variant-numeric: tabular-nums lining-nums;
+    color: var(--aw-ink);
+    border-top: 0.5px solid var(--aw-hairline);
+  }
+  .aw-panel__th {
+    text-align: left;
+    font-family: var(--aw-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--aw-ochre);
+    padding: 7px 6px 6px 0;
+    border-bottom: 0.5px solid var(--aw-hairline);
+  }
+  .aw-panel__th--val,
+  .aw-panel__th--delta,
+  .aw-panel__th--asof {
+    text-align: right;
+    padding-right: 0;
+    padding-left: 6px;
+  }
+  .aw-panel__td {
+    padding: 6px 6px 6px 0;
+    border-bottom: 0.3px dotted var(--aw-hairline);
+  }
+  .aw-panel__tr:last-child .aw-panel__td {
+    border-bottom: 0;
+  }
+  .aw-panel__td--ind {
+    font-family: var(--aw-body);
+    color: var(--aw-ink);
+  }
+  .aw-panel__td--val,
+  .aw-panel__td--delta,
+  .aw-panel__td--asof {
+    text-align: right;
+    padding-right: 0;
+    padding-left: 6px;
+  }
+  .aw-panel__td--asof {
+    color: var(--aw-ochre);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    font-style: italic;
+  }
+  .aw-panel__tr--primary .aw-panel__td--ind {
+    color: var(--aw-burgundy);
+    font-weight: 600;
+    font-style: italic;
+    font-family: var(--aw-display);
+    font-size: 13px;
+  }
+  .aw-panel__tr--primary .aw-panel__td--val {
+    font-weight: 500;
+    color: var(--aw-ink);
+    font-family: var(--aw-display);
+    font-size: 13.5px;
+  }
+</style>

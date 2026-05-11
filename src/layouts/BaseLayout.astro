@@ -1,35 +1,43 @@
 ---
 /*
- * BaseLayout — the page shell for macro-research-department.
+ * BaseLayout - the page shell for macro-research-department.
  *
  * Owns:
  *   - <html lang="en-CA"> root and meta defaults
  *   - Font loading + critical CSS injection (tokens, fonts, base)
  *   - Skip-link + landmark structure (header / main / footer)
- *   - Page header (publication wordmark + primary nav)
- *   - Page footer (about, methodology placeholder, copyright)
+ *   - Page header: Vignelli masthead (wordmark + primary nav, optional rail)
+ *   - Page footer: Vignelli colophon (rules, stamps, secondary nav)
  *   - SEO basics: <title>, description, canonical, Open Graph, Twitter card
  *
  * Slots:
- *   default      — page content (rendered inside <main id="main">)
- *   head         — optional extra <head> additions for a given page
+ *   default      - page content (rendered inside <main id="main">)
+ *   head         - optional extra <head> additions for a given page
  *
  * Props:
- *   title        — page title shown in the tab + as og:title. Required.
- *   description  — meta description / og:description. Required.
- *   canonical    — optional canonical URL override (defaults to current path).
- *   ogImage      — optional og/twitter image URL (absolute or root-relative).
- *   pageClass    — optional class added to <body> for page-scoped styling.
+ *   title        - page title shown in the tab + as og:title. Required.
+ *   description  - meta description / og:description. Required.
+ *   canonical    - optional canonical URL override (defaults to current path).
+ *   ogImage      - optional og/twitter image URL (absolute or root-relative).
+ *   pageClass    - optional class added to <body> for page-scoped styling.
+ *   showMastheadRail - when true, the masthead renders the "Series / As of /
+ *                      Edition" institutional rail. Homepage only; section
+ *                      pages keep the masthead compact.
  *
- * SEO copy ownership lives here (per frontend-designer.md scope) — keep the
- * defaults edited as the brand crystallizes. Editorial copy lives in pages.
+ * SEO copy ownership lives here; defaults edited as the brand crystallizes.
+ *
+ * 2026-05-11 - Vignelli canonicalization:
+ *   Header is now VignelliMasthead. Footer is now VignelliColophon. Theme
+ *   color is paper-white. Body background and color come from tokens.css.
  */
 
 import "../styles/tokens.css";
 import "../styles/fonts.css";
 import "../styles/base.css";
 
-import { sections, site } from "../data/sections";
+import { site } from "../data/sections";
+import VignelliMasthead from "../components/home/VignelliMasthead.astro";
+import VignelliColophon from "../components/home/VignelliColophon.astro";
 
 interface Props {
   title: string;
@@ -37,6 +45,7 @@ interface Props {
   canonical?: string;
   ogImage?: string;
   pageClass?: string;
+  showMastheadRail?: boolean;
 }
 
 const {
@@ -45,6 +54,7 @@ const {
   canonical,
   ogImage,
   pageClass,
+  showMastheadRail = false,
 } = Astro.props;
 
 // Build a fully-qualified URL for canonical / og:url. Astro.site can be
@@ -56,14 +66,9 @@ const canonicalHref = canonical
 const ogImageHref = ogImage
   ?? (Astro.site ? new URL("/og-default.png", Astro.site).toString() : "/og-default.png");
 
-// Tab title format: "Page title — Publication". Homepage passes the
+// Tab title format: "Page title - Publication". Homepage passes the
 // publication name as title and we collapse the duplication.
 const tabTitle = title === site.name ? site.name : `${title} - ${site.name}`;
-
-const currentYear = new Date().getFullYear();
-
-// Active-nav detection: match the section slug to the first path segment.
-const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
 ---
 <!doctype html>
 <html lang="en-CA">
@@ -76,8 +81,8 @@ const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalHref} />
 
-    {/* Theme color matches paper for browser chrome continuity. */}
-    <meta name="theme-color" content="#FBF8F2" />
+    {/* Theme color matches paper-white for browser chrome continuity. */}
+    <meta name="theme-color" content="#FFFFFF" />
 
     {/* Open Graph / social sharing. */}
     <meta property="og:type" content="website" />
@@ -107,278 +112,35 @@ const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
   <body class:list={[pageClass]}>
     <a class="skip-link" href="#main">Skip to main content</a>
 
-    <header class="site-header" role="banner">
-      <div class="container site-header__inner">
-        <a class="site-header__wordmark" href="/" aria-label={`${site.name} home`}>
-          <span class="site-header__name">{site.name}</span>
-          <span class="site-header__tagline">{site.tagline}</span>
-        </a>
+    <div class="site-shell">
+      <VignelliMasthead showRail={showMastheadRail} />
 
-        <nav class="site-nav" aria-label="Primary">
-          <ul role="list" class="site-nav__list">
-            {sections.map((section) => {
-              const isActive = firstSegment === section.slug;
-              return (
-                <li class="site-nav__item">
-                  <a
-                    class:list={["site-nav__link", { "is-active": isActive }]}
-                    href={`/${section.slug}/`}
-                    aria-current={isActive ? "page" : undefined}
-                  >
-                    {section.label}
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-      </div>
-    </header>
+      <main id="main" class="site-main">
+        <slot />
+      </main>
 
-    <main id="main" class="site-main">
-      <slot />
-    </main>
-
-    <footer class="site-footer" role="contentinfo">
-      <div class="container site-footer__inner">
-        <div class="site-footer__col">
-          {/* Art-director re-eval (2026-05-11) item 4: footer wordmark
-              shortened from the full "Macro Research Department" to "MRD".
-              The full mark is already in the header on every page; on a
-              one-screen dashboard the repeat read as inventory rather than
-              signature. The "CANADIAN MACRO RESEARCH" eyebrow is retained
-              under the short mark - it reads cleanly as a category rail
-              under a three-letter monogram. aria-label preserves the full
-              publication name for assistive tech. */}
-          <p class="site-footer__name" aria-label={site.name}>{site.shortName}</p>
-          <p class="site-footer__line">{site.tagline}</p>
-        </div>
-        <nav class="site-footer__nav" aria-label="Site information">
-          <ul role="list" class="site-footer__list">
-            <li><a href="/about/">About</a></li>
-            <li><a href="/methodology/">Methodology</a></li>
-            <li><a href="/sources/">Sources</a></li>
-            <li><a href="/accessibility/">Accessibility</a></li>
-          </ul>
-        </nav>
-        <p class="site-footer__copy">
-          (c) {currentYear} {site.name}. Data attributed at point of use.
-        </p>
-      </div>
-    </footer>
+      <VignelliColophon />
+    </div>
 
     <style>
-      /* ---------- Site header ---------- */
-
-      .site-header {
-        border-bottom: 1px solid var(--rule);
-        background-color: var(--paper);
+      /* Site-shell wraps masthead + main + colophon in a single page
+       * container so the Vignelli hairline rules align edge-to-edge across
+       * all three. Width caps at --col-page (1240px); gutter is wider on
+       * desktop per Vignelli register. */
+      .site-shell {
+        width: 100%;
+        max-width: var(--col-page);
+        margin: 0 auto;
+        padding: 0 var(--gutter-mobile);
       }
-
-      .site-header__inner {
-        display: flex;
-        flex-direction: column;
-        gap: var(--s-5);
-        padding-block: var(--s-6);
-      }
-
-      @media (min-width: 960px) {
-        .site-header__inner {
-          flex-direction: row;
-          align-items: flex-end;
-          justify-content: space-between;
-          gap: var(--s-7);
-          padding-block: var(--s-7);
+      @media (min-width: 1100px) {
+        .site-shell {
+          padding-inline: var(--gutter-desktop);
         }
       }
-
-      .site-header__wordmark {
-        display: inline-flex;
-        flex-direction: column;
-        gap: var(--s-1);
-        color: var(--ink);
-        text-decoration: none;
-      }
-
-      .site-header__wordmark:hover .site-header__name {
-        color: var(--accent);
-      }
-
-      .site-header__name {
-        font-family: var(--font-serif);
-        font-size: var(--fs-display-md);
-        line-height: var(--lh-display-md);
-        font-weight: var(--fw-semibold);
-        letter-spacing: -0.005em;
-        color: var(--ink);
-        transition: color var(--dur-fast) var(--ease-out);
-      }
-
-      @media (min-width: 960px) {
-        .site-header__name {
-          font-size: var(--fs-display-lg);
-          line-height: var(--lh-display-lg);
-        }
-      }
-
-      .site-header__tagline {
-        /* F7 (art-director): the tagline is now a category-label rail, not
-           a slogan. Sans, label-size, ink-muted, all-caps, 0.08em tracking.
-           Removes the italic-serif voice from the masthead so the wordmark
-           reads cleanly and the headline question on the hero tile becomes
-           the only italic-serif anchor on the page. */
-        font-family: var(--font-sans);
-        font-size: var(--fs-label);
-        line-height: var(--lh-label);
-        font-style: normal;
-        font-weight: var(--fw-medium);
-        color: var(--ink-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        /* Hide on mobile to keep the masthead compact at narrow widths. */
-        display: none;
-      }
-
-      @media (min-width: 640px) {
-        .site-header__tagline {
-          display: inline;
-        }
-      }
-
-      /* ---------- Primary nav ---------- */
-
-      .site-nav__list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--s-4) var(--s-5);
-        margin: 0;
-      }
-
-      .site-nav__link {
-        font-family: var(--font-sans);
-        font-size: var(--fs-label);
-        line-height: var(--lh-label);
-        font-weight: var(--fw-medium);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--ink-muted);
-        text-decoration: none;
-        padding-block: var(--s-2);
-        border-bottom: 1px solid transparent;
-        transition: color var(--dur-fast) var(--ease-out),
-                    border-color var(--dur-fast) var(--ease-out);
-      }
-
-      .site-nav__link:hover {
-        color: var(--ink);
-        border-bottom-color: var(--accent);
-      }
-
-      .site-nav__link.is-active {
-        color: var(--ink);
-        border-bottom-color: var(--accent);
-      }
-
-      .site-nav__link:focus-visible {
-        outline: 2px solid var(--ink);
-        outline-offset: 2px;
-        border-radius: 2px;
-      }
-
-      /* ---------- Main ---------- */
 
       .site-main {
-        padding-block: var(--s-7) var(--s-9);
-      }
-
-      @media (min-width: 960px) {
-        .site-main {
-          padding-block: var(--s-8) var(--s-9);
-        }
-      }
-
-      /* ---------- Site footer ---------- */
-
-      .site-footer {
-        border-top: 1px solid var(--rule);
-        background-color: var(--surface-sunk);
-        margin-top: var(--s-8);
-      }
-
-      .site-footer__inner {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: var(--s-5);
-        padding-block: var(--s-7);
-      }
-
-      @media (min-width: 640px) {
-        .site-footer__inner {
-          grid-template-columns: 1fr auto;
-          align-items: start;
-          gap: var(--s-7);
-        }
-      }
-
-      .site-footer__col {
-        max-width: var(--col-body);
-      }
-
-      .site-footer__name {
-        font-family: var(--font-serif);
-        font-size: var(--fs-display-sm);
-        line-height: var(--lh-display-sm);
-        font-weight: var(--fw-semibold);
-        color: var(--ink);
-        margin: 0;
-      }
-
-      .site-footer__line {
-        /* Mirror the masthead tagline treatment (F7): sans, label-size,
-           all-caps with 0.08em tracking. The footer wordmark now reads as a
-           single typographic unit instead of mixing serif italic and sans. */
-        font-family: var(--font-sans);
-        font-size: var(--fs-label);
-        line-height: var(--lh-label);
-        font-style: normal;
-        font-weight: var(--fw-medium);
-        color: var(--ink-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        margin: var(--s-2) 0 0;
-      }
-
-      .site-footer__list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--s-4);
-        margin: 0;
-      }
-
-      .site-footer__list a {
-        font-family: var(--font-sans);
-        font-size: var(--fs-body-sm);
-        line-height: var(--lh-body-sm);
-        color: var(--ink);
-        text-decoration: underline;
-        text-decoration-color: var(--rule);
-        text-underline-offset: 2px;
-      }
-
-      .site-footer__list a:hover {
-        text-decoration-color: var(--accent);
-        color: var(--accent);
-      }
-
-      .site-footer__copy {
-        grid-column: 1 / -1;
-        font-family: var(--font-sans);
-        font-size: var(--fs-micro);
-        line-height: var(--lh-micro);
-        color: var(--ink-faint);
-        margin: 0;
-        padding-top: var(--s-5);
-        border-top: 1px solid var(--rule);
+        padding-block: 0;
       }
     </style>
   </body>

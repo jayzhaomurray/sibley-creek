@@ -1,0 +1,137 @@
+---
+/*
+ * Academic-Warm Masthead — Lane I structure dressed in editorial-magazine
+ * warm-cream all-serif register.
+ *
+ * Publication mark in Cormorant Garamond italic display weight. Institutional
+ * rail in Source Serif 4 small-caps (faux via tracking + uppercase), burgundy
+ * back-link. No mono anywhere.
+ */
+
+interface Props {
+  publication: string;
+  asOf: string; // formatted date
+  edition: string; // "Splash I-Warm"
+}
+
+const { publication, asOf, edition } = Astro.props;
+---
+<header class="aw-mast" role="banner">
+  <div class="aw-mast__row">
+    <p class="aw-mast__mark">
+      <em>{publication}</em>
+    </p>
+    <nav class="aw-mast__nav" aria-label="Institutional rail">
+      <span class="aw-mast__nav-item">
+        <span class="aw-mast__nav-k">Series</span>
+        <span class="aw-mast__nav-v">Research note</span>
+      </span>
+      <span class="aw-mast__nav-sep" aria-hidden="true">|</span>
+      <span class="aw-mast__nav-item">
+        <span class="aw-mast__nav-k">As of</span>
+        <span class="aw-mast__nav-v">{asOf}</span>
+      </span>
+      <span class="aw-mast__nav-sep" aria-hidden="true">|</span>
+      <span class="aw-mast__nav-item">
+        <span class="aw-mast__nav-k">Edition</span>
+        <span class="aw-mast__nav-v">{edition}</span>
+      </span>
+      <span class="aw-mast__nav-sep aw-mast__nav-sep--push" aria-hidden="true">|</span>
+      <a class="aw-mast__back" href="/">Return to production homepage</a>
+    </nav>
+  </div>
+  <hr class="aw-mast__rule" aria-hidden="true" />
+</header>
+
+<style>
+  .aw-mast {
+    padding-top: 18px;
+  }
+  .aw-mast__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px 24px;
+    padding-bottom: 10px;
+  }
+  .aw-mast__mark {
+    margin: 0;
+    font-family: var(--aw-display);
+    font-style: italic;
+    font-weight: 600;
+    font-size: 22px;
+    line-height: 1;
+    letter-spacing: 0.005em;
+    color: var(--aw-burgundy);
+    flex: 0 0 auto;
+  }
+  .aw-mast__mark em {
+    font-style: italic;
+  }
+  .aw-mast__nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 12px;
+    margin-left: auto;
+    font-family: var(--aw-body);
+    font-size: 11.5px;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    color: var(--aw-ochre);
+  }
+  .aw-mast__nav-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .aw-mast__nav-k {
+    color: var(--aw-ochre);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    font-style: italic;
+    font-weight: 400;
+  }
+  .aw-mast__nav-v {
+    color: var(--aw-ink);
+    font-family: var(--aw-display);
+    font-size: 13px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .aw-mast__nav-sep {
+    color: var(--aw-ochre);
+    opacity: 0.5;
+  }
+  .aw-mast__nav-sep--push {
+    margin-left: 4px;
+  }
+  .aw-mast__back {
+    color: var(--aw-burgundy);
+    text-decoration: none;
+    border-bottom: 0.5px solid var(--aw-burgundy);
+    padding-bottom: 1px;
+    font-style: italic;
+    transition: color 120ms linear, border-color 120ms linear;
+  }
+  .aw-mast__back:hover {
+    color: var(--aw-ochre);
+    border-bottom-color: var(--aw-ochre);
+  }
+  .aw-mast__back:focus-visible {
+    outline: 2px solid var(--aw-burgundy);
+    outline-offset: 3px;
+  }
+  .aw-mast__rule {
+    border: 0;
+    border-top: 1.5px double var(--aw-burgundy);
+    margin: 0;
+  }
+
+  @media (max-width: 720px) {
+    .aw-mast__nav {
+      margin-left: 0;
+    }
+  }
+</style>

@@ -1,0 +1,155 @@
+---
+/*
+ * Academic-Warm Colophon — small footer note in warm-cream all-serif
+ * register. Same row + stamps structure as Lane I, restyled.
+ */
+
+interface Props {
+  publication: string;
+  nextLabel: string;
+  nextDate: string;
+  nextAgency: string;
+  produced: string;
+  edition: string;
+}
+
+const { publication, nextLabel, nextDate, nextAgency, produced, edition } = Astro.props;
+---
+<footer class="aw-col" role="contentinfo">
+  <hr class="aw-col__rule" aria-hidden="true" />
+  <div class="aw-col__row">
+    <p class="aw-col__mark">
+      <em>{publication}</em>
+      <span class="aw-col__sep" aria-hidden="true">/</span>
+      <span class="aw-col__sub">Independent research.</span>
+    </p>
+    <p class="aw-col__notes">
+      Series are placeholder values for the v1 splash. Reported values match
+      the most recently published vintage; revisions are not reconciled
+      across releases. This page is a design experiment and not a research
+      product.
+    </p>
+  </div>
+  <dl class="aw-col__stamps">
+    <div class="aw-col__stamp">
+      <dt>Next release</dt>
+      <dd>
+        <span class="aw-col__stamp-strong">{nextLabel}</span>
+        <span class="aw-col__stamp-soft">{nextDate} &middot; {nextAgency}</span>
+      </dd>
+    </div>
+    <div class="aw-col__stamp">
+      <dt>Produced</dt>
+      <dd><span class="aw-col__stamp-soft">{produced}</span></dd>
+    </div>
+    <div class="aw-col__stamp">
+      <dt>Edition</dt>
+      <dd><span class="aw-col__stamp-soft">{edition}</span></dd>
+    </div>
+  </dl>
+</footer>
+
+<style>
+  .aw-col {
+    padding-block: 18px 32px;
+  }
+  .aw-col__rule {
+    border: 0;
+    border-top: 1.5px double var(--aw-burgundy);
+    margin: 0 0 16px;
+  }
+  .aw-col__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  @media (min-width: 720px) {
+    .aw-col__row {
+      grid-template-columns: 1fr 2fr;
+      gap: 32px;
+    }
+  }
+  .aw-col__mark {
+    margin: 0;
+    font-family: var(--aw-display);
+    font-style: italic;
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 1.3;
+    color: var(--aw-burgundy);
+  }
+  .aw-col__sep {
+    color: var(--aw-ochre);
+    margin: 0 5px;
+    font-style: normal;
+    font-weight: 400;
+  }
+  .aw-col__sub {
+    color: var(--aw-ink);
+    font-style: italic;
+    font-weight: 500;
+  }
+  .aw-col__notes {
+    margin: 0;
+    font-family: var(--aw-body);
+    font-weight: 400;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--aw-ochre);
+    max-width: 76ch;
+  }
+
+  .aw-col__stamps {
+    margin: 18px 0 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    border-top: 0.5px solid var(--aw-hairline);
+    padding-top: 12px;
+  }
+  @media (min-width: 720px) {
+    .aw-col__stamps {
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 18px;
+    }
+  }
+  .aw-col__stamp {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .aw-col__stamp dt {
+    margin: 0;
+    font-family: var(--aw-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 10.5px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--aw-ochre);
+    flex: 0 0 auto;
+  }
+  .aw-col__stamp dd {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    font-family: var(--aw-body);
+    font-size: 12px;
+    line-height: 1.2;
+    color: var(--aw-ink);
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .aw-col__stamp-strong {
+    color: var(--aw-burgundy);
+    font-weight: 500;
+    font-style: italic;
+    font-family: var(--aw-display);
+    font-size: 13px;
+  }
+  .aw-col__stamp-soft {
+    color: var(--aw-ochre);
+  }
+</style>

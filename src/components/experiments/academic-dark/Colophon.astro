@@ -1,0 +1,151 @@
+---
+/*
+ * Academic-Dark Colophon — small footer note.
+ *
+ * Structurally identical to gdpnow/Colophon.astro. Only theme differs:
+ * teal top rule, dark hairlines, warm off-white ink with muted-slate
+ * secondary text.
+ */
+
+interface Props {
+  publication: string;
+  nextLabel: string;
+  nextDate: string;
+  nextAgency: string;
+  produced: string;
+  edition: string;
+}
+
+const { publication, nextLabel, nextDate, nextAgency, produced, edition } = Astro.props;
+---
+<footer class="dark-col" role="contentinfo">
+  <hr class="dark-col__rule" aria-hidden="true" />
+  <div class="dark-col__row">
+    <p class="dark-col__mark">
+      <em>{publication}</em>
+      <span class="dark-col__sep" aria-hidden="true">/</span>
+      <span class="dark-col__sub">Independent research.</span>
+    </p>
+    <p class="dark-col__notes">
+      Series are placeholder values for the v1 splash. Reported values match
+      the most recently published vintage; revisions are not reconciled
+      across releases. This page is a design experiment and not a research
+      product.
+    </p>
+  </div>
+  <dl class="dark-col__stamps">
+    <div class="dark-col__stamp">
+      <dt>Next release</dt>
+      <dd>
+        <span class="dark-col__stamp-strong">{nextLabel}</span>
+        <span class="dark-col__stamp-soft">{nextDate} &middot; {nextAgency}</span>
+      </dd>
+    </div>
+    <div class="dark-col__stamp">
+      <dt>Produced</dt>
+      <dd><span class="dark-col__stamp-soft">{produced}</span></dd>
+    </div>
+    <div class="dark-col__stamp">
+      <dt>Edition</dt>
+      <dd><span class="dark-col__stamp-soft">{edition}</span></dd>
+    </div>
+  </dl>
+</footer>
+
+<style>
+  .dark-col {
+    padding-block: 18px 28px;
+  }
+  .dark-col__rule {
+    border: 0;
+    border-top: 1px solid var(--dark-teal);
+    margin: 0 0 14px;
+    opacity: 0.7;
+  }
+  .dark-col__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  @media (min-width: 720px) {
+    .dark-col__row {
+      grid-template-columns: 1fr 2fr;
+      gap: 32px;
+    }
+  }
+  .dark-col__mark {
+    margin: 0;
+    font-family: var(--dark-display);
+    font-style: italic;
+    font-size: 14px;
+    line-height: 1.3;
+    color: var(--dark-teal);
+  }
+  .dark-col__sep {
+    color: var(--dark-slate);
+    margin: 0 4px;
+    font-style: normal;
+  }
+  .dark-col__sub {
+    color: var(--dark-ink);
+    font-style: italic;
+  }
+  .dark-col__notes {
+    margin: 0;
+    font-family: var(--dark-body);
+    font-weight: 300;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--dark-slate);
+    max-width: 76ch;
+  }
+
+  .dark-col__stamps {
+    margin: 16px 0 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    border-top: 1px solid var(--dark-rule);
+    padding-top: 10px;
+  }
+  @media (min-width: 720px) {
+    .dark-col__stamps {
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 18px;
+    }
+  }
+  .dark-col__stamp {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .dark-col__stamp dt {
+    margin: 0;
+    font-family: var(--dark-mono);
+    font-size: 9.5px;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dark-slate);
+    flex: 0 0 auto;
+  }
+  .dark-col__stamp dd {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    font-family: var(--dark-mono);
+    font-size: 11px;
+    line-height: 1.2;
+    color: var(--dark-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .dark-col__stamp-strong {
+    color: var(--dark-ink);
+    font-weight: 500;
+  }
+  .dark-col__stamp-soft {
+    color: var(--dark-slate);
+  }
+</style>

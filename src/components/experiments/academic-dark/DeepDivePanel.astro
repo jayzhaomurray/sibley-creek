@@ -1,0 +1,208 @@
+---
+/*
+ * Academic-Dark DeepDivePanel — 8th-cell working-papers panel.
+ *
+ * Structurally identical to gdpnow/DeepDivePanel.astro (numbered list,
+ * pillar/section/status meta, italic deck, updated stamp). Only theme
+ * tokens differ for dark mode.
+ */
+
+import type { DeepDive } from "../../../data/sections";
+
+interface Props {
+  deepDives: DeepDive[];
+  figureNum: string;
+}
+
+const { deepDives, figureNum } = Astro.props;
+
+const ordered = [...deepDives].sort((a, b) =>
+  a.lastUpdated < b.lastUpdated ? 1 : -1,
+);
+
+const statusLabel = (s: "research" | "drafted" | "shipped") =>
+  s === "shipped" ? "Shipped"
+  : s === "drafted" ? "Drafted"
+  : "In research";
+---
+<article class="dark-dd" aria-labelledby="dark-dd-h">
+  <header class="dark-dd__head">
+    <div class="dark-dd__head-left">
+      <p class="dark-dd__eyebrow">
+        <span class="dark-dd__fig">Figure {figureNum}.</span>
+      </p>
+      <h2 id="dark-dd-h" class="dark-dd__h">
+        Working papers
+      </h2>
+    </div>
+    <p class="dark-dd__count">
+      {ordered.length} active
+    </p>
+  </header>
+
+  <p class="dark-dd__lede">
+    Current deep dives by the department. Pillar codes follow the editorial
+    canon. Updated as drafts move.
+  </p>
+
+  <ol class="dark-dd__list" role="list">
+    {ordered.map((dd, i) => (
+      <li class="dark-dd__row">
+        <div class="dark-dd__row-num" aria-hidden="true">
+          <span class="dark-dd__row-num-n">{String(i + 1).padStart(2, "0")}</span>
+        </div>
+        <div class="dark-dd__row-body">
+          <p class="dark-dd__row-meta">
+            <span class="dark-dd__pillar">Pillar {dd.pillar}</span>
+            <span class="dark-dd__row-sep" aria-hidden="true">&middot;</span>
+            <span class="dark-dd__section">{dd.section}</span>
+            <span class="dark-dd__row-sep" aria-hidden="true">&middot;</span>
+            <span class={`dark-dd__status dark-dd__status--${dd.status}`}>{statusLabel(dd.status)}</span>
+          </p>
+          <h3 class="dark-dd__title">{dd.title}</h3>
+          <p class="dark-dd__deck"><em>{dd.deck}</em></p>
+          <p class="dark-dd__stamp">Updated {dd.lastUpdated}</p>
+        </div>
+      </li>
+    ))}
+  </ol>
+</article>
+
+<style>
+  .dark-dd {
+    background: var(--dark-panel);
+    border: 1px solid var(--dark-rule);
+    padding: 16px 18px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 100%;
+  }
+
+  .dark-dd__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--dark-rule);
+    padding-bottom: 8px;
+  }
+  .dark-dd__eyebrow {
+    margin: 0;
+    font-family: var(--dark-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--dark-slate);
+  }
+  .dark-dd__fig {
+    color: var(--dark-teal);
+  }
+  .dark-dd__h {
+    margin: 4px 0 0;
+    font-family: var(--dark-display);
+    font-weight: 400;
+    font-size: 20px;
+    line-height: 1.1;
+    color: var(--dark-ink);
+  }
+  .dark-dd__count {
+    margin: 0;
+    font-family: var(--dark-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--dark-slate);
+  }
+
+  .dark-dd__lede {
+    margin: 0;
+    font-family: var(--dark-body);
+    font-weight: 300;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--dark-ink);
+    max-width: 56ch;
+  }
+
+  .dark-dd__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-top: 1px solid var(--dark-rule);
+  }
+  .dark-dd__row {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 10px;
+    padding: 10px 0 12px;
+    border-bottom: 1px solid var(--dark-rule);
+  }
+  .dark-dd__row:last-child {
+    border-bottom: 0;
+  }
+  .dark-dd__row-num {
+    font-family: var(--dark-mono);
+    font-size: 11px;
+    line-height: 1;
+    color: var(--dark-slate);
+    padding-top: 3px;
+  }
+  .dark-dd__row-num-n {
+    font-variant-numeric: tabular-nums;
+  }
+  .dark-dd__row-body { min-width: 0; }
+
+  .dark-dd__row-meta {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    font-family: var(--dark-mono);
+    font-size: 9.5px;
+    line-height: 1.1;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--dark-slate);
+  }
+  .dark-dd__pillar { color: var(--dark-teal); }
+  .dark-dd__section { color: var(--dark-ink); }
+  .dark-dd__row-sep { color: var(--dark-slate); opacity: 0.6; }
+  .dark-dd__status { font-weight: 500; }
+  .dark-dd__status--shipped { color: var(--dark-pos); }
+  .dark-dd__status--drafted { color: var(--dark-teal); }
+  .dark-dd__status--research { color: var(--dark-slate); }
+
+  .dark-dd__title {
+    margin: 5px 0 0;
+    font-family: var(--dark-display);
+    font-weight: 400;
+    font-size: 15px;
+    line-height: 1.25;
+    color: var(--dark-ink);
+  }
+  .dark-dd__deck {
+    margin: 4px 0 0;
+    font-family: var(--dark-body);
+    font-weight: 300;
+    font-style: italic;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--dark-ink);
+    max-width: 52ch;
+  }
+  .dark-dd__stamp {
+    margin: 6px 0 0;
+    font-family: var(--dark-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--dark-slate);
+  }
+</style>

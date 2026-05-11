@@ -1,0 +1,216 @@
+---
+/*
+ * VignelliMasthead - site-wide page header for the production canon.
+ *
+ * Adapted from src/components/experiments/academic-vignelli/Masthead.astro,
+ * promoted out of the experiments dir. Differences from the splash version:
+ *
+ *   - Reads from `site` + `sections` (data/sections.ts) so the wordmark and
+ *     primary nav are sourced from data, not props.
+ *   - Replaces the "Return to production homepage" link (a splash affordance)
+ *     with the production primary section nav. Section links are routed to
+ *     `/{slug}/`; active section is detected from `Astro.url.pathname`.
+ *   - Keeps the institutional rail (Series / As of / Edition) on the
+ *     homepage only; on section pages we hide it to keep the masthead
+ *     compact. Rail content is constant text for v1; the date is derived
+ *     at render time from `new Date()` so the header always shows today.
+ *
+ * Aesthetic discipline (Vignelli register):
+ *   - Manrope ExtraBold (800) wordmark, all caps, tight tracking.
+ *   - Manrope micro-caps for rail keys + SemiBold for rail values.
+ *   - Pure black hairline rule underneath.
+ *   - Signal red used only on focus rings / hover transition target.
+ */
+
+import { site, sections } from "../../data/sections";
+
+interface Props {
+  /** Show the institutional rail (Series / As of / Edition). Homepage only. */
+  showRail?: boolean;
+}
+
+const { showRail = false } = Astro.props;
+
+const pathname = Astro.url.pathname;
+const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
+
+// Today's date for the rail's "As of" stamp. en-CA long form to match the
+// publication's locale convention.
+const today = new Date();
+const asOf = today.toLocaleDateString("en-CA", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+---
+<header class="vig-mast" role="banner">
+  <div class="vig-mast__row">
+    <a class="vig-mast__mark-link" href="/" aria-label={`${site.name} home`}>
+      <span class="vig-mast__mark">{site.name}</span>
+    </a>
+
+    {showRail && (
+      <div class="vig-mast__rail" aria-label="Edition rail">
+        <span class="vig-mast__rail-item">
+          <span class="vig-mast__rail-k">Series</span>
+          <span class="vig-mast__rail-v">Research note</span>
+        </span>
+        <span class="vig-mast__rail-sep" aria-hidden="true"></span>
+        <span class="vig-mast__rail-item">
+          <span class="vig-mast__rail-k">As of</span>
+          <span class="vig-mast__rail-v">{asOf}</span>
+        </span>
+        <span class="vig-mast__rail-sep" aria-hidden="true"></span>
+        <span class="vig-mast__rail-item">
+          <span class="vig-mast__rail-k">Edition</span>
+          <span class="vig-mast__rail-v">v1</span>
+        </span>
+      </div>
+    )}
+  </div>
+
+  <nav class="vig-mast__nav" aria-label="Primary">
+    <ul role="list" class="vig-mast__nav-list">
+      {sections.map((section) => {
+        const isActive = firstSegment === section.slug;
+        return (
+          <li class="vig-mast__nav-item">
+            <a
+              class:list={["vig-mast__nav-link", { "is-active": isActive }]}
+              href={`/${section.slug}/`}
+              aria-current={isActive ? "page" : undefined}
+            >
+              {section.label}
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  </nav>
+
+  <hr class="vig-mast__rule" aria-hidden="true" />
+</header>
+
+<style>
+  .vig-mast {
+    padding-top: 20px;
+  }
+  .vig-mast__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 14px 28px;
+    padding-bottom: 10px;
+  }
+  .vig-mast__mark-link {
+    color: var(--ink);
+    text-decoration: none;
+    flex: 0 0 auto;
+    border-bottom: 1px solid transparent;
+    transition: border-color 80ms linear;
+  }
+  .vig-mast__mark-link:hover {
+    border-bottom-color: var(--ink);
+  }
+  .vig-mast__mark-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+  .vig-mast__mark {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 16px;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  .vig-mast__rail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 14px;
+    margin-left: auto;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    line-height: 1;
+    color: var(--ink);
+  }
+  .vig-mast__rail-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .vig-mast__rail-k {
+    font-weight: 400;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .vig-mast__rail-v {
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .vig-mast__rail-sep {
+    width: 1px;
+    height: 10px;
+    background: var(--ink);
+    align-self: center;
+  }
+
+  .vig-mast__nav {
+    padding-bottom: 12px;
+  }
+  .vig-mast__nav-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 18px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .vig-mast__nav-item {
+    min-width: 0;
+  }
+  .vig-mast__nav-link {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink);
+    text-decoration: none;
+    padding-block: 4px;
+    border-bottom: 1px solid transparent;
+    transition: border-color 80ms linear;
+  }
+  .vig-mast__nav-link:hover {
+    border-bottom-color: var(--ink);
+  }
+  .vig-mast__nav-link.is-active {
+    border-bottom-color: var(--ink);
+  }
+  .vig-mast__nav-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  .vig-mast__rule {
+    border: 0;
+    border-top: 1px solid var(--ink);
+    margin: 0;
+  }
+
+  @media (max-width: 720px) {
+    .vig-mast__rail {
+      margin-left: 0;
+    }
+  }
+</style>

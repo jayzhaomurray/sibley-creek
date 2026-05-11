@@ -1,0 +1,141 @@
+---
+/*
+ * Vignelli Masthead — same structural slots as the Lane I (GDPNow) header:
+ * wordmark on the left, an institutional rail on the right, a black hairline
+ * underneath. The aesthetic shift is purely typographic.
+ *
+ * Wordmark: Manrope ExtraBold (800), all caps, tight tracking. No italic,
+ * no serif. The mark is a label, not a flourish.
+ *
+ * Rail: Manrope micro-caps (k labels) + Manrope SemiBold (values). Mono is
+ * reserved for the tabular data inside the grid; the rail is sans only so
+ * the masthead reads as a single typographic unit.
+ *
+ * Signal red appears once: on the back-to-production link's underline /
+ * focus, as the publication's brand accent.
+ */
+
+interface Props {
+  publication: string;
+  asOf: string;
+  edition: string;
+}
+
+const { publication, asOf, edition } = Astro.props;
+---
+<header class="vig-mast" role="banner">
+  <div class="vig-mast__row">
+    <p class="vig-mast__mark">{publication}</p>
+    <nav class="vig-mast__nav" aria-label="Institutional rail">
+      <span class="vig-mast__nav-item">
+        <span class="vig-mast__nav-k">Series</span>
+        <span class="vig-mast__nav-v">Research note</span>
+      </span>
+      <span class="vig-mast__nav-sep" aria-hidden="true"></span>
+      <span class="vig-mast__nav-item">
+        <span class="vig-mast__nav-k">As of</span>
+        <span class="vig-mast__nav-v">{asOf}</span>
+      </span>
+      <span class="vig-mast__nav-sep" aria-hidden="true"></span>
+      <span class="vig-mast__nav-item">
+        <span class="vig-mast__nav-k">Edition</span>
+        <span class="vig-mast__nav-v">{edition}</span>
+      </span>
+      <span class="vig-mast__nav-sep vig-mast__nav-sep--push" aria-hidden="true"></span>
+      <a class="vig-mast__back" href="/">Return to production homepage</a>
+    </nav>
+  </div>
+  <hr class="vig-mast__rule" aria-hidden="true" />
+</header>
+
+<style>
+  .vig-mast {
+    padding-top: 20px;
+  }
+  .vig-mast__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 14px 28px;
+    padding-bottom: 12px;
+  }
+  .vig-mast__mark {
+    margin: 0;
+    font-family: var(--vig-sans);
+    font-weight: 800;
+    font-size: 16px;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--vig-ink);
+    flex: 0 0 auto;
+  }
+  .vig-mast__nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 14px;
+    margin-left: auto;
+    font-family: var(--vig-sans);
+    font-size: 11px;
+    line-height: 1;
+    color: var(--vig-ink);
+  }
+  .vig-mast__nav-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .vig-mast__nav-k {
+    font-weight: 400;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--vig-ink);
+  }
+  .vig-mast__nav-v {
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--vig-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .vig-mast__nav-sep {
+    /* A thin vertical 1px bar in pure black — Vignelli pipe. */
+    width: 1px;
+    height: 10px;
+    background: var(--vig-ink);
+    align-self: center;
+  }
+  .vig-mast__nav-sep--push {
+    margin-left: 6px;
+  }
+  .vig-mast__back {
+    color: var(--vig-ink);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--vig-signal);
+    padding-bottom: 1px;
+  }
+  .vig-mast__back:hover {
+    color: var(--vig-signal);
+  }
+  .vig-mast__back:focus-visible {
+    outline: 2px solid var(--vig-signal);
+    outline-offset: 3px;
+  }
+  .vig-mast__rule {
+    border: 0;
+    border-top: 1px solid var(--vig-ink);
+    margin: 0;
+  }
+
+  @media (max-width: 720px) {
+    .vig-mast__nav {
+      margin-left: 0;
+    }
+  }
+</style>

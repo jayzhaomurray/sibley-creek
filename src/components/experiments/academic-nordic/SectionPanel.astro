@@ -1,0 +1,484 @@
+---
+/*
+ * Nordic SectionPanel — Scandinavian product-clean indicator panel.
+ *
+ * Same layout as Lane I (header strip with figure label, chart + readout
+ * pair, indicators table). Sans throughout, mono light for numerals.
+ * Hairline rules; terracotta reserved only for the load-bearing endpoint
+ * marker and primary-row indicator value (key data signals).
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  section: Section;
+  figureNum: string;
+}
+
+const { section, figureNum } = Astro.props;
+
+const loadBearing = section.chartSeriesKey
+  ? section.prints.find((p) => p.key === section.chartSeriesKey) ?? section.prints[0]
+  : section.prints[0];
+
+const series = loadBearing.spark ?? [0, 0.2, 0.3, 0.4];
+
+const W = 320;
+const H = 110;
+const PAD_L = 28;
+const PAD_R = 8;
+const PAD_T = 10;
+const PAD_B = 18;
+
+const plotW = W - PAD_L - PAD_R;
+const plotH = H - PAD_T - PAD_B;
+
+const minV = Math.min(...series);
+const maxV = Math.max(...series);
+const rangeRaw = maxV - minV || 1;
+const yMin = minV - rangeRaw * 0.12;
+const yMax = maxV + rangeRaw * 0.12;
+const yRange = yMax - yMin || 1;
+
+function xOf(i: number): number {
+  return PAD_L + (i / (series.length - 1)) * plotW;
+}
+function yOf(v: number): number {
+  return PAD_T + (1 - (v - yMin) / yRange) * plotH;
+}
+
+const pts = series.map((v, i) => `${xOf(i).toFixed(2)},${yOf(v).toFixed(2)}`);
+const linePath = "M " + pts.join(" L ");
+
+function fmtTick(v: number): string {
+  const a = Math.abs(v);
+  if (a >= 100) return v.toFixed(0);
+  if (a >= 10) return v.toFixed(1);
+  return v.toFixed(2);
+}
+const ticks = [yMin, (yMin + yMax) / 2, yMax].map((v) => ({
+  v,
+  y: yOf(v),
+  label: fmtTick(v),
+}));
+
+const lastX = xOf(series.length - 1);
+const lastY = yOf(series[series.length - 1] as number);
+
+const zeroInRange = yMin < 0 && yMax > 0;
+const zeroY = zeroInRange ? yOf(0) : null;
+
+const deltaClass = (d: "pos" | "neg" | "neutral") =>
+  d === "pos" ? "nor-panel__delta--pos"
+  : d === "neg" ? "nor-panel__delta--neg"
+  : "nor-panel__delta--neutral";
+
+const allPrints = section.prints;
+---
+<article
+  class="nor-panel"
+  id={`panel-${section.slug}`}
+  aria-labelledby={`panel-${section.slug}-h`}
+>
+  <header class="nor-panel__head">
+    <div class="nor-panel__head-left">
+      <p class="nor-panel__eyebrow">
+        <span class="nor-panel__fig">Figure {figureNum}</span>
+      </p>
+      <h2 id={`panel-${section.slug}-h`} class="nor-panel__h">
+        <a class="nor-panel__h-link" href={`/${section.slug}/`}>{section.label}</a>
+      </h2>
+    </div>
+    <p class="nor-panel__cadence">{section.cadence}</p>
+  </header>
+
+  <p class="nor-panel__question">{section.headlineQuestion}</p>
+
+  <div class="nor-panel__body">
+    <figure class="nor-panel__fig-wrap">
+      <svg
+        class="nor-panel__svg"
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label={`${loadBearing.indicator}. Latest: ${loadBearing.value} (${loadBearing.asOf}). Change: ${loadBearing.delta}.`}
+      >
+        <rect
+          x={PAD_L}
+          y={PAD_T}
+          width={plotW}
+          height={plotH}
+          fill="#FFFFFF"
+          stroke="#E8E7E2"
+          stroke-width="1"
+        />
+        {ticks.map((t) => (
+          <>
+            <line
+              x1={PAD_L}
+              x2={PAD_L + plotW}
+              y1={t.y}
+              y2={t.y}
+              stroke="#E8E7E2"
+              stroke-width="0.5"
+            />
+            <text
+              x={PAD_L - 5}
+              y={t.y}
+              text-anchor="end"
+              dominant-baseline="middle"
+              font-family="JetBrains Mono, ui-monospace, monospace"
+              font-size="8"
+              font-weight="300"
+              fill="#6B6F76"
+            >
+              {t.label}
+            </text>
+          </>
+        ))}
+        {zeroY !== null && (
+          <line
+            x1={PAD_L}
+            x2={PAD_L + plotW}
+            y1={zeroY}
+            y2={zeroY}
+            stroke="#6B6F76"
+            stroke-width="0.5"
+          />
+        )}
+        <path
+          d={linePath}
+          fill="none"
+          stroke="#1B3358"
+          stroke-width="1.4"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
+        <circle cx={lastX} cy={lastY} r="2.6" fill="#C26F3D" stroke="#FFFFFF" stroke-width="0.8" />
+        <line
+          x1={PAD_L}
+          x2={PAD_L + plotW}
+          y1={PAD_T + plotH}
+          y2={PAD_T + plotH}
+          stroke="#15171A"
+          stroke-width="0.6"
+        />
+        <text
+          x={PAD_L}
+          y={H - 4}
+          text-anchor="start"
+          font-family="JetBrains Mono, ui-monospace, monospace"
+          font-size="8"
+          font-weight="300"
+          fill="#6B6F76"
+        >
+          earliest
+        </text>
+        <text
+          x={PAD_L + plotW}
+          y={H - 4}
+          text-anchor="end"
+          font-family="JetBrains Mono, ui-monospace, monospace"
+          font-size="8"
+          font-weight="300"
+          fill="#6B6F76"
+        >
+          {loadBearing.asOf}
+        </text>
+      </svg>
+      <figcaption class="nor-panel__cap">
+        <span class="nor-panel__cap-mark">Fig. {figureNum}.</span>
+        {loadBearing.indicator}, recent history.
+        Last observation marked.
+      </figcaption>
+    </figure>
+
+    <aside class="nor-panel__readout" aria-label="Headline reading">
+      <p class="nor-panel__readout-k">{loadBearing.indicator}</p>
+      <p class="nor-panel__readout-v">
+        <span class="nor-panel__readout-num">{loadBearing.value}</span>
+      </p>
+      <p class="nor-panel__readout-meta">
+        <span class:list={["nor-panel__delta", deltaClass(loadBearing.deltaDir)]}>{loadBearing.delta}</span>
+        <span class="nor-panel__readout-asof">{loadBearing.asOf}</span>
+      </p>
+      {section.blurb.body && (
+        <p class="nor-panel__note">
+          {section.blurb.body}
+        </p>
+      )}
+    </aside>
+  </div>
+
+  <table class="nor-panel__table" aria-label={`${section.label} indicators table`}>
+    <thead>
+      <tr>
+        <th scope="col" class="nor-panel__th nor-panel__th--ind">Indicator</th>
+        <th scope="col" class="nor-panel__th nor-panel__th--val">Value</th>
+        <th scope="col" class="nor-panel__th nor-panel__th--delta">Change</th>
+        <th scope="col" class="nor-panel__th nor-panel__th--asof">As of</th>
+      </tr>
+    </thead>
+    <tbody>
+      {allPrints.map((p) => (
+        <tr class={p === loadBearing ? "nor-panel__tr nor-panel__tr--primary" : "nor-panel__tr"}>
+          <td class="nor-panel__td nor-panel__td--ind">{p.indicator}</td>
+          <td class="nor-panel__td nor-panel__td--val">{p.value}</td>
+          <td class:list={["nor-panel__td", "nor-panel__td--delta", deltaClass(p.deltaDir)]}>{p.delta}</td>
+          <td class="nor-panel__td nor-panel__td--asof">{p.asOf}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</article>
+
+<style>
+  .nor-panel {
+    background: var(--nor-stone);
+    border: 1px solid var(--nor-hairline);
+    padding: 22px 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 100%;
+  }
+
+  .nor-panel__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--nor-hairline);
+    padding-bottom: 12px;
+  }
+  .nor-panel__head-left { min-width: 0; }
+  .nor-panel__eyebrow {
+    margin: 0;
+    font-family: var(--nor-body);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--nor-gray);
+  }
+  .nor-panel__fig {
+    color: var(--nor-terra);
+  }
+  .nor-panel__h {
+    margin: 8px 0 0;
+    font-family: var(--nor-display);
+    font-weight: 600;
+    font-size: 20px;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    color: var(--nor-ink);
+  }
+  .nor-panel__h-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color 120ms ease, border-color 120ms ease;
+  }
+  .nor-panel__h-link:hover {
+    color: var(--nor-navy);
+    border-bottom-color: var(--nor-navy);
+  }
+  .nor-panel__h-link:focus-visible {
+    outline: 2px solid var(--nor-navy);
+    outline-offset: 3px;
+  }
+  .nor-panel__cadence {
+    margin: 0;
+    font-family: var(--nor-body);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--nor-gray);
+    white-space: nowrap;
+  }
+
+  .nor-panel__question {
+    margin: 0;
+    font-family: var(--nor-body);
+    font-weight: 300;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--nor-ink);
+    max-width: 56ch;
+  }
+
+  .nor-panel__body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  @media (min-width: 600px) {
+    .nor-panel__body {
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: 22px;
+      align-items: start;
+    }
+  }
+
+  .nor-panel__fig-wrap {
+    margin: 0;
+    min-width: 0;
+  }
+  .nor-panel__svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .nor-panel__cap {
+    margin: 6px 0 0;
+    font-family: var(--nor-body);
+    font-weight: 300;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--nor-gray);
+  }
+  .nor-panel__cap-mark {
+    font-weight: 500;
+    color: var(--nor-ink);
+    margin-right: 3px;
+  }
+
+  .nor-panel__readout {
+    min-width: 0;
+    padding-left: 0;
+  }
+  @media (min-width: 600px) {
+    .nor-panel__readout {
+      border-left: 1px solid var(--nor-hairline);
+      padding-left: 18px;
+    }
+  }
+  .nor-panel__readout-k {
+    margin: 0;
+    font-family: var(--nor-body);
+    font-weight: 500;
+    font-size: 10px;
+    line-height: 1.2;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--nor-gray);
+  }
+  .nor-panel__readout-v {
+    margin: 10px 0 0;
+    line-height: 1;
+  }
+  .nor-panel__readout-num {
+    font-family: var(--nor-mono);
+    font-weight: 300;
+    font-size: 30px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--nor-navy);
+    font-variant-numeric: tabular-nums;
+  }
+  .nor-panel__readout-meta {
+    margin: 10px 0 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-family: var(--nor-mono);
+    font-weight: 300;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0;
+  }
+  .nor-panel__readout-asof {
+    color: var(--nor-gray);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+  .nor-panel__note {
+    margin: 14px 0 0;
+    font-family: var(--nor-body);
+    font-weight: 300;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--nor-ink);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 44ch;
+  }
+
+  .nor-panel__delta {
+    font-variant-numeric: tabular-nums;
+    font-weight: 400;
+  }
+  .nor-panel__delta--pos { color: var(--nor-pos); }
+  .nor-panel__delta--neg { color: var(--nor-neg); }
+  .nor-panel__delta--neutral { color: var(--nor-gray); }
+
+  .nor-panel__table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-family: var(--nor-mono);
+    font-weight: 300;
+    font-size: 11px;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+    color: var(--nor-ink);
+    border-top: 1px solid var(--nor-hairline);
+  }
+  .nor-panel__th {
+    text-align: left;
+    font-family: var(--nor-body);
+    font-weight: 500;
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--nor-gray);
+    padding: 9px 6px 8px 0;
+    border-bottom: 1px solid var(--nor-hairline);
+  }
+  .nor-panel__th--val,
+  .nor-panel__th--delta,
+  .nor-panel__th--asof {
+    text-align: right;
+    padding-right: 0;
+    padding-left: 6px;
+  }
+  .nor-panel__td {
+    padding: 7px 6px 7px 0;
+    border-bottom: 1px solid var(--nor-hairline);
+  }
+  .nor-panel__tr:last-child .nor-panel__td {
+    border-bottom: 0;
+  }
+  .nor-panel__td--ind {
+    font-family: var(--nor-body);
+    font-weight: 400;
+    color: var(--nor-ink);
+  }
+  .nor-panel__td--val,
+  .nor-panel__td--delta,
+  .nor-panel__td--asof {
+    text-align: right;
+    padding-right: 0;
+    padding-left: 6px;
+  }
+  .nor-panel__td--asof {
+    color: var(--nor-gray);
+    text-transform: uppercase;
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+  }
+  .nor-panel__tr--primary .nor-panel__td--ind {
+    color: var(--nor-ink);
+    font-weight: 600;
+  }
+  .nor-panel__tr--primary .nor-panel__td--val {
+    font-weight: 400;
+    color: var(--nor-terra);
+  }
+</style>

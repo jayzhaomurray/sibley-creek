@@ -1,0 +1,281 @@
+---
+/*
+ * Splash experiment: Lane I aesthetic variant — Vignelli/Knoll catalogue.
+ *
+ * Layout IDENTICAL to splash-gdpnow.astro (Lane I). Same masthead, title
+ * statement, seven-section 2x4 grid with working-papers occupying the 8th
+ * cell, same colophon. Same density.
+ *
+ * Aesthetic shifts toward Vignelli-Knoll-catalogue typographic discipline:
+ *
+ *   - Pure white paper, pure black ink, ONE accent (signal red #E63946).
+ *   - Single sans family (Manrope) across the entire page, with weight
+ *     contrast as the ONLY hierarchy device (200 / 400 / 600 / 800).
+ *   - All borders and rules in real black (#000) at 1px — black hairlines,
+ *     never gray. Knoll catalogue page rigor.
+ *   - Tabular monospace numerics rendered in IBM Plex Mono regular only;
+ *     no weight, no color shifts on numbers.
+ *   - Signal positive and negative BOTH in black — direction encoded by
+ *     ^ / v glyphs and signs, never by hue. Red appears only as the
+ *     publication's brand signal: micro-cap eyebrow accents, the title's
+ *     key kicker, focus rings, and the chart's latest-print dot.
+ *
+ * Entirely self-contained: no production homepage components, no shared
+ * design tokens. Aesthetic choices scoped under
+ * `src/components/experiments/academic-vignelli/`.
+ *
+ * Reads (read-only): src/data/sections.ts.
+ * Does not touch: pipeline/, design/, editorial/, .claude/,
+ *                 src/pages/index.astro, other splash experiments.
+ */
+
+import {
+  sections,
+  deepDives,
+  nextRelease,
+  site,
+  type Section,
+} from "../../data/sections";
+
+import Masthead from "../../components/experiments/academic-vignelli/Masthead.astro";
+import TitleStatement from "../../components/experiments/academic-vignelli/TitleStatement.astro";
+import SectionPanel from "../../components/experiments/academic-vignelli/SectionPanel.astro";
+import DeepDivePanel from "../../components/experiments/academic-vignelli/DeepDivePanel.astro";
+import Colophon from "../../components/experiments/academic-vignelli/Colophon.astro";
+
+// Canonical section ordering — same as Lane I.
+const ordered: Section[] = (
+  ["gdp", "inflation", "labour", "housing", "policy", "markets", "trade"] as const
+)
+  .map((slug) => sections.find((s) => s.slug === slug))
+  .filter((s): s is Section => Boolean(s));
+
+// Title-statement date line.
+const today = new Date(Date.UTC(2026, 4, 11)); // May 11, 2026
+const longDate = today.toLocaleDateString("en-CA", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+const produced = today.toISOString().slice(0, 10);
+const edition = "Lane I (Vignelli register)";
+
+const pageTitle = `${site.name} — Canadian Macro Overview, ${longDate}`;
+const pageDesc =
+  "Aesthetic variant of Lane I in a Vignelli-Knoll-catalogue register: all-sans, weight-contrast hierarchy, pure black hairlines, one signal-red accent. Same seven-panel academic grid.";
+
+const abstract =
+  "A reading-first summary of the Canadian macro picture as of " +
+  longDate +
+  ". Seven indicator domains, each rendered as a compact panel with one " +
+  "load-bearing chart, the latest headline reading, and a small table of " +
+  "supporting prints. Working papers index follows the section grid.";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#FFFFFF" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta property="og:locale" content="en_CA" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;400;600;800&family=IBM+Plex+Mono:wght@400&display=swap"
+    />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+  </head>
+  <body class="vig-body">
+    <a class="vig-skip" href="#vig-main">Skip to main content</a>
+
+    <div class="vig-shell">
+      <Masthead publication={site.name} asOf={longDate} edition="Lane I" />
+
+      <main id="vig-main" class="vig-main">
+        <TitleStatement
+          dateLine={longDate}
+          abstract={abstract}
+          sections={sections}
+        />
+
+        <section class="vig-grid" aria-label="Indicator panels">
+          <h2 class="vig-vh">Indicator panels</h2>
+          {ordered.map((s, i) => (
+            <div class="vig-grid__cell">
+              <SectionPanel section={s} figureNum={String(i + 1)} />
+            </div>
+          ))}
+          {/* 8th cell: working papers */}
+          <div class="vig-grid__cell">
+            <DeepDivePanel deepDives={deepDives} figureNum="8" />
+          </div>
+        </section>
+
+        <Colophon
+          publication={site.name}
+          nextLabel={nextRelease.label}
+          nextDate={nextRelease.date}
+          nextAgency={nextRelease.agency}
+          produced={produced}
+          edition={edition}
+        />
+      </main>
+    </div>
+
+    <style is:global>
+      /* ===========================================================
+       * Lane I — Vignelli/Knoll-catalogue register.
+       * Two colors + one accent. One sans family. Black hairlines.
+       * =========================================================== */
+      :root {
+        --vig-paper: #FFFFFF;
+        --vig-ink: #000000;
+        --vig-rule: #000000;     /* hairlines are pure black */
+        --vig-signal: #E63946;   /* single accent — signal red */
+
+        /* For the few cases where a softened hue is needed (axis
+         * label deemphasis on tiny SVG text), use a 70% black mix
+         * rather than introducing a new color. Kept off the palette
+         * surface; only used inside SVG. */
+        --vig-mute: #000000;
+
+        --vig-sans: "Manrope", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        --vig-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+        --vig-max: 1240px;
+        --vig-gutter: 24px;
+      }
+
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--vig-paper);
+        color: var(--vig-ink);
+      }
+      body.vig-body {
+        font-family: var(--vig-sans);
+        font-weight: 400;
+        font-size: 14.5px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "kern" 1, "liga" 1, "ss01" 1;
+        font-variant-numeric: lining-nums;
+        min-height: 100vh;
+      }
+
+      a {
+        color: var(--vig-ink);
+      }
+
+      h1, h2, h3, h4 {
+        margin: 0;
+      }
+
+      ::selection {
+        background: var(--vig-signal);
+        color: var(--vig-paper);
+      }
+
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--vig-signal);
+        outline-offset: 3px;
+      }
+
+      .vig-skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+      }
+      .vig-skip:focus {
+        position: static;
+        display: inline-block;
+        margin: 8px 0 0 12px;
+        background: var(--vig-ink);
+        color: var(--vig-paper);
+        padding: 6px 10px;
+        font-family: var(--vig-sans);
+        font-weight: 600;
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        text-decoration: none;
+      }
+
+      .vig-vh {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
+
+    <style>
+      .vig-shell {
+        width: 100%;
+        max-width: var(--vig-max);
+        margin: 0 auto;
+        padding: 0 var(--vig-gutter) 0;
+      }
+      @media (min-width: 1100px) {
+        .vig-shell {
+          padding-inline: 40px;
+        }
+      }
+
+      .vig-main {
+        padding-block: 0 0;
+      }
+
+      .vig-grid {
+        margin-top: 28px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0;
+        /* Knoll catalogue: panels meet at shared hairlines. We collapse
+         * the gap and use the panel borders to form a continuous grid. */
+        border-top: 1px solid var(--vig-rule);
+        border-left: 1px solid var(--vig-rule);
+      }
+      @media (min-width: 760px) {
+        .vig-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      .vig-grid__cell {
+        min-width: 0;
+        display: flex;
+        border-right: 1px solid var(--vig-rule);
+        border-bottom: 1px solid var(--vig-rule);
+      }
+      .vig-grid__cell > * {
+        width: 100%;
+      }
+    </style>
+  </body>
+</html>

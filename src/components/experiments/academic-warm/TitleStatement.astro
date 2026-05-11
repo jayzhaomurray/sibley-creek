@@ -1,0 +1,168 @@
+---
+/*
+ * Academic-Warm TitleStatement — same structure as Lane I title block, but
+ * tuned to a warm-cream all-serif editorial-magazine register.
+ *
+ * Display in Cormorant Garamond (heavy + italic date), abstract in Source
+ * Serif 4 light, stamp values in Cormorant Garamond regular with tabular
+ * lining figures.
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  dateLine: string;
+  abstract: string;
+  sections: Section[];
+}
+
+const { dateLine, abstract, sections } = Astro.props;
+
+const stamp = [
+  { label: "Headline CPI, y/y", section: "inflation" },
+  { label: "BoC overnight rate", section: "policy" },
+  { label: "Unemployment rate", section: "labour" },
+].map((row) => {
+  const s = sections.find((x) => x.slug === row.section);
+  const p = s?.prints.find((x) => x.indicator === row.label) ?? s?.prints[0];
+  return {
+    label: row.label,
+    value: p?.value ?? "",
+    asOf: p?.asOf ?? "",
+  };
+});
+---
+<section class="aw-title" aria-labelledby="aw-title-h">
+  <p class="aw-title__eyebrow">Research note <span aria-hidden="true">&middot;</span> Canadian macro <span aria-hidden="true">&middot;</span> Independent</p>
+  <h1 id="aw-title-h" class="aw-title__h">
+    Canadian Macro Overview, <span class="aw-title__date">{dateLine}</span>
+  </h1>
+  <p class="aw-title__abs">{abstract}</p>
+
+  <dl class="aw-title__stamp" aria-label="Headline numbers at a glance">
+    {stamp.map((row) => (
+      <div class="aw-title__stamp-row">
+        <dt class="aw-title__stamp-k">{row.label}</dt>
+        <dd class="aw-title__stamp-v">
+          <span class="aw-title__stamp-num">{row.value}</span>
+          <span class="aw-title__stamp-asof">{row.asOf}</span>
+        </dd>
+      </div>
+    ))}
+  </dl>
+</section>
+
+<style>
+  .aw-title {
+    padding-block: 28px 24px;
+    border-bottom: 0.5px solid var(--aw-hairline);
+  }
+  .aw-title__eyebrow {
+    margin: 0 0 10px;
+    font-family: var(--aw-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 12.5px;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--aw-ochre);
+  }
+  .aw-title__h {
+    margin: 0;
+    font-family: var(--aw-display);
+    font-weight: 600;
+    font-size: clamp(30px, 4vw, 44px);
+    line-height: 1.08;
+    letter-spacing: -0.005em;
+    color: var(--aw-ink);
+    max-width: 32ch;
+  }
+  .aw-title__date {
+    color: var(--aw-burgundy);
+    font-style: italic;
+    font-weight: 500;
+  }
+  .aw-title__abs {
+    margin: 14px 0 0;
+    font-family: var(--aw-body);
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--aw-ink);
+    max-width: 60ch;
+  }
+
+  .aw-title__stamp {
+    margin: 22px 0 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    border-top: 0.5px solid var(--aw-hairline);
+    border-bottom: 0.5px solid var(--aw-hairline);
+  }
+  @media (min-width: 720px) {
+    .aw-title__stamp {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  .aw-title__stamp-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 0.5px dashed var(--aw-hairline);
+  }
+  @media (min-width: 720px) {
+    .aw-title__stamp-row {
+      border-bottom: 0;
+      border-right: 0.5px solid var(--aw-hairline);
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 14px 16px;
+    }
+    .aw-title__stamp-row:last-child { border-right: 0; }
+    .aw-title__stamp-row:first-child { padding-left: 0; }
+  }
+  .aw-title__stamp-row:last-child {
+    border-bottom: 0;
+  }
+  .aw-title__stamp-k {
+    margin: 0;
+    font-family: var(--aw-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.2;
+    color: var(--aw-ochre);
+  }
+  .aw-title__stamp-v {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  @media (min-width: 720px) {
+    .aw-title__stamp-v {
+      margin-top: 6px;
+    }
+  }
+  .aw-title__stamp-num {
+    font-family: var(--aw-display);
+    font-size: 26px;
+    line-height: 1;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    color: var(--aw-burgundy);
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .aw-title__stamp-asof {
+    font-family: var(--aw-body);
+    font-style: italic;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--aw-ochre);
+  }
+</style>

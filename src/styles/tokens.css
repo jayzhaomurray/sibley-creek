@@ -2,37 +2,68 @@
  * Design tokens for macro-research-department.
  *
  * Source of truth: design/design-system.md, Appendix A.
- * Token names below are authoritative — do not rename without updating the
+ * Token names below are authoritative - do not rename without updating the
  * design system first. This file is the *only* place colors, spacing, and
  * type families are defined. Everything else consumes via var(--token).
  *
- * Light mode only in v1 (see design-system.md section 3 for justification).
+ * Light mode only in v1.
+ *
+ * 2026-05-11 - Vignelli canonicalization:
+ *   The production aesthetic is now the Vignelli register (Knoll-catalogue
+ *   typographic discipline). Palette and type tokens below reflect that:
+ *
+ *     - Paper: pure white (#FFFFFF). The previous warm cream (#FBF8F2) is
+ *       gone; the page is paper-white.
+ *     - Ink: pure black (#000000). The previous near-black (#15171A) is gone.
+ *     - Accent: signal red (#E63946, Vignelli MTA red). Replaces the previous
+ *       editorial burgundy (#A6192E).
+ *     - Hairlines: 1px pure black (#000000). The previous warm taupe (#D9D3C7)
+ *       is gone; rules are crisp.
+ *     - Type families: Manrope (display + body, full weight range) and IBM
+ *       Plex Mono (data only). Source Serif 4 is dropped from v1 production;
+ *       --font-serif remains aliased to --font-sans so any legacy components
+ *       that still reference it fall back cleanly.
+ *
+ *   Section accent series colors are retained for chart-builder series and
+ *   future section-page wayfinding, but they do NOT auto-apply to chrome -
+ *   the Vignelli homepage uses no per-section hue.
  */
 
 :root {
   /* ---------- Color: neutrals (the page) ---------- */
-  --paper: #FBF8F2;
+  --paper: #FFFFFF;
   --surface: #FFFFFF;
-  --surface-sunk: #F4F0E8;
-  --ink: #15171A;
-  --ink-muted: #4A4F57;
-  --ink-faint: #7A7F88;
-  --rule: #D9D3C7;
-  --rule-faint: #ECE7DC;
+  --surface-sunk: #FFFFFF;
+  --ink: #000000;
+  --ink-muted: #000000;
+  --ink-faint: #000000;
+  --rule: #000000;
+  --rule-faint: #000000;
 
-  /* ---------- Color: accent (editorial red) ---------- */
-  --accent: #A6192E;
-  --accent-soft: #F1D9DC;
+  /* ---------- Color: accent (signal red, Vignelli MTA) ---------- */
+  --accent: #E63946;
+  --accent-soft: #FAD4D7;
 
-  /* ---------- Color: semantic (data-only) ---------- */
-  --pos: #1F6B3A;
-  --pos-soft: #D4E5D8;
-  --neg: #B23A2F;
-  --neg-soft: #EAD3CE;
-  --neutral: #5A6470;
-  --neutral-soft: #DDE0E4;
+  /* ---------- Color: semantic (data-only) ----------
+   * Vignelli rule: direction is encoded by glyph (^/v/-), NEVER by hue.
+   * These tokens remain defined for legacy components and any future
+   * semantic-color use (e.g. error / success messaging) but are NOT used
+   * on data marks for direction encoding.
+   */
+  --pos: #000000;
+  --pos-soft: #FFFFFF;
+  --neg: #000000;
+  --neg-soft: #FFFFFF;
+  --neutral: #000000;
+  --neutral-soft: #FFFFFF;
 
-  /* ---------- Color: categorical chart series ---------- */
+  /* ---------- Color: categorical chart series ----------
+   * Retained for chart-builder. These are series identities, not direction
+   * encodings; chart-builder picks one per series so multi-line charts
+   * remain distinguishable. The Vignelli homepage panels render their
+   * load-bearing series in black with a red latest-point dot; multi-series
+   * section-page charts (Phase 2 work) consume the palette below.
+   */
   --series-1: #1F4E79;
   --series-2: #C9772A;
   --series-3: #5B7553;
@@ -42,20 +73,17 @@
   --series-7: #4A4F57;
 
   /* ---------- Color: section accents ----------
-   * Per art-director (R1 lane). Each section gets one accent, drawn from the
-   * series palette so the homepage tiles, section index pages, and any
-   * within-section "your section" wayfinding all read from a single hue.
-   * Used as: 3px top rule on tile, color of the section name in the tile
-   * header, color of the "EVENT NOTE" kicker when a fresh blurb is present.
-   * Never used on data marks — those keep the series palette per chart-builder.
+   * Retained as series identities for section-page wayfinding (Phase 2).
+   * The homepage does NOT consume these on chrome - Vignelli is one
+   * accent (signal red) only.
    */
-  --section-accent-gdp:       var(--series-1); /* #1F4E79 deep blue */
-  --section-accent-inflation: var(--accent);   /* #A6192E editorial red */
-  --section-accent-labour:    var(--series-3); /* #5B7553 sage green */
-  --section-accent-housing:   var(--series-2); /* #C9772A burnt orange */
-  --section-accent-policy:    var(--series-4); /* #7A3E65 plum */
-  --section-accent-markets:   var(--series-5); /* #3F7D7C teal */
-  --section-accent-trade:     var(--series-6); /* #8A6A2C olive gold */
+  --section-accent-gdp:       var(--series-1);
+  --section-accent-inflation: var(--accent);
+  --section-accent-labour:    var(--series-3);
+  --section-accent-housing:   var(--series-2);
+  --section-accent-policy:    var(--series-4);
+  --section-accent-markets:   var(--series-5);
+  --section-accent-trade:     var(--series-6);
 
   /* ---------- Spacing scale (base 4px) ---------- */
   --s-0: 0;
@@ -69,10 +97,15 @@
   --s-8: 72px;
   --s-9: 112px;
 
-  /* ---------- Type families ---------- */
-  --font-serif: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
-  --font-sans: "Inter", "Inter var", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "IBM Plex Mono", "JetBrains Mono", "Consolas", "Menlo", monospace;
+  /* ---------- Type families ----------
+   * Vignelli register: one sans family (Manrope) drives display + body.
+   * Plex Mono is reserved for tabular data ONLY (numeric tables, stamps).
+   * --font-serif is aliased to --font-sans so legacy components that still
+   * reference it (Phase 2 cleanup) fall back to Manrope rather than 404.
+   */
+  --font-sans: "Manrope", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: "Manrope", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
   /* ---------- Type scale (size / line-height / weight / family role) ---------- */
   /* Sizes */
@@ -103,20 +136,24 @@
   --lh-mono-sm: 1.45;
   --lh-mono-xs: 1.40;
 
-  /* Weights */
+  /* Weights - Manrope ships 200/400/600/800. Aliases below preserve the
+   * legacy names used by section-page components; Phase 2 will migrate to
+   * the Vignelli weight ladder directly. */
+  --fw-extralight: 200;
   --fw-regular: 400;
-  --fw-medium: 500;
+  --fw-medium: 600;
   --fw-semibold: 600;
+  --fw-extrabold: 800;
 
   /* ---------- Layout tracks ---------- */
   --col-body: 680px;
   --col-wide: 1040px;
-  --col-page: 1200px;
-  --gutter-desktop: 32px;
-  --gutter-mobile: 16px;
+  --col-page: 1240px;
+  --gutter-desktop: 40px;
+  --gutter-mobile: 24px;
 
   /* ---------- Borders ---------- */
-  --radius-card: 4px;
+  --radius-card: 0;
   --border-hair: 1px;
 
   /* ---------- Motion ---------- */
@@ -126,7 +163,7 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 
-  /* ---------- Breakpoints (for reference in JS; CSS uses literal queries) ----
+  /* ---------- Breakpoints (for reference; CSS uses literal queries) ----
    * sm:  0
    * md:  640px
    * lg:  960px

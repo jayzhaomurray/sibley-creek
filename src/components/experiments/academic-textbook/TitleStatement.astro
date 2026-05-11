@@ -1,0 +1,195 @@
+---
+/*
+ * Academic-textbook TitleStatement - mid-century journal title block.
+ *
+ * Heavy Crimson Pro display, italic date inflection. Abstract set in
+ * Roboto Slab body. Three-column summary stamp at the foot, framed by a
+ * top-and-bottom double rule, with column dividers (the classic "table"
+ * register of a journal abstract page).
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  dateLine: string;
+  abstract: string;
+  sections: Section[];
+}
+
+const { dateLine, abstract, sections } = Astro.props;
+
+const stamp = [
+  { label: "Headline CPI, y/y", section: "inflation" },
+  { label: "BoC overnight rate", section: "policy" },
+  { label: "Unemployment rate", section: "labour" },
+].map((row) => {
+  const s = sections.find((x) => x.slug === row.section);
+  const p = s?.prints.find((x) => x.indicator === row.label) ?? s?.prints[0];
+  return {
+    label: row.label,
+    value: p?.value ?? "",
+    asOf: p?.asOf ?? "",
+  };
+});
+---
+<section class="atx-title" aria-labelledby="atx-title-h">
+  <p class="atx-title__eyebrow">
+    <span class="atx-title__eyebrow-mark">Vol. I &middot; No. 5</span>
+    <span class="atx-title__eyebrow-sep" aria-hidden="true">&mdash;</span>
+    <span>Research Bulletin &middot; Canadian Macro</span>
+  </p>
+  <h1 id="atx-title-h" class="atx-title__h">
+    Canadian Macro Overview, <span class="atx-title__date">{dateLine}</span>
+  </h1>
+
+  <p class="atx-title__abs">
+    <span class="atx-title__abs-mark">Abstract.</span>
+    {abstract}
+  </p>
+
+  <dl class="atx-title__stamp" aria-label="Headline numbers at a glance">
+    {stamp.map((row) => (
+      <div class="atx-title__stamp-row">
+        <dt class="atx-title__stamp-k">{row.label}</dt>
+        <dd class="atx-title__stamp-v">
+          <span class="atx-title__stamp-num">{row.value}</span>
+          <span class="atx-title__stamp-asof">{row.asOf}</span>
+        </dd>
+      </div>
+    ))}
+  </dl>
+</section>
+
+<style>
+  .atx-title {
+    padding-block: 28px 24px;
+    position: relative;
+    z-index: 2;
+  }
+  .atx-title__eyebrow {
+    margin: 0 0 12px;
+    font-family: var(--atx-mono);
+    font-size: 10.5px;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--atx-ink-soft);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 10px;
+  }
+  .atx-title__eyebrow-mark {
+    color: var(--atx-brick);
+    font-weight: 500;
+  }
+  .atx-title__eyebrow-sep {
+    color: var(--atx-rule);
+  }
+
+  .atx-title__h {
+    margin: 0;
+    font-family: var(--atx-display);
+    font-weight: 700;
+    font-size: clamp(28px, 3.6vw, 40px);
+    line-height: 1.1;
+    letter-spacing: -0.005em;
+    color: var(--atx-ink);
+    max-width: 32ch;
+  }
+  .atx-title__date {
+    color: var(--atx-forest);
+    font-style: italic;
+    font-weight: 600;
+  }
+
+  .atx-title__abs {
+    margin: 16px 0 0;
+    font-family: var(--atx-body);
+    font-weight: 300;
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--atx-ink);
+    max-width: 62ch;
+  }
+  .atx-title__abs-mark {
+    font-family: var(--atx-display);
+    font-weight: 700;
+    font-style: italic;
+    color: var(--atx-ink);
+    margin-right: 4px;
+  }
+
+  .atx-title__stamp {
+    margin: 22px 0 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    border-top: 2px solid var(--atx-forest);
+    border-bottom: 0.5px solid var(--atx-forest);
+    background: var(--atx-panel);
+  }
+  @media (min-width: 720px) {
+    .atx-title__stamp {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  .atx-title__stamp-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 0.5px dashed var(--atx-rule);
+  }
+  @media (min-width: 720px) {
+    .atx-title__stamp-row {
+      border-bottom: 0;
+      border-right: 0.5px solid var(--atx-rule);
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 14px 18px;
+    }
+    .atx-title__stamp-row:last-child {
+      border-right: 0;
+    }
+  }
+  .atx-title__stamp-row:last-child {
+    border-bottom: 0;
+  }
+  .atx-title__stamp-k {
+    margin: 0;
+    font-family: var(--atx-display);
+    font-weight: 500;
+    font-style: italic;
+    font-size: 12.5px;
+    line-height: 1.2;
+    color: var(--atx-ink-soft);
+  }
+  .atx-title__stamp-v {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  @media (min-width: 720px) {
+    .atx-title__stamp-v {
+      margin-top: 6px;
+    }
+  }
+  .atx-title__stamp-num {
+    font-family: var(--atx-mono);
+    font-size: 20px;
+    line-height: 1;
+    font-weight: 500;
+    color: var(--atx-forest);
+    font-variant-numeric: tabular-nums;
+  }
+  .atx-title__stamp-asof {
+    font-family: var(--atx-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--atx-ink-soft);
+  }
+</style>
