@@ -1,0 +1,369 @@
+---
+/*
+ * UtilOutlookStrip - the "Forecast / Outlook" strip below the indicator
+ * grid. Two columns on desktop: upcoming releases (the civic equivalent
+ * of a weather forecast) on the left, active deep-dives on the right.
+ *
+ * Reads as a "what to expect next" section. Calm. No callouts, no
+ * featured cards.
+ */
+
+import { deepDives, nextRelease, sections } from "../../../data/sections";
+import type { Section } from "../../../data/sections";
+
+// Compose a small "forecast schedule" of upcoming releases. v1 hardcodes
+// the next-release plus 4 plausible follow-ons mined from cadence; this
+// stays self-contained without inventing facts about specific release
+// dates beyond the canonical next-release. Backend pipeline will own
+// real schedule data later.
+const upcoming: Array<{
+  date: string;
+  label: string;
+  agency: string;
+  windowLabel: string;
+  sectionSlug: string;
+}> = [
+  {
+    date: nextRelease.date,
+    label: nextRelease.label,
+    agency: nextRelease.agency,
+    windowLabel: "TODAY +10D",
+    sectionSlug: "inflation",
+  },
+  {
+    date: "Fri, May 30, 2026",
+    label: "Real GDP, March 2026",
+    agency: "Statistics Canada",
+    windowLabel: "TODAY +19D",
+    sectionSlug: "gdp",
+  },
+  {
+    date: "Fri, Jun 06, 2026",
+    label: "Labour Force Survey, May 2026",
+    agency: "Statistics Canada",
+    windowLabel: "TODAY +26D",
+    sectionSlug: "labour",
+  },
+  {
+    date: "Wed, Jun 11, 2026",
+    label: "BoC rate decision",
+    agency: "Bank of Canada",
+    windowLabel: "TODAY +31D",
+    sectionSlug: "policy",
+  },
+];
+
+const statusCopy: Record<string, string> = {
+  research: "IN RESEARCH",
+  drafted: "DRAFTED",
+  shipped: "SHIPPED",
+};
+
+// Resolve a section label by slug for the deep-dive section tag.
+const sectionLookup: Record<string, Section> = Object.fromEntries(
+  sections.map((s) => [s.slug, s]),
+);
+---
+<section class="util-outlook" aria-labelledby="util-outlook-h">
+  <header class="util-outlook__head">
+    <p class="util-outlook__eyebrow">FORECAST &amp; OUTLOOK</p>
+    <h2 id="util-outlook-h" class="util-outlook__title">
+      What's coming &amp; what's in flight
+    </h2>
+    <p class="util-outlook__sub">
+      Scheduled releases and active deep-dives. All times Eastern unless noted.
+    </p>
+  </header>
+
+  <div class="util-outlook__grid">
+    {/* Upcoming releases (civic "forecast") */}
+    <div class="util-outlook__col util-outlook__col--releases">
+      <h3 class="util-outlook__colhead">Upcoming releases</h3>
+      <table class="util-outlook__table">
+        <colgroup>
+          <col style="width: 36%" />
+          <col style="width: 44%" />
+          <col style="width: 20%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Indicator</th>
+            <th scope="col" class="util-outlook__th-r">Window</th>
+          </tr>
+        </thead>
+        <tbody>
+          {upcoming.map((r) => (
+            <tr>
+              <td class="util-outlook__td-date">
+                <span class="util-outlook__date">{r.date}</span>
+                <span class="util-outlook__agency">{r.agency}</span>
+              </td>
+              <td>
+                <a class="util-outlook__indlink" href={`/${r.sectionSlug}/`}>
+                  {r.label}
+                </a>
+              </td>
+              <td class="util-outlook__td-r">{r.windowLabel}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    {/* Active deep dives */}
+    <div class="util-outlook__col util-outlook__col--dives">
+      <h3 class="util-outlook__colhead">Active deep-dives</h3>
+      <ul class="util-outlook__divelist" role="list">
+        {deepDives.map((dd) => {
+          const section = sectionLookup[dd.section];
+          return (
+            <li class="util-outlook__dive">
+              <div class="util-outlook__dive-head">
+                <span class={`util-outlook__diveStatus util-outlook__diveStatus--${dd.status}`}>
+                  {statusCopy[dd.status] ?? dd.status.toUpperCase()}
+                </span>
+                <span class="util-outlook__diveSection">
+                  {section?.label ?? dd.section.toUpperCase()}
+                </span>
+              </div>
+              <a class="util-outlook__diveLink" href={dd.href ?? `/${dd.section}/`}>
+                {dd.title}
+              </a>
+              <p class="util-outlook__diveDeck">{dd.deck}</p>
+              <p class="util-outlook__diveMeta">
+                Last updated <span class="util-outlook__diveDate">{dd.lastUpdated}</span>
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  </div>
+</section>
+
+<style>
+  .util-outlook {
+    margin-top: 36px;
+    background: var(--util-paper);
+    border: 1px solid var(--util-rule);
+    border-top: 3px solid var(--util-blue);
+    padding: 24px clamp(18px, 2.4vw, 30px) 28px;
+  }
+  .util-outlook__head {
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--util-rule);
+  }
+  .util-outlook__eyebrow {
+    margin: 0 0 6px;
+    font-family: var(--util-sans);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--util-blue);
+  }
+  .util-outlook__title {
+    margin: 0;
+    font-family: var(--util-sans);
+    font-weight: 700;
+    font-size: clamp(22px, 2.4vw, 28px);
+    line-height: 1.15;
+    color: var(--util-slate);
+    letter-spacing: -0.005em;
+  }
+  .util-outlook__sub {
+    margin: 6px 0 0;
+    font-family: var(--util-sans);
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--util-faint);
+    max-width: 64ch;
+  }
+
+  .util-outlook__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  @media (min-width: 960px) {
+    .util-outlook__grid {
+      grid-template-columns: 1.2fr 1fr;
+      gap: 40px;
+    }
+  }
+
+  .util-outlook__colhead {
+    margin: 0 0 10px;
+    font-family: var(--util-sans);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--util-slate);
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--util-rule);
+  }
+
+  /* Releases table */
+  .util-outlook__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--util-sans);
+  }
+  .util-outlook__table th {
+    text-align: left;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--util-faint);
+    padding: 8px 8px 8px 0;
+    border-bottom: 1px solid var(--util-rule);
+  }
+  .util-outlook__th-r {
+    text-align: right;
+    padding-right: 0;
+  }
+  .util-outlook__table td {
+    padding: 12px 8px 12px 0;
+    vertical-align: top;
+    border-bottom: 1px solid var(--util-rule);
+    font-size: 13px;
+    color: var(--util-slate);
+    line-height: 1.4;
+  }
+  .util-outlook__table tr:last-child td {
+    border-bottom: 0;
+  }
+  .util-outlook__td-date {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .util-outlook__date {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .util-outlook__agency {
+    font-size: 11px;
+    color: var(--util-faint);
+    letter-spacing: 0.02em;
+  }
+  .util-outlook__indlink {
+    color: var(--util-blue);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    font-weight: 500;
+  }
+  .util-outlook__indlink:hover {
+    text-decoration-thickness: 2px;
+  }
+  .util-outlook__td-r {
+    text-align: right;
+    padding-right: 0;
+    font-family: var(--util-sans);
+    font-size: 11px;
+    color: var(--util-faint);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Deep dive list */
+  .util-outlook__divelist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .util-outlook__dive {
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--util-rule);
+  }
+  .util-outlook__dive:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+  .util-outlook__dive-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .util-outlook__diveStatus {
+    display: inline-block;
+    padding: 2px 8px;
+    font-family: var(--util-sans);
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+  }
+  .util-outlook__diveStatus--research {
+    color: var(--util-amber);
+    background: #FBF1DF;
+  }
+  .util-outlook__diveStatus--drafted {
+    color: var(--util-blue);
+    background: var(--util-paper);
+  }
+  .util-outlook__diveStatus--shipped {
+    color: var(--util-green);
+    background: var(--util-paper);
+  }
+  .util-outlook__diveSection {
+    font-family: var(--util-sans);
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--util-faint);
+  }
+  .util-outlook__diveLink {
+    display: inline-block;
+    font-family: var(--util-sans);
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 1.3;
+    color: var(--util-slate);
+    text-decoration: underline;
+    text-decoration-color: var(--util-rule);
+    text-underline-offset: 4px;
+    text-decoration-thickness: 1px;
+    margin: 0 0 4px;
+  }
+  .util-outlook__diveLink:hover,
+  .util-outlook__diveLink:focus-visible {
+    text-decoration-color: var(--util-blue);
+    text-decoration-thickness: 2px;
+  }
+  .util-outlook__diveDeck {
+    margin: 4px 0 4px;
+    font-family: var(--util-sans);
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--util-slate);
+    max-width: 60ch;
+  }
+  .util-outlook__diveMeta {
+    margin: 4px 0 0;
+    font-family: var(--util-sans);
+    font-size: 11px;
+    color: var(--util-faint);
+    letter-spacing: 0.02em;
+  }
+  .util-outlook__diveDate {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--util-slate);
+  }
+</style>

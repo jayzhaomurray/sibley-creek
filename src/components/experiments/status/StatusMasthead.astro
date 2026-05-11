@@ -1,0 +1,173 @@
+---
+/*
+ * Lane R - Status Page: masthead.
+ *
+ * Top utility bar styled like GitHub Status / Stripe Status mastheads:
+ * compact wordmark on the left, page identity (Status / Canadian
+ * Macroeconomic Indicators), and a small right-side meta row with the
+ * last-checked stamp and a return-to-production link.
+ */
+
+interface Props {
+  publication: string;
+  shortName: string;
+  lastChecked: string;
+  buildStamp: string;
+}
+
+const { publication, shortName, lastChecked, buildStamp } = Astro.props;
+---
+<header class="st-masthead" role="banner">
+  <div class="st-masthead__inner">
+    <a class="st-masthead__brand" href="/">
+      <span class="st-masthead__mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+          <rect x="2" y="2" width="20" height="20" rx="4" fill="var(--st-ink)" />
+          <circle cx="12" cy="12" r="4" fill="var(--st-green)" />
+        </svg>
+      </span>
+      <span class="st-masthead__wordmark">
+        <span class="st-masthead__short">{shortName}</span>
+        <span class="st-masthead__sep" aria-hidden="true">/</span>
+        <span class="st-masthead__product">Status</span>
+      </span>
+    </a>
+
+    <div class="st-masthead__title">
+      <span class="st-masthead__pub">{publication}</span>
+      <span class="st-masthead__bullet" aria-hidden="true">&middot;</span>
+      <span class="st-masthead__sub">Canadian Macroeconomic Indicators</span>
+    </div>
+
+    <div class="st-masthead__meta">
+      <span class="st-masthead__key">Last check</span>
+      <span class="st-masthead__val">{lastChecked}</span>
+      <span class="st-masthead__pipe" aria-hidden="true">|</span>
+      <span class="st-masthead__key">Build</span>
+      <span class="st-masthead__val">{buildStamp}</span>
+    </div>
+  </div>
+</header>
+
+<style>
+  .st-masthead {
+    background: var(--st-paper);
+    border-bottom: 1px solid var(--st-line);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    backdrop-filter: saturate(140%) blur(6px);
+    -webkit-backdrop-filter: saturate(140%) blur(6px);
+  }
+  .st-masthead__inner {
+    max-width: var(--st-max);
+    margin: 0 auto;
+    padding: 12px var(--st-gutter);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .st-masthead__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--st-ink);
+  }
+  .st-masthead__brand:focus-visible {
+    outline: 2px solid var(--st-info);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  .st-masthead__mark {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+  }
+  .st-masthead__wordmark {
+    font-family: var(--st-sans);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .st-masthead__short {
+    color: var(--st-ink);
+  }
+  .st-masthead__sep {
+    color: var(--st-slate);
+    font-weight: 400;
+  }
+  .st-masthead__product {
+    color: var(--st-slate);
+    font-weight: 500;
+  }
+
+  .st-masthead__title {
+    text-align: center;
+    font-family: var(--st-sans);
+    font-size: 13px;
+    color: var(--st-slate);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .st-masthead__pub {
+    color: var(--st-ink);
+    font-weight: 600;
+  }
+  .st-masthead__bullet {
+    margin: 0 8px;
+    color: var(--st-line);
+  }
+  .st-masthead__sub {
+    color: var(--st-slate);
+    font-weight: 500;
+  }
+
+  .st-masthead__meta {
+    font-family: var(--st-mono);
+    font-size: 11px;
+    color: var(--st-slate);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .st-masthead__key {
+    color: var(--st-slate);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .st-masthead__val {
+    color: var(--st-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .st-masthead__pipe {
+    color: var(--st-line);
+    margin: 0 4px;
+  }
+
+  @media (max-width: 900px) {
+    .st-masthead__inner {
+      grid-template-columns: auto auto;
+      grid-template-rows: auto auto;
+      row-gap: 8px;
+    }
+    .st-masthead__title {
+      grid-column: 1 / -1;
+      text-align: left;
+      order: 3;
+      white-space: normal;
+    }
+  }
+  @media (max-width: 560px) {
+    .st-masthead__meta {
+      display: none;
+    }
+  }
+</style>

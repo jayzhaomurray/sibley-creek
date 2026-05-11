@@ -1,0 +1,348 @@
+---
+/*
+ * BauhausHero - the headline live-state moment for the splash.
+ *
+ * Composition:
+ *   Left:   a GIANT BLUE CIRCLE (the "load-bearing" shape) holding the
+ *           headline value (e.g. "2.3%") in heavy Anton, centered in
+ *           paper white. A yellow triangle hovers off the top-right of
+ *           the circle for primary-color rationing.
+ *   Right:  the headline question in Archivo Narrow Black, the section
+ *           label as a tiny eyebrow, blurb body in Work Sans light,
+ *           plus a short delta read with the indicator name and as-of.
+ *
+ * Color rule: shape = color.
+ *   circle    -> blue
+ *   square    -> red
+ *   triangle  -> yellow
+ *
+ * The optional motion: the yellow triangle rotates 45deg over 600ms on
+ * load. Respects prefers-reduced-motion.
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  section: Section;
+}
+
+const { section } = Astro.props;
+
+const loadBearing = section.chartSeriesKey
+  ? section.prints.find((p) => p.key === section.chartSeriesKey) ?? section.prints[0]
+  : section.prints[0];
+
+const deltaClass =
+  loadBearing.deltaDir === "pos"
+    ? "bh-hero__delta--pos"
+    : loadBearing.deltaDir === "neg"
+      ? "bh-hero__delta--neg"
+      : "bh-hero__delta--neutral";
+---
+<section class="bh-hero" aria-labelledby="bh-hero-h">
+  <div class="bh-hero__left">
+    <div class="bh-hero__shape">
+      <div class="bh-hero__circle" aria-hidden="true"></div>
+      <div class="bh-hero__triangle" aria-hidden="true"></div>
+      <div class="bh-hero__square" aria-hidden="true"></div>
+      <div class="bh-hero__value-wrap">
+        <span class="bh-hero__value">{loadBearing.value}</span>
+        <span class="bh-hero__value-label">{loadBearing.indicator}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="bh-hero__right">
+    <p class="bh-hero__eyebrow">
+      <span class="bh-hero__eyebrow-num">01</span>
+      <span class="bh-hero__eyebrow-sep" aria-hidden="true">/</span>
+      <span class="bh-hero__eyebrow-section">{section.label}</span>
+      <span class="bh-hero__eyebrow-sep" aria-hidden="true">/</span>
+      <span class="bh-hero__eyebrow-kicker">{section.heroKicker}</span>
+    </p>
+
+    <h2 id="bh-hero-h" class="bh-hero__question">
+      {section.headlineQuestion}
+    </h2>
+
+    {section.blurb.body && (
+      <p class="bh-hero__blurb">
+        {section.blurb.date && (
+          <span class="bh-hero__blurb-date">{section.blurb.date}.</span>
+        )}{" "}
+        {section.blurb.body}
+      </p>
+    )}
+
+    <dl class="bh-hero__meta">
+      <div class="bh-hero__meta-cell">
+        <dt>Delta</dt>
+        <dd class:list={["bh-hero__delta", deltaClass]}>{loadBearing.delta}</dd>
+      </div>
+      <div class="bh-hero__meta-cell">
+        <dt>As of</dt>
+        <dd>{loadBearing.asOf}</dd>
+      </div>
+      <div class="bh-hero__meta-cell">
+        <dt>Cadence</dt>
+        <dd>{section.cadence}</dd>
+      </div>
+      <div class="bh-hero__meta-cell bh-hero__meta-cell--cta">
+        <dt class="bh-hero__cta-label">Read</dt>
+        <dd>
+          <a class="bh-hero__cta" href={`/${section.slug}/`}>
+            {section.label} section
+            <span class="bh-hero__cta-arrow" aria-hidden="true">&rarr;</span>
+          </a>
+        </dd>
+      </div>
+    </dl>
+  </div>
+</section>
+
+<style>
+  .bh-hero {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding-block: 36px;
+    border-bottom: 2px solid var(--bh-ink);
+    position: relative;
+  }
+  @media (min-width: 900px) {
+    .bh-hero {
+      grid-template-columns: 6fr 6fr;
+      gap: 48px;
+      align-items: center;
+    }
+  }
+
+  /* --- Shape stack: circle + triangle + small square --- */
+  .bh-hero__left {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: clamp(260px, 36vw, 460px);
+  }
+  .bh-hero__shape {
+    position: relative;
+    width: clamp(260px, 36vw, 460px);
+    aspect-ratio: 1 / 1;
+  }
+  .bh-hero__circle {
+    position: absolute;
+    inset: 0;
+    background: var(--bh-blue);
+    border-radius: 50%;
+  }
+  .bh-hero__triangle {
+    position: absolute;
+    top: -8%;
+    right: -12%;
+    width: 0;
+    height: 0;
+    border-left: clamp(40px, 6vw, 72px) solid transparent;
+    border-right: clamp(40px, 6vw, 72px) solid transparent;
+    border-bottom: clamp(72px, 10vw, 124px) solid var(--bh-yellow);
+    transform: rotate(0deg);
+    transform-origin: 50% 70%;
+    animation: bh-spin 600ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .bh-hero__square {
+    position: absolute;
+    bottom: -8%;
+    left: -6%;
+    width: clamp(36px, 5vw, 64px);
+    height: clamp(36px, 5vw, 64px);
+    background: var(--bh-red);
+  }
+
+  @keyframes bh-spin {
+    from { transform: rotate(-45deg); opacity: 0.6; }
+    to   { transform: rotate(0deg);   opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bh-hero__triangle {
+      animation: none;
+    }
+  }
+
+  .bh-hero__value-wrap {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+    padding: 12%;
+  }
+  .bh-hero__value {
+    font-family: var(--bh-display);
+    font-size: clamp(56px, 9vw, 128px);
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+    color: var(--bh-paper);
+    font-variant-numeric: tabular-nums;
+  }
+  .bh-hero__value-label {
+    font-family: var(--bh-mono);
+    font-size: clamp(10px, 1vw, 12px);
+    line-height: 1.2;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--bh-paper);
+    max-width: 22ch;
+  }
+
+  /* --- Right column copy --- */
+  .bh-hero__right {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+  }
+  .bh-hero__eyebrow {
+    margin: 0;
+    font-family: var(--bh-mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--bh-ink);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .bh-hero__eyebrow-num {
+    background: var(--bh-ink);
+    color: var(--bh-paper);
+    padding: 3px 6px;
+    font-family: var(--bh-display);
+    font-size: 14px;
+    line-height: 1;
+    letter-spacing: 0;
+  }
+  .bh-hero__eyebrow-sep {
+    color: var(--bh-red);
+    font-weight: 700;
+  }
+  .bh-hero__eyebrow-section {
+    font-weight: 700;
+  }
+  .bh-hero__eyebrow-kicker {
+    color: var(--bh-blue);
+    font-weight: 700;
+  }
+
+  .bh-hero__question {
+    margin: 0;
+    font-family: var(--bh-subhead);
+    font-weight: 700;
+    font-size: clamp(28px, 3.6vw, 52px);
+    line-height: 1.02;
+    letter-spacing: -0.005em;
+    color: var(--bh-ink);
+    text-transform: uppercase;
+    text-wrap: balance;
+  }
+
+  .bh-hero__blurb {
+    margin: 0;
+    font-family: var(--bh-body);
+    font-weight: 300;
+    font-size: clamp(15px, 1.2vw, 17px);
+    line-height: 1.55;
+    color: var(--bh-ink);
+    max-width: 56ch;
+  }
+  .bh-hero__blurb-date {
+    font-family: var(--bh-mono);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--bh-red);
+    margin-right: 4px;
+  }
+
+  .bh-hero__meta {
+    margin: 8px 0 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    border-top: 2px solid var(--bh-ink);
+    border-left: 2px solid var(--bh-ink);
+  }
+  @media (min-width: 720px) {
+    .bh-hero__meta {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  .bh-hero__meta-cell {
+    padding: 10px 12px;
+    border-right: 2px solid var(--bh-ink);
+    border-bottom: 2px solid var(--bh-ink);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .bh-hero__meta-cell dt {
+    margin: 0;
+    font-family: var(--bh-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--bh-ink);
+    opacity: 0.6;
+  }
+  .bh-hero__meta-cell dd {
+    margin: 0;
+    font-family: var(--bh-mono);
+    font-size: 14px;
+    line-height: 1;
+    letter-spacing: 0;
+    font-weight: 700;
+    color: var(--bh-ink);
+    font-variant-numeric: tabular-nums;
+    text-transform: uppercase;
+  }
+  .bh-hero__delta--pos { color: var(--bh-blue); }
+  .bh-hero__delta--neg { color: var(--bh-red); }
+  .bh-hero__delta--neutral { color: var(--bh-ink); }
+
+  .bh-hero__meta-cell--cta {
+    background: var(--bh-yellow);
+  }
+  .bh-hero__meta-cell--cta dt {
+    opacity: 1;
+    color: var(--bh-ink);
+  }
+  .bh-hero__cta {
+    color: var(--bh-ink);
+    text-decoration: none;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .bh-hero__cta:hover,
+  .bh-hero__cta:focus-visible {
+    text-decoration: underline;
+    text-decoration-thickness: 3px;
+    text-underline-offset: 3px;
+    outline: none;
+  }
+  .bh-hero__cta-arrow {
+    display: inline-block;
+    transition: transform 120ms linear;
+  }
+  .bh-hero__cta:hover .bh-hero__cta-arrow,
+  .bh-hero__cta:focus-visible .bh-hero__cta-arrow {
+    transform: translateX(3px);
+  }
+</style>

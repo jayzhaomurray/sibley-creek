@@ -1,0 +1,195 @@
+---
+/*
+ * Transit splash (Lane M) — deep-dive "in service" entry.
+ *
+ * Each deep dive is rendered as a transit-line-service entry, in the
+ * manner of a TfL "line status" panel: a coloured bullet for the line it
+ * belongs to, status pill, the title in heavy sans, deck below in subhead
+ * weight, last-updated stamp in mono.
+ *
+ * Status mapping (editorial -> service):
+ *   shipped  -> "Good service"
+ *   drafted  -> "Minor delays"
+ *   research -> "Planned works"
+ */
+
+import type { DeepDive, Section } from "../../../data/sections";
+
+interface Props {
+  item: DeepDive;
+  section: Section;
+}
+
+const { item, section } = Astro.props;
+
+const serviceMap: Record<DeepDive["status"], { label: string; tone: "ok" | "warn" | "info" }> = {
+  shipped: { label: "Good service", tone: "ok" },
+  drafted: { label: "Minor delays", tone: "warn" },
+  research: { label: "Planned works", tone: "info" },
+};
+const service = serviceMap[item.status];
+---
+
+<article class={`tx-dd tx-dd--${section.slug}`} aria-labelledby={`tx-dd-${item.pillar.toLowerCase()}`}>
+  <header class="tx-dd__head">
+    <span class="tx-dd__bullet" aria-hidden="true"></span>
+    <div class="tx-dd__crumb">
+      <span class="tx-dd__crumb-line">{section.label.toUpperCase()} LINE</span>
+      <span class="tx-dd__crumb-sep">.</span>
+      <span class="tx-dd__crumb-pillar">PILLAR {item.pillar}</span>
+    </div>
+    <span class={`tx-dd__pill tx-dd__pill--${service.tone}`}>
+      <span class="tx-dd__pill-dot" aria-hidden="true"></span>
+      {service.label}
+    </span>
+  </header>
+
+  <h3 id={`tx-dd-${item.pillar.toLowerCase()}`} class="tx-dd__title">{item.title}</h3>
+  <p class="tx-dd__deck">{item.deck}</p>
+
+  <footer class="tx-dd__foot">
+    <span class="tx-dd__stamp">UPDATED {item.lastUpdated.toUpperCase()}</span>
+    <span class="tx-dd__rule" aria-hidden="true"></span>
+    <span class="tx-dd__cta">Board this train &rarr;</span>
+  </footer>
+</article>
+
+<style>
+  .tx-dd {
+    background: var(--tx-cream);
+    border: 2px solid var(--tx-ink);
+    padding: 16px 18px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .tx-dd::before {
+    /* coloured side-rail in the manner of TfL line indicator */
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    background: var(--rail, var(--tx-ink));
+  }
+  .tx-dd--gdp       { --rail: var(--tx-line-gdp); }
+  .tx-dd--inflation { --rail: var(--tx-line-inflation); }
+  .tx-dd--labour    { --rail: var(--tx-line-labour); }
+  .tx-dd--housing   { --rail: var(--tx-line-housing); }
+  .tx-dd--policy    { --rail: var(--tx-line-policy); }
+  .tx-dd--markets   { --rail: var(--tx-line-markets); }
+  .tx-dd--trade     { --rail: var(--tx-line-trade); }
+
+  .tx-dd__head {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding-left: 6px;
+  }
+  .tx-dd__bullet {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--tx-cream);
+    border: 3px solid var(--rail, var(--tx-ink));
+    display: inline-block;
+  }
+  .tx-dd__crumb {
+    font-family: var(--tx-mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    color: var(--tx-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tx-dd__crumb-line {
+    font-weight: 700;
+    color: var(--rail, var(--tx-ink));
+  }
+  .tx-dd__crumb-sep {
+    opacity: 0.4;
+  }
+  .tx-dd__crumb-pillar {
+    font-weight: 700;
+    opacity: 0.7;
+  }
+
+  .tx-dd__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1.6px solid var(--tx-ink);
+    font-family: var(--tx-subhead);
+    font-weight: 700;
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .tx-dd__pill-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--tx-ink);
+  }
+  .tx-dd__pill--ok    .tx-dd__pill-dot { background: var(--tx-line-labour); }
+  .tx-dd__pill--warn  .tx-dd__pill-dot { background: var(--tx-line-housing); }
+  .tx-dd__pill--info  .tx-dd__pill-dot { background: var(--tx-line-gdp); }
+
+  .tx-dd__title {
+    margin: 4px 0 0;
+    padding-left: 6px;
+    font-family: var(--tx-display);
+    font-weight: 800;
+    font-size: 19px;
+    letter-spacing: -0.005em;
+    line-height: 1.18;
+    color: var(--tx-ink);
+  }
+  .tx-dd__deck {
+    margin: 0;
+    padding-left: 6px;
+    font-family: var(--tx-body);
+    font-weight: 400;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--tx-ink);
+    opacity: 0.84;
+  }
+
+  .tx-dd__foot {
+    margin-top: 6px;
+    padding-left: 6px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    border-top: 1px dotted rgba(26, 26, 26, 0.3);
+    padding-top: 10px;
+  }
+  .tx-dd__stamp {
+    font-family: var(--tx-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    color: var(--tx-ink);
+    opacity: 0.7;
+  }
+  .tx-dd__rule {
+    height: 2px;
+    background: var(--rail, var(--tx-ink));
+    opacity: 0.6;
+  }
+  .tx-dd__cta {
+    font-family: var(--tx-subhead);
+    font-weight: 700;
+    font-size: 11.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--rail, var(--tx-ink));
+  }
+</style>

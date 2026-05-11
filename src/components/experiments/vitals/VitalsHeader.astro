@@ -1,0 +1,244 @@
+---
+/*
+ * VitalsHeader - patient identification + alarm summary bar.
+ *
+ * Patterned after the top strip of a Philips IntelliVue display:
+ *   [ PATIENT name | AGE | BED ]   [ time / edition ]   [ alarms tally ]
+ *
+ * Self-contained scoped CSS. Consumes only the global --vt-* tokens
+ * declared on the splash-vitals page.
+ */
+
+interface Props {
+  patient: string;
+  age: string;
+  bed: string;
+  editionISO: string;
+  editionClock: string;
+  site: string;
+  alarmsRed: number;
+  alarmsAmber: number;
+  alarmsGreen: number;
+}
+
+const {
+  patient,
+  age,
+  bed,
+  editionISO,
+  editionClock,
+  site,
+  alarmsRed,
+  alarmsAmber,
+  alarmsGreen,
+} = Astro.props;
+---
+
+<header class="vt-head" role="banner" aria-label="Monitor header">
+  <div class="vt-head__brand">
+    <div class="vt-head__brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 40 24" width="40" height="24">
+        <path
+          d="M0,12 L6,12 L8,6 L11,18 L14,2 L17,22 L20,12 L40,12"
+          fill="none"
+          stroke="#16E0A0"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        ></path>
+      </svg>
+    </div>
+    <div class="vt-head__brand-text">
+      <p class="vt-head__title">MACRO MONITOR</p>
+      <p class="vt-head__sub">Canadian Economic Vitals &middot; {site}</p>
+    </div>
+  </div>
+
+  <dl class="vt-head__id" aria-label="Patient identifiers">
+    <div class="vt-head__row">
+      <dt>PATIENT</dt>
+      <dd class="vt-head__patient">{patient}</dd>
+    </div>
+    <div class="vt-head__row">
+      <dt>AGE</dt>
+      <dd>{age}</dd>
+      <dt class="vt-head__sep">BED</dt>
+      <dd>{bed}</dd>
+    </div>
+  </dl>
+
+  <dl class="vt-head__clock" aria-label="Edition timestamp">
+    <div class="vt-head__row">
+      <dt>EDITION</dt>
+      <dd class="vt-head__date">{editionISO}</dd>
+    </div>
+    <div class="vt-head__row">
+      <dt>UTC</dt>
+      <dd class="vt-head__time">{editionClock}</dd>
+    </div>
+  </dl>
+
+  <div class="vt-head__alarms" aria-label="Alarm tally">
+    <p class="vt-head__alarms-key">ALARMS</p>
+    <ul class="vt-head__alarm-list">
+      <li class="vt-head__pip vt-head__pip--red">
+        <span class="vt-head__dot" aria-hidden="true"></span>
+        <span class="vt-head__pip-n">{alarmsRed}</span>
+        <span class="vt-head__pip-k">RED</span>
+      </li>
+      <li class="vt-head__pip vt-head__pip--amber">
+        <span class="vt-head__dot" aria-hidden="true"></span>
+        <span class="vt-head__pip-n">{alarmsAmber}</span>
+        <span class="vt-head__pip-k">AMB</span>
+      </li>
+      <li class="vt-head__pip vt-head__pip--green">
+        <span class="vt-head__dot" aria-hidden="true"></span>
+        <span class="vt-head__pip-n">{alarmsGreen}</span>
+        <span class="vt-head__pip-k">WNL</span>
+      </li>
+    </ul>
+  </div>
+</header>
+
+<style>
+  .vt-head {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px 24px;
+    align-items: stretch;
+    background: var(--vt-panel);
+    border: 1px solid var(--vt-panel-edge);
+    border-top: 1px solid var(--vt-rule);
+    padding: 12px 16px;
+    font-family: var(--vt-label);
+  }
+  @media (min-width: 720px) {
+    .vt-head {
+      grid-template-columns: auto 1fr auto auto;
+      align-items: center;
+    }
+  }
+
+  .vt-head__brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .vt-head__brand-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 28px;
+    background: var(--vt-panel-deep);
+    border: 1px solid var(--vt-rule);
+    flex: 0 0 auto;
+  }
+  .vt-head__brand-mark svg { display: block; }
+  .vt-head__title {
+    font-family: var(--vt-display);
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: 0.18em;
+    color: var(--vt-green);
+    line-height: 1;
+  }
+  .vt-head__sub {
+    font-family: var(--vt-label);
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--vt-ink-faint);
+    margin-top: 4px;
+    line-height: 1;
+  }
+
+  .vt-head__id,
+  .vt-head__clock,
+  .vt-head__alarms {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .vt-head__row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .vt-head__id dt,
+  .vt-head__clock dt {
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--vt-ink-faint);
+    font-weight: 400;
+    margin: 0;
+  }
+  .vt-head__id dd,
+  .vt-head__clock dd {
+    margin: 0;
+    font-family: var(--vt-display);
+    font-weight: 500;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    color: var(--vt-ink);
+  }
+  .vt-head__patient {
+    color: var(--vt-cyan);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.10em;
+  }
+  .vt-head__sep {
+    margin-left: 12px;
+  }
+  .vt-head__date,
+  .vt-head__time {
+    font-feature-settings: "tnum" 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .vt-head__time { color: var(--vt-green); }
+
+  /* Alarms cluster */
+  .vt-head__alarms {
+    gap: 6px;
+  }
+  .vt-head__alarms-key {
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--vt-ink-faint);
+  }
+  .vt-head__alarm-list {
+    display: flex;
+    gap: 12px;
+  }
+  .vt-head__pip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border: 1px solid currentColor;
+    font-family: var(--vt-display);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    line-height: 1;
+  }
+  .vt-head__pip--red { color: var(--vt-red); }
+  .vt-head__pip--amber { color: var(--vt-yellow); }
+  .vt-head__pip--green { color: var(--vt-green); }
+  .vt-head__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 6px currentColor;
+  }
+  .vt-head__pip-n { color: var(--vt-ink); font-weight: 700; }
+  .vt-head__pip-k {
+    color: currentColor;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+  }
+</style>

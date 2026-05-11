@@ -1,0 +1,520 @@
+---
+/*
+ * Lane E: Japanese editorial restraint (mono no aware).
+ *
+ * Tokyo Mingei / Issey Miyake brand-book lineage. Extreme negative space,
+ * deep left margin in the manner of sumi-e composition, three-color
+ * discipline (washi paper, sumi ink, cinnabar accent), and a single
+ * calligraphic stroke as the load-bearing accent moment.
+ *
+ * Typography pairs Shippori Mincho (display + figures) with Source Serif 4
+ * (body) — a Mincho-family Japanese-influenced serif paired with a quiet
+ * western book serif. Source is ASCII only; the aesthetic is the
+ * influence.
+ *
+ * Self-contained: this page renders an entire HTML document inline. It
+ * imports only the data registry and the components scoped to this
+ * experiment.
+ *
+ * Density: deliberately low. The masthead and hero stand alone above the
+ * fold; below them, the latest three sections (by `updatedAt`) lead, then
+ * the remainder is folded into a quiet supplementary list, then three
+ * deep dives, then a colophon.
+ */
+
+import { sections, deepDives, nextRelease, site, type Section } from "../../data/sections";
+
+import Masthead from "../../components/experiments/monono/Masthead.astro";
+import Hero from "../../components/experiments/monono/Hero.astro";
+import SectionLine from "../../components/experiments/monono/SectionLine.astro";
+import DeepDiveEntry from "../../components/experiments/monono/DeepDiveEntry.astro";
+import Colophon from "../../components/experiments/monono/Colophon.astro";
+
+// Canonical section ordering
+const canonicalSlugs = [
+  "gdp", "inflation", "labour", "housing", "policy", "markets", "trade",
+] as const;
+const ordered: Section[] = canonicalSlugs
+  .map((slug) => sections.find((s) => s.slug === slug)!)
+  .filter(Boolean);
+
+// Freshest section is the hero
+const heroSection: Section = sections.reduce((a, b) =>
+  (b.updatedAt ?? 0) > (a.updatedAt ?? 0) ? b : a,
+);
+
+// Sections ranked by recency for the rows below the hero
+const byRecency = [...ordered].sort((a, b) => b.updatedAt - a.updatedAt);
+
+// The three freshest are the "above the fold" list; the remaining four are
+// "in the rest of the issue".
+const fresh = byRecency.slice(0, 3);
+const rest = byRecency.slice(3);
+
+// Deep dives, freshest first, capped at 3
+const ddOrdered = [...deepDives]
+  .sort((a, b) => (a.lastUpdated < b.lastUpdated ? 1 : -1))
+  .slice(0, 3);
+
+// Build stamp in classical date format (year. month. day).
+const buildDate = new Date();
+const produced = buildDate.toISOString().slice(0, 10).replaceAll("-", ".");
+
+// Edition string
+const today = buildDate;
+const startOfYear = new Date(today.getFullYear(), 0, 1);
+const issueNo = Math.ceil(
+  ((today.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7,
+);
+const volNo = today.getFullYear() - 2025;
+const edition = `Volume ${String(volNo).padStart(2, "0")}, Number ${String(issueNo).padStart(2, "0")}`;
+
+const pageTitle = `${site.name} - Lane E, mono no aware`;
+const description =
+  "A quiet reading of Canadian macroeconomic indicators. Set in Mincho serif on washi-tinted paper; a single cinnabar mark closes each page.";
+---
+<!doctype html>
+<html lang="en-CA">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="generator" content={Astro.generator} />
+  <title>{pageTitle}</title>
+  <meta name="description" content={description} />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#F4EFE6" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content={pageTitle} />
+  <meta property="og:description" content={description} />
+  <meta property="og:locale" content="en_CA" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..700&display=swap"
+  />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+
+  <style is:global>
+    /* ===========================================================
+     * Lane E - mono no aware.
+     * Tokens.
+     * =========================================================== */
+    :root {
+      /* Three colors — washi, sumi, cinnabar. */
+      --mn-paper: #F4EFE6;
+      --mn-paper-warm: #EDE5D6;
+      --mn-ink: #1A1A1A;
+      --mn-ink-faint: #7B7368;
+      --mn-rule: #D9D1C2;
+      --mn-accent: #A6322C;       /* cinnabar — singular, used sparingly */
+
+      --mn-display: "Shippori Mincho", "Source Serif 4", "Hiragino Mincho ProN",
+                    "Yu Mincho", "Georgia", serif;
+      --mn-body: "Source Serif 4", "Shippori Mincho", "Georgia", serif;
+
+      --mn-max: 1280px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--mn-paper);
+      color: var(--mn-ink);
+      font-family: var(--mn-body);
+      font-weight: 400;
+      font-size: 16px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-feature-settings: "kern", "liga";
+    }
+
+    body {
+      min-height: 100vh;
+      position: relative;
+      opacity: 0;
+      animation: mn-fade 600ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+    }
+
+    /* Washi paper grain — subtle, sparse. */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.5;
+      background-image:
+        radial-gradient(circle at 18% 32%, rgba(122, 110, 92, 0.05) 0, transparent 1.1px),
+        radial-gradient(circle at 73% 18%, rgba(122, 110, 92, 0.04) 0, transparent 1.1px),
+        radial-gradient(circle at 42% 78%, rgba(122, 110, 92, 0.05) 0, transparent 1.1px),
+        radial-gradient(circle at 88% 64%, rgba(122, 110, 92, 0.04) 0, transparent 1.1px),
+        radial-gradient(circle at 12% 88%, rgba(122, 110, 92, 0.03) 0, transparent 1.1px);
+      background-size: 220px 220px;
+    }
+
+    /* Soft warm wash from upper-left, like aged paper held to light. */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 90% 60% at 5% 0%, rgba(237, 229, 214, 0.55), transparent 60%),
+        radial-gradient(ellipse 70% 70% at 100% 100%, rgba(237, 229, 214, 0.4), transparent 60%);
+    }
+
+    @keyframes mn-fade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      body { animation: none; opacity: 1; }
+    }
+
+    a { color: var(--mn-ink); }
+
+    /* Skip link --------------------------------------------------- */
+    .mn-skip {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+    }
+    .mn-skip:focus {
+      left: 16px;
+      top: 16px;
+      z-index: 100;
+      background: var(--mn-ink);
+      color: var(--mn-paper);
+      padding: 10px 14px;
+      font-family: var(--mn-display);
+      font-size: 12px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    /* Visually hidden -------------------------------------------- */
+    .mn-vh {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Make every layer above the paper textures sit on top */
+    body > * { position: relative; z-index: 1; }
+  </style>
+</head>
+<body>
+  <a class="mn-skip" href="#mn-main">Skip to content</a>
+
+  {/* TOP RAIL: a single hairline carrying the lane label and back link */}
+  <div class="mn-toprail">
+    <div class="mn-toprail__inner">
+      <p class="mn-toprail__edition">
+        <span class="mn-toprail__key">Edition</span>
+        <span class="mn-toprail__val">{produced}</span>
+      </p>
+      <p class="mn-toprail__back">
+        <a class="mn-toprail__back-link" href="/">
+          <span aria-hidden="true">&larr;</span>
+          Production homepage
+        </a>
+      </p>
+    </div>
+  </div>
+
+  <Masthead
+    publication={site.name}
+    edition={edition}
+    produced={produced}
+    laneLabel="Lane E"
+    laneName="Mono no aware"
+  />
+
+  <main id="mn-main">
+
+    {/* HERO: the freshest section, alone on the page */}
+    <Hero section={heroSection} />
+
+    {/* DIVIDER: a long quiet rule with a single mark */}
+    <div class="mn-divider" aria-hidden="true">
+      <div class="mn-divider__inner">
+        <span class="mn-divider__rule"></span>
+        <span class="mn-divider__mark"></span>
+        <span class="mn-divider__rule"></span>
+      </div>
+    </div>
+
+    {/* THIS WEEK: the latest three sections (excluding the hero, if it's in there) */}
+    <section class="mn-fresh" aria-labelledby="mn-fresh-h">
+      <div class="mn-fresh__inner">
+        <header class="mn-fresh__head">
+          <p class="mn-fresh__key">
+            <span class="mn-fresh__key-dot" aria-hidden="true"></span>
+            <span>In this issue, by recency</span>
+          </p>
+          <h2 id="mn-fresh-h" class="mn-fresh__title">
+            The latest readings
+          </h2>
+        </header>
+        <ol role="list" class="mn-fresh__list">
+          {fresh.map((s, i) => (
+            <SectionLine
+              section={s}
+              num={String(i + 1).padStart(2, "0")}
+              isFresh={s.slug === heroSection.slug}
+            />
+          ))}
+        </ol>
+      </div>
+    </section>
+
+    {/* REMAINDER: the four other sections, set quietly */}
+    <section class="mn-rest" aria-labelledby="mn-rest-h">
+      <div class="mn-rest__inner">
+        <header class="mn-rest__head">
+          <p class="mn-rest__key">
+            <span class="mn-rest__key-dot" aria-hidden="true"></span>
+            <span>And, kept watch</span>
+          </p>
+          <h2 id="mn-rest-h" class="mn-rest__title">
+            <em>The rest of the issue</em>
+          </h2>
+        </header>
+        <ol role="list" class="mn-rest__list">
+          {rest.map((s, i) => (
+            <SectionLine
+              section={s}
+              num={String(fresh.length + i + 1).padStart(2, "0")}
+            />
+          ))}
+        </ol>
+      </div>
+    </section>
+
+    {/* DEEP DIVES: three pieces in motion */}
+    <section class="mn-dds" aria-labelledby="mn-dds-h">
+      <div class="mn-dds__inner">
+        <header class="mn-dds__head">
+          <p class="mn-dds__key">
+            <span class="mn-dds__key-dot" aria-hidden="true"></span>
+            <span>In motion at the research desk</span>
+          </p>
+          <h2 id="mn-dds-h" class="mn-dds__title">
+            <em>Current deep dives</em>
+          </h2>
+        </header>
+        <div class="mn-dds__list" role="list">
+          {ddOrdered.map((dd, i) => (
+            <div role="listitem">
+              <DeepDiveEntry item={dd} num={String(i + 1).padStart(2, "0")} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <Colophon
+    publicationShort={site.shortName}
+    publicationFull={site.name}
+    description={site.description}
+    nextLabel={nextRelease.label}
+    nextDate={nextRelease.date}
+    nextAgency={nextRelease.agency}
+    produced={produced}
+    locale={site.locale}
+  />
+
+  <style>
+    /* Top rail */
+    .mn-toprail {
+      border-bottom: 1px solid var(--mn-rule);
+    }
+    .mn-toprail__inner {
+      max-width: var(--mn-max);
+      margin: 0 auto;
+      padding: 14px clamp(24px, 6vw, 96px) 14px clamp(24px, 18vw, 280px);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 16px;
+      font-family: var(--mn-display);
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--mn-ink-faint);
+    }
+    .mn-toprail__edition,
+    .mn-toprail__back {
+      margin: 0;
+    }
+    .mn-toprail__key {
+      color: var(--mn-ink-faint);
+      margin-right: 10px;
+    }
+    .mn-toprail__val {
+      color: var(--mn-ink);
+      font-variant-numeric: tabular-nums;
+    }
+    .mn-toprail__back-link {
+      color: var(--mn-ink);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: baseline;
+      gap: 8px;
+      border-bottom: 1px solid var(--mn-rule);
+      padding-bottom: 2px;
+      transition: color 200ms ease, border-color 200ms ease;
+    }
+    .mn-toprail__back-link:hover {
+      color: var(--mn-accent);
+      border-bottom-color: var(--mn-accent);
+    }
+    .mn-toprail__back-link:focus-visible {
+      outline: 1px solid var(--mn-accent);
+      outline-offset: 3px;
+    }
+
+    /* Divider between hero and the list — a long rule with a single
+       cinnabar dot at the meeting. Calligraphic in feel. */
+    .mn-divider {
+      padding-block: clamp(40px, 7vh, 80px);
+    }
+    .mn-divider__inner {
+      max-width: var(--mn-max);
+      margin: 0 auto;
+      padding: 0 clamp(24px, 6vw, 96px) 0 clamp(24px, 18vw, 280px);
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .mn-divider__rule {
+      flex: 1;
+      height: 1px;
+      background: var(--mn-rule);
+    }
+    .mn-divider__rule:first-child { flex: 0 0 60px; }
+    .mn-divider__mark {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--mn-accent);
+      flex: 0 0 6px;
+    }
+
+    /* Shared inner widths for the section blocks */
+    .mn-fresh__inner,
+    .mn-rest__inner,
+    .mn-dds__inner {
+      max-width: var(--mn-max);
+      margin: 0 auto;
+      padding-left: clamp(24px, 18vw, 280px);
+      padding-right: clamp(24px, 6vw, 96px);
+    }
+
+    /* Fresh / rest / dds heading patterns */
+    .mn-fresh,
+    .mn-rest,
+    .mn-dds {
+      padding-block: clamp(48px, 8vh, 96px);
+    }
+
+    .mn-fresh__head,
+    .mn-rest__head,
+    .mn-dds__head {
+      max-width: 640px;
+      margin: 0 0 clamp(32px, 5vh, 56px) auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .mn-fresh__key,
+    .mn-rest__key,
+    .mn-dds__key {
+      margin: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--mn-display);
+      font-size: 11px;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: var(--mn-ink-faint);
+    }
+    .mn-fresh__key-dot,
+    .mn-rest__key-dot,
+    .mn-dds__key-dot {
+      width: 5px;
+      height: 5px;
+      background: var(--mn-ink);
+      border-radius: 50%;
+    }
+    .mn-fresh__key-dot { background: var(--mn-accent); }
+
+    .mn-fresh__title,
+    .mn-rest__title,
+    .mn-dds__title {
+      margin: 0;
+      font-family: var(--mn-display);
+      font-weight: 400;
+      font-size: clamp(22px, 2.6vw, 32px);
+      line-height: 1.3;
+      letter-spacing: 0.005em;
+      color: var(--mn-ink);
+    }
+    .mn-fresh__title em,
+    .mn-rest__title em,
+    .mn-dds__title em {
+      font-style: italic;
+      color: var(--mn-ink);
+    }
+
+    .mn-fresh__list,
+    .mn-rest__list {
+      list-style: none;
+      margin: 0 0 0 auto;
+      padding: 0;
+      max-width: 100%;
+    }
+
+    /* Rest list rendered a touch quieter than fresh */
+    .mn-rest .mn-row {
+      opacity: 0.86;
+    }
+    .mn-rest .mn-row__name {
+      font-weight: 400;
+    }
+
+    /* Deep dive list — single column at narrow widths, two-up at wide. */
+    .mn-dds__list {
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0 64px;
+    }
+    @media (min-width: 1000px) {
+      .mn-dds__list {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</body>
+</html>

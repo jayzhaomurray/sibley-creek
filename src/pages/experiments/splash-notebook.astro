@@ -1,0 +1,300 @@
+---
+/*
+ * Splash experiment: Lane H - Research Field Notebook.
+ *
+ * A researcher's notebook page transposed to a web splash. Kraft / manila
+ * paper, ruled lines, handwriting mixed with typewritten print, marginalia
+ * in pencil, slight rotation on elements, taped-on Polaroids feel. Reads
+ * like an open Moleskine / Field Notes / Leuchtturm1917 with macro data
+ * captured in pencil. Tactile, intimate, intellectual.
+ *
+ * Entirely self-contained: no production homepage component imports, no
+ * shared design-system token consumption. Aesthetic choices scoped under
+ * `src/components/experiments/notebook/`.
+ *
+ * Reads (read-only): src/data/sections.ts
+ * Does not touch: pipeline/, design/, editorial/, .claude/, src/data/sections.ts (writes),
+ *                 src/pages/index.astro, other splash experiments.
+ */
+import {
+  sections,
+  deepDives,
+  nextRelease,
+  site,
+  type Section,
+} from "../../data/sections";
+import PaperTexture from "../../components/experiments/notebook/PaperTexture.astro";
+import Cover from "../../components/experiments/notebook/Cover.astro";
+import HeroEntry from "../../components/experiments/notebook/HeroEntry.astro";
+import SectionIndex from "../../components/experiments/notebook/SectionIndex.astro";
+import DeepDivesPinned from "../../components/experiments/notebook/DeepDivesPinned.astro";
+import BackCover from "../../components/experiments/notebook/BackCover.astro";
+
+/* Hero selection: section with the most-recent updatedAt timestamp. Same
+ * rule as the production homepage (we read the data, we don't import the
+ * composition). */
+const heroSection: Section = sections.reduce((a, b) =>
+  (b.updatedAt ?? 0) > (a.updatedAt ?? 0) ? b : a,
+);
+
+/* "11 MAY 2026" style entry date - notebook handwriting convention. */
+const today = new Date();
+const months = [
+  "JAN",
+  "FEB",
+  "MAR",
+  "APR",
+  "MAY",
+  "JUN",
+  "JUL",
+  "AUG",
+  "SEP",
+  "OCT",
+  "NOV",
+  "DEC",
+];
+const entryDate = `${String(today.getDate()).padStart(2, "0")} ${months[today.getMonth()]} ${today.getFullYear()}`;
+
+/* Vol / No - same derivation as the editorial experiment, so the two
+ * lanes stamp coherently. */
+const startOfYear = new Date(today.getFullYear(), 0, 1);
+const issueNo = Math.ceil(
+  ((today.getTime() - startOfYear.getTime()) / 86400000 +
+    startOfYear.getDay() +
+    1) /
+    7,
+);
+const volNo = today.getFullYear() - 2025;
+
+const pageTitle = `${site.name} - Field Notebook (Experiment H)`;
+const pageDesc =
+  "A researcher's notebook splash for Canadian macro: today's entry, six sections in pencil, three deep dives pinned to the back cover.";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#E8DCC4" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta property="og:locale" content="en_CA" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Special+Elite&family=Cutive+Mono&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&display=swap"
+    />
+  </head>
+  <body class="nb-body">
+    <a class="nb-skip" href="#nb-main">Skip to main content</a>
+
+    <PaperTexture />
+
+    <div class="nb-page">
+      <div class="nb-page__inner">
+        <Cover entryDate={entryDate} volNo={String(volNo)} issueNo={String(issueNo)} />
+
+        <main id="nb-main">
+          <HeroEntry hero={heroSection} />
+          <SectionIndex sections={sections} heroSlug={heroSection.slug} />
+          <DeepDivesPinned deepDives={deepDives} />
+        </main>
+
+        <BackCover nextRelease={nextRelease} />
+      </div>
+    </div>
+
+    <style is:global>
+      /* ---------- Scoped tokens (notebook splash only) ---------- */
+      :root {
+        /* The five colors */
+        --nb-paper: #E8DCC4;         /* kraft / manila */
+        --nb-paper-shade: #DBCDB1;
+        --nb-ink: #1F1B14;           /* warm sepia-black */
+        --nb-ink-mute: #5C5544;
+        --nb-pencil: #5C5544;        /* pencil-graphite (shared with mute) */
+        --nb-pencil-faint: rgba(92, 85, 68, 0.32);
+        --nb-red: #A22631;           /* red ink */
+        --nb-blue: #1F3A8A;          /* blue ink */
+        --nb-pos: #4A6A2C;           /* sage-olive only used for delta-pos
+                                       on the readings list; reads as ink
+                                       not as a 6th palette color */
+
+        /* Paper / layout */
+        --nb-rule: 28px;             /* ruled-line interval */
+        --nb-margin-width: 7.5rem;   /* left marginalia gutter */
+        --nb-gutter: 1.4rem;
+        --nb-page-max: 1180px;
+
+        --nb-font-display: "Old Standard TT", "Garamond", "Times New Roman", serif;
+        --nb-font-typewriter: "Special Elite", "Cutive Mono", "Courier New", monospace;
+        --nb-font-mono: "Cutive Mono", "Courier New", monospace;
+        --nb-font-hand: "Caveat", "Bradley Hand", cursive;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #C9B998;          /* darker desk background outside the page */
+        color: var(--nb-ink);
+      }
+      body.nb-body {
+        font-family: var(--nb-font-typewriter);
+        font-size: 16px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+        min-height: 100vh;
+        position: relative;
+        overflow-x: hidden;
+      }
+
+      /* Desk-shadow vignette behind the page */
+      body.nb-body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(120% 80% at 50% 0%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.12) 70%),
+          radial-gradient(80% 60% at 50% 100%, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0) 70%);
+      }
+
+      .nb-page {
+        position: relative;
+        z-index: 2;
+        max-width: var(--nb-page-max);
+        margin: 1.5rem auto 2.5rem;
+        padding: 0;
+        /* Page-edge shadow: open-notebook feel */
+        box-shadow:
+          0 1px 0 rgba(31, 27, 20, 0.06),
+          0 4px 10px rgba(31, 27, 20, 0.12),
+          0 24px 48px rgba(31, 27, 20, 0.18),
+          0 60px 90px rgba(31, 27, 20, 0.10);
+        background: var(--nb-paper);
+        /* The ruled paper itself - blue lines every --nb-rule, with a
+           faint warm tint so the kraft shows through. */
+        background-image:
+          /* horizontal pencil-blue ruled lines */
+          repeating-linear-gradient(
+            to bottom,
+            transparent 0,
+            transparent calc(var(--nb-rule) - 1px),
+            rgba(31, 58, 138, 0.13) calc(var(--nb-rule) - 1px),
+            rgba(31, 58, 138, 0.13) var(--nb-rule)
+          ),
+          /* tiny warm paper-fiber gradient */
+          linear-gradient(135deg,
+            #E8DCC4 0%,
+            #E6D9BE 30%,
+            #E8DCC4 60%,
+            #E2D2B0 100%
+          );
+        background-position:
+          0 calc(var(--nb-rule) * 1.2),
+          0 0;
+      }
+
+      .nb-page__inner {
+        position: relative;
+        padding: clamp(1rem, 3vw, 2rem) clamp(1rem, 3vw, 2.5rem) clamp(1.2rem, 3vw, 2rem);
+        /* Red vertical "margin rule" at the left gutter, like a true
+           notebook page. */
+        background-image:
+          linear-gradient(
+            to right,
+            transparent calc(var(--nb-margin-width) + clamp(1rem, 3vw, 2.5rem) - 2px),
+            rgba(162, 38, 49, 0.55) calc(var(--nb-margin-width) + clamp(1rem, 3vw, 2.5rem) - 2px),
+            rgba(162, 38, 49, 0.55) calc(var(--nb-margin-width) + clamp(1rem, 3vw, 2.5rem) - 1px),
+            transparent calc(var(--nb-margin-width) + clamp(1rem, 3vw, 2.5rem) - 1px)
+          );
+        background-repeat: no-repeat;
+      }
+
+      @media (max-width: 720px) {
+        .nb-page {
+          margin: 0.5rem 0.4rem 1.4rem;
+        }
+        .nb-page__inner {
+          background-image: none;
+        }
+        :root {
+          --nb-margin-width: 0rem;
+          --nb-gutter: 0rem;
+        }
+      }
+
+      /* Skip link */
+      .nb-skip {
+        position: absolute;
+        top: -100px;
+        left: 1rem;
+        z-index: 100;
+        background: var(--nb-ink);
+        color: var(--nb-paper);
+        font-family: var(--nb-font-typewriter);
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem;
+        text-decoration: none;
+        border-radius: 2px;
+        transition: top 150ms ease;
+      }
+      .nb-skip:focus {
+        top: 0.75rem;
+      }
+
+      /* Default focus */
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--nb-red);
+        outline-offset: 3px;
+        border-radius: 2px;
+      }
+
+      ::selection {
+        background: var(--nb-red);
+        color: var(--nb-paper);
+      }
+
+      h1, h2, h3, h4 {
+        margin: 0;
+      }
+
+      /* Page-settle: subtle 0.8deg rotation that snaps to 0 on first paint. */
+      @keyframes nb-settle {
+        from { transform: rotate(0.6deg); }
+        to   { transform: rotate(0deg); }
+      }
+      .nb-page {
+        animation: nb-settle 420ms cubic-bezier(0.2, 0.6, 0.2, 1) 1;
+        transform-origin: 50% 0%;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .nb-page {
+          animation: none;
+        }
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </body>
+</html>

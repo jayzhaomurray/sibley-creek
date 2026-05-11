@@ -1,0 +1,99 @@
+---
+/*
+ * BrutalRule — an ASCII horizontal rule for the brutalist terminal splash.
+ *
+ * Three variants:
+ *   solid    — a thick row of "=" (heaviest, used for section breaks)
+ *   dash     — a row of "-" (medium, used inside section blocks)
+ *   dotted   — a row of "." (faint, used between data rows)
+ *
+ * Width auto-fills to the parent column via a CSS technique: we render a
+ * single repeated character and let CSS `letter-spacing: 0` plus
+ * `white-space: nowrap` + `overflow: hidden` clip to width. The character
+ * is repeated client-free in the rendered HTML to keep it a static page.
+ */
+
+interface Props {
+  variant?: "solid" | "dash" | "dotted";
+  /** Optional label that interrupts the rule (e.g. "/ MARKETS"). */
+  label?: string;
+  /** Optional accent color token (CSS var name without leading --). */
+  accent?: "green" | "red" | "amber" | "cyan" | "ink";
+}
+
+const { variant = "solid", label, accent = "ink" } = Astro.props;
+
+// Pre-fill a long string of the rule character. CSS clips overflow.
+const char =
+  variant === "solid" ? "=" : variant === "dash" ? "-" : ".";
+const fill = char.repeat(240);
+
+const accentColor = {
+  green: "var(--bt-green)",
+  red: "var(--bt-red)",
+  amber: "var(--bt-amber)",
+  cyan: "var(--bt-cyan)",
+  ink: "var(--bt-ink-faint)",
+}[accent];
+---
+<div
+  class:list={["brule", `brule--${variant}`]}
+  role="separator"
+  aria-orientation="horizontal"
+  style={`--brule-color: ${accentColor};`}
+>
+  {label ? (
+    <>
+      <span class="brule__pre" aria-hidden="true">{fill}</span>
+      <span class="brule__label">{label}</span>
+      <span class="brule__post" aria-hidden="true">{fill}</span>
+    </>
+  ) : (
+    <span class="brule__line" aria-hidden="true">{fill}</span>
+  )}
+</div>
+
+<style>
+  .brule {
+    font-family: var(--bt-font-mono);
+    font-size: 11px;
+    line-height: 1;
+    color: var(--brule-color);
+    white-space: nowrap;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    user-select: none;
+  }
+
+  .brule--solid { font-weight: 700; }
+
+  .brule__line {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: clip;
+  }
+
+  .brule__pre,
+  .brule__post {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .brule__pre { text-align: left; }
+  .brule__post { text-align: right; }
+
+  .brule__label {
+    flex: 0 0 auto;
+    padding: 0 8px;
+    font-family: var(--bt-font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--bt-ink);
+  }
+</style>

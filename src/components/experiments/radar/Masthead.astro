@@ -1,0 +1,173 @@
+---
+/*
+ * Masthead - MRD ATC call-sign header.
+ *
+ * Top-of-page band carrying the facility identifier ("MRD ATC - CANADIAN
+ * MACRO"), an OPERATIONAL status pill, current zulu timestamp, and a
+ * coordinates readout. The aesthetic is a flight-deck strip header — all
+ * mono, all caps, no decoration beyond the corner crops.
+ */
+
+interface Props {
+  facility: string;
+  sector: string;
+  zulu: string;
+  coord: string;
+  ops: "OPERATIONAL" | "DEGRADED";
+  build: string;
+}
+
+const { facility, sector, zulu, coord, ops, build } = Astro.props;
+---
+
+<header class="rd-mast" role="banner">
+  <div class="rd-mast__bar">
+    <div class="rd-mast__id">
+      <span class="rd-mast__bracket">[</span>
+      <span class="rd-mast__facility">{facility}</span>
+      <span class="rd-mast__bullet">/</span>
+      <span class="rd-mast__sector">{sector}</span>
+      <span class="rd-mast__bracket">]</span>
+    </div>
+    <div class="rd-mast__pill">
+      <span class="rd-mast__pill-dot" aria-hidden="true"></span>
+      <span class="rd-mast__pill-text">{ops}</span>
+    </div>
+  </div>
+  <div class="rd-mast__readouts" aria-label="Operations readouts">
+    <span class="rd-mast__chunk">
+      <span class="rd-mast__k">ZULU</span>
+      <span class="rd-mast__v">{zulu}</span>
+    </span>
+    <span class="rd-mast__chunk">
+      <span class="rd-mast__k">COORD</span>
+      <span class="rd-mast__v">{coord}</span>
+    </span>
+    <span class="rd-mast__chunk">
+      <span class="rd-mast__k">BUILD</span>
+      <span class="rd-mast__v">{build}</span>
+    </span>
+    <span class="rd-mast__chunk rd-mast__chunk--right">
+      <span class="rd-mast__k">MODE</span>
+      <span class="rd-mast__v">RADAR SURVEILLANCE</span>
+    </span>
+  </div>
+</header>
+
+<style>
+  .rd-mast {
+    border: 1px solid var(--rd-rule);
+    background:
+      linear-gradient(180deg, rgba(59, 210, 90, 0.05), rgba(11, 16, 13, 0.7));
+    padding: 12px 16px 10px;
+    position: relative;
+  }
+  .rd-mast::before,
+  .rd-mast::after {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--rd-green);
+    opacity: 0.7;
+  }
+  .rd-mast::before {
+    top: -1px;
+    left: -1px;
+    border-right: none;
+    border-bottom: none;
+  }
+  .rd-mast::after {
+    top: -1px;
+    right: -1px;
+    border-left: none;
+    border-bottom: none;
+  }
+
+  .rd-mast__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .rd-mast__id {
+    font-family: var(--rd-font-mono);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: var(--rd-green);
+    line-height: 1.1;
+  }
+  .rd-mast__bracket {
+    color: var(--rd-green-dim);
+    font-weight: 400;
+  }
+  .rd-mast__bullet {
+    color: var(--rd-green-dim);
+    padding: 0 6px;
+  }
+  .rd-mast__sector {
+    color: var(--rd-ink);
+  }
+  .rd-mast__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--rd-green);
+    padding: 4px 10px;
+    font-family: var(--rd-font-mono);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    font-weight: 600;
+    color: var(--rd-green);
+    background: rgba(59, 210, 90, 0.08);
+  }
+  .rd-mast__pill-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--rd-green);
+    box-shadow: 0 0 8px rgba(59, 210, 90, 0.8);
+    animation: rd-mast-pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes rd-mast-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.45; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .rd-mast__pill-dot { animation: none; }
+  }
+
+  .rd-mast__readouts {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--rd-rule);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 22px;
+    align-items: baseline;
+  }
+  .rd-mast__chunk {
+    display: inline-flex;
+    gap: 8px;
+    align-items: baseline;
+    font-family: var(--rd-font-mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+  .rd-mast__chunk--right { margin-left: auto; }
+  .rd-mast__k {
+    color: var(--rd-ink-muted);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .rd-mast__v {
+    color: var(--rd-ink);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+</style>

@@ -1,0 +1,224 @@
+---
+/*
+ * Lane R - Status Page: top hero status banner.
+ *
+ * The big "All indicators current" reassurance band. Pulsing green dot
+ * (CSS-only; respects prefers-reduced-motion), a large status sentence,
+ * and a sub-line with the most recent check stamp. Mirrors the layout
+ * of cloudflarestatus.com / stripestatus.com.
+ *
+ * Props let the banner switch among operational / degraded / outage with
+ * matching tint, dot color, and label.
+ */
+
+type State = "operational" | "degraded" | "outage" | "watch";
+
+interface Props {
+  state: State;
+  title: string;
+  detail: string;
+  asOf: string;
+}
+
+const { state, title, detail, asOf } = Astro.props;
+
+const stateConfig: Record<State, { label: string; color: string }> = {
+  operational: { label: "All systems operational", color: "green" },
+  degraded:    { label: "Partial degradation",    color: "amber" },
+  outage:      { label: "Service outage",         color: "red" },
+  watch:       { label: "Monitoring",             color: "info" },
+};
+
+const cfg = stateConfig[state];
+---
+<section class={`st-banner st-banner--${cfg.color}`} aria-label="Overall status">
+  <div class="st-banner__inner">
+    <div class="st-banner__lead">
+      <span class={`st-dot st-dot--${cfg.color} st-dot--lg`} aria-hidden="true">
+        <span class="st-dot__core"></span>
+        <span class="st-dot__halo"></span>
+      </span>
+      <div class="st-banner__text">
+        <p class="st-banner__eyebrow">Overall status</p>
+        <h1 class="st-banner__title">{title}</h1>
+        <p class="st-banner__detail">{detail}</p>
+      </div>
+    </div>
+    <div class="st-banner__meta">
+      <p class="st-banner__metakey">Last refresh</p>
+      <p class="st-banner__metaval">{asOf}</p>
+      <p class="st-banner__metakey st-banner__metakey--two">Auto-check</p>
+      <p class="st-banner__metaval">every 15 min</p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .st-banner {
+    border-top: 1px solid var(--st-line);
+    border-bottom: 1px solid var(--st-line);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--banner-tint, var(--st-green)) 6%, var(--st-paper)) 0%,
+      var(--st-paper) 100%
+    );
+  }
+  .st-banner--green  { --banner-tint: var(--st-green); }
+  .st-banner--amber  { --banner-tint: var(--st-amber); }
+  .st-banner--red    { --banner-tint: var(--st-red); }
+  .st-banner--info   { --banner-tint: var(--st-info); }
+
+  .st-banner__inner {
+    max-width: var(--st-max);
+    margin: 0 auto;
+    padding: 40px var(--st-gutter) 40px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 32px;
+    align-items: center;
+  }
+
+  .st-banner__lead {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 20px;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .st-banner__text {
+    min-width: 0;
+  }
+
+  .st-banner__eyebrow {
+    margin: 0 0 6px;
+    font-family: var(--st-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--st-slate);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .st-banner__title {
+    margin: 0 0 8px;
+    font-family: var(--st-sans);
+    font-weight: 700;
+    font-size: clamp(28px, 4.4vw, 44px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--st-ink);
+  }
+
+  .st-banner__detail {
+    margin: 0;
+    font-family: var(--st-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--st-slate);
+    max-width: 64ch;
+  }
+
+  .st-banner__meta {
+    display: grid;
+    grid-template-columns: auto;
+    align-self: end;
+    gap: 2px;
+    padding: 12px 16px;
+    border: 1px solid var(--st-line);
+    border-radius: 6px;
+    background: var(--st-paper);
+    font-family: var(--st-mono);
+    text-align: right;
+    min-width: 200px;
+  }
+  .st-banner__metakey {
+    margin: 0;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--st-slate);
+  }
+  .st-banner__metakey--two {
+    margin-top: 8px;
+  }
+  .st-banner__metaval {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--st-ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Large pulsing dot ------------------------------------------------ */
+  .st-dot--lg {
+    --dot-size: 22px;
+  }
+  .st-dot {
+    --dot-size: 10px;
+    --dot-color: var(--st-green);
+    position: relative;
+    display: inline-block;
+    width: var(--dot-size);
+    height: var(--dot-size);
+  }
+  .st-dot--green  { --dot-color: var(--st-green); }
+  .st-dot--amber  { --dot-color: var(--st-amber); }
+  .st-dot--red    { --dot-color: var(--st-red); }
+  .st-dot--info   { --dot-color: var(--st-info); }
+  .st-dot--slate  { --dot-color: var(--st-slate); }
+
+  .st-dot__core {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 60%;
+    height: 60%;
+    border-radius: 50%;
+    background: var(--dot-color);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--dot-color) 20%, transparent);
+  }
+  .st-dot__halo {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--dot-color);
+    opacity: 0.35;
+    animation: st-pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  .st-dot--lg .st-dot__halo {
+    animation-duration: 2.8s;
+  }
+  /* Red/amber pulse faster on operational lanes that are NOT green */
+  .st-dot--amber .st-dot__halo { animation-duration: 1.6s; }
+  .st-dot--red   .st-dot__halo { animation-duration: 1.2s; }
+
+  @keyframes st-pulse {
+    0%   { transform: scale(0.6); opacity: 0.55; }
+    70%  { transform: scale(1.7); opacity: 0;    }
+    100% { transform: scale(1.7); opacity: 0;    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .st-dot__halo { animation: none; opacity: 0; }
+  }
+
+  /* Responsive */
+  @media (max-width: 760px) {
+    .st-banner__inner {
+      grid-template-columns: 1fr;
+      padding: 28px var(--st-gutter);
+    }
+    .st-banner__meta {
+      justify-self: start;
+      text-align: left;
+      min-width: 0;
+    }
+  }
+</style>

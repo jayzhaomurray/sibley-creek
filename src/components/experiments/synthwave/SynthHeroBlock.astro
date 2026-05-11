@@ -1,0 +1,435 @@
+---
+/*
+ * SynthHeroBlock - Lane G hero / live state block.
+ *
+ * Renders the most-recently-updated section as a neon read-out: section
+ * tag, indicator label, glowing big number, a delta line in signal
+ * color, an SVG sparkline rendered with neon stroke + glow filter, the
+ * headline question quote, and a small "secondary tape" of other prints.
+ *
+ * Self-contained component; consumes the page-level CSS variables only.
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  section: Section;
+}
+
+const { section } = Astro.props;
+
+const heroPrint =
+  section.prints.find((p) => p.key === section.chartSeriesKey) ??
+  section.prints[0];
+
+const otherPrints = section.prints.filter((p) => p !== heroPrint);
+
+// Build the SVG sparkline path from the spark series.
+const series = heroPrint.spark ?? [];
+const w = 320;
+const h = 64;
+const pad = 4;
+let pathD = "";
+let areaD = "";
+let last: { x: number; y: number } | null = null;
+if (series.length > 1) {
+  const min = Math.min(...series);
+  const max = Math.max(...series);
+  const span = max - min || 1;
+  const step = (w - pad * 2) / (series.length - 1);
+  const pts = series.map((v, i) => {
+    const x = pad + i * step;
+    const y = pad + (1 - (v - min) / span) * (h - pad * 2);
+    return { x, y };
+  });
+  pathD = pts
+    .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+    .join(" ");
+  areaD =
+    pathD +
+    ` L${pts[pts.length - 1].x.toFixed(2)},${h - pad} L${pts[0].x.toFixed(2)},${h - pad} Z`;
+  last = pts[pts.length - 1];
+}
+
+const deltaClass =
+  heroPrint.deltaDir === "pos"
+    ? "is-pos"
+    : heroPrint.deltaDir === "neg"
+    ? "is-neg"
+    : "is-neutral";
+
+const arrowGlyph =
+  heroPrint.deltaDir === "pos"
+    ? "^"
+    : heroPrint.deltaDir === "neg"
+    ? "v"
+    : "=";
+
+// Map delta direction to spark color (variable name only).
+const sparkColorVar =
+  heroPrint.deltaDir === "pos"
+    ? "var(--sy-acid)"
+    : heroPrint.deltaDir === "neg"
+    ? "var(--sy-magenta)"
+    : "var(--sy-cyan)";
+
+const sparkGlowRgb =
+  heroPrint.deltaDir === "pos"
+    ? "0, 255, 133"
+    : heroPrint.deltaDir === "neg"
+    ? "255, 46, 151"
+    : "0, 229, 255";
+
+// Unique filter id so multiple instances don't collide.
+const fid = `sy-glow-${section.slug}`;
+---
+<div class="shero">
+  <header class="shero__head">
+    <p class="shero__crumbs">
+      <span class="shero__crumb">FEED</span>
+      <span class="shero__crumb-sep" aria-hidden="true">{">"}</span>
+      <span class="shero__crumb">LIVE</span>
+      <span class="shero__crumb-sep" aria-hidden="true">{">"}</span>
+      <span class="shero__crumb shero__crumb--strong">{section.label.toUpperCase()}</span>
+    </p>
+    <p class="shero__kicker">
+      <span class="shero__kicker-tag">/ FOCUS</span>
+      <span class="shero__kicker-val">{section.heroKicker ?? section.label}</span>
+    </p>
+  </header>
+
+  <p class="shero__indicator">{heroPrint.indicator}</p>
+
+  <p class="shero__value-row">
+    <span class="shero__value" style={`--spark-rgb: ${sparkGlowRgb}`}>{heroPrint.value}</span>
+    <span class:list={["shero__arrow", deltaClass]} aria-hidden="true">{arrowGlyph}</span>
+  </p>
+
+  <p class:list={["shero__delta", deltaClass]}>
+    <span class="shero__delta-label">DELTA</span>
+    <span class="shero__delta-val">{heroPrint.delta}</span>
+    <span class="shero__delta-asof">@ {heroPrint.asOf}</span>
+  </p>
+
+  {pathD ? (
+    <div class="shero__spark" aria-hidden="true">
+      <svg viewBox={`0 0 ${w} ${h}`} width="100%" height="64" preserveAspectRatio="none" role="img" aria-hidden="true">
+        <defs>
+          <filter id={fid} x="-20%" y="-50%" width="140%" height="200%">
+            <feGaussianBlur stdDeviation="2.2" result="b1" />
+            <feMerge>
+              <feMergeNode in="b1" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <linearGradient id={`${fid}-fill`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color={sparkColorVar} stop-opacity="0.35" />
+            <stop offset="100%" stop-color={sparkColorVar} stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        {/* horizon ticks */}
+        <g stroke="rgba(255,255,255,0.05)" stroke-width="1">
+          <line x1={pad} y1={h * 0.25} x2={w - pad} y2={h * 0.25} />
+          <line x1={pad} y1={h * 0.5} x2={w - pad} y2={h * 0.5} />
+          <line x1={pad} y1={h * 0.75} x2={w - pad} y2={h * 0.75} />
+        </g>
+        <path d={areaD} fill={`url(#${fid}-fill)`} stroke="none" />
+        <path
+          d={pathD}
+          fill="none"
+          stroke={sparkColorVar}
+          stroke-width="1.8"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+          filter={`url(#${fid})`}
+        />
+        {last ? (
+          <circle cx={last.x} cy={last.y} r="2.6" fill={sparkColorVar} filter={`url(#${fid})`} />
+        ) : null}
+      </svg>
+      <p class="shero__spark-meta">
+        <span>N={series.length}</span>
+        <span>MIN={Math.min(...series).toFixed(2)}</span>
+        <span>MAX={Math.max(...series).toFixed(2)}</span>
+        <span>LAST={series[series.length - 1].toFixed(2)}</span>
+      </p>
+    </div>
+  ) : null}
+
+  <blockquote class="shero__q">
+    <span class="shero__q-mark" aria-hidden="true">{">>"}</span>
+    {section.headlineQuestion}
+  </blockquote>
+
+  {section.blurb && section.blurb.body ? (
+    <div class="shero__note">
+      <p class="shero__note-tag">
+        <span class:list={["shero__note-kind", section.blurb.kind === "fresh" ? "is-fresh" : "is-last"]}>
+          {section.blurb.kind === "fresh" ? "// FRESH" : "// LAST"}
+        </span>
+        <span class="shero__note-date">{section.blurb.date}</span>
+      </p>
+      <p class="shero__note-body">{section.blurb.body}</p>
+    </div>
+  ) : null}
+
+  {otherPrints.length ? (
+    <dl class="shero__tape" aria-label="Secondary indicators">
+      {otherPrints.map((p) => (
+        <div class="shero__tape-row">
+          <dt class="shero__tape-key">{p.indicator}</dt>
+          <dd class="shero__tape-val">
+            <span class="shero__tape-num">{p.value}</span>
+            <span
+              class:list={[
+                "shero__tape-delta",
+                p.deltaDir === "pos" ? "is-pos" : p.deltaDir === "neg" ? "is-neg" : "is-neutral",
+              ]}
+            >{p.delta}</span>
+          </dd>
+        </div>
+      ))}
+    </dl>
+  ) : null}
+</div>
+
+<style>
+  .shero {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    color: var(--sy-ink);
+    font-family: var(--sy-font-body);
+  }
+
+  /* ---- Head ---- */
+  .shero__head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed rgba(0, 229, 255, 0.25);
+  }
+  .shero__crumbs {
+    margin: 0;
+    font-family: var(--sy-font-crt);
+    font-size: 15px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--sy-ink-faint);
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+  }
+  .shero__crumb-sep { color: var(--sy-ink-faint); }
+  .shero__crumb--strong {
+    color: var(--sy-magenta);
+    text-shadow: 0 0 6px rgba(255, 46, 151, 0.55);
+  }
+
+  .shero__kicker {
+    margin: 0;
+    font-family: var(--sy-font-crt);
+    font-size: 15px;
+    letter-spacing: 0.04em;
+    color: var(--sy-ink);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .shero__kicker-tag {
+    color: var(--sy-cyan);
+    font-weight: 400;
+    text-shadow: 0 0 6px rgba(0, 229, 255, 0.45);
+  }
+  .shero__kicker-val { text-transform: uppercase; }
+
+  /* ---- Indicator label ---- */
+  .shero__indicator {
+    margin: 0;
+    font-family: var(--sy-font-display);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--sy-ink-muted);
+    text-transform: uppercase;
+  }
+
+  /* ---- The big number ---- */
+  .shero__value-row {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    line-height: 0.88;
+  }
+
+  .shero__value {
+    --spark-rgb: 255, 46, 151;
+    font-family: var(--sy-font-display);
+    font-weight: 800;
+    font-size: clamp(54px, 8vw, 96px);
+    letter-spacing: -0.02em;
+    color: #FFFFFF;
+    font-feature-settings: "tnum", "lnum";
+    text-shadow:
+      0 0 2px rgba(255, 255, 255, 0.9),
+      0 0 14px rgba(var(--spark-rgb), 0.65),
+      0 0 32px rgba(var(--spark-rgb), 0.4),
+      0 0 60px rgba(var(--spark-rgb), 0.2);
+  }
+
+  .shero__arrow {
+    font-family: var(--sy-font-display);
+    font-weight: 800;
+    font-size: 24px;
+    letter-spacing: 0;
+    align-self: center;
+  }
+  .shero__arrow.is-pos { color: var(--sy-acid); text-shadow: 0 0 10px rgba(0, 255, 133, 0.7); }
+  .shero__arrow.is-neg { color: var(--sy-magenta); text-shadow: 0 0 10px rgba(255, 46, 151, 0.7); }
+  .shero__arrow.is-neutral { color: var(--sy-cyan); text-shadow: 0 0 10px rgba(0, 229, 255, 0.7); }
+
+  /* ---- Delta line ---- */
+  .shero__delta {
+    margin: 0;
+    font-family: var(--sy-font-crt);
+    font-size: 16px;
+    letter-spacing: 0.06em;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: baseline;
+    color: var(--sy-ink-muted);
+  }
+  .shero__delta-label {
+    color: var(--sy-ink-faint);
+    letter-spacing: 0.12em;
+  }
+  .shero__delta-val {
+    font-weight: 400;
+    font-feature-settings: "tnum", "lnum";
+  }
+  .shero__delta.is-pos .shero__delta-val { color: var(--sy-acid); text-shadow: 0 0 8px rgba(0, 255, 133, 0.55); }
+  .shero__delta.is-neg .shero__delta-val { color: var(--sy-magenta); text-shadow: 0 0 8px rgba(255, 46, 151, 0.55); }
+  .shero__delta.is-neutral .shero__delta-val { color: var(--sy-cyan); text-shadow: 0 0 8px rgba(0, 229, 255, 0.55); }
+
+  .shero__delta-asof { color: var(--sy-ink-faint); }
+
+  /* ---- SVG sparkline panel ---- */
+  .shero__spark {
+    border: 1px solid rgba(0, 229, 255, 0.25);
+    background: linear-gradient(180deg, rgba(0, 229, 255, 0.03), rgba(10, 4, 20, 0.4));
+    padding: 8px 10px 6px;
+  }
+  .shero__spark svg { display: block; width: 100%; }
+  .shero__spark-meta {
+    margin: 6px 0 0;
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-family: var(--sy-font-crt);
+    font-size: 14px;
+    color: var(--sy-ink-faint);
+    letter-spacing: 0.08em;
+    font-feature-settings: "tnum", "lnum";
+  }
+
+  /* ---- Headline question quote ---- */
+  .shero__q {
+    margin: 0;
+    padding: 10px 14px;
+    border-left: 2px solid var(--sy-magenta);
+    background: rgba(255, 46, 151, 0.05);
+    font-family: var(--sy-font-body);
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--sy-ink);
+    display: flex;
+    gap: 10px;
+    box-shadow: inset 0 0 12px rgba(255, 46, 151, 0.05);
+  }
+  .shero__q-mark {
+    color: var(--sy-magenta);
+    font-family: var(--sy-font-crt);
+    font-weight: 700;
+    flex: 0 0 auto;
+    text-shadow: 0 0 6px rgba(255, 46, 151, 0.6);
+  }
+
+  /* ---- Note / blurb ---- */
+  .shero__note {
+    border-top: 1px dashed rgba(0, 229, 255, 0.2);
+    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .shero__note-tag {
+    margin: 0;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    font-family: var(--sy-font-crt);
+    font-size: 14px;
+    letter-spacing: 0.12em;
+  }
+  .shero__note-kind { font-weight: 400; }
+  .shero__note-kind.is-fresh {
+    color: var(--sy-acid);
+    text-shadow: 0 0 6px rgba(0, 255, 133, 0.55);
+  }
+  .shero__note-kind.is-last { color: var(--sy-ink-faint); }
+  .shero__note-date {
+    color: var(--sy-ink-faint);
+    font-feature-settings: "tnum", "lnum";
+  }
+  .shero__note-body {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--sy-ink-muted);
+  }
+
+  /* ---- Secondary tape ---- */
+  .shero__tape {
+    margin: 0;
+    border-top: 1px dashed rgba(0, 229, 255, 0.2);
+    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .shero__tape-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: baseline;
+    padding: 5px 0;
+    border-bottom: 1px dotted rgba(0, 229, 255, 0.12);
+    font-family: var(--sy-font-crt);
+    font-size: 15px;
+  }
+  .shero__tape-row:last-child { border-bottom: none; }
+  .shero__tape-key {
+    margin: 0;
+    color: var(--sy-ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .shero__tape-val {
+    margin: 0;
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+  }
+  .shero__tape-num {
+    color: var(--sy-ink);
+    font-feature-settings: "tnum", "lnum";
+    text-shadow: 0 0 4px rgba(255, 255, 255, 0.2);
+  }
+  .shero__tape-delta { font-feature-settings: "tnum", "lnum"; }
+  .shero__tape-delta.is-pos { color: var(--sy-acid); text-shadow: 0 0 6px rgba(0, 255, 133, 0.4); }
+  .shero__tape-delta.is-neg { color: var(--sy-magenta); text-shadow: 0 0 6px rgba(255, 46, 151, 0.4); }
+  .shero__tape-delta.is-neutral { color: var(--sy-cyan); text-shadow: 0 0 6px rgba(0, 229, 255, 0.4); }
+</style>

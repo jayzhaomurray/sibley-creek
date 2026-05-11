@@ -1,0 +1,288 @@
+---
+/*
+ * Lane J - Solari Departures Board.
+ *
+ * Masthead. Three pieces:
+ *
+ *   - LEFT  - large marquee header "MACRO RESEARCH DEPARTMENT — CDN MACRO BOARD"
+ *             flush-left, JetBrains Mono caps, amber. Underline strip below.
+ *   - CENTRE- a thin status row with edition number / track / gate codes,
+ *             keeping the airport-board fiction tight.
+ *   - RIGHT - digital clock (HH:MM:SS local), flickering "LIVE" pip in
+ *             signal red, "CDN MACRO" gate code below.
+ *
+ * The clock is the only JS on the page. It is a tiny inline script that
+ * ticks once per second. If the script never runs (JS disabled, or the
+ * page is loaded before hydration), the initial server-rendered value is
+ * still legible.
+ *
+ * The LIVE pip flicker is pure CSS; honors prefers-reduced-motion.
+ */
+
+import SolariFlipText from "./SolariFlipText.astro";
+
+interface Props {
+  publication: string;
+  boardName: string;
+  editionDate: string;     // already formatted, e.g. "MON 11 MAY 2026"
+  trackCode: string;       // e.g. "TRK 07"
+  gateCode: string;        // e.g. "GATE J"
+  initialClock: string;    // e.g. "14:32:18"
+  initialZone: string;     // e.g. "EDT"
+}
+
+const {
+  publication,
+  boardName,
+  editionDate,
+  trackCode,
+  gateCode,
+  initialClock,
+  initialZone,
+} = Astro.props;
+---
+<header class="sol-mast" aria-label="Departures board masthead">
+  {/* Top hairline status strip - airport-board fiction (edition, track, gate). */}
+  <div class="sol-mast__strip" role="presentation">
+    <span class="sol-mast__strip-cell">
+      <span class="sol-mast__strip-key">EDITION</span>
+      <SolariFlipText text={editionDate} tone="active" delay={0} stagger={18} ariaHidden />
+      <span class="sol-mast__sr">{editionDate}</span>
+    </span>
+    <span class="sol-mast__strip-cell sol-mast__strip-cell--mid">
+      <span class="sol-mast__strip-key">TRACK</span>
+      <SolariFlipText text={trackCode} tone="active" delay={60} stagger={24} ariaHidden />
+      <span class="sol-mast__sr">{trackCode}</span>
+    </span>
+    <span class="sol-mast__strip-cell sol-mast__strip-cell--mid">
+      <span class="sol-mast__strip-key">GATE</span>
+      <SolariFlipText text={gateCode} tone="active" delay={120} stagger={24} ariaHidden />
+      <span class="sol-mast__sr">{gateCode}</span>
+    </span>
+    <span class="sol-mast__strip-cell sol-mast__strip-cell--right">
+      <span class="sol-mast__strip-key">STATUS</span>
+      <span class="sol-mast__strip-status">
+        <span class="sol-mast__live-dot" aria-hidden="true"></span>
+        <SolariFlipText text="LIVE" tone="neg" weight="bold" delay={180} stagger={28} ariaHidden />
+        <span class="sol-mast__sr">Live</span>
+      </span>
+    </span>
+  </div>
+
+  {/* Main marquee strip */}
+  <div class="sol-mast__main">
+    <div class="sol-mast__title">
+      <h1 class="sol-mast__h1">
+        <SolariFlipText text={publication} tone="active" weight="bold" delay={120} stagger={22} ariaHidden />
+        <span class="sol-mast__em-dash" aria-hidden="true">—</span>
+        <SolariFlipText text={boardName} tone="active" weight="bold" delay={520} stagger={22} ariaHidden />
+        <span class="sol-mast__sr">{publication} — {boardName}</span>
+      </h1>
+      <p class="sol-mast__sub">
+        ARRIVALS / DEPARTURES &middot; READOUT-FIRST &middot; AMBER ON BLACK
+      </p>
+    </div>
+
+    <div class="sol-mast__clock" aria-live="off">
+      <div class="sol-mast__clock-row">
+        <span class="sol-mast__clock-time" id="sol-clock" data-zone={initialZone}>
+          <SolariFlipText text={initialClock} tone="active" weight="bold" delay={200} stagger={22} ariaHidden />
+        </span>
+        <span class="sol-mast__clock-zone">{initialZone}</span>
+      </div>
+      <p class="sol-mast__clock-label">LOCAL TIME &middot; CDN MACRO</p>
+    </div>
+  </div>
+
+  {/* Underline band */}
+  <div class="sol-mast__rule" aria-hidden="true">
+    <span class="sol-mast__rule-fat"></span>
+    <span class="sol-mast__rule-gap"></span>
+    <span class="sol-mast__rule-thin"></span>
+  </div>
+</header>
+
+<script is:inline>
+  // Tiny clock ticker. Replaces the static initial value once per second
+  // with the live HH:MM:SS. We rewrite as plain text (no flap animation
+  // mid-page) to keep the page calm. The initial server-rendered value
+  // remains legible if JS is disabled.
+  (function () {
+    var el = document.getElementById("sol-clock");
+    if (!el) return;
+    function fmt(d) {
+      var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
+      return pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+    }
+    // Replace flapping spans with a plain text after the initial flap
+    // animation has settled (~1.2s).
+    setTimeout(function () {
+      el.textContent = fmt(new Date());
+      setInterval(function () {
+        el.textContent = fmt(new Date());
+      }, 1000);
+    }, 1500);
+  })();
+</script>
+
+<style>
+  .sol-mast {
+    position: relative;
+    z-index: 2;
+    background: var(--sol-black);
+    color: var(--sol-amber);
+    border-bottom: 1px solid var(--sol-frame);
+  }
+
+  /* ---- top status strip ---- */
+  .sol-mast__strip {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr 1fr;
+    align-items: center;
+    gap: clamp(12px, 2vw, 32px);
+    padding: 10px clamp(16px, 3vw, 32px);
+    border-bottom: 1px dashed var(--sol-frame);
+    font-family: var(--sol-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--sol-amber);
+  }
+  .sol-mast__strip-cell {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 10px;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .sol-mast__strip-cell--right {
+    justify-content: flex-end;
+  }
+  .sol-mast__strip-key {
+    color: var(--sol-amber-faded);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+  }
+  .sol-mast__strip-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sol-mast__live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--sol-red);
+    box-shadow: 0 0 0 1px rgba(255, 61, 46, 0.35), 0 0 8px rgba(255, 61, 46, 0.6);
+    animation: sol-blink 1.6s steps(2, end) infinite;
+  }
+  @keyframes sol-blink {
+    0%, 49%   { opacity: 1; }
+    50%, 100% { opacity: 0.25; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sol-mast__live-dot { animation: none; }
+  }
+  .sol-mast__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ---- main marquee ---- */
+  .sol-mast__main {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: clamp(24px, 4vw, 64px);
+    padding: clamp(16px, 3vw, 28px) clamp(16px, 3vw, 32px) clamp(14px, 2.4vw, 22px);
+  }
+  .sol-mast__h1 {
+    margin: 0;
+    font-family: var(--sol-display);
+    font-weight: 700;
+    font-size: clamp(22px, 3.6vw, 46px);
+    line-height: 1.04;
+    letter-spacing: 0.04em;
+    color: var(--sol-amber);
+    text-shadow: 0 0 24px rgba(242, 167, 20, 0.18);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px 18px;
+  }
+  .sol-mast__em-dash {
+    font-family: var(--sol-display);
+    color: var(--sol-amber-faded);
+  }
+  .sol-mast__sub {
+    margin: 10px 0 0;
+    font-family: var(--sol-mono);
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--sol-amber-faded);
+  }
+
+  .sol-mast__clock {
+    text-align: right;
+    align-self: end;
+  }
+  .sol-mast__clock-row {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .sol-mast__clock-time {
+    font-family: var(--sol-display);
+    font-weight: 700;
+    font-size: clamp(28px, 3.4vw, 44px);
+    color: var(--sol-amber);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    text-shadow: 0 0 22px rgba(242, 167, 20, 0.22);
+  }
+  .sol-mast__clock-zone {
+    font-family: var(--sol-mono);
+    color: var(--sol-amber-faded);
+    font-size: 12px;
+    letter-spacing: 0.22em;
+  }
+  .sol-mast__clock-label {
+    margin: 6px 0 0;
+    font-family: var(--sol-mono);
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--sol-amber-faded);
+  }
+
+  /* ---- underline band ---- */
+  .sol-mast__rule {
+    display: flex;
+    gap: 4px;
+    padding: 0 clamp(16px, 3vw, 32px) 8px;
+  }
+  .sol-mast__rule-fat  { flex: 1; height: 3px; background: var(--sol-amber); opacity: 0.85; }
+  .sol-mast__rule-gap  { width: 18px; }
+  .sol-mast__rule-thin { flex: 0 0 220px; height: 1px; background: var(--sol-amber-faded); align-self: center; }
+
+  /* responsive */
+  @media (max-width: 880px) {
+    .sol-mast__strip {
+      grid-template-columns: 1fr 1fr;
+      row-gap: 6px;
+    }
+    .sol-mast__strip-cell--right { grid-column: 1 / -1; justify-content: flex-start; }
+    .sol-mast__main { grid-template-columns: 1fr; }
+    .sol-mast__clock { text-align: left; }
+    .sol-mast__rule-thin { flex: 0 0 120px; }
+  }
+</style>

@@ -1,0 +1,707 @@
+---
+/*
+ * Lane F: Cartographic Atlas splash.
+ *
+ * A scientific-atlas / National Geographic supplement translation of the
+ * Canadian macro dashboard. Two-colour print discipline: deep navy and
+ * sepia ochre on cream stock. Type: Cormorant Garamond (display, small-
+ * caps), Crimson Pro (body), IBM Plex Mono (coordinate labels). Crimson
+ * accent reserved for the singular "site of interest" pin on the hero
+ * plate. No motion (this is print).
+ *
+ * Composition:
+ *   1. Lat/lon graticule frame around the page
+ *   2. Top edition rail
+ *   3. AtlasMasthead: "Atlas of the Canadian Economy" + compass rose
+ *   4. Contents band (italic, taxonomic)
+ *   5. Hero plate I (the most recently updated section) with a hand-drawn
+ *      cross-hatched chart and a single crimson site-of-interest pin
+ *   6. Six smaller plates II-VII in a two/three-column scientific grid
+ *   7. Supplementary plates (deep dives) in their own ribbon
+ *   8. AtlasColophon: bibliographic back-of-the-atlas plate
+ *
+ * Entirely self-contained. Does NOT touch BaseLayout, production design
+ * tokens, or any other splash experiment.
+ */
+
+import {
+  sections,
+  deepDives,
+  nextRelease,
+  site,
+  type Section,
+} from "../../data/sections";
+
+import AtlasPatterns from "../../components/experiments/atlas/AtlasPatterns.astro";
+import AtlasMasthead from "../../components/experiments/atlas/AtlasMasthead.astro";
+import AtlasHeroPlate from "../../components/experiments/atlas/AtlasHeroPlate.astro";
+import AtlasPlate from "../../components/experiments/atlas/AtlasPlate.astro";
+import AtlasDeepDivePlate from "../../components/experiments/atlas/AtlasDeepDivePlate.astro";
+import AtlasColophon from "../../components/experiments/atlas/AtlasColophon.astro";
+
+// ---- Hero selection: most recent print, matches production rule. ----
+const heroSection: Section = sections.reduce((a, b) =>
+  (b.updatedAt ?? 0) > (a.updatedAt ?? 0) ? b : a,
+);
+
+// Canonical ordering for the plate sequence. Hero is plate I; everyone
+// else falls in canonical order on plates II-VII.
+const canonical: Section[] = [
+  "gdp",
+  "inflation",
+  "labour",
+  "housing",
+  "policy",
+  "markets",
+  "trade",
+].map((slug) => sections.find((s) => s.slug === slug)!)
+  .filter(Boolean);
+
+const restOrdered = canonical.filter((s) => s.slug !== heroSection.slug);
+const orderedAll: Section[] = [heroSection, ...restOrdered];
+const total = orderedAll.length;
+
+// Roman numerals for plate stamps. Seven sections; this is finite, so a
+// small explicit map is preferable to a runtime converter.
+const roman: Record<number, string> = {
+  1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "VII",
+};
+const totalRoman = roman[total] ?? String(total);
+
+// Decorative coordinate stamps per section. These are not real-world
+// coordinates; they are taxonomic-style labels intended to read like the
+// "site of interest" attribution on an atlas plate. Fixed per-slug so
+// the page is deterministic across builds.
+const coords: Record<string, { lat: string; lon: string }> = {
+  gdp:       { lat: "45 deg 25' N", lon: "75 deg 41' W" },
+  inflation: { lat: "43 deg 39' N", lon: "79 deg 23' W" },
+  labour:    { lat: "49 deg 53' N", lon: "97 deg 09' W" },
+  housing:   { lat: "49 deg 17' N", lon: "123 deg 07' W" },
+  policy:    { lat: "45 deg 25' N", lon: "75 deg 41' W" },
+  markets:   { lat: "43 deg 39' N", lon: "79 deg 23' W" },
+  trade:     { lat: "46 deg 18' N", lon: "72 deg 32' W" },
+};
+
+// Build stamp.
+const buildDate = new Date();
+const produced =
+  `${buildDate.getUTCFullYear()}.` +
+  `${String(buildDate.getUTCMonth() + 1).padStart(2, "0")}.` +
+  `${String(buildDate.getUTCDate()).padStart(2, "0")}`;
+
+const editionDate = buildDate.toLocaleDateString("en-CA", {
+  weekday: "long",
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
+// Cap deep dives to three, ordered by recency of lastUpdated.
+const ddOrdered = [...deepDives]
+  .sort((a, b) => (a.lastUpdated < b.lastUpdated ? 1 : -1))
+  .slice(0, 3);
+const ddTotal = ddOrdered.length;
+
+const pageTitle = `${site.name} - Atlas of the Canadian Economy (Lane F)`;
+const pageDesc =
+  "Experimental scientific-atlas splash for Canadian macroeconomic data, set in two-colour print discipline on cream stock.";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#EEE6D2" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+
+    <style is:global>
+      /* ===========================================================
+       * Lane F: Cartographic Atlas - scoped tokens & reset.
+       * Two-colour print discipline (navy + sepia on cream paper).
+       * =========================================================== */
+      :root {
+        --at-paper: #EEE6D2;
+        --at-paper-deep: #E6DCC2;
+        --at-navy: #1B2F4B;
+        --at-sepia: #A6794F;
+        --at-rule: #7A6549;
+        --at-crimson: #923225;
+        --at-ink: #1B2F4B;
+        --at-ink-mute: #5C4E3A;
+        --at-ink-faint: #8E7F66;
+
+        --at-display: "Cormorant Garamond", "Garamond", "Times New Roman", serif;
+        --at-body: "Crimson Pro", "Crimson Text", Georgia, serif;
+        --at-mono: "IBM Plex Mono", ui-monospace, "Menlo", monospace;
+
+        --at-page-max: 1320px;
+        --at-page-pad: clamp(20px, 4vw, 56px);
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--at-paper);
+        color: var(--at-ink);
+      }
+
+      body {
+        font-family: var(--at-body);
+        font-weight: 400;
+        font-size: 17px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "onum" 1;
+        font-variant-numeric: oldstyle-nums proportional-nums;
+        min-height: 100vh;
+        position: relative;
+        overflow-x: hidden;
+      }
+
+      /* Sepia stipple "paper" texture: kept very faint so it reads as
+         aged warmth, not noise. Single SVG data URL, no external image. */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background-image:
+          radial-gradient(120% 90% at 50% 0%, rgba(255, 248, 232, 0.55) 0%, rgba(238, 230, 210, 0) 60%),
+          radial-gradient(80% 60% at 50% 100%, rgba(166, 121, 79, 0.10) 0%, rgba(238, 230, 210, 0) 70%),
+          url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='5'/><feColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.32 0 0 0 0 0.20 0 0 0 0.08 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+        background-blend-mode: multiply;
+      }
+
+      /* Page frame: lat/lon graticule painted as a fine pattern on the
+         body. Outermost decorative border lives on .at-shell. */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='480'><path d='M 480,0 L 0,0 0,480' fill='none' stroke='%237A6549' stroke-width='0.5' stroke-opacity='0.20'/></svg>");
+        background-size: 96px 96px;
+        background-position: 0 0;
+      }
+
+      a {
+        color: var(--at-ink);
+      }
+
+      ::selection {
+        background: var(--at-crimson);
+        color: var(--at-paper);
+      }
+
+      h1, h2, h3, h4 { margin: 0; }
+
+      .at-skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+      }
+      .at-skip:focus {
+        left: 16px;
+        top: 16px;
+        z-index: 100;
+        background-color: var(--at-ink);
+        color: var(--at-paper);
+        padding: 10px 14px;
+        font-family: var(--at-mono);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+
+      .at-vh {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="at-skip" href="#at-main">Skip to main content</a>
+
+    <AtlasPatterns />
+
+    <div class="at-shell">
+      {/* Page graticule corners: decorative lat/lon tick marks. */}
+      <div class="at-corner at-corner--tl" aria-hidden="true">
+        <span class="at-corner__lat">52 deg N</span>
+        <span class="at-corner__lon">141 deg W</span>
+      </div>
+      <div class="at-corner at-corner--tr" aria-hidden="true">
+        <span class="at-corner__lat">52 deg N</span>
+        <span class="at-corner__lon">53 deg W</span>
+      </div>
+      <div class="at-corner at-corner--bl" aria-hidden="true">
+        <span class="at-corner__lat">42 deg N</span>
+        <span class="at-corner__lon">141 deg W</span>
+      </div>
+      <div class="at-corner at-corner--br" aria-hidden="true">
+        <span class="at-corner__lat">42 deg N</span>
+        <span class="at-corner__lon">53 deg W</span>
+      </div>
+
+      {/* Top rail: edition stamp + lane label + back link */}
+      <div class="at-toprail">
+        <p class="at-toprail__cell">
+          <span class="at-toprail__key">Edition</span>
+          <span class="at-toprail__val">{editionDate}</span>
+        </p>
+        <p class="at-toprail__cell">
+          <span class="at-toprail__key">Lane F</span>
+          <span class="at-toprail__val at-toprail__val--accent">Cartographic Atlas</span>
+        </p>
+        <p class="at-toprail__cell at-toprail__cell--right">
+          <a class="at-toprail__back" href="/">Production homepage</a>
+        </p>
+      </div>
+
+      <AtlasMasthead
+        vol="I"
+        plate={totalRoman}
+        edition={editionDate}
+        produced={produced}
+        lat="42-83 deg N"
+        lon="53-141 deg W"
+      />
+
+      <main id="at-main" class="at-main">
+
+        {/* Contents band - "INSIDE THIS PLATE BOOK" */}
+        <section class="at-contents" aria-label="Contents of this issue">
+          <div class="at-contents__head">
+            <p class="at-contents__key">Inside this plate book</p>
+            <p class="at-contents__count">{total} plates &#xb7; {ddTotal} supplementary plates</p>
+          </div>
+          <ol class="at-contents__list" role="list">
+            {orderedAll.map((s, i) => (
+              <li class="at-contents__item">
+                <a class="at-contents__link" href={`#plate-${s.slug}`}>
+                  <span class="at-contents__num">{roman[i + 1] ?? String(i + 1)}</span>
+                  <span class="at-contents__label">{s.label}</span>
+                  <span class="at-contents__leader" aria-hidden="true"></span>
+                  <span class="at-contents__cad">{s.cadence}</span>
+                </a>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        {/* Hero plate I */}
+        <section class="at-hero-section" aria-labelledby={`plate-${heroSection.slug}-h`}>
+          <AtlasHeroPlate
+            section={heroSection}
+            num={roman[1] ?? "I"}
+            total={totalRoman}
+            lat={(coords[heroSection.slug]?.lat) ?? "45 deg N"}
+            lon={(coords[heroSection.slug]?.lon) ?? "75 deg W"}
+          />
+        </section>
+
+        {/* Inter-section fleuron */}
+        <div class="at-fleuron-row" aria-hidden="true">
+          <svg viewBox="0 0 40 40" class="at-fleuron-row__icon"><use href="#at-fleuron" /></svg>
+          <span class="at-fleuron-row__line"></span>
+          <span class="at-fleuron-row__label">Plates II through {totalRoman}</span>
+          <span class="at-fleuron-row__line"></span>
+          <svg viewBox="0 0 40 40" class="at-fleuron-row__icon"><use href="#at-fleuron" /></svg>
+        </div>
+
+        {/* Six smaller plates */}
+        <section class="at-plates" aria-label="Plates II through VII">
+          <h2 class="at-vh">Plates II through {totalRoman}</h2>
+          {restOrdered.map((s, i) => (
+            <div class="at-plates__cell">
+              <AtlasPlate
+                section={s}
+                num={roman[i + 2] ?? String(i + 2)}
+                total={totalRoman}
+                lat={(coords[s.slug]?.lat) ?? "45 deg N"}
+                lon={(coords[s.slug]?.lon) ?? "75 deg W"}
+              />
+            </div>
+          ))}
+        </section>
+
+        {/* Supplementary plates (deep dives) */}
+        <section class="at-dds" aria-labelledby="at-dds-h">
+          <header class="at-dds__head">
+            <p class="at-dds__key">Supplement</p>
+            <h2 id="at-dds-h" class="at-dds__title">
+              Supplementary plates
+            </h2>
+            <p class="at-dds__deck">
+              <em>
+                Deep-dive engravings under revision at the research desk,
+                catalogued by editorial pillar and home plate.
+              </em>
+            </p>
+          </header>
+          <ol class="at-dds__list" role="list">
+            {ddOrdered.map((dd, i) => (
+              <li class="at-dds__cell">
+                <AtlasDeepDivePlate
+                  item={dd}
+                  num={roman[i + 1] ?? String(i + 1)}
+                  total={roman[ddTotal] ?? String(ddTotal)}
+                />
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <AtlasColophon
+          publication={site.name}
+          shortName={site.shortName}
+          description={site.description}
+          url={site.url}
+          locale={site.locale}
+          produced={produced}
+          nextLabel={nextRelease.label}
+          nextDate={nextRelease.date}
+          nextAgency={nextRelease.agency}
+        />
+      </main>
+    </div>
+
+    <style>
+      .at-shell {
+        position: relative;
+        z-index: 2;
+        max-width: var(--at-page-max);
+        margin: 0 auto;
+        padding: 28px var(--at-page-pad) 48px;
+        border-left: 0.4px solid var(--at-rule);
+        border-right: 0.4px solid var(--at-rule);
+      }
+      @media (min-width: 720px) {
+        .at-shell {
+          padding-top: 36px;
+          border-left-width: 0.6px;
+          border-right-width: 0.6px;
+        }
+      }
+
+      /* Decorative graticule corners. Pure ornament, hidden on mobile to
+         keep the page from feeling cluttered at small widths. */
+      .at-corner {
+        position: absolute;
+        font-family: var(--at-mono);
+        font-size: 9.5px;
+        line-height: 1.2;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--at-ink-faint);
+        display: none;
+        gap: 4px;
+        flex-direction: column;
+      }
+      @media (min-width: 900px) {
+        .at-corner { display: flex; }
+      }
+      .at-corner--tl { top: 8px; left: 8px; }
+      .at-corner--tr { top: 8px; right: 8px; text-align: right; }
+      .at-corner--bl { bottom: 8px; left: 8px; }
+      .at-corner--br { bottom: 8px; right: 8px; text-align: right; }
+      .at-corner__lon { color: var(--at-ink-mute); }
+
+      /* Top edition rail */
+      .at-toprail {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 28px;
+        align-items: baseline;
+        padding-block: 0 16px;
+        font-family: var(--at-mono);
+        font-size: 10.5px;
+        line-height: 1.2;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--at-ink-mute);
+        border-bottom: 0.5px solid var(--at-rule);
+      }
+      .at-toprail__cell { margin: 0; }
+      .at-toprail__cell--right { margin-left: auto; }
+      .at-toprail__key {
+        color: var(--at-ink-faint);
+        margin-right: 6px;
+      }
+      .at-toprail__val { color: var(--at-ink); }
+      .at-toprail__val--accent {
+        color: var(--at-crimson);
+        font-weight: 600;
+      }
+      .at-toprail__back {
+        color: var(--at-ink);
+        text-decoration: none;
+        border-bottom: 0.6px solid var(--at-ink);
+        padding-bottom: 1px;
+      }
+      .at-toprail__back:hover {
+        color: var(--at-crimson);
+        border-bottom-color: var(--at-crimson);
+      }
+      .at-toprail__back:focus-visible {
+        outline: 2px solid var(--at-crimson);
+        outline-offset: 3px;
+      }
+
+      .at-main {
+        padding-block: 16px 0;
+      }
+
+      /* Contents */
+      .at-contents {
+        padding-block: 24px 32px;
+      }
+      .at-contents__head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 16px;
+        padding-bottom: 12px;
+        border-bottom: 0.6px solid var(--at-ink);
+      }
+      .at-contents__key {
+        margin: 0;
+        font-family: var(--at-display);
+        font-weight: 500;
+        font-size: 16px;
+        font-variant: small-caps;
+        letter-spacing: 0.08em;
+        text-transform: lowercase;
+        color: var(--at-ink);
+      }
+      .at-contents__count {
+        margin: 0;
+        font-family: var(--at-mono);
+        font-size: 10.5px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--at-ink-mute);
+      }
+      .at-contents__list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      @media (min-width: 720px) {
+        .at-contents__list {
+          grid-template-columns: 1fr 1fr;
+          column-gap: 36px;
+        }
+      }
+      .at-contents__item {
+        border-bottom: 0.4px dashed var(--at-rule);
+      }
+      .at-contents__link {
+        display: grid;
+        grid-template-columns: 36px auto 1fr auto;
+        align-items: baseline;
+        gap: 10px;
+        padding-block: 8px;
+        text-decoration: none;
+        color: var(--at-ink);
+      }
+      .at-contents__link:hover .at-contents__label {
+        color: var(--at-crimson);
+      }
+      .at-contents__link:focus-visible {
+        outline: 2px solid var(--at-crimson);
+        outline-offset: 2px;
+      }
+      .at-contents__num {
+        font-family: var(--at-display);
+        font-style: italic;
+        font-weight: 500;
+        font-size: 16px;
+        color: var(--at-ink-mute);
+      }
+      .at-contents__label {
+        font-family: var(--at-display);
+        font-weight: 500;
+        font-size: 18px;
+        font-variant: small-caps;
+        text-transform: lowercase;
+        letter-spacing: 0.02em;
+        color: var(--at-ink);
+      }
+      .at-contents__leader {
+        border-bottom: 0.4px dotted var(--at-rule);
+        height: 0;
+        align-self: end;
+        margin-bottom: 6px;
+      }
+      .at-contents__cad {
+        font-family: var(--at-mono);
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--at-ink-mute);
+      }
+
+      /* Hero plate wrapper */
+      .at-hero-section {
+        padding-block: 14px 12px;
+      }
+
+      /* Inter-section fleuron rule */
+      .at-fleuron-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding-block: 32px 24px;
+      }
+      .at-fleuron-row__icon {
+        width: 24px;
+        height: 24px;
+        flex: 0 0 auto;
+      }
+      .at-fleuron-row__line {
+        flex: 1 1 auto;
+        height: 0;
+        border-top: 0.5px solid var(--at-rule);
+      }
+      .at-fleuron-row__label {
+        font-family: var(--at-display);
+        font-style: italic;
+        font-size: 14px;
+        font-variant: small-caps;
+        letter-spacing: 0.08em;
+        color: var(--at-ink);
+        text-transform: lowercase;
+      }
+
+      /* Plates grid */
+      .at-plates {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+      @media (min-width: 700px) {
+        .at-plates {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 18px;
+        }
+      }
+      @media (min-width: 1100px) {
+        .at-plates {
+          grid-template-columns: repeat(3, 1fr);
+          gap: 22px;
+        }
+      }
+      .at-plates__cell {
+        min-width: 0;
+        display: flex;
+      }
+      .at-plates__cell > * {
+        flex: 1 1 auto;
+      }
+
+      /* Deep dives ("Supplementary plates") */
+      .at-dds {
+        padding-block: 48px 24px;
+      }
+      .at-dds__head {
+        padding-bottom: 24px;
+        border-top: 1px solid var(--at-ink);
+        padding-top: 18px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      @media (min-width: 800px) {
+        .at-dds__head {
+          grid-template-columns: 2fr 5fr 5fr;
+          align-items: end;
+          gap: 24px;
+        }
+      }
+      .at-dds__key {
+        margin: 0;
+        font-family: var(--at-mono);
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--at-ink-mute);
+      }
+      .at-dds__title {
+        margin: 0;
+        font-family: var(--at-display);
+        font-weight: 500;
+        font-size: clamp(32px, 5vw, 56px);
+        line-height: 1;
+        letter-spacing: 0.005em;
+        color: var(--at-ink);
+        font-variant: small-caps;
+        text-transform: lowercase;
+      }
+      .at-dds__deck {
+        margin: 0;
+        font-family: var(--at-body);
+        font-size: 15px;
+        line-height: 1.5;
+        color: var(--at-ink);
+        max-width: 50ch;
+      }
+      .at-dds__list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      @media (min-width: 800px) {
+        .at-dds__list {
+          grid-template-columns: repeat(3, 1fr);
+          gap: 18px;
+        }
+      }
+      .at-dds__cell {
+        min-width: 0;
+        display: flex;
+      }
+      .at-dds__cell > * { flex: 1 1 auto; }
+    </style>
+  </body>
+</html>

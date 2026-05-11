@@ -1,0 +1,243 @@
+---
+/*
+ * WarningLight - a single dashboard "warning light" entry for the
+ * deep-dive cluster. Each light is a small icon (drawn inline as SVG)
+ * sitting inside a brushed-metal pill, with a status tag indicating
+ * the deep-dive's research/drafted/shipped state.
+ *
+ * Icons match the section semantics (housing = house, policy = bank,
+ * labour = figure). They glow faintly via the section's status color:
+ *   research -> amber backlight
+ *   drafted  -> ivory
+ *   shipped  -> signal-green
+ *
+ * The component is a link to the section page.
+ */
+
+import type { DeepDive, Section } from "../../../data/sections";
+
+interface Props {
+  item: DeepDive;
+  section: Section;
+}
+
+const { item, section } = Astro.props;
+
+const statusTone: Record<DeepDive["status"], "amber" | "ivory" | "green"> = {
+  research: "amber",
+  drafted: "ivory",
+  shipped: "green",
+};
+const tone = statusTone[item.status];
+
+const statusVerb: Record<DeepDive["status"], string> = {
+  research: "In Research",
+  drafted: "Drafted",
+  shipped: "Shipped",
+};
+
+// Icon picker - simple geometric glyphs per section. Drawn in a 24x24
+// viewBox, single-color stroke.
+function iconPaths(slug: string) {
+  switch (slug) {
+    case "housing":
+      // House outline
+      return (
+        `M 4 12 L 12 5 L 20 12 ` +
+        `M 6 11 L 6 20 L 18 20 L 18 11 ` +
+        `M 10 20 L 10 14 L 14 14 L 14 20`
+      );
+    case "policy":
+      // Pillar / bank colonnade
+      return (
+        `M 3 9 L 21 9 ` +
+        `M 4 9 L 4 18 ` +
+        `M 9 9 L 9 18 ` +
+        `M 15 9 L 15 18 ` +
+        `M 20 9 L 20 18 ` +
+        `M 2 20 L 22 20 ` +
+        `M 12 5 L 3 9 L 21 9 Z`
+      );
+    case "labour":
+      // Figure
+      return (
+        `M 12 4 m -3 0 a 3 3 0 1 0 6 0 a 3 3 0 1 0 -6 0 ` +
+        `M 7 21 L 7 14 L 9 12 L 15 12 L 17 14 L 17 21 ` +
+        `M 9 14 L 9 21 ` +
+        `M 15 14 L 15 21`
+      );
+    case "inflation":
+      // Up-arrow with horizontal target line
+      return (
+        `M 12 20 L 12 6 ` +
+        `M 7 11 L 12 6 L 17 11 ` +
+        `M 4 16 L 20 16`
+      );
+    case "gdp":
+      // Bar trend
+      return (
+        `M 4 20 L 4 14 ` +
+        `M 9 20 L 9 11 ` +
+        `M 14 20 L 14 7 ` +
+        `M 19 20 L 19 13 ` +
+        `M 4 20 L 19 20`
+      );
+    case "markets":
+      // Wave / oscillation
+      return (
+        `M 3 14 Q 7 6, 11 14 T 19 14 ` +
+        `M 21 14 L 19 14`
+      );
+    case "trade":
+      // Two arrows opposing (ship / exchange)
+      return (
+        `M 4 9 L 20 9 ` +
+        `M 16 6 L 20 9 L 16 12 ` +
+        `M 20 16 L 4 16 ` +
+        `M 8 13 L 4 16 L 8 19`
+      );
+    default:
+      return `M 6 12 L 18 12`;
+  }
+}
+
+const path = iconPaths(section.slug);
+const href = item.href ?? `/${section.slug}/`;
+const ariaText = `${item.title}, ${section.label} deep dive, ${statusVerb[item.status]}, last updated ${item.lastUpdated}`;
+---
+
+<a class:list={["cl-warn", `cl-warn--${tone}`]} href={href} aria-label={ariaText}>
+  <span class="cl-warn__icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="22" height="22">
+      <path
+        d={path}
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+  </span>
+  <span class="cl-warn__body">
+    <span class="cl-warn__section">{section.label}</span>
+    <span class="cl-warn__title">{item.title}</span>
+    <span class="cl-warn__status">
+      <span class="cl-warn__dot" aria-hidden="true"></span>
+      {statusVerb[item.status]} · {item.lastUpdated}
+    </span>
+  </span>
+</a>
+
+<style>
+  .cl-warn {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+    background:
+      linear-gradient(180deg, #1A1D23, #14161B);
+    border: 1px solid #2A2E36;
+    border-radius: 6px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.05),
+      0 4px 12px rgba(0, 0, 0, 0.4);
+    text-decoration: none;
+    color: #F4ECCE;
+    transition: border-color 160ms ease-out, transform 160ms ease-out, box-shadow 160ms ease-out;
+    min-height: 78px;
+  }
+  .cl-warn:hover,
+  .cl-warn:focus-visible {
+    outline: none;
+    transform: translateY(-1px);
+  }
+  .cl-warn--amber:hover,  .cl-warn--amber:focus-visible  { border-color: #D4831A; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 6px 18px rgba(212, 131, 26, 0.18); }
+  .cl-warn--ivory:hover,  .cl-warn--ivory:focus-visible  { border-color: #F4ECCE; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 6px 18px rgba(244, 236, 206, 0.14); }
+  .cl-warn--green:hover,  .cl-warn--green:focus-visible  { border-color: #3FA34D; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 6px 18px rgba(63, 163, 77, 0.18); }
+
+  .cl-warn:focus-visible {
+    outline: 2px solid #D4831A;
+    outline-offset: 3px;
+  }
+
+  .cl-warn__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    background:
+      radial-gradient(circle at 35% 30%, #2E333D, #14161B 75%);
+    border: 1px solid #3A3F4A;
+    border-radius: 50%;
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,0.04),
+      inset 0 0 10px rgba(0,0,0,0.6);
+  }
+  .cl-warn--amber .cl-warn__icon {
+    color: #D4831A;
+    filter: drop-shadow(0 0 5px rgba(212, 131, 26, 0.5));
+  }
+  .cl-warn--ivory .cl-warn__icon {
+    color: #F4ECCE;
+    filter: drop-shadow(0 0 5px rgba(244, 236, 206, 0.4));
+  }
+  .cl-warn--green .cl-warn__icon {
+    color: #3FA34D;
+    filter: drop-shadow(0 0 5px rgba(63, 163, 77, 0.5));
+  }
+
+  .cl-warn__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .cl-warn__section {
+    font-family: "Saira Condensed", sans-serif;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: #9099A8;
+  }
+  .cl-warn__title {
+    font-family: "Saira Condensed", sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.25;
+    color: #F4ECCE;
+    letter-spacing: 0.01em;
+  }
+  .cl-warn__status {
+    margin-top: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: "Saira Condensed", sans-serif;
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #9099A8;
+  }
+  .cl-warn__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .cl-warn--amber .cl-warn__dot { background: #D4831A; box-shadow: 0 0 6px rgba(212, 131, 26, 0.6); animation: cl-pulse 2s ease-in-out infinite; }
+  .cl-warn--ivory .cl-warn__dot { background: #F4ECCE; box-shadow: 0 0 6px rgba(244, 236, 206, 0.5); }
+  .cl-warn--green .cl-warn__dot { background: #3FA34D; box-shadow: 0 0 6px rgba(63, 163, 77, 0.6); }
+
+  @keyframes cl-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.45; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cl-warn--amber .cl-warn__dot { animation: none; }
+  }
+</style>

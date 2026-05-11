@@ -1,0 +1,168 @@
+---
+/*
+ * ActiveFlights - the "currently airborne" panel.
+ *
+ * Surfaces the in-progress deep dives as if they were flights on the
+ * radar's traffic strip. Each row carries a flight number (pillar code),
+ * call-sign tail (section), title (route), and status (flight phase).
+ */
+
+import type { DeepDive, Section } from "../../../data/sections";
+
+interface Props {
+  flights: { dive: DeepDive; section: Section; tail: string; flightNo: string }[];
+}
+
+const { flights } = Astro.props;
+
+const phaseLabel: Record<DeepDive["status"], string> = {
+  research: "CLIMB",
+  drafted: "CRUISE",
+  shipped: "LANDED",
+};
+const phaseState: Record<DeepDive["status"], "pos" | "neutral" | "alert"> = {
+  research: "neutral",
+  drafted: "neutral",
+  shipped: "pos",
+};
+---
+
+<section class="rd-flights" aria-labelledby="rd-flights-title">
+  <div class="rd-flights__head">
+    <p class="rd-flights__kicker">ACTIVE FLIGHTS</p>
+    <h2 id="rd-flights-title" class="rd-flights__title">DEEP DIVES IN PROGRESS</h2>
+  </div>
+  <div class="rd-flights__strip">
+    <div class="rd-flights__col-head">
+      <span>FLT</span>
+      <span>TAIL</span>
+      <span>ROUTE</span>
+      <span>PHASE</span>
+    </div>
+    <ul role="list" class="rd-flights__list">
+      {flights.map((f) => (
+        <li class="rd-flight">
+          <span class="rd-flight__no">{f.flightNo}</span>
+          <span class="rd-flight__tail">{f.tail}</span>
+          <span class="rd-flight__route">{f.dive.title}</span>
+          <span class={`rd-flight__phase rd-flight__phase--${phaseState[f.dive.status]}`}>
+            {phaseLabel[f.dive.status]}
+          </span>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>
+
+<style>
+  .rd-flights {
+    border: 1px solid var(--rd-rule);
+    background: linear-gradient(180deg, rgba(59, 210, 90, 0.04), rgba(11, 16, 13, 0.6));
+    padding: 14px 16px 14px;
+    position: relative;
+  }
+  .rd-flights::before,
+  .rd-flights::after {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 1px solid var(--rd-green);
+    opacity: 0.6;
+  }
+  .rd-flights::before {
+    top: -1px; left: -1px;
+    border-right: none;
+    border-bottom: none;
+  }
+  .rd-flights::after {
+    bottom: -1px; right: -1px;
+    border-left: none;
+    border-top: none;
+  }
+  .rd-flights__head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--rd-rule);
+    margin-bottom: 10px;
+  }
+  .rd-flights__kicker {
+    margin: 0;
+    font-family: var(--rd-font-mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--rd-green-dim);
+  }
+  .rd-flights__title {
+    margin: 0;
+    font-family: var(--rd-font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--rd-green);
+  }
+  .rd-flights__col-head,
+  .rd-flight {
+    display: grid;
+    grid-template-columns: 56px 80px 1fr 78px;
+    gap: 10px;
+    align-items: baseline;
+    font-family: var(--rd-font-mono);
+    font-size: 12px;
+  }
+  .rd-flights__col-head {
+    color: var(--rd-ink-muted);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding-bottom: 4px;
+    border-bottom: 1px dotted var(--rd-rule);
+    margin-bottom: 6px;
+    font-size: 11px;
+  }
+  .rd-flights__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .rd-flight {
+    padding: 4px 0;
+    border-bottom: 1px dotted rgba(59, 210, 90, 0.12);
+  }
+  .rd-flight:last-child {
+    border-bottom: none;
+  }
+  .rd-flight__no {
+    color: var(--rd-green);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    font-size: 13px;
+  }
+  .rd-flight__tail {
+    color: var(--rd-cyan);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    font-size: 13px;
+  }
+  .rd-flight__route {
+    color: var(--rd-ink);
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  .rd-flight__phase {
+    letter-spacing: 0.12em;
+    font-weight: 600;
+    font-size: 12px;
+    text-align: right;
+  }
+  .rd-flight__phase--pos { color: var(--rd-green); }
+  .rd-flight__phase--neutral { color: var(--rd-cyan); }
+  .rd-flight__phase--alert { color: var(--rd-red); }
+</style>

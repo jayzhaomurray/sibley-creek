@@ -147,23 +147,19 @@ export interface Section {
    */
   heroKicker?: string;
   /**
-   * Homepage compact (index) tile's editorial line. One sentence, ~12-16
-   * words, rendered as body-sm Inter weight 500 and clamped to 2 lines on
-   * the tile. This is the single editorial signal the tile carries beyond
-   * the value/delta callout — it names what moved and why in plain prose,
-   * NOT a headline question. Distinct from `headlineQuestion` (which lives
-   * on the hero and section page) and from `blurb.body` (which is the
-   * longer event note).
+   * Homepage compact (index) tile's editorial line.
    *
-   * Authored by writer + style-editor. v1 carries placeholders modelled on
-   * the freshest print per section so the layout reads with realistic copy
-   * lengths; real lines arrive in a subsequent pass.
+   * STATUS (2026-05-11): NOT CURRENTLY READ. Path C reversal removed the
+   * editorial-line slot from CompactTile; the tile now renders the load-
+   * bearing print's `indicator` field (e.g. "Headline CPI, y/y") in that
+   * slot instead of a sentence. The field is retained on the Section type
+   * so the data shape stays stable (and so writer/style-editor work
+   * already done isn't lost) but is ignored at render. If a later
+   * editorial direction reinstates a tile-level sentence, this is the
+   * field to wire back in.
    *
-   * Path C tile rebuild (2026-05-11): introduced this field as part of the
-   * new index-tile anatomy. The previous compact tile carried only the
-   * indicator + value + sparkline; the tileLine sits between the eyebrow
-   * row and the mini-chart so the tile reads as "section, what moved,
-   * picture, callout" top-to-bottom.
+   * Historical: one sentence, ~12-16 words, body-sm Inter weight 500,
+   * clamped to 2 lines. Authored by writer + style-editor.
    */
   tileLine?: string;
 }

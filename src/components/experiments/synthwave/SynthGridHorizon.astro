@@ -1,0 +1,166 @@
+---
+/*
+ * SynthGridHorizon - Lane G identity moment.
+ *
+ * Pure CSS perspective grid that recedes into a vanishing point at the
+ * top of its container. Uses two layered repeating linear gradients
+ * (vertical + horizontal) with a CSS 3D transform to fake an Outrun-
+ * style horizon plane. A central sun disc sits above the horizon line.
+ *
+ * Pointer events are off; no JS. Sized by its parent.
+ */
+
+interface Props {
+  /** Optional aria-label for the figure container. */
+  label?: string;
+}
+const { label = "Decorative synthwave grid horizon" } = Astro.props;
+---
+<div class="shor" role="img" aria-label={label}>
+  <div class="shor__sky" aria-hidden="true">
+    <div class="shor__sun" aria-hidden="true">
+      {Array.from({ length: 7 }).map((_, i) => (
+        <span class="shor__sun-band" style={`top: ${30 + i * 10}%`} aria-hidden="true"></span>
+      ))}
+    </div>
+    <p class="shor__caption" aria-hidden="true">
+      <span class="shor__caption-k">// HORIZON</span>
+      <span class="shor__caption-v">vanishing point @ NORTH 49.000</span>
+    </p>
+  </div>
+  <div class="shor__plane" aria-hidden="true">
+    <div class="shor__grid"></div>
+  </div>
+  <div class="shor__line" aria-hidden="true"></div>
+</div>
+
+<style>
+  .shor {
+    position: relative;
+    width: 100%;
+    height: 280px;
+    overflow: hidden;
+    border-top: 1px solid rgba(255, 46, 151, 0.5);
+    border-bottom: 1px solid rgba(0, 229, 255, 0.35);
+    background:
+      radial-gradient(ellipse 90% 100% at 50% 100%, rgba(255, 46, 151, 0.1), transparent 60%),
+      radial-gradient(ellipse 60% 80% at 50% 30%, rgba(255, 46, 151, 0.18), transparent 60%),
+      linear-gradient(180deg, #1a052c 0%, #0a0414 60%, #0a0414 100%);
+    box-shadow: 0 0 24px rgba(255, 46, 151, 0.18) inset;
+  }
+
+  /* Upper half - sun + sky */
+  .shor__sky {
+    position: absolute;
+    inset: 0 0 50% 0;
+    overflow: hidden;
+  }
+
+  /* The sun disc, with horizontal banding cut by absolutely positioned
+     strips. */
+  .shor__sun {
+    position: absolute;
+    left: 50%;
+    bottom: -10%;
+    width: 180px;
+    height: 180px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: linear-gradient(180deg, #FFB36B 0%, #FF6B35 35%, #FF2E97 75%, #B11C6C 100%);
+    box-shadow:
+      0 0 40px rgba(255, 107, 53, 0.55),
+      0 0 80px rgba(255, 46, 151, 0.4),
+      0 0 120px rgba(255, 46, 151, 0.25);
+  }
+  .shor__sun-band {
+    position: absolute;
+    left: -2%;
+    right: -2%;
+    height: 3px;
+    background: #0a0414;
+    pointer-events: none;
+  }
+  .shor__sun-band:nth-child(1) { height: 2px; }
+  .shor__sun-band:nth-child(2) { height: 2px; }
+  .shor__sun-band:nth-child(3) { height: 3px; }
+  .shor__sun-band:nth-child(4) { height: 3px; }
+  .shor__sun-band:nth-child(5) { height: 4px; }
+  .shor__sun-band:nth-child(6) { height: 5px; }
+  .shor__sun-band:nth-child(7) { height: 6px; }
+
+  .shor__caption {
+    position: absolute;
+    top: 14px;
+    left: 18px;
+    margin: 0;
+    font-family: var(--sy-font-crt);
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    color: var(--sy-cyan);
+    text-shadow: 0 0 6px rgba(0, 229, 255, 0.5);
+    display: flex;
+    gap: 10px;
+  }
+  .shor__caption-k { color: var(--sy-acid); }
+  .shor__caption-v { color: var(--sy-ink-muted); }
+
+  /* Horizon line - the seam between sky and plane */
+  .shor__line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 2px;
+    transform: translateY(-1px);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--sy-magenta) 20%,
+      var(--sy-cyan) 50%,
+      var(--sy-magenta) 80%,
+      transparent 100%
+    );
+    box-shadow:
+      0 0 10px rgba(255, 46, 151, 0.6),
+      0 0 22px rgba(0, 229, 255, 0.4);
+    pointer-events: none;
+  }
+
+  /* Lower half - the perspective plane */
+  .shor__plane {
+    position: absolute;
+    inset: 50% 0 0 0;
+    perspective: 320px;
+    perspective-origin: 50% 0%;
+    overflow: hidden;
+  }
+  .shor__grid {
+    position: absolute;
+    inset: 0;
+    transform: rotateX(62deg);
+    transform-origin: 50% 0%;
+    /* The two-direction grid. Magenta vertical lines, cyan horizontal,
+       both heavier near the bottom (closer) due to perspective scaling. */
+    background-image:
+      linear-gradient(to right, rgba(255, 46, 151, 0.55) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 229, 255, 0.45) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: 0 0;
+    box-shadow: 0 0 24px rgba(255, 46, 151, 0.25);
+    animation: sy-grid-scroll 8s linear infinite;
+  }
+
+  @keyframes sy-grid-scroll {
+    0% { background-position: 0 0; }
+    100% { background-position: 0 40px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shor__grid { animation: none; }
+  }
+
+  @media (max-width: 720px) {
+    .shor { height: 200px; }
+    .shor__sun { width: 130px; height: 130px; }
+  }
+</style>

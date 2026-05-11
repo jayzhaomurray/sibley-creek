@@ -1,0 +1,609 @@
+---
+/*
+ * Lane M — Subway / Transit Map splash.
+ *
+ * The homepage is a Massimo-Vignelli-NYC-Subway / Harry-Beck-London-Tube
+ * schematic of the Canadian macro dashboard. Each section is a line at a
+ * distinct angle and colour, each indicator is a station on its line, and
+ * interchange stations sit where lines cross editorially (Policy x
+ * Housing = mortgage renewal wall, etc.). The map is the page; a legend
+ * sits alongside it; "currently in service" deep-dive entries land below.
+ *
+ * Self-contained: this page does NOT use BaseLayout, does NOT import the
+ * production tokens, and only uses components from
+ * src/components/experiments/transit/. Five external fonts via Google
+ * Fonts. Zero JS. noindex.
+ *
+ * Palette (transit-grade, eight tokens):
+ *   cream    #F7F1E0
+ *   ink      #1A1A1A
+ *   gdp      #1976D2   blue   horizontal trunk, upper-middle
+ *   inflation #E53935  red    horizontal trunk, top
+ *   labour   #43A047   green  vertical trunk, central
+ *   housing  #FB8C00   orange horizontal trunk, lower
+ *   policy   #8E24AA   purple diagonal NW->SE
+ *   markets  #00838F   teal   diagonal SW->NE
+ *   trade    #6D4C41   brown  vertical trunk, right
+ *
+ * Typography (transit-grade sans, Google Fonts only):
+ *   Manrope    display / station names / wordmark, 800 weight
+ *   Work Sans  body
+ *   Public Sans subhead (light caps work) — supplementary if needed
+ *   JetBrains Mono numerical values, asOf stamps, build metadata
+ *
+ * (Inter explicitly avoided per brief.)
+ *
+ * Motion: none on the map. Tiny CSS-only focus glow on the active station
+ * via the SVG filter. Respects prefers-reduced-motion via no animations.
+ */
+
+import { sections, deepDives, nextRelease, site, type Section } from "../../data/sections";
+
+import TransitMasthead from "../../components/experiments/transit/TransitMasthead.astro";
+import TransitMap from "../../components/experiments/transit/TransitMap.astro";
+import TransitLegend from "../../components/experiments/transit/TransitLegend.astro";
+import TransitDeepDive from "../../components/experiments/transit/TransitDeepDive.astro";
+
+// Stamps -----------------------------------------------------------------
+const now = new Date();
+const editionDate = now
+  .toLocaleDateString("en-CA", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  })
+  .toUpperCase();
+const buildStamp =
+  `${now.getUTCFullYear()}.` +
+  `${String(now.getUTCMonth() + 1).padStart(2, "0")}.` +
+  `${String(now.getUTCDate()).padStart(2, "0")}-` +
+  `${String(now.getUTCHours()).padStart(2, "0")}` +
+  `${String(now.getUTCMinutes()).padStart(2, "0")}Z`;
+
+// Service hours / system tag — keep the transit-system idiom committed
+const systemTag = "MRD METRO . LINE STATUS LIVE";
+const laneLabel = "M / TRANSIT";
+
+const pageTitle = `${site.shortName} // METRO // ${editionDate}`;
+const pageDesc =
+  "Experimental Vignelli-style subway-map splash for the Macro Research Department. Each macro section is a transit line, each indicator a station, each interchange an editorial cross-reference.";
+
+// Deep dives: keep canonical order (Pillar A, B, E from the registry)
+const ddOrdered = deepDives.slice(0, 3);
+const sectionBySlug = (slug: Section["slug"]) =>
+  sections.find((s) => s.slug === slug)!;
+---
+
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta property="og:locale" content="en_CA" />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#F7F1E0" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Work+Sans:wght@300;400;500;600&family=Public+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    />
+  </head>
+  <body>
+    <a class="tx-skip" href="#tx-map">Skip to map</a>
+
+    <div class="tx-page">
+      <TransitMasthead
+        shortName={site.shortName}
+        fullName={site.name}
+        editionDate={editionDate}
+        buildStamp={buildStamp}
+        laneLabel={laneLabel}
+        systemTag={systemTag}
+      />
+
+      <main id="tx-main" class="tx-main">
+
+        {/* ----- Service notice strip ------------------------------------ */}
+        <div class="tx-notice" role="region" aria-label="Service notice">
+          <div class="tx-notice__cell tx-notice__cell--head">
+            <span class="tx-notice__k">NEXT ARRIVAL</span>
+            <span class="tx-notice__v">{nextRelease.label}</span>
+          </div>
+          <div class="tx-notice__cell">
+            <span class="tx-notice__k">PLATFORM</span>
+            <span class="tx-notice__v">{nextRelease.agency}</span>
+          </div>
+          <div class="tx-notice__cell">
+            <span class="tx-notice__k">SCHEDULED</span>
+            <span class="tx-notice__v">{nextRelease.date}</span>
+          </div>
+          <div class="tx-notice__cell tx-notice__cell--ok">
+            <span class="tx-notice__k">SYSTEM</span>
+            <span class="tx-notice__v">
+              <span class="tx-notice__dot" aria-hidden="true"></span>
+              All lines reporting
+            </span>
+          </div>
+        </div>
+
+        {/* ----- THE MAP -------------------------------------------------- */}
+        <section id="tx-map" class="tx-mapwrap" aria-labelledby="tx-map-h">
+          <header class="tx-mapwrap__head">
+            <p class="tx-mapwrap__kicker">Diagram 01 . The system</p>
+            <h1 id="tx-map-h" class="tx-mapwrap__title">
+              Macro Research Department <span class="tx-mapwrap__title-mark">M</span>etro
+            </h1>
+            <p class="tx-mapwrap__deck">
+              A schematic of the Canadian macro reading. Lines are sections, stations are indicators, and
+              interchanges are the editorial joints where one reading bears on another.
+            </p>
+          </header>
+
+          <div class="tx-mapwrap__grid">
+            <div class="tx-mapwrap__map">
+              <TransitMap />
+            </div>
+            <div class="tx-mapwrap__legend">
+              <TransitLegend />
+            </div>
+          </div>
+        </section>
+
+        {/* ----- Deep dives "in service" --------------------------------- */}
+        <section class="tx-dd-strip" aria-labelledby="tx-dd-h">
+          <header class="tx-dd-strip__head">
+            <p class="tx-dd-strip__kicker">Diagram 02 . Currently in service</p>
+            <h2 id="tx-dd-h" class="tx-dd-strip__title">Deep dives running today</h2>
+            <p class="tx-dd-strip__deck">
+              Three long-form lines currently in service. Status follows the line; an "in service" pill names where the train is now.
+            </p>
+          </header>
+
+          <ul role="list" class="tx-dd-strip__list">
+            {ddOrdered.map((dd) => (
+              <li>
+                <TransitDeepDive item={dd} section={sectionBySlug(dd.section)} />
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* ----- Footer / sections index --------------------------------- */}
+        <nav class="tx-nav" aria-label="Sections">
+          <p class="tx-nav__label">Exit to platform</p>
+          <ul role="list" class="tx-nav__list">
+            <li><a href="/">Home</a></li>
+            {sections.map((s) => (
+              <li class={`tx-nav__item tx-nav__item--${s.slug}`}>
+                <span class="tx-nav__dot" aria-hidden="true"></span>
+                <a href={`/${s.slug}/`}>{s.label}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </main>
+
+      <footer class="tx-foot" role="contentinfo">
+        <div class="tx-foot__bar" aria-hidden="true">
+          <span style="background: var(--tx-line-gdp)"></span>
+          <span style="background: var(--tx-line-inflation)"></span>
+          <span style="background: var(--tx-line-labour)"></span>
+          <span style="background: var(--tx-line-housing)"></span>
+          <span style="background: var(--tx-line-policy)"></span>
+          <span style="background: var(--tx-line-markets)"></span>
+          <span style="background: var(--tx-line-trade)"></span>
+        </div>
+        <div class="tx-foot__row">
+          <p class="tx-foot__sig">{site.name} / Lane M / Transit</p>
+          <p class="tx-foot__meta">
+            <span class="tx-foot__k">BUILD</span> {buildStamp}
+            <span class="tx-foot__sep" aria-hidden="true">.</span>
+            <span class="tx-foot__k">EDITION</span> {editionDate}
+          </p>
+          <p class="tx-foot__copy">
+            (c) {now.getFullYear()} {site.shortName}. Diagram inspired by Vignelli, Beck, and the
+            schematic-cartography tradition. Data attributed at point of use.
+          </p>
+        </div>
+      </footer>
+    </div>
+
+    <style is:global>
+      /* ===========================================================
+       * Lane M — Transit. Page-scoped tokens + reset.
+       * Prefix: tx-
+       * =========================================================== */
+      :root {
+        --tx-cream:  #F7F1E0;
+        --tx-cream-2: #EFE7D2;  /* darker cream for cells; derived once */
+        --tx-ink:    #1A1A1A;
+        --tx-grid:   rgba(26, 26, 26, 0.07);
+
+        --tx-line-gdp:       #1976D2;
+        --tx-line-inflation: #E53935;
+        --tx-line-labour:    #43A047;
+        --tx-line-housing:   #FB8C00;
+        --tx-line-policy:    #8E24AA;
+        --tx-line-markets:   #00838F;
+        --tx-line-trade:     #6D4C41;
+
+        --tx-display:  "Manrope", "Public Sans", "Work Sans", system-ui, sans-serif;
+        --tx-subhead:  "Public Sans", "Manrope", "Work Sans", system-ui, sans-serif;
+        --tx-body:     "Work Sans", "Public Sans", "Manrope", system-ui, sans-serif;
+        --tx-mono:     "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--tx-cream);
+        color: var(--tx-ink);
+        font-family: var(--tx-body);
+        font-weight: 400;
+        font-size: 16px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: "tnum", "lnum";
+      }
+      body {
+        min-height: 100vh;
+      }
+
+      a { color: inherit; }
+      ul, ol { list-style: none; margin: 0; padding: 0; }
+
+      ::selection {
+        background: var(--tx-ink);
+        color: var(--tx-cream);
+      }
+
+      .tx-skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        background: var(--tx-ink);
+        color: var(--tx-cream);
+        padding: 8px 12px;
+        font-family: var(--tx-subhead);
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        text-decoration: none;
+        z-index: 100;
+      }
+      .tx-skip:focus {
+        left: 16px;
+        top: 16px;
+        outline: 3px solid var(--tx-line-gdp);
+        outline-offset: 0;
+      }
+      :focus-visible {
+        outline: 3px solid var(--tx-line-gdp);
+        outline-offset: 2px;
+      }
+
+      .tx-page {
+        position: relative;
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 0 clamp(18px, 3.4vw, 48px);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      .tx-main {
+        flex: 1 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 36px;
+        padding-top: 22px;
+      }
+
+      /* ----- Service notice -------------------------------------- */
+      .tx-notice {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0;
+        border: 2px solid var(--tx-ink);
+        background: var(--tx-cream);
+      }
+      @media (min-width: 720px) {
+        .tx-notice { grid-template-columns: 1.6fr 1fr 1fr 1.2fr; }
+      }
+      .tx-notice__cell {
+        padding: 12px 16px;
+        border-right: 2px solid var(--tx-ink);
+        font-family: var(--tx-mono);
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .tx-notice__cell:last-child { border-right: 0; }
+      @media (max-width: 719px) {
+        .tx-notice__cell { border-right: 0; border-bottom: 2px solid var(--tx-ink); }
+        .tx-notice__cell:last-child { border-bottom: 0; }
+      }
+      .tx-notice__cell--head {
+        background: var(--tx-ink);
+        color: var(--tx-cream);
+      }
+      .tx-notice__cell--ok {
+        background: var(--tx-line-labour);
+        color: var(--tx-cream);
+      }
+      .tx-notice__k {
+        font-size: 9.5px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        font-weight: 700;
+        opacity: 0.75;
+      }
+      .tx-notice__v {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        font-variant-numeric: tabular-nums;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .tx-notice__dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--tx-cream);
+        box-shadow: 0 0 0 2px rgba(247, 241, 224, 0.5);
+      }
+
+      /* ----- Map wrapper ----------------------------------------- */
+      .tx-mapwrap__head {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding-bottom: 14px;
+        border-bottom: 2px solid var(--tx-ink);
+        margin-bottom: 18px;
+      }
+      .tx-mapwrap__kicker {
+        margin: 0;
+        font-family: var(--tx-mono);
+        font-size: 11px;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: var(--tx-line-inflation);
+        font-weight: 700;
+      }
+      .tx-mapwrap__title {
+        margin: 0;
+        font-family: var(--tx-display);
+        font-weight: 800;
+        font-size: clamp(34px, 5vw, 56px);
+        line-height: 1;
+        letter-spacing: -0.015em;
+        color: var(--tx-ink);
+      }
+      .tx-mapwrap__title-mark {
+        display: inline-block;
+        background: var(--tx-line-policy);
+        color: var(--tx-cream);
+        padding: 0 10px;
+        border-radius: 50%;
+        line-height: 1;
+        margin-left: 2px;
+        transform: translateY(-2px);
+      }
+      .tx-mapwrap__deck {
+        margin: 0;
+        font-family: var(--tx-body);
+        font-weight: 400;
+        font-size: 15px;
+        line-height: 1.5;
+        color: var(--tx-ink);
+        opacity: 0.82;
+        max-width: 70ch;
+      }
+
+      .tx-mapwrap__grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+      @media (min-width: 1080px) {
+        .tx-mapwrap__grid {
+          grid-template-columns: minmax(0, 1fr) 320px;
+          gap: 24px;
+          align-items: start;
+        }
+      }
+      .tx-mapwrap__map { min-width: 0; }
+
+      /* ----- Deep dives strip ----------------------------------- */
+      .tx-dd-strip__head {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid var(--tx-ink);
+        margin-bottom: 18px;
+      }
+      .tx-dd-strip__kicker {
+        margin: 0;
+        font-family: var(--tx-mono);
+        font-size: 11px;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: var(--tx-line-policy);
+        font-weight: 700;
+      }
+      .tx-dd-strip__title {
+        margin: 0;
+        font-family: var(--tx-display);
+        font-weight: 800;
+        font-size: clamp(24px, 3vw, 34px);
+        line-height: 1.1;
+        letter-spacing: -0.01em;
+        color: var(--tx-ink);
+      }
+      .tx-dd-strip__deck {
+        margin: 4px 0 0;
+        font-family: var(--tx-body);
+        font-size: 14px;
+        color: var(--tx-ink);
+        opacity: 0.78;
+        max-width: 64ch;
+      }
+      .tx-dd-strip__list {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      @media (min-width: 920px) {
+        .tx-dd-strip__list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      }
+
+      /* ----- Nav ------------------------------------------------- */
+      .tx-nav {
+        background: var(--tx-ink);
+        color: var(--tx-cream);
+        padding: 18px;
+        border: 2px solid var(--tx-ink);
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      @media (min-width: 820px) {
+        .tx-nav { grid-template-columns: auto 1fr; align-items: center; gap: 24px; }
+      }
+      .tx-nav__label {
+        margin: 0;
+        font-family: var(--tx-display);
+        font-weight: 800;
+        font-size: 14px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--tx-cream);
+      }
+      .tx-nav__list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+      }
+      .tx-nav__item {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .tx-nav__dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--dot, var(--tx-cream));
+        flex: 0 0 auto;
+      }
+      .tx-nav__item--gdp       .tx-nav__dot { background: var(--tx-line-gdp); }
+      .tx-nav__item--inflation .tx-nav__dot { background: var(--tx-line-inflation); }
+      .tx-nav__item--labour    .tx-nav__dot { background: var(--tx-line-labour); }
+      .tx-nav__item--housing   .tx-nav__dot { background: var(--tx-line-housing); }
+      .tx-nav__item--policy    .tx-nav__dot { background: var(--tx-line-policy); }
+      .tx-nav__item--markets   .tx-nav__dot { background: var(--tx-line-markets); }
+      .tx-nav__item--trade     .tx-nav__dot { background: var(--tx-line-trade); }
+
+      .tx-nav__list a {
+        color: var(--tx-cream);
+        text-decoration: none;
+        padding: 6px 10px;
+        font-family: var(--tx-subhead);
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        border: 2px solid transparent;
+        transition: border-color 100ms linear, background 100ms linear, color 100ms linear;
+      }
+      .tx-nav__list a:hover,
+      .tx-nav__list a:focus-visible {
+        border-color: var(--tx-cream);
+        background: var(--tx-cream);
+        color: var(--tx-ink);
+        outline: none;
+      }
+
+      /* ----- Footer ---------------------------------------------- */
+      .tx-foot {
+        margin-top: 48px;
+        padding-bottom: 28px;
+      }
+      .tx-foot__bar {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        height: 14px;
+        border-top: 2px solid var(--tx-ink);
+        border-bottom: 2px solid var(--tx-ink);
+      }
+      .tx-foot__bar > span { display: block; }
+      .tx-foot__row {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+        font-family: var(--tx-mono);
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        color: var(--tx-ink);
+      }
+      @media (min-width: 820px) {
+        .tx-foot__row { grid-template-columns: 1fr auto; align-items: baseline; gap: 8px 24px; }
+      }
+      .tx-foot__sig {
+        margin: 0;
+        font-family: var(--tx-display);
+        font-weight: 800;
+        font-size: 13px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      .tx-foot__meta {
+        margin: 0;
+        font-variant-numeric: tabular-nums;
+        text-transform: uppercase;
+      }
+      .tx-foot__k {
+        opacity: 0.5;
+        margin-right: 4px;
+      }
+      .tx-foot__sep {
+        margin: 0 8px;
+        color: var(--tx-line-inflation);
+        font-weight: 700;
+      }
+      .tx-foot__copy {
+        margin: 0;
+        grid-column: 1 / -1;
+        font-family: var(--tx-mono);
+        font-size: 10.5px;
+        color: var(--tx-ink);
+        opacity: 0.55;
+        padding-top: 6px;
+        border-top: 1px solid var(--tx-ink);
+        line-height: 1.6;
+      }
+    </style>
+  </body>
+</html>

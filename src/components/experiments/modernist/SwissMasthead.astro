@@ -1,0 +1,150 @@
+---
+/*
+ * SwissMasthead - the giant numbered masthead for the Modernist splash.
+ *
+ * Reads as a 1968 annual-report cover translated to a live macro dashboard:
+ *   VOL. (Thin) [big] 01 (Black) // MACRO RESEARCH DEPARTMENT
+ *   ISSUE       [big] 19         // CANADA / MACRO / RESEARCH
+ *
+ * Extreme weight contrast (Thin "VOL.", Black "01") is the identity
+ * gesture. No italic. Tabular figures. All grid.
+ *
+ * Owned by the Modernist splash only.
+ */
+
+interface Props {
+  vol: string;
+  issue: string;
+  produced: string;
+  publication: string;
+}
+
+const { vol, issue, produced, publication } = Astro.props;
+---
+<header class="sw-mast" aria-labelledby="sw-mast-title">
+  <div class="sw-mast__row">
+    <div class="sw-mast__col sw-mast__col--vol">
+      <span class="sw-mast__label">Vol.</span>
+      <span class="sw-mast__num">{vol}</span>
+    </div>
+    <div class="sw-mast__col sw-mast__col--issue">
+      <span class="sw-mast__label">Issue</span>
+      <span class="sw-mast__num">{issue}</span>
+    </div>
+    <div class="sw-mast__col sw-mast__col--title">
+      <p class="sw-mast__eyebrow">Periodical / Quarterly</p>
+      <h1 id="sw-mast-title" class="sw-mast__title">
+        {publication}
+      </h1>
+      <p class="sw-mast__stamp">
+        <span class="sw-mast__stamp-key">Produced</span>
+        <span class="sw-mast__stamp-val">{produced}</span>
+      </p>
+    </div>
+  </div>
+</header>
+
+<style>
+  .sw-mast {
+    padding-block: 32px 16px;
+  }
+  .sw-mast__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+    align-items: end;
+  }
+  @media (min-width: 720px) {
+    .sw-mast__row {
+      grid-template-columns: 2fr 2fr 8fr;
+      gap: 24px;
+    }
+  }
+  @media (min-width: 1100px) {
+    .sw-mast__row {
+      grid-template-columns: 1fr 1fr 6fr;
+      gap: 32px;
+    }
+  }
+
+  .sw-mast__col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .sw-mast__col--title {
+    border-left: 1px solid var(--sw-ink);
+    padding-left: 24px;
+  }
+  @media (max-width: 719px) {
+    .sw-mast__col--title {
+      border-left: 0;
+      padding-left: 0;
+      border-top: 1px solid var(--sw-ink);
+      padding-top: 16px;
+    }
+  }
+
+  .sw-mast__label {
+    font-family: var(--sw-sans);
+    font-weight: 200;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--sw-ink);
+    line-height: 1;
+  }
+
+  .sw-mast__num {
+    font-family: var(--sw-sans);
+    font-weight: 900;
+    font-size: clamp(72px, 12vw, 168px);
+    line-height: 0.85;
+    letter-spacing: -0.04em;
+    color: var(--sw-ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sw-mast__eyebrow {
+    font-family: var(--sw-mono);
+    font-weight: 400;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--sw-ink);
+    margin: 0 0 12px;
+  }
+
+  .sw-mast__title {
+    font-family: var(--sw-sans);
+    font-weight: 900;
+    font-size: clamp(28px, 4.4vw, 56px);
+    line-height: 0.95;
+    letter-spacing: -0.025em;
+    color: var(--sw-ink);
+    margin: 0;
+    text-transform: uppercase;
+  }
+
+  .sw-mast__stamp {
+    margin: 16px 0 0;
+    font-family: var(--sw-mono);
+    font-size: 11px;
+    line-height: 1.4;
+    letter-spacing: 0.04em;
+    color: var(--sw-ink);
+    text-transform: uppercase;
+    display: inline-flex;
+    gap: 12px;
+    align-items: baseline;
+  }
+  .sw-mast__stamp-key {
+    color: var(--sw-ink-faint);
+  }
+  .sw-mast__stamp-val {
+    font-variant-numeric: tabular-nums;
+  }
+</style>

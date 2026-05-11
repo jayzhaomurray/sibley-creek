@@ -1,0 +1,254 @@
+---
+/*
+ * ScoreStars - "Stars of the Week" deep-dive strip.
+ *
+ * Stadium tradition: the three stars announced at game end. We adapt
+ * the convention for deep-dive features. First star gets the loudest
+ * treatment (oversized numeral, ice-blue glow), second and third recede.
+ */
+
+import type { DeepDive, Section } from "../../../data/sections";
+
+interface Props {
+  dives: DeepDive[];
+  sections: Section[];
+}
+
+const { dives, sections } = Astro.props;
+
+const starLabels = ["1ST STAR", "2ND STAR", "3RD STAR"];
+const starGlow = ["sb-stars__num--gold", "sb-stars__num--silver", "sb-stars__num--bronze"];
+
+const enriched = dives.slice(0, 3).map((dd, i) => ({
+  dd,
+  section: sections.find((s) => s.slug === dd.section),
+  star: starLabels[i] ?? `${i + 1}TH STAR`,
+  starClass: starGlow[i] ?? "sb-stars__num--bronze",
+}));
+---
+<section class="sb-stars" aria-labelledby="sb-stars-heading">
+  <header class="sb-stars__head">
+    <h2 id="sb-stars-heading" class="sb-stars__title">STARS OF THE WEEK</h2>
+    <span class="sb-stars__sub">/ DEEP DIVES IN ROTATION</span>
+  </header>
+
+  <ol class="sb-stars__list" role="list">
+    {enriched.map(({ dd, section, star, starClass }, i) => (
+      <li class="sb-stars__row">
+        <span class:list={["sb-stars__num", starClass]} aria-hidden="true">{i + 1}</span>
+        <div class="sb-stars__body">
+          <div class="sb-stars__line">
+            <span class="sb-stars__star">{star}</span>
+            <span class="sb-stars__sep" aria-hidden="true">/</span>
+            <span class="sb-stars__pillar">PILLAR {dd.pillar}</span>
+            {section && (
+              <>
+                <span class="sb-stars__sep" aria-hidden="true">/</span>
+                <span class="sb-stars__sect">{section.label.toUpperCase()}</span>
+              </>
+            )}
+            <span class="sb-stars__sep" aria-hidden="true">/</span>
+            <span class:list={["sb-stars__status", `sb-stars__status--${dd.status}`]}>{dd.status.toUpperCase()}</span>
+          </div>
+          <h3 class="sb-stars__title-r">
+            {section ? (
+              <a href={dd.href ?? `/${section.slug}/`}>{dd.title}</a>
+            ) : (
+              dd.title
+            )}
+          </h3>
+          <p class="sb-stars__deck">{dd.deck}</p>
+          <p class="sb-stars__meta">UPDATED {dd.lastUpdated.toUpperCase()}</p>
+        </div>
+      </li>
+    ))}
+  </ol>
+</section>
+
+<style>
+  .sb-stars {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px 20px;
+    border: 1px solid var(--sb-bezel);
+    border-radius: 4px;
+    background:
+      linear-gradient(180deg, rgba(244, 180, 0, 0.04), rgba(8, 21, 42, 0.4)),
+      var(--sb-panel);
+    box-shadow:
+      inset 0 0 0 1px rgba(244, 180, 0, 0.06),
+      inset 0 0 30px rgba(8, 21, 42, 0.4);
+  }
+
+  .sb-stars__head {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    border-bottom: 1px dashed rgba(244, 180, 0, 0.22);
+    padding-bottom: 10px;
+  }
+
+  .sb-stars__title {
+    margin: 0;
+    font-family: var(--sb-font-display);
+    font-size: clamp(20px, 2.4vw, 28px);
+    letter-spacing: 0.04em;
+    color: var(--sb-led-amber);
+    text-shadow:
+      0 0 5px rgba(244, 180, 0, 0.5),
+      0 0 16px rgba(244, 180, 0, 0.3);
+  }
+
+  .sb-stars__sub {
+    font-family: var(--sb-font-mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    color: var(--sb-ink-faint);
+    text-transform: uppercase;
+  }
+
+  .sb-stars__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .sb-stars__row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px 18px;
+    padding: 12px 0;
+    border-bottom: 1px dashed rgba(63, 191, 232, 0.14);
+  }
+  .sb-stars__row:last-child { border-bottom: none; padding-bottom: 0; }
+  .sb-stars__row:first-child { padding-top: 4px; }
+
+  .sb-stars__num {
+    font-family: var(--sb-font-display);
+    font-size: clamp(50px, 6vw, 80px);
+    line-height: 0.9;
+    letter-spacing: 0.02em;
+    width: clamp(58px, 7vw, 90px);
+    text-align: center;
+    font-feature-settings: "tnum", "lnum";
+  }
+  .sb-stars__num--gold {
+    color: var(--sb-led-amber);
+    text-shadow:
+      0 0 6px rgba(244, 180, 0, 0.6),
+      0 0 18px rgba(244, 180, 0, 0.35),
+      0 0 36px rgba(244, 180, 0, 0.18);
+    animation: sb-pan-flicker 5.8s steps(40) infinite;
+  }
+  .sb-stars__num--silver {
+    color: var(--sb-ice);
+    text-shadow:
+      0 0 6px rgba(63, 191, 232, 0.55),
+      0 0 16px rgba(63, 191, 232, 0.28);
+    animation: sb-pan-flicker 6.2s steps(40) infinite 0.4s;
+  }
+  .sb-stars__num--bronze {
+    color: var(--sb-led-green);
+    text-shadow:
+      0 0 6px rgba(59, 191, 101, 0.55),
+      0 0 16px rgba(59, 191, 101, 0.28);
+    animation: sb-pan-flicker 6.6s steps(40) infinite 0.8s;
+  }
+
+  @keyframes sb-pan-flicker {
+    0%, 100% { opacity: 1; }
+    3%       { opacity: 0.88; }
+    5%       { opacity: 1; }
+    45%      { opacity: 0.94; }
+    47%      { opacity: 1; }
+    74%      { opacity: 0.9; }
+    76%      { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sb-stars__num--gold,
+    .sb-stars__num--silver,
+    .sb-stars__num--bronze { animation: none; }
+  }
+
+  .sb-stars__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .sb-stars__line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+    font-family: var(--sb-font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--sb-ink-muted);
+    text-transform: uppercase;
+  }
+  .sb-stars__star {
+    color: var(--sb-led-amber);
+    text-shadow: 0 0 5px rgba(244, 180, 0, 0.4);
+    letter-spacing: 0.2em;
+  }
+  .sb-stars__sect {
+    color: var(--sb-ice);
+    text-shadow: 0 0 5px rgba(63, 191, 232, 0.3);
+    letter-spacing: 0.16em;
+  }
+  .sb-stars__pillar { color: var(--sb-ink-muted); letter-spacing: 0.14em; }
+  .sb-stars__sep { color: var(--sb-ink-faint); }
+
+  .sb-stars__status--research { color: var(--sb-led-amber); }
+  .sb-stars__status--drafted  { color: var(--sb-ice); }
+  .sb-stars__status--shipped  { color: var(--sb-led-green); }
+
+  .sb-stars__title-r {
+    margin: 2px 0 0;
+    font-family: var(--sb-font-label);
+    font-size: clamp(18px, 2vw, 22px);
+    letter-spacing: 0.04em;
+    color: var(--sb-white);
+    line-height: 1.15;
+  }
+  .sb-stars__title-r a {
+    color: inherit;
+    transition: color 120ms linear, text-shadow 120ms linear;
+  }
+  .sb-stars__title-r a:hover,
+  .sb-stars__title-r a:focus-visible {
+    color: var(--sb-led-amber);
+    text-shadow: 0 0 8px rgba(244, 180, 0, 0.4);
+    outline: none;
+  }
+  .sb-stars__title-r a:focus-visible {
+    outline: 2px solid var(--sb-led-amber);
+    outline-offset: 3px;
+  }
+
+  .sb-stars__deck {
+    margin: 4px 0 0;
+    font-family: var(--sb-font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--sb-ink-muted);
+    max-width: 70ch;
+  }
+
+  .sb-stars__meta {
+    margin: 4px 0 0;
+    font-family: var(--sb-font-mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: var(--sb-ink-faint);
+    text-transform: uppercase;
+  }
+</style>

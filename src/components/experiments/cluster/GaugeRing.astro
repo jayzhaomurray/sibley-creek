@@ -1,0 +1,578 @@
+---
+/*
+ * GaugeRing - the universal analog gauge for the Instrument Cluster splash.
+ *
+ * Renders an SVG circular gauge with:
+ *   - Brushed-steel bezel ring (radial gradient + subtle highlight)
+ *   - Deep gauge-face background with a faint ambient backlight glow
+ *   - Tick marks (major + minor) along a 240deg arc (from -210 to +30)
+ *   - Numeric tick labels at major divisions
+ *   - Optional "target" tick (e.g. BoC 2% inflation target) drawn in
+ *     amber backlight color, slightly wider than other ticks
+ *   - Optional "redline" arc segment (signal-red) at one end of the dial
+ *   - A warm-ivory needle pinned at the gauge center, rotated to the
+ *     value's position along the arc
+ *   - Center hub cap in brushed steel
+ *   - Digital readout window beneath the hub (value + unit)
+ *   - All-caps gauge label across the top inside the dial
+ *   - Optional secondary label / "as of" stamp inside the dial
+ *
+ * On page load the needle "sweeps" from the dial minimum (-210deg start
+ * angle) to its current value over 800-1200ms. Each gauge accepts a
+ * `sweepDelay` prop to stagger the animation across the cluster. The
+ * sweep is disabled entirely under `prefers-reduced-motion: reduce` (the
+ * page-level CSS overrides the rotate animation).
+ *
+ * Sizing: the dial is square; pass a `size` ("primary" | "secondary").
+ * The component renders a viewBox of 200x200 and scales via CSS.
+ *
+ * State tone: the needle / dial accent color is driven by `tone`:
+ *   "neutral" - warm ivory needle (default)
+ *   "pos"     - signal-green hint on the digital readout + faint green arc
+ *   "neg"     - signal-red hint on the digital readout + faint red arc
+ *
+ * The dial itself is always brushed steel / deep gauge-face; only the
+ * needle, digital window, and arc-tint react to tone, so the page reads
+ * as one instrument cluster, not seven different lights.
+ */
+
+interface Props {
+  /** Top-of-dial section label, all caps. */
+  label: string;
+  /** Optional secondary label inside the dial (e.g. unit or indicator). */
+  sub?: string;
+  /** Numeric current value (used to position the needle). */
+  value: number;
+  /** Display string for the digital readout window. */
+  display: string;
+  /** Optional unit suffix in the digital window (e.g. "%", "bps"). */
+  unit?: string;
+  /** Dial range. */
+  min: number;
+  max: number;
+  /** Number of major divisions across the arc. */
+  majorSteps?: number;
+  /** Whether to render minor ticks between majors. */
+  minorTicks?: boolean;
+  /** Optional target value drawn as an amber tick on the dial. */
+  target?: number;
+  /** Optional target label, e.g. "2.0% TGT". */
+  targetLabel?: string;
+  /** Redline region: { from, to } in value-space. Drawn as a red arc band. */
+  redline?: { from: number; to: number };
+  /** Tone for needle / digital readout. */
+  tone?: "neutral" | "pos" | "neg";
+  /** Dial size. Primary is the hero, secondary is the side gauges. */
+  size?: "primary" | "secondary";
+  /** Sweep animation delay in ms (staggers across the cluster). */
+  sweepDelay?: number;
+  /** Optional small "as of" stamp beneath the digital window. */
+  asOf?: string;
+  /** Optional small surprise/delta verb beneath the dial (e.g. "HELD"). */
+  verb?: string;
+  /** Optional href - wraps the gauge in a link for navigation. */
+  href?: string;
+  /** Optional aria-label override. */
+  ariaLabel?: string;
+}
+
+const {
+  label,
+  sub,
+  value,
+  display,
+  unit,
+  min,
+  max,
+  majorSteps = 5,
+  minorTicks = true,
+  target,
+  targetLabel,
+  redline,
+  tone = "neutral",
+  size = "secondary",
+  sweepDelay = 0,
+  asOf,
+  verb,
+  href,
+  ariaLabel,
+} = Astro.props;
+
+// Geometry: viewBox 200x200, dial center (100,100), radius 86.
+const CX = 100;
+const CY = 100;
+const R_BEZEL = 96;
+const R_FACE = 86;
+const R_TICK_OUTER = 80;
+const R_TICK_INNER_MAJOR = 70;
+const R_TICK_INNER_MINOR = 75;
+const R_TICK_LABEL = 60;
+const R_NEEDLE = 64;
+const R_NEEDLE_TAIL = 14;
+
+// Arc spans 240deg, from -210deg (lower-left) to +30deg (lower-right).
+// In SVG, 0deg points right (along +x), positive angles rotate clockwise.
+// We map: minimum = -210deg, maximum = +30deg => arc length 240deg.
+const ANGLE_MIN = -210;
+const ANGLE_MAX = 30;
+const ANGLE_RANGE = ANGLE_MAX - ANGLE_MIN; // 240
+
+function valueToAngle(v: number) {
+  const clamped = Math.max(min, Math.min(max, v));
+  const t = (clamped - min) / (max - min || 1);
+  return ANGLE_MIN + t * ANGLE_RANGE;
+}
+
+function polar(cx: number, cy: number, r: number, angleDeg: number) {
+  const a = (angleDeg * Math.PI) / 180;
+  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+}
+
+// Generate tick marks.
+interface Tick {
+  angle: number;
+  major: boolean;
+  labelText?: string;
+}
+const ticks: Tick[] = [];
+const minorPerStep = 4;
+for (let i = 0; i <= majorSteps; i++) {
+  const t = i / majorSteps;
+  const v = min + t * (max - min);
+  const angle = ANGLE_MIN + t * ANGLE_RANGE;
+  ticks.push({
+    angle,
+    major: true,
+    labelText: formatTickLabel(v),
+  });
+  if (minorTicks && i < majorSteps) {
+    for (let j = 1; j < minorPerStep; j++) {
+      const tt = (i + j / minorPerStep) / majorSteps;
+      ticks.push({
+        angle: ANGLE_MIN + tt * ANGLE_RANGE,
+        major: false,
+      });
+    }
+  }
+}
+
+function formatTickLabel(v: number): string {
+  // Format with at most 1 decimal; strip trailing .0
+  const abs = Math.abs(v);
+  if (abs >= 100) return v.toFixed(0);
+  if (abs >= 10) return v.toFixed(0);
+  if (abs >= 1) return v.toFixed(1).replace(/\.0$/, "");
+  if (v === 0) return "0";
+  return v.toFixed(1).replace(/\.0$/, "");
+}
+
+// Build redline arc path (if any).
+function arcPath(fromAngle: number, toAngle: number, r: number) {
+  const start = polar(CX, CY, r, fromAngle);
+  const end = polar(CX, CY, r, toAngle);
+  const large = Math.abs(toAngle - fromAngle) > 180 ? 1 : 0;
+  const sweep = toAngle > fromAngle ? 1 : 0;
+  return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 ${large} ${sweep} ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
+}
+
+const needleAngle = valueToAngle(value);
+const targetAngle = target !== undefined ? valueToAngle(target) : null;
+
+const sizeClass = size === "primary" ? "cl-gauge--primary" : "cl-gauge--secondary";
+const toneClass = `cl-gauge--${tone}`;
+
+const Wrapper = href ? "a" : "div";
+const wrapperProps: Record<string, string> = {};
+if (href) {
+  wrapperProps.href = href;
+}
+const ariaText =
+  ariaLabel ??
+  `${label}${sub ? ", " + sub : ""}: ${display}${unit ?? ""}${verb ? ", " + verb : ""}${asOf ? ", as of " + asOf : ""}`;
+
+// Unique gauge id so the needle keyframe can reference per-gauge end angle.
+const gaugeId = `cl-g-${Math.random().toString(36).slice(2, 9)}`;
+---
+
+<Wrapper
+  class:list={["cl-gauge", sizeClass, toneClass, { "cl-gauge--link": !!href }]}
+  aria-label={ariaText}
+  {...wrapperProps}
+>
+  <svg
+    viewBox="0 0 200 200"
+    class="cl-gauge__svg"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <defs>
+      <radialGradient id={`bezel-${gaugeId}`} cx="50%" cy="40%" r="60%">
+        <stop offset="0%" stop-color="#C5CCD8" />
+        <stop offset="35%" stop-color="#9099A8" />
+        <stop offset="70%" stop-color="#5A6373" />
+        <stop offset="100%" stop-color="#2A2E36" />
+      </radialGradient>
+      <radialGradient id={`face-${gaugeId}`} cx="50%" cy="45%" r="65%">
+        <stop offset="0%" stop-color="#22262E" />
+        <stop offset="60%" stop-color="#1A1D23" />
+        <stop offset="100%" stop-color="#0F0F12" />
+      </radialGradient>
+      <radialGradient id={`backlight-${gaugeId}`} cx="50%" cy="58%" r="55%">
+        <stop offset="0%" stop-color="rgba(212, 131, 26, 0.18)" />
+        <stop offset="60%" stop-color="rgba(212, 131, 26, 0.04)" />
+        <stop offset="100%" stop-color="rgba(212, 131, 26, 0)" />
+      </radialGradient>
+      <radialGradient id={`hub-${gaugeId}`} cx="40%" cy="35%" r="70%">
+        <stop offset="0%" stop-color="#C5CCD8" />
+        <stop offset="60%" stop-color="#6E7787" />
+        <stop offset="100%" stop-color="#2A2E36" />
+      </radialGradient>
+      <linearGradient id={`brushed-${gaugeId}`} x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="#B7BFCB" />
+        <stop offset="100%" stop-color="#6E7787" />
+      </linearGradient>
+    </defs>
+
+    {/* Outer brushed bezel */}
+    <circle cx={CX} cy={CY} r={R_BEZEL} fill={`url(#bezel-${gaugeId})`} />
+    {/* Inner bezel rim highlight */}
+    <circle
+      cx={CX}
+      cy={CY}
+      r={R_BEZEL - 1}
+      fill="none"
+      stroke="rgba(255,255,255,0.08)"
+      stroke-width="0.5"
+    />
+    {/* Gauge face */}
+    <circle cx={CX} cy={CY} r={R_FACE} fill={`url(#face-${gaugeId})`} />
+    {/* Ambient amber backlight */}
+    <circle cx={CX} cy={CY} r={R_FACE - 2} fill={`url(#backlight-${gaugeId})`} />
+
+    {/* Redline arc */}
+    {redline && (
+      <path
+        d={arcPath(valueToAngle(redline.from), valueToAngle(redline.to), R_TICK_OUTER - 2)}
+        stroke="#D62828"
+        stroke-width="3"
+        stroke-linecap="butt"
+        fill="none"
+        opacity="0.85"
+      />
+    )}
+
+    {/* Ticks */}
+    {ticks.map((t) => {
+      const p1 = polar(CX, CY, R_TICK_OUTER, t.angle);
+      const p2 = polar(
+        CX,
+        CY,
+        t.major ? R_TICK_INNER_MAJOR : R_TICK_INNER_MINOR,
+        t.angle,
+      );
+      return (
+        <line
+          x1={p1.x}
+          y1={p1.y}
+          x2={p2.x}
+          y2={p2.y}
+          stroke={t.major ? "#D4D7DD" : "#7A8090"}
+          stroke-width={t.major ? 1.4 : 0.7}
+          stroke-linecap="round"
+        />
+      );
+    })}
+
+    {/* Major tick labels */}
+    {ticks
+      .filter((t) => t.major && t.labelText)
+      .map((t) => {
+        const p = polar(CX, CY, R_TICK_LABEL, t.angle);
+        return (
+          <text
+            x={p.x}
+            y={p.y}
+            text-anchor="middle"
+            dominant-baseline="central"
+            class="cl-gauge__ticklabel"
+          >
+            {t.labelText}
+          </text>
+        );
+      })}
+
+    {/* Target tick (amber) - drawn on top of the tick layer */}
+    {targetAngle !== null && (
+      <g>
+        <line
+          x1={polar(CX, CY, R_TICK_OUTER + 1, targetAngle).x}
+          y1={polar(CX, CY, R_TICK_OUTER + 1, targetAngle).y}
+          x2={polar(CX, CY, R_TICK_INNER_MAJOR - 3, targetAngle).x}
+          y2={polar(CX, CY, R_TICK_INNER_MAJOR - 3, targetAngle).y}
+          stroke="#D4831A"
+          stroke-width="2.4"
+          stroke-linecap="round"
+        />
+      </g>
+    )}
+
+    {/* Top-of-dial label */}
+    <text
+      x={CX}
+      y={CY - 38}
+      text-anchor="middle"
+      dominant-baseline="central"
+      class="cl-gauge__label"
+    >
+      {label}
+    </text>
+    {sub && (
+      <text
+        x={CX}
+        y={CY - 26}
+        text-anchor="middle"
+        dominant-baseline="central"
+        class="cl-gauge__sub"
+      >
+        {sub}
+      </text>
+    )}
+
+    {/* Needle group: rotated via CSS custom property --target-angle.
+        Animation sweeps from ANGLE_MIN to --target-angle. */}
+    <g
+      class="cl-gauge__needle-group"
+      style={`--target-angle:${needleAngle}deg; --sweep-delay:${sweepDelay}ms;`}
+    >
+      {/* Needle shadow */}
+      <polygon
+        points={`${CX - 1.6},${CY + 2} ${CX + 1.6},${CY + 2} ${CX + 0.4},${CY - R_NEEDLE + 2} ${CX - 0.4},${CY - R_NEEDLE + 2}`}
+        fill="rgba(0,0,0,0.55)"
+        transform={`translate(1.4 1.4)`}
+        class="cl-gauge__needle-shadow"
+      />
+      {/* Needle body */}
+      <polygon
+        points={`${CX - 2.2},${CY + 4} ${CX + 2.2},${CY + 4} ${CX + 0.6},${CY - R_NEEDLE} ${CX - 0.6},${CY - R_NEEDLE}`}
+        class="cl-gauge__needle"
+      />
+      {/* Needle tail */}
+      <polygon
+        points={`${CX - 2.6},${CY - 0} ${CX + 2.6},${CY - 0} ${CX + 1.4},${CY + R_NEEDLE_TAIL} ${CX - 1.4},${CY + R_NEEDLE_TAIL}`}
+        class="cl-gauge__needle-tail"
+      />
+    </g>
+
+    {/* Hub cap */}
+    <circle cx={CX} cy={CY} r="9" fill={`url(#hub-${gaugeId})`} />
+    <circle
+      cx={CX}
+      cy={CY}
+      r="3.5"
+      fill="#1A1D23"
+      stroke="rgba(255,255,255,0.15)"
+      stroke-width="0.4"
+    />
+
+    {/* Digital readout window */}
+    <g class="cl-gauge__readout-group">
+      <rect
+        x={CX - 28}
+        y={CY + 22}
+        width="56"
+        height="18"
+        rx="2"
+        ry="2"
+        fill="#0A0A0C"
+        stroke="rgba(212,131,26,0.4)"
+        stroke-width="0.5"
+      />
+      <text
+        x={CX}
+        y={CY + 31}
+        text-anchor="middle"
+        dominant-baseline="central"
+        class={`cl-gauge__readout cl-gauge__readout--${tone}`}
+      >
+        {display}{unit ?? ""}
+      </text>
+    </g>
+
+    {/* Target label below the readout */}
+    {targetLabel && (
+      <text
+        x={CX}
+        y={CY + 48}
+        text-anchor="middle"
+        dominant-baseline="central"
+        class="cl-gauge__targetlabel"
+      >
+        {targetLabel}
+      </text>
+    )}
+  </svg>
+
+  {/* Footer caption beneath the dial */}
+  <div class="cl-gauge__footer">
+    {verb && <span class={`cl-gauge__verb cl-gauge__verb--${tone}`}>{verb}</span>}
+    {asOf && <span class="cl-gauge__asof">{asOf}</span>}
+  </div>
+</Wrapper>
+
+<style>
+  .cl-gauge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+  }
+  .cl-gauge--link {
+    cursor: pointer;
+    transition: filter 160ms ease-out, transform 160ms ease-out;
+  }
+  .cl-gauge--link:hover,
+  .cl-gauge--link:focus-visible {
+    outline: none;
+    filter: drop-shadow(0 0 14px rgba(212, 131, 26, 0.32));
+    transform: translateY(-1px);
+  }
+  .cl-gauge--link:focus-visible .cl-gauge__svg {
+    outline: 2px solid #D4831A;
+    outline-offset: 4px;
+    border-radius: 50%;
+  }
+
+  .cl-gauge__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.5));
+  }
+
+  .cl-gauge--primary {
+    width: clamp(280px, 32vw, 380px);
+  }
+  .cl-gauge--secondary {
+    width: clamp(150px, 17vw, 200px);
+  }
+
+  /* SVG text classes */
+  .cl-gauge__ticklabel {
+    fill: #9099A8;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    font-weight: 800;
+    font-size: 7px;
+    letter-spacing: 0.04em;
+  }
+  .cl-gauge__label {
+    fill: #F4ECCE;
+    font-family: "Saira Condensed", "Russo One", sans-serif;
+    font-weight: 700;
+    font-size: 8px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+  .cl-gauge__sub {
+    fill: #9099A8;
+    font-family: "Saira Condensed", sans-serif;
+    font-weight: 500;
+    font-size: 5.6px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .cl-gauge__readout {
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    fill: #F4ECCE;
+  }
+  .cl-gauge__readout--pos { fill: #3FA34D; }
+  .cl-gauge__readout--neg { fill: #D62828; }
+  .cl-gauge__targetlabel {
+    fill: #D4831A;
+    font-family: "Saira Condensed", sans-serif;
+    font-weight: 600;
+    font-size: 5.2px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  /* Needle rotation - default end state */
+  .cl-gauge__needle-group {
+    transform-origin: 100px 100px;
+    transform-box: view-box;
+    /* The needle "points up" when unrotated (apex at CY - R_NEEDLE).
+       In our gauge geometry "up" corresponds to -90deg on the polar
+       reference. valueToAngle returns angles where -90 = straight up.
+       To make the needle point at `valueToAngle(v)` we rotate by
+       (valueToAngle(v) + 90) so the needle's natural-up apex lines up. */
+    transform: rotate(calc(var(--target-angle) + 90deg));
+    animation: cl-needle-sweep 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) var(--sweep-delay, 0ms) both;
+  }
+  @keyframes cl-needle-sweep {
+    0% {
+      transform: rotate(-120deg); /* ANGLE_MIN (-210) + 90 = -120 */
+    }
+    60% {
+      transform: rotate(calc(var(--target-angle) + 90deg + 4deg));
+    }
+    78% {
+      transform: rotate(calc(var(--target-angle) + 90deg - 2deg));
+    }
+    100% {
+      transform: rotate(calc(var(--target-angle) + 90deg));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cl-gauge__needle-group {
+      animation: none;
+    }
+  }
+
+  .cl-gauge__needle {
+    fill: #F4ECCE;
+    filter: drop-shadow(0 0 3px rgba(244, 236, 206, 0.55));
+  }
+  .cl-gauge__needle-tail {
+    fill: #C5CCD8;
+  }
+  .cl-gauge--pos .cl-gauge__needle {
+    fill: #C8E5BD;
+    filter: drop-shadow(0 0 4px rgba(63, 163, 77, 0.45));
+  }
+  .cl-gauge--neg .cl-gauge__needle {
+    fill: #F2D6CE;
+    filter: drop-shadow(0 0 4px rgba(214, 40, 40, 0.45));
+  }
+
+  .cl-gauge__footer {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 2px;
+    font-family: "Saira Condensed", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    line-height: 1.2;
+  }
+  .cl-gauge__verb {
+    font-weight: 700;
+    font-size: 10px;
+    color: #F4ECCE;
+  }
+  .cl-gauge__verb--pos { color: #3FA34D; }
+  .cl-gauge__verb--neg { color: #D62828; }
+  .cl-gauge__asof {
+    font-weight: 500;
+    font-size: 10px;
+    color: #6E7787;
+  }
+
+  .cl-gauge--primary .cl-gauge__verb { font-size: 12px; }
+  .cl-gauge--primary .cl-gauge__asof { font-size: 12px; }
+</style>

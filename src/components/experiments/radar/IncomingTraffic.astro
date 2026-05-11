@@ -1,0 +1,174 @@
+---
+/*
+ * IncomingTraffic - upcoming data release framed as inbound aircraft.
+ *
+ * One primary inbound (the next release) is featured; below it, a short
+ * list of secondary upcoming windows (placeholder static cadence per
+ * editorial canon) is rendered as additional approach traffic.
+ */
+
+interface Props {
+  inbound: {
+    flightNo: string;
+    label: string;
+    date: string;
+    agency: string;
+    etaMinutes: number;
+  };
+  approach: { flightNo: string; label: string; eta: string }[];
+}
+
+const { inbound, approach } = Astro.props;
+
+// Format ETA from minutes -> "T-DD:HH:MM" instrument-style
+function formatEta(mins: number): string {
+  const sign = mins < 0 ? "+" : "-";
+  const m = Math.abs(mins);
+  const d = Math.floor(m / (60 * 24));
+  const h = Math.floor((m % (60 * 24)) / 60);
+  const mm = m % 60;
+  return `T${sign}${String(d).padStart(2, "0")}:${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+---
+
+<section class="rd-inbound" aria-labelledby="rd-inbound-title">
+  <p class="rd-inbound__kicker">INCOMING TRAFFIC</p>
+  <h2 id="rd-inbound-title" class="rd-inbound__title">UPCOMING RELEASES</h2>
+
+  <div class="rd-inbound__primary">
+    <div class="rd-inbound__primary-head">
+      <span class="rd-inbound__flt">{inbound.flightNo}</span>
+      <span class="rd-inbound__eta">ETA {formatEta(inbound.etaMinutes)}</span>
+    </div>
+    <p class="rd-inbound__label">{inbound.label}</p>
+    <p class="rd-inbound__meta">
+      {inbound.date} <span class="rd-sep">/</span> {inbound.agency}
+    </p>
+  </div>
+
+  <ul role="list" class="rd-inbound__approach">
+    {approach.map((a) => (
+      <li class="rd-approach">
+        <span class="rd-approach__flt">{a.flightNo}</span>
+        <span class="rd-approach__lbl">{a.label}</span>
+        <span class="rd-approach__eta">{a.eta}</span>
+      </li>
+    ))}
+  </ul>
+</section>
+
+<style>
+  .rd-inbound {
+    border: 1px solid var(--rd-rule);
+    background: linear-gradient(180deg, rgba(34, 211, 238, 0.05), rgba(11, 16, 13, 0.6));
+    padding: 14px 16px 14px;
+    position: relative;
+  }
+  .rd-inbound::before,
+  .rd-inbound::after {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 1px solid var(--rd-cyan);
+    opacity: 0.6;
+  }
+  .rd-inbound::before {
+    top: -1px; right: -1px;
+    border-left: none;
+    border-bottom: none;
+  }
+  .rd-inbound::after {
+    bottom: -1px; left: -1px;
+    border-right: none;
+    border-top: none;
+  }
+  .rd-inbound__kicker {
+    margin: 0 0 4px 0;
+    font-family: var(--rd-font-mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--rd-cyan);
+  }
+  .rd-inbound__title {
+    margin: 0 0 12px 0;
+    font-family: var(--rd-font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--rd-ink);
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--rd-rule);
+  }
+  .rd-inbound__primary {
+    border-left: 2px solid var(--rd-cyan);
+    padding: 4px 0 8px 10px;
+    margin-bottom: 12px;
+  }
+  .rd-inbound__primary-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: var(--rd-font-mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    margin-bottom: 6px;
+  }
+  .rd-inbound__flt {
+    color: var(--rd-cyan);
+    font-weight: 600;
+  }
+  .rd-inbound__eta {
+    color: var(--rd-ink-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .rd-inbound__label {
+    margin: 0 0 4px 0;
+    font-family: var(--rd-font-mono);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--rd-ink);
+    letter-spacing: 0.02em;
+  }
+  .rd-inbound__meta {
+    margin: 0;
+    font-family: var(--rd-font-mono);
+    font-size: 12px;
+    color: var(--rd-ink-muted);
+    letter-spacing: 0.04em;
+  }
+  .rd-inbound__approach {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .rd-approach {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    gap: 10px;
+    align-items: baseline;
+    font-family: var(--rd-font-mono);
+    font-size: 12px;
+    padding: 2px 0;
+  }
+  .rd-approach__flt {
+    color: var(--rd-green-dim);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+  }
+  .rd-approach__lbl {
+    color: var(--rd-ink-muted);
+    letter-spacing: 0.02em;
+  }
+  .rd-approach__eta {
+    color: var(--rd-ink-muted);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+  }
+  .rd-sep { color: var(--rd-green-dim); padding: 0 4px; }
+</style>

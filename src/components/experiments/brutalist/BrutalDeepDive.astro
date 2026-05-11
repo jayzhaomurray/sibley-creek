@@ -1,0 +1,192 @@
+---
+/*
+ * BrutalDeepDive — one row in the deep-dives list at the bottom of the
+ * splash. Not a card. A list-row with a status chip, pillar code, section
+ * badge, terminal-style title, and date.
+ */
+
+import type { DeepDive, Section } from "../../../data/sections";
+
+interface Props {
+  item: DeepDive;
+  section: Section;
+  index: number;
+}
+
+const { item, section, index } = Astro.props;
+
+const statusGlyph =
+  item.status === "shipped"
+    ? "[SHIPPED]"
+    : item.status === "drafted"
+    ? "[DRAFT]"
+    : "[RESEARCH]";
+
+const statusClass =
+  item.status === "shipped"
+    ? "is-shipped"
+    : item.status === "drafted"
+    ? "is-drafted"
+    : "is-research";
+
+const ord = String(index + 1).padStart(2, "0");
+const href = item.href ?? `/${section.slug}/`;
+---
+<a class="bdd" href={href} aria-labelledby={`bdd-title-${index}`}>
+  <span class="bdd__ord" aria-hidden="true">DD.{ord}</span>
+  <span class:list={["bdd__status", statusClass]}>{statusGlyph}</span>
+  <span class="bdd__pillar" aria-hidden="true">PILLAR.{item.pillar}</span>
+  <span class="bdd__section">{section.label.toUpperCase()}</span>
+  <span class="bdd__title-wrap">
+    <span id={`bdd-title-${index}`} class="bdd__title">{item.title}</span>
+    <span class="bdd__deck">{item.deck}</span>
+  </span>
+  <span class="bdd__date">{item.lastUpdated}</span>
+  <span class="bdd__arrow" aria-hidden="true">{"->"}</span>
+</a>
+
+<style>
+  .bdd {
+    display: grid;
+    grid-template-columns:
+      52px /* ord */
+      90px /* status */
+      72px /* pillar */
+      80px /* section */
+      minmax(0, 1fr) /* title + deck */
+      auto /* date */
+      14px;
+    gap: 14px;
+    align-items: baseline;
+    padding: 12px 0;
+    border-bottom: 1px dashed var(--bt-rule);
+    text-decoration: none;
+    color: var(--bt-ink);
+    font-family: var(--bt-font-mono);
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .bdd:last-child { border-bottom: none; }
+
+  .bdd:hover,
+  .bdd:focus-visible {
+    background-color: var(--bt-surface-2);
+    outline: none;
+  }
+  .bdd:focus-visible {
+    box-shadow: inset 0 0 0 1px var(--bt-cyan);
+  }
+
+  .bdd__ord {
+    color: var(--bt-ink-faint);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    font-feature-settings: "tnum", "lnum";
+  }
+
+  .bdd__status {
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    font-size: 10px;
+    padding: 2px 4px;
+    border: 1px solid currentColor;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .bdd__status.is-shipped { color: var(--bt-green); }
+  .bdd__status.is-drafted { color: var(--bt-amber); }
+  .bdd__status.is-research { color: var(--bt-cyan); }
+
+  .bdd__pillar {
+    color: var(--bt-ink-faint);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .bdd__section {
+    color: var(--bt-amber);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+
+  .bdd__title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .bdd__title {
+    color: var(--bt-ink);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.005em;
+    /* Mono title: no need for serif here; the brutalist register stays. */
+  }
+
+  .bdd__deck {
+    color: var(--bt-ink-muted);
+    font-size: 11px;
+    line-height: 1.45;
+    /* Clamp to two lines to keep rows scannable. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .bdd__date {
+    color: var(--bt-ink-faint);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-align: right;
+    white-space: nowrap;
+    font-feature-settings: "tnum", "lnum";
+  }
+
+  .bdd__arrow {
+    color: var(--bt-ink-faint);
+    text-align: right;
+    transition: color 80ms linear, transform 80ms linear;
+  }
+
+  .bdd:hover .bdd__arrow,
+  .bdd:focus-visible .bdd__arrow {
+    color: var(--bt-cyan);
+    transform: translateX(2px);
+  }
+
+  @media (max-width: 960px) {
+    .bdd {
+      grid-template-columns:
+        80px /* status */
+        auto /* section */
+        minmax(0, 1fr) /* title */
+        auto /* date */;
+      gap: 10px;
+    }
+    .bdd__ord,
+    .bdd__pillar,
+    .bdd__arrow {
+      display: none;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .bdd {
+      grid-template-columns: 1fr;
+      gap: 4px;
+      padding: 14px 0;
+    }
+    .bdd__date,
+    .bdd__status,
+    .bdd__section {
+      justify-self: start;
+    }
+  }
+</style>

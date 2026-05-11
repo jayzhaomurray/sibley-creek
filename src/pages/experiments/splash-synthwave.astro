@@ -1,0 +1,659 @@
+---
+/*
+ * Lane G - Synthwave / Cyberpunk Terminal splash.
+ *
+ * Experimental alternative to the production homepage. Entirely self-
+ * contained: this page does NOT use BaseLayout, does NOT import the
+ * production design tokens, and does NOT use any shared component from
+ * src/components/ outside of src/components/experiments/synthwave/.
+ *
+ * Aesthetic register (distinct from the Brutalist Terminal in Lane A):
+ *   - Palette:   night #0A0414, panel #150B23, hot magenta #FF2E97,
+ *                electric cyan #00E5FF, acid green #00FF85,
+ *                sunset orange #FF6B35 (very sparing)
+ *   - Display:   Orbitron 800 + Audiowide; CRT body in VT323
+ *   - Body:      Rubik for prose; Press Start 2P used once only on the
+ *                grid-horizon caption-cluster (kept disciplined)
+ *   - Motion:    pulsing magenta LIVE badge, slow scanline flicker,
+ *                slow horizon-grid scroll. All three honor
+ *                prefers-reduced-motion.
+ *   - Glow:      CSS text-shadow on the load-bearing numbers, panel
+ *                glow via box-shadow + neon-stroke SVG sparklines
+ *
+ * Composition:
+ *   1. Top status rail (NODE / BUILD / COORD / EDITION)
+ *   2. Masthead with neon LIVE pulse + glow underline
+ *   3. Tape (signals scoreboard) under the masthead
+ *   4. Two-column body: left = hero live-state panel, right = 7-card
+ *      section grid (2-up, with one full-width card at the tail)
+ *   5. Deep dives strip (neon-bordered records)
+ *   6. Nav row of all sections
+ *   7. Grid-horizon footer band (perspective vanishing-point grid +
+ *      Outrun sun) with the next-release stamp and signoff
+ */
+
+import SynthMasthead from "../../components/experiments/synthwave/SynthMasthead.astro";
+import SynthPanel from "../../components/experiments/synthwave/SynthPanel.astro";
+import SynthHeroBlock from "../../components/experiments/synthwave/SynthHeroBlock.astro";
+import SynthSectionCard from "../../components/experiments/synthwave/SynthSectionCard.astro";
+import SynthDeepDive from "../../components/experiments/synthwave/SynthDeepDive.astro";
+import SynthGridHorizon from "../../components/experiments/synthwave/SynthGridHorizon.astro";
+import {
+  sections,
+  deepDives,
+  nextRelease,
+  site,
+  type Section,
+} from "../../data/sections";
+
+// Hero - most recently updated section.
+const heroSection: Section = sections.reduce((a, b) =>
+  (b.updatedAt ?? 0) > (a.updatedAt ?? 0) ? b : a,
+);
+
+// All non-hero sections, in their canonical order. Six remain.
+const otherSections = sections.filter((s) => s.slug !== heroSection.slug);
+
+// Per-section accent assignment for the right-rail card grid. Six tiles
+// rotated across magenta / cyan / acid / orange to keep the palette
+// disciplined (orange used once, per the lane constraint).
+type AccentName = "magenta" | "cyan" | "acid" | "orange";
+const accentCycle: Record<string, AccentName> = {
+  gdp: "cyan",
+  inflation: "magenta",
+  labour: "acid",
+  housing: "orange",
+  policy: "magenta",
+  markets: "cyan",
+  trade: "acid",
+};
+
+// Stamps.
+const now = new Date();
+const editionDate = now
+  .toLocaleDateString("en-CA", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  })
+  .toUpperCase();
+
+const buildStamp =
+  `${now.getUTCFullYear()}.${String(now.getUTCMonth() + 1).padStart(2, "0")}.${String(now.getUTCDate()).padStart(2, "0")}-` +
+  `${String(now.getUTCHours()).padStart(2, "0")}${String(now.getUTCMinutes()).padStart(2, "0")}Z`;
+
+// Tape - signal scoreboard.
+const greenCount = sections.filter((s) => {
+  const p = s.prints.find((pr) => pr.key === s.chartSeriesKey) ?? s.prints[0];
+  return p.deltaDir === "pos";
+}).length;
+const redCount = sections.filter((s) => {
+  const p = s.prints.find((pr) => pr.key === s.chartSeriesKey) ?? s.prints[0];
+  return p.deltaDir === "neg";
+}).length;
+const neutralCount = sections.length - greenCount - redCount;
+
+const pageTitle = `${site.shortName} // SYNTHWAVE TERMINAL // ${editionDate}`;
+const pageDesc =
+  "Experimental synthwave / cyberpunk terminal splash for the Macro Research Department - neon nostalgia, perspective grid, glowing values.";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta name="theme-color" content="#0A0414" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Audiowide&family=VT323&family=Rubik:wght@400;500;700&family=Press+Start+2P&display=swap"
+    />
+  </head>
+  <body>
+    <a class="skip-link" href="#sy-main">Skip to terminal output</a>
+
+    {/* Scanline overlay - sits above content with pointer-events off. */}
+    <div class="sy-scan" aria-hidden="true"></div>
+    {/* Faint vignette / CRT corner darkening. */}
+    <div class="sy-vignette" aria-hidden="true"></div>
+
+    <div class="sy-page">
+      <SynthMasthead
+        editionDate={editionDate}
+        buildStamp={buildStamp}
+        liveSectionLabel={heroSection.label}
+      />
+
+      <main id="sy-main" class="sy-main">
+
+        {/* ----- Signal tape ----- */}
+        <div class="sy-tape" aria-label="Page-wide signal summary">
+          <span class="sy-tape__label">/// TAPE</span>
+          <span class="sy-tape__cell">
+            <span class="sy-tape__k">SIGNALS</span>
+            <span class="sy-tape__v">{sections.length}</span>
+          </span>
+          <span class="sy-tape__cell">
+            <span class="sy-tape__k">UP</span>
+            <span class="sy-tape__v sy-c-acid">{greenCount}</span>
+          </span>
+          <span class="sy-tape__cell">
+            <span class="sy-tape__k">DN</span>
+            <span class="sy-tape__v sy-c-magenta">{redCount}</span>
+          </span>
+          <span class="sy-tape__cell">
+            <span class="sy-tape__k">FLT</span>
+            <span class="sy-tape__v sy-c-cyan">{neutralCount}</span>
+          </span>
+          <span class="sy-tape__cell">
+            <span class="sy-tape__k">FOCUS</span>
+            <span class="sy-tape__v sy-c-magenta">{heroSection.label.toUpperCase()}</span>
+          </span>
+          <span class="sy-tape__cell sy-tape__cell--right">
+            <span class="sy-tape__k">NEXT</span>
+            <span class="sy-tape__v">{nextRelease.label} / {nextRelease.date}</span>
+          </span>
+        </div>
+
+        {/* ----- Two column composition ----- */}
+        <div class="sy-grid">
+
+          <section class="sy-grid__hero" aria-labelledby="sy-hero-heading">
+            <h2 id="sy-hero-heading" class="sy-sr">Live state: {heroSection.label}</h2>
+            <SynthPanel
+              label={`LIVE STATE :: ${heroSection.label.toUpperCase()}`}
+              meta={`as of ${editionDate}`}
+              accent="magenta"
+              spacious
+            >
+              <SynthHeroBlock section={heroSection} />
+            </SynthPanel>
+          </section>
+
+          <section class="sy-grid__cards" aria-labelledby="sy-cards-heading">
+            <h2 id="sy-cards-heading" class="sy-sr">All sections</h2>
+            <SynthPanel
+              label="ALL CHANNELS // 07"
+              meta="signal grid"
+              accent="cyan"
+            >
+              <ul role="list" class="sy-cards">
+                {otherSections.map((s, i) => (
+                  <li class="sy-cards__cell">
+                    <SynthSectionCard
+                      section={s}
+                      index={i + 1}
+                      accent={accentCycle[s.slug] ?? "magenta"}
+                    />
+                  </li>
+                ))}
+                <li class="sy-cards__cell sy-cards__cell--wide">
+                  <SynthSectionCard
+                    section={heroSection}
+                    index={7}
+                    accent={accentCycle[heroSection.slug] ?? "magenta"}
+                  />
+                </li>
+              </ul>
+              <p class="sy-cards__legend">
+                <span class="sy-c-faint">LEGEND</span>
+                <span><span class="sy-c-acid">^</span> easing / improving</span>
+                <span><span class="sy-c-magenta">v</span> tightening / deteriorating</span>
+                <span><span class="sy-c-cyan">=</span> flat / mixed</span>
+              </p>
+            </SynthPanel>
+          </section>
+        </div>
+
+        {/* ----- Deep dives ----- */}
+        <section class="sy-dives" aria-labelledby="sy-dives-heading">
+          <h2 id="sy-dives-heading" class="sy-sr">Deep dives</h2>
+          <SynthPanel
+            label="CURRENT DEEP DIVES // 03"
+            meta="long-form research"
+            accent="acid"
+          >
+            <ul role="list" class="sy-dives__list">
+              {deepDives.map((dd, i) => {
+                const s = sections.find((x) => x.slug === dd.section);
+                if (!s) return null;
+                return (
+                  <li>
+                    <SynthDeepDive item={dd} section={s} index={i} />
+                  </li>
+                );
+              })}
+            </ul>
+          </SynthPanel>
+        </section>
+
+        {/* ----- Section nav ----- */}
+        <nav class="sy-nav" aria-label="Sections">
+          <p class="sy-nav__label">/// NAV</p>
+          <ul role="list" class="sy-nav__list">
+            <li><a href="/"><span class="sy-nav__brk">[</span>home<span class="sy-nav__brk">]</span></a></li>
+            {sections.map((s) => (
+              <li>
+                <a href={`/${s.slug}/`}>
+                  <span class="sy-nav__brk">[</span>{s.label.toLowerCase()}<span class="sy-nav__brk">]</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+      </main>
+
+      {/* ----- Horizon footer band ----- */}
+      <footer class="sy-foot" role="contentinfo">
+        <SynthGridHorizon label="Synthwave horizon grid with vanishing point" />
+
+        <div class="sy-foot__strip">
+          <p class="sy-foot__sig">
+            <span class="sy-c-magenta">//</span>
+            {site.name} / Canadian macro terminal
+            <span class="sy-c-magenta">//</span>
+          </p>
+          <p class="sy-foot__meta">
+            <span class="sy-c-faint">build</span> {buildStamp}{" "}
+            <span class="sy-c-faint">//</span>{" "}
+            <span class="sy-c-faint">lane</span> G{" "}
+            <span class="sy-c-faint">//</span>{" "}
+            <span class="sy-c-faint">view</span> synthwave
+          </p>
+          <p class="sy-foot__copy">
+            (c) {now.getFullYear()} {site.shortName}. data attributed at point of use.
+          </p>
+        </div>
+      </footer>
+    </div>
+
+    <style is:global>
+      /* ---------- Synthwave Terminal: page-scoped resets + tokens ----------
+       *
+       * Tokens are local to this page (the `sy-` prefix). The page is
+       * deliberately divorced from the production design system; nothing
+       * here cascades outside this body.
+       */
+
+      :root {
+        /* Palette - five colors, plus neutrals */
+        --sy-bg: #0A0414;
+        --sy-panel: #150B23;
+        --sy-panel-2: #1B0E2E;
+        --sy-rule: rgba(255, 46, 151, 0.18);
+
+        --sy-ink: #F4E8FF;
+        --sy-ink-muted: #B9A6D6;
+        --sy-ink-faint: #7B6694;
+
+        --sy-magenta: #FF2E97;
+        --sy-cyan:    #00E5FF;
+        --sy-acid:    #00FF85;
+        --sy-orange:  #FF6B35;
+
+        /* Type stacks */
+        --sy-font-display: "Orbitron", "Audiowide", system-ui, sans-serif;
+        --sy-font-display-alt: "Audiowide", "Orbitron", system-ui, sans-serif;
+        --sy-font-crt:     "VT323", ui-monospace, Menlo, Consolas, monospace;
+        --sy-font-body:    "Rubik", system-ui, -apple-system, "Segoe UI", sans-serif;
+        --sy-font-pixel:   "Press Start 2P", "VT323", monospace;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--sy-bg);
+        color: var(--sy-ink);
+        font-family: var(--sy-font-body);
+        font-size: 15px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: "tnum", "lnum";
+      }
+
+      body {
+        position: relative;
+        /* Deep ambient field - subtle radial pinks/cyans behind everything. */
+        background:
+          radial-gradient(1200px 600px at 85% -10%, rgba(0, 229, 255, 0.07), transparent 60%),
+          radial-gradient(1100px 700px at 10% 5%, rgba(255, 46, 151, 0.09), transparent 60%),
+          radial-gradient(800px 800px at 50% 110%, rgba(255, 46, 151, 0.12), transparent 70%),
+          var(--sy-bg);
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      ul, ol {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      ::selection {
+        background: var(--sy-magenta);
+        color: var(--sy-bg);
+      }
+
+      .skip-link {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        background: var(--sy-magenta);
+        color: #0A0414;
+        padding: 8px 12px;
+        font-family: var(--sy-font-display);
+        font-weight: 800;
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        z-index: 100;
+        box-shadow: 0 0 12px rgba(255, 46, 151, 0.7);
+      }
+      .skip-link:focus {
+        left: 12px;
+        top: 12px;
+        outline: 2px solid var(--sy-cyan);
+        outline-offset: 2px;
+      }
+
+      .sy-sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      /* Signal color utilities */
+      .sy-c-magenta { color: var(--sy-magenta); text-shadow: 0 0 6px rgba(255, 46, 151, 0.5); }
+      .sy-c-cyan    { color: var(--sy-cyan); text-shadow: 0 0 6px rgba(0, 229, 255, 0.5); }
+      .sy-c-acid    { color: var(--sy-acid); text-shadow: 0 0 6px rgba(0, 255, 133, 0.5); }
+      .sy-c-orange  { color: var(--sy-orange); text-shadow: 0 0 6px rgba(255, 107, 53, 0.5); }
+      .sy-c-faint   { color: var(--sy-ink-faint); }
+
+      /* ---------- Scanline overlay ---------- */
+      .sy-scan {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 50;
+        background-image: repeating-linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.025) 0px,
+          rgba(255, 255, 255, 0.025) 1px,
+          transparent 1px,
+          transparent 3px
+        );
+        mix-blend-mode: overlay;
+        animation: sy-scan-flicker 6s steps(60) infinite;
+      }
+      @keyframes sy-scan-flicker {
+        0%, 100% { opacity: 0.55; }
+        4%       { opacity: 0.42; }
+        8%       { opacity: 0.6; }
+        50%      { opacity: 0.52; }
+        78%      { opacity: 0.46; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .sy-scan { animation: none; opacity: 0.5; }
+      }
+
+      /* ---------- Vignette ---------- */
+      .sy-vignette {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 49;
+        background: radial-gradient(
+          ellipse 130% 100% at 50% 50%,
+          transparent 50%,
+          rgba(10, 4, 20, 0.5) 100%
+        );
+      }
+
+      /* ---------- Page shell ---------- */
+      .sy-page {
+        position: relative;
+        z-index: 1;
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 22px clamp(16px, 3vw, 36px) 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .sy-main {
+        flex: 1 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding-top: 18px;
+      }
+
+      /* ---------- Signal tape ---------- */
+      .sy-tape {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 6px 18px;
+        padding: 10px 14px;
+        border: 1px solid rgba(0, 229, 255, 0.3);
+        background: linear-gradient(180deg, rgba(0, 229, 255, 0.04), rgba(10, 4, 20, 0.4));
+        font-family: var(--sy-font-crt);
+        font-size: 17px;
+        line-height: 1;
+        letter-spacing: 0.04em;
+        box-shadow:
+          inset 0 0 24px rgba(0, 229, 255, 0.04),
+          0 0 16px rgba(0, 229, 255, 0.05);
+      }
+      .sy-tape__label {
+        color: var(--sy-cyan);
+        font-family: var(--sy-font-display);
+        font-weight: 800;
+        font-size: 11px;
+        letter-spacing: 0.22em;
+        text-shadow: 0 0 6px rgba(0, 229, 255, 0.55);
+      }
+      .sy-tape__cell {
+        display: inline-flex;
+        gap: 8px;
+        align-items: baseline;
+        white-space: nowrap;
+      }
+      .sy-tape__cell--right { margin-left: auto; }
+      .sy-tape__k {
+        color: var(--sy-ink-faint);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-family: var(--sy-font-display);
+        font-weight: 700;
+        font-size: 10px;
+      }
+      .sy-tape__v {
+        color: var(--sy-ink);
+        font-weight: 400;
+        font-feature-settings: "tnum", "lnum";
+      }
+
+      /* ---------- Two-column composition ---------- */
+      .sy-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      @media (min-width: 1100px) {
+        .sy-grid {
+          grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+          gap: 22px;
+        }
+      }
+      .sy-grid__hero,
+      .sy-grid__cards {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ---------- Section cards grid ---------- */
+      .sy-cards {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      @media (min-width: 720px) {
+        .sy-cards { grid-template-columns: 1fr 1fr; }
+      }
+      .sy-cards__cell { display: flex; }
+      .sy-cards__cell > * { flex: 1; }
+      .sy-cards__cell--wide { grid-column: 1 / -1; }
+
+      .sy-cards__legend {
+        margin: 14px 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 18px;
+        font-family: var(--sy-font-crt);
+        font-size: 14px;
+        letter-spacing: 0.06em;
+        color: var(--sy-ink-muted);
+        padding-top: 10px;
+        border-top: 1px dashed rgba(0, 229, 255, 0.18);
+      }
+
+      /* ---------- Deep dives ---------- */
+      .sy-dives {
+        display: flex;
+        flex-direction: column;
+      }
+      .sy-dives__list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      /* ---------- Section nav ---------- */
+      .sy-nav {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        padding: 14px 16px;
+        border: 1px solid rgba(255, 46, 151, 0.25);
+        background: linear-gradient(180deg, rgba(255, 46, 151, 0.04), rgba(10, 4, 20, 0.5));
+      }
+      .sy-nav__label {
+        margin: 0;
+        color: var(--sy-magenta);
+        font-family: var(--sy-font-display);
+        font-weight: 800;
+        font-size: 11px;
+        letter-spacing: 0.22em;
+        text-shadow: 0 0 6px rgba(255, 46, 151, 0.55);
+      }
+      .sy-nav__list {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        font-family: var(--sy-font-crt);
+        font-size: 17px;
+      }
+      .sy-nav__list a {
+        color: var(--sy-ink);
+        transition: color 120ms linear, text-shadow 120ms linear;
+        letter-spacing: 0.04em;
+      }
+      .sy-nav__list a:hover,
+      .sy-nav__list a:focus-visible {
+        color: var(--sy-cyan);
+        text-shadow: 0 0 8px rgba(0, 229, 255, 0.7);
+        outline: none;
+      }
+      .sy-nav__list a:focus-visible {
+        outline: 2px solid var(--sy-cyan);
+        outline-offset: 2px;
+      }
+      .sy-nav__brk {
+        color: var(--sy-ink-faint);
+      }
+      .sy-nav__list a:hover .sy-nav__brk,
+      .sy-nav__list a:focus-visible .sy-nav__brk {
+        color: var(--sy-cyan);
+      }
+
+      /* ---------- Footer ---------- */
+      .sy-foot {
+        margin-top: 26px;
+        padding-bottom: 20px;
+        position: relative;
+      }
+      .sy-foot__strip {
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px dashed rgba(0, 229, 255, 0.25);
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 4px;
+        font-family: var(--sy-font-crt);
+        font-size: 16px;
+      }
+      @media (min-width: 720px) {
+        .sy-foot__strip {
+          grid-template-columns: 1fr auto;
+          align-items: baseline;
+          gap: 6px 20px;
+        }
+      }
+      .sy-foot__sig {
+        margin: 0;
+        color: var(--sy-ink);
+        font-family: var(--sy-font-display);
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        text-shadow: 0 0 6px rgba(255, 46, 151, 0.35);
+      }
+      .sy-foot__meta {
+        margin: 0;
+        color: var(--sy-ink-muted);
+        letter-spacing: 0.06em;
+      }
+      .sy-foot__copy {
+        margin: 0;
+        color: var(--sy-ink-faint);
+        grid-column: 1 / -1;
+        padding-top: 6px;
+        border-top: 1px dashed rgba(255, 46, 151, 0.18);
+        letter-spacing: 0.04em;
+        font-size: 14px;
+      }
+    </style>
+  </body>
+</html>

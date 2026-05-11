@@ -1,0 +1,189 @@
+---
+/*
+ * AtlasDeepDivePlate - a deep-dive item as a small "supplementary plate".
+ *
+ * Uses italic taxonomic annotation for the deck and a status ribbon
+ * styled like a scientific-publication state stamp.
+ */
+
+import type { DeepDive } from "../../../data/sections";
+
+interface Props {
+  item: DeepDive;
+  num: string;
+  total: string;
+}
+
+const { item, num, total } = Astro.props;
+
+const statusLabel =
+  item.status === "shipped" ? "Engraved &#8212; in the plates"
+  : item.status === "drafted" ? "On the engraver&apos;s desk"
+  : "Under field survey";
+
+const statusClass =
+  item.status === "shipped" ? "at-dd__status--shipped"
+  : item.status === "drafted" ? "at-dd__status--drafted"
+  : "at-dd__status--research";
+---
+<article class="at-dd" aria-labelledby={`dd-${num}-h`}>
+  <header class="at-dd__head">
+    <p class="at-dd__pillar">
+      <span class="at-dd__pillar-key">Pillar</span>
+      <span class="at-dd__pillar-val">{item.pillar}</span>
+    </p>
+    <p class="at-dd__pageno">
+      <span>Supp.</span>
+      <span>{num}</span>
+      <span class="at-dd__pageno-sep" aria-hidden="true">/</span>
+      <span>{total}</span>
+    </p>
+  </header>
+
+  <hr class="at-dd__rule" aria-hidden="true" />
+
+  <h3 class="at-dd__title" id={`dd-${num}-h`}>
+    {item.href
+      ? <a class="at-dd__title-link" href={item.href}>{item.title}</a>
+      : <span class="at-dd__title-link">{item.title}</span>}
+  </h3>
+
+  <p class="at-dd__deck">
+    <em>{item.deck}</em>
+  </p>
+
+  <footer class="at-dd__foot">
+    <span class:list={["at-dd__status", statusClass]} set:html={statusLabel} />
+    <span class="at-dd__sep" aria-hidden="true">&#xb7;</span>
+    <span class="at-dd__section">/{item.section}/</span>
+    <span class="at-dd__sep" aria-hidden="true">&#xb7;</span>
+    <span class="at-dd__updated">Updated {item.lastUpdated}</span>
+  </footer>
+</article>
+
+<style>
+  .at-dd {
+    padding: 18px 18px 14px;
+    background-color: var(--at-paper);
+    border: 0.6px solid var(--at-rule);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100%;
+  }
+
+  .at-dd__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-family: var(--at-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--at-ink-mute);
+  }
+  .at-dd__pillar { margin: 0; }
+  .at-dd__pillar-key {
+    color: var(--at-ink-faint);
+    margin-right: 6px;
+  }
+  .at-dd__pillar-val {
+    color: var(--at-ink);
+    font-weight: 600;
+  }
+  .at-dd__pageno {
+    margin: 0;
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+  }
+  .at-dd__pageno-sep { color: var(--at-ink-faint); }
+
+  .at-dd__rule {
+    border: 0;
+    border-top: 0.5px solid var(--at-rule);
+    margin: 0;
+  }
+
+  .at-dd__title {
+    margin: 0;
+    font-family: var(--at-display);
+    font-weight: 500;
+    font-size: clamp(20px, 2.5vw, 26px);
+    line-height: 1.15;
+    color: var(--at-ink);
+    letter-spacing: 0.005em;
+  }
+  .at-dd__title-link {
+    color: inherit;
+    text-decoration: none;
+    background-image: linear-gradient(to right, var(--at-rule) 50%, transparent 50%);
+    background-repeat: repeat-x;
+    background-size: 4px 0.5px;
+    background-position: 0 100%;
+    padding-bottom: 2px;
+  }
+  a.at-dd__title-link:hover {
+    color: var(--at-crimson);
+    background-image: linear-gradient(to right, var(--at-crimson) 50%, transparent 50%);
+  }
+  a.at-dd__title-link:focus-visible {
+    outline: 2px solid var(--at-crimson);
+    outline-offset: 3px;
+  }
+
+  .at-dd__deck {
+    margin: 0;
+    font-family: var(--at-body);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--at-ink);
+    max-width: 48ch;
+  }
+  .at-dd__deck em { font-style: italic; }
+
+  .at-dd__foot {
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 0.4px dashed var(--at-rule);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    align-items: baseline;
+    font-family: var(--at-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--at-ink-mute);
+  }
+  .at-dd__sep { color: var(--at-ink-faint); }
+  .at-dd__status {
+    font-style: italic;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-family: var(--at-body);
+    font-size: 11.5px;
+    padding-inline: 6px;
+    padding-block: 1px;
+    border: 0.5px solid var(--at-ink);
+  }
+  .at-dd__status--shipped {
+    color: var(--at-paper);
+    background-color: var(--at-navy);
+    border-color: var(--at-navy);
+  }
+  .at-dd__status--drafted {
+    color: var(--at-ink);
+    background-color: transparent;
+    border-color: var(--at-ink);
+  }
+  .at-dd__status--research {
+    color: var(--at-ink-mute);
+    background-color: transparent;
+    border-color: var(--at-ink-mute);
+    border-style: dashed;
+  }
+  .at-dd__section { color: var(--at-ink); }
+  .at-dd__updated { color: var(--at-ink-mute); }
+</style>

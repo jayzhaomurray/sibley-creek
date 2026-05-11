@@ -1,0 +1,111 @@
+---
+/*
+ * SwissAnchorRail - horizontal numbered anchor rail at top of the
+ * Modernist splash. Each entry reads:
+ *     01 / GDP
+ *     02 / INFLATION
+ *
+ * Numbers in mono, labels in sans Black/ExtraBold. Hairline divider above
+ * and below. Active section is the one currently being viewed (none on
+ * splash, but a sharp focus-state transition is provided).
+ */
+
+interface AnchorItem {
+  num: string;
+  label: string;
+  href: string;
+}
+
+interface Props {
+  items: AnchorItem[];
+  total: string;
+}
+
+const { items, total } = Astro.props;
+---
+<nav class="sw-rail" aria-label="Section anchors">
+  <ol class="sw-rail__list" role="list">
+    {items.map((it) => (
+      <li class="sw-rail__item">
+        <a class="sw-rail__link" href={it.href}>
+          <span class="sw-rail__num">{it.num}</span>
+          <span class="sw-rail__sep" aria-hidden="true">/</span>
+          <span class="sw-rail__label">{it.label}</span>
+        </a>
+      </li>
+    ))}
+    <li class="sw-rail__item sw-rail__item--total" aria-hidden="true">
+      <span class="sw-rail__num sw-rail__num--total">/ {total}</span>
+    </li>
+  </ol>
+</nav>
+
+<style>
+  .sw-rail {
+    padding-block: 12px;
+  }
+  .sw-rail__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .sw-rail__item {
+    border-right: 1px solid var(--sw-ink);
+    padding: 0 16px;
+  }
+  .sw-rail__item:first-child {
+    padding-left: 0;
+  }
+  .sw-rail__item:last-child {
+    border-right: 0;
+  }
+  .sw-rail__item--total {
+    margin-left: auto;
+    color: var(--sw-ink-faint);
+  }
+
+  .sw-rail__link {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    text-decoration: none;
+    color: var(--sw-ink);
+    padding-block: 4px;
+    transition: color 100ms linear;
+  }
+  .sw-rail__link:hover {
+    color: var(--sw-red);
+  }
+  .sw-rail__link:focus-visible {
+    outline: 2px solid var(--sw-red);
+    outline-offset: 2px;
+  }
+
+  .sw-rail__num {
+    font-family: var(--sw-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--sw-ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .sw-rail__num--total {
+    color: var(--sw-ink-faint);
+  }
+  .sw-rail__sep {
+    font-family: var(--sw-mono);
+    font-size: 11px;
+    color: var(--sw-ink-faint);
+  }
+  .sw-rail__label {
+    font-family: var(--sw-sans);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sw-ink);
+  }
+</style>

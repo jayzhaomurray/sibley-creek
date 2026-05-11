@@ -1,0 +1,150 @@
+---
+/*
+ * GDPNow Colophon — small footer note.
+ *
+ * Three rows:
+ *  - Mark: "Macro Research Department / Independent research."
+ *  - Notes: data lineage, refresh cadence, disclaimer
+ *  - Stamps: build date, edition, next release
+ */
+
+interface Props {
+  publication: string;
+  nextLabel: string;
+  nextDate: string;
+  nextAgency: string;
+  produced: string;
+  edition: string;
+}
+
+const { publication, nextLabel, nextDate, nextAgency, produced, edition } = Astro.props;
+---
+<footer class="gdp-col" role="contentinfo">
+  <hr class="gdp-col__rule" aria-hidden="true" />
+  <div class="gdp-col__row">
+    <p class="gdp-col__mark">
+      <em>{publication}</em>
+      <span class="gdp-col__sep" aria-hidden="true">/</span>
+      <span class="gdp-col__sub">Independent research.</span>
+    </p>
+    <p class="gdp-col__notes">
+      Series are placeholder values for the v1 splash. Reported values match
+      the most recently published vintage; revisions are not reconciled
+      across releases. This page is a design experiment and not a research
+      product.
+    </p>
+  </div>
+  <dl class="gdp-col__stamps">
+    <div class="gdp-col__stamp">
+      <dt>Next release</dt>
+      <dd>
+        <span class="gdp-col__stamp-strong">{nextLabel}</span>
+        <span class="gdp-col__stamp-soft">{nextDate} · {nextAgency}</span>
+      </dd>
+    </div>
+    <div class="gdp-col__stamp">
+      <dt>Produced</dt>
+      <dd><span class="gdp-col__stamp-soft">{produced}</span></dd>
+    </div>
+    <div class="gdp-col__stamp">
+      <dt>Edition</dt>
+      <dd><span class="gdp-col__stamp-soft">{edition}</span></dd>
+    </div>
+  </dl>
+</footer>
+
+<style>
+  .gdp-col {
+    padding-block: 18px 28px;
+  }
+  .gdp-col__rule {
+    border: 0;
+    border-top: 1px solid var(--gdp-navy);
+    margin: 0 0 14px;
+  }
+  .gdp-col__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  @media (min-width: 720px) {
+    .gdp-col__row {
+      grid-template-columns: 1fr 2fr;
+      gap: 32px;
+    }
+  }
+  .gdp-col__mark {
+    margin: 0;
+    font-family: var(--gdp-display);
+    font-style: italic;
+    font-size: 14px;
+    line-height: 1.3;
+    color: var(--gdp-navy);
+  }
+  .gdp-col__sep {
+    color: var(--gdp-gray);
+    margin: 0 4px;
+    font-style: normal;
+  }
+  .gdp-col__sub {
+    color: var(--gdp-ink);
+    font-style: italic;
+  }
+  .gdp-col__notes {
+    margin: 0;
+    font-family: var(--gdp-body);
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--gdp-gray);
+    max-width: 76ch;
+  }
+
+  .gdp-col__stamps {
+    margin: 16px 0 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    border-top: 0.5px solid var(--gdp-rule);
+    padding-top: 10px;
+  }
+  @media (min-width: 720px) {
+    .gdp-col__stamps {
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 18px;
+    }
+  }
+  .gdp-col__stamp {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .gdp-col__stamp dt {
+    margin: 0;
+    font-family: var(--gdp-mono);
+    font-size: 9.5px;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gdp-gray);
+    flex: 0 0 auto;
+  }
+  .gdp-col__stamp dd {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    font-family: var(--gdp-mono);
+    font-size: 11px;
+    line-height: 1.2;
+    color: var(--gdp-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .gdp-col__stamp-strong {
+    color: var(--gdp-ink);
+    font-weight: 500;
+  }
+  .gdp-col__stamp-soft {
+    color: var(--gdp-gray);
+  }
+</style>

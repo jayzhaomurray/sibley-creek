@@ -1,0 +1,312 @@
+---
+/*
+ * Lane N - Periodic Table.
+ * The bottom "rare earth elements" row — deep dives rendered as a
+ * detached, slightly shorter row of cells, in the manner of the
+ * lanthanides / actinides in a real periodic table.
+ *
+ * Each rare-earth cell wraps an in-progress deep dive: pillar code as the
+ * atomic number, a short two-letter symbol, the title in italic, and the
+ * status as the "atomic weight".
+ */
+
+import type { DeepDive } from "../../../data/sections";
+
+interface Props {
+  /** Up to 5-6 deep dives. */
+  items: DeepDive[];
+  /** Map from section slug -> family color hex. */
+  sectionColor: Record<string, string>;
+}
+
+const { items, sectionColor } = Astro.props as Props;
+
+// Two-letter "symbol" for a deep dive: pillar code + section's first
+// letter (e.g. "Ah" = pillar A, housing; "Bp" = pillar B, policy).
+function symbolFor(dd: DeepDive): string {
+  const s = dd.section.charAt(0).toUpperCase();
+  return `${dd.pillar}${s.toLowerCase()}`;
+}
+
+// Status -> short atomic-weight stand-in.
+function weightFor(dd: DeepDive): string {
+  return dd.status === "shipped"
+    ? "shipped"
+    : dd.status === "drafted"
+    ? "in draft"
+    : "in research";
+}
+
+// State glyph mirrors a chemistry textbook's stability marker.
+function stateFor(dd: DeepDive): "stable" | "trace" | "synthetic" {
+  return dd.status === "shipped"
+    ? "stable"
+    : dd.status === "drafted"
+    ? "trace"
+    : "synthetic";
+}
+---
+<section class="pt-rare" aria-labelledby="pt-rare-h">
+  <aside class="pt-rare__label">
+    <span class="pt-rare__roman" aria-hidden="true">Row VIII</span>
+    <h2 id="pt-rare-h" class="pt-rare__family">Rare Earths</h2>
+    <p class="pt-rare__gloss">
+      <em>Deep dives currently in motion at the research desk.</em>
+    </p>
+    <p class="pt-rare__count" aria-hidden="true">{items.length} elements</p>
+  </aside>
+
+  <div class="pt-rare__cells" role="list">
+    {items.map((dd, i) => {
+      const color = sectionColor[dd.section] ?? "#7C7C82";
+      const z = `R${String(i + 1).padStart(2, "0")}`;
+      const symbol = symbolFor(dd);
+      const weight = weightFor(dd);
+      const state = stateFor(dd);
+      return (
+        <article
+          class="pt-rare__cell"
+          style={`--pt-family-color:${color}`}
+          aria-label={`Deep dive: ${dd.title}, ${weight}, pillar ${dd.pillar}, section ${dd.section}`}
+          role="listitem"
+        >
+          <header class="pt-rare__cell-head">
+            <span class="pt-rare__cell-z" aria-hidden="true">{z}</span>
+            <span class="pt-rare__cell-state" aria-hidden="true">{state === "stable" ? "st" : state === "trace" ? "tr" : "syn"}</span>
+          </header>
+          <p class="pt-rare__cell-symbol" aria-hidden="true">{symbol}</p>
+          <p class="pt-rare__cell-title"><em>{dd.title}</em></p>
+          <p class="pt-rare__cell-deck">{dd.deck}</p>
+          <footer class="pt-rare__cell-foot">
+            <span class="pt-rare__cell-weight">{weight}</span>
+            <span class="pt-rare__cell-date" aria-hidden="true">{dd.lastUpdated}</span>
+          </footer>
+          <span class="pt-rare__cell-corner" aria-hidden="true"></span>
+        </article>
+      );
+    })}
+  </div>
+</section>
+
+<style>
+  .pt-rare {
+    display: grid;
+    grid-template-columns: 168px 1fr;
+    gap: 18px;
+    align-items: stretch;
+    margin-top: 16px;
+    padding-top: 24px;
+    border-top: 2px dashed var(--pt-ink, #171717);
+    position: relative;
+  }
+  .pt-rare::before {
+    content: "set apart, in the manner of the lanthanides";
+    position: absolute;
+    top: 6px;
+    left: 186px;
+    font-family: var(--pt-serif-display, "Cormorant Garamond"), serif;
+    font-style: italic;
+    font-size: 11px;
+    color: var(--pt-ink-faint, #6B6B6B);
+  }
+
+  .pt-rare__label {
+    padding: 6px 14px 6px 0;
+    border-right: 2px solid var(--pt-ink, #171717);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+  .pt-rare__roman {
+    font-family: var(--pt-mono, "IBM Plex Sans Condensed"), sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--pt-ink, #171717);
+  }
+  .pt-rare__family {
+    margin: 0;
+    font-family: var(--pt-mono, "IBM Plex Sans Condensed"), sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.05;
+    color: var(--pt-ink, #171717);
+  }
+  .pt-rare__gloss {
+    margin: 0;
+    font-family: var(--pt-serif-display, "Cormorant Garamond"), serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.3;
+    color: var(--pt-ink-faint, #555555);
+    max-width: 150px;
+  }
+  .pt-rare__gloss em { font-style: italic; }
+  .pt-rare__count {
+    margin: 0;
+    font-family: var(--pt-mono, "IBM Plex Sans Condensed"), sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--pt-ink-faint, #6B6B6B);
+  }
+
+  .pt-rare__cells {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  /* ---- Rare-earth cell ---- */
+  .pt-rare__cell {
+    position: relative;
+    background: var(--pt-paper-bright, #FCFAF3);
+    color: var(--pt-ink, #171717);
+    border: 1px solid var(--pt-ink, #171717);
+    border-top: 4px solid var(--pt-family-color, #171717);
+    padding: 10px 12px 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+    transition: transform 140ms ease, box-shadow 140ms ease;
+  }
+  .pt-rare__cell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 253, 244, 0.6) 0%,
+      transparent 38%,
+      transparent 62%,
+      rgba(0, 0, 0, 0.025) 100%
+    );
+  }
+  .pt-rare__cell:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      2px 2px 0 0 var(--pt-family-color, #171717),
+      4px 4px 0 0 rgba(23, 23, 23, 0.12);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pt-rare__cell { transition: none; }
+    .pt-rare__cell:hover { transform: none; box-shadow: none; }
+  }
+
+  .pt-rare__cell-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: var(--pt-mono, "IBM Plex Sans Condensed"), sans-serif;
+    line-height: 1;
+    position: relative;
+    z-index: 1;
+  }
+  .pt-rare__cell-z {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--pt-family-color, #171717);
+    letter-spacing: 0.02em;
+  }
+  .pt-rare__cell-state {
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    color: var(--pt-ink-faint, #6B6B6B);
+  }
+
+  .pt-rare__cell-symbol {
+    margin: 0;
+    font-family: var(--pt-mono, "IBM Plex Sans Condensed"), sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    line-height: 0.95;
+    letter-spacing: -0.01em;
+    color: var(--pt-ink, #171717);
+    position: relative;
+    z-index: 1;
+  }
+
+  .pt-rare__cell-title {
+    margin: 0;
+    font-family: var(--pt-serif-display, "Cormorant Garamond"), serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 1.2;
+    color: var(--pt-ink, #171717);
+    position: relative;
+    z-index: 1;
+  }
+  .pt-rare__cell-title em { font-style: italic; }
+
+  .pt-rare__cell-deck {
+    margin: 0;
+    font-family: var(--pt-serif-body, "Source Serif 4"), serif;
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--pt-ink-faint, #4B4B4B);
+    position: relative;
+    z-index: 1;
+    flex: 1;
+  }
+
+  .pt-rare__cell-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-top: 1px dotted var(--pt-rule, #C9C2B0);
+    padding-top: 6px;
+    font-family: var(--pt-mono, "IBM Plex Sans Condensed"), sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    position: relative;
+    z-index: 1;
+  }
+  .pt-rare__cell-weight {
+    color: var(--pt-ink, #171717);
+    font-weight: 600;
+  }
+  .pt-rare__cell-date {
+    color: var(--pt-ink-faint, #6B6B6B);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pt-rare__cell-corner {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-bottom: 10px solid var(--pt-family-color, #171717);
+    opacity: 0.85;
+  }
+
+  @media (max-width: 1100px) {
+    .pt-rare { grid-template-columns: 1fr; gap: 10px; }
+    .pt-rare::before { display: none; }
+    .pt-rare__label {
+      border-right: none;
+      border-bottom: 2px solid var(--pt-ink, #171717);
+      padding: 0 0 6px 0;
+      flex-direction: row;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+  }
+  @media (max-width: 720px) {
+    .pt-rare__cells { grid-template-columns: 1fr; }
+  }
+</style>

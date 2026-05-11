@@ -1,0 +1,719 @@
+---
+/*
+ * Lane P - Air Traffic Control Radar splash.
+ *
+ * Dashboard-as-front-door, technical-radar. The reader lands inside an
+ * operations room: a circular phosphor radar scope dominates the page;
+ * the seven sections are plotted as targets at clock-positions around
+ * its centre; deep dives are "active flights"; the next release is
+ * "incoming traffic"; recent prints scroll as a contact log.
+ *
+ * Self-contained: no shared layout, no production design tokens. Every
+ * rule lives inside this page (or scoped to src/components/experiments/
+ * radar/). The page sets `noindex` and ships a single Google Fonts
+ * import (technical monospace stack only). No client-side JS — the
+ * sweep is a CSS keyframe and respects `prefers-reduced-motion`.
+ *
+ * Palette (6 colors):
+ *   --rd-bg          #0B100D  radar-room near-black
+ *   --rd-green       #3BD25A  radar-glow green (load-bearing)
+ *   --rd-green-dim   #1E6D2F  dimmed phosphor green
+ *   --rd-cyan        #22D3EE  signal cyan (selective accent)
+ *   --rd-red         #EF4444  alert red (selective accent)
+ *   --rd-ink         #E8F0E4  off-white labels
+ *
+ * Typography: monospaced stack (JetBrains Mono / IBM Plex Mono /
+ * Inconsolata). Labels are call-signs (INF-A, GDP-1, ...). No Inter.
+ *
+ * Composition (top to bottom):
+ *   1. Masthead  ........  MRD ATC facility id, OPERATIONAL pill, zulu/coord/build
+ *   2. Hero band  ........  Radar centre + flanking panels (overall + flights/inbound)
+ *   3. Contact log  ......  Recent transmissions (timestamped events)
+ *   4. Footer signoff  ...  Instrument timestamp + OPERATIONAL stamp
+ */
+
+import { sections, deepDives, nextRelease, site, type Section } from "../../data/sections";
+
+import Masthead from "../../components/experiments/radar/Masthead.astro";
+import RadarScope, { type RadarTarget } from "../../components/experiments/radar/RadarScope.astro";
+import StatusPanel from "../../components/experiments/radar/StatusPanel.astro";
+import ActiveFlights from "../../components/experiments/radar/ActiveFlights.astro";
+import IncomingTraffic from "../../components/experiments/radar/IncomingTraffic.astro";
+import LogStrip from "../../components/experiments/radar/LogStrip.astro";
+
+/* ------------------------------------------------------------------ */
+/* Build stamps                                                       */
+/* ------------------------------------------------------------------ */
+
+const now = new Date();
+
+// Zulu (UTC) timestamp: 121530Z
+const zulu = (() => {
+  const dd = String(now.getUTCDate()).padStart(2, "0");
+  const hh = String(now.getUTCHours()).padStart(2, "0");
+  const mm = String(now.getUTCMinutes()).padStart(2, "0");
+  return `${dd}${hh}${mm}Z`;
+})();
+
+// Build stamp: 2026.05.11-1530Z
+const build = (() => {
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(now.getUTCDate()).padStart(2, "0");
+  const hh = String(now.getUTCHours()).padStart(2, "0");
+  const mi = String(now.getUTCMinutes()).padStart(2, "0");
+  return `${y}.${m}.${d}-${hh}${mi}Z`;
+})();
+
+// Coordinate readout — a faux fix for Ottawa-ish to seat the locale.
+const coord = "N45.42 / W75.69";
+
+const facility = "MRD ATC";
+const sector = "CANADIAN MACRO";
+
+/* ------------------------------------------------------------------ */
+/* Map sections -> radar targets                                       */
+/* ------------------------------------------------------------------ */
+
+// Canonical order, then re-rank by clock position so the freshest sits
+// at 12 o'clock and the rest fan out clockwise.
+const ranked: Section[] = [...sections].sort((a, b) => b.updatedAt - a.updatedAt);
+
+// Clock-position bearings, in order of priority. 12 / 1 / 2 / 4 / 5 / 7 / 10
+// — staggered so labels don't collide at 3 / 6 / 9 o'clock cardinals.
+const bearings = [0, 50, 105, 150, 205, 255, 305];
+
+// Per-section call-sign — short pilot tag.
+const callsigns: Record<string, string> = {
+  inflation: "INF-A",
+  gdp: "GDP-1",
+  labour: "LBR-4",
+  housing: "HSG-7",
+  policy: "BOC-2",
+  markets: "MKT-9",
+  trade: "TRD-3",
+};
+
+// Per-section flight-number prefix (used in the inbound + log panels too).
+const fltPrefix: Record<string, string> = {
+  inflation: "INF",
+  gdp: "GDP",
+  labour: "LBR",
+  housing: "HSG",
+  policy: "BOC",
+  markets: "MKT",
+  trade: "TRD",
+};
+
+// Section -> radar range. Freshest stays close to centre (= imminent /
+// active); older prints drift outward. Range is 0..1.
+const ranges = [0.34, 0.48, 0.58, 0.70, 0.76, 0.82, 0.86];
+
+// "Live" if updated in the last 14 days from build time
+const FOURTEEN_D = 14 * 24 * 60 * 60 * 1000;
+function isLive(s: Section): boolean {
+  return now.getTime() - s.updatedAt < FOURTEEN_D;
+}
+
+const targets: RadarTarget[] = ranked.map((s, i): RadarTarget => {
+  const print = s.prints.find((p) => p.key === s.chartSeriesKey) ?? s.prints[0];
+  return {
+    angleDeg: bearings[i] ?? 0,
+    range: ranges[i] ?? 0.6,
+    callsign: callsigns[s.slug] ?? s.slug.toUpperCase(),
+    slug: s.slug,
+    value: print.value,
+    deltaDir: print.deltaDir,
+    live: isLive(s),
+    blinkOffset: i * 0.35,
+  };
+});
+
+/* ------------------------------------------------------------------ */
+/* Overall conditions panel                                            */
+/* ------------------------------------------------------------------ */
+
+const greenCount = ranked.filter((s) => {
+  const p = s.prints.find((pr) => pr.key === s.chartSeriesKey) ?? s.prints[0];
+  return p.deltaDir === "pos";
+}).length;
+const redCount = ranked.filter((s) => {
+  const p = s.prints.find((pr) => pr.key === s.chartSeriesKey) ?? s.prints[0];
+  return p.deltaDir === "neg";
+}).length;
+const neutralCount = ranked.length - greenCount - redCount;
+
+const conditionRows: { label: string; value: string; state: "pos" | "neg" | "neutral" | "alert" }[] = [
+  { label: "FACILITY", value: "MRD ATC", state: "neutral" },
+  { label: "SECTOR", value: "CANADIAN MACRO", state: "neutral" },
+  { label: "TARGETS LIVE", value: String(ranked.length), state: "pos" },
+  { label: "EASING", value: String(greenCount), state: "pos" },
+  { label: "TIGHTENING", value: String(redCount), state: "neg" },
+  { label: "MIXED", value: String(neutralCount), state: "neutral" },
+  { label: "ACTIVE FLIGHTS", value: String(deepDives.length), state: "neutral" },
+  { label: "WIND", value: "270/12 KT", state: "neutral" },
+  { label: "CEILING", value: "OVC 240", state: "neutral" },
+];
+
+/* ------------------------------------------------------------------ */
+/* Active flights = deep dives                                         */
+/* ------------------------------------------------------------------ */
+
+const flights = deepDives.map((dd, i) => {
+  const section = sections.find((s) => s.slug === dd.section)!;
+  const flightNo = `MRD${String(101 + i).padStart(3, "0")}`;
+  const tail = `${fltPrefix[dd.section] ?? "XXX"}-${dd.pillar}`;
+  return { dive: dd, section, flightNo, tail };
+});
+
+/* ------------------------------------------------------------------ */
+/* Inbound + approach                                                  */
+/* ------------------------------------------------------------------ */
+
+// Static placeholder: we treat the published nextRelease as the primary
+// inbound and synthesize a short approach list per the canonical release
+// cadence in the canon. Backend wiring is a future pass.
+const inbound = {
+  flightNo: "MRD901",
+  label: nextRelease.label,
+  date: nextRelease.date,
+  agency: nextRelease.agency,
+  // ~10 days out (May 21 from May 11) — instrument format only.
+  etaMinutes: 10 * 24 * 60,
+};
+
+const approach = [
+  { flightNo: "MRD902", label: "GDP, March 2026 (Statistics Canada)", eta: "T-13:00:00" },
+  { flightNo: "MRD903", label: "LFS, May 2026 (Statistics Canada)", eta: "T-26:00:00" },
+  { flightNo: "MRD904", label: "BoC Rate Decision (Bank of Canada)", eta: "T-32:00:00" },
+  { flightNo: "MRD905", label: "Merch Trade, April (Statistics Canada)", eta: "T-29:00:00" },
+];
+
+/* ------------------------------------------------------------------ */
+/* Contact log = recent prints                                         */
+/* ------------------------------------------------------------------ */
+
+// Build log entries from sections, sorted most-recent first, capped at 8.
+const log = [...ranked]
+  .slice(0, 8)
+  .map((s) => {
+    const p = s.prints.find((pr) => pr.key === s.chartSeriesKey) ?? s.prints[0];
+
+    // Map deltaDir + section to a short verb in ATC vocabulary.
+    let verb = "CONTACT";
+    if (p.deltaDir === "pos") verb = "EASED";
+    if (p.deltaDir === "neg") verb = "TIGHTENED";
+    if (p.deltaDir === "neutral") verb = "HELD";
+
+    // Construct a faux-zulu from updatedAt
+    const d = new Date(s.updatedAt);
+    const dd = String(d.getUTCDate()).padStart(2, "0");
+    const hh = String(d.getUTCHours()).padStart(2, "0");
+    const mm = String(d.getUTCMinutes()).padStart(2, "0");
+    const zuluStamp = `${dd}${hh}${mm}Z`;
+
+    const callsign = callsigns[s.slug] ?? s.slug.toUpperCase();
+
+    // Body: indicator name + value + delta — pure mono content
+    const body = `${p.indicator} ${p.value} (${p.delta})`;
+
+    const state: "pos" | "neg" | "neutral" | "alert" =
+      p.deltaDir === "pos" ? "pos"
+      : p.deltaDir === "neg" ? "neg"
+      : "neutral";
+
+    return { zulu: zuluStamp, callsign, verb, body, state };
+  });
+
+// Add a synthetic "next release on approach" alert at the top to give
+// the log a header event with a different state colour.
+const logWithApproachAlert = [
+  {
+    zulu,
+    callsign: "MRD901",
+    verb: "INBOUND",
+    body: `${nextRelease.label} on approach - ${nextRelease.date} (${nextRelease.agency})`,
+    state: "alert" as const,
+  },
+  ...log,
+];
+
+/* ------------------------------------------------------------------ */
+/* SEO                                                                 */
+/* ------------------------------------------------------------------ */
+
+const pageTitle = `${site.shortName} ATC // ${facility} // ${sector}`;
+const pageDesc =
+  "Experimental Air Traffic Control radar splash for the Macro Research Department - a phosphor-green radar scope with Canadian macro indicators plotted as targets, deep dives as active flights, releases as incoming traffic.";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta name="theme-color" content="#0B100D" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inconsolata:wght@400;500;600&display=swap"
+    />
+  </head>
+  <body>
+    <a class="rd-skip" href="#rd-main">Skip to radar scope</a>
+
+    {/* Faint scanline overlay across the entire viewport */}
+    <div class="rd-scanlines" aria-hidden="true"></div>
+    {/* CRT corner vignette */}
+    <div class="rd-vignette" aria-hidden="true"></div>
+
+    <div class="rd-page">
+      <Masthead
+        facility={facility}
+        sector={sector}
+        zulu={zulu}
+        coord={coord}
+        ops="OPERATIONAL"
+        build={build}
+      />
+
+      <main id="rd-main" class="rd-main">
+
+        {/* HERO BAND - 3-col composition: status / radar / flights+inbound */}
+        <section class="rd-hero" aria-labelledby="rd-scope-heading">
+          <h1 id="rd-scope-heading" class="rd-sr-only">
+            Canadian macro indicators on the radar scope
+          </h1>
+
+          <aside class="rd-hero__left" aria-label="Overall conditions">
+            <StatusPanel
+              kicker="OPS BRIEF"
+              title="OVERALL CONDITIONS"
+              rows={conditionRows}
+            />
+            <div class="rd-legend" aria-hidden="true">
+              <p class="rd-legend__title">SCOPE LEGEND</p>
+              <ul class="rd-legend__list">
+                <li><span class="rd-legend__sw rd-legend__sw--green"></span> live target / nominal</li>
+                <li><span class="rd-legend__sw rd-legend__sw--cyan"></span> approach / inbound</li>
+                <li><span class="rd-legend__sw rd-legend__sw--red"></span> alert / deteriorating</li>
+                <li><span class="rd-legend__sw rd-legend__sw--dim"></span> background / context</li>
+              </ul>
+            </div>
+          </aside>
+
+          <div class="rd-hero__centre">
+            <p class="rd-hero__bearing" aria-hidden="true">
+              <span class="rd-hero__k">SCOPE</span>
+              <span class="rd-hero__v">PPI-A</span>
+              <span class="rd-hero__sep">/</span>
+              <span class="rd-hero__k">RANGE</span>
+              <span class="rd-hero__v">240 NM</span>
+              <span class="rd-hero__sep">/</span>
+              <span class="rd-hero__k">SWEEP</span>
+              <span class="rd-hero__v">10S</span>
+            </p>
+            <RadarScope targets={targets} sweepSeconds={10} />
+            <p class="rd-hero__caption">
+              <span class="rd-c-dim">//</span>
+              {ranked.length} targets plotted at clock bearing.
+              Centre = freshest contact ({ranked[0].label}).
+              <span class="rd-c-dim">//</span>
+            </p>
+          </div>
+
+          <aside class="rd-hero__right" aria-label="Active flights and incoming traffic">
+            <ActiveFlights flights={flights} />
+            <IncomingTraffic inbound={inbound} approach={approach} />
+          </aside>
+        </section>
+
+        {/* SECTION NAV - call-sign strip */}
+        <nav class="rd-nav" aria-label="Sections">
+          <p class="rd-nav__label">// FREQUENCIES</p>
+          <ul role="list" class="rd-nav__list">
+            <li>
+              <a href="/">
+                <span class="rd-nav__brk">[</span>HOME<span class="rd-nav__brk">]</span>
+              </a>
+            </li>
+            {ranked.map((s) => (
+              <li>
+                <a href={`/${s.slug}/`}>
+                  <span class="rd-nav__brk">[</span>
+                  {callsigns[s.slug] ?? s.slug.toUpperCase()}
+                  <span class="rd-nav__sep">·</span>
+                  {s.label.toLowerCase()}
+                  <span class="rd-nav__brk">]</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        {/* CONTACT LOG */}
+        <LogStrip entries={logWithApproachAlert} />
+
+      </main>
+
+      {/* FOOTER - instrument-strip signoff */}
+      <footer class="rd-foot" role="contentinfo">
+        <div class="rd-foot__row">
+          <span class="rd-foot__chunk">
+            <span class="rd-foot__k">STATUS</span>
+            <span class="rd-foot__v rd-c-green">OPERATIONAL</span>
+          </span>
+          <span class="rd-foot__chunk">
+            <span class="rd-foot__k">ZULU</span>
+            <span class="rd-foot__v">{zulu}</span>
+          </span>
+          <span class="rd-foot__chunk">
+            <span class="rd-foot__k">COORD</span>
+            <span class="rd-foot__v">{coord}</span>
+          </span>
+          <span class="rd-foot__chunk">
+            <span class="rd-foot__k">FACILITY</span>
+            <span class="rd-foot__v">{facility} / {sector}</span>
+          </span>
+          <span class="rd-foot__chunk rd-foot__chunk--right">
+            <span class="rd-foot__k">LANE</span>
+            <span class="rd-foot__v">P / RADAR</span>
+          </span>
+        </div>
+        <p class="rd-foot__copy">
+          {site.name} - data attributed at point of use.
+          Experiment Lane P (Air Traffic Control Radar). Not for production routing.
+        </p>
+      </footer>
+    </div>
+
+    <style is:global>
+      /* --------------------------------------------------------------
+       * Lane P (Radar): page-scoped tokens + reset
+       * All tokens are local to this page (rd- prefix). The page is
+       * intentionally divorced from the production design system.
+       * -------------------------------------------------------------- */
+
+      :root {
+        --rd-bg: #0B100D;
+        --rd-green: #3BD25A;
+        --rd-green-dim: #1E6D2F;
+        --rd-cyan: #22D3EE;
+        --rd-red: #EF4444;
+        --rd-ink: #E8F0E4;
+        --rd-ink-muted: #7C9683;
+        --rd-rule: rgba(59, 210, 90, 0.22);
+
+        --rd-font-mono: "JetBrains Mono", "IBM Plex Mono", "Inconsolata", ui-monospace, Consolas, "Courier New", monospace;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--rd-bg);
+        color: var(--rd-ink);
+        font-family: var(--rd-font-mono);
+        font-size: 14px;
+        line-height: 1.45;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: "tnum", "lnum";
+      }
+
+      body {
+        position: relative;
+        min-height: 100vh;
+        overflow-x: hidden;
+        background:
+          radial-gradient(900px 700px at 50% 38%, rgba(59, 210, 90, 0.07), transparent 60%),
+          radial-gradient(700px 500px at 12% 90%, rgba(34, 211, 238, 0.05), transparent 60%),
+          var(--rd-bg);
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      ul, ol { list-style: none; margin: 0; padding: 0; }
+
+      ::selection {
+        background: var(--rd-green);
+        color: var(--rd-bg);
+      }
+
+      .rd-skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        background: var(--rd-green);
+        color: var(--rd-bg);
+        padding: 8px 12px;
+        font-family: var(--rd-font-mono);
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        z-index: 100;
+      }
+      .rd-skip:focus {
+        left: 12px;
+        top: 12px;
+        outline: 2px solid var(--rd-cyan);
+        outline-offset: 2px;
+      }
+
+      .rd-sr-only {
+        position: absolute;
+        width: 1px; height: 1px;
+        padding: 0; margin: -1px;
+        overflow: hidden; clip: rect(0, 0, 0, 0);
+        white-space: nowrap; border: 0;
+      }
+
+      /* Faint scanlines across the viewport */
+      .rd-scanlines {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        pointer-events: none;
+        background-image: repeating-linear-gradient(
+          to bottom,
+          rgba(232, 240, 228, 0.018) 0px,
+          rgba(232, 240, 228, 0.018) 1px,
+          transparent 1px,
+          transparent 3px
+        );
+      }
+      /* CRT vignette */
+      .rd-vignette {
+        position: fixed;
+        inset: 0;
+        z-index: 59;
+        pointer-events: none;
+        background: radial-gradient(
+          ellipse 130% 100% at 50% 50%,
+          transparent 50%,
+          rgba(11, 16, 13, 0.55) 100%
+        );
+      }
+
+      /* Page shell */
+      .rd-page {
+        position: relative;
+        z-index: 1;
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 22px clamp(14px, 2.4vw, 32px) 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      .rd-main {
+        flex: 1 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+        padding-top: 20px;
+      }
+
+      /* Hero composition: 3 columns at wide screens */
+      .rd-hero {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 18px;
+        align-items: stretch;
+      }
+      @media (min-width: 1080px) {
+        .rd-hero {
+          grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) minmax(280px, 360px);
+          gap: 22px;
+        }
+      }
+      .rd-hero__left,
+      .rd-hero__right {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-width: 0;
+      }
+      .rd-hero__centre {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+      }
+      .rd-hero__bearing {
+        margin: 0;
+        font-family: var(--rd-font-mono);
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        color: var(--rd-ink-muted);
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: baseline;
+        padding-bottom: 6px;
+        border-bottom: 1px dashed var(--rd-rule);
+      }
+      .rd-hero__k {
+        color: var(--rd-ink-muted);
+        font-weight: 600;
+        font-size: 10px;
+        letter-spacing: 0.2em;
+      }
+      .rd-hero__v {
+        color: var(--rd-green);
+        font-weight: 600;
+        letter-spacing: 0.08em;
+      }
+      .rd-hero__sep {
+        color: var(--rd-green-dim);
+      }
+      .rd-hero__caption {
+        margin: 0;
+        font-family: var(--rd-font-mono);
+        font-size: 12px;
+        color: var(--rd-ink-muted);
+        letter-spacing: 0.04em;
+        text-align: center;
+        padding-top: 6px;
+        border-top: 1px dashed var(--rd-rule);
+      }
+
+      /* Scope legend (under conditions) */
+      .rd-legend {
+        border: 1px solid var(--rd-rule);
+        padding: 10px 12px;
+        background: linear-gradient(180deg, rgba(59, 210, 90, 0.03), rgba(11, 16, 13, 0.5));
+      }
+      .rd-legend__title {
+        margin: 0 0 6px 0;
+        font-family: var(--rd-font-mono);
+        font-size: 10px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--rd-green-dim);
+      }
+      .rd-legend__list {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        font-family: var(--rd-font-mono);
+        font-size: 12px;
+        color: var(--rd-ink-muted);
+        letter-spacing: 0.04em;
+      }
+      .rd-legend__sw {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        margin-right: 8px;
+        vertical-align: -1px;
+        border-radius: 50%;
+      }
+      .rd-legend__sw--green { background: var(--rd-green); box-shadow: 0 0 6px rgba(59, 210, 90, 0.6); }
+      .rd-legend__sw--cyan  { background: var(--rd-cyan);  box-shadow: 0 0 6px rgba(34, 211, 238, 0.6); }
+      .rd-legend__sw--red   { background: var(--rd-red);   box-shadow: 0 0 6px rgba(239, 68, 68, 0.6); }
+      .rd-legend__sw--dim   { background: var(--rd-green-dim); }
+
+      /* Section nav */
+      .rd-nav {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px 18px;
+        padding: 10px 14px;
+        border: 1px solid var(--rd-rule);
+        background: linear-gradient(180deg, rgba(59, 210, 90, 0.04), rgba(11, 16, 13, 0.55));
+      }
+      .rd-nav__label {
+        margin: 0;
+        font-family: var(--rd-font-mono);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        color: var(--rd-green-dim);
+      }
+      .rd-nav__list {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        font-family: var(--rd-font-mono);
+        font-size: 13px;
+      }
+      .rd-nav__list a {
+        color: var(--rd-ink);
+        letter-spacing: 0.06em;
+        transition: color 120ms linear;
+      }
+      .rd-nav__list a:hover,
+      .rd-nav__list a:focus-visible {
+        color: var(--rd-cyan);
+        outline: none;
+      }
+      .rd-nav__list a:focus-visible {
+        outline: 2px solid var(--rd-cyan);
+        outline-offset: 2px;
+      }
+      .rd-nav__brk { color: var(--rd-green-dim); }
+      .rd-nav__sep { color: var(--rd-green-dim); padding: 0 4px; }
+      .rd-nav__list a:hover .rd-nav__brk,
+      .rd-nav__list a:focus-visible .rd-nav__brk { color: var(--rd-cyan); }
+
+      /* Footer */
+      .rd-foot {
+        margin-top: 22px;
+        padding: 14px 6px 24px;
+        border-top: 1px dashed var(--rd-rule);
+      }
+      .rd-foot__row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 6px 26px;
+        font-family: var(--rd-font-mono);
+        font-size: 12px;
+      }
+      .rd-foot__chunk { display: inline-flex; gap: 8px; align-items: baseline; }
+      .rd-foot__chunk--right { margin-left: auto; }
+      .rd-foot__k {
+        color: var(--rd-ink-muted);
+        font-size: 10px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        font-weight: 600;
+      }
+      .rd-foot__v {
+        color: var(--rd-ink);
+        letter-spacing: 0.06em;
+        font-variant-numeric: tabular-nums;
+      }
+      .rd-c-green { color: var(--rd-green); }
+      .rd-c-cyan { color: var(--rd-cyan); }
+      .rd-c-red { color: var(--rd-red); }
+      .rd-c-dim { color: var(--rd-green-dim); }
+
+      .rd-foot__copy {
+        margin: 10px 0 0 0;
+        font-family: var(--rd-font-mono);
+        font-size: 11px;
+        color: var(--rd-ink-muted);
+        letter-spacing: 0.04em;
+        line-height: 1.5;
+      }
+    </style>
+  </body>
+</html>

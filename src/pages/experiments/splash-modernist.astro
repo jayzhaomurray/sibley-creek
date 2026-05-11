@@ -1,0 +1,503 @@
+---
+/*
+ * Lane C: Swiss Modernist splash page.
+ *
+ * Muller-Brockmann / Vignelli / Knoll-catalogue translation of the macro
+ * dashboard. Precision grid, rational typography (Archivo full weight
+ * range + JetBrains Mono), three-color discipline (ink #0A0A0A, paper
+ * #FAFAFA, signal red #FF0033) plus an ultramarine #0033FF for one
+ * semantic role only (positive deltas).
+ *
+ * Entirely self-contained. Does NOT pull from BaseLayout, design tokens,
+ * or production components. Renders a full HTML document inline.
+ *
+ * Data: read from src/data/sections.ts (sections + deepDives + site +
+ * nextRelease). No mutation; read-only as specified.
+ */
+
+import {
+  sections,
+  deepDives,
+  nextRelease,
+  site,
+  type Section,
+} from "../../data/sections";
+
+import SwissMasthead from "../../components/experiments/modernist/SwissMasthead.astro";
+import SwissAnchorRail from "../../components/experiments/modernist/SwissAnchorRail.astro";
+import SwissSectionCard from "../../components/experiments/modernist/SwissSectionCard.astro";
+import SwissDeepDive from "../../components/experiments/modernist/SwissDeepDive.astro";
+import SwissColophon from "../../components/experiments/modernist/SwissColophon.astro";
+
+// Build-time stamp. Stable per build; not dynamic.
+const buildDate = new Date();
+const produced = buildDate.toISOString().slice(0, 10).replaceAll("-", ".");
+
+// Canonical section ordering for the publication.
+const ordered: Section[] = [
+  "gdp",
+  "inflation",
+  "labour",
+  "housing",
+  "policy",
+  "markets",
+  "trade",
+].map((slug) => sections.find((s) => s.slug === slug)!)
+  .filter(Boolean);
+
+const total = String(ordered.length).padStart(2, "0");
+
+const anchors = ordered.map((s, i) => ({
+  num: String(i + 1).padStart(2, "0"),
+  label: s.label,
+  href: `#sec-${s.slug}`,
+}));
+
+// Surface up to 3 deep dives, ordered by lastUpdated descending.
+const ddOrdered = [...deepDives]
+  .sort((a, b) => (a.lastUpdated < b.lastUpdated ? 1 : -1))
+  .slice(0, 3);
+const ddTotal = String(ddOrdered.length).padStart(2, "0");
+
+const tabTitle = `${site.name} - VOL.01 / ISSUE 19`;
+const description = `${site.name}. Swiss Modernist edition. ${site.description}`;
+
+// Edition info for the rail
+const editionLine = buildDate.toLocaleDateString("en-CA", {
+  weekday: "long",
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+---
+<!doctype html>
+<html lang="en-CA">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="generator" content={Astro.generator} />
+  <title>{tabTitle}</title>
+  <meta name="description" content={description} />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#FAFAFA" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:wght@400;500;700&display=swap"
+  />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+
+  <style is:global>
+    /* ===========================================================
+     * Swiss Modernist - root tokens.
+     * Three-color discipline + one optional. NO MORE.
+     * Spacing: modular 8/16/32/64/128 baseline.
+     * =========================================================== */
+    :root {
+      --sw-paper: #FAFAFA;
+      --sw-ink: #0A0A0A;
+      --sw-ink-faint: #6E6E6E;
+      --sw-red: #FF0033;
+      --sw-blue: #0033FF;
+
+      --sw-sans: "Archivo", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --sw-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+      --sw-s-1: 8px;
+      --sw-s-2: 16px;
+      --sw-s-3: 32px;
+      --sw-s-4: 64px;
+      --sw-s-5: 128px;
+
+      --sw-gutter: 24px;
+      --sw-max: 1440px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--sw-paper);
+      color: var(--sw-ink);
+      font-family: var(--sw-sans);
+      font-weight: 300;
+      font-size: 16px;
+      line-height: 1.4;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-feature-settings: "ss01", "ss02", "tnum";
+      font-variant-numeric: tabular-nums lining-nums;
+    }
+
+    body {
+      min-height: 100vh;
+      opacity: 0;
+      animation: sw-fade 320ms linear forwards;
+    }
+
+    @keyframes sw-fade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      body { animation: none; opacity: 1; }
+    }
+
+    a { color: var(--sw-ink); }
+
+    /* Skip link --------------------------------------------------- */
+    .sw-skip {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+    }
+    .sw-skip:focus {
+      left: 16px;
+      top: 16px;
+      z-index: 100;
+      background: var(--sw-ink);
+      color: var(--sw-paper);
+      padding: 8px 12px;
+      font-family: var(--sw-mono);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* Visually hidden -------------------------------------------- */
+    .sw-vh {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <a class="sw-skip" href="#sw-main">Skip to content</a>
+
+  <div class="sw-shell">
+    {/* TOP RAIL: edition stamp + return to production link */}
+    <div class="sw-toprail">
+      <p class="sw-toprail__edition">
+        <span class="sw-toprail__key">Edition</span>
+        <span class="sw-toprail__val">{editionLine}</span>
+      </p>
+      <p class="sw-toprail__lane">
+        <span class="sw-toprail__key">Lane C</span>
+        <span class="sw-toprail__val">Swiss Modernist</span>
+      </p>
+      <p class="sw-toprail__back">
+        <a class="sw-toprail__back-link" href="/">Production homepage</a>
+      </p>
+    </div>
+
+    {/* MASTHEAD: VOL. 01 / ISSUE 19 / publication */}
+    <SwissMasthead
+      vol="01"
+      issue="19"
+      produced={produced}
+      publication={site.name}
+    />
+
+    {/* ANCHOR RAIL */}
+    <div class="sw-rail-wrap">
+      <SwissAnchorRail items={anchors} total={total} />
+    </div>
+
+    <main id="sw-main" class="sw-main">
+
+      {/* CONTENTS / NEXT RELEASE BAND */}
+      <section class="sw-contents" aria-label="Issue contents">
+        <div class="sw-contents__row">
+          <div class="sw-contents__block">
+            <p class="sw-contents__key">Contents</p>
+            <p class="sw-contents__val">
+              Seven sections. Three deep dives. One edition.
+            </p>
+          </div>
+          <div class="sw-contents__block">
+            <p class="sw-contents__key">Next release</p>
+            <p class="sw-contents__val">
+              <span class="sw-contents__strong">{nextRelease.label}</span>
+              <span class="sw-contents__sep" aria-hidden="true">/</span>
+              <span class="sw-contents__date">{nextRelease.date}</span>
+            </p>
+          </div>
+          <div class="sw-contents__block">
+            <p class="sw-contents__key">Agency</p>
+            <p class="sw-contents__val">{nextRelease.agency}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION GRID */}
+      <section aria-label="Sections" class="sw-sections">
+        <h2 class="sw-vh">Sections</h2>
+        {ordered.map((s, i) => (
+          <SwissSectionCard
+            section={s}
+            num={String(i + 1).padStart(2, "0")}
+            total={total}
+          />
+        ))}
+      </section>
+
+      {/* DEEP DIVES */}
+      <section aria-labelledby="sw-dd-h" class="sw-dds">
+        <header class="sw-dds__head">
+          <p class="sw-dds__key">Section D</p>
+          <h2 id="sw-dd-h" class="sw-dds__title">Deep Dives</h2>
+          <p class="sw-dds__meta">{ddTotal} / {ddTotal} in current issue</p>
+        </header>
+        <ol class="sw-dds__list" role="list">
+          {ddOrdered.map((dd, i) => (
+            <li class="sw-dds__cell">
+              <SwissDeepDive
+                item={dd}
+                num={String(i + 1).padStart(2, "0")}
+                total={ddTotal}
+              />
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* COLOPHON */}
+      <SwissColophon
+        publication={site.name}
+        shortName={site.shortName}
+        description={site.description}
+        url={site.url}
+        locale={site.locale}
+        produced={produced}
+        nextLabel={nextRelease.label}
+        nextDate={nextRelease.date}
+      />
+    </main>
+  </div>
+
+  <style>
+    .sw-shell {
+      width: 100%;
+      max-width: var(--sw-max);
+      margin: 0 auto;
+      padding: 0 var(--sw-gutter);
+    }
+    @media (min-width: 1100px) {
+      .sw-shell {
+        padding: 0 48px;
+      }
+    }
+
+    /* Top rail */
+    .sw-toprail {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 16px 32px;
+      padding-block: 16px;
+      border-bottom: 1px solid var(--sw-ink);
+      font-family: var(--sw-mono);
+      font-size: 11px;
+      line-height: 1;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .sw-toprail__key {
+      color: var(--sw-ink-faint);
+      margin-right: 8px;
+    }
+    .sw-toprail__val {
+      color: var(--sw-ink);
+      font-variant-numeric: tabular-nums;
+    }
+    .sw-toprail__edition,
+    .sw-toprail__lane,
+    .sw-toprail__back {
+      margin: 0;
+    }
+    .sw-toprail__lane .sw-toprail__val {
+      color: var(--sw-red);
+    }
+    .sw-toprail__back {
+      margin-left: auto;
+    }
+    .sw-toprail__back-link {
+      color: var(--sw-ink);
+      text-decoration: none;
+      border-bottom: 1px solid var(--sw-ink);
+      padding-bottom: 2px;
+      transition: color 100ms linear, border-color 100ms linear;
+    }
+    .sw-toprail__back-link:hover {
+      color: var(--sw-red);
+      border-bottom-color: var(--sw-red);
+    }
+    .sw-toprail__back-link:focus-visible {
+      outline: 2px solid var(--sw-red);
+      outline-offset: 2px;
+    }
+
+    /* Anchor rail wrapper */
+    .sw-rail-wrap {
+      border-top: 1px solid var(--sw-ink);
+      border-bottom: 1px solid var(--sw-ink);
+    }
+
+    .sw-main {
+      padding-block: 32px 0;
+    }
+
+    /* Contents band */
+    .sw-contents {
+      padding-block: 32px 64px;
+    }
+    .sw-contents__row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+    @media (min-width: 720px) {
+      .sw-contents__row {
+        grid-template-columns: 4fr 6fr 2fr;
+        gap: 32px;
+      }
+    }
+    .sw-contents__block {
+      min-width: 0;
+    }
+    .sw-contents__block + .sw-contents__block {
+      padding-top: 0;
+    }
+    @media (min-width: 720px) {
+      .sw-contents__block + .sw-contents__block {
+        border-left: 1px solid var(--sw-ink);
+        padding-left: 24px;
+      }
+    }
+    @media (max-width: 719px) {
+      .sw-contents__block + .sw-contents__block {
+        border-top: 1px solid var(--sw-ink-faint);
+        padding-top: 16px;
+      }
+    }
+    .sw-contents__key {
+      margin: 0 0 8px;
+      font-family: var(--sw-mono);
+      font-size: 11px;
+      line-height: 1;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--sw-ink-faint);
+    }
+    .sw-contents__val {
+      margin: 0;
+      font-family: var(--sw-sans);
+      font-weight: 200;
+      font-size: clamp(20px, 2.6vw, 32px);
+      line-height: 1.1;
+      letter-spacing: -0.01em;
+      color: var(--sw-ink);
+    }
+    .sw-contents__strong {
+      font-weight: 800;
+    }
+    .sw-contents__sep {
+      color: var(--sw-ink-faint);
+      margin: 0 8px;
+      font-weight: 200;
+    }
+    .sw-contents__date {
+      font-weight: 300;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Section list */
+    .sw-sections {
+      padding-bottom: 0;
+    }
+
+    /* Deep dives */
+    .sw-dds {
+      padding-block: 64px 32px;
+    }
+    .sw-dds__head {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      padding-bottom: 32px;
+      border-top: 2px solid var(--sw-ink);
+      padding-top: 16px;
+    }
+    @media (min-width: 720px) {
+      .sw-dds__head {
+        grid-template-columns: 2fr 6fr 4fr;
+        align-items: end;
+        gap: 24px;
+      }
+    }
+    .sw-dds__key {
+      margin: 0;
+      font-family: var(--sw-mono);
+      font-size: 11px;
+      line-height: 1;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--sw-ink-faint);
+    }
+    .sw-dds__title {
+      margin: 0;
+      font-family: var(--sw-sans);
+      font-weight: 900;
+      font-size: clamp(40px, 6vw, 80px);
+      line-height: 0.9;
+      letter-spacing: -0.03em;
+      text-transform: uppercase;
+      color: var(--sw-ink);
+    }
+    .sw-dds__meta {
+      margin: 0;
+      font-family: var(--sw-mono);
+      font-size: 11px;
+      line-height: 1;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--sw-ink-faint);
+      text-align: right;
+    }
+    @media (max-width: 719px) {
+      .sw-dds__meta { text-align: left; }
+    }
+
+    .sw-dds__list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+    @media (min-width: 900px) {
+      .sw-dds__list {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0 32px;
+      }
+    }
+    .sw-dds__cell {
+      min-width: 0;
+    }
+  </style>
+</body>
+</html>

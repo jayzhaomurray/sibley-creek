@@ -1,0 +1,243 @@
+---
+/*
+ * Mono no aware Colophon.
+ *
+ * Long quiet footer. Hairline rule above. Vertically anchored
+ * publication mark. Next release stamp. A short note on the set. A
+ * date in classical format. Cinnabar reserved for the closing seal.
+ */
+
+interface Props {
+  publicationShort: string;
+  publicationFull: string;
+  description: string;
+  nextLabel: string;
+  nextDate: string;
+  nextAgency: string;
+  produced: string;
+  locale: string;
+}
+
+const {
+  publicationShort,
+  publicationFull,
+  description,
+  nextLabel,
+  nextDate,
+  nextAgency,
+  produced,
+  locale,
+} = Astro.props;
+
+const year = new Date().getFullYear();
+---
+<footer class="mn-colophon" role="contentinfo">
+  <div class="mn-colophon__shell">
+
+    <div class="mn-colophon__row mn-colophon__row--head">
+      <span class="mn-colophon__hairline" aria-hidden="true"></span>
+      <span class="mn-colophon__seal" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="14" height="14" focusable="false">
+          <circle cx="12" cy="12" r="10.5" fill="none" stroke="var(--mn-accent)" stroke-width="1.4" />
+          <circle cx="12" cy="12" r="3.5" fill="var(--mn-accent)" />
+        </svg>
+      </span>
+    </div>
+
+    <div class="mn-colophon__grid">
+      <section class="mn-colophon__col">
+        <h3 class="mn-colophon__h">The publication</h3>
+        <p class="mn-colophon__mark">{publicationShort}</p>
+        <p class="mn-colophon__line">{publicationFull}</p>
+        <p class="mn-colophon__note">{description}</p>
+      </section>
+
+      <section class="mn-colophon__col">
+        <h3 class="mn-colophon__h">Next release</h3>
+        <p class="mn-colophon__release">{nextLabel}</p>
+        <p class="mn-colophon__release-date">{nextDate}</p>
+        <p class="mn-colophon__release-agency">{nextAgency}</p>
+      </section>
+
+      <section class="mn-colophon__col">
+        <h3 class="mn-colophon__h">The work</h3>
+        <ul role="list" class="mn-colophon__list">
+          <li><a href="/about/">About the Department</a></li>
+          <li><a href="/methodology/">Methodology and revisions</a></li>
+          <li><a href="/sources/">Sources cited</a></li>
+          <li><a href="/accessibility/">Accessibility</a></li>
+        </ul>
+      </section>
+
+      <section class="mn-colophon__col">
+        <h3 class="mn-colophon__h">Set in</h3>
+        <p class="mn-colophon__note">
+          <em>Shippori Mincho</em> for display and figures.
+          <em>Source Serif 4</em> for body. Printed quietly
+          on washi-tinted paper, on the open web.
+        </p>
+      </section>
+    </div>
+
+    <div class="mn-colophon__base">
+      <span>(c) {year} {publicationFull}</span>
+      <span aria-hidden="true" class="mn-colophon__dot">.</span>
+      <span>Produced {produced}</span>
+      <span aria-hidden="true" class="mn-colophon__dot">.</span>
+      <span>{locale}</span>
+    </div>
+
+  </div>
+</footer>
+
+<style>
+  .mn-colophon {
+    padding-block: clamp(72px, 12vh, 144px) clamp(48px, 8vh, 96px);
+  }
+  .mn-colophon__shell {
+    padding-left: clamp(24px, 18vw, 280px);
+    padding-right: clamp(24px, 6vw, 96px);
+  }
+
+  .mn-colophon__row--head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: clamp(40px, 6vh, 72px);
+  }
+  .mn-colophon__hairline {
+    flex: 1;
+    height: 1px;
+    background: var(--mn-rule);
+  }
+  .mn-colophon__seal {
+    line-height: 0;
+    display: inline-flex;
+  }
+
+  .mn-colophon__grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr 1.4fr;
+    gap: clamp(24px, 4vw, 56px);
+  }
+  @media (max-width: 900px) {
+    .mn-colophon__grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+  }
+  @media (max-width: 560px) {
+    .mn-colophon__grid {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+  }
+
+  .mn-colophon__col {
+    min-width: 0;
+  }
+
+  .mn-colophon__h {
+    margin: 0 0 14px;
+    font-family: var(--mn-display);
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--mn-ink-faint);
+    font-weight: 400;
+  }
+
+  .mn-colophon__mark {
+    margin: 0;
+    font-family: var(--mn-display);
+    font-weight: 500;
+    font-size: clamp(28px, 3vw, 38px);
+    letter-spacing: 0.04em;
+    color: var(--mn-ink);
+    line-height: 1;
+  }
+  .mn-colophon__line {
+    margin: 8px 0 12px;
+    font-family: var(--mn-display);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--mn-ink-faint);
+    line-height: 1.4;
+  }
+
+  .mn-colophon__release {
+    margin: 0;
+    font-family: var(--mn-display);
+    font-weight: 500;
+    font-size: 17px;
+    color: var(--mn-ink);
+    line-height: 1.3;
+  }
+  .mn-colophon__release-date {
+    margin: 8px 0 4px;
+    font-family: var(--mn-display);
+    font-size: 13px;
+    color: var(--mn-ink);
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+  }
+  .mn-colophon__release-agency {
+    margin: 0;
+    font-family: var(--mn-display);
+    font-style: italic;
+    font-size: 12px;
+    color: var(--mn-ink-faint);
+  }
+
+  .mn-colophon__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+  }
+  .mn-colophon__list a {
+    font-family: var(--mn-body);
+    font-size: 14px;
+    color: var(--mn-ink);
+    text-decoration: none;
+    border-bottom: 1px solid var(--mn-rule);
+    padding-bottom: 2px;
+    transition: color 200ms ease, border-color 200ms ease;
+  }
+  .mn-colophon__list a:hover {
+    color: var(--mn-accent);
+    border-bottom-color: var(--mn-accent);
+  }
+  .mn-colophon__list a:focus-visible {
+    outline: 1px solid var(--mn-accent);
+    outline-offset: 3px;
+  }
+
+  .mn-colophon__note {
+    margin: 0;
+    font-family: var(--mn-body);
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--mn-ink);
+  }
+  .mn-colophon__note em {
+    font-style: italic;
+    color: var(--mn-ink);
+  }
+
+  .mn-colophon__base {
+    margin-top: clamp(56px, 9vh, 96px);
+    padding-top: 16px;
+    border-top: 1px solid var(--mn-rule);
+    font-family: var(--mn-display);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--mn-ink-faint);
+  }
+  .mn-colophon__dot {
+    margin: 0 0.7em;
+    opacity: 0.55;
+  }
+</style>

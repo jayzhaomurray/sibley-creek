@@ -1,0 +1,489 @@
+---
+/*
+ * ScorePanel - Lane K (Stadium Scoreboard).
+ *
+ * A single LED-style scoreboard panel for one macro section. Reads like
+ * one row of a hockey-arena scoreboard: HOME team label, oversized 7-seg
+ * score (the load-bearing indicator value), period-change delta, SOG-style
+ * supporting prints, and a "PERIOD" stamp showing release timing.
+ *
+ * Color-coded jersey:
+ *   - "home" status (positive / on-target / favourable) -> ice blue trim
+ *   - "away" status (negative / off-target / unfavourable) -> red trim
+ *   - "tie" (neutral / mixed) -> amber trim
+ *
+ * The score value uses the LED-display font (DSEG7 family if available;
+ * VT323/Orbitron as fallback) at the largest sizes on the page.
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  section: Section;
+  index: number;
+  /** Period label, e.g. "PERIOD 1", "PERIOD 2", "FINAL", "OT". */
+  periodLabel: string;
+  /** Match the section's load-bearing print to a status / jersey color. */
+  jersey: "home" | "away" | "tie";
+  /** Is this the spotlighted "game in progress" panel (most-recently-updated)? */
+  spotlight?: boolean;
+}
+
+const { section, index, periodLabel, jersey, spotlight } = Astro.props;
+
+// Pick the load-bearing print, fall back to first.
+const lead =
+  section.prints.find((p) => p.key === section.chartSeriesKey) ??
+  section.prints[0];
+
+// Supporting prints (up to 2 more) - shown as small "shots on goal" rows.
+const supports = section.prints.filter((p) => p !== lead).slice(0, 2);
+
+const directionGlyph =
+  lead.deltaDir === "pos" ? "+" : lead.deltaDir === "neg" ? "-" : "=";
+
+// Sparkline geometry for the inline form chart.
+const spark = lead.spark ?? [];
+const sparkW = 240;
+const sparkH = 34;
+const sparkPath = (() => {
+  if (spark.length < 2) return "";
+  const min = Math.min(...spark);
+  const max = Math.max(...spark);
+  const range = max - min || 1;
+  const step = sparkW / (spark.length - 1);
+  return spark
+    .map((v, i) => {
+      const x = i * step;
+      const y = sparkH - ((v - min) / range) * sparkH;
+      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+})();
+---
+<article
+  class:list={[
+    "sb-pan",
+    `sb-pan--${jersey}`,
+    spotlight && "sb-pan--spotlight",
+  ]}
+  aria-labelledby={`sb-pan-${section.slug}-name`}
+>
+  {/* Top frame: jersey number + team name + period stamp */}
+  <header class="sb-pan__head">
+    <span class="sb-pan__jersey" aria-hidden="true">{String(index).padStart(2, "0")}</span>
+    <div class="sb-pan__id">
+      <span class="sb-pan__side">
+        {jersey === "home" ? "HOME" : jersey === "away" ? "AWAY" : "GAME"}
+      </span>
+      <h3 id={`sb-pan-${section.slug}-name`} class="sb-pan__name">
+        {(section.tileLabel ?? section.label).toUpperCase()}
+      </h3>
+    </div>
+    <div class="sb-pan__period">
+      <span class="sb-pan__period-k">PERIOD</span>
+      <span class="sb-pan__period-v">{periodLabel}</span>
+    </div>
+  </header>
+
+  {/* Main LED readout: oversized score number */}
+  <div class="sb-pan__score-row">
+    <div class="sb-pan__score" aria-label={`${lead.indicator}: ${lead.value}`}>
+      <span class="sb-pan__score-ghost" aria-hidden="true">{lead.value.replace(/[0-9]/g, "8")}</span>
+      <span class="sb-pan__score-v">{lead.value}</span>
+    </div>
+    <div class="sb-pan__delta-cluster">
+      <span class:list={["sb-pan__delta", `sb-pan__delta--${lead.deltaDir}`]}>
+        <span class="sb-pan__delta-glyph" aria-hidden="true">{directionGlyph}</span>
+        <span class="sb-pan__delta-v">{lead.delta}</span>
+      </span>
+      <span class="sb-pan__delta-k">PERIOD CHANGE</span>
+    </div>
+  </div>
+
+  {/* The indicator name, broadcast-lower-third style */}
+  <p class="sb-pan__indicator">{lead.indicator} <span class="sb-pan__asof">/ {lead.asOf}</span></p>
+
+  {/* Form chart - the "shot chart" of the game */}
+  {sparkPath && (
+    <div class="sb-pan__form" aria-hidden="true">
+      <svg viewBox={`0 0 ${sparkW} ${sparkH}`} preserveAspectRatio="none" class="sb-pan__form-svg">
+        <path d={sparkPath} fill="none" stroke="currentColor" stroke-width="1.6"
+              stroke-linecap="round" stroke-linejoin="round" />
+        {(() => {
+          const min = Math.min(...spark);
+          const max = Math.max(...spark);
+          const range = max - min || 1;
+          const lastX = sparkW;
+          const lastY = sparkH - ((spark[spark.length - 1] - min) / range) * sparkH;
+          return <circle cx={lastX} cy={lastY} r="2.4" fill="currentColor" />;
+        })()}
+      </svg>
+      <span class="sb-pan__form-k">FORM / {spark.length}P</span>
+    </div>
+  )}
+
+  {/* Shots on goal: supporting prints */}
+  {supports.length > 0 && (
+    <ul class="sb-pan__shots" role="list">
+      {supports.map((p) => (
+        <li class="sb-pan__shot">
+          <span class="sb-pan__shot-k">{p.indicator}</span>
+          <span class="sb-pan__shot-v">{p.value}</span>
+          <span class:list={["sb-pan__shot-d", `sb-pan__shot-d--${p.deltaDir}`]}>{p.delta}</span>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  {/* Footer rail: cadence + view link */}
+  <footer class="sb-pan__foot">
+    <span class="sb-pan__foot-k">CADENCE</span>
+    <span class="sb-pan__foot-v">{section.cadence.toUpperCase()}</span>
+    <span class="sb-pan__foot-spacer" aria-hidden="true"></span>
+    <a class="sb-pan__view" href={`/${section.slug}/`}>
+      <span class="sb-pan__view-brk" aria-hidden="true">[</span>VIEW REPLAY<span class="sb-pan__view-brk" aria-hidden="true">]</span>
+    </a>
+  </footer>
+</article>
+
+<style>
+  .sb-pan {
+    --pan-trim: var(--sb-amber);
+    --pan-trim-glow: rgba(244, 180, 0, 0.45);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px 18px 16px;
+    border: 1px solid var(--sb-bezel);
+    border-radius: 4px;
+    background:
+      linear-gradient(180deg, rgba(245, 248, 255, 0.025) 0%, transparent 30%),
+      var(--sb-panel);
+    box-shadow:
+      inset 0 0 0 1px rgba(63, 191, 232, 0.05),
+      inset 0 0 40px rgba(8, 21, 42, 0.45),
+      0 0 0 1px rgba(0, 0, 0, 0.4);
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .sb-pan--home { --pan-trim: var(--sb-ice); --pan-trim-glow: rgba(63, 191, 232, 0.45); }
+  .sb-pan--away { --pan-trim: var(--sb-red); --pan-trim-glow: rgba(224, 22, 43, 0.45); }
+  .sb-pan--tie  { --pan-trim: var(--sb-amber); --pan-trim-glow: rgba(244, 180, 0, 0.45); }
+
+  /* Left jersey-stripe accent. */
+  .sb-pan::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--pan-trim);
+    box-shadow: 0 0 12px var(--pan-trim-glow);
+  }
+
+  .sb-pan--spotlight {
+    border-color: var(--pan-trim);
+    box-shadow:
+      inset 0 0 0 1px var(--pan-trim-glow),
+      inset 0 0 60px rgba(8, 21, 42, 0.4),
+      0 0 24px var(--pan-trim-glow),
+      0 0 0 1px rgba(0, 0, 0, 0.4);
+  }
+
+  /* ---- Header ---- */
+  .sb-pan__head {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 4px 12px;
+  }
+
+  .sb-pan__jersey {
+    font-family: var(--sb-font-display);
+    font-size: 28px;
+    color: var(--pan-trim);
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-shadow: 0 0 6px var(--pan-trim-glow);
+    width: 44px;
+    text-align: center;
+    border-right: 1px solid rgba(63, 191, 232, 0.18);
+    padding-right: 10px;
+  }
+
+  .sb-pan__id {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .sb-pan__side {
+    font-family: var(--sb-font-label);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    color: var(--pan-trim);
+    text-transform: uppercase;
+    text-shadow: 0 0 5px var(--pan-trim-glow);
+  }
+
+  .sb-pan__name {
+    margin: 0;
+    font-family: var(--sb-font-label);
+    font-size: clamp(20px, 2.2vw, 26px);
+    letter-spacing: 0.06em;
+    color: var(--sb-white);
+    line-height: 1;
+  }
+
+  .sb-pan__period {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .sb-pan__period-k {
+    font-family: var(--sb-font-mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    color: var(--sb-ink-faint);
+  }
+
+  .sb-pan__period-v {
+    font-family: var(--sb-font-display);
+    font-size: 18px;
+    color: var(--sb-led-amber);
+    letter-spacing: 0.04em;
+    text-shadow: 0 0 5px rgba(244, 180, 0, 0.4);
+  }
+
+  /* ---- Score row ---- */
+  .sb-pan__score-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    border-top: 1px dashed rgba(63, 191, 232, 0.16);
+    padding-top: 14px;
+  }
+
+  .sb-pan__score {
+    position: relative;
+    line-height: 0.92;
+    flex: 0 1 auto;
+  }
+
+  /* The "8888" ghost behind the value, like dim segments of a 7-seg LED. */
+  .sb-pan__score-ghost {
+    position: absolute;
+    inset: 0;
+    font-family: var(--sb-font-display);
+    font-size: clamp(54px, 8vw, 96px);
+    color: rgba(244, 180, 0, 0.07);
+    letter-spacing: 0.02em;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .sb-pan__score-v {
+    position: relative;
+    font-family: var(--sb-font-display);
+    font-size: clamp(54px, 8vw, 96px);
+    color: var(--pan-trim);
+    letter-spacing: 0.02em;
+    font-feature-settings: "tnum", "lnum";
+    text-shadow:
+      0 0 4px var(--pan-trim-glow),
+      0 0 14px var(--pan-trim-glow),
+      0 0 30px var(--pan-trim-glow);
+    animation: sb-pan-flicker 6.4s steps(50) infinite;
+  }
+
+  .sb-pan__delta-cluster {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    text-align: right;
+  }
+
+  .sb-pan__delta {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    font-family: var(--sb-font-display);
+    font-size: clamp(20px, 2.2vw, 28px);
+    letter-spacing: 0.04em;
+    line-height: 1;
+    font-feature-settings: "tnum", "lnum";
+  }
+  .sb-pan__delta--pos { color: var(--sb-led-green); text-shadow: 0 0 5px rgba(59, 191, 101, 0.45), 0 0 14px rgba(59, 191, 101, 0.28); }
+  .sb-pan__delta--neg { color: var(--sb-red); text-shadow: 0 0 5px rgba(224, 22, 43, 0.5), 0 0 14px rgba(224, 22, 43, 0.3); }
+  .sb-pan__delta--neutral { color: var(--sb-led-amber); text-shadow: 0 0 5px rgba(244, 180, 0, 0.45), 0 0 14px rgba(244, 180, 0, 0.25); }
+
+  .sb-pan__delta-glyph {
+    font-family: var(--sb-font-display);
+    font-size: 0.9em;
+  }
+
+  .sb-pan__delta-k {
+    font-family: var(--sb-font-mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    color: var(--sb-ink-faint);
+  }
+
+  /* ---- Indicator caption ---- */
+  .sb-pan__indicator {
+    margin: -4px 0 0;
+    font-family: var(--sb-font-label);
+    font-size: 13px;
+    letter-spacing: 0.10em;
+    color: var(--sb-ink-muted);
+    text-transform: uppercase;
+  }
+  .sb-pan__asof {
+    color: var(--sb-ink-faint);
+    letter-spacing: 0.06em;
+    font-size: 12px;
+  }
+
+  /* ---- Form chart ---- */
+  .sb-pan__form {
+    position: relative;
+    color: var(--pan-trim);
+    border-top: 1px dashed rgba(63, 191, 232, 0.14);
+    padding-top: 10px;
+  }
+  .sb-pan__form-svg {
+    display: block;
+    width: 100%;
+    height: 34px;
+    filter: drop-shadow(0 0 4px var(--pan-trim-glow));
+  }
+  .sb-pan__form-k {
+    position: absolute;
+    top: 10px;
+    right: 0;
+    font-family: var(--sb-font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--sb-ink-faint);
+    background: var(--sb-panel);
+    padding: 0 2px;
+  }
+
+  /* ---- Shots / supporting prints ---- */
+  .sb-pan__shots {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-top: 1px dashed rgba(63, 191, 232, 0.14);
+    padding-top: 10px;
+  }
+  .sb-pan__shot {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: baseline;
+    gap: 4px 12px;
+    font-family: var(--sb-font-mono);
+    font-size: 13px;
+    letter-spacing: 0.02em;
+  }
+  .sb-pan__shot-k {
+    color: var(--sb-ink-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sb-pan__shot-v {
+    color: var(--sb-white);
+    font-feature-settings: "tnum", "lnum";
+  }
+  .sb-pan__shot-d {
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    font-feature-settings: "tnum", "lnum";
+  }
+  .sb-pan__shot-d--pos { color: var(--sb-led-green); }
+  .sb-pan__shot-d--neg { color: var(--sb-red); }
+  .sb-pan__shot-d--neutral { color: var(--sb-ink-faint); }
+
+  /* ---- Footer ---- */
+  .sb-pan__foot {
+    display: flex;
+    align-items: baseline;
+    gap: 4px 10px;
+    border-top: 1px solid rgba(63, 191, 232, 0.14);
+    padding-top: 10px;
+    font-family: var(--sb-font-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+
+  .sb-pan__foot-k {
+    font-family: var(--sb-font-label);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    color: var(--sb-ink-faint);
+  }
+  .sb-pan__foot-v {
+    color: var(--sb-ink-muted);
+    text-transform: uppercase;
+  }
+  .sb-pan__foot-spacer { flex: 1 1 auto; }
+
+  .sb-pan__view {
+    color: var(--sb-ice);
+    font-family: var(--sb-font-label);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-shadow: 0 0 5px rgba(63, 191, 232, 0.3);
+    transition: color 120ms linear, text-shadow 120ms linear;
+  }
+  .sb-pan__view:hover,
+  .sb-pan__view:focus-visible {
+    color: var(--sb-white);
+    text-shadow: 0 0 10px rgba(245, 248, 255, 0.6);
+    outline: none;
+  }
+  .sb-pan__view:focus-visible {
+    outline: 2px solid var(--sb-ice);
+    outline-offset: 3px;
+  }
+  .sb-pan__view-brk { color: var(--sb-ink-faint); }
+
+  @keyframes sb-pan-flicker {
+    0%, 100% { opacity: 1; }
+    2%       { opacity: 0.88; }
+    4%       { opacity: 1; }
+    47%      { opacity: 0.94; }
+    49%      { opacity: 1; }
+    72%      { opacity: 0.9; }
+    74%      { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sb-pan__score-v { animation: none; }
+  }
+
+  @media (max-width: 520px) {
+    .sb-pan__head { grid-template-columns: auto 1fr; }
+    .sb-pan__period {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      align-items: baseline;
+      gap: 8px;
+    }
+  }
+</style>

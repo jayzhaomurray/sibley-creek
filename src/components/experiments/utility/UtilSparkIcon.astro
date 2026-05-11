@@ -1,0 +1,111 @@
+---
+/*
+ * UtilSparkIcon - the tiny "chart glyph" on a weather-hub indicator card.
+ *
+ * Not a chart. A *chart icon* — the small line+dot mark that a civic
+ * dashboard puts on a tile so the eye knows there is a chart on the
+ * detail page. Drawn at 96x32 from a downsampled spark, no axes, no
+ * labels, no fill. Stroke in slate or advisory color per the parent.
+ */
+
+interface Props {
+  data: number[];
+  variant?: "normal" | "watch" | "advisory" | "alert";
+}
+
+const { data, variant = "normal" } = Astro.props;
+
+const W = 96;
+const H = 32;
+const PAD = 2;
+
+// Downsample to ~16 points for crisper rendering at icon size.
+function downsample(arr: number[], n: number): number[] {
+  if (arr.length <= n) return arr;
+  const step = (arr.length - 1) / (n - 1);
+  const out: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const idx = Math.round(i * step);
+    out.push(arr[idx]);
+  }
+  return out;
+}
+
+const series = downsample(data, 16);
+const min = Math.min(...series);
+const max = Math.max(...series);
+const range = max - min || 1;
+
+const innerW = W - PAD * 2;
+const innerH = H - PAD * 2;
+
+const points = series.map((v, i) => {
+  const x = PAD + (i * innerW) / (series.length - 1);
+  const y = PAD + innerH - ((v - min) / range) * innerH;
+  return [x, y] as const;
+});
+
+const path = points
+  .map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`)
+  .join(" ");
+
+const lastX = points[points.length - 1][0];
+const lastY = points[points.length - 1][1];
+
+const strokeClass = `util-spark--${variant}`;
+---
+<svg
+  class:list={["util-spark", strokeClass]}
+  viewBox={`0 0 ${W} ${H}`}
+  width={W}
+  height={H}
+  aria-hidden="true"
+  focusable="false"
+  preserveAspectRatio="none"
+>
+  <line
+    x1={PAD}
+    x2={W - PAD}
+    y1={H - 1}
+    y2={H - 1}
+    class="util-spark__axis"
+  />
+  <path d={path} class="util-spark__line" fill="none" />
+  <circle cx={lastX} cy={lastY} r="2" class="util-spark__dot" />
+</svg>
+
+<style>
+  .util-spark {
+    display: block;
+    overflow: visible;
+  }
+  .util-spark__axis {
+    stroke: var(--util-rule);
+    stroke-width: 1;
+  }
+  .util-spark__line {
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  .util-spark--normal .util-spark__line,
+  .util-spark--normal .util-spark__dot {
+    stroke: var(--util-slate);
+    fill: var(--util-slate);
+  }
+  .util-spark--watch .util-spark__line,
+  .util-spark--watch .util-spark__dot {
+    stroke: var(--util-blue);
+    fill: var(--util-blue);
+  }
+  .util-spark--advisory .util-spark__line,
+  .util-spark--advisory .util-spark__dot {
+    stroke: var(--util-amber);
+    fill: var(--util-amber);
+  }
+  .util-spark--alert .util-spark__line,
+  .util-spark--alert .util-spark__dot {
+    stroke: var(--util-red);
+    fill: var(--util-red);
+  }
+</style>

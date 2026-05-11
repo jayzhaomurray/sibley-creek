@@ -1,0 +1,283 @@
+---
+/*
+ * UtilFooter - civic-service footer for Lane O.
+ *
+ * Three blocks: site map / nav, accessibility & language toggle stub
+ * (FR), updated stamp + copyright. A second accent stripe (red / white
+ * / red) sits at the very top of the footer to bookend the page.
+ *
+ * All language-toggle and accessibility links are stubs that resolve
+ * to "#" — this is a splash, not the real service.
+ */
+
+import { sections, site } from "../../../data/sections";
+
+interface Props {
+  updatedStamp: string;
+  editionStamp: string;
+}
+
+const { updatedStamp, editionStamp } = Astro.props;
+
+const year = new Date().getFullYear();
+---
+<footer class="util-foot" role="contentinfo">
+  <div class="util-foot__stripe" aria-hidden="true">
+    <span class="util-foot__stripe-red"></span>
+    <span class="util-foot__stripe-white"></span>
+    <span class="util-foot__stripe-red"></span>
+  </div>
+
+  <div class="util-foot__main">
+    <div class="util-foot__inner">
+      <div class="util-foot__col util-foot__col--nav">
+        <h2 class="util-foot__colhead">Sections</h2>
+        <ul class="util-foot__list" role="list">
+          <li><a href="/">Home</a></li>
+          {sections.map((s) => (
+            <li><a href={`/${s.slug}/`}>{s.label}</a></li>
+          ))}
+        </ul>
+      </div>
+
+      <div class="util-foot__col util-foot__col--access">
+        <h2 class="util-foot__colhead">Accessibility &amp; service</h2>
+        <ul class="util-foot__list" role="list">
+          <li><a href="#">Accessibility statement</a></li>
+          <li><a href="#">Keyboard navigation guide</a></li>
+          <li><a href="#">Plain-language summary</a></li>
+          <li><a href="#">Open data &amp; APIs</a></li>
+          <li><a href="#">Contact us</a></li>
+        </ul>
+      </div>
+
+      <div class="util-foot__col util-foot__col--meta">
+        <h2 class="util-foot__colhead">Service status</h2>
+        <dl class="util-foot__deflist">
+          <div class="util-foot__dl-row">
+            <dt>Updated</dt>
+            <dd>{updatedStamp}</dd>
+          </div>
+          <div class="util-foot__dl-row">
+            <dt>Edition</dt>
+            <dd>{editionStamp}</dd>
+          </div>
+          <div class="util-foot__dl-row">
+            <dt>Service</dt>
+            <dd>Operational</dd>
+          </div>
+          <div class="util-foot__dl-row">
+            <dt>Schedule</dt>
+            <dd>Refreshes as releases land</dd>
+          </div>
+        </dl>
+
+        <div class="util-foot__lang">
+          <span class="util-foot__lang-k">Language</span>
+          <span class="util-foot__lang-toggle" role="group" aria-label="Language toggle">
+            <a class="util-foot__lang-btn util-foot__lang-btn--on" aria-current="page" href="#">EN</a>
+            <a class="util-foot__lang-btn" href="#" lang="fr" aria-label="Passer au francais (a venir)">FR</a>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="util-foot__bottom">
+      <p class="util-foot__sig">
+        {site.name} &middot; A public macro-research service for Canada.
+      </p>
+      <p class="util-foot__copy">
+        &copy; {year} {site.shortName}. Data attributed at point of use. Splash route, indexable: no.
+      </p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .util-foot {
+    margin-top: 48px;
+  }
+  .util-foot__stripe {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    height: 6px;
+  }
+  .util-foot__stripe-red {
+    background: var(--util-red);
+  }
+  .util-foot__stripe-white {
+    background: var(--util-paper);
+    border-bottom: 1px solid var(--util-rule);
+  }
+  .util-foot__main {
+    background: var(--util-slate);
+    color: var(--util-paper);
+  }
+  .util-foot__inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px clamp(16px, 3vw, 40px) 24px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  @media (min-width: 760px) {
+    .util-foot__inner {
+      grid-template-columns: 1fr 1fr;
+      gap: 36px;
+    }
+  }
+  @media (min-width: 1080px) {
+    .util-foot__inner {
+      grid-template-columns: 1fr 1.1fr 1.3fr;
+    }
+  }
+  .util-foot__col {
+    min-width: 0;
+  }
+  .util-foot__colhead {
+    margin: 0 0 12px;
+    font-family: var(--util-sans);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--util-paper);
+    opacity: 0.88;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  }
+  .util-foot__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .util-foot__list a {
+    font-family: var(--util-sans);
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--util-paper);
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 255, 255, 0.35);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+  }
+  .util-foot__list a:hover,
+  .util-foot__list a:focus-visible {
+    text-decoration-color: var(--util-paper);
+    text-decoration-thickness: 2px;
+  }
+
+  .util-foot__deflist {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    font-family: var(--util-sans);
+  }
+  .util-foot__dl-row {
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .util-foot__dl-row dt {
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--util-paper);
+    opacity: 0.65;
+    padding-top: 2px;
+  }
+  .util-foot__dl-row dd {
+    margin: 0;
+    font-weight: 500;
+    color: var(--util-paper);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .util-foot__lang {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .util-foot__lang-k {
+    font-family: var(--util-sans);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--util-paper);
+    opacity: 0.65;
+  }
+  .util-foot__lang-toggle {
+    display: inline-flex;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+  }
+  .util-foot__lang-btn {
+    font-family: var(--util-sans);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    padding: 4px 10px;
+    color: var(--util-paper);
+    text-decoration: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.4);
+  }
+  .util-foot__lang-btn:last-child {
+    border-right: 0;
+  }
+  .util-foot__lang-btn--on {
+    background: var(--util-paper);
+    color: var(--util-slate);
+  }
+  .util-foot__lang-btn:hover,
+  .util-foot__lang-btn:focus-visible {
+    background: rgba(255, 255, 255, 0.16);
+    color: var(--util-paper);
+  }
+  .util-foot__lang-btn--on:hover,
+  .util-foot__lang-btn--on:focus-visible {
+    background: var(--util-paper);
+    color: var(--util-slate);
+  }
+
+  .util-foot__bottom {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 14px clamp(16px, 3vw, 40px) 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px;
+    font-family: var(--util-sans);
+    font-size: 12px;
+    color: var(--util-paper);
+    opacity: 0.85;
+  }
+  @media (min-width: 760px) {
+    .util-foot__bottom {
+      grid-template-columns: 1fr auto;
+      align-items: baseline;
+      gap: 12px 28px;
+    }
+  }
+  .util-foot__sig {
+    margin: 0;
+    font-weight: 600;
+  }
+  .util-foot__copy {
+    margin: 0;
+    font-size: 11px;
+    opacity: 0.78;
+    font-variant-numeric: tabular-nums;
+  }
+</style>

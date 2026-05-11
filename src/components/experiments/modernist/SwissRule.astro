@@ -1,0 +1,31 @@
+---
+/*
+ * SwissRule - a hairline horizontal rule for the Modernist splash.
+ *
+ * Pure CSS. Three variants:
+ *   hair    - 1px ink (default; column dividers, section breaks)
+ *   heavy   - 2px ink (masthead-level breaks)
+ *   accent  - 1px signal-red (single use accent)
+ *
+ * Owned by the Modernist splash only. Self-contained.
+ */
+
+interface Props {
+  variant?: "hair" | "heavy" | "accent";
+}
+
+const { variant = "hair" } = Astro.props;
+---
+<hr class:list={["sw-rule", `sw-rule--${variant}`]} aria-hidden="true" />
+
+<style>
+  .sw-rule {
+    border: 0;
+    margin: 0;
+    width: 100%;
+    background-color: var(--sw-ink);
+  }
+  .sw-rule--hair { height: 1px; }
+  .sw-rule--heavy { height: 2px; }
+  .sw-rule--accent { background-color: var(--sw-red); height: 1px; }
+</style>

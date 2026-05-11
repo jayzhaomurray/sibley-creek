@@ -1,0 +1,635 @@
+---
+/*
+ * Lane K - Stadium Scoreboard splash.
+ *
+ * Experimental alternative to the production homepage. Entirely self-
+ * contained: no BaseLayout, no production tokens, no shared component
+ * outside src/components/experiments/scoreboard/.
+ *
+ * Aesthetic register: the page is a stadium scoreboard. Centre Bell /
+ * ACC / Wrigley energy reinterpreted as a research dashboard.
+ *
+ *   - Palette:   deep stadium navy #08152A, scoreboard charcoal #11243F,
+ *                electric white #F5F8FF, hot Maple Leafs red #E0162B,
+ *                hot ice-blue #3FBFE8, LED green #3BBF65, amber #F4B400.
+ *                7 colors total.
+ *   - Display:   DSEG7-Classic (LED 7-segment lookalike) with VT323 +
+ *                Orbitron + Audiowide stack as fallback. DSEG7 not on
+ *                Google Fonts; we use the stack and lean on VT323's
+ *                terminal-block look, with Orbitron carrying the bigger
+ *                letterforms.
+ *   - Labels:    Bebas Neue. (Avoid Inter per the lane brief.)
+ *   - Body:      VT323 for mono / data, Bebas Neue for labels.
+ *   - Motion:    Subtle LED flicker on score values + clock; pulsing
+ *                ON-AIR badge; LIVE pulse on subtitle word. All gated
+ *                by prefers-reduced-motion.
+ *
+ * Composition:
+ *   1. Period banner above the masthead
+ *   2. Masthead: HOME/AWAY team rail + LED title block with PERIOD,
+ *      GAME CLOCK, and broadcast strip
+ *   3. Score grid: 7 ScorePanels in 2-3-2 stadium arrangement
+ *   4. Bottom strip: NEXT GAME card + STARS OF THE WEEK
+ *   5. Section nav row
+ *   6. Footer with broadcast signoff
+ */
+
+import ScoreMasthead from "../../components/experiments/scoreboard/ScoreMasthead.astro";
+import ScorePanel from "../../components/experiments/scoreboard/ScorePanel.astro";
+import ScoreNextGame from "../../components/experiments/scoreboard/ScoreNextGame.astro";
+import ScoreStars from "../../components/experiments/scoreboard/ScoreStars.astro";
+import {
+  sections,
+  deepDives,
+  nextRelease,
+  site,
+  type Section,
+} from "../../data/sections";
+
+// --- Stamps ---------------------------------------------------------------
+const now = new Date();
+
+const editionDate = now
+  .toLocaleDateString("en-CA", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  })
+  .toUpperCase();
+
+// Build a clock string toward the next release. nextRelease.date is a
+// human string like "Tue, May 21, 2026"; parse leniently.
+function parseLooseDate(s: string): Date {
+  // Strip leading weekday-comma if present.
+  const cleaned = s.replace(/^[A-Za-z]+,\s*/, "");
+  const d = new Date(cleaned + " 08:30:00");
+  return isNaN(d.getTime()) ? new Date(now.getTime() + 7 * 86_400_000) : d;
+}
+
+const target = parseLooseDate(nextRelease.date);
+const diffMs = Math.max(0, target.getTime() - now.getTime());
+const diffD = Math.floor(diffMs / 86_400_000);
+const diffH = Math.floor((diffMs % 86_400_000) / 3_600_000);
+const diffM = Math.floor((diffMs % 3_600_000) / 60_000);
+const clockText =
+  `${String(diffD).padStart(2, "0")}D ` +
+  `:${String(diffH).padStart(2, "0")}H ` +
+  `:${String(diffM).padStart(2, "0")}M`;
+
+// Short-form clock used in the NEXT GAME card.
+const clockShort = `${diffD}D ${String(diffH).padStart(2, "0")}H`;
+
+// --- Period banner --------------------------------------------------------
+// Map calendar day-of-month to release-calendar "period" of a Canadian
+// macro month. 1-10 = period 1 (early-month: rate decisions, LFS prior).
+// 11-22 = period 2 (mid-month CPI window). 23-end = period 3 (GDP /
+// late-month residuals).
+const day = now.getDate();
+const periodNum = day <= 10 ? 1 : day <= 22 ? 2 : 3;
+const periodLabels: Record<number, { banner: string; sub: string }> = {
+  1: {
+    banner: "PERIOD 1 - EARLY MONTH",
+    sub: "Rate decisions / LFS / merch trade",
+  },
+  2: {
+    banner: "PERIOD 2 - MID-MONTH",
+    sub: "CPI window / housing / wholesale",
+  },
+  3: {
+    banner: "PERIOD 3 - LATE MONTH",
+    sub: "GDP residuals / retail / earnings",
+  },
+};
+const period = periodLabels[periodNum];
+
+// --- Section -> jersey + period mapping -----------------------------------
+type Jersey = "home" | "away" | "tie";
+
+/**
+ * Assign a jersey color from the lead print's delta direction. The
+ * conventional "good news for the economy" mapping isn't universal
+ * (e.g., higher unemployment is bad, higher GDP is good), so this is a
+ * release-tone proxy: deltaDir already encodes "good / bad" per the
+ * data layer ("pos" = pos for the section, etc.).
+ */
+function jerseyFor(section: Section): Jersey {
+  const lead =
+    section.prints.find((p) => p.key === section.chartSeriesKey) ??
+    section.prints[0];
+  if (lead.deltaDir === "pos") return "home";
+  if (lead.deltaDir === "neg") return "away";
+  return "tie";
+}
+
+/**
+ * Assign a per-panel "period" label based on the section's cadence and
+ * load-bearing print recency. Hockey: 1ST / 2ND / 3RD / FINAL / OT.
+ * We mostly say PERIOD N for current-month landings and FINAL for older
+ * prints; the spotlight section (most-recently-updated) gets "LIVE".
+ */
+function periodFor(section: Section, isSpotlight: boolean): string {
+  if (isSpotlight) return "LIVE";
+  // Days since the load-bearing print's updatedAt.
+  const ageDays =
+    (now.getTime() - (section.updatedAt ?? now.getTime())) / 86_400_000;
+  if (ageDays < 7) return "1ST";
+  if (ageDays < 21) return "2ND";
+  if (ageDays < 35) return "3RD";
+  if (ageDays < 60) return "FINAL";
+  return "OT";
+}
+
+// Spotlight section (most-recently-updated) - first slot in the grid.
+const spotlightSection: Section = sections.reduce((a, b) =>
+  (b.updatedAt ?? 0) > (a.updatedAt ?? 0) ? b : a,
+);
+
+// Order: spotlight first, then the rest in canonical order.
+const orderedSections: Section[] = [
+  spotlightSection,
+  ...sections.filter((s) => s.slug !== spotlightSection.slug),
+];
+
+// --- SEO / page metadata --------------------------------------------------
+const pageTitle = `${site.shortName} // STADIUM SCOREBOARD // ${editionDate}`;
+const pageDesc =
+  "Experimental stadium-scoreboard splash for the Macro Research Department - oversized LED scores, period clocks, three stars of the week. Self-contained, noindex.";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta name="theme-color" content="#08152A" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    {/*
+      Font stack:
+        - DSEG7-Classic (the actual 7-seg LED face) is NOT on Google
+          Fonts; we ship without it and rely on the stack below.
+        - Orbitron + Audiowide carry the big LED-looking numerals.
+        - VT323 carries the smaller terminal-block text and the mono
+          fallback.
+        - Bebas Neue carries section labels and the masthead caps.
+    */}
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Audiowide&family=VT323&family=Bebas+Neue&display=swap"
+    />
+  </head>
+  <body>
+    <a class="skip-link" href="#sb-main">Skip to scoreboard</a>
+
+    <div class="sb-page">
+
+      {/* Optional period banner above the masthead. */}
+      <div class="sb-period-banner" aria-label="Current release-calendar period">
+        <span class="sb-period-banner__k">RELEASE CALENDAR</span>
+        <span class="sb-period-banner__v">{period.banner}</span>
+        <span class="sb-period-banner__sub">{period.sub}</span>
+      </div>
+
+      <ScoreMasthead
+        editionDate={editionDate}
+        periodBanner={period.banner}
+        periodSubLabel={period.sub}
+        clockText={clockText}
+        nextLabel={nextRelease.label.toUpperCase()}
+      />
+
+      <main id="sb-main" class="sb-main">
+
+        {/* The 7-section score grid. Stadium arrangement: a wide
+            spotlight panel up top, then 3 + 3 in two rows. */}
+        <section class="sb-grid" aria-labelledby="sb-grid-heading">
+          <h2 id="sb-grid-heading" class="sb-sr">Section scoreboard</h2>
+
+          <div class="sb-grid__cell sb-grid__cell--hero">
+            <ScorePanel
+              section={orderedSections[0]}
+              index={1}
+              periodLabel={periodFor(orderedSections[0], true)}
+              jersey={jerseyFor(orderedSections[0])}
+              spotlight
+            />
+          </div>
+
+          {orderedSections.slice(1).map((s, i) => (
+            <div class="sb-grid__cell">
+              <ScorePanel
+                section={s}
+                index={i + 2}
+                periodLabel={periodFor(s, false)}
+                jersey={jerseyFor(s)}
+              />
+            </div>
+          ))}
+        </section>
+
+        {/* Bottom strip: NEXT GAME card + STARS OF THE WEEK */}
+        <section class="sb-strip" aria-labelledby="sb-strip-heading">
+          <h2 id="sb-strip-heading" class="sb-sr">Next release and current deep dives</h2>
+
+          <div class="sb-strip__next">
+            <ScoreNextGame
+              label={nextRelease.label}
+              date={nextRelease.date}
+              agency={nextRelease.agency}
+              clockText={clockShort}
+            />
+          </div>
+          <div class="sb-strip__stars">
+            <ScoreStars dives={deepDives} sections={sections} />
+          </div>
+        </section>
+
+        {/* Section nav - roster row. */}
+        <nav class="sb-nav" aria-label="Sections">
+          <span class="sb-nav__k">ROSTER</span>
+          <ul role="list" class="sb-nav__list">
+            <li><a href="/"><span class="sb-nav__brk">[</span>HOME<span class="sb-nav__brk">]</span></a></li>
+            {sections.map((s) => (
+              <li>
+                <a href={`/${s.slug}/`}>
+                  <span class="sb-nav__brk">[</span>{(s.label ?? s.slug).toUpperCase()}<span class="sb-nav__brk">]</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </main>
+
+      <footer class="sb-foot" role="contentinfo">
+        <div class="sb-foot__band" aria-hidden="true">
+          {Array.from({ length: 28 }).map(() => (
+            <span class="sb-foot__bulb"></span>
+          ))}
+        </div>
+        <div class="sb-foot__strip">
+          <p class="sb-foot__sig">
+            <span class="sb-foot__red">/</span>{" "}
+            {site.name.toUpperCase()} - CANADIAN MACRO BROADCAST{" "}
+            <span class="sb-foot__red">/</span>
+          </p>
+          <p class="sb-foot__meta">
+            BROADCAST {editionDate} / CHANNEL MRD-7 / LANE K / SCOREBOARD
+          </p>
+          <p class="sb-foot__copy">
+            (c) {now.getFullYear()} {site.shortName}. Data attributed at point of use. League sources: Statistics Canada, Bank of Canada, CREA.
+          </p>
+        </div>
+      </footer>
+    </div>
+
+    <style is:global>
+      /* ---------- Stadium Scoreboard: page-scoped tokens + resets ----------
+       *
+       * Tokens are local to this page (the `sb-` prefix). The page is
+       * deliberately divorced from the production design system; nothing
+       * here cascades outside this body.
+       */
+
+      :root {
+        /* Palette - 7 colors per the lane brief */
+        --sb-bg:        #08152A;   /* deep stadium navy */
+        --sb-panel:     #0E1E36;   /* panel base */
+        --sb-panel-2:   #11243F;   /* scoreboard charcoal */
+        --sb-bezel:     #1F3454;   /* bezel / rim around panels */
+
+        --sb-white:     #F5F8FF;   /* electric white */
+        --sb-ink-muted: #A8B6CC;
+        --sb-ink-faint: #5E708A;
+
+        --sb-red:       #E0162B;   /* hot Maple Leafs red */
+        --sb-ice:       #3FBFE8;   /* hot ice-blue */
+        --sb-led-green: #3BBF65;   /* LED green */
+        --sb-led-amber: #F4B400;   /* amber */
+        --sb-amber:     #F4B400;   /* alias */
+
+        /* Type stacks
+         *
+         * DSEG7-Classic is the actual 7-segment LED face. Not on Google
+         * Fonts, so we stack to Orbitron/Audiowide/VT323 which all
+         * approximate the segmented look at decreasing fidelity. The
+         * stack still renders correctly when a user has DSEG7 locally.
+         */
+        --sb-font-display: "DSEG7-Classic", "Audiowide", "Orbitron",
+                           ui-monospace, Menlo, Consolas, monospace;
+        --sb-font-display-alt: "Audiowide", "Orbitron", system-ui, sans-serif;
+        --sb-font-label:   "Bebas Neue", "Anton", "Oswald", Impact,
+                           system-ui, sans-serif;
+        --sb-font-mono:    "VT323", ui-monospace, Menlo, Consolas, monospace;
+        --sb-font-body:    "VT323", ui-monospace, Menlo, Consolas, monospace;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--sb-bg);
+        color: var(--sb-white);
+        font-family: var(--sb-font-body);
+        font-size: 18px;
+        line-height: 1.4;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      body {
+        position: relative;
+        min-height: 100vh;
+        overflow-x: hidden;
+        /* Deep stadium-rink gradient under everything. */
+        background:
+          radial-gradient(900px 600px at 50% -10%, rgba(63, 191, 232, 0.10), transparent 60%),
+          radial-gradient(700px 500px at 10% 30%, rgba(244, 180, 0, 0.06), transparent 60%),
+          radial-gradient(800px 600px at 90% 70%, rgba(224, 22, 43, 0.06), transparent 60%),
+          var(--sb-bg);
+      }
+
+      /* Subtle dot-matrix LED noise overlaid on the page. Painted on a
+         pseudo-element so it sits behind content but in front of the
+         page background. */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background-image:
+          radial-gradient(circle, rgba(245, 248, 255, 0.025) 0.5px, transparent 1px);
+        background-size: 4px 4px;
+        opacity: 0.5;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      ul, ol { list-style: none; margin: 0; padding: 0; }
+
+      ::selection {
+        background: var(--sb-led-amber);
+        color: var(--sb-bg);
+      }
+
+      .skip-link {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        background: var(--sb-red);
+        color: var(--sb-white);
+        padding: 10px 14px;
+        font-family: var(--sb-font-label);
+        font-size: 14px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        z-index: 100;
+        box-shadow: 0 0 14px rgba(224, 22, 43, 0.7);
+      }
+      .skip-link:focus {
+        left: 12px;
+        top: 12px;
+        outline: 2px solid var(--sb-ice);
+        outline-offset: 2px;
+      }
+
+      .sb-sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      /* ---------- Page shell ---------- */
+      .sb-page {
+        position: relative;
+        z-index: 1;
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 22px clamp(14px, 2.8vw, 36px) 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .sb-main {
+        flex: 1 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+        padding-top: 4px;
+      }
+
+      /* ---------- Period banner ---------- */
+      .sb-period-banner {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        padding: 8px 14px;
+        border: 1px solid var(--sb-bezel);
+        background: linear-gradient(180deg, rgba(244, 180, 0, 0.05), rgba(8, 21, 42, 0.4));
+        border-radius: 4px;
+        font-family: var(--sb-font-mono);
+        font-size: 16px;
+        line-height: 1;
+      }
+      .sb-period-banner__k {
+        font-family: var(--sb-font-label);
+        font-size: 12px;
+        letter-spacing: 0.22em;
+        color: var(--sb-ice);
+        text-shadow: 0 0 5px rgba(63, 191, 232, 0.35);
+      }
+      .sb-period-banner__v {
+        font-family: var(--sb-font-display);
+        font-size: 16px;
+        color: var(--sb-led-amber);
+        letter-spacing: 0.04em;
+        text-shadow: 0 0 5px rgba(244, 180, 0, 0.4);
+      }
+      .sb-period-banner__sub {
+        color: var(--sb-ink-muted);
+        letter-spacing: 0.04em;
+      }
+
+      /* ---------- Score grid ---------- */
+      .sb-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+      @media (min-width: 900px) {
+        .sb-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      }
+
+      .sb-grid__cell {
+        display: flex;
+        min-width: 0;
+      }
+      .sb-grid__cell > * { flex: 1; }
+      .sb-grid__cell--hero { grid-column: 1 / -1; }
+
+      /* ---------- Bottom strip ---------- */
+      .sb-strip {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      @media (min-width: 900px) {
+        .sb-strip {
+          grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+          gap: 18px;
+        }
+      }
+      .sb-strip__next,
+      .sb-strip__stars {
+        display: flex;
+        min-width: 0;
+      }
+      .sb-strip__next > *,
+      .sb-strip__stars > * { flex: 1; }
+
+      /* ---------- Section nav (roster) ---------- */
+      .sb-nav {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        padding: 12px 16px;
+        border: 1px solid var(--sb-bezel);
+        background: linear-gradient(180deg, rgba(63, 191, 232, 0.04), rgba(8, 21, 42, 0.4));
+        border-radius: 4px;
+      }
+      .sb-nav__k {
+        font-family: var(--sb-font-label);
+        font-size: 14px;
+        letter-spacing: 0.22em;
+        color: var(--sb-led-amber);
+        text-shadow: 0 0 5px rgba(244, 180, 0, 0.35);
+      }
+      .sb-nav__list {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        font-family: var(--sb-font-label);
+        font-size: 16px;
+        letter-spacing: 0.12em;
+      }
+      .sb-nav__list a {
+        color: var(--sb-white);
+        transition: color 120ms linear, text-shadow 120ms linear;
+      }
+      .sb-nav__list a:hover,
+      .sb-nav__list a:focus-visible {
+        color: var(--sb-ice);
+        text-shadow: 0 0 8px rgba(63, 191, 232, 0.6);
+        outline: none;
+      }
+      .sb-nav__list a:focus-visible {
+        outline: 2px solid var(--sb-ice);
+        outline-offset: 2px;
+      }
+      .sb-nav__brk { color: var(--sb-ink-faint); }
+
+      /* ---------- Footer ---------- */
+      .sb-foot {
+        margin-top: 14px;
+        padding-bottom: 20px;
+        position: relative;
+      }
+      .sb-foot__band {
+        display: flex;
+        gap: 14px;
+        justify-content: space-between;
+        padding: 10px 4px;
+        border-top: 1px solid rgba(63, 191, 232, 0.16);
+        border-bottom: 1px solid rgba(63, 191, 232, 0.16);
+        overflow: hidden;
+      }
+      .sb-foot__bulb {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--sb-led-amber);
+        box-shadow:
+          0 0 6px var(--sb-led-amber),
+          0 0 12px rgba(244, 180, 0, 0.45);
+        opacity: 0.75;
+        flex: 0 0 8px;
+        animation: sb-bulb 3.4s ease-in-out infinite;
+      }
+      .sb-foot__bulb:nth-child(3n)   { background: var(--sb-red);   box-shadow: 0 0 6px var(--sb-red),   0 0 12px rgba(224, 22, 43, 0.45); animation-delay: 0.3s; }
+      .sb-foot__bulb:nth-child(3n+1) { background: var(--sb-ice);   box-shadow: 0 0 6px var(--sb-ice),   0 0 12px rgba(63, 191, 232, 0.45); animation-delay: 0.7s; }
+      .sb-foot__bulb:nth-child(5n)   { background: var(--sb-led-green); box-shadow: 0 0 6px var(--sb-led-green), 0 0 12px rgba(59, 191, 101, 0.45); animation-delay: 1.1s; }
+
+      @keyframes sb-bulb {
+        0%, 100% { opacity: 0.55; }
+        50%      { opacity: 1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .sb-foot__bulb { animation: none; opacity: 0.7; }
+      }
+
+      .sb-foot__strip {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 4px;
+        font-family: var(--sb-font-mono);
+        font-size: 15px;
+      }
+      @media (min-width: 720px) {
+        .sb-foot__strip {
+          grid-template-columns: 1fr auto;
+          align-items: baseline;
+          gap: 4px 20px;
+        }
+      }
+      .sb-foot__sig {
+        margin: 0;
+        font-family: var(--sb-font-label);
+        font-size: 16px;
+        letter-spacing: 0.18em;
+        color: var(--sb-white);
+        text-shadow: 0 0 6px rgba(245, 248, 255, 0.2);
+      }
+      .sb-foot__red { color: var(--sb-red); text-shadow: 0 0 6px rgba(224, 22, 43, 0.5); }
+      .sb-foot__meta {
+        margin: 0;
+        color: var(--sb-ink-muted);
+        letter-spacing: 0.04em;
+      }
+      .sb-foot__copy {
+        margin: 0;
+        color: var(--sb-ink-faint);
+        grid-column: 1 / -1;
+        padding-top: 8px;
+        border-top: 1px dashed rgba(63, 191, 232, 0.12);
+        letter-spacing: 0.02em;
+        font-size: 14px;
+      }
+    </style>
+  </body>
+</html>

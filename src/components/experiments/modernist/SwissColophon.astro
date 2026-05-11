@@ -1,0 +1,146 @@
+---
+/*
+ * SwissColophon - the closing block of the Modernist splash. Sets the
+ * publication's identity in a small typographic specimen and stamps
+ * the build.
+ */
+
+interface Props {
+  publication: string;
+  shortName: string;
+  description: string;
+  url: string;
+  locale: string;
+  produced: string;
+  nextLabel: string;
+  nextDate: string;
+}
+
+const {
+  publication,
+  shortName,
+  description,
+  url,
+  locale,
+  produced,
+  nextLabel,
+  nextDate,
+} = Astro.props;
+---
+<footer class="sw-col" aria-labelledby="sw-col-h">
+  <div class="sw-col__row">
+    <div class="sw-col__block sw-col__block--mark">
+      <p class="sw-col__key">Colophon</p>
+      <h2 id="sw-col-h" class="sw-col__mark">{shortName}</h2>
+      <p class="sw-col__name">{publication}</p>
+    </div>
+    <div class="sw-col__block sw-col__block--desc">
+      <p class="sw-col__key">Statement</p>
+      <p class="sw-col__desc">{description}</p>
+    </div>
+    <div class="sw-col__block sw-col__block--meta">
+      <p class="sw-col__key">Metadata</p>
+      <dl class="sw-col__dl">
+        <dt>Locale</dt><dd>{locale}</dd>
+        <dt>Origin</dt><dd>{url}</dd>
+        <dt>Produced</dt><dd>{produced}</dd>
+        <dt>Next release</dt><dd>{nextLabel}<br/>{nextDate}</dd>
+      </dl>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .sw-col {
+    padding-block: 48px 64px;
+    border-top: 2px solid var(--sw-ink);
+  }
+  .sw-col__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  @media (min-width: 720px) {
+    .sw-col__row {
+      grid-template-columns: 3fr 5fr 4fr;
+      gap: 32px;
+    }
+  }
+  .sw-col__block {
+    min-width: 0;
+  }
+  .sw-col__block--desc {
+    border-left: 1px solid var(--sw-ink);
+    padding-left: 24px;
+  }
+  .sw-col__block--meta {
+    border-left: 1px solid var(--sw-ink);
+    padding-left: 24px;
+  }
+  @media (max-width: 719px) {
+    .sw-col__block--desc,
+    .sw-col__block--meta {
+      border-left: 0;
+      padding-left: 0;
+      border-top: 1px solid var(--sw-ink);
+      padding-top: 16px;
+    }
+  }
+
+  .sw-col__key {
+    margin: 0 0 8px;
+    font-family: var(--sw-mono);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--sw-ink-faint);
+  }
+  .sw-col__mark {
+    margin: 0;
+    font-family: var(--sw-sans);
+    font-weight: 900;
+    font-size: clamp(48px, 7vw, 96px);
+    line-height: 0.85;
+    letter-spacing: -0.04em;
+    color: var(--sw-ink);
+  }
+  .sw-col__name {
+    margin: 8px 0 0;
+    font-family: var(--sw-sans);
+    font-weight: 200;
+    font-size: 14px;
+    line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--sw-ink);
+  }
+  .sw-col__desc {
+    margin: 0;
+    font-family: var(--sw-sans);
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 1.4;
+    color: var(--sw-ink);
+    max-width: 52ch;
+  }
+  .sw-col__dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 16px;
+    font-family: var(--sw-mono);
+    font-size: 11px;
+    line-height: 1.4;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .sw-col__dl dt {
+    color: var(--sw-ink-faint);
+  }
+  .sw-col__dl dd {
+    margin: 0;
+    color: var(--sw-ink);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

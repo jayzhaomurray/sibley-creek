@@ -1,0 +1,602 @@
+---
+/*
+ * Panel2PerCapita - the section's SIGNATURE visual.
+ *
+ * Implements design/basics-layer-template.md Section 9.B Panel 2 +
+ * research/wave2_labour_methodology.md Section 1 (subtractive form).
+ *
+ * Side-by-side small multiples, two cells:
+ *   Left  cell: employment Y/Y (aggregate)  + per-capita employment Y/Y
+ *   Right cell: aggregate hours Y/Y         + per-capita hours Y/Y
+ *
+ * Series convention (consistent across both cells):
+ *   Aggregate series   = series-7 slate, 1.5px solid weight 400, context.
+ *   Per-capita series  = series-3 sage,  2.0px solid weight 600, LOAD-BEARING.
+ *                         Deliberately the heaviest line on the whole page.
+ *
+ * Zero-line: ink-muted, 1px solid. The hop from + to - on per-capita is the
+ * editorial drama; the zero line earns the heavy treatment.
+ *
+ * Shaded contraction regions: where per-capita is below zero, fill with
+ * --neg-soft at 40% opacity. This is the ONLY place on the basics layer
+ * where a soft-color area carries editorial weight.
+ *
+ * Each cell carries one annotation: the consecutive-month count of
+ * per-capita contraction, placed at right with a thin leader.
+ *
+ * Plot vs SVG: hand-rolled SVG (zero JS).
+ */
+
+interface MonthlyPoint {
+  date: string;        // "YYYY-MM"
+  agg_emp_yoy: number; // %
+  pc_emp_yoy: number;  // %
+  agg_hrs_yoy: number; // %
+  pc_hrs_yoy: number;  // %
+}
+
+interface Props {
+  data?: MonthlyPoint[];
+  /** Streak annotations per cell. Owned by writer. */
+  empStreak?: string;
+  hrsStreak?: string;
+  ariaLabel?: string;
+}
+
+function makePlaceholder(): MonthlyPoint[] {
+  // 60 months ending Apr 2026. Pattern:
+  //   Aggregate employment Y/Y: +2.5 typical, peak 4.0 in 2022-23, 1.4 in 2026
+  //   Population growth:        ~1.3% pre-2022, ramp to 3.0% in 2024, drift down
+  //   Per-capita emp Y/Y = aggregate emp - pop growth
+  //   Aggregate hours roughly mirrors employment but more volatile;
+  //   per-capita hours follows same subtractive convention.
+  const out: MonthlyPoint[] = [];
+  let y = 2021;
+  let m = 5;
+  for (let i = 0; i < 60; i++) {
+    // Aggregate employment Y/Y
+    let agE: number;
+    if (i < 6) agE = 4.2 + 0.4 * Math.sin(i * 0.5);
+    else if (i < 24) agE = 3.5 - (3.5 - 2.0) * ((i - 6) / 18) + 0.3 * Math.sin(i * 0.4);
+    else if (i < 42) agE = 2.0 + 0.4 * Math.cos(i * 0.5);
+    else agE = 2.0 - (2.0 - 1.3) * ((i - 42) / 18);
+    // Aggregate hours Y/Y: tracks employment but more volatile, recent softer
+    let agH = agE - 0.2 + 0.6 * Math.sin(i * 0.6) - (i > 36 ? (i - 36) * 0.04 : 0);
+    // Population growth
+    let pop: number;
+    if (i < 12) pop = 1.3 + (i / 12) * 0.4; // 1.3 -> 1.7
+    else if (i < 30) pop = 1.7 + ((i - 12) / 18) * 1.3; // 1.7 -> 3.0
+    else if (i < 48) pop = 3.0 + 0.05 * Math.sin(i * 0.5);
+    else pop = 3.0 - ((i - 48) / 12) * 0.8; // drifting down from 2024-2026 plan
+    const pcE = agE - pop;
+    const pcH = agH - pop;
+    out.push({
+      date: `${y}-${String(m).padStart(2, "0")}`,
+      agg_emp_yoy: Number(agE.toFixed(2)),
+      pc_emp_yoy: Number(pcE.toFixed(2)),
+      agg_hrs_yoy: Number(agH.toFixed(2)),
+      pc_hrs_yoy: Number(pcH.toFixed(2)),
+    });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+const {
+  data = makePlaceholder(),
+  empStreak = "14 months of per-capita contraction",
+  hrsStreak = "11 months of per-capita contraction",
+  ariaLabel = "Aggregate vs per-capita: employment Y/Y and hours Y/Y, last 5 years",
+} = Astro.props;
+
+// ---- Geometry --------------------------------------------------------------
+// Two cells side by side in a single SVG. Each cell taller than standard
+// because this is the signature panel.
+const VB_W = 720;
+const VB_H = 420;
+const M_T = 36;
+const M_B = 36;
+const M_L = 44;
+const M_R = 44;
+const GUT = 24; // gap between cells (~s-4)
+const CELL_W = (VB_W - M_L - M_R - GUT) / 2;
+
+const PLOT_H = VB_H - M_T - M_B;
+
+const A_X0 = M_L;
+const A_X1 = A_X0 + CELL_W;
+const B_X0 = A_X1 + GUT;
+const B_X1 = B_X0 + CELL_W;
+const Y0 = M_T;
+const Y1 = Y0 + PLOT_H;
+
+const n = data.length;
+function decYearOf(d: string): number {
+  const [yy, mm] = d.split("-").map(Number);
+  return yy + (mm - 0.5) / 12;
+}
+const xs = data.map((d) => decYearOf(d.date));
+const xMin = xs[0];
+const xMax = xs[xs.length - 1];
+
+// Shared y-extent across both cells so the per-capita-vs-aggregate hop is
+// readable consistently. Take min/max across all four series.
+const allVals = data.flatMap((d) => [
+  d.agg_emp_yoy, d.pc_emp_yoy, d.agg_hrs_yoy, d.pc_hrs_yoy,
+]);
+const rawMin = Math.min(...allVals);
+const rawMax = Math.max(...allVals);
+// Symmetric-ish range with -3 floor and +5 ceiling minimum.
+let yLo = Math.floor(Math.min(-3, rawMin - 0.5));
+let yHi = Math.ceil(Math.max(5, rawMax + 0.5));
+// Snap to even integers.
+yLo = Math.floor(yLo / 2) * 2;
+yHi = Math.ceil(yHi / 2) * 2;
+
+function xScaleCell(decY: number, x0: number, x1: number): number {
+  return x0 + ((decY - xMin) / (xMax - xMin)) * (x1 - x0);
+}
+function yScale(v: number): number {
+  return Y0 + PLOT_H - ((v - yLo) / (yHi - yLo)) * PLOT_H;
+}
+
+// Build a line path within a given cell.
+function buildLine(
+  pickV: (d: MonthlyPoint) => number,
+  x0: number, x1: number,
+): string {
+  return data
+    .map((d, i) => {
+      const x = xScaleCell(xs[i], x0, x1);
+      const y = yScale(pickV(d));
+      return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
+// Build a contraction-area path: a polygon following the per-capita line
+// whenever it is below zero, closed back to the zero line. Each contraction
+// region becomes its own filled polygon.
+function buildContractionAreas(
+  pickV: (d: MonthlyPoint) => number,
+  x0: number, x1: number,
+): string[] {
+  const zeroY = yScale(0);
+  const out: string[] = [];
+  let region: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i < n; i++) {
+    const v = pickV(data[i]);
+    const x = xScaleCell(xs[i], x0, x1);
+    if (v < 0) {
+      region.push({ x, y: yScale(v) });
+    } else if (region.length > 0) {
+      // Close out the region by appending a top-zero return.
+      const x0r = region[0].x;
+      const x1r = region[region.length - 1].x;
+      let d = `M${x0r.toFixed(2)} ${zeroY.toFixed(2)}`;
+      for (const p of region) d += ` L${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+      d += ` L${x1r.toFixed(2)} ${zeroY.toFixed(2)} Z`;
+      out.push(d);
+      region = [];
+    }
+  }
+  if (region.length > 0) {
+    const x0r = region[0].x;
+    const x1r = region[region.length - 1].x;
+    let d = `M${x0r.toFixed(2)} ${zeroY.toFixed(2)}`;
+    for (const p of region) d += ` L${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+    d += ` L${x1r.toFixed(2)} ${zeroY.toFixed(2)} Z`;
+    out.push(d);
+  }
+  return out;
+}
+
+const aggEmpPath = buildLine((d) => d.agg_emp_yoy, A_X0, A_X1);
+const pcEmpPath  = buildLine((d) => d.pc_emp_yoy,  A_X0, A_X1);
+const aggHrsPath = buildLine((d) => d.agg_hrs_yoy, B_X0, B_X1);
+const pcHrsPath  = buildLine((d) => d.pc_hrs_yoy,  B_X0, B_X1);
+
+const empContractions = buildContractionAreas((d) => d.pc_emp_yoy, A_X0, A_X1);
+const hrsContractions = buildContractionAreas((d) => d.pc_hrs_yoy, B_X0, B_X1);
+
+// Y ticks shared.
+const yTicks: number[] = [];
+for (let v = yLo; v <= yHi + 1e-9; v += 2) yTicks.push(v);
+
+// X ticks per cell.
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+function yearTicksFor(x0: number, x1: number): Array<{ x: number; label: string }> {
+  const out: Array<{ x: number; label: string }> = [];
+  for (let yy = yearStart; yy <= yearEnd; yy++) {
+    const decY = yy + (1 - 0.5) / 12;
+    if (decY < xMin || decY > xMax) continue;
+    out.push({ x: xScaleCell(decY, x0, x1), label: String(yy).slice(-2) });
+  }
+  return out;
+}
+const yearTicksA = yearTicksFor(A_X0, A_X1);
+const yearTicksB = yearTicksFor(B_X0, B_X1);
+
+// Latest points.
+const latest = data[n - 1];
+const lastAggE_X = xScaleCell(xs[n - 1], A_X0, A_X1);
+const lastAggE_Y = yScale(latest.agg_emp_yoy);
+const lastPcE_X = lastAggE_X;
+const lastPcE_Y = yScale(latest.pc_emp_yoy);
+const lastAggH_X = xScaleCell(xs[n - 1], B_X0, B_X1);
+const lastAggH_Y = yScale(latest.agg_hrs_yoy);
+const lastPcH_X = lastAggH_X;
+const lastPcH_Y = yScale(latest.pc_hrs_yoy);
+
+// Annotation placement for each cell (anchored to per-capita latest).
+function annoPlacement(latestX: number, latestY: number, x1: number) {
+  // Anchor at right rail; line leader pulls inward.
+  const annoX = Math.min(latestX - 10, x1 - 8);
+  const isLow = latestY > Y0 + PLOT_H * 0.55;
+  const annoY = isLow
+    ? Math.max(Y0 + 16, latestY - 36)
+    : Math.min(Y1 - 16, latestY + 36);
+  return { annoX, annoY, anchorY: isLow ? latestY - 4 : latestY + 4 };
+}
+const annoEmp = annoPlacement(lastPcE_X, lastPcE_Y, A_X1);
+const annoHrs = annoPlacement(lastPcH_X, lastPcH_Y, B_X1);
+---
+<div class="labour-panel-chart" data-panel="2">
+  <svg
+    class="labour-panel-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* Cell A: employment */}
+    <g class="labour-panel-chart__cell">
+      {/* Y gridlines */}
+      {yTicks.map((v) => {
+        const y = yScale(v);
+        const isZero = Math.abs(v) < 1e-9;
+        return (
+          <line
+            class:list={["labour-panel-chart__gridline", { "labour-panel-chart__gridline--zero": isZero }]}
+            x1={A_X0}
+            y1={y.toFixed(2)}
+            x2={A_X1}
+            y2={y.toFixed(2)}
+          />
+        );
+      })}
+
+      {/* Contraction areas (per-capita below zero) */}
+      {empContractions.map((d) => (
+        <path class="labour-panel-chart__contraction" d={d} />
+      ))}
+
+      {/* Aggregate line (context, behind) */}
+      <path class="labour-panel-chart__line-aggregate" d={aggEmpPath} fill="none" />
+
+      {/* Per-capita line (load-bearing, heaviest) */}
+      <path class="labour-panel-chart__line-pc" d={pcEmpPath} fill="none" />
+
+      {/* Latest markers */}
+      <circle
+        class="labour-panel-chart__marker-agg"
+        cx={lastAggE_X.toFixed(2)}
+        cy={lastAggE_Y.toFixed(2)}
+        r="3"
+      >
+        <title>{`${latest.date}: ${latest.agg_emp_yoy.toFixed(1)}% aggregate emp Y/Y`}</title>
+      </circle>
+      <circle
+        class="labour-panel-chart__marker-pc"
+        cx={lastPcE_X.toFixed(2)}
+        cy={lastPcE_Y.toFixed(2)}
+        r="4"
+      >
+        <title>{`${latest.date}: ${latest.pc_emp_yoy.toFixed(1)}% per-capita emp Y/Y`}</title>
+      </circle>
+
+      {/* X-axis */}
+      <line
+        class="labour-panel-chart__xaxis"
+        x1={A_X0}
+        y1={Y1.toFixed(2)}
+        x2={A_X1}
+        y2={Y1.toFixed(2)}
+      />
+      {yearTicksA.map((t) => (
+        <g>
+          <line
+            class="labour-panel-chart__xtick"
+            x1={t.x.toFixed(2)}
+            y1={Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="labour-panel-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(Y1 + 16).toFixed(2)}
+            text-anchor="middle"
+          >{`'${t.label}`}</text>
+        </g>
+      ))}
+
+      {/* Cell title */}
+      <text
+        class="labour-panel-chart__cell-title"
+        x={A_X0.toFixed(2)}
+        y={(Y0 - 18).toFixed(2)}
+        text-anchor="start"
+      >Employment, % Y/Y</text>
+
+      {/* Annotation */}
+      {empStreak && (
+        <g>
+          <line
+            class="labour-panel-chart__anno-leader"
+            x1={(annoEmp.annoX + 4).toFixed(2)}
+            y1={annoEmp.annoY.toFixed(2)}
+            x2={lastPcE_X.toFixed(2)}
+            y2={annoEmp.annoY.toFixed(2)}
+          />
+          <line
+            class="labour-panel-chart__anno-leader"
+            x1={lastPcE_X.toFixed(2)}
+            y1={annoEmp.annoY.toFixed(2)}
+            x2={lastPcE_X.toFixed(2)}
+            y2={annoEmp.anchorY.toFixed(2)}
+          />
+          <text
+            class="labour-panel-chart__anno-text"
+            x={annoEmp.annoX.toFixed(2)}
+            y={(annoEmp.annoY + 4).toFixed(2)}
+            text-anchor="end"
+          >{empStreak}</text>
+        </g>
+      )}
+    </g>
+
+    {/* Cell B: hours */}
+    <g class="labour-panel-chart__cell">
+      {yTicks.map((v) => {
+        const y = yScale(v);
+        const isZero = Math.abs(v) < 1e-9;
+        return (
+          <line
+            class:list={["labour-panel-chart__gridline", { "labour-panel-chart__gridline--zero": isZero }]}
+            x1={B_X0}
+            y1={y.toFixed(2)}
+            x2={B_X1}
+            y2={y.toFixed(2)}
+          />
+        );
+      })}
+
+      {hrsContractions.map((d) => (
+        <path class="labour-panel-chart__contraction" d={d} />
+      ))}
+
+      <path class="labour-panel-chart__line-aggregate" d={aggHrsPath} fill="none" />
+      <path class="labour-panel-chart__line-pc" d={pcHrsPath} fill="none" />
+
+      <circle
+        class="labour-panel-chart__marker-agg"
+        cx={lastAggH_X.toFixed(2)}
+        cy={lastAggH_Y.toFixed(2)}
+        r="3"
+      >
+        <title>{`${latest.date}: ${latest.agg_hrs_yoy.toFixed(1)}% aggregate hours Y/Y`}</title>
+      </circle>
+      <circle
+        class="labour-panel-chart__marker-pc"
+        cx={lastPcH_X.toFixed(2)}
+        cy={lastPcH_Y.toFixed(2)}
+        r="4"
+      >
+        <title>{`${latest.date}: ${latest.pc_hrs_yoy.toFixed(1)}% per-capita hours Y/Y`}</title>
+      </circle>
+
+      <line
+        class="labour-panel-chart__xaxis"
+        x1={B_X0}
+        y1={Y1.toFixed(2)}
+        x2={B_X1}
+        y2={Y1.toFixed(2)}
+      />
+      {yearTicksB.map((t) => (
+        <g>
+          <line
+            class="labour-panel-chart__xtick"
+            x1={t.x.toFixed(2)}
+            y1={Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="labour-panel-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(Y1 + 16).toFixed(2)}
+            text-anchor="middle"
+          >{`'${t.label}`}</text>
+        </g>
+      ))}
+
+      <text
+        class="labour-panel-chart__cell-title"
+        x={B_X0.toFixed(2)}
+        y={(Y0 - 18).toFixed(2)}
+        text-anchor="start"
+      >Hours, % Y/Y</text>
+
+      {hrsStreak && (
+        <g>
+          <line
+            class="labour-panel-chart__anno-leader"
+            x1={(annoHrs.annoX + 4).toFixed(2)}
+            y1={annoHrs.annoY.toFixed(2)}
+            x2={lastPcH_X.toFixed(2)}
+            y2={annoHrs.annoY.toFixed(2)}
+          />
+          <line
+            class="labour-panel-chart__anno-leader"
+            x1={lastPcH_X.toFixed(2)}
+            y1={annoHrs.annoY.toFixed(2)}
+            x2={lastPcH_X.toFixed(2)}
+            y2={annoHrs.anchorY.toFixed(2)}
+          />
+          <text
+            class="labour-panel-chart__anno-text"
+            x={annoHrs.annoX.toFixed(2)}
+            y={(annoHrs.annoY + 4).toFixed(2)}
+            text-anchor="end"
+          >{hrsStreak}</text>
+        </g>
+      )}
+    </g>
+
+    {/* Y-axis labels (left of Cell A only; the cells share an axis) */}
+    {yTicks.map((v, i) => {
+      const y = yScale(v);
+      const isTop = i === yTicks.length - 1;
+      const text = `${v > 0 ? "+" : ""}${v.toFixed(0)}${isTop ? "%" : ""}`;
+      return (
+        <text
+          class="labour-panel-chart__ytick-label"
+          x={(A_X0 - 6).toFixed(2)}
+          y={(y + 3.5).toFixed(2)}
+          text-anchor="end"
+        >{text}</text>
+      );
+    })}
+
+    {/* Direct labels (only on cell A; cell B carries the same convention) */}
+    <text
+      class="labour-panel-chart__direct-label labour-panel-chart__direct-label--agg"
+      x={(lastAggE_X + 8).toFixed(2)}
+      y={(lastAggE_Y + 4).toFixed(2)}
+      text-anchor="start"
+    >Aggregate</text>
+    <text
+      class="labour-panel-chart__direct-label labour-panel-chart__direct-label--pc"
+      x={(lastPcE_X + 8).toFixed(2)}
+      y={(lastPcE_Y + 4).toFixed(2)}
+      text-anchor="start"
+    >Per-capita</text>
+    <text
+      class="labour-panel-chart__direct-label labour-panel-chart__direct-label--agg"
+      x={(lastAggH_X + 8).toFixed(2)}
+      y={(lastAggH_Y + 4).toFixed(2)}
+      text-anchor="start"
+    >Aggregate</text>
+    <text
+      class="labour-panel-chart__direct-label labour-panel-chart__direct-label--pc"
+      x={(lastPcH_X + 8).toFixed(2)}
+      y={(lastPcH_Y + 4).toFixed(2)}
+      text-anchor="start"
+    >Per-capita</text>
+  </svg>
+</div>
+
+<style>
+  .labour-panel-chart {
+    width: 100%;
+    aspect-ratio: 720 / 420;
+    background-color: var(--surface);
+    overflow: visible;
+  }
+  .labour-panel-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+  .labour-panel-chart__gridline {
+    stroke: var(--rule-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__gridline--zero {
+    stroke: var(--ink-muted);
+    stroke-width: 1;
+  }
+  /* Contraction area: --neg-soft @ 40% opacity. The single editorial-weight
+   * soft-color fill on the entire basics layer. */
+  .labour-panel-chart__contraction {
+    fill: var(--neg-soft);
+    fill-opacity: 0.4;
+    stroke: none;
+  }
+  /* Aggregate line: slate, weight 400 (1.5px). */
+  .labour-panel-chart__line-aggregate {
+    stroke: var(--series-7);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    opacity: 0.85;
+  }
+  /* Per-capita line: sage section accent, 2px solid weight 600.
+   * Deliberately the heaviest line on the entire Labour basics page. */
+  .labour-panel-chart__line-pc {
+    stroke: var(--series-3);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+  }
+  .labour-panel-chart__marker-agg { fill: var(--series-7); }
+  .labour-panel-chart__marker-pc {
+    fill: var(--series-3);
+    stroke: var(--surface);
+    stroke-width: 1;
+  }
+  .labour-panel-chart__xaxis {
+    stroke: var(--rule);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__xtick {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__ytick-label,
+  .labour-panel-chart__xtick-label {
+    fill: var(--ink-faint);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .labour-panel-chart__cell-title {
+    fill: var(--ink-muted);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.02em;
+  }
+  .labour-panel-chart__direct-label {
+    font-size: 12px;
+    font-weight: var(--fw-medium);
+  }
+  .labour-panel-chart__direct-label--agg {
+    fill: var(--series-7);
+    font-weight: var(--fw-regular);
+  }
+  .labour-panel-chart__direct-label--pc {
+    fill: var(--series-3);
+    font-weight: var(--fw-semibold);
+  }
+  .labour-panel-chart__anno-leader {
+    stroke: var(--ink-muted);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__anno-text {
+    fill: var(--ink);
+    font-size: 12px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

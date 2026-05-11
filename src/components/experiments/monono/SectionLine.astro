@@ -1,0 +1,177 @@
+---
+/*
+ * Mono no aware SectionLine.
+ *
+ * One section per row. Extreme restraint. Each row is a hairline-bottom
+ * line carrying:
+ *
+ *   - small section index (vertical, numerical)
+ *   - section name (Mincho, light caps)
+ *   - section question (italic, one line)
+ *   - load-bearing value (right-set, Mincho regular)
+ *
+ * Hover lifts the accent dot to cinnabar. The rule between rows is a
+ * single hairline; no fills, no boxes.
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  section: Section;
+  num: string;
+  isFresh?: boolean;
+}
+
+const { section, num, isFresh = false } = Astro.props;
+
+const lb = section.chartSeriesKey
+  ? section.prints.find((p) => p.key === section.chartSeriesKey) ?? section.prints[0]
+  : section.prints[0];
+---
+<li class="mn-row" data-fresh={isFresh ? "true" : "false"}>
+  <a class="mn-row__link" href={`/${section.slug}/`} aria-labelledby={`mn-row-${section.slug}-h`}>
+    <span class="mn-row__num" aria-hidden="true">{num}</span>
+
+    <span class="mn-row__mark" aria-hidden="true">
+      {isFresh
+        ? (<span class="mn-row__mark-dot mn-row__mark-dot--fresh"></span>)
+        : (<span class="mn-row__mark-dot"></span>)
+      }
+    </span>
+
+    <span class="mn-row__name" id={`mn-row-${section.slug}-h`}>
+      {section.label}
+    </span>
+
+    <span class="mn-row__question">
+      {section.headlineQuestion}
+    </span>
+
+    <span class="mn-row__value">
+      <span class="mn-row__value-num">{lb.value}</span>
+      <span class="mn-row__asof">{lb.asOf}</span>
+    </span>
+  </a>
+</li>
+
+<style>
+  .mn-row {
+    list-style: none;
+    border-bottom: 1px solid var(--mn-rule);
+  }
+  .mn-row:first-child {
+    border-top: 1px solid var(--mn-rule);
+  }
+
+  .mn-row__link {
+    display: grid;
+    grid-template-columns: 32px 24px 1fr 2fr auto;
+    column-gap: clamp(16px, 2.4vw, 32px);
+    align-items: baseline;
+    padding: clamp(22px, 3.6vh, 36px) 0;
+    text-decoration: none;
+    color: var(--mn-ink);
+    transition: background 200ms ease;
+  }
+  .mn-row__link:hover .mn-row__mark-dot {
+    background: var(--mn-accent);
+  }
+  .mn-row__link:hover .mn-row__name {
+    color: var(--mn-accent);
+  }
+  .mn-row__link:focus-visible {
+    outline: 1px solid var(--mn-accent);
+    outline-offset: 4px;
+  }
+
+  .mn-row__num {
+    font-family: var(--mn-display);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--mn-ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mn-row__mark {
+    line-height: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+  }
+  .mn-row__mark-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border: 1px solid var(--mn-ink-faint);
+    background: transparent;
+    transition: background 200ms ease, border-color 200ms ease;
+  }
+  .mn-row__mark-dot--fresh {
+    background: var(--mn-accent);
+    border-color: var(--mn-accent);
+  }
+
+  .mn-row__name {
+    font-family: var(--mn-display);
+    font-weight: 500;
+    font-size: clamp(18px, 1.8vw, 22px);
+    letter-spacing: 0.04em;
+    color: var(--mn-ink);
+    text-transform: uppercase;
+    transition: color 200ms ease;
+  }
+
+  .mn-row__question {
+    font-family: var(--mn-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(13px, 1.2vw, 15px);
+    line-height: 1.5;
+    color: var(--mn-ink-faint);
+    max-width: 56ch;
+  }
+
+  .mn-row__value {
+    text-align: right;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 12px;
+    white-space: nowrap;
+  }
+  .mn-row__value-num {
+    font-family: var(--mn-display);
+    font-weight: 500;
+    font-size: clamp(20px, 2vw, 26px);
+    color: var(--mn-ink);
+    font-variant-numeric: tabular-nums lining-nums;
+    letter-spacing: 0.005em;
+  }
+  .mn-row__asof {
+    font-family: var(--mn-display);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--mn-ink-faint);
+  }
+
+  @media (max-width: 900px) {
+    .mn-row__link {
+      grid-template-columns: 24px 18px 1fr auto;
+      grid-template-rows: auto auto;
+      row-gap: 8px;
+      padding: 24px 0;
+    }
+    .mn-row__num { grid-row: 1; grid-column: 1; }
+    .mn-row__mark { grid-row: 1; grid-column: 2; }
+    .mn-row__name { grid-row: 1; grid-column: 3; }
+    .mn-row__value { grid-row: 1; grid-column: 4; }
+    .mn-row__question {
+      grid-row: 2;
+      grid-column: 3 / -1;
+    }
+  }
+  @media (max-width: 560px) {
+    .mn-row__question { display: none; }
+  }
+</style>

@@ -1,0 +1,229 @@
+---
+/*
+ * BrutalSectionRow — one row in the dense "sections grid" on the right
+ * column. Each row reads as a single terminal print: a 3-letter ticker,
+ * the section name, the load-bearing print, a delta in signal color, and
+ * an inline ASCII sparkline.
+ *
+ * Rows are visually stacked with hairline rules; they are NOT cards.
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  section: Section;
+  index: number;
+  isHero?: boolean;
+}
+
+const { section, index, isHero = false } = Astro.props;
+
+const print =
+  section.prints.find((p) => p.key === section.chartSeriesKey) ??
+  section.prints[0];
+
+// Three-letter "ticker" per section. Hand-mapped so each slug gets a
+// memorable terminal code. (GDP keeps its real abbreviation.)
+const tickerBy: Record<string, string> = {
+  gdp: "GDP",
+  inflation: "CPI",
+  labour: "LFS",
+  housing: "HPI",
+  policy: "BOC",
+  markets: "FXY",
+  trade: "BOP",
+};
+const ticker = tickerBy[section.slug] ?? section.slug.slice(0, 3).toUpperCase();
+
+// Compact ASCII sparkline (smaller alphabet for inline density).
+const blocks = ["_", ".", ":", "i", "I", "T", "Y", "#"];
+const series = print.spark ?? [];
+let asciiSpark = "";
+if (series.length > 1) {
+  const min = Math.min(...series);
+  const max = Math.max(...series);
+  const span = max - min || 1;
+  // Cap at 22 chars; if the source is longer, sample evenly.
+  const TARGET = 22;
+  const step = series.length / TARGET;
+  const sampled =
+    series.length <= TARGET
+      ? series
+      : Array.from({ length: TARGET }, (_, i) => series[Math.floor(i * step)]);
+  asciiSpark = sampled
+    .map((v) => {
+      const norm = (v - min) / span;
+      const idx = Math.min(
+        blocks.length - 1,
+        Math.max(0, Math.round(norm * (blocks.length - 1))),
+      );
+      return blocks[idx];
+    })
+    .join("");
+}
+
+const deltaClass =
+  print.deltaDir === "pos"
+    ? "is-pos"
+    : print.deltaDir === "neg"
+    ? "is-neg"
+    : "is-neutral";
+
+// Two-digit padded row index for the terminal-feel ordinal column.
+const ord = String(index).padStart(2, "0");
+---
+<a
+  class:list={["brow", { "is-hero": isHero }]}
+  href={`/${section.slug}/`}
+  aria-label={`${section.label} - ${print.indicator} ${print.value}, delta ${print.delta}`}
+>
+  <span class="brow__ord" aria-hidden="true">{ord}</span>
+  <span class="brow__ticker">{ticker}</span>
+  <span class="brow__name">{section.label.toUpperCase()}</span>
+  <span class="brow__indicator">{print.indicator}</span>
+  <span class="brow__value">{print.value}</span>
+  <span class:list={["brow__delta", deltaClass]}>{print.delta}</span>
+  <span class="brow__spark" aria-hidden="true">{asciiSpark}</span>
+  <span class="brow__cadence" aria-hidden="true">{section.cadence.split(" ")[0]}</span>
+  <span class="brow__arrow" aria-hidden="true">{"->"}</span>
+</a>
+
+<style>
+  .brow {
+    display: grid;
+    grid-template-columns:
+      28px /* ord */
+      36px /* ticker */
+      minmax(74px, 1fr) /* name */
+      minmax(100px, 1.6fr) /* indicator */
+      minmax(62px, auto) /* value */
+      minmax(62px, auto) /* delta */
+      minmax(120px, 1.4fr) /* spark */
+      auto /* cadence */
+      14px /* arrow */;
+    gap: 10px;
+    align-items: baseline;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--bt-rule);
+    font-family: var(--bt-font-mono);
+    font-size: 12px;
+    color: var(--bt-ink);
+    text-decoration: none;
+    line-height: 1.1;
+    transition: background-color 80ms linear, color 80ms linear;
+  }
+
+  .brow:last-child { border-bottom: none; }
+
+  .brow:hover,
+  .brow:focus-visible {
+    background-color: var(--bt-surface-2);
+    color: var(--bt-ink);
+    outline: none;
+  }
+
+  .brow:focus-visible {
+    box-shadow: inset 0 0 0 1px var(--bt-cyan);
+  }
+
+  .brow.is-hero {
+    background-color: var(--bt-surface-2);
+  }
+
+  .brow__ord {
+    color: var(--bt-ink-faint);
+    font-feature-settings: "tnum", "lnum";
+  }
+
+  .brow__ticker {
+    color: var(--bt-amber);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .brow__name {
+    color: var(--bt-ink);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .brow__indicator {
+    color: var(--bt-ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    /* Allow truncation on the smallest viewport. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .brow__value {
+    color: var(--bt-ink);
+    font-weight: 700;
+    text-align: right;
+    font-feature-settings: "tnum", "lnum";
+  }
+
+  .brow__delta {
+    text-align: right;
+    font-feature-settings: "tnum", "lnum";
+    font-weight: 700;
+  }
+  .brow__delta.is-pos { color: var(--bt-green); }
+  .brow__delta.is-neg { color: var(--bt-red); }
+  .brow__delta.is-neutral { color: var(--bt-amber); }
+
+  .brow__spark {
+    font-size: 14px;
+    line-height: 1;
+    color: var(--bt-cyan);
+    letter-spacing: 0.04em;
+    overflow: hidden;
+    white-space: nowrap;
+    text-align: left;
+  }
+
+  .brow__cadence {
+    color: var(--bt-ink-faint);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+
+  .brow__arrow {
+    color: var(--bt-ink-faint);
+    text-align: right;
+    transition: color 80ms linear, transform 80ms linear;
+  }
+
+  .brow:hover .brow__arrow,
+  .brow:focus-visible .brow__arrow {
+    color: var(--bt-cyan);
+    transform: translateX(2px);
+  }
+
+  /* On narrower viewports collapse off the cadence and tighten columns. */
+  @media (max-width: 1100px) {
+    .brow {
+      grid-template-columns:
+        24px 32px minmax(64px, 1fr) minmax(60px, auto) minmax(60px, auto)
+        minmax(100px, 1fr) 14px;
+      gap: 8px;
+    }
+    .brow__indicator,
+    .brow__cadence {
+      display: none;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .brow {
+      grid-template-columns:
+        28px minmax(60px, 1fr) minmax(54px, auto) minmax(54px, auto) 14px;
+    }
+    .brow__ticker,
+    .brow__spark { display: none; }
+  }
+</style>

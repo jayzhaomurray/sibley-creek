@@ -1,0 +1,998 @@
+---
+/*
+ * Lane L - Instrument Cluster (Luxury Car Dashboard) splash.
+ *
+ * Experimental alternative to the production homepage. Entirely self-
+ * contained: this page does NOT use BaseLayout, does NOT import the
+ * production design tokens, and does NOT use any shared component
+ * from src/components/ outside of src/components/experiments/cluster/.
+ *
+ * Aesthetic register: a luxury-car driver's instrument cluster
+ * (Mercedes / Porsche / Aston Martin). Calm precision, tactile
+ * mechanical fixtures, brushed-metal accents, warm ivory needles,
+ * deep amber backlight glow. Each macro indicator is rendered as an
+ * analog gauge.
+ *
+ * Palette (7):
+ *   instrument black    #0F0F12
+ *   brushed steel       #9099A8
+ *   deep gauge-face     #1A1D23
+ *   warm ivory needle   #F4ECCE
+ *   signal red          #D62828
+ *   signal green        #3FA34D
+ *   deep amber backlight#D4831A
+ *
+ * Typography: automotive-instrument lookalikes via Google Fonts.
+ *   Saira Condensed + Russo One for display / labels
+ *   JetBrains Mono ExtraBold for numerics in the digital readouts
+ *
+ * Composition (top to bottom):
+ *   1. MRD steering-wheel badge centered above the cluster
+ *   2. Cluster: large primary gauge (most-recently-updated section)
+ *      flanked by two columns of three smaller gauges (the remaining
+ *      six sections) — like a real driver's binnacle
+ *   3. "Trip computer" strip: edition / next release / signal state
+ *   4. "Warning lights" cluster: three small icons for current deep
+ *      dives, with research / drafted / shipped status tones
+ *   5. Footer signoff with build stamp
+ *
+ * Motion: each needle sweeps from its dial minimum to its current
+ * value over ~1100ms on page load, with a 60-160ms stagger across
+ * the cluster. The sweep is suppressed entirely under
+ * prefers-reduced-motion: reduce (the needles render at their final
+ * angle on first paint).
+ */
+
+import BadgeMRD from "../../components/experiments/cluster/BadgeMRD.astro";
+import GaugeRing from "../../components/experiments/cluster/GaugeRing.astro";
+import TripComputer from "../../components/experiments/cluster/TripComputer.astro";
+import WarningLight from "../../components/experiments/cluster/WarningLight.astro";
+import {
+  sections,
+  deepDives,
+  nextRelease,
+  site,
+  type Section,
+} from "../../data/sections";
+
+// Hero = the section with the latest updatedAt stamp.
+const heroSection: Section = sections.reduce((a, b) =>
+  (b.updatedAt ?? 0) > (a.updatedAt ?? 0) ? b : a,
+);
+
+// All non-hero sections, in canonical order.
+const otherSections = sections.filter((s) => s.slug !== heroSection.slug);
+
+// Per-section gauge specs. Each gauge needs a range, a target/redline
+// (where meaningful), a parsed numeric value, and a unit. The parsing
+// here is deliberately bespoke per section so each dial reads the way
+// a driver's gauge would: speedometer-style for u-rate, target-marked
+// for inflation/policy, zero-centered for trade/GDP/HPI, walk-range
+// for USDCAD.
+
+interface GaugeSpec {
+  slug: string;
+  label: string;
+  sub: string;
+  display: string;
+  unit?: string;
+  numeric: number;
+  min: number;
+  max: number;
+  target?: number;
+  targetLabel?: string;
+  redline?: { from: number; to: number };
+  tone: "neutral" | "pos" | "neg";
+  verb: string;
+  asOf: string;
+  href: string;
+}
+
+function loadBearingPrint(s: Section) {
+  return s.chartSeriesKey
+    ? s.prints.find((p) => p.key === s.chartSeriesKey) ?? s.prints[0]
+    : s.prints[0];
+}
+
+function deltaTone(dir: "pos" | "neg" | "neutral"): "pos" | "neg" | "neutral" {
+  return dir;
+}
+
+function verbFor(s: Section): string {
+  const p = loadBearingPrint(s);
+  // Hand-tuned, matches automotive readout vocabulary
+  if (s.slug === "policy") return "Cut";
+  if (s.slug === "inflation") return "Held";
+  if (s.slug === "gdp") return p.deltaDir === "neg" ? "Soft" : "Firm";
+  if (s.slug === "labour") return "Held";
+  if (s.slug === "housing") return "Eased";
+  if (s.slug === "markets") return p.deltaDir === "neg" ? "Weak" : "Firm";
+  if (s.slug === "trade") return "Widened";
+  return "Read";
+}
+
+function buildSpec(s: Section): GaugeSpec {
+  const p = loadBearingPrint(s);
+  const href = `/${s.slug}/`;
+  const asOf = p.asOf;
+  const verb = verbFor(s);
+
+  switch (s.slug) {
+    case "inflation":
+      return {
+        slug: s.slug,
+        label: "Inflation",
+        sub: "CPI y/y",
+        display: "2.3",
+        unit: "%",
+        numeric: 2.3,
+        min: 0,
+        max: 5,
+        target: 2.0,
+        targetLabel: "2.0% target",
+        redline: { from: 4, to: 5 },
+        tone: "neutral",
+        verb,
+        asOf,
+        href,
+      };
+    case "gdp":
+      return {
+        slug: s.slug,
+        label: "GDP",
+        sub: "Real m/m",
+        display: "+0.2",
+        unit: "%",
+        numeric: 0.2,
+        min: -1,
+        max: 1,
+        target: 0,
+        targetLabel: "Zero",
+        redline: { from: -1, to: -0.5 },
+        tone: "neg",
+        verb,
+        asOf,
+        href,
+      };
+    case "labour":
+      return {
+        slug: s.slug,
+        label: "Labour",
+        sub: "U-rate",
+        display: "6.1",
+        unit: "%",
+        numeric: 6.1,
+        min: 4,
+        max: 9,
+        redline: { from: 8, to: 9 },
+        tone: "neutral",
+        verb,
+        asOf,
+        href,
+      };
+    case "housing":
+      return {
+        slug: s.slug,
+        label: "Housing",
+        sub: "MLS HPI y/y",
+        display: "-1.4",
+        unit: "%",
+        numeric: -1.4,
+        min: -5,
+        max: 5,
+        target: 0,
+        targetLabel: "Flat",
+        redline: { from: -5, to: -3 },
+        tone: "neg",
+        verb,
+        asOf,
+        href,
+      };
+    case "policy":
+      return {
+        slug: s.slug,
+        label: "Policy",
+        sub: "BoC rate",
+        display: "2.75",
+        unit: "%",
+        numeric: 2.75,
+        min: 0,
+        max: 6,
+        target: 2.75,
+        targetLabel: "Neutral mid",
+        redline: { from: 5, to: 6 },
+        tone: "pos",
+        verb,
+        asOf,
+        href,
+      };
+    case "markets":
+      return {
+        slug: s.slug,
+        label: "Markets",
+        sub: "USDCAD",
+        display: "1.378",
+        numeric: 1.378,
+        min: 1.30,
+        max: 1.42,
+        redline: { from: 1.40, to: 1.42 },
+        tone: "neg",
+        verb,
+        asOf,
+        href,
+      };
+    case "trade":
+      return {
+        slug: s.slug,
+        label: "Trade",
+        sub: "Balance $B",
+        display: "-2.3",
+        numeric: -2.3,
+        min: -5,
+        max: 5,
+        target: 0,
+        targetLabel: "Balance",
+        redline: { from: -5, to: -3 },
+        tone: "neg",
+        verb,
+        asOf,
+        href,
+      };
+    default:
+      return {
+        slug: s.slug,
+        label: s.label,
+        sub: p.indicator,
+        display: p.value.replace(/[^\d.\-+]/g, ""),
+        numeric: 0,
+        min: 0,
+        max: 10,
+        tone: deltaTone(p.deltaDir),
+        verb,
+        asOf,
+        href,
+      };
+  }
+}
+
+const heroSpec = buildSpec(heroSection);
+const otherSpecs = otherSections.map(buildSpec);
+
+// Sweep staggers: hero leads, then the side gauges fan out from
+// inside-out. The order array maps slug -> ms.
+const sweepOrder: Record<string, number> = {
+  inflation: 0,
+  policy: 120,
+  labour: 200,
+  gdp: 280,
+  housing: 360,
+  markets: 440,
+  trade: 520,
+};
+
+function sweepFor(slug: string): number {
+  return sweepOrder[slug] ?? 200;
+}
+
+// Signal counts for the trip computer.
+const signalCounts = sections.reduce(
+  (acc, s) => {
+    const p = loadBearingPrint(s);
+    if (p.deltaDir === "pos") acc.up++;
+    else if (p.deltaDir === "neg") acc.down++;
+    else acc.flat++;
+    return acc;
+  },
+  { up: 0, down: 0, flat: 0 },
+);
+
+// Stamps.
+const now = new Date();
+const editionDate = now
+  .toLocaleDateString("en-CA", {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  })
+  .toUpperCase();
+
+const buildStamp =
+  `${now.getUTCFullYear()}.${String(now.getUTCMonth() + 1).padStart(2, "0")}.${String(now.getUTCDate()).padStart(2, "0")}-` +
+  `${String(now.getUTCHours()).padStart(2, "0")}${String(now.getUTCMinutes()).padStart(2, "0")}Z`;
+
+// Split other gauges into left / right columns of three. Left column
+// gets policy + labour + gdp (data-first sections); right column gets
+// housing + markets + trade (ambient sections). This keeps the busy
+// load-bearing gauges on one side and the slower ambient ones on the
+// other, which reads more like a real cluster.
+const leftSlugs = ["policy", "labour", "gdp"];
+const rightSlugs = ["housing", "markets", "trade"];
+
+const leftSpecs = leftSlugs
+  .map((sl) => otherSpecs.find((s) => s.slug === sl))
+  .filter((x): x is GaugeSpec => !!x);
+const rightSpecs = rightSlugs
+  .map((sl) => otherSpecs.find((s) => s.slug === sl))
+  .filter((x): x is GaugeSpec => !!x);
+
+const pageTitle = `${site.shortName} - Instrument Cluster - ${editionDate}`;
+const pageDesc =
+  "Experimental instrument-cluster splash for the Macro Research Department - macro indicators rendered as luxury-car analog gauges.";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta name="theme-color" content="#0F0F12" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600;700;800&family=Russo+One&family=JetBrains+Mono:wght@500;700;800&display=swap"
+    />
+  </head>
+  <body>
+    <a class="cl-skip" href="#cl-main">Skip to instrument cluster</a>
+
+    {/* Faint cabin vignette (sits above the page, pointer-events off) */}
+    <div class="cl-vignette" aria-hidden="true"></div>
+
+    <div class="cl-page">
+      {/* ----- Header rail ----- */}
+      <header class="cl-header" role="banner">
+        <div class="cl-header__rail cl-header__rail--left" aria-hidden="true">
+          <span class="cl-meta__k">System</span>
+          <span class="cl-meta__v">MRD-Cluster v0.2</span>
+        </div>
+        <div class="cl-header__center">
+          <BadgeMRD />
+          <p class="cl-header__title">
+            <span class="cl-header__brand">Macro Research Department</span>
+            <span class="cl-header__sub">Canadian Macro · Instrument Cluster</span>
+          </p>
+        </div>
+        <div class="cl-header__rail cl-header__rail--right" aria-hidden="true">
+          <span class="cl-meta__k">Coordinates</span>
+          <span class="cl-meta__v">45.42 N · 75.69 W</span>
+        </div>
+      </header>
+
+      <main id="cl-main" class="cl-main">
+        <p class="cl-sr">
+          The page is composed as a driver's instrument cluster. The large
+          central gauge shows the most recently updated indicator
+          ({heroSection.label}); six smaller gauges arrayed either side show
+          the remaining macro indicators. A trip-computer strip and a
+          warning-light cluster sit beneath.
+        </p>
+
+        {/* ----- Cluster grid ----- */}
+        <section class="cl-cluster" aria-label="Instrument cluster">
+
+          <div class="cl-cluster__side cl-cluster__side--left">
+            {leftSpecs.map((g) => (
+              <div class="cl-cluster__slot">
+                <GaugeRing
+                  label={g.label}
+                  sub={g.sub}
+                  value={g.numeric}
+                  display={g.display}
+                  unit={g.unit}
+                  min={g.min}
+                  max={g.max}
+                  target={g.target}
+                  targetLabel={g.targetLabel}
+                  redline={g.redline}
+                  tone={g.tone}
+                  size="secondary"
+                  sweepDelay={sweepFor(g.slug)}
+                  verb={g.verb}
+                  asOf={g.asOf}
+                  href={g.href}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div class="cl-cluster__center">
+            <div class="cl-cluster__hero">
+              <GaugeRing
+                label={heroSpec.label}
+                sub={heroSpec.sub}
+                value={heroSpec.numeric}
+                display={heroSpec.display}
+                unit={heroSpec.unit}
+                min={heroSpec.min}
+                max={heroSpec.max}
+                majorSteps={5}
+                target={heroSpec.target}
+                targetLabel={heroSpec.targetLabel}
+                redline={heroSpec.redline}
+                tone={heroSpec.tone}
+                size="primary"
+                sweepDelay={sweepFor(heroSpec.slug)}
+                verb={heroSpec.verb}
+                asOf={heroSpec.asOf}
+                href={heroSpec.href}
+              />
+            </div>
+            <p class="cl-cluster__kicker">
+              <span class="cl-kicker__lead">Live</span>
+              <span class="cl-kicker__sep">·</span>
+              <span class="cl-kicker__body">
+                {heroSection.heroKicker ?? heroSection.label} —{" "}
+                {loadBearingPrint(heroSection).indicator}
+              </span>
+            </p>
+          </div>
+
+          <div class="cl-cluster__side cl-cluster__side--right">
+            {rightSpecs.map((g) => (
+              <div class="cl-cluster__slot">
+                <GaugeRing
+                  label={g.label}
+                  sub={g.sub}
+                  value={g.numeric}
+                  display={g.display}
+                  unit={g.unit}
+                  min={g.min}
+                  max={g.max}
+                  target={g.target}
+                  targetLabel={g.targetLabel}
+                  redline={g.redline}
+                  tone={g.tone}
+                  size="secondary"
+                  sweepDelay={sweepFor(g.slug)}
+                  verb={g.verb}
+                  asOf={g.asOf}
+                  href={g.href}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ----- Trip computer strip ----- */}
+        <section class="cl-trip-row" aria-label="Trip computer">
+          <TripComputer
+            editionDate={editionDate}
+            nextReleaseLabel={nextRelease.label}
+            nextReleaseDate={nextRelease.date}
+            upCount={signalCounts.up}
+            downCount={signalCounts.down}
+            flatCount={signalCounts.flat}
+          />
+        </section>
+
+        {/* ----- Warning lights / Deep dives ----- */}
+        <section class="cl-warnings" aria-labelledby="cl-warn-heading">
+          <header class="cl-warnings__header">
+            <h2 id="cl-warn-heading" class="cl-warnings__title">Warning Cluster</h2>
+            <p class="cl-warnings__sub">Active deep dives · {deepDives.length} signals</p>
+          </header>
+          <ul role="list" class="cl-warnings__list">
+            {deepDives.map((dd) => {
+              const s = sections.find((x) => x.slug === dd.section);
+              if (!s) return null;
+              return (
+                <li>
+                  <WarningLight item={dd} section={s} />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        {/* ----- Section nav (low-key dial-style) ----- */}
+        <nav class="cl-nav" aria-label="Sections">
+          <span class="cl-nav__label">Channels</span>
+          <ul role="list" class="cl-nav__list">
+            <li><a href="/">Home</a></li>
+            {sections.map((s) => (
+              <li><a href={`/${s.slug}/`}>{s.label}</a></li>
+            ))}
+          </ul>
+        </nav>
+      </main>
+
+      <footer class="cl-foot" role="contentinfo">
+        <div class="cl-foot__row">
+          <p class="cl-foot__sig">
+            <span class="cl-foot__bar" aria-hidden="true"></span>
+            {site.name} · Canadian Macro Cluster
+            <span class="cl-foot__bar" aria-hidden="true"></span>
+          </p>
+          <p class="cl-foot__meta">
+            <span class="cl-foot__k">Build</span> {buildStamp}
+            <span class="cl-foot__sep">·</span>
+            <span class="cl-foot__k">Lane</span> L
+            <span class="cl-foot__sep">·</span>
+            <span class="cl-foot__k">View</span> Cluster
+          </p>
+        </div>
+        <p class="cl-foot__copy">
+          (c) {now.getFullYear()} {site.shortName}. Data attributed at point of use. Experimental homepage register.
+        </p>
+      </footer>
+    </div>
+
+    <style is:global>
+      /* ---------- Instrument Cluster: page-scoped resets + tokens ----------
+       *
+       * Tokens live on this page only (prefix `--cl-`). The page does not
+       * cascade into anything else and does not consume the production
+       * design tokens. The cl- class prefix on components keeps the CSS
+       * namespace clean.
+       */
+
+      :root {
+        /* Palette (seven) */
+        --cl-bg:        #0F0F12;
+        --cl-steel:     #9099A8;
+        --cl-face:      #1A1D23;
+        --cl-ivory:     #F4ECCE;
+        --cl-red:       #D62828;
+        --cl-green:     #3FA34D;
+        --cl-amber:     #D4831A;
+
+        /* Tonal extensions for chrome */
+        --cl-ink-faint: #6E7787;
+        --cl-rule:      #2A2E36;
+        --cl-panel:     #14161B;
+        --cl-panel-2:   #1A1D23;
+
+        /* Type stacks */
+        --cl-font-display: "Saira Condensed", "Russo One", system-ui, sans-serif;
+        --cl-font-badge:   "Russo One", "Saira Condensed", system-ui, sans-serif;
+        --cl-font-mono:    "JetBrains Mono", "Consolas", "Menlo", monospace;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--cl-bg);
+        color: var(--cl-ivory);
+        font-family: var(--cl-font-display);
+        font-size: 15px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: "tnum", "lnum";
+      }
+
+      body {
+        position: relative;
+        background:
+          radial-gradient(1400px 700px at 50% 110%, rgba(212, 131, 26, 0.10), transparent 70%),
+          radial-gradient(1100px 600px at 20% -10%, rgba(144, 153, 168, 0.05), transparent 60%),
+          radial-gradient(1100px 600px at 80% -10%, rgba(144, 153, 168, 0.05), transparent 60%),
+          linear-gradient(180deg, #0A0A0C, #0F0F12 40%, #0A0A0C 100%);
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      a { color: inherit; text-decoration: none; }
+      ul, ol { list-style: none; margin: 0; padding: 0; }
+
+      ::selection { background: var(--cl-amber); color: var(--cl-bg); }
+
+      .cl-skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        background: var(--cl-amber);
+        color: var(--cl-bg);
+        padding: 8px 14px;
+        font-family: var(--cl-font-display);
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        z-index: 100;
+        border-radius: 3px;
+      }
+      .cl-skip:focus {
+        left: 12px;
+        top: 12px;
+        outline: 2px solid var(--cl-ivory);
+        outline-offset: 2px;
+      }
+
+      .cl-sr {
+        position: absolute;
+        width: 1px; height: 1px;
+        padding: 0; margin: -1px;
+        overflow: hidden;
+        clip: rect(0,0,0,0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      /* Cabin vignette - subtle dimming at the corners */
+      .cl-vignette {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 30;
+        background: radial-gradient(
+          ellipse 130% 100% at 50% 50%,
+          transparent 55%,
+          rgba(0, 0, 0, 0.55) 100%
+        );
+      }
+
+      /* ---------- Page shell ---------- */
+      .cl-page {
+        position: relative;
+        z-index: 1;
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 28px clamp(16px, 3vw, 40px) 32px;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ---------- Header rail ---------- */
+      .cl-header {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 24px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--cl-rule);
+      }
+      .cl-header__center {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .cl-header__title {
+        margin: 0;
+        text-align: center;
+        line-height: 1.1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .cl-header__brand {
+        font-family: var(--cl-font-badge);
+        font-weight: 400;
+        font-size: clamp(15px, 2vw, 19px);
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: var(--cl-ivory);
+        text-shadow: 0 0 8px rgba(212, 131, 26, 0.12);
+      }
+      .cl-header__sub {
+        font-family: var(--cl-font-display);
+        font-weight: 500;
+        font-size: 10px;
+        letter-spacing: 0.32em;
+        text-transform: uppercase;
+        color: var(--cl-ink-faint);
+      }
+
+      .cl-header__rail {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-family: var(--cl-font-display);
+      }
+      .cl-header__rail--left  { align-items: flex-start; }
+      .cl-header__rail--right { align-items: flex-end; }
+      .cl-meta__k {
+        font-weight: 600;
+        font-size: 10px;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: var(--cl-ink-faint);
+      }
+      .cl-meta__v {
+        font-family: var(--cl-font-mono);
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        color: var(--cl-steel);
+      }
+
+      @media (max-width: 720px) {
+        .cl-header { grid-template-columns: 1fr; gap: 8px; }
+        .cl-header__rail--left,
+        .cl-header__rail--right { align-items: center; }
+      }
+
+      .cl-main {
+        flex: 1 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: clamp(20px, 3vw, 36px);
+        padding-top: clamp(20px, 4vw, 40px);
+      }
+
+      /* ---------- Cluster grid ----------
+       * Layout: three columns at desktop:
+       *   left column  - 3 secondary gauges stacked
+       *   center       - large primary gauge + caption strip
+       *   right column - 3 secondary gauges stacked
+       *
+       * At narrow widths the grid collapses: hero on top, then the six
+       * side gauges in a 2x3 (mobile) or 3x2 (tablet) grid.
+       */
+      .cl-cluster {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 28px 24px;
+        align-items: center;
+        justify-items: center;
+      }
+      @media (min-width: 720px) {
+        .cl-cluster {
+          grid-template-columns: 1fr 1fr;
+          grid-template-areas:
+            "hero  hero"
+            "left  right";
+        }
+        .cl-cluster__center { grid-area: hero; }
+        .cl-cluster__side--left  { grid-area: left; }
+        .cl-cluster__side--right { grid-area: right; }
+      }
+      @media (min-width: 1080px) {
+        .cl-cluster {
+          grid-template-columns: minmax(180px, 1fr) minmax(280px, 1.4fr) minmax(180px, 1fr);
+          grid-template-areas: "left hero right";
+          gap: 28px 36px;
+        }
+      }
+
+      .cl-cluster__side {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        align-items: center;
+        width: 100%;
+      }
+      @media (min-width: 720px) and (max-width: 1079px) {
+        .cl-cluster__side {
+          flex-direction: row;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 18px 24px;
+        }
+      }
+
+      .cl-cluster__slot {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .cl-cluster__center {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        position: relative;
+      }
+
+      /* Primary gauge gets a faint pedestal halo behind it. */
+      .cl-cluster__hero {
+        position: relative;
+      }
+      .cl-cluster__hero::before {
+        content: "";
+        position: absolute;
+        inset: -24px;
+        background: radial-gradient(
+          ellipse 60% 50% at 50% 60%,
+          rgba(212, 131, 26, 0.12),
+          transparent 70%
+        );
+        pointer-events: none;
+        z-index: -1;
+      }
+
+      .cl-cluster__kicker {
+        margin: 6px 0 0;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 10px;
+        padding: 6px 14px;
+        background: rgba(15, 15, 18, 0.6);
+        border: 1px solid var(--cl-rule);
+        border-radius: 100px;
+        font-family: var(--cl-font-display);
+        font-weight: 500;
+        font-size: 11px;
+        letter-spacing: 0.20em;
+        text-transform: uppercase;
+        color: var(--cl-ivory);
+      }
+      .cl-kicker__lead {
+        color: var(--cl-amber);
+        font-weight: 700;
+        letter-spacing: 0.24em;
+        text-shadow: 0 0 6px rgba(212, 131, 26, 0.5);
+      }
+      .cl-kicker__sep {
+        color: var(--cl-ink-faint);
+      }
+      .cl-kicker__body {
+        color: var(--cl-ivory);
+        font-weight: 600;
+      }
+
+      /* ---------- Trip computer row ---------- */
+      .cl-trip-row {
+        width: 100%;
+        max-width: 1080px;
+        margin: 0 auto;
+      }
+
+      /* ---------- Warning cluster (deep dives) ---------- */
+      .cl-warnings {
+        width: 100%;
+        max-width: 1080px;
+        margin: 0 auto;
+      }
+      .cl-warnings__header {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--cl-rule);
+      }
+      .cl-warnings__title {
+        margin: 0;
+        font-family: var(--cl-font-display);
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: var(--cl-ivory);
+      }
+      .cl-warnings__sub {
+        margin: 0;
+        font-family: var(--cl-font-display);
+        font-weight: 500;
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--cl-ink-faint);
+      }
+      .cl-warnings__list {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      @media (min-width: 760px) {
+        .cl-warnings__list { grid-template-columns: 1fr 1fr 1fr; }
+      }
+
+      /* ---------- Nav rail ---------- */
+      .cl-nav {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 10px 24px;
+        padding: 14px 18px;
+        background: rgba(15, 15, 18, 0.5);
+        border: 1px solid var(--cl-rule);
+        border-radius: 4px;
+        font-family: var(--cl-font-display);
+      }
+      .cl-nav__label {
+        font-weight: 700;
+        font-size: 10px;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: var(--cl-amber);
+      }
+      .cl-nav__list {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 8px 22px;
+      }
+      .cl-nav__list a {
+        color: var(--cl-ivory);
+        font-weight: 500;
+        font-size: 13px;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        transition: color 140ms ease-out, text-shadow 140ms ease-out;
+      }
+      .cl-nav__list a:hover,
+      .cl-nav__list a:focus-visible {
+        color: var(--cl-amber);
+        text-shadow: 0 0 6px rgba(212, 131, 26, 0.5);
+        outline: none;
+      }
+      .cl-nav__list a:focus-visible {
+        outline: 2px solid var(--cl-amber);
+        outline-offset: 3px;
+      }
+
+      /* ---------- Footer ---------- */
+      .cl-foot {
+        margin-top: clamp(24px, 4vw, 48px);
+        padding-top: 16px;
+        border-top: 1px solid var(--cl-rule);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .cl-foot__row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px 20px;
+      }
+      .cl-foot__sig {
+        margin: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--cl-font-badge);
+        font-weight: 400;
+        font-size: 11px;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: var(--cl-ivory);
+      }
+      .cl-foot__bar {
+        display: inline-block;
+        width: 18px;
+        height: 1px;
+        background: var(--cl-amber);
+        box-shadow: 0 0 6px rgba(212, 131, 26, 0.6);
+      }
+      .cl-foot__meta {
+        margin: 0;
+        font-family: var(--cl-font-mono);
+        font-weight: 700;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        color: var(--cl-steel);
+      }
+      .cl-foot__k {
+        color: var(--cl-ink-faint);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.20em;
+        margin-right: 4px;
+        font-family: var(--cl-font-display);
+        font-size: 10px;
+      }
+      .cl-foot__sep {
+        color: var(--cl-rule);
+        margin: 0 6px;
+      }
+      .cl-foot__copy {
+        margin: 0;
+        font-family: var(--cl-font-display);
+        font-weight: 500;
+        font-size: 11px;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: var(--cl-ink-faint);
+      }
+    </style>
+  </body>
+</html>

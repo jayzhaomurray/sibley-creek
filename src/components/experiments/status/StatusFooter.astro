@@ -1,0 +1,231 @@
+---
+/*
+ * Lane R - Status Page: footer.
+ *
+ * Compact footer with publication identity, link cluster, and a strip of
+ * small uptime / freshness stats. Mirrors stripestatus / githubstatus
+ * footer pattern: thin top border, low-contrast text, mono stamps.
+ */
+
+interface FooterStat {
+  label: string;
+  value: string;
+}
+
+interface Props {
+  publication: string;
+  shortName: string;
+  url: string;
+  produced: string;
+  nextLabel: string;
+  nextDate: string;
+  stats: FooterStat[];
+}
+
+const {
+  publication,
+  shortName,
+  url,
+  produced,
+  nextLabel,
+  nextDate,
+  stats,
+} = Astro.props;
+---
+<footer class="st-footer" role="contentinfo">
+  <div class="st-footer__inner">
+    <div class="st-footer__strip">
+      {stats.map((s) => (
+        <div class="st-footer__stat">
+          <p class="st-footer__statlabel">{s.label}</p>
+          <p class="st-footer__statval">{s.value}</p>
+        </div>
+      ))}
+    </div>
+
+    <div class="st-footer__band">
+      <div class="st-footer__brand">
+        <span class="st-footer__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+            <rect x="2" y="2" width="20" height="20" rx="4" fill="var(--st-ink)" />
+            <circle cx="12" cy="12" r="4" fill="var(--st-green)" />
+          </svg>
+        </span>
+        <span class="st-footer__publication">{publication}</span>
+        <span class="st-footer__divider" aria-hidden="true">/</span>
+        <span class="st-footer__status">Status</span>
+      </div>
+
+      <nav class="st-footer__nav" aria-label="Footer">
+        <ul role="list">
+          <li><a href="/">Production homepage</a></li>
+          <li><a href="#services">Services</a></li>
+          <li><a href="#incidents">Incidents</a></li>
+          <li><a href={url}>About {shortName}</a></li>
+        </ul>
+      </nav>
+    </div>
+
+    <div class="st-footer__meta">
+      <p class="st-footer__metaline">
+        <span class="st-footer__metakey">Next release</span>
+        <span class="st-footer__metaval">{nextLabel}</span>
+        <span class="st-footer__metasep" aria-hidden="true">&middot;</span>
+        <span class="st-footer__metaval">{nextDate}</span>
+      </p>
+      <p class="st-footer__metaline">
+        <span class="st-footer__metakey">Built</span>
+        <span class="st-footer__metaval">{produced}</span>
+        <span class="st-footer__metasep" aria-hidden="true">&middot;</span>
+        <span class="st-footer__metakey">Experiment</span>
+        <span class="st-footer__metaval">Lane R / Status</span>
+      </p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .st-footer {
+    border-top: 1px solid var(--st-line);
+    margin-top: 32px;
+    background: color-mix(in srgb, var(--st-ink) 2%, var(--st-paper));
+  }
+  .st-footer__inner {
+    max-width: var(--st-max);
+    margin: 0 auto;
+    padding: 24px var(--st-gutter) 32px;
+    display: grid;
+    gap: 20px;
+  }
+
+  /* Stats strip: matches the row rhythm */
+  .st-footer__strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    padding: 16px;
+    border: 1px solid var(--st-line);
+    border-radius: 6px;
+    background: var(--st-paper);
+  }
+  .st-footer__stat {
+    min-width: 0;
+  }
+  .st-footer__statlabel {
+    margin: 0 0 4px;
+    font-family: var(--st-mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--st-slate);
+  }
+  .st-footer__statval {
+    margin: 0;
+    font-family: var(--st-mono);
+    font-size: 18px;
+    color: var(--st-ink);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+    font-weight: 500;
+  }
+
+  .st-footer__band {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 16px 32px;
+    align-items: center;
+    padding-top: 4px;
+  }
+
+  .st-footer__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--st-sans);
+    font-size: 14px;
+  }
+  .st-footer__publication {
+    color: var(--st-ink);
+    font-weight: 600;
+  }
+  .st-footer__divider {
+    color: var(--st-slate);
+  }
+  .st-footer__status {
+    color: var(--st-slate);
+    font-weight: 500;
+  }
+
+  .st-footer__nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: flex-end;
+  }
+  .st-footer__nav a {
+    font-family: var(--st-sans);
+    font-size: 13px;
+    color: var(--st-slate);
+    text-decoration: none;
+  }
+  .st-footer__nav a:hover {
+    color: var(--st-info);
+  }
+  .st-footer__nav a:focus-visible {
+    outline: 2px solid var(--st-info);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  .st-footer__meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 24px;
+    padding-top: 12px;
+    border-top: 1px solid var(--st-line);
+  }
+  .st-footer__metaline {
+    margin: 0;
+    font-family: var(--st-mono);
+    font-size: 11px;
+    color: var(--st-slate);
+  }
+  .st-footer__metaline:last-child {
+    text-align: right;
+  }
+  .st-footer__metakey {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-right: 6px;
+  }
+  .st-footer__metaval {
+    color: var(--st-ink);
+    font-variant-numeric: tabular-nums;
+    margin-right: 6px;
+  }
+  .st-footer__metasep {
+    color: var(--st-line);
+    margin: 0 4px;
+  }
+
+  @media (max-width: 760px) {
+    .st-footer__strip {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .st-footer__band {
+      grid-template-columns: 1fr;
+    }
+    .st-footer__nav ul {
+      justify-content: flex-start;
+    }
+    .st-footer__meta {
+      grid-template-columns: 1fr;
+    }
+    .st-footer__metaline:last-child {
+      text-align: left;
+    }
+  }
+</style>

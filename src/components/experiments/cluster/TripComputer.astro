@@ -1,0 +1,150 @@
+---
+/*
+ * TripComputer - the small text-based readout strip at the bottom of
+ * the Instrument Cluster splash. A long, narrow LCD-style panel with
+ * key/value readouts in mono ExtraBold. Three cells:
+ *   - EDITION (today's edition stamp)
+ *   - NEXT RELEASE (label + date)
+ *   - SIGNAL STATE (count of pos / neg / neutral across the cluster)
+ *
+ * Faint amber backlight behind the LCD glass to match the gauge tone.
+ */
+
+interface Props {
+  editionDate: string;
+  nextReleaseLabel: string;
+  nextReleaseDate: string;
+  upCount: number;
+  downCount: number;
+  flatCount: number;
+}
+
+const {
+  editionDate,
+  nextReleaseLabel,
+  nextReleaseDate,
+  upCount,
+  downCount,
+  flatCount,
+} = Astro.props;
+---
+
+<div class="cl-trip" aria-label="Trip computer readouts">
+  <div class="cl-trip__cell">
+    <span class="cl-trip__k">Edition</span>
+    <span class="cl-trip__v">{editionDate}</span>
+  </div>
+  <div class="cl-trip__divider" aria-hidden="true"></div>
+  <div class="cl-trip__cell cl-trip__cell--wide">
+    <span class="cl-trip__k">Next Release</span>
+    <span class="cl-trip__v">{nextReleaseLabel}</span>
+    <span class="cl-trip__sub">{nextReleaseDate}</span>
+  </div>
+  <div class="cl-trip__divider" aria-hidden="true"></div>
+  <div class="cl-trip__cell">
+    <span class="cl-trip__k">Signals</span>
+    <span class="cl-trip__v">
+      <span class="cl-trip__pos">{String(upCount).padStart(2, "0")}</span>
+      <span class="cl-trip__sep">/</span>
+      <span class="cl-trip__neg">{String(downCount).padStart(2, "0")}</span>
+      <span class="cl-trip__sep">/</span>
+      <span class="cl-trip__flat">{String(flatCount).padStart(2, "0")}</span>
+    </span>
+    <span class="cl-trip__sub">up / down / flat</span>
+  </div>
+</div>
+
+<style>
+  .cl-trip {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    padding: 14px 22px;
+    background:
+      linear-gradient(180deg, rgba(212, 131, 26, 0.05), rgba(15, 15, 18, 0.0)) ,
+      radial-gradient(ellipse 80% 90% at 50% 50%, rgba(212, 131, 26, 0.08), rgba(15, 15, 18, 0) 75%),
+      #0A0A0C;
+    border: 1px solid #2A2E36;
+    border-radius: 6px;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+      inset 0 0 28px rgba(212, 131, 26, 0.05),
+      0 6px 18px rgba(0, 0, 0, 0.5);
+    font-family: "Saira Condensed", sans-serif;
+    color: #F4ECCE;
+  }
+  .cl-trip__cell {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px 24px;
+    min-width: 0;
+    flex: 1;
+  }
+  .cl-trip__cell--wide { flex: 2; }
+  .cl-trip__cell:first-child { padding-left: 0; }
+  .cl-trip__cell:last-child  { padding-right: 0; }
+
+  .cl-trip__divider {
+    width: 1px;
+    background: linear-gradient(
+      180deg,
+      transparent,
+      rgba(212, 131, 26, 0.25),
+      transparent
+    );
+    align-self: stretch;
+  }
+
+  .cl-trip__k {
+    font-family: "Saira Condensed", sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: #9099A8;
+  }
+  .cl-trip__v {
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    font-weight: 800;
+    font-size: 19px;
+    letter-spacing: 0.04em;
+    color: #F4ECCE;
+    text-shadow: 0 0 6px rgba(244, 236, 206, 0.18);
+    line-height: 1;
+  }
+  .cl-trip__sub {
+    font-family: "Saira Condensed", sans-serif;
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #6E7787;
+  }
+  .cl-trip__pos { color: #3FA34D; text-shadow: 0 0 6px rgba(63, 163, 77, 0.4); }
+  .cl-trip__neg { color: #D62828; text-shadow: 0 0 6px rgba(214, 40, 40, 0.4); }
+  .cl-trip__flat { color: #D4831A; text-shadow: 0 0 6px rgba(212, 131, 26, 0.4); }
+  .cl-trip__sep { color: #4A4F57; padding: 0 4px; }
+
+  @media (max-width: 720px) {
+    .cl-trip {
+      flex-direction: column;
+      gap: 12px;
+      padding: 14px 18px;
+    }
+    .cl-trip__cell {
+      padding: 0;
+    }
+    .cl-trip__divider {
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(212, 131, 26, 0.25),
+        transparent
+      );
+    }
+  }
+</style>

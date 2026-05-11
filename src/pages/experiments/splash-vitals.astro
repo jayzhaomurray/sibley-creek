@@ -1,0 +1,584 @@
+---
+/*
+ * Lane Q - Hospital Vitals Monitor splash.
+ *
+ * Dashboard-as-front-door, clinical-instrument register. The page is
+ * staged as an ICU patient monitor (Philips IntelliVue / GE B650 family):
+ * each macro section is a vital channel with its own waveform, current
+ * value, and high/low alarm thresholds.
+ *
+ * Self-contained: this page does NOT use BaseLayout, does NOT import any
+ * production design tokens, and does NOT consume any shared component
+ * outside src/components/experiments/vitals/. Google Fonts only (JetBrains
+ * Mono + Roboto Mono). Noindex.
+ *
+ * Aesthetic register:
+ *   - Palette:  display black #070708, panel charcoal #13141A, vital
+ *               green #16E0A0, cyan #22D3EE, yellow #E7C44A, red #F87171,
+ *               off-white labels #E8E8EA
+ *   - Type:     JetBrains Mono heavy for big numeric readouts,
+ *               Roboto Mono for labels / chrome
+ *   - Motion:   waveforms sweep right-to-left (per-channel CSS keyframe)
+ *               and the most-recently-updated channel pulses a heartbeat
+ *               accent. Both respect prefers-reduced-motion.
+ *
+ * Composition (top to bottom):
+ *   1. Patient bar  - PATIENT / AGE / BED + alarms summary on the right
+ *   2. Body grid    - 7 stacked channels on the left, alerts sidebar right
+ *      Each channel = colored label rail | waveform | big value | limits
+ *   3. Drug infusion strip - next releases (upcoming events)
+ *   4. Bottom status badge - MRD CARE / STABLE / WATCHING
+ */
+
+import {
+  sections,
+  deepDives,
+  nextRelease,
+  site,
+  type Section,
+  type DeepDive,
+} from "../../data/sections";
+
+import VitalsHeader from "../../components/experiments/vitals/VitalsHeader.astro";
+import VitalsChannel from "../../components/experiments/vitals/VitalsChannel.astro";
+import VitalsAlerts from "../../components/experiments/vitals/VitalsAlerts.astro";
+import VitalsInfusion from "../../components/experiments/vitals/VitalsInfusion.astro";
+
+// Canonical channel order. The fresh-est section (max updatedAt) gets the
+// PULSING flag so it heartbeats in the bedside display.
+const canonical: Section[] = [
+  "inflation",
+  "gdp",
+  "labour",
+  "policy",
+  "housing",
+  "markets",
+  "trade",
+]
+  .map((slug) => sections.find((s) => s.slug === slug)!)
+  .filter(Boolean);
+
+const heroSection: Section = sections.reduce((a, b) =>
+  (b.updatedAt ?? 0) > (a.updatedAt ?? 0) ? b : a,
+);
+
+// Per-section vital "channel" assignment. Each row carries:
+//   color  - the named vital channel hue (drives label, waveform stroke,
+//            value, and limit text on that row)
+//   code   - the 2-4-letter clinical code (HR, SpO2, RR, BP, NIBP, CVP)
+//            displayed under the section name
+//   unit   - the unit shown above the alarm-limit columns. Matches the
+//            print's natural unit so readers can keep the metaphor and
+//            still read the data.
+type VitalColor = "green" | "cyan" | "yellow" | "red";
+interface ChannelMeta {
+  color: VitalColor;
+  code: string;
+  unit: string;
+  /** Latch type for the waveform - shapes how the SVG path is drawn. */
+  trace: "ecg" | "pleth" | "resp" | "art" | "step" | "drift";
+  /** Display name for the channel (uppercase, max ~10 chars). */
+  display: string;
+  /** Soft / hard alarm limits in the print's native unit. */
+  low: string;
+  high: string;
+  /** Status verb under the value (e.g. WNL, ALARM, WATCH). */
+  status: "WNL" | "WATCH" | "ALARM" | "PACED";
+}
+
+// Hand-tuned per section. Limits are picked to feel like clinical bands
+// around the current reading, not to encode a real policy threshold.
+const channelMap: Record<string, ChannelMeta> = {
+  inflation: {
+    color: "green",
+    code: "HR",
+    unit: "% y/y",
+    trace: "ecg",
+    display: "INFL",
+    low: "1.0",
+    high: "3.0",
+    status: "WATCH",
+  },
+  gdp: {
+    color: "yellow",
+    code: "RR",
+    unit: "% m/m",
+    trace: "resp",
+    display: "GDP",
+    low: "-0.3",
+    high: "0.6",
+    status: "WNL",
+  },
+  labour: {
+    color: "cyan",
+    code: "SpO2",
+    unit: "% unrate",
+    trace: "pleth",
+    display: "LFS",
+    low: "5.0",
+    high: "7.0",
+    status: "WNL",
+  },
+  policy: {
+    color: "green",
+    code: "PACE",
+    unit: "% rate",
+    trace: "step",
+    display: "POLY",
+    low: "2.50",
+    high: "3.00",
+    status: "PACED",
+  },
+  housing: {
+    color: "red",
+    code: "NIBP",
+    unit: "% HPI y/y",
+    trace: "art",
+    display: "HSE",
+    low: "-2.0",
+    high: "2.0",
+    status: "WATCH",
+  },
+  markets: {
+    color: "cyan",
+    code: "ART",
+    unit: "USDCAD",
+    trace: "drift",
+    display: "MKTS",
+    low: "1.330",
+    high: "1.400",
+    status: "WATCH",
+  },
+  trade: {
+    color: "red",
+    code: "CVP",
+    unit: "$B bal",
+    trace: "art",
+    display: "TRDE",
+    low: "-2.5",
+    high: "+1.5",
+    status: "ALARM",
+  },
+};
+
+// Build / edition stamps. Format mirrors what a clinical monitor shows
+// in its top bar - YYYY-MM-DD plus a 24h time and timezone marker.
+const now = new Date();
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const editionISO =
+  `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}-${pad2(now.getUTCDate())}`;
+const editionClock =
+  `${pad2(now.getUTCHours())}:${pad2(now.getUTCMinutes())}`;
+
+// "Age" reading - "stable" with a literal year-band hint, like the bedside
+// monitor for a long-stable patient. This is decorative chrome, not data.
+const patientAge = "STABLE";
+const patientBed = `BED 002-CA`;
+
+// Alarms summary - count delta directions on the load-bearing print of
+// each section. "RED" alarms = negative deltas, "WATCH" = neutral,
+// "WNL" (within normal limits) = positive.
+const loadBearing = canonical.map(
+  (s) => s.prints.find((p) => p.key === s.chartSeriesKey) ?? s.prints[0],
+);
+const alarmsRed = loadBearing.filter((p) => p.deltaDir === "neg").length;
+const alarmsAmber = loadBearing.filter((p) => p.deltaDir === "neutral").length;
+const alarmsGreen = loadBearing.filter((p) => p.deltaDir === "pos").length;
+
+// Deep dives - sorted by lastUpdated string desc and shown in the alerts
+// sidebar as "active orders" / "consults pending".
+const ddOrdered: DeepDive[] = [...deepDives].sort((a, b) =>
+  a.lastUpdated < b.lastUpdated ? 1 : -1,
+);
+
+const pageTitle = `MACRO MONITOR // ${site.shortName} VITALS // ${editionISO}`;
+const pageDesc =
+  "Experimental hospital-monitor splash for the Macro Research Department - the Canadian economy presented as ICU vital signs, with sweeping waveforms and alarm limits per indicator.";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#070708" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Roboto+Mono:wght@300;400;500;700&display=swap"
+    />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+
+    <style is:global>
+      /* ============================================================
+       * Lane Q - Hospital Vitals Monitor - scoped tokens & reset.
+       * All tokens prefixed --vt- to avoid collision with production.
+       * ============================================================ */
+      :root {
+        --vt-black: #070708;
+        --vt-panel: #13141A;
+        --vt-panel-edge: #1F222B;
+        --vt-panel-deep: #0C0D12;
+        --vt-rule: #2A2E38;
+        --vt-rule-soft: #1A1D24;
+
+        --vt-green: #16E0A0;
+        --vt-cyan: #22D3EE;
+        --vt-yellow: #E7C44A;
+        --vt-red: #F87171;
+
+        --vt-green-dim: rgba(22, 224, 160, 0.22);
+        --vt-cyan-dim: rgba(34, 211, 238, 0.22);
+        --vt-yellow-dim: rgba(231, 196, 74, 0.22);
+        --vt-red-dim: rgba(248, 113, 113, 0.22);
+
+        --vt-ink: #E8E8EA;
+        --vt-ink-mute: #8A8E98;
+        --vt-ink-faint: #565963;
+
+        --vt-display: "JetBrains Mono", ui-monospace, "Consolas", monospace;
+        --vt-label: "Roboto Mono", ui-monospace, "Consolas", monospace;
+
+        --vt-page-max: 1480px;
+        --vt-page-pad: clamp(16px, 2.4vw, 32px);
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--vt-black);
+        color: var(--vt-ink);
+      }
+
+      body {
+        font-family: var(--vt-label);
+        font-weight: 400;
+        font-size: 13px;
+        line-height: 1.4;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "tnum" 1, "zero" 1;
+        font-variant-numeric: tabular-nums;
+        min-height: 100vh;
+        position: relative;
+        overflow-x: hidden;
+      }
+
+      /* Faint vignette so the page reads as a glass display, not a flat
+         tile. Kept very subtle - the bezel does the heavy lifting. */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(120% 90% at 50% 0%,
+            rgba(40, 50, 70, 0.18) 0%,
+            rgba(7, 7, 8, 0) 60%),
+          radial-gradient(120% 100% at 50% 100%,
+            rgba(7, 7, 8, 1) 30%,
+            rgba(7, 7, 8, 0) 90%);
+      }
+
+      /* Display scanline overlay - 1px line every 3px, very low alpha.
+         This is the "this is a monitor" cue; we leave the page free of
+         a heavier CRT effect because clinical monitors are LCD/OLED,
+         not CRT. */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background-image: repeating-linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0.018) 0px,
+          rgba(255, 255, 255, 0.018) 1px,
+          transparent 1px,
+          transparent 3px
+        );
+      }
+
+      a { color: inherit; }
+
+      ::selection {
+        background: var(--vt-green);
+        color: var(--vt-black);
+      }
+
+      h1, h2, h3, h4, p, ul, ol { margin: 0; padding: 0; }
+      ul, ol { list-style: none; }
+
+      .vt-skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+      }
+      .vt-skip:focus {
+        left: 16px;
+        top: 16px;
+        z-index: 100;
+        background: var(--vt-ink);
+        color: var(--vt-black);
+        padding: 10px 14px;
+        font-family: var(--vt-label);
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+      }
+
+      .vt-vh {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="vt-skip" href="#vt-main">Skip to main content</a>
+
+    <div class="vt-shell">
+      <VitalsHeader
+        patient="CANADIAN MACROECONOMY"
+        age={patientAge}
+        bed={patientBed}
+        editionISO={editionISO}
+        editionClock={editionClock}
+        site={site.shortName}
+        alarmsRed={alarmsRed}
+        alarmsAmber={alarmsAmber}
+        alarmsGreen={alarmsGreen}
+      />
+
+      <main id="vt-main" class="vt-main">
+        <section class="vt-grid" aria-label="Vital sign channels">
+          <h2 class="vt-vh">Macro vital signs</h2>
+
+          <div class="vt-channels">
+            {canonical.map((s, i) => {
+              const meta = channelMap[s.slug];
+              const print = s.prints.find((p) => p.key === s.chartSeriesKey)
+                ?? s.prints[0];
+              return (
+                <VitalsChannel
+                  section={s}
+                  print={print}
+                  channelIndex={i + 1}
+                  isLead={s.slug === heroSection.slug}
+                  color={meta.color}
+                  code={meta.code}
+                  unit={meta.unit}
+                  trace={meta.trace}
+                  display={meta.display}
+                  low={meta.low}
+                  high={meta.high}
+                  status={meta.status}
+                />
+              );
+            })}
+          </div>
+
+          <VitalsAlerts deepDives={ddOrdered} channelMap={channelMap} />
+        </section>
+
+        <VitalsInfusion
+          nextLabel={nextRelease.label}
+          nextDate={nextRelease.date}
+          nextAgency={nextRelease.agency}
+          editionISO={editionISO}
+        />
+      </main>
+
+      <footer class="vt-foot" aria-label="Monitor status">
+        <div class="vt-foot__cell vt-foot__cell--name">
+          <span class="vt-foot__key">SITE</span>
+          <span class="vt-foot__val">{site.name}</span>
+        </div>
+        <div class="vt-foot__cell vt-foot__cell--meta">
+          <span class="vt-foot__key">EDITION</span>
+          <span class="vt-foot__val">{editionISO} / {editionClock} UTC</span>
+        </div>
+        <div class="vt-foot__cell vt-foot__cell--badge">
+          <span
+            class="vt-badge"
+            data-state={alarmsRed > 2 ? "alarm" : (alarmsRed > 0 ? "watching" : "stable")}
+            role="status"
+            aria-live="polite"
+          >
+            <span class="vt-badge__pip" aria-hidden="true"></span>
+            <span class="vt-badge__caption">MRD CARE</span>
+            <span class="vt-badge__sep" aria-hidden="true">/</span>
+            <span class="vt-badge__state">
+              {alarmsRed > 2 ? "ALARM" : (alarmsRed > 0 ? "WATCHING" : "STABLE")}
+            </span>
+          </span>
+          <a class="vt-foot__home" href="/">
+            <span aria-hidden="true">&lt;</span>
+            production home
+          </a>
+        </div>
+      </footer>
+    </div>
+
+    <style>
+      .vt-shell {
+        position: relative;
+        z-index: 2;
+        max-width: var(--vt-page-max);
+        margin: 0 auto;
+        padding: 16px var(--vt-page-pad) 24px;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .vt-main {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        flex: 1 1 auto;
+      }
+
+      .vt-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      @media (min-width: 1100px) {
+        .vt-grid {
+          grid-template-columns: minmax(0, 1fr) 320px;
+          gap: 14px;
+        }
+      }
+
+      .vt-channels {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      /* ------------------- Bottom footer / status badge ------------------- */
+      .vt-foot {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 14px;
+        background: var(--vt-panel);
+        border: 1px solid var(--vt-panel-edge);
+        border-top: 1px solid var(--vt-rule);
+        font-family: var(--vt-label);
+        font-size: 11px;
+        line-height: 1.2;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--vt-ink-mute);
+      }
+      @media (min-width: 720px) {
+        .vt-foot {
+          grid-template-columns: auto 1fr auto;
+        }
+      }
+      .vt-foot__cell {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .vt-foot__cell--badge {
+        gap: 14px;
+        justify-self: end;
+      }
+      .vt-foot__key {
+        color: var(--vt-ink-faint);
+        font-weight: 400;
+      }
+      .vt-foot__val {
+        color: var(--vt-ink);
+        font-weight: 500;
+      }
+      .vt-foot__home {
+        color: var(--vt-ink-mute);
+        text-decoration: none;
+        padding-bottom: 1px;
+        border-bottom: 1px solid transparent;
+      }
+      .vt-foot__home:hover,
+      .vt-foot__home:focus-visible {
+        color: var(--vt-green);
+        border-bottom-color: var(--vt-green);
+        outline: none;
+      }
+      .vt-foot__home:focus-visible {
+        outline: 2px solid var(--vt-green);
+        outline-offset: 3px;
+      }
+
+      /* Status badge - heart-pulse color depending on state. */
+      .vt-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 12px;
+        border: 1px solid currentColor;
+        font-family: var(--vt-label);
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        font-weight: 500;
+      }
+      .vt-badge[data-state="stable"] { color: var(--vt-green); }
+      .vt-badge[data-state="watching"] { color: var(--vt-yellow); }
+      .vt-badge[data-state="alarm"] { color: var(--vt-red); }
+
+      .vt-badge__pip {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+        box-shadow: 0 0 8px currentColor;
+        animation: vt-pip-blink 1.2s ease-in-out infinite;
+      }
+      .vt-badge__caption { color: var(--vt-ink); letter-spacing: 0.18em; }
+      .vt-badge__sep { color: var(--vt-ink-faint); }
+      .vt-badge__state { color: currentColor; font-weight: 700; }
+
+      @keyframes vt-pip-blink {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        45% { opacity: 0.35; transform: scale(0.85); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .vt-badge__pip { animation: none; opacity: 1; }
+      }
+    </style>
+  </body>
+</html>

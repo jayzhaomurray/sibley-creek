@@ -1,0 +1,411 @@
+---
+/*
+ * Panel6RegionalDumbbell - four-province dumbbell + national overlay.
+ *
+ * Implements design/basics-layer-template.md Section 9.B Panel 6 +
+ * research/wave2_labour_methodology.md Section 5.
+ *
+ * Visual: four-row dumbbell, one row per province (ON, QC, AB, BC).
+ * Each row plots two points connected by a line:
+ *   - Current month UR (filled circle, 6px)
+ *   - 12-months-ago UR (open circle, 5px, 1.5px stroke)
+ * Connecting line color encodes direction-of-motion:
+ *   current > 12mo (rate rose, market loosened) -> --neg @ 60%
+ *   current < 12mo (rate fell, market tightened) -> --pos @ 60%
+ *   |delta| < 0.3pp tolerance -> --series-3 @ 40% (no directional call)
+ *
+ * National rate overlay: single vertical 1px ink-muted reference line at
+ * concurrent national value. Per W2 5.2: NOT a trailing overlay.
+ *
+ * "Loosening fastest" call-out fires only when |delta| >= 0.3pp.
+ *
+ * Plot vs SVG: hand-rolled SVG (zero JS).
+ */
+
+interface ProvinceRow {
+  code: "ON" | "QC" | "AB" | "BC";
+  name: string;
+  ur_current: number;     // %
+  ur_12m_ago: number;     // %
+}
+
+interface Props {
+  data?: ProvinceRow[];
+  /** Concurrent national UR (%). */
+  nationalCurrent?: number;
+  /** Reference month string for display, e.g. "Apr 2026". */
+  referencePeriod?: string;
+  /** 12-months-ago reference, e.g. "Apr 2025". */
+  priorPeriod?: string;
+  ariaLabel?: string;
+}
+
+function defaultProvinces(): ProvinceRow[] {
+  return [
+    { code: "ON", name: "Ontario",          ur_current: 7.0, ur_12m_ago: 6.4 },
+    { code: "QC", name: "Quebec",           ur_current: 5.5, ur_12m_ago: 5.7 },
+    { code: "AB", name: "Alberta",          ur_current: 7.9, ur_12m_ago: 7.1 },
+    { code: "BC", name: "British Columbia", ur_current: 6.2, ur_12m_ago: 6.0 },
+  ];
+}
+
+const {
+  data = defaultProvinces(),
+  nationalCurrent = 6.1,
+  referencePeriod = "Apr 2026",
+  priorPeriod = "Apr 2025",
+  ariaLabel = "Provincial unemployment rate dumbbell: current vs 12 months ago, four largest provinces",
+} = Astro.props;
+
+// Per W2 Sec 5.3 tolerance.
+const TOLERANCE_PP = 0.3;
+
+// Compute deltas + colors.
+interface Row {
+  p: ProvinceRow;
+  delta: number;
+  direction: "pos" | "neg" | "neutral";
+  qualifiesCallout: boolean;
+}
+const rows: Row[] = data.map((p) => {
+  const delta = p.ur_current - p.ur_12m_ago;
+  let direction: "pos" | "neg" | "neutral";
+  if (Math.abs(delta) < TOLERANCE_PP) direction = "neutral";
+  else if (delta > 0) direction = "neg";   // u-rate rose -> loosening -> neg color
+  else direction = "pos";                  // u-rate fell -> tightening -> pos color
+  return {
+    p,
+    delta: Number(delta.toFixed(2)),
+    direction,
+    qualifiesCallout: Math.abs(delta) >= TOLERANCE_PP,
+  };
+});
+
+// Argmax delta (most-loosening) among qualifiers.
+const qualifiers = rows.filter((r) => r.qualifiesCallout);
+const loosening = qualifiers.length > 0
+  ? qualifiers.reduce((a, b) => (a.delta > b.delta ? a : b))
+  : null;
+
+// ---- Geometry --------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 360;
+const M_L = 140;  // left gutter for province names
+const M_R = 80;   // right gutter for value labels
+const M_T = 56;   // room for top header "Canada X.X%" + axis label
+const M_B = 56;   // room for x-axis labels + legend
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+// X axis range: cover all values + national + small padding.
+const allVals = data.flatMap((p) => [p.ur_current, p.ur_12m_ago]).concat([nationalCurrent]);
+const rawMin = Math.min(...allVals);
+const rawMax = Math.max(...allVals);
+const xLo = Math.floor((rawMin - 0.5) * 2) / 2; // snap to halves
+const xHi = Math.ceil((rawMax + 0.5) * 2) / 2;
+
+function xScale(v: number): number {
+  return PLOT_X0 + ((v - xLo) / (xHi - xLo)) * PLOT_W;
+}
+
+// One row per province.
+const rowCount = rows.length;
+const rowH = PLOT_H / rowCount;
+function yFor(i: number): number {
+  return PLOT_Y0 + i * rowH + rowH / 2;
+}
+
+// X tick values
+const xTicks: number[] = [];
+for (let v = xLo; v <= xHi + 1e-9; v += 1) xTicks.push(v);
+
+// National overlay
+const nationalX = xScale(nationalCurrent);
+---
+<div class="labour-panel-chart" data-panel="6">
+  <svg
+    class="labour-panel-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* X gridlines */}
+    {xTicks.map((v) => (
+      <line
+        class="labour-panel-chart__gridline"
+        x1={xScale(v).toFixed(2)}
+        y1={PLOT_Y0.toFixed(2)}
+        x2={xScale(v).toFixed(2)}
+        y2={PLOT_Y1.toFixed(2)}
+      />
+    ))}
+
+    {/* National concurrent rate overlay */}
+    <line
+      class="labour-panel-chart__national-line"
+      x1={nationalX.toFixed(2)}
+      y1={(PLOT_Y0 - 12).toFixed(2)}
+      x2={nationalX.toFixed(2)}
+      y2={(PLOT_Y1 + 4).toFixed(2)}
+    />
+    <text
+      class="labour-panel-chart__national-label"
+      x={nationalX.toFixed(2)}
+      y={(PLOT_Y0 - 18).toFixed(2)}
+      text-anchor="middle"
+    >{`Canada: ${nationalCurrent.toFixed(1)}%`}</text>
+
+    {/* Dumbbells */}
+    {rows.map((r, i) => {
+      const y = yFor(i);
+      const xCurr = xScale(r.p.ur_current);
+      const x12 = xScale(r.p.ur_12m_ago);
+      const lineClass = `labour-panel-chart__dumb-line labour-panel-chart__dumb-line--${r.direction}`;
+      return (
+        <g>
+          {/* Connecting line */}
+          <line
+            class={lineClass}
+            x1={Math.min(xCurr, x12).toFixed(2)}
+            y1={y.toFixed(2)}
+            x2={Math.max(xCurr, x12).toFixed(2)}
+            y2={y.toFixed(2)}
+          />
+          {/* 12-months-ago: open circle */}
+          <circle
+            class="labour-panel-chart__pt-prior"
+            cx={x12.toFixed(2)}
+            cy={y.toFixed(2)}
+            r="5"
+          >
+            <title>{`${r.p.name} ${priorPeriod}: ${r.p.ur_12m_ago.toFixed(1)}%`}</title>
+          </circle>
+          {/* Current: filled circle */}
+          <circle
+            class="labour-panel-chart__pt-current"
+            cx={xCurr.toFixed(2)}
+            cy={y.toFixed(2)}
+            r="6"
+          >
+            <title>{`${r.p.name} ${referencePeriod}: ${r.p.ur_current.toFixed(1)}%`}</title>
+          </circle>
+
+          {/* Province name (left) */}
+          <text
+            class="labour-panel-chart__row-name"
+            x={(PLOT_X0 - 12).toFixed(2)}
+            y={(y + 5).toFixed(2)}
+            text-anchor="end"
+          >{r.p.name}</text>
+
+          {/* 12-months-ago value (left of open circle) */}
+          <text
+            class="labour-panel-chart__row-prior"
+            x={(x12 - 9).toFixed(2)}
+            y={(y + 4).toFixed(2)}
+            text-anchor="end"
+          >{`${r.p.ur_12m_ago.toFixed(1)}%`}</text>
+
+          {/* Current value (right of filled circle) */}
+          <text
+            class="labour-panel-chart__row-current"
+            x={(xCurr + 9).toFixed(2)}
+            y={(y + 4).toFixed(2)}
+            text-anchor="start"
+          >{`${r.p.ur_current.toFixed(1)}%`}</text>
+        </g>
+      );
+    })}
+
+    {/* X-axis */}
+    <line
+      class="labour-panel-chart__xaxis"
+      x1={PLOT_X0}
+      y1={PLOT_Y1.toFixed(2)}
+      x2={PLOT_X1}
+      y2={PLOT_Y1.toFixed(2)}
+    />
+    {xTicks.map((v) => (
+      <g>
+        <line
+          class="labour-panel-chart__xtick"
+          x1={xScale(v).toFixed(2)}
+          y1={PLOT_Y1.toFixed(2)}
+          x2={xScale(v).toFixed(2)}
+          y2={(PLOT_Y1 + 4).toFixed(2)}
+        />
+        <text
+          class="labour-panel-chart__xtick-label"
+          x={xScale(v).toFixed(2)}
+          y={(PLOT_Y1 + 16).toFixed(2)}
+          text-anchor="middle"
+        >{`${v.toFixed(0)}%`}</text>
+      </g>
+    ))}
+
+    {/* Axis title */}
+    <text
+      class="labour-panel-chart__axis-title"
+      x={(PLOT_X0 + PLOT_W / 2).toFixed(2)}
+      y={(PLOT_Y1 + 32).toFixed(2)}
+      text-anchor="middle"
+    >Unemployment rate, SA</text>
+
+    {/* Legend in panel gutter */}
+    <g class="labour-panel-chart__legend">
+      <circle
+        class="labour-panel-chart__pt-prior"
+        cx={(PLOT_X0 + 4).toFixed(2)}
+        cy={(VB_H - 14).toFixed(2)}
+        r="5"
+      />
+      <text
+        class="labour-panel-chart__legend-label"
+        x={(PLOT_X0 + 16).toFixed(2)}
+        y={(VB_H - 10).toFixed(2)}
+        text-anchor="start"
+      >{priorPeriod}</text>
+      <circle
+        class="labour-panel-chart__pt-current"
+        cx={(PLOT_X0 + 110).toFixed(2)}
+        cy={(VB_H - 14).toFixed(2)}
+        r="6"
+      />
+      <text
+        class="labour-panel-chart__legend-label"
+        x={(PLOT_X0 + 122).toFixed(2)}
+        y={(VB_H - 10).toFixed(2)}
+        text-anchor="start"
+      >{referencePeriod}</text>
+    </g>
+
+    {/* "Loosening fastest" gutter callout */}
+    {loosening && (
+      <text
+        class="labour-panel-chart__callout-anno"
+        x={(PLOT_X1 - 8).toFixed(2)}
+        y={(VB_H - 10).toFixed(2)}
+        text-anchor="end"
+      >{`Loosening fastest: ${loosening.p.name} (+${loosening.delta.toFixed(1)}pp)`}</text>
+    )}
+  </svg>
+</div>
+
+<style>
+  .labour-panel-chart {
+    width: 100%;
+    aspect-ratio: 2 / 1;
+    background-color: var(--surface);
+    overflow: visible;
+  }
+  .labour-panel-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+  .labour-panel-chart__gridline {
+    stroke: var(--rule-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__national-line {
+    stroke: var(--ink-muted);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__national-label {
+    fill: var(--ink-muted);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  /* Dumbbell line: direction-of-motion encoded.
+   * pos = u-rate fell, market tightened -> --pos
+   * neg = u-rate rose, market loosened -> --neg
+   * neutral = within tolerance band -> --series-3 @ 40% */
+  .labour-panel-chart__dumb-line {
+    stroke-width: 1.5;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__dumb-line--pos {
+    stroke: var(--pos);
+    stroke-opacity: 0.6;
+  }
+  .labour-panel-chart__dumb-line--neg {
+    stroke: var(--neg);
+    stroke-opacity: 0.6;
+  }
+  .labour-panel-chart__dumb-line--neutral {
+    stroke: var(--series-3);
+    stroke-opacity: 0.4;
+  }
+  /* 12-months-ago: open circle */
+  .labour-panel-chart__pt-prior {
+    fill: transparent;
+    stroke: var(--series-3);
+    stroke-width: 1.5;
+  }
+  /* Current: filled */
+  .labour-panel-chart__pt-current {
+    fill: var(--series-3);
+    stroke: var(--surface);
+    stroke-width: 1;
+  }
+  .labour-panel-chart__row-name {
+    fill: var(--ink);
+    font-size: 13px;
+    font-weight: var(--fw-medium);
+  }
+  .labour-panel-chart__row-prior {
+    fill: var(--ink-muted);
+    font-size: 11px;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .labour-panel-chart__row-current {
+    fill: var(--ink);
+    font-size: 11px;
+    font-family: var(--font-mono);
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .labour-panel-chart__xaxis {
+    stroke: var(--rule);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__xtick {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__xtick-label {
+    fill: var(--ink-faint);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .labour-panel-chart__axis-title {
+    fill: var(--ink-muted);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+  }
+  .labour-panel-chart__legend-label {
+    fill: var(--ink-faint);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+  }
+  .labour-panel-chart__callout-anno {
+    fill: var(--ink);
+    font-size: 12px;
+    font-weight: var(--fw-semibold);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

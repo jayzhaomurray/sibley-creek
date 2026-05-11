@@ -1,0 +1,132 @@
+---
+/*
+ * Lane N - Periodic Table.
+ * A single family row in the grid. Renders the row label on the left
+ * (with the family color) and slots the cells passed via the default
+ * slot to its right. The cells themselves come from ElementCell.astro.
+ *
+ * The row label is a tiny "group" tab in the manner of "Group 1 -
+ * Alkali Metals" labels in a textbook periodic table.
+ */
+
+interface Props {
+  /** Row index — printed as "Row I", "Row II", etc. */
+  romanRow: string;
+  /** Family display name. */
+  family: string;
+  /** Family color (CSS hex/var). Sets --pt-family-color on the row. */
+  color: string;
+  /** Family slug for unique row id. */
+  slug: string;
+  /** Optional short gloss sub-label set in italic. */
+  gloss?: string;
+  /** Optional element count for the row tab. */
+  count?: number;
+}
+
+const { romanRow, family, color, slug, gloss = "", count } = Astro.props as Props;
+---
+<section
+  class="pt-row"
+  style={`--pt-family-color:${color}`}
+  aria-labelledby={`pt-row-${slug}`}
+>
+  <aside class="pt-row__label">
+    <span class="pt-row__roman" aria-hidden="true">{romanRow}</span>
+    <h2 id={`pt-row-${slug}`} class="pt-row__family">{family}</h2>
+    {gloss && <p class="pt-row__gloss"><em>{gloss}</em></p>}
+    {typeof count === "number" && (
+      <p class="pt-row__count" aria-hidden="true">{count} elements</p>
+    )}
+    <span class="pt-row__rule" aria-hidden="true"></span>
+  </aside>
+  <div class="pt-row__cells" role="list">
+    <slot />
+  </div>
+</section>
+
+<style>
+  .pt-row {
+    display: grid;
+    grid-template-columns: 168px 1fr;
+    gap: 18px;
+    align-items: stretch;
+  }
+
+  .pt-row__label {
+    position: relative;
+    padding: 6px 14px 6px 0;
+    border-right: 2px solid var(--pt-family-color, #171717);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .pt-row__roman {
+    font-family: var(--pt-mono, "IBM Plex Sans Condensed"), sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--pt-family-color, #171717);
+  }
+
+  .pt-row__family {
+    margin: 0;
+    font-family: var(--pt-mono, "IBM Plex Sans Condensed"), sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.05;
+    color: var(--pt-ink, #171717);
+  }
+
+  .pt-row__gloss {
+    margin: 0;
+    font-family: var(--pt-serif-display, "Cormorant Garamond"), serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.3;
+    color: var(--pt-ink-faint, #555555);
+    max-width: 150px;
+  }
+  .pt-row__gloss em { font-style: italic; }
+
+  .pt-row__count {
+    margin: 0;
+    font-family: var(--pt-mono, "IBM Plex Sans Condensed"), sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--pt-ink-faint, #6B6B6B);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pt-row__cells {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+  }
+
+  @media (max-width: 1100px) {
+    .pt-row { grid-template-columns: 1fr; gap: 10px; }
+    .pt-row__label {
+      border-right: none;
+      border-bottom: 2px solid var(--pt-family-color, #171717);
+      padding: 0 0 6px 0;
+      flex-direction: row;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .pt-row__gloss { max-width: 100%; }
+    .pt-row__cells { grid-template-columns: repeat(4, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .pt-row__cells { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>

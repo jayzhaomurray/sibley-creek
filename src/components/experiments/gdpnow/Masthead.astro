@@ -1,0 +1,130 @@
+---
+/*
+ * GDPNow Masthead — small institutional header in the manner of a
+ * Federal Reserve staff page. Publication-mark in serif italic, a
+ * one-line institutional rail, and a small "back to production" link.
+ *
+ * No hero, no decoration. Calm and academic.
+ */
+
+interface Props {
+  publication: string;
+  asOf: string; // formatted date
+  edition: string; // "Lane I"
+}
+
+const { publication, asOf, edition } = Astro.props;
+---
+<header class="gdp-mast" role="banner">
+  <div class="gdp-mast__row">
+    <p class="gdp-mast__mark">
+      <em>{publication}</em>
+    </p>
+    <nav class="gdp-mast__nav" aria-label="Institutional rail">
+      <span class="gdp-mast__nav-item">
+        <span class="gdp-mast__nav-k">Series</span>
+        <span class="gdp-mast__nav-v">Research note</span>
+      </span>
+      <span class="gdp-mast__nav-sep" aria-hidden="true">|</span>
+      <span class="gdp-mast__nav-item">
+        <span class="gdp-mast__nav-k">As of</span>
+        <span class="gdp-mast__nav-v">{asOf}</span>
+      </span>
+      <span class="gdp-mast__nav-sep" aria-hidden="true">|</span>
+      <span class="gdp-mast__nav-item">
+        <span class="gdp-mast__nav-k">Edition</span>
+        <span class="gdp-mast__nav-v">{edition}</span>
+      </span>
+      <span class="gdp-mast__nav-sep gdp-mast__nav-sep--push" aria-hidden="true">|</span>
+      <a class="gdp-mast__back" href="/">Return to production homepage</a>
+    </nav>
+  </div>
+  <hr class="gdp-mast__rule" aria-hidden="true" />
+</header>
+
+<style>
+  .gdp-mast {
+    padding-top: 18px;
+  }
+  .gdp-mast__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px 24px;
+    padding-bottom: 10px;
+  }
+  .gdp-mast__mark {
+    margin: 0;
+    font-family: var(--gdp-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 17px;
+    line-height: 1;
+    letter-spacing: 0.005em;
+    color: var(--gdp-navy);
+    flex: 0 0 auto;
+  }
+  .gdp-mast__mark em {
+    font-style: italic;
+  }
+  .gdp-mast__nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 12px;
+    margin-left: auto;
+    font-family: var(--gdp-mono);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    color: var(--gdp-gray);
+  }
+  .gdp-mast__nav-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .gdp-mast__nav-k {
+    color: var(--gdp-gray);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+  .gdp-mast__nav-v {
+    color: var(--gdp-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .gdp-mast__nav-sep {
+    color: var(--gdp-gray);
+    opacity: 0.45;
+  }
+  .gdp-mast__nav-sep--push {
+    margin-left: 4px;
+  }
+  .gdp-mast__back {
+    color: var(--gdp-navy);
+    text-decoration: none;
+    border-bottom: 0.5px solid var(--gdp-navy);
+    padding-bottom: 1px;
+    transition: color 100ms linear, border-color 100ms linear;
+  }
+  .gdp-mast__back:hover {
+    color: var(--gdp-gold);
+    border-bottom-color: var(--gdp-gold);
+  }
+  .gdp-mast__back:focus-visible {
+    outline: 2px solid var(--gdp-gold);
+    outline-offset: 3px;
+  }
+  .gdp-mast__rule {
+    border: 0;
+    border-top: 1px solid var(--gdp-navy);
+    margin: 0;
+  }
+
+  @media (max-width: 720px) {
+    .gdp-mast__nav {
+      margin-left: 0;
+    }
+  }
+</style>

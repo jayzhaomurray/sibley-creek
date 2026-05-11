@@ -1,0 +1,491 @@
+---
+/*
+ * GDPNow SectionPanel — one section, one panel.
+ *
+ * Layout (within a single cell of the 2x4 academic grid):
+ *   header strip   - section label (small caps serif), figure label, cadence
+ *   chart + print  - left: small SVG chart (figure-N style); right: load-bearing
+ *                    print stacked (value, delta, asOf) + 2-line note
+ *   small table    - three rows: indicator | value | delta. Hairline rules.
+ *
+ * Static SVG sparkline rendered inline (no JS). The chart is small,
+ * captioned, and reads like a Fed staff-page figure.
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  section: Section;
+  figureNum: string;
+}
+
+const { section, figureNum } = Astro.props;
+
+const loadBearing = section.chartSeriesKey
+  ? section.prints.find((p) => p.key === section.chartSeriesKey) ?? section.prints[0]
+  : section.prints[0];
+
+const series = loadBearing.spark ?? [0, 0.2, 0.3, 0.4];
+
+// Chart geometry — Fed-staff-page calm. Generous left axis space.
+const W = 320;
+const H = 110;
+const PAD_L = 28;
+const PAD_R = 8;
+const PAD_T = 10;
+const PAD_B = 18;
+
+const plotW = W - PAD_L - PAD_R;
+const plotH = H - PAD_T - PAD_B;
+
+const minV = Math.min(...series);
+const maxV = Math.max(...series);
+const rangeRaw = maxV - minV || 1;
+const yMin = minV - rangeRaw * 0.12;
+const yMax = maxV + rangeRaw * 0.12;
+const yRange = yMax - yMin || 1;
+
+function xOf(i: number): number {
+  return PAD_L + (i / (series.length - 1)) * plotW;
+}
+function yOf(v: number): number {
+  return PAD_T + (1 - (v - yMin) / yRange) * plotH;
+}
+
+const pts = series.map((v, i) => `${xOf(i).toFixed(2)},${yOf(v).toFixed(2)}`);
+const linePath = "M " + pts.join(" L ");
+
+// Three reference y-axis ticks (low, mid, high). Format to one decimal,
+// drop trailing zero.
+function fmtTick(v: number): string {
+  const a = Math.abs(v);
+  if (a >= 100) return v.toFixed(0);
+  if (a >= 10) return v.toFixed(1);
+  return v.toFixed(2);
+}
+const ticks = [yMin, (yMin + yMax) / 2, yMax].map((v) => ({
+  v,
+  y: yOf(v),
+  label: fmtTick(v),
+}));
+
+// Last point marker
+const lastX = xOf(series.length - 1);
+const lastY = yOf(series[series.length - 1] as number);
+
+// Zero line if it's in range
+const zeroInRange = yMin < 0 && yMax > 0;
+const zeroY = zeroInRange ? yOf(0) : null;
+
+const deltaClass = (d: "pos" | "neg" | "neutral") =>
+  d === "pos" ? "gdp-panel__delta--pos"
+  : d === "neg" ? "gdp-panel__delta--neg"
+  : "gdp-panel__delta--neutral";
+
+const allPrints = section.prints;
+---
+<article
+  class="gdp-panel"
+  id={`panel-${section.slug}`}
+  aria-labelledby={`panel-${section.slug}-h`}
+>
+  <header class="gdp-panel__head">
+    <div class="gdp-panel__head-left">
+      <p class="gdp-panel__eyebrow">
+        <span class="gdp-panel__fig">Figure {figureNum}.</span>
+      </p>
+      <h2 id={`panel-${section.slug}-h`} class="gdp-panel__h">
+        <a class="gdp-panel__h-link" href={`/${section.slug}/`}>{section.label}</a>
+      </h2>
+    </div>
+    <p class="gdp-panel__cadence">{section.cadence}</p>
+  </header>
+
+  <p class="gdp-panel__question">{section.headlineQuestion}</p>
+
+  <div class="gdp-panel__body">
+    <figure class="gdp-panel__fig-wrap">
+      <svg
+        class="gdp-panel__svg"
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label={`${loadBearing.indicator}. Latest: ${loadBearing.value} (${loadBearing.asOf}). Change: ${loadBearing.delta}.`}
+      >
+        {/* Plot frame */}
+        <rect
+          x={PAD_L}
+          y={PAD_T}
+          width={plotW}
+          height={plotH}
+          fill="#FFFFFF"
+          stroke="#D6D2C8"
+          stroke-width="0.5"
+        />
+        {/* Y-axis tick labels + gridlines */}
+        {ticks.map((t) => (
+          <>
+            <line
+              x1={PAD_L}
+              x2={PAD_L + plotW}
+              y1={t.y}
+              y2={t.y}
+              stroke="#E4E0D5"
+              stroke-width="0.4"
+              stroke-dasharray="1.5 2.5"
+            />
+            <text
+              x={PAD_L - 4}
+              y={t.y}
+              text-anchor="end"
+              dominant-baseline="middle"
+              font-family="IBM Plex Mono, ui-monospace, monospace"
+              font-size="8"
+              fill="#5F6470"
+            >
+              {t.label}
+            </text>
+          </>
+        ))}
+        {/* Zero line if applicable */}
+        {zeroY !== null && (
+          <line
+            x1={PAD_L}
+            x2={PAD_L + plotW}
+            y1={zeroY}
+            y2={zeroY}
+            stroke="#5F6470"
+            stroke-width="0.5"
+          />
+        )}
+        {/* Main series */}
+        <path
+          d={linePath}
+          fill="none"
+          stroke="#1F3A66"
+          stroke-width="1.4"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
+        {/* Last point */}
+        <circle cx={lastX} cy={lastY} r="2.4" fill="#A87521" stroke="#FAFAF7" stroke-width="0.6" />
+        {/* X-axis baseline */}
+        <line
+          x1={PAD_L}
+          x2={PAD_L + plotW}
+          y1={PAD_T + plotH}
+          y2={PAD_T + plotH}
+          stroke="#1B1B22"
+          stroke-width="0.5"
+        />
+        {/* X-axis end-labels */}
+        <text
+          x={PAD_L}
+          y={H - 4}
+          text-anchor="start"
+          font-family="IBM Plex Mono, ui-monospace, monospace"
+          font-size="8"
+          fill="#5F6470"
+        >
+          earliest
+        </text>
+        <text
+          x={PAD_L + plotW}
+          y={H - 4}
+          text-anchor="end"
+          font-family="IBM Plex Mono, ui-monospace, monospace"
+          font-size="8"
+          fill="#5F6470"
+        >
+          {loadBearing.asOf}
+        </text>
+      </svg>
+      <figcaption class="gdp-panel__cap">
+        <span class="gdp-panel__cap-mark">Fig. {figureNum}.</span>
+        {loadBearing.indicator}, recent history.
+        Last observation marked.
+      </figcaption>
+    </figure>
+
+    <aside class="gdp-panel__readout" aria-label="Headline reading">
+      <p class="gdp-panel__readout-k">{loadBearing.indicator}</p>
+      <p class="gdp-panel__readout-v">
+        <span class="gdp-panel__readout-num">{loadBearing.value}</span>
+      </p>
+      <p class="gdp-panel__readout-meta">
+        <span class:list={["gdp-panel__delta", deltaClass(loadBearing.deltaDir)]}>{loadBearing.delta}</span>
+        <span class="gdp-panel__readout-asof">{loadBearing.asOf}</span>
+      </p>
+      {section.blurb.body && (
+        <p class="gdp-panel__note">
+          {section.blurb.body}
+        </p>
+      )}
+    </aside>
+  </div>
+
+  <table class="gdp-panel__table" aria-label={`${section.label} indicators table`}>
+    <thead>
+      <tr>
+        <th scope="col" class="gdp-panel__th gdp-panel__th--ind">Indicator</th>
+        <th scope="col" class="gdp-panel__th gdp-panel__th--val">Value</th>
+        <th scope="col" class="gdp-panel__th gdp-panel__th--delta">Change</th>
+        <th scope="col" class="gdp-panel__th gdp-panel__th--asof">As of</th>
+      </tr>
+    </thead>
+    <tbody>
+      {allPrints.map((p) => (
+        <tr class={p === loadBearing ? "gdp-panel__tr gdp-panel__tr--primary" : "gdp-panel__tr"}>
+          <td class="gdp-panel__td gdp-panel__td--ind">{p.indicator}</td>
+          <td class="gdp-panel__td gdp-panel__td--val">{p.value}</td>
+          <td class:list={["gdp-panel__td", "gdp-panel__td--delta", deltaClass(p.deltaDir)]}>{p.delta}</td>
+          <td class="gdp-panel__td gdp-panel__td--asof">{p.asOf}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</article>
+
+<style>
+  .gdp-panel {
+    background: var(--gdp-paper);
+    border: 0.5px solid var(--gdp-rule);
+    padding: 16px 18px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 100%;
+  }
+
+  .gdp-panel__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 0.5px solid var(--gdp-rule);
+    padding-bottom: 8px;
+  }
+  .gdp-panel__head-left { min-width: 0; }
+  .gdp-panel__eyebrow {
+    margin: 0;
+    font-family: var(--gdp-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gdp-gray);
+  }
+  .gdp-panel__fig {
+    color: var(--gdp-gold);
+  }
+  .gdp-panel__h {
+    margin: 4px 0 0;
+    font-family: var(--gdp-display);
+    font-weight: 500;
+    font-size: 20px;
+    line-height: 1.1;
+    letter-spacing: 0;
+    color: var(--gdp-ink);
+  }
+  .gdp-panel__h-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 0.5px solid transparent;
+    transition: color 100ms linear, border-color 100ms linear;
+  }
+  .gdp-panel__h-link:hover {
+    color: var(--gdp-navy);
+    border-bottom-color: var(--gdp-navy);
+  }
+  .gdp-panel__h-link:focus-visible {
+    outline: 2px solid var(--gdp-gold);
+    outline-offset: 3px;
+  }
+  .gdp-panel__cadence {
+    margin: 0;
+    font-family: var(--gdp-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gdp-gray);
+    white-space: nowrap;
+  }
+
+  .gdp-panel__question {
+    margin: 0;
+    font-family: var(--gdp-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 13.5px;
+    line-height: 1.4;
+    color: var(--gdp-ink);
+    max-width: 56ch;
+  }
+
+  .gdp-panel__body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  @media (min-width: 600px) {
+    .gdp-panel__body {
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+  }
+
+  .gdp-panel__fig-wrap {
+    margin: 0;
+    min-width: 0;
+  }
+  .gdp-panel__svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .gdp-panel__cap {
+    margin: 4px 0 0;
+    font-family: var(--gdp-body);
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--gdp-gray);
+  }
+  .gdp-panel__cap-mark {
+    font-style: italic;
+    font-family: var(--gdp-display);
+    color: var(--gdp-ink);
+    margin-right: 3px;
+  }
+
+  .gdp-panel__readout {
+    min-width: 0;
+    padding-left: 0;
+  }
+  @media (min-width: 600px) {
+    .gdp-panel__readout {
+      border-left: 0.5px solid var(--gdp-rule);
+      padding-left: 14px;
+    }
+  }
+  .gdp-panel__readout-k {
+    margin: 0;
+    font-family: var(--gdp-body);
+    font-style: italic;
+    font-size: 12px;
+    line-height: 1.2;
+    color: var(--gdp-gray);
+  }
+  .gdp-panel__readout-v {
+    margin: 4px 0 0;
+    line-height: 1;
+  }
+  .gdp-panel__readout-num {
+    font-family: var(--gdp-mono);
+    font-weight: 500;
+    font-size: 28px;
+    line-height: 1;
+    letter-spacing: -0.005em;
+    color: var(--gdp-navy);
+    font-variant-numeric: tabular-nums;
+  }
+  .gdp-panel__readout-meta {
+    margin: 6px 0 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-family: var(--gdp-mono);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.02em;
+  }
+  .gdp-panel__readout-asof {
+    color: var(--gdp-gray);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+  .gdp-panel__note {
+    margin: 10px 0 0;
+    font-family: var(--gdp-body);
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--gdp-ink);
+    /* Clamp to ~2 lines */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 44ch;
+  }
+
+  .gdp-panel__delta {
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+  .gdp-panel__delta--pos { color: var(--gdp-navy); }
+  .gdp-panel__delta--neg { color: var(--gdp-gold); }
+  .gdp-panel__delta--neutral { color: var(--gdp-gray); }
+
+  .gdp-panel__table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-family: var(--gdp-mono);
+    font-size: 11px;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+    color: var(--gdp-ink);
+    border-top: 0.5px solid var(--gdp-rule);
+  }
+  .gdp-panel__th {
+    text-align: left;
+    font-weight: 500;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gdp-gray);
+    padding: 6px 6px 5px 0;
+    border-bottom: 0.5px solid var(--gdp-rule);
+  }
+  .gdp-panel__th--val,
+  .gdp-panel__th--delta,
+  .gdp-panel__th--asof {
+    text-align: right;
+    padding-right: 0;
+    padding-left: 6px;
+  }
+  .gdp-panel__td {
+    padding: 5px 6px 5px 0;
+    border-bottom: 0.3px dotted var(--gdp-rule);
+  }
+  .gdp-panel__tr:last-child .gdp-panel__td {
+    border-bottom: 0;
+  }
+  .gdp-panel__td--ind {
+    font-family: var(--gdp-body);
+    color: var(--gdp-ink);
+  }
+  .gdp-panel__td--val,
+  .gdp-panel__td--delta,
+  .gdp-panel__td--asof {
+    text-align: right;
+    padding-right: 0;
+    padding-left: 6px;
+  }
+  .gdp-panel__td--asof {
+    color: var(--gdp-gray);
+    text-transform: uppercase;
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+  }
+  .gdp-panel__tr--primary .gdp-panel__td--ind {
+    color: var(--gdp-navy);
+    font-weight: 600;
+  }
+  .gdp-panel__tr--primary .gdp-panel__td--val {
+    font-weight: 500;
+    color: var(--gdp-ink);
+  }
+</style>

@@ -1,0 +1,191 @@
+---
+/*
+ * Colophon - editorial-style footer with next-release stamp, methodology
+ * links, and copyright. Self-contained, no production component imports.
+ */
+import { site } from "../../../data/sections";
+
+interface Props {
+  nextRelease: {
+    label: string;
+    date: string;
+    agency: string;
+  };
+}
+
+const { nextRelease } = Astro.props;
+const year = new Date().getFullYear();
+---
+<footer class="ed-colophon" role="contentinfo">
+  <div class="ed-colophon__rule" aria-hidden="true"></div>
+
+  <div class="ed-colophon__grid">
+    <div class="ed-colophon__col ed-colophon__col--mark">
+      <p class="ed-colophon__mark">M.R.D.</p>
+      <p class="ed-colophon__motto">
+        <em>Sine ira et studio</em>
+      </p>
+    </div>
+
+    <div class="ed-colophon__col">
+      <h3 class="ed-colophon__h">Next release</h3>
+      <p class="ed-colophon__release">{nextRelease.label}</p>
+      <p class="ed-colophon__release-date">
+        {nextRelease.date} &middot; {nextRelease.agency}
+      </p>
+    </div>
+
+    <div class="ed-colophon__col">
+      <h3 class="ed-colophon__h">The work</h3>
+      <ul role="list" class="ed-colophon__list">
+        <li><a href="/about/">About the Department</a></li>
+        <li><a href="/methodology/">Methodology &amp; revisions</a></li>
+        <li><a href="/sources/">Sources cited</a></li>
+        <li><a href="/accessibility/">Accessibility</a></li>
+      </ul>
+    </div>
+
+    <div class="ed-colophon__col">
+      <h3 class="ed-colophon__h">Colophon</h3>
+      <p class="ed-colophon__set">
+        Set in <em>Fraunces</em>, <em>Source Serif</em>, and <em>JetBrains Mono</em>.
+        Printed in cream on the open web.
+      </p>
+    </div>
+  </div>
+
+  <div class="ed-colophon__base">
+    <span>(c) {year} {site.name}</span>
+    <span aria-hidden="true" class="ed-colophon__dot">&middot;</span>
+    <span>Data attributed at point of use</span>
+    <span aria-hidden="true" class="ed-colophon__dot">&middot;</span>
+    <span>{site.locale}</span>
+  </div>
+</footer>
+
+<style>
+  .ed-colophon {
+    position: relative;
+    z-index: 2;
+    padding: 2.2rem 0 2.6rem;
+  }
+
+  .ed-colophon__rule {
+    height: 5px;
+    border-top: 1px solid var(--ed-ink);
+    border-bottom: 1px solid var(--ed-ink);
+    background: transparent;
+    margin-bottom: 2rem;
+  }
+
+  .ed-colophon__grid {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr 1fr 1.3fr;
+    gap: 2.6rem;
+  }
+  @media (max-width: 900px) {
+    .ed-colophon__grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 1.6rem 2rem;
+    }
+  }
+  @media (max-width: 560px) {
+    .ed-colophon__grid { grid-template-columns: 1fr; }
+  }
+
+  .ed-colophon__mark {
+    margin: 0;
+    font-family: var(--ed-font-display);
+    font-weight: 900;
+    font-size: clamp(2.5rem, 4vw, 3.4rem);
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: var(--ed-ink);
+  }
+  .ed-colophon__motto {
+    margin: 0.4rem 0 0;
+    font-family: var(--ed-font-display);
+    font-size: 0.95rem;
+    color: var(--ed-ink-mute);
+    font-style: normal;
+  }
+  .ed-colophon__motto em {
+    font-style: italic;
+    color: var(--ed-accent);
+  }
+
+  .ed-colophon__h {
+    margin: 0 0 0.55rem;
+    font-family: var(--ed-font-body);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ed-ink-mute);
+    font-weight: 600;
+  }
+
+  .ed-colophon__release {
+    margin: 0;
+    font-family: var(--ed-font-display);
+    font-weight: 700;
+    font-size: 1.2rem;
+    line-height: 1.2;
+    color: var(--ed-ink);
+  }
+  .ed-colophon__release-date {
+    margin: 0.3rem 0 0;
+    font-family: var(--ed-font-mono);
+    font-size: 0.8rem;
+    color: var(--ed-ink-mute);
+    letter-spacing: 0.02em;
+  }
+
+  .ed-colophon__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.4rem;
+  }
+  .ed-colophon__list a {
+    font-family: var(--ed-font-body);
+    font-size: 0.95rem;
+    color: var(--ed-ink);
+    text-decoration: underline;
+    text-decoration-color: var(--ed-rule);
+    text-underline-offset: 3px;
+    transition: color 150ms ease, text-decoration-color 150ms ease;
+  }
+  .ed-colophon__list a:hover {
+    color: var(--ed-accent);
+    text-decoration-color: var(--ed-accent);
+  }
+  .ed-colophon__list a:focus-visible {
+    outline: 2px solid var(--ed-accent);
+    outline-offset: 2px;
+  }
+
+  .ed-colophon__set {
+    margin: 0;
+    font-family: var(--ed-font-body);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--ed-ink);
+  }
+  .ed-colophon__set em {
+    font-style: italic;
+    color: var(--ed-accent);
+  }
+
+  .ed-colophon__base {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--ed-rule);
+    font-family: var(--ed-font-mono);
+    font-size: 0.72rem;
+    color: var(--ed-ink-mute);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .ed-colophon__dot { margin: 0 0.6em; color: var(--ed-rule); }
+</style>

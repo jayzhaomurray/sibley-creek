@@ -1,0 +1,178 @@
+---
+/*
+ * BauhausMasthead - giant black slab "MRD" rotated -3 degrees, top-left
+ * corner of the page. Identity moment per the Lane D brief.
+ *
+ * Composition:
+ *   Top-left:    "MRD" set in Anton Black, slab-rotated -3deg, with a
+ *                small red square hung off the baseline like a die.
+ *   Top-right:   edition stamp + Canadian macro caption, hard right.
+ *   Below:       the publication name in Archivo Narrow, ranged left
+ *                under the slab; a heavy 6px black rule terminates the
+ *                masthead.
+ */
+
+interface Props {
+  shortName: string;
+  fullName: string;
+  editionDate: string;
+  buildStamp: string;
+  laneLabel: string;
+}
+
+const { shortName, fullName, editionDate, buildStamp, laneLabel } = Astro.props;
+---
+<header class="bh-mast" aria-labelledby="bh-mast-title">
+  <div class="bh-mast__left">
+    <div class="bh-mast__slab-wrap">
+      <h1 id="bh-mast-title" class="bh-mast__slab" aria-label={fullName}>
+        <span aria-hidden="true">{shortName}</span>
+      </h1>
+      <span class="bh-mast__die" aria-hidden="true"></span>
+    </div>
+    <p class="bh-mast__fullname">
+      <span class="bh-mast__fullname-piece">{fullName.split(" ").slice(0, 1).join(" ")}</span>
+      <span class="bh-mast__fullname-piece">{fullName.split(" ").slice(1, 2).join(" ")}</span>
+      <span class="bh-mast__fullname-piece bh-mast__fullname-piece--blue">{fullName.split(" ").slice(2).join(" ")}</span>
+    </p>
+  </div>
+
+  <div class="bh-mast__right">
+    <p class="bh-mast__stamp">
+      <span class="bh-mast__stamp-k">EDITION</span>
+      <span class="bh-mast__stamp-v">{editionDate}</span>
+    </p>
+    <p class="bh-mast__stamp">
+      <span class="bh-mast__stamp-k">BUILD</span>
+      <span class="bh-mast__stamp-v">{buildStamp}</span>
+    </p>
+    <p class="bh-mast__stamp">
+      <span class="bh-mast__stamp-k">LANE</span>
+      <span class="bh-mast__stamp-v">{laneLabel}</span>
+    </p>
+    <p class="bh-mast__caption">Canadian / macro / research</p>
+  </div>
+</header>
+
+<style>
+  .bh-mast {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding-block: 28px 0;
+    border-bottom: 6px solid var(--bh-ink);
+    padding-bottom: 22px;
+  }
+  @media (min-width: 760px) {
+    .bh-mast {
+      grid-template-columns: 7fr 5fr;
+      gap: 32px;
+      align-items: end;
+    }
+  }
+
+  /* Left: the slab */
+  .bh-mast__left {
+    min-width: 0;
+  }
+  .bh-mast__slab-wrap {
+    position: relative;
+    display: inline-block;
+    transform: rotate(-3deg);
+    transform-origin: left bottom;
+    margin-bottom: 18px;
+  }
+  .bh-mast__slab {
+    margin: 0;
+    font-family: var(--bh-display);
+    font-weight: 400; /* Anton ships only 400; weight comes from the face. */
+    font-size: clamp(120px, 22vw, 280px);
+    line-height: 0.82;
+    letter-spacing: -0.02em;
+    color: var(--bh-ink);
+    background: var(--bh-paper);
+    padding: 0 8px 0 0;
+    text-transform: uppercase;
+  }
+  .bh-mast__die {
+    position: absolute;
+    right: -22px;
+    bottom: 12%;
+    width: clamp(22px, 3.4vw, 42px);
+    height: clamp(22px, 3.4vw, 42px);
+    background: var(--bh-red);
+    transform: rotate(8deg);
+  }
+
+  .bh-mast__fullname {
+    margin: 0;
+    font-family: var(--bh-subhead);
+    font-weight: 700;
+    font-size: clamp(15px, 1.6vw, 19px);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--bh-ink);
+    line-height: 1;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: baseline;
+  }
+  .bh-mast__fullname-piece {
+    display: inline-block;
+  }
+  .bh-mast__fullname-piece + .bh-mast__fullname-piece::before {
+    content: "/";
+    color: var(--bh-ink);
+    margin-right: 12px;
+    opacity: 0.4;
+  }
+  .bh-mast__fullname-piece--blue {
+    color: var(--bh-blue);
+  }
+
+  /* Right: stamps */
+  .bh-mast__right {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 14px;
+    row-gap: 6px;
+    align-content: end;
+    font-family: var(--bh-mono);
+    font-size: 12px;
+    line-height: 1.2;
+    color: var(--bh-ink);
+  }
+  @media (min-width: 760px) {
+    .bh-mast__right {
+      justify-self: end;
+    }
+  }
+  .bh-mast__stamp {
+    margin: 0;
+    display: contents;
+  }
+  .bh-mast__stamp-k {
+    color: var(--bh-ink);
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    opacity: 0.55;
+  }
+  .bh-mast__stamp-v {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .bh-mast__caption {
+    grid-column: 1 / -1;
+    margin: 8px 0 0;
+    font-family: var(--bh-subhead);
+    font-size: 12px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--bh-blue);
+    border-top: 2px solid var(--bh-ink);
+    padding-top: 6px;
+  }
+</style>

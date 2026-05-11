@@ -1,0 +1,418 @@
+---
+/*
+ * RadarScope - the central inline SVG radar scope.
+ *
+ * Renders concentric rings, degree spokes, cardinal/inter-cardinal tick
+ * marks, the sweep arc (CSS-animated rotation), the bullseye centre, and
+ * the 7 target marks pinned at clock-position angles. Each target is a
+ * dot + vector arrow + call-sign label.
+ *
+ * Pure presentation; pre-computed positions come from the parent page.
+ *
+ * Coordinate system: SVG viewBox 0 0 1000 1000, centre (500, 500).
+ * Outer ring radius 460. Rings at 115 / 230 / 345 / 460.
+ *
+ * Angle convention: angleDeg = clock-bearing (0 = 12 o'clock, 90 = 3
+ * o'clock, etc.). Converted to SVG geometry as theta = angleDeg - 90 (deg)
+ * so that 0 deg points straight up.
+ */
+
+export interface RadarTarget {
+  /** Bearing in degrees, 0 = up (12 o'clock), clockwise. */
+  angleDeg: number;
+  /** Distance from centre, 0..1 (where 1 = outer ring). */
+  range: number;
+  /** Call-sign label, e.g. "INF-A". */
+  callsign: string;
+  /** Section slug (used for the link destination). */
+  slug: string;
+  /** Display value, e.g. "2.3%". */
+  value: string;
+  /** Delta direction drives blink colour. */
+  deltaDir: "pos" | "neg" | "neutral";
+  /** Marks this target as "live" (just-updated) — blinks subtly. */
+  live?: boolean;
+  /** Tick offset in seconds for staggered blink. */
+  blinkOffset?: number;
+}
+
+interface Props {
+  targets: RadarTarget[];
+  /** Sweep period in seconds. */
+  sweepSeconds?: number;
+}
+
+const { targets, sweepSeconds = 10 } = Astro.props;
+
+// SVG geometry constants
+const CX = 500;
+const CY = 500;
+const R_OUTER = 460;
+const RINGS = [115, 230, 345, 460];
+const SPOKE_COUNT = 12; // every 30 deg
+
+// Convert (angleDeg, range) -> (x, y) in SVG space.
+function polar(angleDeg: number, distance: number): { x: number; y: number } {
+  const theta = ((angleDeg - 90) * Math.PI) / 180;
+  return {
+    x: CX + Math.cos(theta) * distance,
+    y: CY + Math.sin(theta) * distance,
+  };
+}
+
+// Precompute spokes
+const spokes = Array.from({ length: SPOKE_COUNT }, (_, i) => {
+  const ang = (i * 360) / SPOKE_COUNT;
+  const outer = polar(ang, R_OUTER);
+  const inner = polar(ang, 22);
+  return { ang, x1: inner.x, y1: inner.y, x2: outer.x, y2: outer.y };
+});
+
+// Fine tick marks every 6 deg around the outer ring
+const ticks = Array.from({ length: 60 }, (_, i) => {
+  const ang = i * 6;
+  const isMajor = i % 5 === 0;
+  const inner = polar(ang, isMajor ? R_OUTER - 18 : R_OUTER - 8);
+  const outer = polar(ang, R_OUTER);
+  return { ang, x1: inner.x, y1: inner.y, x2: outer.x, y2: outer.y, isMajor };
+});
+
+// Cardinal bearing labels: 000 / 090 / 180 / 270 placed just inside the
+// outer ring.
+const bearingLabels = [
+  { ang: 0, text: "000" },
+  { ang: 90, text: "090" },
+  { ang: 180, text: "180" },
+  { ang: 270, text: "270" },
+];
+
+// Resolved target geometry
+type TargetGeo = RadarTarget & {
+  cx: number;
+  cy: number;
+  // Label leader: from dot toward outer ring along the bearing.
+  leaderX: number;
+  leaderY: number;
+  // Label anchor (outside the dot) — placed past the leader.
+  labelX: number;
+  labelY: number;
+  textAnchor: "start" | "middle" | "end";
+};
+
+const targetGeo: TargetGeo[] = targets.map((t) => {
+  const dotR = t.range * R_OUTER;
+  const dot = polar(t.angleDeg, dotR);
+  // Leader extends 38px outward from the dot
+  const leaderEnd = polar(t.angleDeg, Math.min(dotR + 44, R_OUTER + 30));
+  const labelPos = polar(t.angleDeg, Math.min(dotR + 52, R_OUTER + 40));
+
+  // Choose text-anchor based on which side of the scope we're on so labels
+  // never overhang the centre
+  let textAnchor: "start" | "middle" | "end" = "middle";
+  const ang = ((t.angleDeg % 360) + 360) % 360;
+  if (ang > 15 && ang < 165) textAnchor = "start";
+  else if (ang > 195 && ang < 345) textAnchor = "end";
+  else textAnchor = "middle";
+
+  return {
+    ...t,
+    cx: dot.x,
+    cy: dot.y,
+    leaderX: leaderEnd.x,
+    leaderY: leaderEnd.y,
+    labelX: labelPos.x,
+    labelY: labelPos.y,
+    textAnchor,
+  };
+});
+---
+
+<div class="rd-scope" role="img" aria-label="Air-traffic-control radar scope showing seven Canadian macro indicators as plotted targets around a central reference point.">
+  <svg
+    viewBox="0 0 1000 1000"
+    xmlns="http://www.w3.org/2000/svg"
+    class="rd-svg"
+    aria-hidden="true"
+  >
+    <defs>
+      {/* Sweep arc — a 60deg wedge with a radial gradient fading to nothing */}
+      <radialGradient id="rd-sweep-grad" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0" stop-color="#3BD25A" stop-opacity="0.55" />
+        <stop offset="0.7" stop-color="#3BD25A" stop-opacity="0.18" />
+        <stop offset="1" stop-color="#3BD25A" stop-opacity="0" />
+      </radialGradient>
+
+      {/* Subtle phosphor glow */}
+      <radialGradient id="rd-phosphor" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0" stop-color="#3BD25A" stop-opacity="0.12" />
+        <stop offset="0.55" stop-color="#3BD25A" stop-opacity="0.04" />
+        <stop offset="1" stop-color="#0B100D" stop-opacity="0" />
+      </radialGradient>
+
+      {/* Clip the sweep wedge so it never leaks past the outer ring */}
+      <clipPath id="rd-clip">
+        <circle cx={CX} cy={CY} r={R_OUTER} />
+      </clipPath>
+    </defs>
+
+    {/* Phosphor backdrop disc */}
+    <circle cx={CX} cy={CY} r={R_OUTER} fill="url(#rd-phosphor)" />
+
+    {/* Concentric rings */}
+    {RINGS.map((r) => (
+      <circle
+        cx={CX}
+        cy={CY}
+        r={r}
+        fill="none"
+        stroke="#1E6D2F"
+        stroke-width={r === R_OUTER ? 1.6 : 1}
+        opacity={r === R_OUTER ? 0.95 : 0.6}
+      />
+    ))}
+
+    {/* Range labels along the 045 bearing — small mono numbers */}
+    {RINGS.map((r, i) => {
+      const p = polar(45, r);
+      return (
+        <text
+          x={p.x}
+          y={p.y - 4}
+          class="rd-range-label"
+          text-anchor="middle"
+        >
+          {`R${i + 1}`}
+        </text>
+      );
+    })}
+
+    {/* Spokes — every 30 deg */}
+    {spokes.map((s) => (
+      <line
+        x1={s.x1}
+        y1={s.y1}
+        x2={s.x2}
+        y2={s.y2}
+        stroke="#1E6D2F"
+        stroke-width="0.7"
+        opacity="0.4"
+      />
+    ))}
+
+    {/* Fine bearing ticks every 6 deg around the outer ring */}
+    {ticks.map((t) => (
+      <line
+        x1={t.x1}
+        y1={t.y1}
+        x2={t.x2}
+        y2={t.y2}
+        stroke="#3BD25A"
+        stroke-width={t.isMajor ? 1.2 : 0.7}
+        opacity={t.isMajor ? 0.7 : 0.35}
+      />
+    ))}
+
+    {/* Cardinal bearing labels */}
+    {bearingLabels.map((b) => {
+      const p = polar(b.ang, R_OUTER - 32);
+      return (
+        <text
+          x={p.x}
+          y={p.y + 4}
+          class="rd-bearing-label"
+          text-anchor="middle"
+        >
+          {b.text}
+        </text>
+      );
+    })}
+
+    {/* Crosshair through centre */}
+    <line x1={CX - R_OUTER} y1={CY} x2={CX + R_OUTER} y2={CY} stroke="#1E6D2F" stroke-width="0.6" opacity="0.35" stroke-dasharray="2 6" />
+    <line x1={CX} y1={CY - R_OUTER} x2={CX} y2={CY + R_OUTER} stroke="#1E6D2F" stroke-width="0.6" opacity="0.35" stroke-dasharray="2 6" />
+
+    {/* Sweep arc — rotates via CSS keyframe.
+        The wedge is drawn pointing along bearing 0 (straight up) and
+        extending ~60 deg clockwise. CSS rotates the whole <g>. */}
+    <g class="rd-sweep" clip-path="url(#rd-clip)" style={`transform-origin: ${CX}px ${CY}px; animation-duration: ${sweepSeconds}s;`}>
+      <path
+        d={(() => {
+          const start = polar(0, R_OUTER);
+          const end = polar(60, R_OUTER);
+          return `M ${CX} ${CY} L ${start.x} ${start.y} A ${R_OUTER} ${R_OUTER} 0 0 1 ${end.x} ${end.y} Z`;
+        })()}
+        fill="url(#rd-sweep-grad)"
+      />
+      {/* Leading edge — a slightly stronger line */}
+      <line
+        x1={CX}
+        y1={CY}
+        x2={polar(0, R_OUTER).x}
+        y2={polar(0, R_OUTER).y}
+        stroke="#3BD25A"
+        stroke-width="1.6"
+        opacity="0.85"
+      />
+    </g>
+
+    {/* Bullseye / boresight */}
+    <circle cx={CX} cy={CY} r={4} fill="#3BD25A" />
+    <circle cx={CX} cy={CY} r={10} fill="none" stroke="#3BD25A" stroke-width="1" opacity="0.6" />
+
+    {/* Targets — leader, dot, label */}
+    {targetGeo.map((t) => {
+      const liveClass = t.live ? "rd-target rd-target--live" : "rd-target";
+      const delayStyle = t.blinkOffset !== undefined
+        ? `animation-delay: ${t.blinkOffset}s;`
+        : "";
+      // Vector "leader" line from dot outward
+      return (
+        <g class={liveClass} style={delayStyle}>
+          <line
+            x1={t.cx}
+            y1={t.cy}
+            x2={t.leaderX}
+            y2={t.leaderY}
+            stroke="#3BD25A"
+            stroke-width="1"
+            opacity="0.75"
+          />
+          <a href={`/${t.slug}/`} aria-label={`${t.callsign} — ${t.value}`}>
+            {/* Outer ring around dot */}
+            <circle cx={t.cx} cy={t.cy} r={9} fill="none" stroke="#3BD25A" stroke-width="1.2" opacity="0.6" class="rd-target__ring" />
+            {/* Inner solid dot */}
+            <circle cx={t.cx} cy={t.cy} r={4} fill="#3BD25A" class="rd-target__dot" />
+            {/* Callsign + value label */}
+            <text
+              x={t.labelX}
+              y={t.labelY - 2}
+              class="rd-target__callsign"
+              text-anchor={t.textAnchor}
+            >
+              {t.callsign}
+            </text>
+            <text
+              x={t.labelX}
+              y={t.labelY + 14}
+              class="rd-target__value"
+              text-anchor={t.textAnchor}
+            >
+              {t.value}
+            </text>
+          </a>
+        </g>
+      );
+    })}
+  </svg>
+</div>
+
+<style>
+  .rd-scope {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .rd-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 24px rgba(59, 210, 90, 0.12));
+  }
+
+  .rd-range-label {
+    font-family: var(--rd-font-mono);
+    font-size: 14px;
+    font-weight: 400;
+    fill: var(--rd-green-dim);
+    letter-spacing: 0.08em;
+  }
+
+  .rd-bearing-label {
+    font-family: var(--rd-font-mono);
+    font-size: 16px;
+    font-weight: 500;
+    fill: var(--rd-green);
+    letter-spacing: 0.12em;
+  }
+
+  /* Sweep rotation */
+  .rd-sweep {
+    animation-name: rd-sweep-rotate;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    transform-box: fill-box;
+  }
+  @keyframes rd-sweep-rotate {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  /* Targets — base treatment */
+  .rd-target__callsign {
+    font-family: var(--rd-font-mono);
+    font-size: 16px;
+    font-weight: 600;
+    fill: var(--rd-ink);
+    letter-spacing: 0.08em;
+  }
+  .rd-target__value {
+    font-family: var(--rd-font-mono);
+    font-size: 15px;
+    font-weight: 400;
+    fill: var(--rd-green);
+    letter-spacing: 0.04em;
+  }
+
+  /* Live targets blink — subtle dot pulse */
+  .rd-target--live .rd-target__dot {
+    animation: rd-blink 2.6s ease-in-out infinite;
+  }
+  .rd-target--live .rd-target__ring {
+    animation: rd-blink-ring 2.6s ease-in-out infinite;
+  }
+  @keyframes rd-blink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.45; }
+  }
+  @keyframes rd-blink-ring {
+    0%, 100% { opacity: 0.6; r: 9; }
+    50%      { opacity: 0.95; r: 12; }
+  }
+
+  /* Hover: lift the whole target */
+  .rd-target a:focus-visible {
+    outline: none;
+  }
+  .rd-target a:hover .rd-target__dot,
+  .rd-target a:focus-visible .rd-target__dot {
+    fill: var(--rd-cyan);
+  }
+  .rd-target a:hover .rd-target__ring,
+  .rd-target a:focus-visible .rd-target__ring {
+    stroke: var(--rd-cyan);
+    opacity: 1;
+  }
+  .rd-target a:hover .rd-target__value,
+  .rd-target a:focus-visible .rd-target__value {
+    fill: var(--rd-cyan);
+  }
+  .rd-target a:focus-visible .rd-target__callsign {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-color: var(--rd-cyan);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rd-sweep {
+      animation: none;
+      /* Park the sweep arc at a tasteful 30deg angle (heading 1 o'clock) */
+      transform: rotate(30deg);
+    }
+    .rd-target--live .rd-target__dot,
+    .rd-target--live .rd-target__ring {
+      animation: none;
+    }
+  }
+</style>

@@ -1,0 +1,278 @@
+---
+/*
+ * BauhausDeepDive - one deep-dive entry as a Constructivist card.
+ *
+ * Composition:
+ *   Far-left:   a giant black pillar letter (the pillar code "A" / "B" /
+ *               "E") set in Anton, doubling as the section index.
+ *   Card body:  the section badge as a tiny colored chip (the section's
+ *               accent maps to one of the three primaries), the title in
+ *               Archivo Narrow Bold, the deck in Work Sans light, and a
+ *               metarow with the status and last-updated stamp.
+ *   Decoration: a small primary-colored shape hung off the top-right of
+ *               the card (a yellow triangle, blue circle, or red square)
+ *               based on the status, for visual rhythm.
+ */
+
+import type { DeepDive, Section } from "../../../data/sections";
+
+interface Props {
+  item: DeepDive;
+  section: Section;
+  index: number;
+}
+
+const { item, section, index } = Astro.props;
+
+const statusLabel =
+  item.status === "shipped" ? "Shipped"
+  : item.status === "drafted" ? "Drafted"
+  : "Research";
+
+const statusClass = `bh-dive__status--${item.status}`;
+
+// Shape decoration per status. Commits.
+const decoShape =
+  item.status === "shipped" ? "circle"
+  : item.status === "drafted" ? "square"
+  : "triangle";
+
+// Section chip color per shape rule. Cycling the three primaries
+// across sections deterministically by slug for visual variety.
+const sectionShape: Record<string, "circle" | "square" | "triangle"> = {
+  gdp: "circle",
+  inflation: "square",
+  labour: "triangle",
+  housing: "circle",
+  policy: "square",
+  markets: "triangle",
+  trade: "circle",
+};
+const chipShape = sectionShape[section.slug] ?? "circle";
+const chipClass = `bh-dive__chip--${chipShape}`;
+---
+<article class="bh-dive" aria-labelledby={`bh-dive-${index}-h`}>
+  <div class="bh-dive__pillar" aria-hidden="true">{item.pillar}</div>
+  <div class="bh-dive__body">
+    <p class="bh-dive__chiprow">
+      <span class:list={["bh-dive__chip", chipClass]} aria-hidden="true"></span>
+      <span class="bh-dive__chip-label">{section.label}</span>
+      <span class="bh-dive__pillar-meta">Pillar {item.pillar}</span>
+    </p>
+    <h3 id={`bh-dive-${index}-h`} class="bh-dive__title">
+      {item.href ? (
+        <a class="bh-dive__title-link" href={item.href}>{item.title}</a>
+      ) : (
+        <span>{item.title}</span>
+      )}
+    </h3>
+    <p class="bh-dive__deck">{item.deck}</p>
+    <p class="bh-dive__meta">
+      <span class:list={["bh-dive__status", statusClass]}>{statusLabel}</span>
+      <span class="bh-dive__updated">
+        <span class="bh-dive__updated-k">Updated</span>
+        <span class="bh-dive__updated-v">{item.lastUpdated}</span>
+      </span>
+    </p>
+  </div>
+  <div class:list={["bh-dive__deco", `bh-dive__deco--${decoShape}`]} aria-hidden="true">
+    {decoShape === "triangle" && <span class="bh-dive__deco-tri"></span>}
+  </div>
+</article>
+
+<style>
+  .bh-dive {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 14px;
+    padding: 18px 20px 20px;
+    background: var(--bh-paper);
+    border: 2px solid var(--bh-ink);
+    overflow: hidden;
+    min-width: 0;
+  }
+  @media (min-width: 720px) {
+    .bh-dive {
+      grid-template-columns: 80px 1fr 64px;
+      column-gap: 18px;
+      padding: 22px 24px;
+    }
+  }
+
+  .bh-dive__pillar {
+    font-family: var(--bh-display);
+    font-size: clamp(64px, 6vw, 92px);
+    line-height: 0.8;
+    letter-spacing: -0.04em;
+    color: var(--bh-ink);
+    align-self: start;
+  }
+
+  .bh-dive__body {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .bh-dive__chiprow {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--bh-mono);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--bh-ink);
+  }
+  .bh-dive__chip {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+  .bh-dive__chip--circle {
+    background: var(--bh-blue);
+    border-radius: 50%;
+  }
+  .bh-dive__chip--square {
+    background: var(--bh-red);
+  }
+  .bh-dive__chip--triangle {
+    width: 0;
+    height: 0;
+    background: transparent;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 14px solid var(--bh-yellow);
+  }
+  .bh-dive__chip-label {
+    font-weight: 700;
+    letter-spacing: 0.18em;
+  }
+  .bh-dive__pillar-meta {
+    margin-left: auto;
+    color: var(--bh-ink);
+    opacity: 0.55;
+  }
+
+  .bh-dive__title {
+    margin: 0;
+    font-family: var(--bh-subhead);
+    font-weight: 700;
+    font-size: clamp(20px, 2.2vw, 26px);
+    line-height: 1.05;
+    letter-spacing: -0.005em;
+    text-transform: uppercase;
+    color: var(--bh-ink);
+    text-wrap: balance;
+  }
+  .bh-dive__title-link {
+    color: inherit;
+    text-decoration: none;
+    background-image: linear-gradient(var(--bh-yellow), var(--bh-yellow));
+    background-repeat: no-repeat;
+    background-size: 100% 0%;
+    background-position: 0 100%;
+    transition: background-size 140ms linear;
+    padding: 0 2px;
+  }
+  .bh-dive__title-link:hover,
+  .bh-dive__title-link:focus-visible {
+    background-size: 100% 40%;
+    outline: none;
+  }
+
+  .bh-dive__deck {
+    margin: 0;
+    font-family: var(--bh-body);
+    font-weight: 300;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--bh-ink);
+    max-width: 64ch;
+  }
+
+  .bh-dive__meta {
+    margin: 6px 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px;
+    font-family: var(--bh-mono);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .bh-dive__status {
+    font-weight: 700;
+    padding: 4px 8px;
+    border: 2px solid var(--bh-ink);
+    background: var(--bh-paper);
+    letter-spacing: 0.16em;
+  }
+  .bh-dive__status--shipped {
+    background: var(--bh-blue);
+    color: var(--bh-paper);
+    border-color: var(--bh-blue);
+  }
+  .bh-dive__status--drafted {
+    background: var(--bh-yellow);
+    color: var(--bh-ink);
+    border-color: var(--bh-ink);
+  }
+  .bh-dive__status--research {
+    background: var(--bh-paper);
+    color: var(--bh-ink);
+    border-color: var(--bh-ink);
+  }
+  .bh-dive__updated {
+    color: var(--bh-ink);
+    display: inline-flex;
+    gap: 6px;
+    align-items: baseline;
+  }
+  .bh-dive__updated-k {
+    opacity: 0.55;
+  }
+  .bh-dive__updated-v {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Decoration shape on the right; never on mobile. */
+  .bh-dive__deco {
+    display: none;
+  }
+  @media (min-width: 720px) {
+    .bh-dive__deco {
+      display: block;
+      position: relative;
+      width: 64px;
+      height: 64px;
+      align-self: start;
+    }
+  }
+  .bh-dive__deco--circle {
+    background: var(--bh-blue);
+    border-radius: 50%;
+  }
+  .bh-dive__deco--square {
+    background: var(--bh-red);
+  }
+  .bh-dive__deco--triangle {
+    background: transparent;
+  }
+  .bh-dive__deco-tri {
+    position: absolute;
+    inset: 0;
+    width: 0;
+    height: 0;
+    border-left: 32px solid transparent;
+    border-right: 32px solid transparent;
+    border-bottom: 60px solid var(--bh-yellow);
+  }
+</style>

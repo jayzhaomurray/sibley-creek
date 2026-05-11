@@ -1,0 +1,254 @@
+---
+/*
+ * Lane J - Solari Departures Board.
+ *
+ * One section per row, in the manner of a train-station departures board:
+ *
+ *   [ CODE ] [ SECTION ] [ INDICATOR ] [ VALUE ] [ DELTA ] [ AS OF ] [ NEXT ]
+ *
+ * Grid layout matches SolariBoardHeader.astro. Each row links to its
+ * section page. The delta cell is color-coded by direction:
+ *   - "pos" / "neutral" treated separately (green / faded amber)
+ *   - "neg" rendered in signal red
+ *
+ * "NEXT" column shows the next-print stamp for that section. Empty if
+ * unknown.
+ *
+ * The hover treatment lifts the whole row to a brighter amber and shows
+ * a "VIA" prefix arrow at the right edge - the mechanical "this train is
+ * leaving" cue. No box-shadow, no fills - just type weight + color.
+ */
+
+import SolariFlipText from "./SolariFlipText.astro";
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  section: Section;
+  code: string;          // e.g. "INF"
+  /** Stagger order for the flip animation (0-based row index on the board). */
+  rowIndex: number;
+  /** Next-release stamp for this row, formatted string. May be empty. */
+  next?: string;
+}
+
+const { section, code, rowIndex, next = "—" } = Astro.props;
+
+// Resolve load-bearing print (matches the production homepage's HeroChart
+// resolution).
+const lb =
+  section.chartSeriesKey
+    ? section.prints.find((p) => p.key === section.chartSeriesKey) ?? section.prints[0]
+    : section.prints[0];
+
+const deltaTone =
+  lb.deltaDir === "pos" ? "pos" :
+  lb.deltaDir === "neg" ? "neg" :
+  "muted";
+
+// Stagger: each row's flip animation starts a touch after the prior row.
+const baseDelay = 200 + rowIndex * 90;
+---
+<a
+  class="sol-row"
+  href={`/${section.slug}/`}
+  aria-label={`${section.label} - ${lb.indicator} ${lb.value}, delta ${lb.delta}, as of ${lb.asOf}. Next: ${next}.`}
+>
+  <span class="sol-row__cell sol-row__cell--code">
+    <SolariFlipText text={code} tone="active" weight="bold" delay={baseDelay} stagger={24} ariaHidden />
+  </span>
+
+  <span class="sol-row__cell sol-row__cell--section">
+    <SolariFlipText
+      text={section.label.toUpperCase()}
+      tone="active"
+      weight="bold"
+      delay={baseDelay + 60}
+      stagger={22}
+      ariaHidden
+    />
+  </span>
+
+  <span class="sol-row__cell sol-row__cell--indicator">
+    <SolariFlipText
+      text={lb.indicator.toUpperCase()}
+      tone="muted"
+      delay={baseDelay + 140}
+      stagger={14}
+      ariaHidden
+    />
+  </span>
+
+  <span class="sol-row__cell sol-row__cell--value">
+    <SolariFlipText
+      text={lb.value}
+      tone="active"
+      weight="bold"
+      delay={baseDelay + 240}
+      stagger={28}
+      ariaHidden
+    />
+  </span>
+
+  <span class="sol-row__cell sol-row__cell--delta">
+    <SolariFlipText
+      text={lb.delta}
+      tone={deltaTone}
+      weight="bold"
+      delay={baseDelay + 320}
+      stagger={26}
+      ariaHidden
+    />
+  </span>
+
+  <span class="sol-row__cell sol-row__cell--asof">
+    <SolariFlipText
+      text={lb.asOf.toUpperCase()}
+      tone="muted"
+      delay={baseDelay + 380}
+      stagger={16}
+      ariaHidden
+    />
+  </span>
+
+  <span class="sol-row__cell sol-row__cell--next">
+    <span class="sol-row__via" aria-hidden="true">VIA</span>
+    <SolariFlipText
+      text={next.toUpperCase()}
+      tone="muted"
+      delay={baseDelay + 440}
+      stagger={14}
+      ariaHidden
+    />
+  </span>
+</a>
+
+<style>
+  .sol-row {
+    display: grid;
+    grid-template-columns:
+      72px            /* CODE */
+      150px           /* SECTION */
+      minmax(0, 1fr)  /* INDICATOR */
+      120px           /* VALUE */
+      120px           /* DELTA */
+      120px           /* AS OF */
+      minmax(120px, 220px); /* NEXT */
+    column-gap: clamp(10px, 1.6vw, 20px);
+    align-items: baseline;
+    padding: 14px clamp(16px, 3vw, 32px);
+    border-bottom: 1px solid var(--sol-frame);
+    text-decoration: none;
+    color: var(--sol-amber);
+    font-family: var(--sol-mono);
+    font-size: clamp(14px, 1.4vw, 17px);
+    line-height: 1.1;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(31, 31, 35, 0.0) 0%,
+        rgba(31, 31, 35, 0.25) 100%
+      );
+    transition: background 160ms ease;
+  }
+  .sol-row:hover,
+  .sol-row:focus-visible {
+    background:
+      linear-gradient(
+        180deg,
+        rgba(242, 167, 20, 0.06) 0%,
+        rgba(242, 167, 20, 0.10) 100%
+      );
+    outline: none;
+  }
+  .sol-row:focus-visible {
+    outline: 1px solid var(--sol-amber);
+    outline-offset: -2px;
+  }
+
+  .sol-row__cell {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+  }
+
+  /* Code is the big bold left-anchor, like a train number on the board */
+  .sol-row__cell--code {
+    font-size: clamp(18px, 1.8vw, 22px);
+    letter-spacing: 0.1em;
+  }
+
+  .sol-row__cell--section {
+    font-size: clamp(15px, 1.4vw, 17px);
+    letter-spacing: 0.1em;
+  }
+
+  .sol-row__cell--indicator {
+    font-size: clamp(12px, 1.1vw, 14px);
+    letter-spacing: 0.14em;
+    text-overflow: ellipsis;
+  }
+
+  .sol-row__cell--value {
+    text-align: right;
+    font-size: clamp(18px, 1.8vw, 22px);
+    letter-spacing: 0.06em;
+    text-shadow: 0 0 18px rgba(242, 167, 20, 0.18);
+  }
+
+  .sol-row__cell--delta {
+    text-align: right;
+    font-size: clamp(14px, 1.3vw, 16px);
+    letter-spacing: 0.08em;
+  }
+
+  .sol-row__cell--asof {
+    text-align: right;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+  }
+
+  .sol-row__cell--next {
+    text-align: right;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .sol-row__via {
+    color: var(--sol-amber-faded);
+    font-size: 9px;
+    letter-spacing: 0.32em;
+    padding: 0 6px;
+    border: 1px solid var(--sol-amber-faded);
+  }
+
+  /* ---- responsive ---- */
+  @media (max-width: 980px) {
+    .sol-row {
+      grid-template-columns:
+        56px
+        120px
+        minmax(0, 1fr)
+        100px
+        100px;
+      column-gap: 12px;
+      padding: 12px clamp(16px, 3vw, 24px);
+    }
+    .sol-row__cell--asof,
+    .sol-row__cell--next { display: none; }
+  }
+
+  @media (max-width: 640px) {
+    .sol-row {
+      grid-template-columns: 56px minmax(0, 1fr) 90px;
+      column-gap: 10px;
+      padding: 10px 16px;
+    }
+    .sol-row__cell--section,
+    .sol-row__cell--delta { display: none; }
+    .sol-row__cell--indicator { font-size: 11px; }
+  }
+</style>

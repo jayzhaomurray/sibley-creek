@@ -1,0 +1,634 @@
+---
+/*
+ * Lane A - Brutalist Terminal splash.
+ *
+ * Experimental alternative to the production homepage. Entirely self-
+ * contained: this page does NOT use BaseLayout, does NOT import the
+ * production design tokens, and does NOT use any shared component from
+ * src/components/ outside of src/components/experiments/brutalist/.
+ *
+ * Aesthetic register:
+ *   - Background:   #0A0A0B (warm near-black, never pure black)
+ *   - Ink:          #E8E8EA / muted #9B9B9F / faint #4A4A4F
+ *   - Signals:      green #00FF66, red #FF3D5A, amber #FFB800, cyan #00D4FF
+ *   - Display:      Major Mono Display (Google) for the ASCII masthead +
+ *                   the hero big number
+ *   - Mono body:    JetBrains Mono for data, IBM Plex Mono for prose-like
+ *                   secondary blurbs (loaded via Google Fonts)
+ *   - Motion:       none (one blinking cursor on the timestamp; respects
+ *                   prefers-reduced-motion)
+ *   - Density:      18-20+ visible data points; ASCII rules between
+ *                   sections; numbers stacked into tight tabular rows
+ *
+ * Composition:
+ *   1. Topbar with host/build/edition stamps + blinking cursor
+ *   2. ASCII-block masthead "MRD" + cap-typed full publication name
+ *   3. Two-column body
+ *      LEFT:  the live macro state for the most-recently-updated section
+ *             (BrutalHeroBlock) - big number, delta, ASCII sparkline,
+ *             headline question, blurb, secondary tape
+ *      RIGHT: a dense 7-row table of every section (BrutalSectionRow) with
+ *             inline ASCII sparklines, deltas in signal colors
+ *   4. Deep-dives list (BrutalDeepDive) - rows, not cards
+ *   5. Terminal footer with next-release stamp + ASCII signoff
+ */
+
+import BrutalMasthead from "../../components/experiments/brutalist/BrutalMasthead.astro";
+import BrutalRule from "../../components/experiments/brutalist/BrutalRule.astro";
+import BrutalHeroBlock from "../../components/experiments/brutalist/BrutalHeroBlock.astro";
+import BrutalSectionRow from "../../components/experiments/brutalist/BrutalSectionRow.astro";
+import BrutalDeepDive from "../../components/experiments/brutalist/BrutalDeepDive.astro";
+import {
+  sections,
+  deepDives,
+  nextRelease,
+  site,
+  type Section,
+} from "../../data/sections";
+
+// ---- Hero selection: most recent print, same logic as production. ----
+const heroSection: Section = sections.reduce((a, b) =>
+  (b.updatedAt ?? 0) > (a.updatedAt ?? 0) ? b : a,
+);
+
+// Canonical section order for the dense table on the right.
+const tableOrder: Section[] = [
+  ...sections,
+];
+
+// ---- Stamps ----
+const now = new Date();
+const editionDate = now.toLocaleDateString("en-CA", {
+  weekday: "short",
+  year: "numeric",
+  month: "short",
+  day: "2-digit",
+}).toUpperCase();
+
+const buildStamp =
+  `${now.getUTCFullYear()}.${String(now.getUTCMonth() + 1).padStart(2, "0")}.${String(now.getUTCDate()).padStart(2, "0")}-` +
+  `${String(now.getUTCHours()).padStart(2, "0")}${String(now.getUTCMinutes()).padStart(2, "0")}Z`;
+
+// Map deltaDir totals across the page for the "signal summary" tape.
+const greenCount = sections.filter((s) => {
+  const p = s.prints.find((pr) => pr.key === s.chartSeriesKey) ?? s.prints[0];
+  return p.deltaDir === "pos";
+}).length;
+const redCount = sections.filter((s) => {
+  const p = s.prints.find((pr) => pr.key === s.chartSeriesKey) ?? s.prints[0];
+  return p.deltaDir === "neg";
+}).length;
+const neutralCount = sections.length - greenCount - redCount;
+
+const pageTitle = `${site.shortName} :: TERMINAL // ${editionDate}`;
+const pageDesc =
+  "Experimental brutalist terminal splash for the Macro Research Department - dense, monospace, signal-coloured.";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta name="theme-color" content="#0A0A0B" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Mono:wght@300;400;500;700&display=swap"
+    />
+  </head>
+  <body>
+    <a class="skip-link" href="#bt-main">Skip to terminal output</a>
+
+    <div class="bt-page">
+      <BrutalMasthead editionDate={editionDate} buildStamp={buildStamp} />
+
+      <main id="bt-main" class="bt-main">
+
+        {/* --- Signal summary tape: a one-line scoreboard --- */}
+        <div class="bt-tape" aria-label="Page-wide signal summary">
+          <span class="bt-tape__label">/ TAPE</span>
+          <span class="bt-tape__cell">
+            <span class="bt-tape__k">SECTIONS</span>
+            <span class="bt-tape__v">{sections.length}</span>
+          </span>
+          <span class="bt-tape__cell">
+            <span class="bt-tape__k">POS</span>
+            <span class="bt-tape__v bt-c-green">{greenCount}</span>
+          </span>
+          <span class="bt-tape__cell">
+            <span class="bt-tape__k">NEG</span>
+            <span class="bt-tape__v bt-c-red">{redCount}</span>
+          </span>
+          <span class="bt-tape__cell">
+            <span class="bt-tape__k">FLAT</span>
+            <span class="bt-tape__v bt-c-amber">{neutralCount}</span>
+          </span>
+          <span class="bt-tape__cell">
+            <span class="bt-tape__k">FOCUS</span>
+            <span class="bt-tape__v bt-c-cyan">{heroSection.label.toUpperCase()}</span>
+          </span>
+          <span class="bt-tape__cell bt-tape__cell--right">
+            <span class="bt-tape__k">NEXT</span>
+            <span class="bt-tape__v">{nextRelease.label} / {nextRelease.date}</span>
+          </span>
+        </div>
+
+        <BrutalRule variant="solid" label="/ FEED 01 :: LIVE STATE" />
+
+        {/* --- Two-column composition: hero left, dense table right --- */}
+        <div class="bt-grid">
+
+          <section class="bt-grid__hero" aria-labelledby="bt-hero-heading">
+            <h2 id="bt-hero-heading" class="bt-srm">
+              Live state: {heroSection.label}
+            </h2>
+            <BrutalHeroBlock section={heroSection} />
+          </section>
+
+          <section class="bt-grid__table" aria-labelledby="bt-table-heading">
+            <h2 id="bt-table-heading" class="bt-srm">All sections</h2>
+
+            {/* Header row that labels the columns in the dense table. */}
+            <div class="bt-thead" aria-hidden="true">
+              <span>##</span>
+              <span>SYM</span>
+              <span>SECTION</span>
+              <span>INDICATOR</span>
+              <span class="bt-thead--num">VALUE</span>
+              <span class="bt-thead--num">DELTA</span>
+              <span>TRAJECTORY</span>
+              <span>CAD</span>
+              <span></span>
+            </div>
+
+            <ul role="list" class="bt-table">
+              {tableOrder.map((s, i) => (
+                <li>
+                  <BrutalSectionRow
+                    section={s}
+                    index={i + 1}
+                    isHero={s.slug === heroSection.slug}
+                  />
+                </li>
+              ))}
+            </ul>
+
+            <p class="bt-table-foot">
+              <span class="bt-c-faint">LEGEND</span>
+              <span><span class="bt-c-green">[ + ]</span> easing/improving</span>
+              <span><span class="bt-c-red">[ - ]</span> tightening/deteriorating</span>
+              <span><span class="bt-c-amber">[ = ]</span> flat / mixed</span>
+            </p>
+          </section>
+        </div>
+
+        <BrutalRule variant="solid" label="/ FEED 02 :: DEEP DIVES" />
+
+        <section class="bt-dives" aria-labelledby="bt-dives-heading">
+          <h2 id="bt-dives-heading" class="bt-srm">Deep dives</h2>
+          <div class="bt-dives__head">
+            <p class="bt-dives__title">CURRENT DEEP DIVES // 03</p>
+            <p class="bt-dives__sub">
+              <span class="bt-c-cyan">/</span> Long-form research in flight.
+              Status updates in real terminal terms - shipped, drafted, research.
+            </p>
+          </div>
+
+          <ul role="list" class="bt-dives__list">
+            {deepDives.map((dd, i) => {
+              const s = sections.find((x) => x.slug === dd.section);
+              if (!s) return null;
+              return (
+                <li>
+                  <BrutalDeepDive item={dd} section={s} index={i} />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        <BrutalRule variant="dash" />
+
+        {/* --- Nav row: all sections as a flat terminal nav. --- */}
+        <nav class="bt-nav" aria-label="Sections">
+          <p class="bt-nav__label">/ NAV ::</p>
+          <ul role="list" class="bt-nav__list">
+            <li><a href="/">[home]</a></li>
+            {sections.map((s) => (
+              <li>
+                <a href={`/${s.slug}/`}>
+                  <span class="bt-nav__brk">[</span>{s.label.toLowerCase()}<span class="bt-nav__brk">]</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+      </main>
+
+      {/* --- Terminal footer --- */}
+      <footer class="bt-foot" role="contentinfo">
+        <BrutalRule variant="solid" />
+        <div class="bt-foot__grid">
+          <p class="bt-foot__sig">
+            <span class="bt-c-amber">::</span>
+            {site.name} / Canadian macro terminal
+            <span class="bt-c-amber">::</span>
+          </p>
+          <p class="bt-foot__meta">
+            <span class="bt-c-faint">build</span>{" "}{buildStamp}{" "}
+            <span class="bt-c-faint">//</span>{" "}
+            <span class="bt-c-faint">lane</span>{" "}A{" "}
+            <span class="bt-c-faint">//</span>{" "}
+            <span class="bt-c-faint">view</span>{" "}brutalist
+          </p>
+          <p class="bt-foot__copy">
+            (c) {now.getFullYear()} {site.shortName}. data attributed at point of use.
+          </p>
+        </div>
+      </footer>
+    </div>
+
+    <style is:global>
+      /* ---------- Brutalist Terminal: page-scoped resets + tokens ----------
+       *
+       * Tokens are local to this page (the `bt-` prefix). The page is
+       * deliberately divorced from the production design system; nothing
+       * here cascades outside this body. */
+
+      :root {
+        /* Palette */
+        --bt-bg: #0A0A0B;
+        --bt-surface-1: #0E0E11;
+        --bt-surface-2: #15161A;
+        --bt-rule: #2A2A30;
+        --bt-rule-strong: #4A4A52;
+
+        --bt-ink: #E8E8EA;
+        --bt-ink-muted: #9B9B9F;
+        --bt-ink-faint: #5A5A60;
+
+        /* Hot signals */
+        --bt-green: #00FF66;
+        --bt-red:   #FF3D5A;
+        --bt-amber: #FFB800;
+        --bt-cyan:  #00D4FF;
+
+        /* Type stacks */
+        --bt-font-display: "Major Mono Display", "JetBrains Mono", ui-monospace, monospace;
+        --bt-font-mono:    "JetBrains Mono", "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+        --bt-font-prose:   "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--bt-bg);
+        color: var(--bt-ink);
+        font-family: var(--bt-font-mono);
+        font-size: 14px;
+        line-height: 1.4;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: "tnum", "lnum";
+      }
+
+      body {
+        /* Faint scanline texture; very subtle so it doesn't read as kitsch.
+           Built from a 1px-tall linear gradient repeated every 3px. */
+        background-image:
+          linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.012) 0px,
+            rgba(255, 255, 255, 0.012) 1px,
+            transparent 1px,
+            transparent 3px
+          );
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      ul, ol {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      ::selection {
+        background: var(--bt-green);
+        color: var(--bt-bg);
+      }
+
+      .skip-link {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        background: var(--bt-amber);
+        color: var(--bt-bg);
+        padding: 6px 10px;
+        font-family: var(--bt-font-mono);
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        z-index: 100;
+      }
+      .skip-link:focus {
+        left: 12px;
+        top: 12px;
+        outline: 2px solid var(--bt-cyan);
+        outline-offset: 2px;
+      }
+
+      /* a11y: visually hide screen-reader-only headings on the brutalist
+         splash. The composition uses kickers instead of <h2>'s in the
+         visual flow, but real headings give the page an outline. */
+      .bt-srm {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      /* Signal color utilities, reusable across this page only. */
+      .bt-c-green  { color: var(--bt-green); }
+      .bt-c-red    { color: var(--bt-red); }
+      .bt-c-amber  { color: var(--bt-amber); }
+      .bt-c-cyan   { color: var(--bt-cyan); }
+      .bt-c-faint  { color: var(--bt-ink-faint); }
+
+      /* ---------- Page shell ---------- */
+      .bt-page {
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 22px clamp(16px, 3vw, 36px) 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .bt-main {
+        flex: 1 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        padding-top: 18px;
+      }
+
+      /* ---------- Signal tape (top of main) ---------- */
+      .bt-tape {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px 18px;
+        font-family: var(--bt-font-mono);
+        font-size: 11px;
+        padding: 10px 12px;
+        border: 1px solid var(--bt-rule);
+        background: var(--bt-surface-1);
+        letter-spacing: 0.04em;
+      }
+      .bt-tape__label {
+        color: var(--bt-cyan);
+        font-weight: 700;
+        letter-spacing: 0.1em;
+      }
+      .bt-tape__cell {
+        display: inline-flex;
+        gap: 6px;
+        align-items: baseline;
+        white-space: nowrap;
+      }
+      .bt-tape__cell--right {
+        margin-left: auto;
+      }
+      .bt-tape__k {
+        color: var(--bt-ink-faint);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .bt-tape__v {
+        color: var(--bt-ink);
+        font-weight: 700;
+      }
+
+      /* ---------- Two-column composition ---------- */
+      .bt-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+
+      @media (min-width: 1100px) {
+        .bt-grid {
+          grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+          gap: 20px;
+        }
+      }
+
+      .bt-grid__hero,
+      .bt-grid__table {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ---------- Dense table ---------- */
+      .bt-thead {
+        display: grid;
+        grid-template-columns:
+          28px 36px minmax(74px, 1fr) minmax(100px, 1.6fr)
+          minmax(62px, auto) minmax(62px, auto) minmax(120px, 1.4fr)
+          auto 14px;
+        gap: 10px;
+        align-items: baseline;
+        padding: 8px 0 8px;
+        border-top: 1px solid var(--bt-rule-strong);
+        border-bottom: 2px solid var(--bt-rule-strong);
+        font-family: var(--bt-font-mono);
+        font-size: 10px;
+        color: var(--bt-ink-faint);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-weight: 700;
+      }
+      .bt-thead--num { text-align: right; }
+
+      @media (max-width: 1100px) {
+        .bt-thead {
+          grid-template-columns:
+            24px 32px minmax(64px, 1fr) minmax(60px, auto)
+            minmax(60px, auto) minmax(100px, 1fr) 14px;
+          gap: 8px;
+        }
+        .bt-thead > span:nth-child(4),
+        .bt-thead > span:nth-child(8) {
+          display: none;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .bt-thead {
+          grid-template-columns: 28px minmax(60px, 1fr) minmax(54px, auto) minmax(54px, auto) 14px;
+        }
+        .bt-thead > span:nth-child(2),
+        .bt-thead > span:nth-child(4),
+        .bt-thead > span:nth-child(7),
+        .bt-thead > span:nth-child(8) {
+          display: none;
+        }
+      }
+
+      .bt-table {
+        border-bottom: 2px solid var(--bt-rule-strong);
+      }
+
+      .bt-table-foot {
+        margin: 12px 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 18px;
+        font-family: var(--bt-font-mono);
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--bt-ink-muted);
+      }
+
+      /* ---------- Deep dives ---------- */
+      .bt-dives {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .bt-dives__head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 18px;
+        align-items: baseline;
+        padding-bottom: 8px;
+        border-bottom: 1px dashed var(--bt-rule);
+      }
+      .bt-dives__title {
+        margin: 0;
+        font-family: var(--bt-font-mono);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: var(--bt-amber);
+      }
+      .bt-dives__sub {
+        margin: 0;
+        font-family: var(--bt-font-mono);
+        font-size: 11px;
+        color: var(--bt-ink-muted);
+        letter-spacing: 0.02em;
+      }
+      .bt-dives__list {
+        border-bottom: 2px solid var(--bt-rule-strong);
+      }
+
+      /* ---------- Section nav (flat terminal style) ---------- */
+      .bt-nav {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        padding: 12px 0 6px;
+        font-family: var(--bt-font-mono);
+        font-size: 12px;
+      }
+      .bt-nav__label {
+        margin: 0;
+        color: var(--bt-cyan);
+        font-weight: 700;
+        letter-spacing: 0.1em;
+      }
+      .bt-nav__list {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+      }
+      .bt-nav__list a {
+        color: var(--bt-ink);
+        transition: color 80ms linear;
+      }
+      .bt-nav__list a:hover,
+      .bt-nav__list a:focus-visible {
+        color: var(--bt-amber);
+        outline: none;
+      }
+      .bt-nav__list a:focus-visible {
+        box-shadow: 0 0 0 1px var(--bt-cyan);
+      }
+      .bt-nav__brk {
+        color: var(--bt-ink-faint);
+      }
+      .bt-nav__list a:hover .bt-nav__brk,
+      .bt-nav__list a:focus-visible .bt-nav__brk {
+        color: var(--bt-amber);
+      }
+
+      /* ---------- Footer ---------- */
+      .bt-foot {
+        margin-top: 20px;
+        padding-bottom: 18px;
+      }
+      .bt-foot__grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 4px;
+        padding-top: 10px;
+        font-family: var(--bt-font-mono);
+        font-size: 11px;
+      }
+      @media (min-width: 720px) {
+        .bt-foot__grid {
+          grid-template-columns: 1fr auto;
+          align-items: baseline;
+          gap: 6px 18px;
+        }
+      }
+      .bt-foot__sig {
+        margin: 0;
+        color: var(--bt-ink);
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .bt-foot__meta {
+        margin: 0;
+        color: var(--bt-ink-muted);
+        letter-spacing: 0.04em;
+      }
+      .bt-foot__copy {
+        margin: 0;
+        color: var(--bt-ink-faint);
+        grid-column: 1 / -1;
+        padding-top: 6px;
+        border-top: 1px dashed var(--bt-rule);
+        letter-spacing: 0.02em;
+      }
+    </style>
+  </body>
+</html>

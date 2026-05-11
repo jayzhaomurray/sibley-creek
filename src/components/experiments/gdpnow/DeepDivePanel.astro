@@ -1,0 +1,207 @@
+---
+/*
+ * GDPNow DeepDivePanel — occupies the 8th cell of the 2x4 academic grid.
+ * Reads like the "working papers" sidebar on a research-bank staff page:
+ * numbered list, pillar code, title, italic deck, updated stamp.
+ */
+
+import type { DeepDive } from "../../../data/sections";
+
+interface Props {
+  deepDives: DeepDive[];
+  figureNum: string;
+}
+
+const { deepDives, figureNum } = Astro.props;
+
+// Order by lastUpdated descending (lexical works for "May 8, 2026" since
+// they share format, but be defensive).
+const ordered = [...deepDives].sort((a, b) =>
+  a.lastUpdated < b.lastUpdated ? 1 : -1,
+);
+
+const statusLabel = (s: "research" | "drafted" | "shipped") =>
+  s === "shipped" ? "Shipped"
+  : s === "drafted" ? "Drafted"
+  : "In research";
+---
+<article class="gdp-dd" aria-labelledby="gdp-dd-h">
+  <header class="gdp-dd__head">
+    <div class="gdp-dd__head-left">
+      <p class="gdp-dd__eyebrow">
+        <span class="gdp-dd__fig">Figure {figureNum}.</span>
+      </p>
+      <h2 id="gdp-dd-h" class="gdp-dd__h">
+        Working papers
+      </h2>
+    </div>
+    <p class="gdp-dd__count">
+      {ordered.length} active
+    </p>
+  </header>
+
+  <p class="gdp-dd__lede">
+    Current deep dives by the department. Pillar codes follow the editorial
+    canon. Updated as drafts move.
+  </p>
+
+  <ol class="gdp-dd__list" role="list">
+    {ordered.map((dd, i) => (
+      <li class="gdp-dd__row">
+        <div class="gdp-dd__row-num" aria-hidden="true">
+          <span class="gdp-dd__row-num-n">{String(i + 1).padStart(2, "0")}</span>
+        </div>
+        <div class="gdp-dd__row-body">
+          <p class="gdp-dd__row-meta">
+            <span class="gdp-dd__pillar">Pillar {dd.pillar}</span>
+            <span class="gdp-dd__row-sep" aria-hidden="true">·</span>
+            <span class="gdp-dd__section">{dd.section}</span>
+            <span class="gdp-dd__row-sep" aria-hidden="true">·</span>
+            <span class={`gdp-dd__status gdp-dd__status--${dd.status}`}>{statusLabel(dd.status)}</span>
+          </p>
+          <h3 class="gdp-dd__title">{dd.title}</h3>
+          <p class="gdp-dd__deck"><em>{dd.deck}</em></p>
+          <p class="gdp-dd__stamp">Updated {dd.lastUpdated}</p>
+        </div>
+      </li>
+    ))}
+  </ol>
+</article>
+
+<style>
+  .gdp-dd {
+    background: var(--gdp-paper);
+    border: 0.5px solid var(--gdp-rule);
+    padding: 16px 18px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 100%;
+    /* Sits in the same-size cell as a section panel. */
+  }
+
+  .gdp-dd__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 0.5px solid var(--gdp-rule);
+    padding-bottom: 8px;
+  }
+  .gdp-dd__eyebrow {
+    margin: 0;
+    font-family: var(--gdp-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gdp-gray);
+  }
+  .gdp-dd__fig {
+    color: var(--gdp-gold);
+  }
+  .gdp-dd__h {
+    margin: 4px 0 0;
+    font-family: var(--gdp-display);
+    font-weight: 500;
+    font-size: 20px;
+    line-height: 1.1;
+    color: var(--gdp-ink);
+  }
+  .gdp-dd__count {
+    margin: 0;
+    font-family: var(--gdp-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gdp-gray);
+  }
+
+  .gdp-dd__lede {
+    margin: 0;
+    font-family: var(--gdp-body);
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--gdp-ink);
+    max-width: 56ch;
+  }
+
+  .gdp-dd__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-top: 0.5px solid var(--gdp-rule);
+  }
+  .gdp-dd__row {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 10px;
+    padding: 10px 0 12px;
+    border-bottom: 0.5px solid var(--gdp-rule);
+  }
+  .gdp-dd__row:last-child {
+    border-bottom: 0;
+  }
+  .gdp-dd__row-num {
+    font-family: var(--gdp-mono);
+    font-size: 11px;
+    line-height: 1;
+    color: var(--gdp-gray);
+    padding-top: 3px;
+  }
+  .gdp-dd__row-num-n {
+    font-variant-numeric: tabular-nums;
+  }
+  .gdp-dd__row-body { min-width: 0; }
+
+  .gdp-dd__row-meta {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    font-family: var(--gdp-mono);
+    font-size: 9.5px;
+    line-height: 1.1;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gdp-gray);
+  }
+  .gdp-dd__pillar { color: var(--gdp-navy); }
+  .gdp-dd__section { color: var(--gdp-ink); }
+  .gdp-dd__row-sep { color: var(--gdp-gray); opacity: 0.6; }
+  .gdp-dd__status { font-weight: 500; }
+  .gdp-dd__status--shipped { color: var(--gdp-navy); }
+  .gdp-dd__status--drafted { color: var(--gdp-gold); }
+  .gdp-dd__status--research { color: var(--gdp-gray); }
+
+  .gdp-dd__title {
+    margin: 5px 0 0;
+    font-family: var(--gdp-display);
+    font-weight: 500;
+    font-size: 15px;
+    line-height: 1.25;
+    color: var(--gdp-ink);
+  }
+  .gdp-dd__deck {
+    margin: 4px 0 0;
+    font-family: var(--gdp-body);
+    font-style: italic;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--gdp-ink);
+    max-width: 52ch;
+  }
+  .gdp-dd__stamp {
+    margin: 6px 0 0;
+    font-family: var(--gdp-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gdp-gray);
+  }
+</style>

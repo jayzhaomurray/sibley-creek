@@ -1,0 +1,198 @@
+---
+/*
+ * BrutalMasthead — the ASCII-block masthead for the brutalist terminal
+ * splash. Renders "M R D ::" in monospace block characters with the full
+ * publication name as a tracked-out caps subline, plus a header rail of
+ * terminal-style metadata (host, build, timestamp).
+ *
+ * No animation except a single blinking cursor at the end of the timestamp.
+ */
+
+interface Props {
+  editionDate: string;
+  buildStamp: string;
+}
+
+const { editionDate, buildStamp } = Astro.props;
+
+// ASCII block rendering of "MRD". Five-row block letters in monospace.
+// Each row is one <pre> line; CSS letter-spacing 0 + tabular-nums keeps
+// glyph widths fixed. Built as a single string for one-shot rendering.
+const ascii = [
+  "  __  __   ____    ____   ",
+  " |  \\/  | |  _ \\  |  _ \\  ",
+  " | |\\/| | | |_) | | | | | ",
+  " | |  | | |  _ <  | |_| | ",
+  " |_|  |_| |_| \\_\\ |____/  ",
+].join("\n");
+---
+<header class="bmast" role="banner">
+  <div class="bmast__topbar">
+    <span class="bmast__chip bmast__chip--ok">[OK]</span>
+    <span class="bmast__meta">host: mrd-terminal.local</span>
+    <span class="bmast__sep" aria-hidden="true">//</span>
+    <span class="bmast__meta">build: {buildStamp}</span>
+    <span class="bmast__sep" aria-hidden="true">//</span>
+    <span class="bmast__meta">tty: 01</span>
+    <span class="bmast__spacer" aria-hidden="true"></span>
+    <span class="bmast__meta bmast__meta--right">edition: {editionDate}<span class="bmast__cursor" aria-hidden="true">_</span></span>
+  </div>
+
+  <div class="bmast__wordmark">
+    <pre class="bmast__ascii" aria-hidden="true">{ascii}</pre>
+    <div class="bmast__title-block">
+      <h1 class="bmast__title">
+        <span class="bmast__title-line">MACRO RESEARCH</span>
+        <span class="bmast__title-line bmast__title-line--alt">DEPARTMENT</span>
+      </h1>
+      <p class="bmast__sub">
+        <span class="bmast__sub-key">/SCOPE</span>
+        <span class="bmast__sub-val">Canadian macroeconomy</span>
+        <span class="bmast__sub-key">/MODE</span>
+        <span class="bmast__sub-val">read-only terminal</span>
+        <span class="bmast__sub-key">/REV</span>
+        <span class="bmast__sub-val">2026.05.A</span>
+      </p>
+    </div>
+  </div>
+</header>
+
+<style>
+  .bmast {
+    color: var(--bt-ink);
+    border-bottom: 1px solid var(--bt-rule);
+    padding-bottom: 18px;
+  }
+
+  /* ---- Top bar ---- */
+  .bmast__topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+    font-family: var(--bt-font-mono);
+    font-size: 11px;
+    line-height: 1;
+    color: var(--bt-ink-muted);
+    border-bottom: 1px dashed var(--bt-rule);
+    padding: 10px 0 12px;
+    margin-bottom: 18px;
+  }
+
+  .bmast__chip {
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 2px 4px;
+    border: 1px solid currentColor;
+  }
+  .bmast__chip--ok { color: var(--bt-green); }
+
+  .bmast__sep { color: var(--bt-ink-faint); }
+
+  .bmast__spacer { flex: 1 1 auto; }
+
+  .bmast__meta {
+    font-feature-settings: "tnum", "lnum";
+    letter-spacing: 0.02em;
+  }
+  .bmast__meta--right { color: var(--bt-ink); }
+
+  .bmast__cursor {
+    display: inline-block;
+    margin-left: 3px;
+    color: var(--bt-green);
+    font-weight: 700;
+    animation: bt-blink 1.06s steps(2, end) infinite;
+  }
+
+  @keyframes bt-blink {
+    0%, 50% { opacity: 1; }
+    50.01%, 100% { opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bmast__cursor { animation: none; opacity: 1; }
+  }
+
+  /* ---- Wordmark block ---- */
+
+  .bmast__wordmark {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+
+  @media (min-width: 720px) {
+    .bmast__wordmark {
+      grid-template-columns: auto 1fr;
+      gap: 28px;
+    }
+  }
+
+  .bmast__ascii {
+    margin: 0;
+    font-family: var(--bt-font-mono);
+    font-size: 12px;
+    line-height: 1.05;
+    color: var(--bt-amber);
+    white-space: pre;
+    letter-spacing: 0;
+    user-select: none;
+    /* Faint terminal glow without animation. */
+    text-shadow: 0 0 6px rgba(255, 184, 0, 0.15);
+  }
+
+  @media (min-width: 720px) {
+    .bmast__ascii {
+      font-size: 14px;
+    }
+  }
+
+  .bmast__title-block {
+    min-width: 0;
+    align-self: end;
+  }
+
+  .bmast__title {
+    margin: 0;
+    font-family: var(--bt-font-display);
+    line-height: 0.92;
+    font-weight: 400;
+    color: var(--bt-ink);
+    /* Major Mono Display is all caps by glyph. We still set casing to be
+       safe across fallback fonts. */
+    text-transform: uppercase;
+    letter-spacing: -0.005em;
+  }
+
+  .bmast__title-line {
+    display: block;
+    font-size: clamp(32px, 6vw, 64px);
+  }
+
+  .bmast__title-line--alt {
+    color: var(--bt-ink-muted);
+  }
+
+  .bmast__sub {
+    margin: 14px 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    font-family: var(--bt-font-mono);
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--bt-ink-muted);
+    letter-spacing: 0.02em;
+  }
+
+  .bmast__sub-key {
+    color: var(--bt-cyan);
+    font-weight: 700;
+  }
+
+  .bmast__sub-val {
+    color: var(--bt-ink);
+  }
+</style>

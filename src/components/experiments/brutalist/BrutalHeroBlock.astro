@@ -1,0 +1,405 @@
+---
+/*
+ * BrutalHeroBlock — the dense "live macro state" block on the left rail.
+ *
+ * Renders the section with the most recent print as a single brutalist
+ * data block: huge tabular figure, delta in a hot signal color, headline
+ * question as a wrapped quote, sparkline plotted as ASCII shading bars
+ * (no SVG, no JS), and a small "tape" of secondary prints.
+ *
+ * Self-contained: no shared component imports.
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  section: Section;
+}
+
+const { section } = Astro.props;
+
+// Pick the load-bearing print.
+const heroPrint =
+  section.prints.find((p) => p.key === section.chartSeriesKey) ??
+  section.prints[0];
+
+const otherPrints = section.prints.filter((p) => p !== heroPrint);
+
+// ASCII sparkline using Unicode block shading. Eight shades from low to
+// high, mapped from the spark series' min/max. We use the standard block-
+// element steps so the result reads as a tiny equalizer-style chart inline
+// in mono text.
+const blocks = ["_", ".", ":", "i", "I", "T", "Y", "#"];
+const series = heroPrint.spark ?? [];
+let asciiSpark = "";
+if (series.length > 1) {
+  const min = Math.min(...series);
+  const max = Math.max(...series);
+  const span = max - min || 1;
+  asciiSpark = series
+    .map((v) => {
+      const norm = (v - min) / span;
+      const idx = Math.min(
+        blocks.length - 1,
+        Math.max(0, Math.round(norm * (blocks.length - 1))),
+      );
+      return blocks[idx];
+    })
+    .join("");
+}
+
+// Map delta direction to brutalist signal color.
+const deltaClass =
+  heroPrint.deltaDir === "pos"
+    ? "is-pos"
+    : heroPrint.deltaDir === "neg"
+    ? "is-neg"
+    : "is-neutral";
+
+// Sign prefix for the value display (we keep the source string but echo
+// a status glyph alongside).
+const statusGlyph =
+  heroPrint.deltaDir === "pos"
+    ? "[+]"
+    : heroPrint.deltaDir === "neg"
+    ? "[-]"
+    : "[=]";
+
+const sectionUpper = section.label.toUpperCase();
+---
+<section class="bhero" aria-labelledby={`bhero-${section.slug}`}>
+  <header class="bhero__head">
+    <p class="bhero__crumbs">
+      <span class="bhero__crumb">FEED</span>
+      <span class="bhero__crumb-sep" aria-hidden="true">{">"}</span>
+      <span class="bhero__crumb">LIVE</span>
+      <span class="bhero__crumb-sep" aria-hidden="true">{">"}</span>
+      <span class="bhero__crumb bhero__crumb--strong">{sectionUpper}</span>
+    </p>
+    <p class="bhero__kicker">
+      <span class="bhero__kicker-tag">/ FOCUS</span>
+      <span class="bhero__kicker-val">{section.heroKicker ?? section.label}</span>
+    </p>
+  </header>
+
+  <h2 id={`bhero-${section.slug}`} class="bhero__indicator">
+    {heroPrint.indicator}
+  </h2>
+
+  <div class="bhero__readout">
+    <p class="bhero__value-row">
+      <span class="bhero__glyph" aria-hidden="true">{statusGlyph}</span>
+      <span class="bhero__value">{heroPrint.value}</span>
+    </p>
+    <p class:list={["bhero__delta", deltaClass]}>
+      <span class="bhero__delta-label">DELTA</span>
+      <span class="bhero__delta-val">{heroPrint.delta}</span>
+      <span class="bhero__delta-asof">@ {heroPrint.asOf}</span>
+    </p>
+  </div>
+
+  {asciiSpark ? (
+    <div class="bhero__spark" aria-hidden="true">
+      <pre class="bhero__spark-line">{asciiSpark}</pre>
+      <p class="bhero__spark-meta">
+        <span>n={series.length}</span>
+        <span>min={Math.min(...series).toFixed(2)}</span>
+        <span>max={Math.max(...series).toFixed(2)}</span>
+        <span>last={series[series.length - 1].toFixed(2)}</span>
+      </p>
+    </div>
+  ) : null}
+
+  <blockquote class="bhero__q">
+    <span class="bhero__q-mark" aria-hidden="true">{">"}</span>
+    {section.headlineQuestion}
+  </blockquote>
+
+  {section.blurb && section.blurb.body ? (
+    <div class="bhero__note">
+      <p class="bhero__note-tag">
+        <span class:list={["bhero__note-kind", section.blurb.kind === "fresh" ? "is-fresh" : "is-last"]}>
+          {section.blurb.kind === "fresh" ? "// FRESH" : "// LAST"}
+        </span>
+        <span class="bhero__note-date">{section.blurb.date}</span>
+      </p>
+      <p class="bhero__note-body">{section.blurb.body}</p>
+    </div>
+  ) : null}
+
+  {otherPrints.length ? (
+    <dl class="bhero__tape" aria-label="Secondary indicators">
+      {otherPrints.map((p) => (
+        <div class="bhero__tape-row">
+          <dt class="bhero__tape-key">{p.indicator}</dt>
+          <dd class="bhero__tape-val">
+            <span class="bhero__tape-num">{p.value}</span>
+            <span
+              class:list={[
+                "bhero__tape-delta",
+                p.deltaDir === "pos" ? "is-pos" : p.deltaDir === "neg" ? "is-neg" : "is-neutral",
+              ]}
+            >{p.delta}</span>
+          </dd>
+        </div>
+      ))}
+    </dl>
+  ) : null}
+</section>
+
+<style>
+  .bhero {
+    border: 1px solid var(--bt-rule);
+    padding: 16px 18px 18px;
+    background: var(--bt-surface-1);
+    font-family: var(--bt-font-mono);
+    color: var(--bt-ink);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    height: 100%;
+  }
+
+  /* ---- Head ---- */
+  .bhero__head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed var(--bt-rule);
+  }
+
+  .bhero__crumbs {
+    margin: 0;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--bt-ink-faint);
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+  }
+  .bhero__crumb-sep { color: var(--bt-ink-faint); }
+  .bhero__crumb--strong { color: var(--bt-amber); }
+
+  .bhero__kicker {
+    margin: 0;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--bt-ink);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .bhero__kicker-tag {
+    color: var(--bt-cyan);
+    font-weight: 700;
+  }
+  .bhero__kicker-val { text-transform: uppercase; }
+
+  /* ---- Indicator label ---- */
+  .bhero__indicator {
+    margin: 0;
+    font-family: var(--bt-font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--bt-ink-muted);
+    text-transform: uppercase;
+  }
+
+  /* ---- The big number ---- */
+  .bhero__readout {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .bhero__value-row {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-family: var(--bt-font-display);
+    line-height: 0.88;
+  }
+
+  .bhero__glyph {
+    font-family: var(--bt-font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--bt-amber);
+    align-self: flex-start;
+    margin-top: 8px;
+  }
+
+  .bhero__value {
+    font-size: clamp(48px, 7.5vw, 92px);
+    color: var(--bt-ink);
+    letter-spacing: -0.02em;
+    font-feature-settings: "tnum", "lnum";
+  }
+
+  .bhero__delta {
+    margin: 0;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: baseline;
+    color: var(--bt-ink-muted);
+  }
+
+  .bhero__delta-label {
+    font-weight: 700;
+    color: var(--bt-ink-faint);
+  }
+
+  .bhero__delta-val {
+    font-weight: 700;
+    font-feature-settings: "tnum", "lnum";
+  }
+
+  .bhero__delta.is-pos .bhero__delta-val { color: var(--bt-green); }
+  .bhero__delta.is-neg .bhero__delta-val { color: var(--bt-red); }
+  .bhero__delta.is-neutral .bhero__delta-val { color: var(--bt-amber); }
+
+  .bhero__delta-asof {
+    color: var(--bt-ink-faint);
+  }
+
+  /* ---- ASCII sparkline ---- */
+  .bhero__spark {
+    border: 1px solid var(--bt-rule);
+    padding: 8px 10px 6px;
+    background: var(--bt-surface-2);
+  }
+
+  .bhero__spark-line {
+    margin: 0;
+    font-family: var(--bt-font-mono);
+    font-size: 18px;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    color: var(--bt-green);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .bhero__spark-meta {
+    margin: 6px 0 0;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 10px;
+    color: var(--bt-ink-faint);
+    font-feature-settings: "tnum", "lnum";
+    letter-spacing: 0.06em;
+  }
+
+  /* ---- Headline question quote ---- */
+  .bhero__q {
+    margin: 0;
+    padding: 10px 14px;
+    border-left: 2px solid var(--bt-amber);
+    background: var(--bt-surface-2);
+    font-family: var(--bt-font-mono);
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--bt-ink);
+    letter-spacing: 0;
+    text-transform: none;
+    display: flex;
+    gap: 8px;
+  }
+  .bhero__q-mark {
+    color: var(--bt-amber);
+    font-weight: 700;
+    flex: 0 0 auto;
+  }
+
+  /* ---- Note / blurb ---- */
+  .bhero__note {
+    border-top: 1px dashed var(--bt-rule);
+    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .bhero__note-tag {
+    margin: 0;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+
+  .bhero__note-kind {
+    font-weight: 700;
+  }
+  .bhero__note-kind.is-fresh { color: var(--bt-green); }
+  .bhero__note-kind.is-last { color: var(--bt-ink-faint); }
+
+  .bhero__note-date {
+    color: var(--bt-ink-faint);
+    font-feature-settings: "tnum", "lnum";
+  }
+
+  .bhero__note-body {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--bt-ink-muted);
+  }
+
+  /* ---- Secondary tape ---- */
+  .bhero__tape {
+    margin: 0;
+    border-top: 1px dashed var(--bt-rule);
+    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .bhero__tape-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: baseline;
+    font-size: 11px;
+    padding: 3px 0;
+    border-bottom: 1px dotted var(--bt-rule);
+  }
+  .bhero__tape-row:last-child { border-bottom: none; }
+
+  .bhero__tape-key {
+    margin: 0;
+    color: var(--bt-ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .bhero__tape-val {
+    margin: 0;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+
+  .bhero__tape-num {
+    color: var(--bt-ink);
+    font-weight: 700;
+    font-feature-settings: "tnum", "lnum";
+  }
+
+  .bhero__tape-delta {
+    font-feature-settings: "tnum", "lnum";
+  }
+  .bhero__tape-delta.is-pos { color: var(--bt-green); }
+  .bhero__tape-delta.is-neg { color: var(--bt-red); }
+  .bhero__tape-delta.is-neutral { color: var(--bt-amber); }
+</style>

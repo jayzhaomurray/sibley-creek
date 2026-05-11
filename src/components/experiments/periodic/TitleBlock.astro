@@ -1,0 +1,172 @@
+---
+/*
+ * Lane N - Periodic Table.
+ * The top-left title block. Cardboard-cover-of-a-chemistry-textbook
+ * composition: small department label, big serif title, italic subtitle,
+ * and a four-line "publication colophon" beneath.
+ */
+
+interface Props {
+  department: string;
+  /**
+   * Page title — unused at render (the headline is composed in-line as
+   * three styled spans for chemistry-cover composition) but retained on
+   * the API so the page-level component can declare it explicitly.
+   */
+  title?: string;
+  subtitle: string;
+  edition: string;
+  produced: string;
+  elementCount: number;
+  familyCount: number;
+}
+
+const {
+  department,
+  subtitle,
+  edition,
+  produced,
+  elementCount,
+  familyCount,
+} = Astro.props as Props;
+---
+<section class="pt-title" aria-labelledby="pt-title-h">
+  <div class="pt-title__rule pt-title__rule--top" aria-hidden="true"></div>
+
+  <p class="pt-title__dept">{department}</p>
+
+  <h1 id="pt-title-h" class="pt-title__head">
+    <span class="pt-title__line1">The Canadian</span>
+    <span class="pt-title__line2">Macro</span>
+    <span class="pt-title__line3"><em>Periodic Table</em></span>
+  </h1>
+
+  <p class="pt-title__sub"><em>{subtitle}</em></p>
+
+  <dl class="pt-title__meta">
+    <div class="pt-title__meta-row">
+      <dt>Edition</dt>
+      <dd>{edition}</dd>
+    </div>
+    <div class="pt-title__meta-row">
+      <dt>Produced</dt>
+      <dd>{produced}</dd>
+    </div>
+    <div class="pt-title__meta-row">
+      <dt>Elements catalogued</dt>
+      <dd>{elementCount}</dd>
+    </div>
+    <div class="pt-title__meta-row">
+      <dt>Families described</dt>
+      <dd>{familyCount}</dd>
+    </div>
+  </dl>
+
+  <div class="pt-title__rule pt-title__rule--bottom" aria-hidden="true"></div>
+</section>
+
+<style>
+  .pt-title {
+    position: relative;
+    padding: 14px 18px 16px 18px;
+    background: var(--pt-paper-bright, #FCFAF3);
+    border: 1px solid var(--pt-ink, #171717);
+  }
+  .pt-title__rule {
+    position: absolute;
+    left: -1px;
+    right: -1px;
+    height: 4px;
+    background: var(--pt-ink, #171717);
+  }
+  .pt-title__rule--top { top: -1px; }
+  .pt-title__rule--bottom {
+    bottom: -1px;
+    height: 2px;
+  }
+
+  .pt-title__dept {
+    margin: 0 0 12px 0;
+    font-family: var(--pt-mono, "IBM Plex Sans Condensed"), sans-serif;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--pt-ink-faint, #6B6B6B);
+  }
+
+  .pt-title__head {
+    margin: 0 0 8px 0;
+    font-family: var(--pt-serif-display, "Cormorant Garamond"), serif;
+    font-weight: 500;
+    line-height: 0.94;
+    letter-spacing: -0.005em;
+    color: var(--pt-ink, #171717);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .pt-title__line1 {
+    font-size: clamp(28px, 3.4vw, 40px);
+    font-weight: 500;
+  }
+  .pt-title__line2 {
+    font-size: clamp(54px, 7vw, 84px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .pt-title__line3 {
+    font-size: clamp(28px, 3.4vw, 40px);
+    font-style: italic;
+    font-weight: 500;
+  }
+  .pt-title__line3 em { font-style: italic; }
+
+  .pt-title__sub {
+    margin: 6px 0 14px 0;
+    font-family: var(--pt-serif-display, "Cormorant Garamond"), serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 1.3;
+    color: var(--pt-ink, #171717);
+    border-top: 1px solid var(--pt-rule, #C9C2B0);
+    padding-top: 10px;
+  }
+  .pt-title__sub em { font-style: italic; }
+
+  .pt-title__meta {
+    margin: 0;
+    padding: 10px 0 0 0;
+    border-top: 1px solid var(--pt-rule, #C9C2B0);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 16px;
+  }
+  .pt-title__meta-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    gap: 8px;
+    font-family: var(--pt-mono, "IBM Plex Sans Condensed"), sans-serif;
+    font-size: 10.5px;
+    line-height: 1.4;
+    border-bottom: 1px dotted var(--pt-rule, #C9C2B0);
+    padding-bottom: 2px;
+  }
+  .pt-title__meta-row dt {
+    color: var(--pt-ink-faint, #6B6B6B);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 9.5px;
+    font-weight: 500;
+  }
+  .pt-title__meta-row dd {
+    margin: 0;
+    color: var(--pt-ink, #171717);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    text-align: right;
+  }
+</style>

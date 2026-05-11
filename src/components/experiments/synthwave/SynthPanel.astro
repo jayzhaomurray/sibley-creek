@@ -1,0 +1,132 @@
+---
+/*
+ * SynthPanel - Lane G panel chrome.
+ *
+ * A reusable section "panel" with a neon border, a small kicker bar at
+ * the top (label + optional right-side meta), and an optional accent
+ * variant. Used to wrap the section blocks on the synthwave splash.
+ *
+ * Accent values map to the page's five-color palette:
+ *   "magenta" (default), "cyan", "acid", "orange"
+ */
+
+type Accent = "magenta" | "cyan" | "acid" | "orange";
+
+interface Props {
+  label: string;
+  meta?: string;
+  accent?: Accent;
+  /** Adds extra inset padding for hero-style blocks. */
+  spacious?: boolean;
+}
+
+const { label, meta, accent = "magenta", spacious = false } = Astro.props;
+---
+<section class:list={["spanel", `spanel--${accent}`, spacious && "spanel--spacious"]}>
+  <header class="spanel__bar">
+    <p class="spanel__label">
+      <span class="spanel__bracket" aria-hidden="true">[</span>
+      <span class="spanel__label-text">{label}</span>
+      <span class="spanel__bracket" aria-hidden="true">]</span>
+    </p>
+    {meta ? <p class="spanel__meta">{meta}</p> : null}
+  </header>
+  <div class="spanel__body">
+    <slot />
+  </div>
+</section>
+
+<style>
+  .spanel {
+    --spanel-accent: var(--sy-magenta);
+    --spanel-accent-rgb: 255, 46, 151;
+    position: relative;
+    background:
+      linear-gradient(180deg, rgba(var(--spanel-accent-rgb), 0.04), rgba(10, 4, 20, 0));
+    border: 1px solid rgba(var(--spanel-accent-rgb), 0.55);
+    box-shadow:
+      0 0 0 1px rgba(var(--spanel-accent-rgb), 0.08),
+      0 0 22px rgba(var(--spanel-accent-rgb), 0.08),
+      inset 0 0 32px rgba(var(--spanel-accent-rgb), 0.03);
+  }
+
+  .spanel--cyan {
+    --spanel-accent: var(--sy-cyan);
+    --spanel-accent-rgb: 0, 229, 255;
+  }
+  .spanel--acid {
+    --spanel-accent: var(--sy-acid);
+    --spanel-accent-rgb: 0, 255, 133;
+  }
+  .spanel--orange {
+    --spanel-accent: var(--sy-orange);
+    --spanel-accent-rgb: 255, 107, 53;
+  }
+
+  /* Corner ticks - subtle "schematic" detail at each corner. */
+  .spanel::before,
+  .spanel::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+  }
+  .spanel::before {
+    top: -1px;
+    left: -1px;
+    border-top: 2px solid var(--spanel-accent);
+    border-left: 2px solid var(--spanel-accent);
+    box-shadow: 0 0 8px rgba(var(--spanel-accent-rgb), 0.55);
+  }
+  .spanel::after {
+    bottom: -1px;
+    right: -1px;
+    border-bottom: 2px solid var(--spanel-accent);
+    border-right: 2px solid var(--spanel-accent);
+    box-shadow: 0 0 8px rgba(var(--spanel-accent-rgb), 0.55);
+  }
+
+  .spanel__bar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(var(--spanel-accent-rgb), 0.4);
+    background: rgba(var(--spanel-accent-rgb), 0.07);
+  }
+
+  .spanel__label {
+    margin: 0;
+    font-family: var(--sy-font-display);
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    color: var(--spanel-accent);
+    text-transform: uppercase;
+    text-shadow: 0 0 6px rgba(var(--spanel-accent-rgb), 0.55);
+  }
+  .spanel__bracket {
+    color: rgba(var(--spanel-accent-rgb), 0.7);
+    text-shadow: none;
+    font-weight: 400;
+    margin: 0 2px;
+  }
+
+  .spanel__meta {
+    margin: 0;
+    font-family: var(--sy-font-crt);
+    font-size: 14px;
+    letter-spacing: 0.06em;
+    color: var(--sy-ink-muted);
+    font-feature-settings: "tnum", "lnum";
+  }
+
+  .spanel__body {
+    padding: 14px 14px 16px;
+  }
+  .spanel--spacious .spanel__body {
+    padding: 18px 18px 20px;
+  }
+</style>

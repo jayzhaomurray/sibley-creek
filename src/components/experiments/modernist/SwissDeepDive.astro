@@ -1,0 +1,134 @@
+---
+/*
+ * SwissDeepDive - one numbered deep-dive entry on the Modernist splash.
+ *
+ * Reads as a numbered bibliography entry:
+ *   D.01  PILLAR / SECTION
+ *         Title (Black)
+ *         Deck (Thin)
+ *         status . updated date
+ */
+
+import type { DeepDive } from "../../../data/sections";
+
+interface Props {
+  item: DeepDive;
+  num: string;
+  total: string;
+}
+
+const { item, num, total } = Astro.props;
+---
+<article class="sw-dd">
+  <header class="sw-dd__head">
+    <span class="sw-dd__num">D.{num}/{total}</span>
+    <span class="sw-dd__pillar">Pillar {item.pillar} / {item.section}</span>
+    <span class:list={["sw-dd__status", `sw-dd__status--${item.status}`]}>
+      {item.status}
+    </span>
+  </header>
+
+  <h3 class="sw-dd__title">
+    {item.href ? (
+      <a class="sw-dd__title-link" href={item.href}>{item.title}</a>
+    ) : (
+      item.title
+    )}
+  </h3>
+
+  <p class="sw-dd__deck">{item.deck}</p>
+
+  <footer class="sw-dd__foot">
+    <span class="sw-dd__foot-key">Updated</span>
+    <span class="sw-dd__foot-val">{item.lastUpdated}</span>
+  </footer>
+</article>
+
+<style>
+  .sw-dd {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-block: 16px 24px;
+    border-top: 1px solid var(--sw-ink);
+  }
+
+  .sw-dd__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-family: var(--sw-mono);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .sw-dd__num {
+    color: var(--sw-ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .sw-dd__pillar {
+    color: var(--sw-ink);
+    font-weight: 500;
+  }
+  .sw-dd__status {
+    margin-left: auto;
+    padding: 4px 8px;
+    border: 1px solid currentColor;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+  }
+  .sw-dd__status--research { color: var(--sw-ink-faint); }
+  .sw-dd__status--drafted  { color: var(--sw-ink); }
+  .sw-dd__status--shipped  {
+    color: var(--sw-paper);
+    background-color: var(--sw-red);
+    border-color: var(--sw-red);
+  }
+
+  .sw-dd__title {
+    margin: 0;
+    font-family: var(--sw-sans);
+    font-weight: 900;
+    font-size: clamp(18px, 1.8vw, 24px);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    color: var(--sw-ink);
+  }
+  .sw-dd__title-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color 100ms linear;
+  }
+  .sw-dd__title-link:hover {
+    color: var(--sw-red);
+  }
+
+  .sw-dd__deck {
+    margin: 0;
+    font-family: var(--sw-sans);
+    font-weight: 200;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--sw-ink);
+  }
+
+  .sw-dd__foot {
+    margin-top: auto;
+    font-family: var(--sw-mono);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sw-ink-faint);
+    display: inline-flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .sw-dd__foot-val {
+    color: var(--sw-ink);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

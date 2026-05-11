@@ -1,0 +1,238 @@
+---
+/*
+ * Lane J - Solari Departures Board.
+ *
+ * The "NEXT RELEASES" board sits below the main departures board. Same
+ * grid feel - a calendar of upcoming Statistics Canada / BoC prints
+ * dressed as scheduled departures:
+ *
+ *   [ SCHED ]  [ AGENCY ]  [ RELEASE ]  [ STATUS ]  [ TRACK ]
+ *
+ * Status badges:
+ *   - SCHEDULED  - amber-faded
+ *   - ON TIME    - signal green
+ *   - DELAYED    - signal red
+ *   - HOLDING    - amber, blinking pip
+ *
+ * All values flap in with a row-staggered animation.
+ */
+
+import SolariFlipText from "./SolariFlipText.astro";
+
+export interface NextItem {
+  sched: string;     // e.g. "TUE 21 MAY 08:30"
+  agency: string;    // e.g. "STATCAN"
+  release: string;   // e.g. "CPI APRIL 2026"
+  status: "SCHEDULED" | "ON TIME" | "DELAYED" | "HOLDING";
+  track: string;     // e.g. "TRK 03"
+}
+
+interface Props {
+  items: NextItem[];
+  /** Stagger origin in ms - the main board uses ~1000ms of stagger, so
+   *  default this past it. */
+  delay?: number;
+}
+
+const { items, delay = 1400 } = Astro.props;
+
+function statusTone(s: NextItem["status"]) {
+  if (s === "ON TIME") return "pos" as const;
+  if (s === "DELAYED") return "neg" as const;
+  if (s === "HOLDING") return "active" as const;
+  return "muted" as const;
+}
+---
+<section class="sol-next" aria-labelledby="sol-next-h">
+  <header class="sol-next__hd">
+    <h2 id="sol-next-h" class="sol-next__h1">
+      <span class="sol-next__bracket" aria-hidden="true">[</span>
+      <SolariFlipText
+        text="NEXT RELEASES"
+        tone="active"
+        weight="bold"
+        delay={delay - 200}
+        stagger={26}
+        ariaHidden
+      />
+      <span class="sol-next__bracket" aria-hidden="true">]</span>
+      <span class="sol-flip__sr">Next releases</span>
+    </h2>
+    <p class="sol-next__sub">
+      SCHEDULED &middot; CDN MACRO &middot; PRINTS IN THE NEXT THREE WEEKS
+    </p>
+  </header>
+
+  <div class="sol-next__hdrow" role="row" aria-hidden="true">
+    <span class="sol-next__col sol-next__col--sched">SCHED</span>
+    <span class="sol-next__col sol-next__col--agency">AGENCY</span>
+    <span class="sol-next__col sol-next__col--release">RELEASE</span>
+    <span class="sol-next__col sol-next__col--status">STATUS</span>
+    <span class="sol-next__col sol-next__col--track">TRACK</span>
+  </div>
+
+  <ol class="sol-next__list" role="list">
+    {items.map((it, i) => {
+      const tone = statusTone(it.status);
+      const base = delay + i * 80;
+      return (
+        <li class="sol-next__row" role="listitem">
+          <span class="sol-next__col sol-next__col--sched">
+            <SolariFlipText text={it.sched} tone="active" weight="bold" delay={base} stagger={18} ariaHidden />
+            <span class="sol-flip__sr">{it.sched}</span>
+          </span>
+          <span class="sol-next__col sol-next__col--agency">
+            <SolariFlipText text={it.agency} tone="muted" delay={base + 80} stagger={18} ariaHidden />
+            <span class="sol-flip__sr">{it.agency}</span>
+          </span>
+          <span class="sol-next__col sol-next__col--release">
+            <SolariFlipText text={it.release} tone="active" delay={base + 160} stagger={14} ariaHidden />
+            <span class="sol-flip__sr">{it.release}</span>
+          </span>
+          <span class="sol-next__col sol-next__col--status">
+            {it.status === "HOLDING" && (
+              <span class="sol-next__pip" aria-hidden="true"></span>
+            )}
+            <SolariFlipText text={it.status} tone={tone} weight="bold" delay={base + 220} stagger={20} ariaHidden />
+            <span class="sol-flip__sr">{it.status}</span>
+          </span>
+          <span class="sol-next__col sol-next__col--track">
+            <SolariFlipText text={it.track} tone="muted" delay={base + 280} stagger={18} ariaHidden />
+            <span class="sol-flip__sr">{it.track}</span>
+          </span>
+        </li>
+      );
+    })}
+  </ol>
+</section>
+
+<style>
+  .sol-next {
+    border-top: 1px solid var(--sol-frame);
+    background: linear-gradient(
+      180deg,
+      rgba(31,31,35,0.35) 0%,
+      rgba(14,14,16,0.65) 100%
+    );
+  }
+
+  .sol-next__hd {
+    padding: clamp(14px, 2.4vw, 22px) clamp(16px, 3vw, 32px) 6px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 20px 32px;
+    justify-content: space-between;
+  }
+  .sol-next__h1 {
+    margin: 0;
+    font-family: var(--sol-display);
+    font-size: clamp(16px, 1.8vw, 22px);
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--sol-amber);
+    display: inline-flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .sol-next__bracket {
+    color: var(--sol-amber-faded);
+    font-family: var(--sol-display);
+  }
+  .sol-next__sub {
+    margin: 0;
+    font-family: var(--sol-mono);
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--sol-amber-faded);
+  }
+
+  .sol-next__hdrow,
+  .sol-next__row {
+    display: grid;
+    grid-template-columns:
+      170px            /* SCHED */
+      120px            /* AGENCY */
+      minmax(0, 1fr)   /* RELEASE */
+      140px            /* STATUS */
+      100px;           /* TRACK */
+    column-gap: clamp(10px, 1.6vw, 18px);
+    align-items: baseline;
+    padding: 10px clamp(16px, 3vw, 32px);
+    border-bottom: 1px solid var(--sol-frame);
+  }
+  .sol-next__hdrow {
+    border-top: 1px solid var(--sol-frame);
+    font-family: var(--sol-mono);
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--sol-amber-faded);
+    background: rgba(31, 31, 35, 0.55);
+  }
+
+  .sol-next__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .sol-next__row {
+    font-family: var(--sol-mono);
+    color: var(--sol-amber);
+    font-size: clamp(13px, 1.2vw, 15px);
+    letter-spacing: 0.06em;
+  }
+
+  .sol-next__col--release {
+    letter-spacing: 0.14em;
+  }
+  .sol-next__col--status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sol-next__pip {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--sol-amber);
+    box-shadow: 0 0 8px rgba(242, 167, 20, 0.6);
+    animation: sol-pip-blink 1.4s steps(2, end) infinite;
+  }
+  @keyframes sol-pip-blink {
+    0%, 49%   { opacity: 1; }
+    50%, 100% { opacity: 0.2; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sol-next__pip { animation: none; }
+  }
+
+  .sol-flip__sr {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (max-width: 980px) {
+    .sol-next__hdrow,
+    .sol-next__row {
+      grid-template-columns: 140px 90px minmax(0, 1fr) 110px;
+      column-gap: 12px;
+    }
+    .sol-next__col--track { display: none; }
+  }
+  @media (max-width: 640px) {
+    .sol-next__hdrow,
+    .sol-next__row {
+      grid-template-columns: 130px minmax(0, 1fr) 100px;
+      column-gap: 10px;
+    }
+    .sol-next__col--agency { display: none; }
+  }
+</style>

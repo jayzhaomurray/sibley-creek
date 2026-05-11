@@ -1,0 +1,242 @@
+---
+/*
+ * VitalsAlerts - sidebar "active orders / consults pending" panel.
+ *
+ * Treats the deep-dive registry as bedside consults. Each entry shows:
+ *   - pillar code + section colour (the channel it links to)
+ *   - status (research / drafted / shipped) styled as ORDERED / DRAFT /
+ *     POSTED
+ *   - short title + deck
+ *
+ * Pure presentation - data comes from the page via props.
+ */
+
+import type { DeepDive } from "../../../data/sections";
+
+type VitalColor = "green" | "cyan" | "yellow" | "red";
+interface ChannelMeta {
+  color: VitalColor;
+  code: string;
+}
+
+interface Props {
+  deepDives: DeepDive[];
+  channelMap: Record<string, ChannelMeta>;
+}
+
+const { deepDives, channelMap } = Astro.props;
+
+const statusMap: Record<string, { label: string; tone: "warn" | "info" | "ok" }> = {
+  research: { label: "ORDERED", tone: "warn" },
+  drafted:  { label: "DRAFT",   tone: "info" },
+  shipped:  { label: "POSTED",  tone: "ok" },
+};
+---
+
+<aside class="vt-alerts" aria-label="Active research consults">
+  <header class="vt-alerts__head">
+    <p class="vt-alerts__key">CONSULTS</p>
+    <p class="vt-alerts__title">Active research orders</p>
+    <p class="vt-alerts__sub">
+      <span class="vt-alerts__sub-dot" aria-hidden="true"></span>
+      {deepDives.length} pending
+    </p>
+  </header>
+
+  <ol class="vt-alerts__list" role="list">
+    {deepDives.map((dd, i) => {
+      const meta = channelMap[dd.section];
+      const color = meta?.color ?? "green";
+      const status = statusMap[dd.status];
+      return (
+        <li class="vt-alerts__item" data-color={color}>
+          <div class="vt-alerts__strap">
+            <span class="vt-alerts__pillar">P{dd.pillar}</span>
+            <span class="vt-alerts__section">{dd.section.toUpperCase()}</span>
+            <span class="vt-alerts__num">#{String(i + 1).padStart(3, "0")}</span>
+          </div>
+          <p class="vt-alerts__item-title">{dd.title}</p>
+          <p class="vt-alerts__deck">{dd.deck}</p>
+          <div class="vt-alerts__foot">
+            <span
+              class="vt-alerts__status"
+              data-tone={status.tone}
+            >
+              <span class="vt-alerts__status-pip" aria-hidden="true"></span>
+              {status.label}
+            </span>
+            <span class="vt-alerts__date">{dd.lastUpdated}</span>
+          </div>
+        </li>
+      );
+    })}
+  </ol>
+</aside>
+
+<style>
+  .vt-alerts {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: var(--vt-panel);
+    border: 1px solid var(--vt-panel-edge);
+    border-left: 3px solid var(--vt-cyan);
+    min-width: 0;
+    min-height: 100%;
+    position: relative;
+  }
+  .vt-alerts::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: var(--vt-cyan);
+    opacity: 0.32;
+  }
+
+  .vt-alerts__head {
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid var(--vt-rule);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--vt-panel-deep);
+  }
+  .vt-alerts__key {
+    font-family: var(--vt-label);
+    font-size: 9.5px;
+    letter-spacing: 0.22em;
+    color: var(--vt-cyan);
+    font-weight: 500;
+  }
+  .vt-alerts__title {
+    font-family: var(--vt-display);
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 0.04em;
+    color: var(--vt-ink);
+    line-height: 1.1;
+  }
+  .vt-alerts__sub {
+    font-family: var(--vt-label);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--vt-ink-faint);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .vt-alerts__sub-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--vt-cyan);
+    box-shadow: 0 0 6px var(--vt-cyan);
+  }
+
+  .vt-alerts__list {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .vt-alerts__item {
+    padding: 12px 14px;
+    border-top: 1px solid var(--vt-rule-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+  }
+  .vt-alerts__item:first-child { border-top: none; }
+  .vt-alerts__item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 2px;
+    background: var(--accent, var(--vt-cyan));
+    opacity: 0.55;
+  }
+  .vt-alerts__item[data-color="green"]  { --accent: var(--vt-green); }
+  .vt-alerts__item[data-color="cyan"]   { --accent: var(--vt-cyan); }
+  .vt-alerts__item[data-color="yellow"] { --accent: var(--vt-yellow); }
+  .vt-alerts__item[data-color="red"]    { --accent: var(--vt-red); }
+
+  .vt-alerts__strap {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    font-family: var(--vt-label);
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--vt-ink-faint);
+  }
+  .vt-alerts__pillar {
+    font-family: var(--vt-display);
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.16em;
+  }
+  .vt-alerts__section {
+    color: var(--vt-ink);
+    letter-spacing: 0.18em;
+    font-weight: 500;
+  }
+  .vt-alerts__num {
+    margin-left: auto;
+    font-family: var(--vt-display);
+    color: var(--vt-ink-faint);
+  }
+
+  .vt-alerts__item-title {
+    font-family: var(--vt-display);
+    font-weight: 700;
+    font-size: 13.5px;
+    line-height: 1.25;
+    letter-spacing: 0.005em;
+    color: var(--vt-ink);
+  }
+  .vt-alerts__deck {
+    font-family: var(--vt-label);
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--vt-ink-mute);
+  }
+
+  .vt-alerts__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 2px;
+  }
+  .vt-alerts__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--vt-label);
+    font-size: 9.5px;
+    letter-spacing: 0.22em;
+    padding: 2px 8px;
+    border: 1px solid currentColor;
+  }
+  .vt-alerts__status[data-tone="warn"] { color: var(--vt-yellow); }
+  .vt-alerts__status[data-tone="info"] { color: var(--vt-cyan); }
+  .vt-alerts__status[data-tone="ok"]   { color: var(--vt-green); }
+  .vt-alerts__status-pip {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 5px currentColor;
+  }
+  .vt-alerts__date {
+    font-family: var(--vt-display);
+    font-size: 10.5px;
+    color: var(--vt-ink-faint);
+    letter-spacing: 0.06em;
+  }
+</style>

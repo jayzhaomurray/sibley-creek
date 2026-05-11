@@ -1,0 +1,156 @@
+---
+/*
+ * ScoreNextGame - "Next Game" matchup card.
+ *
+ * Bottom-strip element. Renders as a stadium "upcoming matchup" panel:
+ * date, opponent (the indicator), agency (the league), and a small game
+ * clock countdown to puck drop.
+ */
+
+interface Props {
+  label: string;
+  date: string;
+  agency: string;
+  clockText: string;
+}
+
+const { label, date, agency, clockText } = Astro.props;
+---
+<aside class="sb-next" aria-label="Next release">
+  <header class="sb-next__head">
+    <span class="sb-next__k">NEXT GAME</span>
+    <span class="sb-next__date">{date.toUpperCase()}</span>
+  </header>
+
+  <div class="sb-next__matchup">
+    <div class="sb-next__team">
+      <span class="sb-next__team-side">HOME</span>
+      <span class="sb-next__team-name">CANADIAN MACRO</span>
+    </div>
+    <div class="sb-next__vs" aria-hidden="true">VS</div>
+    <div class="sb-next__team sb-next__team--away">
+      <span class="sb-next__team-side">AWAY</span>
+      <span class="sb-next__team-name">{label.toUpperCase()}</span>
+    </div>
+  </div>
+
+  <div class="sb-next__foot">
+    <span class="sb-next__league">LEAGUE: {agency.toUpperCase()}</span>
+    <span class="sb-next__sep" aria-hidden="true">/</span>
+    <span class="sb-next__clock">FACEOFF IN {clockText}</span>
+  </div>
+</aside>
+
+<style>
+  .sb-next {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 18px;
+    border: 1px solid var(--sb-bezel);
+    border-radius: 4px;
+    background: linear-gradient(180deg, rgba(63, 191, 232, 0.05), rgba(8, 21, 42, 0.4));
+    box-shadow:
+      inset 0 0 0 1px rgba(63, 191, 232, 0.06),
+      inset 0 0 24px rgba(8, 21, 42, 0.4);
+    position: relative;
+  }
+  .sb-next::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--sb-ice);
+    box-shadow: 0 0 10px rgba(63, 191, 232, 0.5);
+  }
+
+  .sb-next__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .sb-next__k {
+    font-family: var(--sb-font-label);
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    color: var(--sb-ice);
+    text-shadow: 0 0 5px rgba(63, 191, 232, 0.4);
+  }
+  .sb-next__date {
+    font-family: var(--sb-font-display);
+    font-size: 18px;
+    color: var(--sb-led-amber);
+    letter-spacing: 0.04em;
+    text-shadow: 0 0 5px rgba(244, 180, 0, 0.35);
+    font-feature-settings: "tnum", "lnum";
+  }
+
+  .sb-next__matchup {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 8px 14px;
+    padding: 10px 0;
+    border-top: 1px dashed rgba(63, 191, 232, 0.18);
+    border-bottom: 1px dashed rgba(63, 191, 232, 0.18);
+  }
+  .sb-next__team {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .sb-next__team--away {
+    text-align: right;
+    align-items: flex-end;
+  }
+  .sb-next__team-side {
+    font-family: var(--sb-font-label);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--sb-ink-faint);
+  }
+  .sb-next__team-name {
+    font-family: var(--sb-font-label);
+    font-size: clamp(15px, 1.8vw, 19px);
+    letter-spacing: 0.06em;
+    color: var(--sb-white);
+  }
+  .sb-next__vs {
+    font-family: var(--sb-font-display);
+    font-size: 22px;
+    color: var(--sb-red);
+    letter-spacing: 0.04em;
+    text-shadow: 0 0 8px rgba(224, 22, 43, 0.5);
+  }
+
+  .sb-next__foot {
+    display: flex;
+    align-items: baseline;
+    gap: 4px 10px;
+    flex-wrap: wrap;
+    font-family: var(--sb-font-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--sb-ink-muted);
+  }
+  .sb-next__league {
+    color: var(--sb-ice);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 11px;
+    text-shadow: 0 0 5px rgba(63, 191, 232, 0.3);
+  }
+  .sb-next__sep { color: var(--sb-ink-faint); }
+  .sb-next__clock {
+    color: var(--sb-led-green);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-size: 11px;
+    text-shadow: 0 0 5px rgba(59, 191, 101, 0.4);
+    font-feature-settings: "tnum", "lnum";
+  }
+</style>

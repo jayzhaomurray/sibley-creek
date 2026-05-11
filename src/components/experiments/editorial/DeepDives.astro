@@ -1,0 +1,210 @@
+---
+/*
+ * DeepDives - "From the Research Desk" feature strip. Three deep-dive items
+ * rendered as feature openers, with very large folio numerals as drop-caps,
+ * italic decks, and a section eyebrow. Self-contained, no production
+ * component imports.
+ */
+import type { DeepDive } from "../../../data/sections";
+
+interface Props {
+  deepDives: DeepDive[];
+}
+
+const { deepDives } = Astro.props;
+
+function statusLabel(s: DeepDive["status"]) {
+  if (s === "shipped") return "Filed";
+  if (s === "drafted") return "In edit";
+  return "In research";
+}
+---
+<section class="ed-deep" aria-labelledby="ed-deep-title">
+  <header class="ed-deep__head">
+    <div class="ed-deep__head-left">
+      <p class="ed-deep__kicker">From the research desk</p>
+      <h2 id="ed-deep-title" class="ed-deep__title">
+        Three pieces in motion
+      </h2>
+    </div>
+    <p class="ed-deep__lede">
+      The work shaping next month's prints. Each piece names a single load-bearing
+      question and traces what changes if the answer flips.
+    </p>
+  </header>
+
+  <ol class="ed-deep__list" role="list">
+    {deepDives.slice(0, 3).map((d, i) => (
+      <li class="ed-deep__item">
+        <article class="ed-deep__article">
+          <div class="ed-deep__numwrap">
+            <span class="ed-deep__folio" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
+            <span class="ed-deep__pillar">Pillar {d.pillar}</span>
+          </div>
+          <div class="ed-deep__body">
+            <p class="ed-deep__eyebrow">
+              <span class="ed-deep__section">{d.section}</span>
+              <span class="ed-deep__sep" aria-hidden="true">/</span>
+              <span class="ed-deep__status">{statusLabel(d.status)}</span>
+            </p>
+            <h3 class="ed-deep__head-title">{d.title}</h3>
+            <p class="ed-deep__deck">{d.deck}</p>
+            <p class="ed-deep__stamp">Updated {d.lastUpdated}</p>
+          </div>
+        </article>
+      </li>
+    ))}
+  </ol>
+</section>
+
+<style>
+  .ed-deep {
+    position: relative;
+    z-index: 2;
+    padding: 2.4rem 0 2.8rem;
+    border-bottom: 1px solid var(--ed-rule);
+  }
+
+  .ed-deep__head {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 2.4rem;
+    align-items: end;
+    margin-bottom: 2rem;
+  }
+  @media (max-width: 900px) {
+    .ed-deep__head { grid-template-columns: 1fr; gap: 1rem; }
+  }
+
+  .ed-deep__kicker {
+    margin: 0 0 0.4rem;
+    font-family: var(--ed-font-body);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ed-accent);
+  }
+
+  .ed-deep__title {
+    margin: 0;
+    font-family: var(--ed-font-display);
+    font-weight: 900;
+    font-size: clamp(2.4rem, 5vw, 4rem);
+    line-height: 0.94;
+    letter-spacing: -0.025em;
+    color: var(--ed-ink);
+    font-variation-settings: "opsz" 144;
+  }
+
+  .ed-deep__lede {
+    margin: 0;
+    font-family: var(--ed-font-display);
+    font-style: italic;
+    font-size: 1.1rem;
+    line-height: 1.45;
+    color: var(--ed-ink-mute);
+    max-width: 44ch;
+    border-left: 2px solid var(--ed-accent);
+    padding-left: 1rem;
+  }
+
+  .ed-deep__list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 3px double var(--ed-ink);
+  }
+  @media (max-width: 900px) {
+    .ed-deep__list { grid-template-columns: 1fr; }
+  }
+
+  .ed-deep__item {
+    border-right: 1px solid var(--ed-rule);
+    padding: 1.4rem 1.6rem 1.6rem 0;
+  }
+  .ed-deep__item:last-child { border-right: 0; padding-right: 0; }
+  @media (max-width: 900px) {
+    .ed-deep__item {
+      border-right: 0;
+      border-bottom: 1px solid var(--ed-rule);
+      padding: 1.4rem 0;
+    }
+    .ed-deep__item:last-child { border-bottom: 0; }
+  }
+
+  .ed-deep__article {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 1.2rem;
+  }
+  .ed-deep__numwrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+  }
+  .ed-deep__folio {
+    font-family: var(--ed-font-display);
+    font-weight: 900;
+    font-style: italic;
+    font-size: 4.2rem;
+    line-height: 0.85;
+    color: var(--ed-accent);
+    letter-spacing: -0.04em;
+    font-variation-settings: "opsz" 144, "SOFT" 80, "WONK" 1;
+  }
+  .ed-deep__pillar {
+    font-family: var(--ed-font-mono);
+    font-size: 0.7rem;
+    color: var(--ed-ink-mute);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .ed-deep__eyebrow {
+    margin: 0 0 0.55rem;
+    font-family: var(--ed-font-body);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ed-ink-mute);
+  }
+  .ed-deep__section { color: var(--ed-ink); font-weight: 600; }
+  .ed-deep__sep { margin: 0 0.55em; color: var(--ed-rule); }
+
+  .ed-deep__head-title {
+    margin: 0 0 0.55rem;
+    font-family: var(--ed-font-display);
+    font-weight: 700;
+    font-size: clamp(1.2rem, 1.7vw, 1.5rem);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    color: var(--ed-ink);
+    text-wrap: balance;
+  }
+
+  .ed-deep__deck {
+    margin: 0;
+    font-family: var(--ed-font-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 1rem;
+    line-height: 1.45;
+    color: var(--ed-ink);
+    text-wrap: pretty;
+  }
+
+  .ed-deep__stamp {
+    margin: 0.85rem 0 0;
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--ed-rule-faint);
+    font-family: var(--ed-font-mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ed-ink-mute);
+  }
+</style>

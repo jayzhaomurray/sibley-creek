@@ -1,0 +1,275 @@
+---
+/*
+ * Mono no aware Masthead.
+ *
+ * The publication's wordmark arrives quietly. The page name is set in
+ * stacked vertical characters along the deep-left margin of the cover.
+ * A small chop/seal mark in the corner anchors the page. A single hairline
+ * rule and a calligraphic accent stroke (SVG, drawn on load) close the
+ * composition.
+ *
+ * Layout: content ranges right with deep left margins. Vertical text on
+ * the left is rendered with CSS `writing-mode: vertical-rl` so it remains
+ * native text (selectable, screen-reader-friendly). The mark in the upper
+ * corner is a small SVG roundel — the "chop" — set in cinnabar.
+ */
+
+interface Props {
+  publication: string;
+  edition: string;     // e.g. "Volume 01, Number 19"
+  produced: string;    // e.g. "2026.05.11"
+  laneLabel: string;   // "Lane E"
+  laneName: string;    // "Mono no aware"
+}
+
+const { publication, edition, produced, laneLabel, laneName } = Astro.props;
+---
+<header class="mn-masthead" role="banner">
+  {/* Vertical publication name on the deep left margin */}
+  <p class="mn-masthead__vertical" aria-label={publication}>
+    <span aria-hidden="true">{publication}</span>
+  </p>
+
+  {/* Cinnabar chop / seal — corner anchor. SVG, decorative. */}
+  <span class="mn-masthead__chop" aria-hidden="true">
+    <svg viewBox="0 0 48 48" width="44" height="44" focusable="false">
+      <rect
+        x="2.5"
+        y="2.5"
+        width="43"
+        height="43"
+        fill="none"
+        stroke="var(--mn-accent)"
+        stroke-width="1.6"
+      />
+      <line
+        x1="24"
+        y1="6"
+        x2="24"
+        y2="42"
+        stroke="var(--mn-accent)"
+        stroke-width="1.2"
+      />
+      <line
+        x1="6"
+        y1="24"
+        x2="42"
+        y2="24"
+        stroke="var(--mn-accent)"
+        stroke-width="1.2"
+      />
+      <text
+        x="15"
+        y="20"
+        font-family="'Shippori Mincho', serif"
+        font-size="11"
+        fill="var(--mn-accent)"
+        font-weight="500"
+      >M</text>
+      <text
+        x="27"
+        y="20"
+        font-family="'Shippori Mincho', serif"
+        font-size="11"
+        fill="var(--mn-accent)"
+        font-weight="500"
+      >R</text>
+      <text
+        x="15"
+        y="36"
+        font-family="'Shippori Mincho', serif"
+        font-size="11"
+        fill="var(--mn-accent)"
+        font-weight="500"
+      >D</text>
+      <text
+        x="27"
+        y="36"
+        font-family="'Shippori Mincho', serif"
+        font-size="11"
+        fill="var(--mn-accent)"
+        font-weight="500"
+      >.</text>
+    </svg>
+  </span>
+
+  {/* Right-ranged content stack */}
+  <div class="mn-masthead__stack">
+    <p class="mn-masthead__lane">
+      <span class="mn-masthead__lane-key">{laneLabel}</span>
+      <span class="mn-masthead__lane-sep" aria-hidden="true">/</span>
+      <span class="mn-masthead__lane-val">{laneName}</span>
+    </p>
+
+    <h1 class="mn-masthead__title">
+      <span class="mn-masthead__title-line-1">A reading of</span>
+      <span class="mn-masthead__title-line-2">Canadian macro,</span>
+      <span class="mn-masthead__title-line-3">printed quietly.</span>
+    </h1>
+
+    {/* Calligraphic accent stroke — drawn on load */}
+    <div class="mn-masthead__brush" aria-hidden="true">
+      <svg viewBox="0 0 240 14" width="240" height="14" focusable="false">
+        <path
+          d="M 2 7 C 30 4, 70 11, 110 6 C 150 2, 190 10, 238 6"
+          fill="none"
+          stroke="var(--mn-accent)"
+          stroke-width="2.2"
+          stroke-linecap="round"
+          class="mn-masthead__brush-path"
+        />
+      </svg>
+    </div>
+
+    <dl class="mn-masthead__meta">
+      <div class="mn-masthead__meta-row">
+        <dt>Edition</dt>
+        <dd>{edition}</dd>
+      </div>
+      <div class="mn-masthead__meta-row">
+        <dt>Produced</dt>
+        <dd>{produced}</dd>
+      </div>
+    </dl>
+  </div>
+</header>
+
+<style>
+  .mn-masthead {
+    position: relative;
+    padding-block: clamp(56px, 12vh, 160px) clamp(80px, 14vh, 200px);
+    /* Asymmetric: deep left margin, content ranged right */
+    padding-left: clamp(24px, 18vw, 280px);
+    padding-right: clamp(24px, 6vw, 96px);
+  }
+
+  /* Vertical publication name on the left margin */
+  .mn-masthead__vertical {
+    position: absolute;
+    left: clamp(20px, 4vw, 56px);
+    top: clamp(56px, 12vh, 160px);
+    margin: 0;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-family: var(--mn-display);
+    font-weight: 400;
+    font-size: clamp(11px, 0.95vw, 13px);
+    letter-spacing: 0.42em;
+    text-transform: uppercase;
+    color: var(--mn-ink);
+    opacity: 0.78;
+    user-select: text;
+  }
+  @media (max-width: 720px) {
+    .mn-masthead__vertical { display: none; }
+  }
+
+  /* Corner chop mark */
+  .mn-masthead__chop {
+    position: absolute;
+    top: clamp(28px, 6vh, 64px);
+    right: clamp(24px, 6vw, 96px);
+    display: inline-flex;
+    line-height: 0;
+    opacity: 0.92;
+  }
+
+  .mn-masthead__stack {
+    max-width: 640px;
+    margin-left: auto;
+  }
+
+  /* Lane key/val line */
+  .mn-masthead__lane {
+    margin: 0 0 clamp(40px, 8vh, 96px);
+    font-family: var(--mn-display);
+    font-weight: 400;
+    font-size: 12px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--mn-ink-faint);
+  }
+  .mn-masthead__lane-key {
+    color: var(--mn-ink);
+  }
+  .mn-masthead__lane-sep {
+    margin: 0 0.8em;
+    color: var(--mn-ink-faint);
+  }
+  .mn-masthead__lane-val {
+    color: var(--mn-accent);
+    font-style: italic;
+  }
+
+  /* Title — three quiet lines */
+  .mn-masthead__title {
+    margin: 0;
+    font-family: var(--mn-display);
+    font-weight: 400;
+    font-size: clamp(28px, 4.4vw, 56px);
+    line-height: 1.32;
+    letter-spacing: -0.005em;
+    color: var(--mn-ink);
+  }
+  .mn-masthead__title-line-1,
+  .mn-masthead__title-line-2,
+  .mn-masthead__title-line-3 {
+    display: block;
+  }
+  .mn-masthead__title-line-3 {
+    font-style: italic;
+    color: var(--mn-ink);
+  }
+
+  /* Brush stroke */
+  .mn-masthead__brush {
+    margin-top: clamp(28px, 6vh, 64px);
+    width: 240px;
+    line-height: 0;
+  }
+  .mn-masthead__brush-path {
+    stroke-dasharray: 260;
+    stroke-dashoffset: 260;
+    animation: mn-brush 900ms cubic-bezier(0.22, 0.61, 0.36, 1) 200ms forwards;
+  }
+  @keyframes mn-brush {
+    to { stroke-dashoffset: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mn-masthead__brush-path {
+      animation: none;
+      stroke-dashoffset: 0;
+    }
+  }
+
+  /* Meta — Edition / Produced */
+  .mn-masthead__meta {
+    margin: clamp(48px, 8vh, 96px) 0 0;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: 1fr;
+    max-width: 480px;
+  }
+  .mn-masthead__meta-row {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 24px;
+    align-items: baseline;
+  }
+  .mn-masthead__meta dt {
+    margin: 0;
+    font-family: var(--mn-display);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--mn-ink-faint);
+  }
+  .mn-masthead__meta dd {
+    margin: 0;
+    font-family: var(--mn-display);
+    font-size: 14px;
+    color: var(--mn-ink);
+    letter-spacing: 0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+</style>

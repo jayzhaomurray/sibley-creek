@@ -1,14 +1,14 @@
 ---
 /*
- * CompactTile - the homepage 6-grid "index tile" (Path C rebuild).
+ * CompactTile - the homepage 6-grid "index tile" (Path C reversal).
  *
- * Path C tile rebuild (2026-05-11). The previous compact tile carried a
- * larger serif section name + indicator label + a tucked-in sparkline next
- * to the value. The new index-tile anatomy moves the section name into a
- * micro-caps eyebrow, lifts a single editorial line into the tile body as
- * the load-bearing prose, replaces the inline sparkline with a wider mini-
- * chart slot, and pulls the value + delta + a one-word surprise verb into
- * a single callout row at the bottom.
+ * Path C tile reversal (2026-05-11). The first Path C build moved a single
+ * editorial sentence into the tile body and added a one-word surprise verb
+ * to the callout row. User reversed: the tile is now indicator-led, not
+ * prose-led. The editorial line is gone; the indicator name (e.g. "Real
+ * GDP, m/m", "Headline CPI, y/y", "USDCAD") takes its slot above the mini-
+ * chart. The surprise verb (BEAT / MISSED / IN LINE) is gone from the
+ * callout; the row simplifies to value + delta only.
  *
  * Tile anatomy (top to bottom):
  *
@@ -18,38 +18,43 @@
  *                letter-spacing 0.08em.
  *        right - as-of date, micro, `--ink-faint`, tabular figures.
  *      Single row, baseline-aligned.
- *   3. Editorial line: body-sm Inter weight 500, `--ink`, clamped to 2
- *      lines, ~12-16 words. Sourced from `section.tileLine`.
+ *   3. Indicator name: body-sm Inter weight 500, `--ink`. Single line; clamps
+ *      to 2 if a future indicator label runs long. Sourced from the load-
+ *      bearing print's `indicator` field (e.g. "Real GDP, m/m", "Headline
+ *      CPI, y/y", "Unemployment rate", "MLS HPI, y/y", "BoC overnight rate",
+ *      "USDCAD", "Merch trade balance"). Not editorial prose — naming, not
+ *      narration. The `Section.tileLine` field on the data record is no
+ *      longer read by this component; it's kept on the type for now so the
+ *      data shape stays stable across the reversal, but ignored at render.
  *   4. Mini-chart slot: aspect-ratio 248/72, max-width 248px. When
  *      `MiniChart` ships from chart-builder it slots in here. v1 renders
  *      a dashed-border placeholder so the layout reads at its final size.
  *   5. Callout row (single line, no wrap):
- *        value         - Inter weight 600, display-sm, tabular figures.
- *        delta         - mono-xs, semantic color by `deltaDir`.
- *        surprise verb - label-size sans, color by direction
- *                        (pos -> `--pos` "beat", neg -> `--neg` "missed",
- *                         neutral -> `--ink-muted` "in line").
+ *        value - Inter weight 600, display-sm, tabular figures.
+ *        delta - mono-xs, semantic color by `deltaDir`.
+ *      The surprise verb (formerly at the right end of this row) was
+ *      dropped per Path C reversal; the row now ends with the delta.
  *
- * What is NOT in the tile (per Path C):
- *   - Italic deck headline question (lives on the hero / section page).
+ * What is NOT in the tile:
+ *   - Editorial sentence (the `tileLine` text, dropped per reversal).
+ *   - Surprise verb (BEAT / MISSED / IN LINE — dropped per reversal).
+ *   - Italic deck headline question (lives on the section page).
  *   - Numeric eyebrow code ("01" / "02" — section-page wayfinding only).
  *   - Separate "AS OF" stamp line (folded into the eyebrow row).
- *   - Revision tag with `[c]` subscript.
- *   - Methodology link.
- *   - Source line.
- *   - Serif display headline (the editorial line is sans body-sm).
- *   - Inline sparkline (replaced by mini-chart slot).
+ *   - Revision tag, methodology link, source line, inline sparkline.
  *
  * The tile remains a full-area link to the section page.
  *
- * Sizing target: ~280px wide x ~190-210px tall on desktop.
+ * Sizing target: ~280px wide x ~170-190px tall on desktop (shorter than
+ * the prior Path C tile by roughly one body-sm line plus the verb line).
  *
  * Props:
  *   section - the Section record. The tile consumes only:
  *               - section name (`label` / `tileLabel`)
- *               - `tileLine` (editorial line)
- *               - hero print's `asOf`, `value`, `delta`, `deltaDir`
- *             Other Section fields (prints[], blurb, etc.) are unused here.
+ *               - hero print's `indicator`, `asOf`, `value`, `delta`,
+ *                 `deltaDir`
+ *             `section.tileLine`, `blurb`, and other prints[] entries are
+ *             ignored here.
  */
 
 import type { Section, SectionPrint, SectionSlug } from "../data/sections";
@@ -145,28 +150,22 @@ const chartSpec: MiniChartSpec = miniChartSpecBySlug[section.slug as SectionSlug
 // site to revisit.
 const finalValueLabel = heroPrint?.value;
 
-// Surprise verb derivation: the print's `deltaDir` already encodes whether
-// the latest reading came in better/worse/as-expected relative to consensus
-// (this is the same signal HeroChart uses to position its consensus tick).
-// We map directly:
-//   pos     -> "beat"    -- the print exceeded consensus in the editorial-
-//                           positive direction (lower CPI, higher GDP, etc.)
-//   neg     -> "missed"  -- print fell on the editorial-negative side
-//   neutral -> "in line" -- print landed within rounding of consensus
-// Colors follow the same mapping at the CSS layer.
-type SurpriseDir = "pos" | "neg" | "neutral";
-const surpriseVerb: Record<SurpriseDir, string> = {
-  pos: "beat",
-  neg: "missed",
-  neutral: "in line",
-};
-const deltaDir: SurpriseDir = (heroPrint?.deltaDir ?? "neutral") as SurpriseDir;
-const verb = surpriseVerb[deltaDir];
+// Path C reversal (2026-05-11): the surprise-verb derivation
+// (pos -> "beat", neg -> "missed", neutral -> "in line") and the
+// `surpriseVerb`/`verb` constants that powered it were removed. The
+// callout row no longer renders a verb. `deltaDir` is still derived
+// because the delta itself (still rendered) needs its semantic color
+// class.
+type DeltaDir = "pos" | "neg" | "neutral";
+const deltaDir: DeltaDir = (heroPrint?.deltaDir ?? "neutral") as DeltaDir;
 
-// Defensive: if a section lacks a tileLine in data, fall back to the section
-// kicker so the tile still renders with editorial content. v1 sets tileLine
-// on every section, so this is belt-and-braces for late data shape edits.
-const tileLine = section.tileLine ?? section.kicker ?? "";
+// Indicator name. Sourced from the load-bearing print's `indicator`
+// field — these are already in the form the design system wants on the
+// tile ("Real GDP, m/m", "Headline CPI, y/y", "Unemployment rate",
+// "MLS HPI, y/y", "BoC overnight rate", "USDCAD", "Merch trade balance").
+// Defensive fallback to the section kicker keeps the slot non-empty if a
+// future data shape ever lands without an indicator string on prints[0].
+const indicatorLabel = heroPrint?.indicator ?? section.kicker ?? "";
 ---
 <a
   class="ctile"
@@ -183,9 +182,13 @@ const tileLine = section.tileLine ?? section.kicker ?? "";
     )}
   </header>
 
-  {/* Editorial line - 2-line clamp at body-sm. The tile's prose voice. */}
-  {tileLine && (
-    <p class="ctile__line">{tileLine}</p>
+  {/* Indicator name - body-sm, single line (2-line clamp as a safety net).
+   * Path C reversal (2026-05-11): replaces the editorial `tileLine` that
+   * previously occupied this slot. The string names the data point shown
+   * in the mini-chart and callout below (e.g. "Headline CPI, y/y"), so
+   * the tile reads as "section, indicator, picture, value" top to bottom. */}
+  {indicatorLabel && (
+    <p class="ctile__indicator">{indicatorLabel}</p>
   )}
 
   {/* Mini-chart slot. chart-builder's MiniChart.astro renders inside the
@@ -213,15 +216,15 @@ const tileLine = section.tileLine ?? section.kicker ?? "";
     </div>
   )}
 
-  {/* Callout row: value + delta + surprise verb. Single row, no wrap. */}
+  {/* Callout row: value + delta. Single row, no wrap. Path C reversal
+   * (2026-05-11): the surprise verb (BEAT / MISSED / IN LINE) that
+   * previously closed this row was removed; the row now ends with the
+   * delta. The delta retains its semantic color via `deltaDir`. */}
   {heroPrint && (
     <div class="ctile__callout">
       <span class="ctile__value">{heroPrint.value}</span>
       <span class:list={["ctile__delta", `ctile__delta--${deltaDir}`]}>
         {heroPrint.delta}
-      </span>
-      <span class:list={["ctile__verb", `ctile__verb--${deltaDir}`]}>
-        {verb}
       </span>
     </div>
   )}
@@ -278,8 +281,9 @@ const tileLine = section.tileLine ?? section.kicker ?? "";
   }
 
   /* Section name. Demoted from the previous serif display-sm header to a
-   * micro-caps eyebrow label. The tile's editorial voice now lives in
-   * .ctile__line below; the name reads as wayfinding, not as a tile title. */
+   * micro-caps eyebrow label. Below it sits the indicator name
+   * (.ctile__indicator); the section name reads as wayfinding, not as a
+   * tile title. */
   .ctile__name {
     font-family: var(--font-sans);
     font-size: var(--fs-label);
@@ -301,18 +305,21 @@ const tileLine = section.tileLine ?? section.kicker ?? "";
     white-space: nowrap;
   }
 
-  /* Editorial line (anatomy item 3). Body-sm Inter at weight 500, ink,
-   * clamped to 2 lines. This is the only editorial prose on the tile;
-   * everything below it is data chrome. */
-  .ctile__line {
+  /* Indicator name (anatomy item 3). Body-sm Inter at weight 500, ink.
+   * Path C reversal (2026-05-11): this slot used to hold the editorial
+   * `tileLine` (a sentence clamped to 2 lines). It now holds the indicator
+   * name (e.g. "Headline CPI, y/y") sourced from the hero print's
+   * `indicator` field — a short label, typically a single line. The 2-line
+   * clamp is retained as a safety net so a future longer indicator string
+   * cannot push the tile taller than the design size. */
+  .ctile__indicator {
     font-family: var(--font-sans);
     font-size: var(--fs-body-sm);
     line-height: var(--lh-body-sm);
     font-weight: var(--fw-medium);
     color: var(--ink);
     margin: var(--s-3) 0 0;
-    /* 2-line clamp. The standard prefix-less `line-clamp` is in baseline
-     * browsers as of mid-2025 but we keep the -webkit- aliases for breadth. */
+    /* 2-line safety clamp. */
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
@@ -330,14 +337,19 @@ const tileLine = section.tileLine ?? section.kicker ?? "";
     aspect-ratio: 248 / 72;
   }
 
-  /* Callout row (anatomy item 5). value + delta + verb on a single line,
-   * no wrap. Sits directly under the mini-chart with a fixed s-3 top gap
+  /* Callout row (anatomy item 5). value + delta on a single line, no wrap.
+   * Sits directly under the mini-chart with a fixed s-3 top gap
    * (design-system 6.1: "the mini-chart bottom sits s-3 above the callout
    * row"). We deliberately do NOT push the callout to the bottom of the
    * tile via margin-top: auto — when tiles stretch to match the hero
    * column's height, the extra air must fall BELOW the callout so the
    * content stays top-aligned. A bottom-anchored callout would put the
-   * gap in the middle of the tile, which reads as a layout bug. */
+   * gap in the middle of the tile, which reads as a layout bug.
+   *
+   * Path C reversal (2026-05-11): the surprise-verb span (BEAT / MISSED /
+   * IN LINE) that previously closed this row was removed. The row now
+   * carries value + delta only; the delta no longer needs the
+   * `margin-left: auto` push that the verb previously used. */
   .ctile__callout {
     margin-top: var(--s-3);
     display: flex;
@@ -374,23 +386,9 @@ const tileLine = section.tileLine ?? section.kicker ?? "";
   .ctile__delta--neg { color: var(--neg); }
   .ctile__delta--neutral { color: var(--neutral); }
 
-  /* Surprise verb. Label-size sans, ALL CAPS for parity with eyebrow
-   * treatment, colored by direction (pos / neg / muted neutral). Sits at
-   * the right end of the callout row, no wrap. */
-  .ctile__verb {
-    font-family: var(--font-sans);
-    font-size: var(--fs-label);
-    line-height: var(--lh-label);
-    font-weight: var(--fw-medium);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-left: auto;
-    white-space: nowrap;
-  }
-
-  .ctile__verb--pos { color: var(--pos); }
-  .ctile__verb--neg { color: var(--neg); }
-  .ctile__verb--neutral { color: var(--ink-muted); }
+  /* Path C reversal (2026-05-11): `.ctile__verb` and its three direction
+   * variants (`--pos`, `--neg`, `--neutral`) were removed. No surprise verb
+   * renders in the callout row anymore. */
 
   /* Hover affordance: card border darkens to ink-muted (.ctile:hover above)
    * and the section name picks up a subtle underline so the link semantic

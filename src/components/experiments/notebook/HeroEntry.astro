@@ -1,0 +1,497 @@
+---
+/*
+ * HeroEntry - the day's load-bearing journal entry. Date-stamped header,
+ * ruled lines, a typed body, with the load-bearing print as a taped-on
+ * Polaroid: a tiny SVG line chart on a white card with a slight rotation
+ * and a strip of yellow "tape" at the top.
+ *
+ * Marginalia in the left gutter (pencil): a section label, a corrected
+ * number with strikethrough + pencil rewrite, and a "see p.X" pointer.
+ */
+import type { Section } from "../../../data/sections";
+import { sections } from "../../../data/sections";
+
+interface Props {
+  hero: Section;
+}
+
+const { hero } = Astro.props;
+
+const print = hero.prints[0];
+const headline = hero.headlineQuestion;
+const blurbBody = hero.blurb.body ?? "";
+
+/* Polaroid sparkline */
+const spark = print.spark ?? [];
+const sw = 300;
+const sh = 110;
+let path = "";
+let lastDotX = 0;
+let lastDotY = 0;
+if (spark.length > 1) {
+  const min = Math.min(...spark);
+  const max = Math.max(...spark);
+  const range = max - min || 1;
+  const stepX = sw / (spark.length - 1);
+  const points = spark.map((v, i) => {
+    const x = i * stepX;
+    const y = sh - ((v - min) / range) * sh;
+    return { x, y };
+  });
+  path = points
+    .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+    .join(" ");
+  const last = points[points.length - 1];
+  lastDotX = last.x;
+  lastDotY = last.y;
+}
+
+/* For the "see p.X" pointer in marginalia, find the page number of the
+ * load-bearing series in the section list (1-indexed). */
+const heroPage = sections.findIndex((s) => s.slug === hero.slug) + 1;
+
+/* Synthesize a plausibly-"corrected" earlier value so the strikethrough
+ * + pencil rewrite in the margin is data-grounded (uses the second-last
+ * spark point as the "first reading"). Falls back if spark is missing. */
+const correctedFrom =
+  spark.length > 1 ? spark[spark.length - 2] : undefined;
+const correctedFromStr =
+  correctedFrom !== undefined && typeof correctedFrom === "number"
+    ? `${correctedFrom > 0 ? "+" : ""}${correctedFrom.toFixed(1)}`
+    : null;
+---
+<section class="nb-entry" aria-labelledby="nb-entry-headline">
+  <div class="nb-entry__grid">
+    <aside class="nb-entry__margin" aria-hidden="true">
+      <span class="nb-entry__pencil-section">
+        {hero.label}
+        <span class="nb-entry__pencil-under" aria-hidden="true"></span>
+      </span>
+
+      {correctedFromStr && (
+        <span class="nb-entry__correction">
+          <span class="nb-entry__corr-strike">{correctedFromStr}</span>
+          <span class="nb-entry__corr-arrow">&#8593;</span>
+          <span class="nb-entry__corr-new">{print.value}</span>
+        </span>
+      )}
+
+      <span class="nb-entry__see-p">
+        see p.{heroPage}
+        <span class="nb-entry__see-p-arrow">&#8594;</span>
+      </span>
+    </aside>
+
+    <div class="nb-entry__body">
+      <div class="nb-entry__head">
+        <p class="nb-entry__date">
+          <span class="nb-entry__date-pen">Today's entry &mdash;</span>
+          <span class="nb-entry__date-print">{hero.heroKicker}</span>
+        </p>
+        <p class="nb-entry__rule" aria-hidden="true"></p>
+      </div>
+
+      <h1 id="nb-entry-headline" class="nb-entry__headline">
+        {headline}
+      </h1>
+
+      <div class="nb-entry__columns">
+        <div class="nb-entry__prose">
+          <p class="nb-entry__lede">
+            {blurbBody}
+          </p>
+
+          <div class="nb-entry__readings">
+            <p class="nb-entry__readings-head">
+              <span class="nb-entry__readings-pen">Today's readings</span>
+              <span class="nb-entry__readings-dash">&mdash;</span>
+            </p>
+            <ul class="nb-entry__readings-list" role="list">
+              {hero.prints.map((p) => (
+                <li class="nb-entry__reading">
+                  <span class="nb-entry__reading-name">{p.indicator}</span>
+                  <span class="nb-entry__reading-dots" aria-hidden="true"></span>
+                  <span class="nb-entry__reading-value">{p.value}</span>
+                  <span class="nb-entry__reading-delta" data-dir={p.deltaDir}>
+                    {p.delta}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <figure class="nb-entry__polaroid" aria-label={`Polaroid: ${print.indicator}`}>
+          <span class="nb-entry__tape" aria-hidden="true"></span>
+          <div class="nb-entry__polaroid-frame">
+            <div class="nb-entry__polaroid-chart">
+              <svg viewBox={`0 0 ${sw} ${sh}`} preserveAspectRatio="none" role="img" aria-label={`Sparkline for ${print.indicator}`}>
+                {/* faint grid lines on the polaroid */}
+                <line x1="0" y1={sh / 2} x2={sw} y2={sh / 2} stroke="var(--nb-pencil-faint)" stroke-width="0.5" stroke-dasharray="2 3" />
+                <line x1="0" y1={sh - 0.5} x2={sw} y2={sh - 0.5} stroke="var(--nb-pencil)" stroke-width="0.7" />
+                {/* sketched line in blue ink */}
+                <path d={path} fill="none" stroke="var(--nb-blue)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" />
+                {/* last-point dot in red ink */}
+                <circle cx={lastDotX} cy={lastDotY} r="2.5" fill="var(--nb-red)" />
+              </svg>
+            </div>
+            <figcaption class="nb-entry__polaroid-caption">
+              <span class="nb-entry__polaroid-hand">{print.indicator}</span>
+              <span class="nb-entry__polaroid-date">{print.asOf}</span>
+            </figcaption>
+          </div>
+        </figure>
+      </div>
+
+      <p class="nb-entry__signoff">
+        <span class="nb-entry__signoff-pen">noted, M.R.D.</span>
+        <span class="nb-entry__signoff-stroke" aria-hidden="true"></span>
+      </p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .nb-entry {
+    position: relative;
+    z-index: 2;
+    padding: 1.6rem 0 2rem;
+  }
+
+  .nb-entry__grid {
+    display: grid;
+    grid-template-columns: var(--nb-margin-width) minmax(0, 1fr);
+    column-gap: var(--nb-gutter);
+    position: relative;
+  }
+
+  /* Left margin: pencil marginalia */
+  .nb-entry__margin {
+    padding-top: 2.5rem;
+    padding-right: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.4rem;
+    align-items: flex-end;
+    text-align: right;
+    font-family: var(--nb-font-hand);
+    color: var(--nb-pencil);
+    line-height: 1.05;
+  }
+  .nb-entry__pencil-section {
+    position: relative;
+    font-size: 1.3rem;
+    color: var(--nb-ink);
+    transform: rotate(-2.2deg);
+    transform-origin: right center;
+    padding-bottom: 0.25rem;
+  }
+  .nb-entry__pencil-under {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -2px;
+    height: 4px;
+    background:
+      linear-gradient(90deg, transparent 0%, var(--nb-pencil) 18%, var(--nb-pencil) 92%, transparent 100%);
+    opacity: 0.55;
+    border-radius: 2px;
+  }
+  .nb-entry__correction {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.05rem;
+    transform: rotate(1.2deg);
+    transform-origin: right center;
+    font-size: 1.05rem;
+  }
+  .nb-entry__corr-strike {
+    color: var(--nb-pencil);
+    position: relative;
+    text-decoration: line-through;
+    text-decoration-color: var(--nb-red);
+    text-decoration-thickness: 1.4px;
+  }
+  .nb-entry__corr-arrow {
+    color: var(--nb-red);
+    font-size: 1rem;
+  }
+  .nb-entry__corr-new {
+    color: var(--nb-ink);
+    font-weight: 700;
+    font-size: 1.2rem;
+  }
+  .nb-entry__see-p {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--nb-pencil);
+    font-size: 1.1rem;
+    transform: rotate(-1.4deg);
+    transform-origin: right center;
+  }
+  .nb-entry__see-p-arrow {
+    color: var(--nb-pencil);
+    font-size: 1.2rem;
+  }
+
+  /* Main body */
+  .nb-entry__body {
+    position: relative;
+    padding-top: 0.4rem;
+  }
+
+  .nb-entry__head {
+    margin-bottom: 1rem;
+  }
+  .nb-entry__date {
+    margin: 0 0 0.4rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+  }
+  .nb-entry__date-pen {
+    font-family: var(--nb-font-hand);
+    font-size: 1.5rem;
+    color: var(--nb-ink);
+    transform: rotate(-0.6deg);
+    transform-origin: left center;
+  }
+  .nb-entry__date-print {
+    font-family: var(--nb-font-typewriter);
+    font-size: 0.95rem;
+    color: var(--nb-blue);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .nb-entry__rule {
+    margin: 0;
+    height: 0;
+    border-top: 1.5px solid var(--nb-ink);
+  }
+
+  .nb-entry__headline {
+    margin: 1rem 0 1.2rem;
+    font-family: var(--nb-font-display);
+    font-weight: 600;
+    font-style: italic;
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    color: var(--nb-ink);
+    text-wrap: balance;
+    max-width: 28ch;
+  }
+
+  .nb-entry__columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+    gap: 2.4rem;
+    align-items: start;
+  }
+  @media (max-width: 880px) {
+    .nb-entry__columns {
+      grid-template-columns: 1fr;
+      gap: 1.6rem;
+    }
+  }
+
+  .nb-entry__prose {
+    /* Sit on the ruled lines */
+  }
+
+  .nb-entry__lede {
+    margin: 0;
+    font-family: var(--nb-font-typewriter);
+    font-size: 1.02rem;
+    line-height: var(--nb-rule);
+    color: var(--nb-ink);
+    text-wrap: pretty;
+  }
+
+  .nb-entry__readings {
+    margin-top: 1.2rem;
+  }
+  .nb-entry__readings-head {
+    margin: 0 0 0.4rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+  }
+  .nb-entry__readings-pen {
+    font-family: var(--nb-font-hand);
+    font-size: 1.2rem;
+    color: var(--nb-ink);
+  }
+  .nb-entry__readings-dash {
+    color: var(--nb-pencil);
+    font-family: var(--nb-font-hand);
+    font-size: 1.2rem;
+  }
+  .nb-entry__readings-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0;
+  }
+  .nb-entry__reading {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.05rem 0;
+    line-height: var(--nb-rule);
+  }
+  .nb-entry__reading-name {
+    font-family: var(--nb-font-typewriter);
+    font-size: 0.95rem;
+    color: var(--nb-ink);
+  }
+  .nb-entry__reading-dots {
+    border-bottom: 1px dotted var(--nb-pencil);
+    height: 1px;
+    align-self: center;
+  }
+  .nb-entry__reading-value {
+    font-family: var(--nb-font-typewriter);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--nb-ink);
+    font-feature-settings: "tnum" 1, "lnum" 1;
+  }
+  .nb-entry__reading-delta {
+    font-family: var(--nb-font-mono);
+    font-size: 0.78rem;
+    color: var(--nb-ink-mute);
+  }
+  .nb-entry__reading-delta[data-dir="pos"] { color: var(--nb-pos); }
+  .nb-entry__reading-delta[data-dir="neg"] { color: var(--nb-red); }
+
+  /* Polaroid */
+  .nb-entry__polaroid {
+    position: relative;
+    margin: 0;
+    transform: rotate(-2.4deg);
+    transform-origin: center top;
+    opacity: 0;
+    animation: nb-polaroid-settle 800ms 360ms cubic-bezier(0.2, 0.6, 0.2, 1) forwards;
+  }
+  .nb-entry__tape {
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%) rotate(-3deg);
+    width: 86px;
+    height: 22px;
+    background: rgba(232, 200, 130, 0.55);
+    border: 1px solid rgba(180, 140, 70, 0.3);
+    z-index: 2;
+    box-shadow:
+      0 1px 1px rgba(0, 0, 0, 0.06);
+  }
+  .nb-entry__polaroid-frame {
+    background: #FBFAF5;
+    padding: 14px 14px 22px;
+    box-shadow:
+      0 1px 1px rgba(31, 27, 20, 0.12),
+      0 8px 18px rgba(31, 27, 20, 0.14),
+      0 22px 38px rgba(31, 27, 20, 0.10);
+    position: relative;
+    z-index: 1;
+  }
+  .nb-entry__polaroid-chart {
+    background: #FCFBF6;
+    border: 1px solid var(--nb-pencil-faint);
+    aspect-ratio: 300 / 110;
+    width: 100%;
+    overflow: hidden;
+  }
+  .nb-entry__polaroid-chart svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .nb-entry__polaroid-caption {
+    margin-top: 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.6rem;
+  }
+  .nb-entry__polaroid-hand {
+    font-family: var(--nb-font-hand);
+    font-size: 1.05rem;
+    color: var(--nb-ink);
+  }
+  .nb-entry__polaroid-date {
+    font-family: var(--nb-font-typewriter);
+    font-size: 0.78rem;
+    color: var(--nb-pencil);
+    letter-spacing: 0.04em;
+  }
+
+  /* Sign-off */
+  .nb-entry__signoff {
+    margin: 1.6rem 0 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    transform: rotate(-1.2deg);
+    transform-origin: left center;
+  }
+  .nb-entry__signoff-pen {
+    font-family: var(--nb-font-hand);
+    font-size: 1.4rem;
+    color: var(--nb-ink);
+  }
+  .nb-entry__signoff-stroke {
+    display: inline-block;
+    width: 60px;
+    height: 6px;
+    background:
+      radial-gradient(ellipse at 20% 50%, var(--nb-ink) 0 35%, transparent 60%),
+      radial-gradient(ellipse at 80% 50%, var(--nb-ink) 0 35%, transparent 60%);
+    opacity: 0.6;
+  }
+
+  @media (max-width: 720px) {
+    .nb-entry__grid {
+      grid-template-columns: 1fr;
+      column-gap: 0;
+    }
+    .nb-entry__margin {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      text-align: left;
+      padding-top: 0;
+      padding-bottom: 0.6rem;
+      gap: 1.2rem;
+    }
+    .nb-entry__correction {
+      flex-direction: row;
+      align-items: baseline;
+      gap: 0.4rem;
+    }
+  }
+
+  @keyframes nb-polaroid-settle {
+    from {
+      opacity: 0;
+      transform: rotate(0deg) translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: rotate(-2.4deg) translateY(0);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .nb-entry__polaroid {
+      animation: none;
+      opacity: 1;
+    }
+  }
+</style>

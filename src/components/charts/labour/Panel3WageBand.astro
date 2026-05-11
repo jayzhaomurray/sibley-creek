@@ -1,0 +1,406 @@
+---
+/*
+ * Panel3WageBand - four-measure wage band + CPI services comparator.
+ *
+ * Implements design/basics-layer-template.md Section 9.B Panel 3.
+ *
+ * Visual: time-series band of four wage measures (LFS all-employee, LFS
+ * permanent, SEPH, BoC LFS-Micro composition-adjusted) drawn as a single
+ * shaded envelope (min..max at each t) with a median line through the
+ * middle. CPI services Y/Y plotted as a single comparator line in
+ * series-2 (the Inflation section's burnt orange) so the reader sees
+ * the cross-section reference.
+ *
+ * Band fill: series-3 @ 20% opacity. Edges (min/max): series-3 @ 40%
+ * opacity, 1px solid. Median line: series-3 (sage), 1.5px solid weight 500.
+ *
+ * Plot vs SVG: hand-rolled SVG. The band is a single polygon (forward
+ * along max + back along min, closed); plus three lines. Trivial.
+ */
+
+interface WageRow {
+  date: string;            // "YYYY-MM"
+  lfs_all: number;         // % Y/Y
+  lfs_perm: number;
+  seph: number;
+  lfs_micro_adj: number;
+  cpi_services: number;
+}
+
+interface Props {
+  data?: WageRow[];
+  ariaLabel?: string;
+}
+
+function makePlaceholder(): WageRow[] {
+  // 60 months ending Apr 2026. Four wage measures track each other within
+  // a 0.5-1.5pp band; CPI services Y/Y stays elevated.
+  const out: WageRow[] = [];
+  let y = 2021;
+  let m = 5;
+  for (let i = 0; i < 60; i++) {
+    // Median wage trajectory: 4.5 in 2021, peaks ~5.5 in 2023, easing to 3.8 in 2026.
+    let med: number;
+    if (i < 18) med = 4.5 + (5.4 - 4.5) * (i / 18);
+    else if (i < 30) med = 5.4 - (5.4 - 4.9) * ((i - 18) / 12);
+    else med = 4.9 - (4.9 - 3.8) * ((i - 30) / 29);
+    // Spread (max - min) of the band, ~1.0-1.4pp
+    const spread = 0.8 + 0.3 * Math.sin(i * 0.4);
+    const lfs_all = med + spread * 0.6 + 0.1 * Math.sin(i * 0.7);
+    const lfs_perm = med + spread * 0.2 + 0.05 * Math.cos(i * 0.5);
+    const seph = med - spread * 0.4 + 0.05 * Math.sin(i * 0.6);
+    const lfs_micro_adj = med - spread * 0.5 + 0.05 * Math.cos(i * 0.4);
+    // CPI services Y/Y: sticky around 4.2-4.5, easing recently to 3.6.
+    let cpi: number;
+    if (i < 24) cpi = 4.0 + 0.3 * Math.sin(i * 0.5);
+    else if (i < 48) cpi = 4.2 + 0.15 * Math.cos(i * 0.4);
+    else cpi = 4.2 - (4.2 - 3.6) * ((i - 48) / 11);
+    out.push({
+      date: `${y}-${String(m).padStart(2, "0")}`,
+      lfs_all: Number(lfs_all.toFixed(2)),
+      lfs_perm: Number(lfs_perm.toFixed(2)),
+      seph: Number(seph.toFixed(2)),
+      lfs_micro_adj: Number(lfs_micro_adj.toFixed(2)),
+      cpi_services: Number(cpi.toFixed(2)),
+    });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+const {
+  data = makePlaceholder(),
+  ariaLabel = "Wage band (4 measures) and CPI services Y/Y, last 5 years",
+} = Astro.props;
+
+// ---- Geometry --------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 44;
+const M_R = 100;
+const M_T = 36;
+const M_B = 36;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+const n = data.length;
+function decYearOf(d: string): number {
+  const [yy, mm] = d.split("-").map(Number);
+  return yy + (mm - 0.5) / 12;
+}
+const xs = data.map((d) => decYearOf(d.date));
+const xMin = xs[0];
+const xMax = xs[xs.length - 1];
+
+// Per-point band stats.
+interface BandPoint { i: number; x: number; min: number; max: number; med: number; cpi: number; }
+const band: BandPoint[] = data.map((d, i) => {
+  const measures = [d.lfs_all, d.lfs_perm, d.seph, d.lfs_micro_adj];
+  const min = Math.min(...measures);
+  const max = Math.max(...measures);
+  // Median of 4 = average of middle two.
+  const sorted = [...measures].sort((a, b) => a - b);
+  const med = (sorted[1] + sorted[2]) / 2;
+  const x = xs[i];
+  return { i, x, min, max, med, cpi: d.cpi_services };
+});
+
+// Y range: include all band edges + cpi.
+const allVals = band.flatMap((p) => [p.min, p.max, p.cpi]);
+const rawMin = Math.min(...allVals);
+const rawMax = Math.max(...allVals);
+let yLo = Math.floor(rawMin - 0.5);
+let yHi = Math.ceil(rawMax + 0.5);
+// Snap to halves.
+yLo = Math.floor(yLo * 2) / 2;
+yHi = Math.ceil(yHi * 2) / 2;
+if (yHi - yLo < 4) yHi = yLo + 4;
+
+function xScale(decY: number): number {
+  return PLOT_X0 + ((decY - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - yLo) / (yHi - yLo)) * PLOT_H;
+}
+
+// Band polygon: forward along max, back along min.
+function buildBandPolygon(): string {
+  let d = "";
+  band.forEach((p, i) => {
+    const x = xScale(p.x);
+    const y = yScale(p.max);
+    d += `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)} `;
+  });
+  for (let i = n - 1; i >= 0; i--) {
+    const p = band[i];
+    const x = xScale(p.x);
+    const y = yScale(p.min);
+    d += `L${x.toFixed(2)} ${y.toFixed(2)} `;
+  }
+  d += "Z";
+  return d;
+}
+function buildLine(pickV: (p: BandPoint) => number): string {
+  return band
+    .map((p, i) => {
+      const x = xScale(p.x);
+      const y = yScale(pickV(p));
+      return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
+const bandPath = buildBandPolygon();
+const maxPath = buildLine((p) => p.max);
+const minPath = buildLine((p) => p.min);
+const medPath = buildLine((p) => p.med);
+const cpiPath = buildLine((p) => p.cpi);
+
+// Gridlines.
+const yTicks: number[] = [];
+const yStep = (yHi - yLo) > 6 ? 1 : 0.5;
+for (let v = yLo; v <= yHi + 1e-9; v += yStep) {
+  yTicks.push(Number(v.toFixed(2)));
+}
+
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const yearTicks: Array<{ x: number; label: string }> = [];
+for (let yy = yearStart; yy <= yearEnd; yy++) {
+  const decY = yy + (1 - 0.5) / 12;
+  if (decY < xMin || decY > xMax) continue;
+  yearTicks.push({ x: xScale(decY), label: String(yy) });
+}
+
+// Latest values
+const last = band[n - 1];
+const lastMedX = xScale(last.x);
+const lastMedY = yScale(last.med);
+const lastCpiX = lastMedX;
+const lastCpiY = yScale(last.cpi);
+
+// Annotations
+const medAnno = `Median: ${last.med.toFixed(1)}%`;
+const cpiAnno = `Services CPI: ${last.cpi.toFixed(1)}%`;
+---
+<div class="labour-panel-chart" data-panel="3">
+  <svg
+    class="labour-panel-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* Y gridlines */}
+    {yTicks.map((v) => {
+      const y = yScale(v);
+      return (
+        <line
+          class="labour-panel-chart__gridline"
+          x1={PLOT_X0}
+          y1={y.toFixed(2)}
+          x2={PLOT_X1}
+          y2={y.toFixed(2)}
+        />
+      );
+    })}
+
+    {/* Band fill */}
+    <path class="labour-panel-chart__band-fill" d={bandPath} />
+    {/* Band edges */}
+    <path class="labour-panel-chart__band-edge" d={maxPath} fill="none" />
+    <path class="labour-panel-chart__band-edge" d={minPath} fill="none" />
+
+    {/* CPI services comparator (Inflation section accent, deliberately
+        cross-referencing) */}
+    <path class="labour-panel-chart__line-cpi" d={cpiPath} fill="none" />
+
+    {/* Median line (load-bearing read) */}
+    <path class="labour-panel-chart__line-med" d={medPath} fill="none" />
+
+    {/* Latest markers */}
+    <circle
+      class="labour-panel-chart__marker-med"
+      cx={lastMedX.toFixed(2)}
+      cy={lastMedY.toFixed(2)}
+      r="4"
+    >
+      <title>{`${data[n-1].date}: ${last.med.toFixed(2)}% median wage Y/Y`}</title>
+    </circle>
+    <circle
+      class="labour-panel-chart__marker-cpi"
+      cx={lastCpiX.toFixed(2)}
+      cy={lastCpiY.toFixed(2)}
+      r="3"
+    >
+      <title>{`${data[n-1].date}: ${last.cpi.toFixed(2)}% CPI services Y/Y`}</title>
+    </circle>
+
+    {/* X-axis */}
+    <line
+      class="labour-panel-chart__xaxis"
+      x1={PLOT_X0}
+      y1={PLOT_Y1.toFixed(2)}
+      x2={PLOT_X1}
+      y2={PLOT_Y1.toFixed(2)}
+    />
+    {yearTicks.map((t) => (
+      <g>
+        <line
+          class="labour-panel-chart__xtick"
+          x1={t.x.toFixed(2)}
+          y1={PLOT_Y1.toFixed(2)}
+          x2={t.x.toFixed(2)}
+          y2={(PLOT_Y1 + 4).toFixed(2)}
+        />
+        <text
+          class="labour-panel-chart__xtick-label"
+          x={t.x.toFixed(2)}
+          y={(PLOT_Y1 + 16).toFixed(2)}
+          text-anchor="middle"
+        >{t.label}</text>
+      </g>
+    ))}
+
+    {/* Y-axis labels */}
+    {yTicks.map((v, i) => {
+      const y = yScale(v);
+      const isTop = i === yTicks.length - 1;
+      const text = `${v.toFixed(yStep < 1 ? 1 : 0)}${isTop ? "%" : ""}`;
+      return (
+        <text
+          class="labour-panel-chart__ytick-label"
+          x={(PLOT_X0 - 6).toFixed(2)}
+          y={(y + 3.5).toFixed(2)}
+          text-anchor="end"
+        >{text}</text>
+      );
+    })}
+
+    {/* Unit */}
+    <text
+      class="labour-panel-chart__unit"
+      x={PLOT_X0.toFixed(2)}
+      y={(PLOT_Y0 - 18).toFixed(2)}
+      text-anchor="start"
+    >% Y/Y</text>
+
+    {/* Direct labels at termini */}
+    <text
+      class="labour-panel-chart__direct-label labour-panel-chart__direct-label--med"
+      x={(lastMedX + 8).toFixed(2)}
+      y={(lastMedY + 4).toFixed(2)}
+      text-anchor="start"
+    >{medAnno}</text>
+    <text
+      class="labour-panel-chart__direct-label labour-panel-chart__direct-label--cpi"
+      x={(lastCpiX + 8).toFixed(2)}
+      y={(lastCpiY + 4).toFixed(2)}
+      text-anchor="start"
+    >{cpiAnno}</text>
+
+    {/* Caption naming the four measures in the band */}
+    <text
+      class="labour-panel-chart__caption"
+      x={(PLOT_X0 + 8).toFixed(2)}
+      y={(PLOT_Y0 + 14).toFixed(2)}
+      text-anchor="start"
+    >Band: LFS all-emp / LFS perm / SEPH / LFS-Micro adj.</text>
+  </svg>
+</div>
+
+<style>
+  .labour-panel-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--surface);
+    overflow: visible;
+  }
+  .labour-panel-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+  .labour-panel-chart__gridline {
+    stroke: var(--rule-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__band-fill {
+    fill: var(--series-3);
+    fill-opacity: 0.2;
+    stroke: none;
+  }
+  .labour-panel-chart__band-edge {
+    stroke: var(--series-3);
+    stroke-opacity: 0.4;
+    stroke-width: 1;
+    fill: none;
+  }
+  .labour-panel-chart__line-med {
+    stroke: var(--series-3);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+  }
+  .labour-panel-chart__line-cpi {
+    stroke: var(--series-2);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+  }
+  .labour-panel-chart__marker-med {
+    fill: var(--series-3);
+    stroke: var(--surface);
+    stroke-width: 1;
+  }
+  .labour-panel-chart__marker-cpi {
+    fill: var(--series-2);
+    stroke: var(--surface);
+    stroke-width: 1;
+  }
+  .labour-panel-chart__xaxis {
+    stroke: var(--rule);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__xtick {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__ytick-label,
+  .labour-panel-chart__xtick-label {
+    fill: var(--ink-faint);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .labour-panel-chart__unit {
+    fill: var(--ink-faint);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+  }
+  .labour-panel-chart__caption {
+    fill: var(--ink-faint);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-style: italic;
+  }
+  .labour-panel-chart__direct-label {
+    font-size: 12px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .labour-panel-chart__direct-label--med { fill: var(--series-3); }
+  .labour-panel-chart__direct-label--cpi { fill: var(--series-2); }
+</style>

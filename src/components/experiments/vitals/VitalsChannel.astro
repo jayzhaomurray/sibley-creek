@@ -1,0 +1,734 @@
+---
+/*
+ * VitalsChannel - one horizontal vital-sign row in the monitor.
+ *
+ * Anatomy (left to right):
+ *   1. Label rail  - channel index, clinical code, section name, display
+ *   2. Waveform    - sweeping SVG line in the channel's vital color
+ *   3. Big value   - the current load-bearing print, JetBrains Mono heavy
+ *   4. Limits      - alarm thresholds (LOW / HIGH) and unit
+ *
+ * Waveform "sweep" is implemented as a CSS keyframe that translates a
+ * doubled path horizontally - the path is drawn twice end-to-end so the
+ * loop never shows a seam. The translation runs from 0% (showing the
+ * left half) to -50% (showing the right half), creating a continuous
+ * right-to-left sweep across the visible plot area.
+ *
+ * Trace shapes:
+ *   ecg    - QRS-style spikes between baseline runs; for ECG / heart rate
+ *   pleth  - smooth, rounded photoplethysmograph wave; for SpO2
+ *   resp   - slow sinusoid; for respiration
+ *   art    - sharp arterial pulse with dicrotic notch; for invasive BP
+ *   step   - staircase; for paced rhythm (Policy)
+ *   drift  - random-walk-ish noisy line; for FX / market series
+ */
+
+import type { Section, SectionPrint } from "../../../data/sections";
+
+type VitalColor = "green" | "cyan" | "yellow" | "red";
+type TraceKind = "ecg" | "pleth" | "resp" | "art" | "step" | "drift";
+type StatusKind = "WNL" | "WATCH" | "ALARM" | "PACED";
+
+interface Props {
+  section: Section;
+  print: SectionPrint;
+  channelIndex: number;
+  isLead: boolean;
+  color: VitalColor;
+  code: string;
+  unit: string;
+  trace: TraceKind;
+  display: string;
+  low: string;
+  high: string;
+  status: StatusKind;
+}
+
+const {
+  section,
+  print,
+  channelIndex,
+  isLead,
+  color,
+  code,
+  unit,
+  trace,
+  display,
+  low,
+  high,
+  status,
+} = Astro.props;
+
+/*
+ * Build the waveform SVG path. The path spans 0..200 on x (two repeats
+ * of a 0..100 unit so the CSS translate(-50%) yields a seamless loop)
+ * and -40..+40 on y (the plot area is 80px tall, centered).
+ *
+ * Each trace kind defines one period of its motif over a [0, 100] band;
+ * we draw the motif twice. To make each row feel different even though
+ * the engine is shared, each section's `spark` series subtly biases the
+ * motif's amplitude or baseline (deterministic, no Math.random).
+ */
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, n));
+}
+
+// Bias derives a stable signed value in [-1, 1] from the print's spark
+// (or from the section slug if no spark is present). Used to nudge the
+// waveform so neighbouring channels don't all draw identically.
+function biasFor(p: SectionPrint, slug: string): number {
+  const s = p.spark && p.spark.length ? p.spark : null;
+  if (s) {
+    const last = s[s.length - 1] ?? 0;
+    const first = s[0] ?? 0;
+    const range = Math.max(1e-6, Math.max(...s) - Math.min(...s));
+    return clamp((last - first) / range, -1, 1);
+  }
+  // Deterministic fallback - sum of char codes mod something stable.
+  let acc = 0;
+  for (const c of slug) acc = (acc * 31 + c.charCodeAt(0)) >>> 0;
+  return ((acc % 200) - 100) / 100;
+}
+
+const bias = biasFor(print, section.slug);
+
+// One period of each trace as a sequence of (x, y) points in the
+// [0, 100] x [-40, +40] band. Each kind hand-shaped to read clinically.
+type Pt = [number, number];
+
+function ecgPeriod(): Pt[] {
+  // ISO-electric baseline with a P-Q-R-S-T sequence around x=55-75.
+  // R-wave amplitude lightly biased.
+  const r = 28 + bias * 6;
+  return [
+    [0, 0],
+    [10, 0],
+    [22, 0],
+    [40, 0],
+    [48, -2],
+    [52, 4],      // P
+    [56, 0],
+    [60, 6],      // Q approach
+    [62, -8],     // Q
+    [64, r],      // R (spike)
+    [66, -16],    // S
+    [68, -4],
+    [74, 8],      // T
+    [80, 2],
+    [86, 0],
+    [100, 0],
+  ];
+}
+
+function plethPeriod(): Pt[] {
+  // Photoplethysmograph - smooth rounded systolic peak + slower notch.
+  const amp = 22 + bias * 4;
+  return [
+    [0, 0],
+    [10, -4],
+    [20, -8],
+    [28, -2],
+    [36, 14],
+    [42, amp],
+    [50, amp - 4],
+    [58, 6],
+    [66, -2],
+    [76, -8],
+    [86, -4],
+    [100, 0],
+  ];
+}
+
+function respPeriod(): Pt[] {
+  // Slow respiratory sinusoid - one inhale / exhale per period.
+  const amp = 22 + bias * 6;
+  const out: Pt[] = [];
+  for (let i = 0; i <= 20; i++) {
+    const x = (i / 20) * 100;
+    const y = -Math.sin((i / 20) * Math.PI * 2) * amp;
+    out.push([x, y]);
+  }
+  return out;
+}
+
+function artPeriod(): Pt[] {
+  // Arterial line pulse - sharp upstroke, dicrotic notch, downstroke.
+  const amp = 30 + bias * 4;
+  return [
+    [0, 0],
+    [12, 0],
+    [18, -6],
+    [22, amp],
+    [28, amp - 4],
+    [34, 12],
+    [38, 18],     // dicrotic
+    [44, 8],
+    [54, 0],
+    [70, -2],
+    [86, 0],
+    [100, 0],
+  ];
+}
+
+function stepPeriod(): Pt[] {
+  // Paced staircase - a couple of holds with one step.
+  const lvl1 = -6 + bias * 4;
+  const lvl2 = 16 + bias * 6;
+  return [
+    [0, lvl1],
+    [38, lvl1],
+    [40, lvl2],
+    [78, lvl2],
+    [80, lvl1],
+    [100, lvl1],
+  ];
+}
+
+function driftPeriod(): Pt[] {
+  // FX-style random-walk-ish noise, hand-curated to read as drift.
+  const a = bias * 8;
+  return [
+    [0, 4 + a],
+    [8, -4 + a],
+    [16, 6 + a],
+    [24, -2 + a],
+    [32, 10 + a],
+    [40, 2 + a],
+    [48, -8 + a],
+    [56, 0 + a],
+    [64, 8 + a],
+    [72, -4 + a],
+    [80, 12 + a],
+    [88, 0 + a],
+    [100, 6 + a],
+  ];
+}
+
+function periodPts(kind: TraceKind): Pt[] {
+  switch (kind) {
+    case "ecg": return ecgPeriod();
+    case "pleth": return plethPeriod();
+    case "resp": return respPeriod();
+    case "art": return artPeriod();
+    case "step": return stepPeriod();
+    case "drift": return driftPeriod();
+  }
+}
+
+function ptsToPath(pts: Pt[]): string {
+  if (!pts.length) return "";
+  let d = `M ${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`;
+  for (let i = 1; i < pts.length; i++) {
+    d += ` L ${pts[i][0].toFixed(2)},${pts[i][1].toFixed(2)}`;
+  }
+  return d;
+}
+
+const one = periodPts(trace);
+// Build a doubled trace path: 0..100 then 100..200 (same shape repeated)
+// for a seamless translate(-50%) loop.
+const doubled: Pt[] = [...one, ...one.slice(1).map<Pt>(([x, y]) => [x + 100, y])];
+const tracePath = ptsToPath(doubled);
+
+// Per-trace sweep speed (sec) - slower for resp / step / drift so the
+// row feels right by metaphor. Honoured by prefers-reduced-motion via
+// the global reset on the page.
+const sweepSec: Record<TraceKind, number> = {
+  ecg: 6,
+  pleth: 5,
+  resp: 14,
+  art: 6,
+  step: 12,
+  drift: 18,
+};
+const sweepDur = sweepSec[trace];
+
+// Index code (e.g. "01", "02") for the rail.
+const idx = String(channelIndex).padStart(2, "0");
+
+// Value formatting - the channel pulls the print's pre-formatted `value`.
+// We split off a leading sign if present so we can render it in muted ink.
+const valStr = print.value;
+const valHasSign = /^[+\-]/.test(valStr);
+const valSign = valHasSign ? valStr.slice(0, 1) : "";
+const valRest = valHasSign ? valStr.slice(1) : valStr;
+
+// Section accent color value resolved at build (for inline SVG style).
+const accentVar = `var(--vt-${color})`;
+const accentDimVar = `var(--vt-${color}-dim)`;
+---
+
+<article
+  class="vt-ch"
+  data-color={color}
+  data-lead={isLead ? "1" : "0"}
+  data-status={status.toLowerCase()}
+  aria-labelledby={`vt-ch-${section.slug}-h`}
+>
+  {/* Left rail - channel identifier + clinical code */}
+  <div class="vt-ch__rail">
+    <p class="vt-ch__idx" aria-hidden="true">{idx}</p>
+    <p class="vt-ch__code">{code}</p>
+    <h3 class="vt-ch__display" id={`vt-ch-${section.slug}-h`}>
+      <a class="vt-ch__display-link" href={`/${section.slug}`}>
+        {display}
+      </a>
+    </h3>
+    <p class="vt-ch__section">{section.label}</p>
+    {isLead && (
+      <p class="vt-ch__lead-tag" aria-label="Most recently updated channel">
+        <span class="vt-ch__lead-dot" aria-hidden="true"></span>
+        LEAD
+      </p>
+    )}
+  </div>
+
+  {/* Waveform plot - the sweeping ECG-like trace */}
+  <div class="vt-ch__plot" aria-hidden="true">
+    {/* Faint grid layer */}
+    <svg class="vt-ch__grid" viewBox="0 0 200 80" preserveAspectRatio="none">
+      <defs>
+        <pattern
+          id={`vt-grid-${section.slug}`}
+          width="10"
+          height="10"
+          patternUnits="userSpaceOnUse"
+        >
+          <path
+            d="M 10 0 L 0 0 0 10"
+            fill="none"
+            stroke="rgba(255,255,255,0.04)"
+            stroke-width="0.5"
+          />
+        </pattern>
+      </defs>
+      <rect
+        width="200"
+        height="80"
+        fill={`url(#vt-grid-${section.slug})`}
+      ></rect>
+      <line
+        x1="0"
+        y1="40"
+        x2="200"
+        y2="40"
+        stroke="rgba(255,255,255,0.06)"
+        stroke-width="0.5"
+        stroke-dasharray="2 3"
+      ></line>
+    </svg>
+
+    {/* The sweeping trace - SVG with viewBox 0..200 / -40..+40,
+        translated leftward by the keyframe. */}
+    <svg
+      class="vt-ch__trace"
+      viewBox="0 -40 200 80"
+      preserveAspectRatio="none"
+      style={`animation-duration: ${sweepDur}s;`}
+    >
+      {/* Soft glow underlay */}
+      <path
+        d={tracePath}
+        fill="none"
+        stroke={accentDimVar}
+        stroke-width="3.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        opacity="0.55"
+      ></path>
+      {/* Crisp top stroke */}
+      <path
+        d={tracePath}
+        fill="none"
+        stroke={accentVar}
+        stroke-width="1.4"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        vector-effect="non-scaling-stroke"
+      ></path>
+    </svg>
+
+    {/* Right-edge cursor / sweep marker */}
+    <span class="vt-ch__cursor" aria-hidden="true"></span>
+  </div>
+
+  {/* Big readout */}
+  <div class="vt-ch__value">
+    <p class="vt-ch__value-unit">{unit}</p>
+    <p class="vt-ch__value-big">
+      {valSign && <span class="vt-ch__value-sign">{valSign}</span>}
+      <span class="vt-ch__value-rest">{valRest}</span>
+    </p>
+    <p class="vt-ch__value-delta">
+      {print.delta}
+    </p>
+  </div>
+
+  {/* Alarm limits column */}
+  <div class="vt-ch__limits">
+    <div class="vt-ch__limit vt-ch__limit--hi">
+      <span class="vt-ch__limit-k">HI</span>
+      <span class="vt-ch__limit-v">{high}</span>
+    </div>
+    <div class="vt-ch__limit vt-ch__limit--lo">
+      <span class="vt-ch__limit-k">LO</span>
+      <span class="vt-ch__limit-v">{low}</span>
+    </div>
+    <p class="vt-ch__status" data-status={status.toLowerCase()}>
+      <span class="vt-ch__status-pip" aria-hidden="true"></span>
+      {status}
+    </p>
+    <p class="vt-ch__asof">{print.asOf}</p>
+  </div>
+</article>
+
+<style>
+  .vt-ch {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    grid-template-areas:
+      "rail value"
+      "plot plot"
+      "limits limits";
+    gap: 0;
+    background: var(--vt-panel);
+    border: 1px solid var(--vt-panel-edge);
+    border-left: 3px solid var(--accent, var(--vt-ink-mute));
+    position: relative;
+    overflow: hidden;
+    min-height: 124px;
+  }
+  @media (min-width: 720px) {
+    .vt-ch {
+      grid-template-columns: 124px minmax(0, 1fr) 168px 116px;
+      grid-template-areas: "rail plot value limits";
+      min-height: 124px;
+    }
+  }
+
+  /* Channel accent map - controls .vt-ch border-left + name color. */
+  .vt-ch[data-color="green"]  { --accent: var(--vt-green); }
+  .vt-ch[data-color="cyan"]   { --accent: var(--vt-cyan); }
+  .vt-ch[data-color="yellow"] { --accent: var(--vt-yellow); }
+  .vt-ch[data-color="red"]    { --accent: var(--vt-red); }
+
+  /* Top-edge color rail - subtle 1px hairline under the border. */
+  .vt-ch::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.32;
+  }
+
+  /* --------------------- Rail (left) --------------------- */
+  .vt-ch__rail {
+    grid-area: rail;
+    padding: 12px 14px 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--vt-panel-deep);
+    border-right: 1px solid var(--vt-rule);
+    position: relative;
+  }
+  .vt-ch__idx {
+    font-family: var(--vt-label);
+    font-size: 9.5px;
+    letter-spacing: 0.2em;
+    color: var(--vt-ink-faint);
+  }
+  .vt-ch__code {
+    font-family: var(--vt-display);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .vt-ch__display {
+    font-family: var(--vt-display);
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: 0.06em;
+    color: var(--vt-ink);
+    line-height: 1;
+    margin-top: 4px;
+  }
+  .vt-ch__display-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    padding-bottom: 1px;
+  }
+  .vt-ch__display-link:hover,
+  .vt-ch__display-link:focus-visible {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    outline: none;
+  }
+  .vt-ch__display-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+  .vt-ch__section {
+    font-family: var(--vt-label);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--vt-ink-faint);
+  }
+  .vt-ch__lead-tag {
+    margin-top: auto;
+    font-family: var(--vt-label);
+    font-size: 9.5px;
+    letter-spacing: 0.22em;
+    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .vt-ch__lead-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 6px currentColor;
+  }
+  /* Heartbeat pulse on the LEAD channel - the most-recently-updated row.
+     Honours prefers-reduced-motion via the global reset. */
+  .vt-ch[data-lead="1"] .vt-ch__lead-dot {
+    animation: vt-heartbeat 1100ms ease-in-out infinite;
+  }
+  .vt-ch[data-lead="1"]::before {
+    opacity: 0.7;
+    animation: vt-edgepulse 1100ms ease-in-out infinite;
+  }
+  @keyframes vt-heartbeat {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    20% { transform: scale(1.4); opacity: 1; }
+    35% { transform: scale(0.9); opacity: 0.6; }
+    55% { transform: scale(1.25); opacity: 1; }
+    70% { transform: scale(0.95); opacity: 0.75; }
+  }
+  @keyframes vt-edgepulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 0.3; }
+  }
+
+  /* --------------------- Plot (centre) --------------------- */
+  .vt-ch__plot {
+    grid-area: plot;
+    position: relative;
+    height: 80px;
+    overflow: hidden;
+    background: linear-gradient(180deg,
+      var(--vt-panel-deep) 0%,
+      var(--vt-panel) 100%);
+    border-top: 1px solid var(--vt-rule-soft);
+    border-bottom: 1px solid var(--vt-rule-soft);
+  }
+  @media (min-width: 720px) {
+    .vt-ch__plot {
+      height: 100%;
+      min-height: 92px;
+      border-top: none;
+      border-bottom: none;
+      border-right: 1px solid var(--vt-rule);
+    }
+  }
+
+  .vt-ch__grid {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .vt-ch__trace {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 200%;
+    height: 100%;
+    display: block;
+    animation-name: vt-sweep;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+    will-change: transform;
+    filter: drop-shadow(0 0 4px var(--accent));
+  }
+
+  @keyframes vt-sweep {
+    0%   { transform: translateX(0%); }
+    100% { transform: translateX(-50%); }
+  }
+
+  /* Sweep cursor - vertical line at the right edge that pulses. */
+  .vt-ch__cursor {
+    position: absolute;
+    right: 4px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    opacity: 0.8;
+    animation: vt-cursor-blink 1.4s steps(2) infinite;
+  }
+  @keyframes vt-cursor-blink {
+    0% { opacity: 0.85; }
+    100% { opacity: 0.35; }
+  }
+
+  /* --------------------- Big value (right of plot) --------------------- */
+  .vt-ch__value {
+    grid-area: value;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    color: var(--accent);
+    background: var(--vt-panel);
+    border-right: 1px solid var(--vt-rule);
+  }
+  @media (min-width: 720px) {
+    .vt-ch__value {
+      align-items: flex-end;
+      text-align: right;
+    }
+  }
+  .vt-ch__value-unit {
+    font-family: var(--vt-label);
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--vt-ink-faint);
+  }
+  .vt-ch__value-big {
+    font-family: var(--vt-display);
+    font-weight: 800;
+    font-size: 38px;
+    letter-spacing: 0.01em;
+    color: currentColor;
+    line-height: 1;
+    text-shadow: 0 0 12px color-mix(in srgb, currentColor 35%, transparent);
+    font-feature-settings: "tnum" 1, "zero" 1;
+    font-variant-numeric: tabular-nums;
+  }
+  @media (min-width: 720px) {
+    .vt-ch__value-big { font-size: 44px; }
+  }
+  .vt-ch__value-sign {
+    color: var(--vt-ink-mute);
+    font-weight: 500;
+    margin-right: 2px;
+  }
+  .vt-ch__value-rest { color: currentColor; }
+  .vt-ch__value-delta {
+    font-family: var(--vt-display);
+    font-size: 11px;
+    color: var(--vt-ink-mute);
+    letter-spacing: 0.04em;
+    font-weight: 500;
+  }
+
+  /* --------------------- Alarm limits (far right) --------------------- */
+  .vt-ch__limits {
+    grid-area: limits;
+    padding: 10px 14px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "hi lo"
+      "status asof";
+    gap: 6px 12px;
+    align-items: center;
+    background: var(--vt-panel-deep);
+  }
+  @media (min-width: 720px) {
+    .vt-ch__limits {
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "hi"
+        "lo"
+        "status"
+        "asof";
+      gap: 4px;
+      padding: 12px 14px;
+    }
+  }
+  .vt-ch__limit {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-family: var(--vt-display);
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--vt-ink);
+  }
+  .vt-ch__limit--hi { grid-area: hi; }
+  .vt-ch__limit--lo { grid-area: lo; }
+  .vt-ch__limit-k {
+    font-family: var(--vt-label);
+    font-size: 9.5px;
+    letter-spacing: 0.2em;
+    color: var(--vt-ink-faint);
+  }
+  .vt-ch__limit-v {
+    font-feature-settings: "tnum" 1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+
+  .vt-ch__status {
+    grid-area: status;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--vt-label);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    margin-top: 4px;
+  }
+  .vt-ch__status[data-status="wnl"] { color: var(--vt-green); }
+  .vt-ch__status[data-status="watch"] { color: var(--vt-yellow); }
+  .vt-ch__status[data-status="alarm"] { color: var(--vt-red); }
+  .vt-ch__status[data-status="paced"] { color: var(--vt-cyan); }
+  .vt-ch__status-pip {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 6px currentColor;
+  }
+  .vt-ch[data-status="alarm"] .vt-ch__status-pip {
+    animation: vt-alarm-blink 0.8s steps(2) infinite;
+  }
+  @keyframes vt-alarm-blink {
+    0% { opacity: 1; }
+    100% { opacity: 0.3; }
+  }
+  .vt-ch__asof {
+    grid-area: asof;
+    font-family: var(--vt-label);
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--vt-ink-faint);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .vt-ch__trace,
+    .vt-ch__cursor,
+    .vt-ch[data-lead="1"] .vt-ch__lead-dot,
+    .vt-ch[data-lead="1"]::before,
+    .vt-ch[data-status="alarm"] .vt-ch__status-pip {
+      animation: none !important;
+    }
+  }
+</style>

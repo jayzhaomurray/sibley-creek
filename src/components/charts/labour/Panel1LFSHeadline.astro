@@ -1,0 +1,445 @@
+---
+/*
+ * Panel1LFSHeadline - LFS headline panel: unemployment rate (primary),
+ * employment rate (primary axis), participation rate (secondary axis).
+ *
+ * Implements design/basics-layer-template.md Section 9.B Panel 1.
+ *
+ * Visual: layered time series with dual y-axis, last 5 years.
+ *   Primary axis (left, %):
+ *     - Unemployment rate (series-3 sage, 1.5px solid weight 500). Headline.
+ *     - Employment rate   (series-7 slate, 1.5px solid weight 400). Context.
+ *   Secondary axis (right, %, tighter range 60-68):
+ *     - Participation rate (series-3 at 60% opacity, 1px dashed). Subordinate.
+ *
+ * Per template: employment level Y/Y lives in panel 2 (the per-capita panel)
+ * as the per-capita driver; not on this chart.
+ *
+ * Plot vs SVG: hand-rolled SVG, matches the rest of the site (zero JS).
+ *
+ * Placeholder data: 60 months ending Apr 2026. Real data wires through a
+ * later pass once the site_data.json loader lands.
+ */
+
+interface MonthlyPoint {
+  date: string;            // "YYYY-MM"
+  unrate: number;          // %
+  emprate: number;         // %, employment-to-population
+  partrate: number;        // %, participation rate
+}
+
+interface Props {
+  data?: MonthlyPoint[];
+  /** Annotation on the most recent unemployment-rate print. */
+  recentAnnotation?: string;
+  ariaLabel?: string;
+}
+
+function makePlaceholder(): MonthlyPoint[] {
+  // 60 months ending Apr 2026. Walk forward from May 2021.
+  const out: MonthlyPoint[] = [];
+  let y = 2021;
+  let m = 5;
+  // Stylized cycle:
+  //   2021: u-rate recovery from 7.5 -> 5.2
+  //   2022-23 trough: 5.0
+  //   2024-25: u-rate drifting up to 6.0-6.4
+  //   2026: 6.3-6.4
+  // Employment rate: mirror in reverse; trough during pandemic recovery, ramp
+  //   to ~62 in 2022, slight drift down to 60.5 by 2026.
+  // Participation: ~65.5 -> 65.3 -> 65.0 (slipping).
+  for (let i = 0; i < 60; i++) {
+    let u: number;
+    if (i < 9) u = 7.5 - (7.5 - 5.2) * (i / 9);
+    else if (i < 30) u = 5.2 + 0.1 * Math.sin(i * 0.5);
+    else if (i < 50) u = 5.2 + (6.2 - 5.2) * ((i - 30) / 20);
+    else u = 6.2 + (i - 50) * 0.02;
+    const er = 62.5 - 0.04 * (i - 12) + 0.3 * Math.sin(i * 0.4);
+    let pr: number;
+    if (i < 18) pr = 65.4 + 0.2 * Math.sin(i * 0.3);
+    else pr = 65.4 - 0.025 * (i - 18) + 0.15 * Math.cos(i * 0.5);
+    out.push({
+      date: `${y}-${String(m).padStart(2, "0")}`,
+      unrate: Number(u.toFixed(2)),
+      emprate: Number(er.toFixed(2)),
+      partrate: Number(pr.toFixed(2)),
+    });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  // Force the last 4 months to a soft plateau that matches the placeholder
+  // unemployment-rate value in src/data/sections.ts (~6.1%).
+  out[out.length - 4].unrate = 6.0;
+  out[out.length - 3].unrate = 6.1;
+  out[out.length - 2].unrate = 6.1;
+  out[out.length - 1].unrate = 6.1;
+  return out;
+}
+
+const {
+  data = makePlaceholder(),
+  recentAnnotation = "Apr 2026: 6.1%, held flat",
+  ariaLabel = "LFS headline: unemployment, employment and participation rates, last 5 years",
+} = Astro.props;
+
+// ---- Geometry --------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 44;
+const M_R = 100; // right gutter for direct labels + secondary axis
+const M_T = 36;
+const M_B = 36;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+const n = data.length;
+function decYearOf(d: string): number {
+  const [yy, mm] = d.split("-").map(Number);
+  return yy + (mm - 0.5) / 12;
+}
+const xs = data.map((d) => decYearOf(d.date));
+const xMin = xs[0];
+const xMax = xs[xs.length - 1];
+
+// Primary axis: unrate (4-9%) and emprate (59-63%) live on different scales,
+// but we deliberately render emprate alongside unrate on the SAME percent
+// axis to keep one comparable visual. The primary axis spans the union.
+// Pad to whole-percent ticks.
+const primaryVals = data.flatMap((d) => [d.unrate, d.emprate]);
+const pLo = Math.floor(Math.min(...primaryVals)) - 1;
+const pHi = Math.ceil(Math.max(...primaryVals)) + 1;
+
+// Secondary axis: partrate, tighter range 62-68% per template spec to make
+// moves readable.
+const sLo = 62;
+const sHi = 68;
+
+function xScale(decY: number): number {
+  return PLOT_X0 + ((decY - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScalePrimary(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - pLo) / (pHi - pLo)) * PLOT_H;
+}
+function yScaleSecondary(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - sLo) / (sHi - sLo)) * PLOT_H;
+}
+
+function buildLine(pickV: (d: MonthlyPoint) => number, scaleFn: (v: number) => number): string {
+  return data
+    .map((d, i) => {
+      const x = xScale(xs[i]);
+      const y = scaleFn(pickV(d));
+      return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+const unratePath = buildLine((d) => d.unrate, yScalePrimary);
+const empratePath = buildLine((d) => d.emprate, yScalePrimary);
+const partratePath = buildLine((d) => d.partrate, yScaleSecondary);
+
+// ---- Gridlines + ticks (primary) ------------------------------------------
+const yTicksPrimary: number[] = [];
+for (let v = pLo; v <= pHi + 1e-9; v += 1) yTicksPrimary.push(v);
+
+// Secondary ticks: 2pp intervals.
+const yTicksSecondary: number[] = [];
+for (let v = sLo; v <= sHi + 1e-9; v += 2) yTicksSecondary.push(v);
+
+// X ticks: every January in window.
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const yearTicks: Array<{ x: number; label: string }> = [];
+for (let yy = yearStart; yy <= yearEnd; yy++) {
+  const decY = yy + (1 - 0.5) / 12;
+  if (decY < xMin || decY > xMax) continue;
+  yearTicks.push({ x: xScale(decY), label: String(yy) });
+}
+
+// ---- Latest points --------------------------------------------------------
+const latest = data[n - 1];
+const latestX = xScale(xs[n - 1]);
+const latestUY = yScalePrimary(latest.unrate);
+const latestEY = yScalePrimary(latest.emprate);
+const latestPY = yScaleSecondary(latest.partrate);
+
+// ---- Annotation placement (on unemployment) -------------------------------
+const annoX = Math.min(latestX - 100, PLOT_X1 - 220);
+const annoY = Math.max(PLOT_Y0 + 24, latestUY - 36);
+const annoAnchorX = latestX;
+const annoAnchorY = latestUY - 4;
+---
+<div class="labour-panel-chart" data-panel="1">
+  <svg
+    class="labour-panel-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* Y gridlines (primary) */}
+    {yTicksPrimary.map((v) => {
+      const y = yScalePrimary(v);
+      return (
+        <line
+          class="labour-panel-chart__gridline"
+          x1={PLOT_X0}
+          y1={y.toFixed(2)}
+          x2={PLOT_X1}
+          y2={y.toFixed(2)}
+        />
+      );
+    })}
+
+    {/* Participation line (secondary axis, dashed, subordinate) */}
+    <path class="labour-panel-chart__line-part" d={partratePath} fill="none" />
+
+    {/* Employment rate (context) */}
+    <path class="labour-panel-chart__line-emp" d={empratePath} fill="none" />
+
+    {/* Unemployment rate (headline) */}
+    <path class="labour-panel-chart__line-un" d={unratePath} fill="none" />
+
+    {/* Latest markers */}
+    <circle
+      class="labour-panel-chart__marker-un"
+      cx={latestX.toFixed(2)}
+      cy={latestUY.toFixed(2)}
+      r="4"
+    >
+      <title>{`${latest.date}: ${latest.unrate.toFixed(1)}% unemployment`}</title>
+    </circle>
+    <circle
+      class="labour-panel-chart__marker-emp"
+      cx={latestX.toFixed(2)}
+      cy={latestEY.toFixed(2)}
+      r="3"
+    >
+      <title>{`${latest.date}: ${latest.emprate.toFixed(1)}% employment rate`}</title>
+    </circle>
+    <circle
+      class="labour-panel-chart__marker-part"
+      cx={latestX.toFixed(2)}
+      cy={latestPY.toFixed(2)}
+      r="3"
+    >
+      <title>{`${latest.date}: ${latest.partrate.toFixed(1)}% participation`}</title>
+    </circle>
+
+    {/* X-axis */}
+    <line
+      class="labour-panel-chart__xaxis"
+      x1={PLOT_X0}
+      y1={PLOT_Y1.toFixed(2)}
+      x2={PLOT_X1}
+      y2={PLOT_Y1.toFixed(2)}
+    />
+    {yearTicks.map((t) => (
+      <g>
+        <line
+          class="labour-panel-chart__xtick"
+          x1={t.x.toFixed(2)}
+          y1={PLOT_Y1.toFixed(2)}
+          x2={t.x.toFixed(2)}
+          y2={(PLOT_Y1 + 4).toFixed(2)}
+        />
+        <text
+          class="labour-panel-chart__xtick-label"
+          x={t.x.toFixed(2)}
+          y={(PLOT_Y1 + 16).toFixed(2)}
+          text-anchor="middle"
+        >{t.label}</text>
+      </g>
+    ))}
+
+    {/* Y-axis primary labels (left) */}
+    {yTicksPrimary.map((v, i) => {
+      const y = yScalePrimary(v);
+      const isTop = i === yTicksPrimary.length - 1;
+      return (
+        <text
+          class="labour-panel-chart__ytick-label"
+          x={(PLOT_X0 - 6).toFixed(2)}
+          y={(y + 3.5).toFixed(2)}
+          text-anchor="end"
+        >{`${v.toFixed(0)}${isTop ? "%" : ""}`}</text>
+      );
+    })}
+
+    {/* Y-axis secondary labels (right) */}
+    {yTicksSecondary.map((v, i) => {
+      const y = yScaleSecondary(v);
+      const isTop = i === yTicksSecondary.length - 1;
+      return (
+        <text
+          class="labour-panel-chart__ytick-label-secondary"
+          x={(PLOT_X1 + 6).toFixed(2)}
+          y={(y + 3.5).toFixed(2)}
+          text-anchor="start"
+        >{`${v.toFixed(0)}${isTop ? "%" : ""}`}</text>
+      );
+    })}
+
+    {/* Unit labels */}
+    <text
+      class="labour-panel-chart__unit"
+      x={PLOT_X0.toFixed(2)}
+      y={(PLOT_Y0 - 18).toFixed(2)}
+      text-anchor="start"
+    >% (left: u-rate, emp-rate)</text>
+    <text
+      class="labour-panel-chart__unit"
+      x={PLOT_X1.toFixed(2)}
+      y={(PLOT_Y0 - 18).toFixed(2)}
+      text-anchor="end"
+    >% (right: participation)</text>
+
+    {/* Direct labels at termini */}
+    <text
+      class="labour-panel-chart__direct-label labour-panel-chart__direct-label--un"
+      x={(latestX + 8).toFixed(2)}
+      y={(latestUY + 4).toFixed(2)}
+      text-anchor="start"
+    >Unemployment</text>
+    <text
+      class="labour-panel-chart__direct-label labour-panel-chart__direct-label--emp"
+      x={(latestX + 8).toFixed(2)}
+      y={(latestEY + 4).toFixed(2)}
+      text-anchor="start"
+    >Emp. rate</text>
+    <text
+      class="labour-panel-chart__direct-label labour-panel-chart__direct-label--part"
+      x={(latestX + 8).toFixed(2)}
+      y={(latestPY + 4).toFixed(2)}
+      text-anchor="start"
+    >Participation (R)</text>
+
+    {/* Annotation: most recent unemployment print */}
+    {recentAnnotation && (
+      <g>
+        <line
+          class="labour-panel-chart__anno-leader"
+          x1={(annoX + 4).toFixed(2)}
+          y1={annoY.toFixed(2)}
+          x2={annoAnchorX.toFixed(2)}
+          y2={annoY.toFixed(2)}
+        />
+        <line
+          class="labour-panel-chart__anno-leader"
+          x1={annoAnchorX.toFixed(2)}
+          y1={annoY.toFixed(2)}
+          x2={annoAnchorX.toFixed(2)}
+          y2={annoAnchorY.toFixed(2)}
+        />
+        <text
+          class="labour-panel-chart__anno-text"
+          x={annoX.toFixed(2)}
+          y={(annoY + 4).toFixed(2)}
+          text-anchor="end"
+        >{recentAnnotation}</text>
+      </g>
+    )}
+  </svg>
+</div>
+
+<style>
+  .labour-panel-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--surface);
+    overflow: visible;
+  }
+  .labour-panel-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+  .labour-panel-chart__gridline {
+    stroke: var(--rule-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__line-un {
+    stroke: var(--series-3);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+  }
+  .labour-panel-chart__line-emp {
+    stroke: var(--series-7);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+  }
+  .labour-panel-chart__line-part {
+    stroke: var(--series-3);
+    stroke-opacity: 0.6;
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+  }
+  .labour-panel-chart__marker-un {
+    fill: var(--series-3);
+    stroke: var(--surface);
+    stroke-width: 1;
+  }
+  .labour-panel-chart__marker-emp { fill: var(--series-7); }
+  .labour-panel-chart__marker-part {
+    fill: var(--series-3);
+    fill-opacity: 0.6;
+  }
+  .labour-panel-chart__xaxis {
+    stroke: var(--rule);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__xtick {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__ytick-label,
+  .labour-panel-chart__ytick-label-secondary,
+  .labour-panel-chart__xtick-label {
+    fill: var(--ink-faint);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .labour-panel-chart__unit {
+    fill: var(--ink-faint);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+  }
+  .labour-panel-chart__direct-label {
+    font-size: 12px;
+    font-weight: var(--fw-medium);
+  }
+  .labour-panel-chart__direct-label--un { fill: var(--series-3); }
+  .labour-panel-chart__direct-label--emp { fill: var(--series-7); }
+  .labour-panel-chart__direct-label--part {
+    fill: var(--series-3);
+    fill-opacity: 0.7;
+    font-size: 11px;
+  }
+  .labour-panel-chart__anno-leader {
+    stroke: var(--ink-muted);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__anno-text {
+    fill: var(--ink);
+    font-size: 13px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

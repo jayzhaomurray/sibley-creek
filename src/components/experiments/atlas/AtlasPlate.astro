@@ -1,0 +1,367 @@
+---
+/*
+ * AtlasPlate - a single section rendered as a map-legend "cell".
+ *
+ * Hairline-rule border, plate number medallion with sepia cross-hatch,
+ * sub-figure inline sparkline rendered as cross-hatched relief. Two
+ * load-bearing readouts beneath. Coordinate stamp on the bottom right
+ * to keep the atlas-page voice.
+ *
+ * Smaller than the hero plate but rendered with the same engraving
+ * vocabulary so the page reads as one bound register.
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  section: Section;
+  num: string;
+  total: string;
+  lat: string;
+  lon: string;
+}
+
+const { section, num, total, lat, lon } = Astro.props;
+
+const loadBearing = section.chartSeriesKey
+  ? section.prints.find((p) => p.key === section.chartSeriesKey) ?? section.prints[0]
+  : section.prints[0];
+
+const secondary = section.prints.find((p) => p !== loadBearing) ?? loadBearing;
+
+const series = loadBearing.spark ?? [0, 0.2, 0.3, 0.4];
+
+// Mini chart geometry.
+const W = 280;
+const H = 80;
+const PAD_L = 4;
+const PAD_R = 4;
+const PAD_T = 6;
+const PAD_B = 6;
+
+const plotW = W - PAD_L - PAD_R;
+const plotH = H - PAD_T - PAD_B;
+
+const minV = Math.min(...series);
+const maxV = Math.max(...series);
+const yMin = minV - (maxV - minV || 1) * 0.1;
+const yMax = maxV + (maxV - minV || 1) * 0.1;
+const yRange = (yMax - yMin) || 1;
+
+function xOf(i: number): number {
+  return PAD_L + (i / (series.length - 1)) * plotW;
+}
+function yOf(v: number): number {
+  return PAD_T + (1 - (v - yMin) / yRange) * plotH;
+}
+
+const points = series.map((v, i) => `${xOf(i).toFixed(2)},${yOf(v).toFixed(2)}`);
+const linePath = "M " + points.join(" L ");
+const baseY = PAD_T + plotH;
+const fillPath =
+  "M " + points.join(" L ") +
+  ` L ${xOf(series.length - 1).toFixed(2)},${baseY}` +
+  ` L ${xOf(0).toFixed(2)},${baseY} Z`;
+
+const lastX = xOf(series.length - 1);
+const lastY = yOf(series[series.length - 1] as number);
+
+const deltaDirClass = (d: "pos" | "neg" | "neutral") =>
+  d === "pos" ? "at-plate__delta--pos"
+  : d === "neg" ? "at-plate__delta--neg"
+  : "at-plate__delta--neutral";
+
+const blurbDate = section.blurb.date;
+---
+<article
+  class="at-plate"
+  id={`plate-${section.slug}`}
+  aria-labelledby={`plate-${section.slug}-h`}
+>
+  <header class="at-plate__head">
+    <div class="at-plate__medallion" aria-hidden="true">
+      <svg viewBox="0 0 64 64" class="at-plate__medallion-svg">
+        <circle cx="32" cy="32" r="30" fill="url(#at-hatch-sepia-coarse)" stroke="#1B2F4B" stroke-width="0.8" />
+        <circle cx="32" cy="32" r="24" fill="#EEE6D2" stroke="#1B2F4B" stroke-width="0.5" />
+        <text
+          x="32"
+          y="32"
+          dy="0.34em"
+          text-anchor="middle"
+          font-family="Cormorant Garamond, serif"
+          font-weight="500"
+          font-size="22"
+          fill="#1B2F4B"
+        >
+          {num}
+        </text>
+      </svg>
+    </div>
+    <div class="at-plate__head-text">
+      <p class="at-plate__plateno">
+        <span>Plate {num}</span>
+        <span class="at-plate__plateno-sep" aria-hidden="true">&#xb7;</span>
+        <span>of {total}</span>
+      </p>
+      <h3 class="at-plate__title" id={`plate-${section.slug}-h`}>
+        <a class="at-plate__title-link" href={`/${section.slug}/`}>{section.label}</a>
+      </h3>
+      {section.kicker && (
+        <p class="at-plate__kicker"><em>{section.kicker}</em></p>
+      )}
+    </div>
+  </header>
+
+  <hr class="at-plate__rule" aria-hidden="true" />
+
+  <figure class="at-plate__figure">
+    <svg
+      class="at-plate__svg"
+      viewBox={`0 0 ${W} ${H}`}
+      role="img"
+      aria-label={`${loadBearing.indicator} sparkline, current ${loadBearing.value}.`}
+    >
+      <rect x="0" y="0" width={W} height={H} fill="#EEE6D2" stroke="#7A6549" stroke-width="0.5" />
+      <path d={fillPath} fill="url(#at-hatch-navy)" />
+      <path d={linePath} fill="none" stroke="#1B2F4B" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" />
+      <circle cx={lastX} cy={lastY} r="2.4" fill="#923225" stroke="#1B2F4B" stroke-width="0.6" />
+    </svg>
+    <figcaption class="at-plate__fig-cap">
+      <em>fig. {num}.</em> {loadBearing.indicator}
+    </figcaption>
+  </figure>
+
+  <dl class="at-plate__readout">
+    <div class="at-plate__readout-row at-plate__readout-row--primary">
+      <dt>{loadBearing.indicator}</dt>
+      <dd>
+        <span class="at-plate__val">{loadBearing.value}</span>
+        <span class:list={["at-plate__delta", deltaDirClass(loadBearing.deltaDir)]}>{loadBearing.delta}</span>
+      </dd>
+    </div>
+    {secondary !== loadBearing && (
+      <div class="at-plate__readout-row">
+        <dt>{secondary.indicator}</dt>
+        <dd>
+          <span class="at-plate__val at-plate__val--sm">{secondary.value}</span>
+          <span class:list={["at-plate__delta", deltaDirClass(secondary.deltaDir)]}>{secondary.delta}</span>
+        </dd>
+      </div>
+    )}
+  </dl>
+
+  <p class="at-plate__question">
+    <em>{section.headlineQuestion}</em>
+  </p>
+
+  <footer class="at-plate__foot" aria-hidden="true">
+    <span class="at-plate__foot-cad">{section.cadence}</span>
+    <span class="at-plate__foot-sep">&#xb7;</span>
+    <span class="at-plate__foot-coords">{lat}</span>
+    <span class="at-plate__foot-sep">&#xb7;</span>
+    <span class="at-plate__foot-coords">{lon}</span>
+    {blurbDate && (
+      <>
+        <span class="at-plate__foot-sep">&#xb7;</span>
+        <span class="at-plate__foot-stamp">Last note {blurbDate}</span>
+      </>
+    )}
+  </footer>
+</article>
+
+<style>
+  .at-plate {
+    position: relative;
+    padding: 18px 20px 16px;
+    background-color: var(--at-paper);
+    border: 0.6px solid var(--at-rule);
+    box-shadow: inset 0 0 0 2px var(--at-paper), inset 0 0 0 2.4px var(--at-rule);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 100%;
+  }
+
+  .at-plate__head {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+  .at-plate__medallion {
+    width: 54px;
+    height: 54px;
+  }
+  .at-plate__medallion-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .at-plate__head-text { min-width: 0; }
+
+  .at-plate__plateno {
+    margin: 0;
+    font-family: var(--at-mono);
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--at-ink-mute);
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+  }
+  .at-plate__plateno-sep { color: var(--at-ink-faint); }
+
+  .at-plate__title {
+    margin: 4px 0 0;
+    font-family: var(--at-display);
+    font-weight: 600;
+    font-size: clamp(24px, 3.4vw, 32px);
+    line-height: 1;
+    letter-spacing: 0.005em;
+    color: var(--at-ink);
+    font-variant: small-caps;
+    text-transform: lowercase;
+  }
+  .at-plate__title-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 0.5px solid var(--at-ink);
+    padding-bottom: 1px;
+  }
+  .at-plate__title-link:hover {
+    color: var(--at-crimson);
+    border-bottom-color: var(--at-crimson);
+  }
+  .at-plate__title-link:focus-visible {
+    outline: 2px solid var(--at-crimson);
+    outline-offset: 3px;
+  }
+
+  .at-plate__kicker {
+    margin: 6px 0 0;
+    font-family: var(--at-body);
+    font-style: italic;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--at-ink-mute);
+    max-width: 38ch;
+  }
+
+  .at-plate__rule {
+    border: 0;
+    border-top: 0.5px solid var(--at-rule);
+    margin: 2px 0;
+  }
+
+  .at-plate__figure {
+    margin: 0;
+  }
+  .at-plate__svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .at-plate__fig-cap {
+    margin: 6px 0 0;
+    font-family: var(--at-body);
+    font-size: 11px;
+    color: var(--at-ink-mute);
+    line-height: 1.3;
+  }
+  .at-plate__fig-cap em {
+    font-style: italic;
+    font-variant: small-caps;
+    letter-spacing: 0.06em;
+    color: var(--at-ink);
+    margin-right: 4px;
+  }
+
+  .at-plate__readout {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-top: 0.6px solid var(--at-rule);
+  }
+  .at-plate__readout-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    padding-block: 8px;
+    border-bottom: 0.3px dashed var(--at-rule);
+  }
+  .at-plate__readout-row:last-child { border-bottom: 0; }
+  .at-plate__readout-row dt {
+    margin: 0;
+    font-family: var(--at-body);
+    font-style: italic;
+    font-size: 12.5px;
+    color: var(--at-ink);
+  }
+  .at-plate__readout-row dd {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-family: var(--at-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    color: var(--at-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .at-plate__val {
+    font-family: var(--at-display);
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: 0.005em;
+    color: var(--at-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .at-plate__val--sm {
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .at-plate__readout-row--primary {
+    border-bottom: 0.6px solid var(--at-ink);
+    padding-bottom: 10px;
+  }
+  .at-plate__readout-row--primary .at-plate__val {
+    font-size: 22px;
+  }
+  .at-plate__delta--pos { color: var(--at-navy); }
+  .at-plate__delta--neg { color: var(--at-crimson); }
+  .at-plate__delta--neutral { color: var(--at-ink-mute); }
+
+  .at-plate__question {
+    margin: 0;
+    font-family: var(--at-body);
+    font-style: italic;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--at-ink);
+    padding-top: 10px;
+    border-top: 0.5px solid var(--at-rule);
+    max-width: 46ch;
+  }
+
+  .at-plate__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 0.4px dashed var(--at-rule);
+    font-family: var(--at-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--at-ink-mute);
+  }
+  .at-plate__foot-sep { color: var(--at-ink-faint); }
+  .at-plate__foot-cad { color: var(--at-ink); }
+  .at-plate__foot-stamp { color: var(--at-ink); }
+</style>

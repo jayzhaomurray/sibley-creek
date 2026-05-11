@@ -1,0 +1,270 @@
+---
+/*
+ * DeepDivesPinned - "Pinned to the back cover" — three deep dives styled
+ * like index cards stacked at an angle, each with a Roman-numeral pillar
+ * marker, status (pencil), title (typed), and a handwritten deck.
+ *
+ * Decorative: one card sits on top of the other two with rotation; the
+ * card stack reads like clipped notes pinned to a corkboard / notebook
+ * back cover.
+ */
+import type { DeepDive } from "../../../data/sections";
+
+interface Props {
+  deepDives: DeepDive[];
+}
+
+const { deepDives } = Astro.props;
+
+function statusLabel(s: DeepDive["status"]) {
+  if (s === "shipped") return "Filed";
+  if (s === "drafted") return "Drafted";
+  return "Researching";
+}
+
+/* Slight rotation per card for that pinned-note feel - deterministic so
+ * SSR output is stable. */
+const rotations = ["-2.4deg", "1.6deg", "-1.2deg"];
+const offsets = ["-2px", "8px", "-6px"];
+---
+<section class="nb-pinned" aria-labelledby="nb-pinned-title">
+  <div class="nb-pinned__head-grid">
+    <div class="nb-pinned__head-margin" aria-hidden="true">
+      <span class="nb-pinned__pencil">Pinned &mdash;</span>
+    </div>
+    <div class="nb-pinned__head-body">
+      <h2 id="nb-pinned-title" class="nb-pinned__title">
+        On the desk &mdash; three pieces in motion
+      </h2>
+      <p class="nb-pinned__deck">
+        <span class="nb-pinned__deck-pen">the work shaping next month's prints. each piece names one load-bearing question.</span>
+      </p>
+    </div>
+  </div>
+
+  <ol class="nb-pinned__list" role="list">
+    {deepDives.slice(0, 3).map((d, i) => (
+      <li
+        class="nb-pinned__item"
+        style={`--rot:${rotations[i] ?? "0deg"}; --off:${offsets[i] ?? "0px"};`}
+      >
+        <article class="nb-pinned__card">
+          <span class="nb-pinned__pin" aria-hidden="true"></span>
+          <div class="nb-pinned__card-head">
+            <span class="nb-pinned__pillar">Pillar {d.pillar}</span>
+            <span class="nb-pinned__status" data-status={d.status}>{statusLabel(d.status)}</span>
+          </div>
+          <p class="nb-pinned__section-tag">
+            <span class="nb-pinned__section-name">{d.section}</span>
+            <span class="nb-pinned__rule" aria-hidden="true"></span>
+          </p>
+          <h3 class="nb-pinned__card-title">{d.title}</h3>
+          <p class="nb-pinned__card-deck">{d.deck}</p>
+          <p class="nb-pinned__updated">
+            <span class="nb-pinned__updated-pen">last touched</span>
+            <span class="nb-pinned__updated-date">{d.lastUpdated}</span>
+          </p>
+        </article>
+      </li>
+    ))}
+  </ol>
+</section>
+
+<style>
+  .nb-pinned {
+    position: relative;
+    z-index: 2;
+    padding: 1.8rem 0 2.6rem;
+  }
+
+  .nb-pinned__head-grid {
+    display: grid;
+    grid-template-columns: var(--nb-margin-width) minmax(0, 1fr);
+    column-gap: var(--nb-gutter);
+    margin-bottom: 1.4rem;
+  }
+  .nb-pinned__head-margin {
+    display: flex;
+    justify-content: flex-end;
+    padding-right: 0.5rem;
+    padding-top: 0.2rem;
+  }
+  .nb-pinned__pencil {
+    font-family: var(--nb-font-hand);
+    color: var(--nb-pencil);
+    font-size: 1.2rem;
+    transform: rotate(-2deg);
+    transform-origin: right center;
+  }
+  .nb-pinned__title {
+    margin: 0 0 0.4rem;
+    font-family: var(--nb-font-display);
+    font-weight: 700;
+    font-style: italic;
+    font-size: clamp(1.6rem, 3vw, 2.3rem);
+    line-height: 1.1;
+    color: var(--nb-ink);
+  }
+  .nb-pinned__deck {
+    margin: 0;
+  }
+  .nb-pinned__deck-pen {
+    font-family: var(--nb-font-hand);
+    font-size: 1.1rem;
+    color: var(--nb-pencil);
+    transform: rotate(-0.6deg);
+    display: inline-block;
+    transform-origin: left center;
+  }
+
+  /* Cards */
+  .nb-pinned__list {
+    list-style: none;
+    margin: 0;
+    padding: 0.4rem 0 0;
+    padding-left: calc(var(--nb-margin-width) + var(--nb-gutter));
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.6rem;
+  }
+  @media (max-width: 880px) {
+    .nb-pinned__list {
+      grid-template-columns: 1fr;
+      gap: 1.2rem;
+      padding-left: 0;
+    }
+  }
+
+  .nb-pinned__item {
+    list-style: none;
+    transform: rotate(var(--rot, 0deg)) translateY(var(--off, 0));
+    transition: transform 220ms cubic-bezier(0.2, 0.6, 0.2, 1);
+  }
+  .nb-pinned__item:hover,
+  .nb-pinned__item:focus-within {
+    transform: rotate(0deg) translateY(-2px);
+  }
+
+  .nb-pinned__card {
+    position: relative;
+    background: #F1E7CE;
+    padding: 1.2rem 1.1rem 1.05rem;
+    border: 1px solid rgba(31, 27, 20, 0.12);
+    box-shadow:
+      0 1px 0 rgba(31, 27, 20, 0.04),
+      0 6px 14px rgba(31, 27, 20, 0.10),
+      0 18px 32px rgba(31, 27, 20, 0.07);
+    /* slight torn-corner via clip-path is overkill; settle on box */
+  }
+
+  .nb-pinned__pin {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14px;
+    height: 14px;
+    background: var(--nb-red);
+    border-radius: 50%;
+    box-shadow:
+      0 1px 2px rgba(31, 27, 20, 0.4),
+      inset -2px -2px 3px rgba(0, 0, 0, 0.2),
+      inset 2px 2px 3px rgba(255, 255, 255, 0.3);
+  }
+
+  .nb-pinned__card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: 0.5rem;
+  }
+  .nb-pinned__pillar {
+    font-family: var(--nb-font-mono);
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--nb-pencil);
+  }
+  .nb-pinned__status {
+    font-family: var(--nb-font-hand);
+    font-size: 1.05rem;
+    color: var(--nb-pencil);
+    line-height: 1;
+  }
+  .nb-pinned__status[data-status="shipped"] { color: var(--nb-pos); }
+  .nb-pinned__status[data-status="drafted"] { color: var(--nb-blue); }
+  .nb-pinned__status[data-status="research"] { color: var(--nb-red); }
+
+  .nb-pinned__section-tag {
+    margin: 0 0 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .nb-pinned__section-name {
+    font-family: var(--nb-font-typewriter);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--nb-ink);
+    font-weight: 700;
+  }
+  .nb-pinned__rule {
+    flex: 1;
+    height: 1px;
+    border-bottom: 1px solid var(--nb-pencil-faint);
+  }
+
+  .nb-pinned__card-title {
+    margin: 0 0 0.55rem;
+    font-family: var(--nb-font-display);
+    font-weight: 700;
+    font-size: 1.15rem;
+    line-height: 1.2;
+    color: var(--nb-ink);
+    letter-spacing: -0.005em;
+    text-wrap: balance;
+  }
+
+  .nb-pinned__card-deck {
+    margin: 0;
+    font-family: var(--nb-font-typewriter);
+    font-size: 0.92rem;
+    line-height: 1.45;
+    color: var(--nb-ink);
+    text-wrap: pretty;
+  }
+
+  .nb-pinned__updated {
+    margin: 0.8rem 0 0;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--nb-pencil-faint);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.4rem;
+  }
+  .nb-pinned__updated-pen {
+    font-family: var(--nb-font-hand);
+    color: var(--nb-pencil);
+    font-size: 1rem;
+  }
+  .nb-pinned__updated-date {
+    font-family: var(--nb-font-mono);
+    font-size: 0.74rem;
+    color: var(--nb-ink-mute);
+    letter-spacing: 0.04em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nb-pinned__item {
+      transform: none;
+      transition: none;
+    }
+    .nb-pinned__item:hover,
+    .nb-pinned__item:focus-within {
+      transform: none;
+    }
+  }
+</style>

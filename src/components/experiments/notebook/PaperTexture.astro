@@ -1,0 +1,78 @@
+---
+/*
+ * PaperTexture - kraft / manila paper grain texture for the Field Notebook
+ * splash. Two layered SVG feTurbulence noises (one coarse, one fine) blended
+ * via mix-blend-mode: multiply so the paper has visible grain without
+ * crushing the ink. Pure decoration, aria-hidden, pointer-events: none.
+ * Self-contained to the notebook splash.
+ */
+---
+<div class="nb-grain nb-grain--coarse" aria-hidden="true">
+  <svg width="100%" height="100%" preserveAspectRatio="none">
+    <filter id="nb-grain-coarse">
+      <feTurbulence
+        type="fractalNoise"
+        baseFrequency="0.012 0.024"
+        numOctaves="2"
+        seed="7"
+        stitchTiles="stitch"
+      />
+      <feColorMatrix
+        type="matrix"
+        values="0 0 0 0 0.46
+                0 0 0 0 0.36
+                0 0 0 0 0.20
+                0 0 0 0.7 0"
+      />
+    </filter>
+    <rect width="100%" height="100%" filter="url(#nb-grain-coarse)" />
+  </svg>
+</div>
+<div class="nb-grain nb-grain--fine" aria-hidden="true">
+  <svg width="100%" height="100%" preserveAspectRatio="none">
+    <filter id="nb-grain-fine">
+      <feTurbulence
+        type="fractalNoise"
+        baseFrequency="0.95"
+        numOctaves="2"
+        seed="3"
+        stitchTiles="stitch"
+      />
+      <feColorMatrix
+        type="matrix"
+        values="0 0 0 0 0.32
+                0 0 0 0 0.22
+                0 0 0 0 0.10
+                0 0 0 0.55 0"
+      />
+    </filter>
+    <rect width="100%" height="100%" filter="url(#nb-grain-fine)" />
+  </svg>
+</div>
+
+<style>
+  .nb-grain {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+  }
+  .nb-grain--coarse {
+    z-index: 1;
+    mix-blend-mode: multiply;
+    opacity: 0.32;
+  }
+  .nb-grain--fine {
+    z-index: 1;
+    mix-blend-mode: multiply;
+    opacity: 0.18;
+  }
+  .nb-grain svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .nb-grain--coarse { opacity: 0.22; }
+    .nb-grain--fine { opacity: 0.12; }
+  }
+</style>

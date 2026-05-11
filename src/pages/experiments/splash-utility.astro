@@ -1,0 +1,923 @@
+---
+/*
+ * Lane O - Public-Utility Weather Hub splash.
+ *
+ * Dashboard-as-front-door, civic-service feel. Reads like Environment
+ * Canada / NOAA / weather.gov adapted to Canadian macroeconomic
+ * indicators. Indicator-organized like weather metrics. Calm,
+ * trustworthy, deeply accessible. Useful and meticulous over slick.
+ *
+ * Self-contained: this page does NOT use BaseLayout, does NOT import
+ * the production tokens, and uses only components from
+ * src/components/experiments/utility/.
+ *
+ * Palette (7 colors total, no more, no less):
+ *   - public-service white  #F4F4F5
+ *   - slate                 #1F2937
+ *   - public-service blue   #0E4A8A   (federal / provincial style)
+ *   - advisory amber        #C9740C
+ *   - signal red            #B91C1C
+ *   - signal green          #16A34A
+ *   - ink-faint             #6B7280
+ *
+ * Typography: Public Sans (literal name fit) at 400 / 500 / 600 / 700.
+ * One family carrying body, labels, headings — hierarchy by weight and
+ * letter-spacing, not by family-switching. Public Sans is the typeface
+ * of the US federal Web Design System; it is the most direct typographic
+ * signal of "this is a public-service surface."
+ *
+ * Layout: indicator-first weather-hub grid. 9 cards (7 sections + 2
+ * ancillary indicator cells) in a responsive grid. Below: Forecast /
+ * Outlook strip with upcoming releases + active deep-dives.
+ *
+ * Motion: none. Only a focus-state ring transition for keyboard nav,
+ * per brief.
+ */
+
+import UtilHeader from "../../components/experiments/utility/UtilHeader.astro";
+import UtilIndicatorCard from "../../components/experiments/utility/UtilIndicatorCard.astro";
+import type { AdvisoryLevel } from "../../components/experiments/utility/UtilIndicatorCard.astro";
+import UtilOutlookStrip from "../../components/experiments/utility/UtilOutlookStrip.astro";
+import UtilFooter from "../../components/experiments/utility/UtilFooter.astro";
+import UtilSparkIcon from "../../components/experiments/utility/UtilSparkIcon.astro";
+
+import { sections, site, type SectionSlug } from "../../data/sections";
+
+// --- Advisory level mapping ---------------------------------------
+// Hand-tuned per section: this is editorial judgment, not auto-computed.
+// The convention follows civic weather: NORMAL is benign, WATCH is
+// "monitor", ADVISORY is "elevated, expect impacts", ALERT is "active
+// condition outside the normal envelope."
+const advisoryBySlug: Record<SectionSlug, AdvisoryLevel> = {
+  inflation: "watch", // 2.3% above 2% target, slightly above
+  gdp: "advisory", // soft Feb GDP, output gap still negative
+  labour: "watch", // u-rate 6.1%, edging higher
+  housing: "advisory", // HPI -1.4% y/y and softening
+  policy: "normal", // BoC just cut, on path
+  markets: "watch", // CAD weakening, BoC-Fed wider
+  trade: "alert", // deficit widening sharply to -$2.3B
+};
+
+// --- Nowcasts -----------------------------------------------------
+// One-sentence machine-generated nowcast per section. Reads like the
+// "current conditions" sentence on weather.gov: declarative, value-
+// embedded, lightly editorialized. v1 hardcodes; backend can templatize
+// later.
+const nowcastBySlug: Record<SectionSlug, string> = {
+  inflation:
+    "Headline CPI is currently 2.3% y/y, slightly above the 2% target and stable on the month.",
+  gdp:
+    "Real GDP rose 0.2% m/m in February, one-tenth softer than January; the output gap remains negative.",
+  labour:
+    "Unemployment is currently 6.1%, unchanged on the month as participation slipped and hiring cooled.",
+  housing:
+    "MLS HPI is currently -1.4% y/y and weakening; sales-to-listings slipped to 0.42 in April.",
+  policy:
+    "BoC overnight rate is currently 2.75% after a 25bp cut on April 29; policy stance is normalizing.",
+  markets:
+    "USDCAD is currently 1.378, up 0.4% on the week as the BoC-Fed spread widened to -152 bps.",
+  trade:
+    "Merchandise trade balance is currently -$2.3B, the widest deficit in twelve months on softer auto exports.",
+};
+
+// --- Build a "stations" / ancillary panel set ---------------------
+// Two extra cells to round out the 9-cell weather-hub grid. These are
+// derived from the existing prints (no new data); they read as
+// "auxiliary readings" the way a weather page surfaces UV / air-quality
+// alongside the headline indicators.
+//
+interface AncillaryPanel {
+  id: string;
+  name: string;
+  indicator: string;
+  asOf: string;
+  value: string;
+  delta: string;
+  deltaDir: "pos" | "neg" | "neutral";
+  level: AdvisoryLevel;
+  nowcast: string;
+  spark: number[];
+  href: string;
+}
+
+const ancillary: AncillaryPanel[] = [];
+
+const bocFedPrint = sections
+  .find((s) => s.slug === "policy")
+  ?.prints.find((p) => p.indicator.includes("BoC-Fed"));
+if (bocFedPrint) {
+  ancillary.push({
+    id: "boc-fed",
+    name: "BoC-Fed Spread",
+    indicator: bocFedPrint.indicator,
+    asOf: bocFedPrint.asOf,
+    value: bocFedPrint.value,
+    delta: bocFedPrint.delta,
+    deltaDir: bocFedPrint.deltaDir,
+    level: "advisory",
+    nowcast:
+      "BoC-Fed 2y spread is currently -152 bps and widening; deepest divergence of the cycle so far.",
+    spark: bocFedPrint.spark ?? [],
+    href: "/policy/",
+  });
+}
+
+const wtiPrint = sections
+  .find((s) => s.slug === "markets")
+  ?.prints.find((p) => p.indicator === "WTI");
+if (wtiPrint) {
+  ancillary.push({
+    id: "wti",
+    name: "Crude (WTI)",
+    indicator: wtiPrint.indicator,
+    asOf: wtiPrint.asOf,
+    value: wtiPrint.value,
+    delta: wtiPrint.delta,
+    deltaDir: wtiPrint.deltaDir,
+    level: "watch",
+    nowcast:
+      "WTI is currently $71.40 and drifting lower, down 2.1% on the week; soft for energy-province nominal income.",
+    spark: wtiPrint.spark ?? [],
+    href: "/markets/",
+  });
+}
+
+// --- Site / page metadata -----------------------------------------
+const agencyFullName = "Macro Research Department";
+const agencySub = "Canadian Economic Conditions";
+const classification = "PUBLIC INFORMATION";
+
+const now = new Date();
+
+// Issuance stamp - formatted to read like a government release stamp.
+const issuedDay = now.toLocaleDateString("en-CA", {
+  weekday: "short",
+  year: "numeric",
+  month: "short",
+  day: "2-digit",
+});
+const issuedTime = now.toLocaleTimeString("en-CA", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: "America/Toronto",
+}) + " ET";
+const issuedStamp = `${issuedDay.toUpperCase()} ${issuedTime}`;
+
+const updatedStamp = `${issuedDay} at ${issuedTime}`;
+
+const editionStamp =
+  `${now.getUTCFullYear()}.` +
+  `${String(now.getUTCMonth() + 1).padStart(2, "0")}.` +
+  `${String(now.getUTCDate()).padStart(2, "0")}-O`;
+
+const pageTitle = `Current Economic Conditions for Canada | ${site.name}`;
+const pageDesc =
+  "Public-service dashboard of current Canadian macroeconomic conditions — inflation, GDP, labour, housing, policy, markets, and trade — with advisory levels, indicator readings, and the schedule of upcoming releases.";
+
+// Section card render order: keep editorial canon order (GDP, Inflation,
+// Labour, Housing, Policy, Markets, Trade) plus two ancillary cells.
+const cardOrder: SectionSlug[] = [
+  "gdp",
+  "inflation",
+  "labour",
+  "housing",
+  "policy",
+  "markets",
+  "trade",
+];
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta name="theme-color" content="#1F2937" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap"
+    />
+  </head>
+  <body>
+    <a class="util-skip" href="#util-main">Skip to current conditions</a>
+
+    <UtilHeader
+      shortName={site.shortName}
+      fullName={agencyFullName}
+      sub={agencySub}
+      issuedStamp={issuedStamp}
+      classification={classification}
+    />
+    {/* Note: shortName is reserved for a compact-banner variant; the
+        v1 banner uses fullName + sub instead. */}
+
+    <main id="util-main" class="util-page" tabindex="-1">
+      <div class="util-page__inner">
+
+        {/* Notice bar - the civic dashboard's "current advisory" rail. */}
+        <aside class="util-notice" role="region" aria-label="Current advisory summary">
+          <div class="util-notice__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" focusable="false">
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 3 L22 20 L2 20 Z M12 10 L12 14 M12 17 L12 17.5"
+              />
+            </svg>
+          </div>
+          <div class="util-notice__body">
+            <p class="util-notice__head">
+              <span class="util-notice__kicker">ACTIVE ADVISORY</span>
+              <span class="util-notice__title">
+                Trade deficit alert &middot; March balance widened to -$2.3B, the largest gap in twelve months.
+              </span>
+            </p>
+            <p class="util-notice__sub">
+              One section in <strong>alert</strong>, three in <strong>advisory / watch</strong>, three at <strong>normal</strong>. Issued {issuedStamp}. <a class="util-notice__link" href="/trade/">Read the trade advisory</a>.
+            </p>
+          </div>
+        </aside>
+
+        {/* Page lede — the civic dashboard's one-paragraph "what this is." */}
+        <section class="util-lede" aria-labelledby="util-lede-h">
+          <p class="util-lede__eyebrow">CURRENT CONDITIONS</p>
+          <h1 id="util-lede-h" class="util-lede__title">
+            Canadian Economic Conditions
+          </h1>
+          <p class="util-lede__sub">
+            A continuously updated public-service dashboard of Canada's
+            headline macroeconomic indicators. Each indicator carries an
+            advisory level &mdash; <em>normal</em>, <em>watch</em>, <em>advisory</em>, or
+            <em>alert</em> &mdash; based on the latest official release.
+          </p>
+
+          <dl class="util-lede__statgrid" aria-label="Summary readings">
+            <div class="util-lede__statgrid-cell">
+              <dt>Indicators in alert</dt>
+              <dd class="util-lede__statgrid-v util-lede__statgrid-v--red">1</dd>
+            </div>
+            <div class="util-lede__statgrid-cell">
+              <dt>Advisory / watch</dt>
+              <dd class="util-lede__statgrid-v util-lede__statgrid-v--amber">5</dd>
+            </div>
+            <div class="util-lede__statgrid-cell">
+              <dt>Normal</dt>
+              <dd class="util-lede__statgrid-v util-lede__statgrid-v--green">3</dd>
+            </div>
+            <div class="util-lede__statgrid-cell">
+              <dt>Last update</dt>
+              <dd class="util-lede__statgrid-v util-lede__statgrid-v--ink">
+                {issuedDay.split(" ").slice(1).join(" ")}
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        {/* Indicator grid — the weather-hub front door */}
+        <section class="util-grid-section" aria-labelledby="util-grid-h">
+          <header class="util-grid-section__head">
+            <h2 id="util-grid-h" class="util-grid-section__title">Current indicators</h2>
+            <p class="util-grid-section__sub">
+              Headline readings by section. Advisory level reflects
+              latest release vs. its long-run envelope. Click into a
+              section for the full release, methodology, and chart.
+            </p>
+          </header>
+
+          <ul class="util-grid" role="list">
+            {cardOrder.map((slug) => {
+              const section = sections.find((s) => s.slug === slug);
+              if (!section) return null;
+              return (
+                <li class="util-grid__cell">
+                  <UtilIndicatorCard
+                    section={section}
+                    level={advisoryBySlug[slug]}
+                    nowcast={nowcastBySlug[slug]}
+                  />
+                </li>
+              );
+            })}
+
+            {/* Two ancillary cards to complete the 9-cell grid */}
+            {ancillary.map((a) => (
+              <li class="util-grid__cell util-grid__cell--ancillary">
+                <article class="util-card util-card--anc" aria-labelledby={`util-anc-${a.id}-h`}>
+                  <div class="util-card__head">
+                    <h2 id={`util-anc-${a.id}-h`} class="util-card__name util-card__name--small">
+                      {a.name}
+                    </h2>
+                    <div class="util-card__statusrow">
+                      <span class={`util-card__pill util-card__pill--${a.level}`}>
+                        <span class="util-card__pill-dot" aria-hidden="true"></span>
+                        <span class="util-card__pill-text">
+                          {a.level === "advisory" ? "ADVISORY" : a.level === "watch" ? "WATCH" : a.level === "alert" ? "ALERT" : "NORMAL"}
+                        </span>
+                      </span>
+                      <span class="util-card__asof">
+                        <span class="util-card__asof-k">AS OF</span>
+                        <span class="util-card__asof-v">{a.asOf}</span>
+                      </span>
+                    </div>
+                  </div>
+                  <p class="util-card__indicator">{a.indicator}</p>
+                  <div class="util-card__statline">
+                    <span class="util-card__value">{a.value}</span>
+                    <span class={`util-card__delta util-card__delta--${a.deltaDir}`}>{a.delta}</span>
+                    <UtilSparkIcon data={a.spark} variant={a.level} />
+                  </div>
+                  <p class="util-card__nowcast">{a.nowcast}</p>
+                  <p class="util-card__more">
+                    <a class="util-card__link" href={a.href}>
+                      More info <span class="util-card__arrow" aria-hidden="true">&rarr;</span>
+                    </a>
+                  </p>
+                </article>
+              </li>
+            ))}
+          </ul>
+
+          {/* Legend — civic dashboards always carry one. */}
+          <aside class="util-legend" aria-label="Advisory level legend">
+            <p class="util-legend__title">Advisory levels</p>
+            <ul class="util-legend__list" role="list">
+              <li>
+                <span class="util-legend__sw util-legend__sw--normal" aria-hidden="true"></span>
+                <span class="util-legend__k">Normal</span>
+                <span class="util-legend__v">Reading within long-run envelope; no special attention required.</span>
+              </li>
+              <li>
+                <span class="util-legend__sw util-legend__sw--watch" aria-hidden="true"></span>
+                <span class="util-legend__k">Watch</span>
+                <span class="util-legend__v">Reading approaching the edge of its envelope; monitor next release.</span>
+              </li>
+              <li>
+                <span class="util-legend__sw util-legend__sw--advisory" aria-hidden="true"></span>
+                <span class="util-legend__k">Advisory</span>
+                <span class="util-legend__v">Reading elevated or persistent; expect impacts on policy or households.</span>
+              </li>
+              <li>
+                <span class="util-legend__sw util-legend__sw--alert" aria-hidden="true"></span>
+                <span class="util-legend__k">Alert</span>
+                <span class="util-legend__v">Reading outside the normal envelope; active condition.</span>
+              </li>
+            </ul>
+          </aside>
+        </section>
+
+        {/* Outlook strip - upcoming releases + active deep-dives */}
+        <UtilOutlookStrip />
+      </div>
+    </main>
+
+    <UtilFooter updatedStamp={updatedStamp} editionStamp={editionStamp} />
+
+    <style is:global>
+      /* ===========================================================
+       * Lane O - Public-Utility Weather Hub
+       * Page-scoped tokens + resets. Prefix: util-
+       * Seven colors only. Public Sans only.
+       * =========================================================== */
+
+      :root {
+        /* Palette — exactly seven colors, no derived hues. */
+        --util-paper:  #F4F4F5;
+        --util-slate:  #1F2937;
+        --util-blue:   #0E4A8A;
+        --util-amber:  #C9740C;
+        --util-red:    #B91C1C;
+        --util-green:  #16A34A;
+        --util-faint:  #6B7280;
+        /* One supporting neutral derived from slate for hairline rules. */
+        --util-rule:   #D6D8DC;
+
+        --util-sans: "Public Sans", "Inclusive Sans", "Atkinson Hyperlegible", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--util-paper);
+        color: var(--util-slate);
+        font-family: var(--util-sans);
+        font-weight: 400;
+        font-size: 16px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: "tnum", "lnum", "ss01";
+      }
+
+      body {
+        min-height: 100vh;
+      }
+
+      a {
+        color: var(--util-blue);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      a:hover {
+        text-decoration-thickness: 2px;
+      }
+
+      ul, ol, dl {
+        margin: 0;
+        padding: 0;
+      }
+
+      /* Accessible focus ring - the ONE motion the page allows */
+      :focus-visible {
+        outline: 3px solid var(--util-amber);
+        outline-offset: 2px;
+        transition: outline-offset 90ms ease-out;
+      }
+
+      .util-skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        background: var(--util-blue);
+        color: var(--util-paper);
+        padding: 10px 14px;
+        font-family: var(--util-sans);
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-decoration: none;
+        z-index: 100;
+      }
+      .util-skip:focus {
+        left: 16px;
+        top: 16px;
+        outline: 3px solid var(--util-amber);
+        outline-offset: 0;
+      }
+
+      /* =========================================================
+       * Page shell
+       * ========================================================= */
+      .util-page {
+        background: var(--util-paper);
+        outline: none; /* tabindex=-1 target; do not show focus outline */
+      }
+      .util-page__inner {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 24px clamp(16px, 3vw, 40px) 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+
+      /* =========================================================
+       * Notice bar (active advisory summary)
+       * ========================================================= */
+      .util-notice {
+        background: #FBF1DF;
+        border: 1px solid var(--util-amber);
+        border-left: 4px solid var(--util-amber);
+        padding: 14px 18px;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 14px;
+        align-items: start;
+      }
+      .util-notice__icon {
+        color: var(--util-amber);
+        padding-top: 2px;
+        flex-shrink: 0;
+      }
+      .util-notice__body {
+        min-width: 0;
+      }
+      .util-notice__head {
+        margin: 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px 12px;
+      }
+      .util-notice__kicker {
+        font-family: var(--util-sans);
+        font-weight: 700;
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--util-amber);
+      }
+      .util-notice__title {
+        font-family: var(--util-sans);
+        font-weight: 600;
+        font-size: 15px;
+        line-height: 1.4;
+        color: var(--util-slate);
+      }
+      .util-notice__sub {
+        margin: 6px 0 0;
+        font-family: var(--util-sans);
+        font-weight: 400;
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--util-slate);
+      }
+      .util-notice__sub strong {
+        font-weight: 700;
+      }
+      .util-notice__link {
+        color: var(--util-blue);
+        font-weight: 600;
+      }
+
+      /* =========================================================
+       * Lede / page hero
+       * ========================================================= */
+      .util-lede {
+        background: var(--util-paper);
+        padding: 8px 0 0;
+        border-bottom: 1px solid var(--util-rule);
+        padding-bottom: 22px;
+      }
+      .util-lede__eyebrow {
+        margin: 0 0 8px;
+        font-family: var(--util-sans);
+        font-weight: 700;
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--util-blue);
+      }
+      .util-lede__title {
+        margin: 0;
+        font-family: var(--util-sans);
+        font-weight: 700;
+        font-size: clamp(28px, 4vw, 44px);
+        line-height: 1.05;
+        letter-spacing: -0.012em;
+        color: var(--util-slate);
+      }
+      .util-lede__sub {
+        margin: 12px 0 0;
+        font-family: var(--util-sans);
+        font-weight: 400;
+        font-size: 16px;
+        line-height: 1.55;
+        color: var(--util-slate);
+        max-width: 70ch;
+      }
+      .util-lede__sub em {
+        font-style: normal;
+        font-weight: 700;
+      }
+
+      .util-lede__statgrid {
+        margin: 18px 0 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0;
+        border: 1px solid var(--util-rule);
+        background: #FFFFFF;
+      }
+      @media (min-width: 720px) {
+        .util-lede__statgrid {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+      }
+      .util-lede__statgrid-cell {
+        padding: 12px 16px;
+        border-right: 1px solid var(--util-rule);
+        border-bottom: 1px solid var(--util-rule);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .util-lede__statgrid-cell:last-child {
+        border-right: 0;
+      }
+      @media (min-width: 720px) {
+        .util-lede__statgrid-cell {
+          border-bottom: 0;
+        }
+        .util-lede__statgrid-cell:nth-child(4n) {
+          border-right: 0;
+        }
+      }
+      .util-lede__statgrid dt {
+        font-family: var(--util-sans);
+        font-weight: 700;
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--util-faint);
+      }
+      .util-lede__statgrid dd {
+        margin: 0;
+      }
+      .util-lede__statgrid-v {
+        font-family: var(--util-sans);
+        font-weight: 700;
+        font-size: 22px;
+        line-height: 1.1;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.005em;
+      }
+      .util-lede__statgrid-v--red    { color: var(--util-red); }
+      .util-lede__statgrid-v--amber  { color: var(--util-amber); }
+      .util-lede__statgrid-v--green  { color: var(--util-green); }
+      .util-lede__statgrid-v--ink    { color: var(--util-slate); }
+
+      /* =========================================================
+       * Grid section
+       * ========================================================= */
+      .util-grid-section {
+        margin-top: 4px;
+      }
+      .util-grid-section__head {
+        margin-bottom: 16px;
+      }
+      .util-grid-section__title {
+        margin: 0;
+        font-family: var(--util-sans);
+        font-weight: 700;
+        font-size: clamp(20px, 2.2vw, 26px);
+        line-height: 1.2;
+        color: var(--util-slate);
+        letter-spacing: -0.005em;
+      }
+      .util-grid-section__sub {
+        margin: 6px 0 0;
+        font-family: var(--util-sans);
+        font-weight: 400;
+        font-size: 14px;
+        line-height: 1.55;
+        color: var(--util-faint);
+        max-width: 80ch;
+      }
+
+      .util-grid {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      @media (min-width: 620px) {
+        .util-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (min-width: 960px) {
+        .util-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      }
+      .util-grid__cell {
+        min-width: 0;
+        display: flex;
+      }
+      .util-grid__cell > * {
+        width: 100%;
+      }
+
+      /* Ancillary cards reuse the card class set — see UtilIndicatorCard */
+      .util-card--anc {
+        background: var(--util-paper);
+        border: 1px solid var(--util-rule);
+        border-top: 3px solid var(--util-faint);
+        padding: 16px 18px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        height: 100%;
+      }
+      .util-card--anc .util-card__head {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .util-card__name--small {
+        font-size: 16px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--util-slate);
+        margin: 0;
+      }
+      .util-card--anc .util-card__statusrow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .util-card--anc .util-card__pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px 4px 8px;
+        font-family: var(--util-sans);
+        font-weight: 700;
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        border: 1px solid currentColor;
+        border-radius: 2px;
+        background: var(--util-paper);
+      }
+      .util-card--anc .util-card__pill-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+        flex-shrink: 0;
+      }
+      .util-card--anc .util-card__pill-text {
+        color: var(--util-slate);
+      }
+      .util-card--anc .util-card__pill--normal { color: var(--util-green); }
+      .util-card--anc .util-card__pill--watch  { color: var(--util-blue); }
+      .util-card--anc .util-card__pill--watch .util-card__pill-text { color: var(--util-blue); }
+      .util-card--anc .util-card__pill--advisory {
+        color: var(--util-amber);
+        background: #FBF1DF;
+      }
+      .util-card--anc .util-card__pill--advisory .util-card__pill-text { color: #7E4807; }
+      .util-card--anc .util-card__pill--alert {
+        color: var(--util-paper);
+        background: var(--util-red);
+        border-color: var(--util-red);
+      }
+      .util-card--anc .util-card__pill--alert .util-card__pill-dot { background: var(--util-paper); }
+      .util-card--anc .util-card__pill--alert .util-card__pill-text { color: var(--util-paper); }
+
+      .util-card--anc .util-card__asof {
+        font-family: var(--util-sans);
+        display: inline-flex;
+        align-items: baseline;
+        gap: 5px;
+        font-size: 11px;
+        color: var(--util-faint);
+        font-variant-numeric: tabular-nums;
+      }
+      .util-card--anc .util-card__asof-k {
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 10px;
+      }
+      .util-card--anc .util-card__asof-v {
+        font-weight: 500;
+        color: var(--util-slate);
+      }
+      .util-card--anc .util-card__indicator {
+        margin: 0;
+        font-family: var(--util-sans);
+        font-weight: 500;
+        font-size: 13px;
+        line-height: 1.3;
+        color: var(--util-faint);
+      }
+      .util-card--anc .util-card__statline {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 6px 0 4px;
+        border-bottom: 1px solid var(--util-rule);
+        flex-wrap: wrap;
+      }
+      .util-card--anc .util-card__value {
+        font-family: var(--util-sans);
+        font-weight: 700;
+        font-size: 28px;
+        line-height: 1;
+        letter-spacing: -0.01em;
+        color: var(--util-slate);
+        font-variant-numeric: tabular-nums;
+      }
+      .util-card--anc .util-card__delta {
+        font-family: var(--util-sans);
+        font-weight: 600;
+        font-size: 13px;
+        line-height: 1.1;
+        font-variant-numeric: tabular-nums;
+      }
+      .util-card--anc .util-card__delta--pos { color: var(--util-green); }
+      .util-card--anc .util-card__delta--neg { color: var(--util-red); }
+      .util-card--anc .util-card__delta--neutral { color: var(--util-faint); }
+      .util-card--anc .util-card__statline :global(.util-spark) {
+        margin-left: auto;
+      }
+      .util-card--anc .util-card__nowcast {
+        margin: 0;
+        font-family: var(--util-sans);
+        font-weight: 400;
+        font-size: 14px;
+        line-height: 1.45;
+        color: var(--util-slate);
+        flex: 1 0 auto;
+      }
+      .util-card--anc .util-card__more {
+        margin: 0;
+        padding-top: 6px;
+        border-top: 1px solid var(--util-rule);
+      }
+      .util-card--anc .util-card__link {
+        font-family: var(--util-sans);
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--util-blue);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      .util-card--anc .util-card__arrow {
+        display: inline-block;
+        margin-left: 2px;
+      }
+
+      /* =========================================================
+       * Legend
+       * ========================================================= */
+      .util-legend {
+        margin-top: 18px;
+        background: #FFFFFF;
+        border: 1px solid var(--util-rule);
+        padding: 16px 18px;
+      }
+      .util-legend__title {
+        margin: 0 0 12px;
+        font-family: var(--util-sans);
+        font-weight: 700;
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--util-faint);
+      }
+      .util-legend__list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px 18px;
+      }
+      @media (min-width: 760px) {
+        .util-legend__list {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (min-width: 1100px) {
+        .util-legend__list {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+      }
+      .util-legend__list li {
+        display: grid;
+        grid-template-columns: 14px auto 1fr;
+        gap: 8px;
+        align-items: baseline;
+        font-family: var(--util-sans);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .util-legend__sw {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        align-self: center;
+        border: 1px solid currentColor;
+      }
+      .util-legend__sw--normal   { color: var(--util-green); background: var(--util-green); }
+      .util-legend__sw--watch    { color: var(--util-blue); background: var(--util-blue); }
+      .util-legend__sw--advisory { color: var(--util-amber); background: var(--util-amber); }
+      .util-legend__sw--alert    { color: var(--util-red); background: var(--util-red); }
+      .util-legend__k {
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--util-slate);
+        font-size: 11px;
+      }
+      .util-legend__v {
+        color: var(--util-slate);
+        font-size: 12px;
+      }
+    </style>
+  </body>
+</html>

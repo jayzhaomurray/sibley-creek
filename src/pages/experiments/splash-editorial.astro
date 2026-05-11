@@ -1,0 +1,194 @@
+---
+/*
+ * Splash experiment: Lane B - Editorial Magazine.
+ *
+ * A publication-of-record cover splash. Big serif display, italic deck-as-
+ * poetry, asymmetric magazine-cover composition, one strong accent, generous
+ * whitespace, the publication's voice arriving in the first 600px.
+ *
+ * Entirely self-contained: no production homepage component imports, no
+ * design-system token consumption. Aesthetic choices made here are scoped to
+ * this experiment under `src/components/experiments/editorial/`.
+ *
+ * Reads (read-only): src/data/sections.ts
+ * Does not touch: pipeline/, design/, editorial/, .claude/, src/pages/index.astro,
+ *                 the other splash experiments.
+ */
+import { sections, deepDives, nextRelease, site, type Section } from "../../data/sections";
+import GrainOverlay from "../../components/experiments/editorial/GrainOverlay.astro";
+import Masthead from "../../components/experiments/editorial/Masthead.astro";
+import CoverHero from "../../components/experiments/editorial/CoverHero.astro";
+import InsideThisIssue from "../../components/experiments/editorial/InsideThisIssue.astro";
+import DeepDives from "../../components/experiments/editorial/DeepDives.astro";
+import Colophon from "../../components/experiments/editorial/Colophon.astro";
+
+// Hero selection: section with the most-recent updatedAt timestamp. Same
+// rule as the production homepage (we read the data, we don't import the
+// composition).
+const heroSection: Section = sections.reduce((a, b) =>
+  (b.updatedAt ?? 0) > (a.updatedAt ?? 0) ? b : a,
+);
+
+const editionDate = new Date().toLocaleDateString("en-CA", {
+  weekday: "long",
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
+// Editorial "Vol / No" stamp derived from the calendar. Stable across the
+// page builds for a given day.
+const today = new Date();
+const startOfYear = new Date(today.getFullYear(), 0, 1);
+const issueNo = Math.ceil(
+  ((today.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7,
+);
+const volNo = today.getFullYear() - 2025;
+
+const pageTitle = `${site.name} - Editorial Splash (Experiment B)`;
+const pageDesc = "An editorial-magazine cover for Canadian macro: cover feature, contents, and three pieces in motion from the research desk.";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#F2EDE2" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta property="og:locale" content="en_CA" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,400..900,30..100,0..1;1,9..144,400..900,30..100,0..1&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..700&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
+  </head>
+  <body class="ed-body">
+    <a class="ed-skip" href="#ed-main">Skip to main content</a>
+
+    <GrainOverlay />
+
+    <div class="ed-frame">
+      <Masthead editionDate={editionDate} volume={String(volNo)} issue={String(issueNo)} />
+
+      <main id="ed-main">
+        <CoverHero hero={heroSection} />
+        <InsideThisIssue sections={sections} heroSlug={heroSection.slug} />
+        <DeepDives deepDives={deepDives} />
+      </main>
+
+      <Colophon nextRelease={nextRelease} />
+    </div>
+
+    <style is:global>
+      /* ---------- Scoped tokens (this page only) ---------- */
+      :root {
+        --ed-paper: #F2EDE2;       /* Italian magazine cream */
+        --ed-paper-warm: #EAE2D2;
+        --ed-ink: #1A1410;         /* warm near-black, never pure */
+        --ed-ink-mute: #6A5F52;    /* warm taupe */
+        --ed-ink-faint: #A1958A;
+        --ed-accent: #5C0E15;      /* oxblood */
+        --ed-accent-soft: #8A2A30;
+        --ed-pos: #4A5D2C;         /* sage-olive for positive deltas */
+        --ed-rule: #C9BFB0;        /* paper rule */
+        --ed-rule-faint: #DBD2C3;
+
+        --ed-font-display: "Fraunces", "Source Serif 4", Georgia, serif;
+        --ed-font-body: "Source Serif 4", Georgia, "Times New Roman", serif;
+        --ed-font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+      }
+
+      /* ---------- Page reset (this experiment only) ---------- */
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--ed-paper);
+        color: var(--ed-ink);
+      }
+      body.ed-body {
+        font-family: var(--ed-font-body);
+        font-size: 18px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+        min-height: 100vh;
+        position: relative;
+        overflow-x: hidden;
+      }
+
+      /* Paper warm vignette: subtle radial that adds depth without
+         competing with the grain overlay. */
+      body.ed-body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(120% 80% at 50% 0%, rgba(255, 250, 240, 0.65) 0%, rgba(242, 237, 226, 0) 60%),
+          radial-gradient(80% 60% at 50% 100%, rgba(218, 205, 184, 0.35) 0%, rgba(242, 237, 226, 0) 70%);
+      }
+
+      .ed-frame {
+        position: relative;
+        z-index: 2;
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 0 clamp(1.25rem, 3vw, 2.5rem);
+      }
+
+      /* Skip link */
+      .ed-skip {
+        position: absolute;
+        top: -100px;
+        left: 1rem;
+        z-index: 100;
+        background: var(--ed-ink);
+        color: var(--ed-paper);
+        font-family: var(--ed-font-body);
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem;
+        text-decoration: none;
+        border-radius: 2px;
+        transition: top 150ms ease;
+      }
+      .ed-skip:focus { top: 0.75rem; }
+
+      /* Focus-visible default */
+      a:focus-visible, button:focus-visible {
+        outline: 2px solid var(--ed-accent);
+        outline-offset: 3px;
+        border-radius: 1px;
+      }
+
+      /* Selection */
+      ::selection {
+        background: var(--ed-accent);
+        color: var(--ed-paper);
+      }
+
+      /* Headings reset */
+      h1, h2, h3, h4 { margin: 0; }
+
+      /* Reduced motion -- everything that animates respects this. */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </body>
+</html>

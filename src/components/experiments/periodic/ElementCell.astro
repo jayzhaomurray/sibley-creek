@@ -1,0 +1,251 @@
+---
+/*
+ * Lane N - Periodic Table.
+ * A single element cell. Square. Chemistry-textbook in feel:
+ *   - atomic number top-left, in IBM Plex Sans Condensed
+ *   - atomic symbol big-and-bold, centered
+ *   - element name (italic, Cormorant Garamond) below
+ *   - "atomic weight" line = latest value
+ *   - small delta line at the bottom
+ *
+ * Family color is set by the parent grid via a CSS variable
+ * (--pt-family-color). The cell uses it only on the top border, the
+ * atomic-number, and the corner mark so the chemistry-paper feel
+ * dominates over the color.
+ */
+
+interface Props {
+  /** Atomic number, 1..n. */
+  z: number;
+  /** Atomic symbol — short, all-caps, 2-4 chars. */
+  symbol: string;
+  /** Element name — set in italic Cormorant. */
+  name: string;
+  /** "Atomic weight" — the latest reading, pre-formatted with units. */
+  weight: string;
+  /** Delta vs prior period, pre-formatted. May be empty. */
+  delta?: string;
+  /** Direction the delta represents. Drives a tiny mark only. */
+  deltaDir?: "pos" | "neg" | "neutral";
+  /** Family name (for aria-label only). */
+  family: string;
+  /** Optional state tag: "stable" | "trace" | "synthetic" — small bottom-right glyph. */
+  state?: "stable" | "trace" | "synthetic";
+  /** If true, render as a smaller "lanthanide" style row variant. */
+  rare?: boolean;
+}
+
+const {
+  z,
+  symbol,
+  name,
+  weight,
+  delta = "",
+  deltaDir = "neutral",
+  family,
+  state = "stable",
+  rare = false,
+} = Astro.props as Props;
+
+const stateGlyph =
+  state === "trace" ? "tr" : state === "synthetic" ? "syn" : "st";
+
+const deltaSign =
+  deltaDir === "pos" ? "+" : deltaDir === "neg" ? "-" : "=";
+---
+<article
+  class={`pt-cell${rare ? " pt-cell--rare" : ""}`}
+  aria-label={`${name}, atomic number ${z}, family ${family}, latest reading ${weight}`}
+>
+  <header class="pt-cell__head">
+    <span class="pt-cell__z" aria-hidden="true">{z}</span>
+    <span class="pt-cell__state" aria-hidden="true">{stateGlyph}</span>
+  </header>
+
+  <div class="pt-cell__body">
+    <p class="pt-cell__symbol" aria-hidden="true">{symbol}</p>
+    <p class="pt-cell__name"><em>{name}</em></p>
+  </div>
+
+  <footer class="pt-cell__foot">
+    <p class="pt-cell__weight" aria-hidden="true">{weight}</p>
+    {delta && (
+      <p class={`pt-cell__delta pt-cell__delta--${deltaDir}`} aria-hidden="true">
+        <span class="pt-cell__delta-sign">{deltaSign}</span>
+        <span class="pt-cell__delta-val">{delta}</span>
+      </p>
+    )}
+  </footer>
+
+  <span class="pt-cell__corner" aria-hidden="true"></span>
+</article>
+
+<style>
+  .pt-cell {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    background: var(--pt-paper-bright, #FCFAF3);
+    color: var(--pt-ink, #171717);
+    border: 1px solid var(--pt-ink, #171717);
+    border-top: 4px solid var(--pt-family-color, #171717);
+    padding: 10px 10px 8px 10px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 4px;
+    overflow: hidden;
+    transition: transform 140ms ease, box-shadow 140ms ease;
+  }
+
+  /* Subtle textbook-paper inner shading from upper-left. */
+  .pt-cell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 253, 244, 0.6) 0%,
+      transparent 38%,
+      transparent 62%,
+      rgba(0, 0, 0, 0.025) 100%
+    );
+  }
+
+  .pt-cell:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      2px 2px 0 0 var(--pt-family-color, #171717),
+      4px 4px 0 0 rgba(23, 23, 23, 0.12);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pt-cell { transition: none; }
+    .pt-cell:hover { transform: none; box-shadow: none; }
+  }
+
+  /* ---- Header (atomic number + state) ---- */
+  .pt-cell__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: var(--pt-mono, "IBM Plex Sans Condensed"), sans-serif;
+    line-height: 1;
+    position: relative;
+    z-index: 1;
+  }
+  .pt-cell__z {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--pt-family-color, #171717);
+    letter-spacing: 0.02em;
+  }
+  .pt-cell__state {
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: lowercase;
+    color: var(--pt-ink-faint, #6B6B6B);
+  }
+
+  /* ---- Body (symbol + name) ---- */
+  .pt-cell__body {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    position: relative;
+    z-index: 1;
+  }
+  .pt-cell__symbol {
+    margin: 0;
+    font-family: var(--pt-mono, "IBM Plex Sans Condensed"), sans-serif;
+    font-weight: 700;
+    font-size: clamp(26px, 4.2vw, 40px);
+    line-height: 0.95;
+    letter-spacing: -0.01em;
+    color: var(--pt-ink, #171717);
+  }
+  .pt-cell__name {
+    margin: 0;
+    font-family: var(--pt-serif-display, "Cormorant Garamond"), serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 11px;
+    line-height: 1.15;
+    color: var(--pt-ink, #171717);
+    letter-spacing: 0.005em;
+  }
+  .pt-cell__name em {
+    font-style: italic;
+  }
+
+  /* ---- Footer (atomic weight + delta) ---- */
+  .pt-cell__foot {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    position: relative;
+    z-index: 1;
+  }
+  .pt-cell__weight {
+    margin: 0;
+    font-family: var(--pt-mono, "IBM Plex Sans Condensed"), sans-serif;
+    font-weight: 600;
+    font-size: 12.5px;
+    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
+    color: var(--pt-ink, #171717);
+  }
+  .pt-cell__delta {
+    margin: 0;
+    font-family: var(--pt-mono, "IBM Plex Sans Condensed"), sans-serif;
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 3px;
+  }
+  .pt-cell__delta-sign {
+    display: inline-block;
+    width: 8px;
+    text-align: center;
+    font-weight: 700;
+  }
+  .pt-cell__delta--pos { color: var(--pt-pos, #2D6B3A); }
+  .pt-cell__delta--neg { color: var(--pt-neg, #B23A2F); }
+  .pt-cell__delta--neutral { color: var(--pt-ink-faint, #6B6B6B); }
+
+  /* ---- Decorative corner mark (family color triangle) ---- */
+  .pt-cell__corner {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-bottom: 10px solid var(--pt-family-color, #171717);
+    opacity: 0.85;
+  }
+
+  /* ---- Rare-earth variant: shorter, denser ---- */
+  .pt-cell--rare {
+    aspect-ratio: 1.35 / 1;
+    padding: 8px 10px 7px 10px;
+  }
+  .pt-cell--rare .pt-cell__symbol {
+    font-size: clamp(20px, 3vw, 28px);
+  }
+  .pt-cell--rare .pt-cell__name {
+    font-size: 10px;
+  }
+  .pt-cell--rare .pt-cell__weight {
+    font-size: 11px;
+  }
+  .pt-cell--rare .pt-cell__delta {
+    font-size: 9px;
+  }
+</style>

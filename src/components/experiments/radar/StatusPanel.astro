@@ -1,0 +1,126 @@
+---
+/*
+ * StatusPanel - "OVERALL CONDITIONS" instrument panel.
+ *
+ * Sits on the left flank of the radar. Reads as a flight-deck readout:
+ * call-signs in mono, values right-aligned, color-coded by direction.
+ */
+
+interface Row {
+  label: string;
+  value: string;
+  unit?: string;
+  state: "pos" | "neg" | "neutral" | "alert";
+}
+
+interface Props {
+  title: string;
+  rows: Row[];
+  /** Optional kicker above the title (small mono caps). */
+  kicker?: string;
+}
+
+const { title, rows, kicker } = Astro.props;
+---
+
+<section class="rd-panel" aria-label={title}>
+  {kicker && <p class="rd-panel__kicker">{kicker}</p>}
+  <h2 class="rd-panel__title">{title}</h2>
+  <ul class="rd-panel__list" role="list">
+    {rows.map((r) => (
+      <li class="rd-row">
+        <span class="rd-row__label">{r.label}</span>
+        <span class={`rd-row__value rd-row__value--${r.state}`}>
+          {r.value}
+          {r.unit && <span class="rd-row__unit"> {r.unit}</span>}
+        </span>
+      </li>
+    ))}
+  </ul>
+</section>
+
+<style>
+  .rd-panel {
+    border: 1px solid var(--rd-rule);
+    background:
+      linear-gradient(180deg, rgba(59, 210, 90, 0.04), rgba(11, 16, 13, 0.6));
+    padding: 14px 16px 16px;
+    position: relative;
+  }
+  .rd-panel::before,
+  .rd-panel::after {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 1px solid var(--rd-green);
+    opacity: 0.6;
+  }
+  .rd-panel::before {
+    top: -1px; left: -1px;
+    border-right: none;
+    border-bottom: none;
+  }
+  .rd-panel::after {
+    bottom: -1px; right: -1px;
+    border-left: none;
+    border-top: none;
+  }
+
+  .rd-panel__kicker {
+    margin: 0 0 4px 0;
+    font-family: var(--rd-font-mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--rd-green-dim);
+  }
+  .rd-panel__title {
+    margin: 0 0 12px 0;
+    font-family: var(--rd-font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--rd-green);
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--rd-rule);
+  }
+  .rd-panel__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .rd-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-family: var(--rd-font-mono);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .rd-row__label {
+    color: var(--rd-ink-muted);
+    letter-spacing: 0.04em;
+  }
+  .rd-row__value {
+    color: var(--rd-ink);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .rd-row__value--pos { color: var(--rd-green); }
+  .rd-row__value--neg { color: var(--rd-red); }
+  .rd-row__value--neutral { color: var(--rd-ink); }
+  .rd-row__value--alert { color: var(--rd-red); }
+  .rd-row__unit {
+    color: var(--rd-ink-muted);
+    font-weight: 400;
+    font-size: 12px;
+  }
+</style>

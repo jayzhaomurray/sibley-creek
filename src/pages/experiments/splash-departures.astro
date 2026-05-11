@@ -1,0 +1,512 @@
+---
+/*
+ * Lane J - Solari Departures Board.
+ *
+ * The page IS a departures board. Reading order:
+ *
+ *   1. SolariMasthead - marquee header, edition / track / gate strip,
+ *      flickering LIVE pip, live clock at top-right.
+ *   2. Tape strip - a single-line scoreboard summarizing how many
+ *      sections are advancing (green) vs retreating (red) on their
+ *      load-bearing prints. High-density mechanical readout.
+ *   3. Main board - seven rows, one per section, in canonical order:
+ *      CODE / SECTION / INDICATOR / VALUE / DELTA / AS OF / NEXT.
+ *      Each value flaps in with a staggered Solari "flip" animation.
+ *   4. NEXT RELEASES board - the upcoming Canadian macro release
+ *      calendar, rendered as scheduled departures.
+ *   5. CURRENTLY IN FLIGHT board - deep dives presented as in-progress
+ *      flights with BOARDING / RESEARCH / ARRIVED status badges.
+ *   6. Footer colophon - the airport-fiction sign-off + back-to-prod link.
+ *
+ * Self-contained: zero shared components from the production layouts,
+ * Google Fonts only, noindex. Single tiny inline script for the live
+ * clock (no framework JS). prefers-reduced-motion is respected
+ * everywhere a value moves.
+ */
+
+import { sections, deepDives, site, type Section, type SectionSlug } from "../../data/sections";
+
+import SolariMasthead from "../../components/experiments/departures/SolariMasthead.astro";
+import SolariBoardHeader from "../../components/experiments/departures/SolariBoardHeader.astro";
+import SolariRow from "../../components/experiments/departures/SolariRow.astro";
+import SolariNextBoard, { type NextItem } from "../../components/experiments/departures/SolariNextBoard.astro";
+import SolariFlightBoard from "../../components/experiments/departures/SolariFlightBoard.astro";
+import SolariFlipText from "../../components/experiments/departures/SolariFlipText.astro";
+
+// Three-letter board codes per section. Kept in caps; the rendering of
+// these as bold left-anchors mirrors a train number on the Solari board.
+const codes: Record<SectionSlug, string> = {
+  gdp:       "GDP",
+  inflation: "INF",
+  labour:    "LFS",
+  housing:   "HSG",
+  policy:    "BOC",
+  markets:   "MKT",
+  trade:     "TRD",
+};
+
+// Canonical ordering (matches the editorial canon and the production nav).
+const canonical: SectionSlug[] = [
+  "inflation", "gdp", "labour", "housing", "policy", "markets", "trade",
+];
+const ordered: Section[] = canonical
+  .map((slug) => sections.find((s) => s.slug === slug)!)
+  .filter(Boolean);
+
+// "Next" stamps per section - the next expected release for that data
+// family. v1 placeholders sourced from the Statistics Canada / BoC
+// calendar; in production this would come from the release-calendar
+// pipeline. Kept laconic so the column reads as a track-side timetable.
+const nextStamps: Record<SectionSlug, string> = {
+  gdp:       "MAY 30 GDP MAR",
+  inflation: "MAY 21 CPI APR",
+  labour:    "JUN 06 LFS MAY",
+  housing:   "JUN 16 HPI MAY",
+  policy:    "JUN 04 BOC MTG",
+  markets:   "DAILY 16:00 ET",
+  trade:     "JUN 04 MERCH APR",
+};
+
+// Tape totals: count how many load-bearing prints are advancing / retreating.
+const lbPrints = ordered.map((s) => {
+  const lb = s.chartSeriesKey
+    ? s.prints.find((p) => p.key === s.chartSeriesKey) ?? s.prints[0]
+    : s.prints[0];
+  return lb;
+});
+const greenCount = lbPrints.filter((p) => p.deltaDir === "pos").length;
+const redCount   = lbPrints.filter((p) => p.deltaDir === "neg").length;
+const flatCount  = lbPrints.length - greenCount - redCount;
+
+// Edition / clock stamps. Server-rendered in en-CA so the build-time
+// string is legible if JS never runs.
+const now = new Date();
+
+function fmtClock(d: Date): string {
+  const pad = (n: number) => (n < 10 ? "0" + n : "" + n);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+function fmtZone(d: Date): string {
+  // crude TZ derivation from offset minutes
+  const off = -d.getTimezoneOffset();
+  const sign = off >= 0 ? "+" : "-";
+  const h = Math.floor(Math.abs(off) / 60);
+  return `UTC${sign}${String(h).padStart(2, "0")}`;
+}
+function fmtEdition(d: Date): string {
+  return d.toLocaleDateString("en-CA", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).toUpperCase().replace(/,/g, "").replace(/\./g, "");
+}
+
+const initialClock = fmtClock(now);
+const initialZone  = fmtZone(now);
+const editionStr   = fmtEdition(now);
+
+// Next releases board content - v1 placeholders aligned to the May/June
+// 2026 Canadian release calendar. The real list would come from the
+// release-calendar pipeline; statuses derive from on-the-day deltas.
+const nextItems: NextItem[] = [
+  { sched: "TUE 21 MAY 08:30", agency: "STATCAN", release: "CPI APRIL 2026",              status: "ON TIME",   track: "TRK 02" },
+  { sched: "FRI 30 MAY 08:30", agency: "STATCAN", release: "GDP MARCH 2026",              status: "SCHEDULED", track: "TRK 07" },
+  { sched: "WED 04 JUN 09:45", agency: "BOC",     release: "RATE DECISION & MPR JUN",     status: "HOLDING",   track: "TRK 01" },
+  { sched: "FRI 06 JUN 08:30", agency: "STATCAN", release: "LFS MAY 2026",                status: "SCHEDULED", track: "TRK 03" },
+  { sched: "TUE 10 JUN 08:30", agency: "STATCAN", release: "MERCH TRADE APRIL 2026",      status: "SCHEDULED", track: "TRK 04" },
+  { sched: "MON 16 JUN 09:00", agency: "CREA",    release: "MLS HPI MAY 2026",            status: "SCHEDULED", track: "TRK 05" },
+  { sched: "TUE 17 JUN 08:30", agency: "STATCAN", release: "CPI MAY 2026",                status: "SCHEDULED", track: "TRK 02" },
+];
+
+// Deep dives ordered by recency.
+const ddOrdered = [...deepDives]
+  .sort((a, b) => (a.lastUpdated < b.lastUpdated ? 1 : -1));
+
+const pageTitle = `${site.shortName} // SOLARI DEPARTURES // ${editionStr}`;
+const pageDesc =
+  "Experimental Solari split-flap departures board splash for the Macro Research Department - mechanical-monospace, amber on black, dashboard-as-front-door.";
+---
+<!doctype html>
+<html lang="en-CA">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="generator" content={Astro.generator} />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>{pageTitle}</title>
+  <meta name="description" content={pageDesc} />
+  <meta name="theme-color" content="#0E0E10" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content={pageTitle} />
+  <meta property="og:description" content={pageDesc} />
+  <meta property="og:locale" content="en_CA" />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+
+  {/* Google Fonts - JetBrains Mono (mechanical-monospace display + body),
+      Major Mono Display (large station-board accents). */}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Major+Mono+Display&display=swap"
+  />
+
+  <style is:global>
+    /* ===========================================================
+     * Lane J - Solari Departures Board.
+     * Six-color palette, mechanical-monospace tokens.
+     * =========================================================== */
+    :root {
+      /* Six colors only */
+      --sol-black:        #0E0E10;  /* deep matte black */
+      --sol-frame:        #1F1F23;  /* charcoal frame */
+      --sol-amber:        #F2A714;  /* active sodium/amber */
+      --sol-amber-faded:  #7A5A1F;  /* faded amber / muted */
+      --sol-red:          #FF3D2E;  /* signal red - negative deltas */
+      --sol-green:        #1FBF52;  /* signal green - positive deltas */
+
+      --sol-display: "Major Mono Display", "JetBrains Mono", ui-monospace,
+                     "SF Mono", Menlo, monospace;
+      --sol-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--sol-black);
+      color: var(--sol-amber);
+      font-family: var(--sol-mono);
+      font-size: 16px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-feature-settings: "kern", "liga", "tnum";
+      font-variant-numeric: tabular-nums lining-nums;
+    }
+
+    body {
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Soft amber vignette - the sodium-lamp wash you get from a real
+       station board. Calm but alive. */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 0%,  rgba(242,167,20,0.06), transparent 70%),
+        radial-gradient(ellipse 60% 50% at 50% 100%, rgba(242,167,20,0.03), transparent 70%);
+    }
+
+    /* Subtle scanline texture - the dot-matrix-on-glass cue. */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image: repeating-linear-gradient(
+        0deg,
+        rgba(0,0,0,0.0)   0px,
+        rgba(0,0,0,0.0)   2px,
+        rgba(0,0,0,0.18)  3px,
+        rgba(0,0,0,0.18)  4px
+      );
+      mix-blend-mode: multiply;
+      opacity: 0.5;
+    }
+
+    a { color: var(--sol-amber); }
+
+    /* Skip link --------------------------------------------------- */
+    .sol-skip {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+    }
+    .sol-skip:focus {
+      left: 12px;
+      top: 12px;
+      z-index: 100;
+      background: var(--sol-amber);
+      color: var(--sol-black);
+      padding: 10px 14px;
+      font-family: var(--sol-mono);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    /* Make every layer above the background textures sit on top */
+    body > * { position: relative; z-index: 1; }
+
+    /* Reusable visually-hidden text class for SR-only labels */
+    .sol-vh {
+      position: absolute;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <a class="sol-skip" href="#sol-board">Skip to departures</a>
+
+  <SolariMasthead
+    publication="MACRO RESEARCH DEPARTMENT"
+    boardName="CDN MACRO BOARD"
+    editionDate={editionStr}
+    trackCode="TRK 07"
+    gateCode="GATE J"
+    initialClock={initialClock}
+    initialZone={initialZone}
+  />
+
+  {/* Tape strip: a single-line scoreboard, the airport "scoreboard" cue */}
+  <div class="sol-tape" role="region" aria-label="Board summary">
+    <div class="sol-tape__inner">
+      <span class="sol-tape__cell">
+        <span class="sol-tape__key">SECTIONS</span>
+        <SolariFlipText text={String(ordered.length).padStart(2, "0")} tone="active" weight="bold" delay={80} stagger={26} ariaHidden />
+        <span class="sol-vh">{ordered.length} sections</span>
+      </span>
+      <span class="sol-tape__cell">
+        <span class="sol-tape__key">UP</span>
+        <SolariFlipText text={String(greenCount).padStart(2, "0")} tone="pos" weight="bold" delay={120} stagger={26} ariaHidden />
+        <span class="sol-vh">{greenCount} advancing</span>
+      </span>
+      <span class="sol-tape__cell">
+        <span class="sol-tape__key">DN</span>
+        <SolariFlipText text={String(redCount).padStart(2, "0")} tone="neg" weight="bold" delay={160} stagger={26} ariaHidden />
+        <span class="sol-vh">{redCount} retreating</span>
+      </span>
+      <span class="sol-tape__cell">
+        <span class="sol-tape__key">FLAT</span>
+        <SolariFlipText text={String(flatCount).padStart(2, "0")} tone="muted" weight="bold" delay={200} stagger={26} ariaHidden />
+        <span class="sol-vh">{flatCount} neutral</span>
+      </span>
+      <span class="sol-tape__cell sol-tape__cell--wide">
+        <span class="sol-tape__key">NEXT</span>
+        <SolariFlipText text="CPI APR &middot; TUE 21 MAY 08:30 ET" tone="active" delay={240} stagger={16} ariaHidden />
+        <span class="sol-vh">Next release: CPI April, Tuesday May 21 at 08:30 ET</span>
+      </span>
+      <span class="sol-tape__cell sol-tape__cell--right">
+        <span class="sol-tape__key">BUILD</span>
+        <SolariFlipText text={editionStr} tone="muted" delay={300} stagger={14} ariaHidden />
+      </span>
+    </div>
+  </div>
+
+  <main id="sol-board">
+    <section class="sol-board" aria-labelledby="sol-board-h">
+      <header class="sol-board__hd">
+        <h2 id="sol-board-h" class="sol-board__h1">
+          <span class="sol-board__bracket" aria-hidden="true">&gt;&gt;</span>
+          <SolariFlipText
+            text="DEPARTURES"
+            tone="active"
+            weight="bold"
+            delay={120}
+            stagger={26}
+            ariaHidden
+          />
+          <span class="sol-vh">Departures</span>
+        </h2>
+        <p class="sol-board__sub">
+          MOST RECENT PRINT PER SECTION &middot; CANONICAL ORDER &middot; AMBER = ACTIVE / RED = RETREATING / GREEN = ADVANCING
+        </p>
+      </header>
+
+      <SolariBoardHeader />
+
+      <div class="sol-board__rows" role="list">
+        {ordered.map((s, i) => (
+          <SolariRow
+            section={s}
+            code={codes[s.slug]}
+            rowIndex={i}
+            next={nextStamps[s.slug]}
+          />
+        ))}
+      </div>
+    </section>
+
+    <SolariNextBoard items={nextItems} delay={1400} />
+
+    <SolariFlightBoard items={ddOrdered} delay={1700} />
+  </main>
+
+  <footer class="sol-foot" aria-label="Page colophon">
+    <div class="sol-foot__inner">
+      <p class="sol-foot__lead">
+        <SolariFlipText text="END OF BOARD" tone="muted" weight="bold" delay={2000} stagger={26} ariaHidden />
+        <span class="sol-vh">End of board.</span>
+      </p>
+      <p class="sol-foot__meta">
+        {site.name} &middot; CDN MACRO BOARD &middot; LANE J - SOLARI DEPARTURES &middot; PRODUCED {editionStr}
+      </p>
+      <p class="sol-foot__back">
+        <a href="/" class="sol-foot__back-link">
+          <span aria-hidden="true">&larr;</span>
+          RETURN TO PRODUCTION HOMEPAGE
+        </a>
+      </p>
+    </div>
+  </footer>
+
+  <style>
+    /* ---- tape strip ---- */
+    .sol-tape {
+      background:
+        linear-gradient(
+          180deg,
+          rgba(31,31,35,0.6) 0%,
+          rgba(14,14,16,0.6) 100%
+        );
+      border-bottom: 1px solid var(--sol-frame);
+    }
+    .sol-tape__inner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 28px;
+      padding: 10px clamp(16px, 3vw, 32px);
+      font-family: var(--sol-mono);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      color: var(--sol-amber);
+    }
+    .sol-tape__cell {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 10px;
+      white-space: nowrap;
+    }
+    .sol-tape__cell--wide { flex: 1 1 auto; }
+    .sol-tape__cell--right { margin-left: auto; }
+    .sol-tape__key {
+      font-size: 10px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--sol-amber-faded);
+    }
+
+    /* ---- main departures board ---- */
+    .sol-board {
+      padding-block: clamp(20px, 3vw, 36px);
+    }
+    .sol-board__hd {
+      padding: 0 clamp(16px, 3vw, 32px) 14px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 20px 32px;
+      justify-content: space-between;
+    }
+    .sol-board__h1 {
+      margin: 0;
+      font-family: var(--sol-display);
+      font-size: clamp(20px, 2.4vw, 28px);
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      color: var(--sol-amber);
+      display: inline-flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .sol-board__bracket {
+      color: var(--sol-amber-faded);
+      font-family: var(--sol-mono);
+      font-size: 18px;
+    }
+    .sol-board__sub {
+      margin: 0;
+      font-family: var(--sol-mono);
+      font-size: 10px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--sol-amber-faded);
+      max-width: 64ch;
+    }
+
+    .sol-board__rows {
+      display: block;
+    }
+
+    /* ---- footer ---- */
+    .sol-foot {
+      border-top: 1px solid var(--sol-frame);
+      background: var(--sol-black);
+      padding: clamp(28px, 4vw, 48px) clamp(16px, 3vw, 32px);
+      margin-top: 4px;
+    }
+    .sol-foot__inner {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 100%;
+    }
+    .sol-foot__lead {
+      margin: 0;
+      font-family: var(--sol-display);
+      font-size: clamp(20px, 2.4vw, 30px);
+      letter-spacing: 0.2em;
+      color: var(--sol-amber);
+    }
+    .sol-foot__meta {
+      margin: 0;
+      font-family: var(--sol-mono);
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--sol-amber-faded);
+    }
+    .sol-foot__back {
+      margin: 12px 0 0;
+      font-family: var(--sol-mono);
+      font-size: 12px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+    .sol-foot__back-link {
+      color: var(--sol-amber);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid var(--sol-frame);
+      padding: 10px 16px;
+      transition: border-color 200ms ease, color 200ms ease, background 200ms ease;
+    }
+    .sol-foot__back-link:hover,
+    .sol-foot__back-link:focus-visible {
+      border-color: var(--sol-amber);
+      background: rgba(242, 167, 20, 0.06);
+      outline: none;
+    }
+    .sol-foot__back-link:focus-visible {
+      outline: 1px solid var(--sol-amber);
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 640px) {
+      .sol-tape__cell--right { margin-left: 0; }
+    }
+  </style>
+</body>
+</html>

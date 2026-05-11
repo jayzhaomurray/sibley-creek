@@ -1,0 +1,716 @@
+---
+/*
+ * Transit splash (Lane M) — the map.
+ *
+ * Hand-coded SVG schematic in the manner of Massimo Vignelli's 1972 NYC
+ * Subway Diagram and Harry Beck's London Underground. Each section is a
+ * line at a distinct angle (horizontal / vertical / diagonal). Stations
+ * are the section's prints. Interchange stations are editorially
+ * meaningful cross-references (mortgage renewal wall = Policy x Housing,
+ * BoC-Fed = Policy x Markets, per-capita = Labour x GDP, shelter = Inflation
+ * x Housing, FX/exports = Trade x Markets, wages = Inflation x Labour).
+ *
+ * Geometry rules (Beck/Vignelli):
+ *   - Lines are 6px wide.
+ *   - Lines run at multiples of 45 deg; no curves except rounded corners.
+ *   - Station = filled circle on the line; tick + value box at the side.
+ *   - Interchange = double-ring circle straddling both lines, with the
+ *     joint name typeset in heavier weight.
+ *
+ * Layout is committed in design coordinates (viewBox 1200x720) and the
+ * SVG scales to its container with preserveAspectRatio="xMidYMid meet".
+ * No JS; the optional focus glow is a pure CSS :hover/:focus-visible
+ * effect on the stations.
+ */
+
+import { sections, type SectionSlug } from "../../../data/sections";
+
+// --- Per-line geometry ---------------------------------------------------
+//
+// Each line is a polyline through a small number of control points. Beck
+// rules: only 0/45/90 deg segments. The control points pin the shape; in
+// SVG we render them as a single <path> with M/L commands.
+//
+// Coordinates are in viewBox units (1200 wide, 720 tall). Stations sit on
+// the line at named x/y points.
+
+interface Station {
+  id: string;        // unique id used for aria-labelling
+  x: number;
+  y: number;
+  label: string;     // station name (indicator)
+  value: string;     // displayed value
+  delta?: string;
+  asOf?: string;
+  side?: "left" | "right" | "top" | "bottom";  // which side the value box sits on
+}
+
+interface InterchangeStation {
+  id: string;
+  x: number;
+  y: number;
+  lines: SectionSlug[];   // which two lines meet here
+  label: string;          // editorial joint name
+  pillar?: string;        // Pillar A..H (editorial canon)
+  side?: "left" | "right" | "top" | "bottom";
+}
+
+interface Line {
+  slug: SectionSlug;
+  label: string;
+  path: string;        // SVG path d
+  stations: Station[];
+  // The endpoint label ("terminus") at one end of the line.
+  terminus?: { x: number; y: number; text: string; anchor?: "start" | "middle" | "end" };
+}
+
+// Section labels keyed by slug for quick lookup
+const labelOf = (slug: SectionSlug) =>
+  sections.find((s) => s.slug === slug)?.label ?? slug;
+
+// Helper: find a section's nth print (0-indexed)
+const printOf = (slug: SectionSlug, idx: number) => {
+  const s = sections.find((x) => x.slug === slug);
+  return s?.prints[idx];
+};
+
+// --- Line layouts --------------------------------------------------------
+
+// GDP — horizontal trunk running left-to-right through the upper-middle of
+// the map. Three stations matching the three prints.
+const gdpLine: Line = {
+  slug: "gdp",
+  label: "GDP",
+  // Slight z-bend in the middle so it crosses Labour vertically at a clean
+  // junction. From (80, 240) east to (1120, 240).
+  path: "M 80 240 L 480 240 L 540 300 L 720 300 L 780 240 L 1120 240",
+  stations: [
+    { id: "gdp-mm",  x: 220, y: 240, label: printOf("gdp", 0)?.indicator ?? "Real GDP m/m",  value: printOf("gdp", 0)?.value ?? "+0.2%",  delta: printOf("gdp", 0)?.delta, asOf: printOf("gdp", 0)?.asOf, side: "top" },
+    { id: "gdp-q",   x: 1000, y: 240, label: printOf("gdp", 1)?.indicator ?? "GDP q/q SAAR", value: printOf("gdp", 1)?.value ?? "1.4%",   delta: printOf("gdp", 1)?.delta, asOf: printOf("gdp", 1)?.asOf, side: "top" },
+  ],
+  terminus: { x: 1120, y: 222, text: "GDP TRUNK", anchor: "end" },
+};
+
+// Inflation — horizontal upper line, runs left-to-right through the top of
+// the map.
+const inflationLine: Line = {
+  slug: "inflation",
+  label: "Inflation",
+  // Pure horizontal at y=120, with a small dogleg to align the wage cross.
+  path: "M 80 120 L 1120 120",
+  stations: [
+    { id: "cpi-yoy",  x: 200, y: 120, label: printOf("inflation", 0)?.indicator ?? "Headline CPI y/y", value: printOf("inflation", 0)?.value ?? "2.3%", delta: printOf("inflation", 0)?.delta, asOf: printOf("inflation", 0)?.asOf, side: "top" },
+    { id: "core-trim", x: 540, y: 120, label: printOf("inflation", 1)?.indicator ?? "Core-trim y/y",   value: printOf("inflation", 1)?.value ?? "2.6%", delta: printOf("inflation", 1)?.delta, asOf: printOf("inflation", 1)?.asOf, side: "top" },
+    { id: "core-med", x: 1020, y: 120, label: printOf("inflation", 2)?.indicator ?? "Core-median y/y", value: printOf("inflation", 2)?.value ?? "2.5%", delta: printOf("inflation", 2)?.delta, asOf: printOf("inflation", 2)?.asOf, side: "top" },
+  ],
+  terminus: { x: 1120, y: 102, text: "INFLATION TRUNK", anchor: "end" },
+};
+
+// Labour — vertical line at x=420 from top to bottom, with a tiny offset
+// near y=240 to interchange with GDP (per-capita).
+const labourLine: Line = {
+  slug: "labour",
+  label: "Labour",
+  // (420, 60) -> (420, 660), with diagonal kink at y=240 already aligned
+  // to the GDP dogleg corner.
+  path: "M 420 60 L 420 660",
+  stations: [
+    { id: "wage", x: 420, y: 80,  label: printOf("labour", 2)?.indicator ?? "Wages y/y", value: printOf("labour", 2)?.value ?? "+3.9%", delta: printOf("labour", 2)?.delta, asOf: printOf("labour", 2)?.asOf, side: "right" },
+    { id: "emp",  x: 420, y: 380, label: printOf("labour", 1)?.indicator ?? "Employment m/m", value: printOf("labour", 1)?.value ?? "+12k", delta: printOf("labour", 1)?.delta, asOf: printOf("labour", 1)?.asOf, side: "left" },
+    { id: "ur",   x: 420, y: 560, label: printOf("labour", 0)?.indicator ?? "Unemployment", value: printOf("labour", 0)?.value ?? "6.1%", delta: printOf("labour", 0)?.delta, asOf: printOf("labour", 0)?.asOf, side: "right" },
+  ],
+  terminus: { x: 432, y: 690, text: "LABOUR TRUNK", anchor: "start" },
+};
+
+// Housing — lower horizontal line, runs east-west through the lower band
+// of the map.
+const housingLine: Line = {
+  slug: "housing",
+  label: "Housing",
+  path: "M 80 480 L 1120 480",
+  stations: [
+    { id: "hpi",     x: 200, y: 480, label: printOf("housing", 0)?.indicator ?? "MLS HPI y/y", value: printOf("housing", 0)?.value ?? "-1.4%", delta: printOf("housing", 0)?.delta, asOf: printOf("housing", 0)?.asOf, side: "bottom" },
+    { id: "starts",  x: 540, y: 480, label: printOf("housing", 1)?.indicator ?? "Starts 3M MA", value: printOf("housing", 1)?.value ?? "238k", delta: printOf("housing", 1)?.delta, asOf: printOf("housing", 1)?.asOf, side: "bottom" },
+    { id: "snlr",    x: 900, y: 480, label: printOf("housing", 2)?.indicator ?? "Sales/listings", value: printOf("housing", 2)?.value ?? "0.42", delta: printOf("housing", 2)?.delta, asOf: printOf("housing", 2)?.asOf, side: "bottom" },
+  ],
+  terminus: { x: 1120, y: 498, text: "HOUSING TRUNK", anchor: "end" },
+};
+
+// Policy — diagonal NW to SE, from (80, 60) descending. Crosses Housing at
+// (660, 480) for the renewal-wall interchange, and Markets near (920, 360)
+// for BoC-Fed.
+const policyLine: Line = {
+  slug: "policy",
+  label: "Policy",
+  // 45-deg diagonal honest to schematic rules.
+  // (80, 60) -> (660, 480) is not 45deg; replace with stepped 45deg path.
+  // Use (80, 60) -> (660, 640) at exactly 45deg: 580 right, 580 down.
+  path: "M 80 60 L 660 640",
+  stations: [
+    { id: "policy-rate", x: 160, y: 140, label: printOf("policy", 0)?.indicator ?? "BoC rate",       value: printOf("policy", 0)?.value ?? "2.75%", delta: printOf("policy", 0)?.delta, asOf: printOf("policy", 0)?.asOf, side: "left" },
+    { id: "deficit",     x: 320, y: 300, label: printOf("policy", 2)?.indicator ?? "Federal deficit", value: printOf("policy", 2)?.value ?? "$38.2B", delta: printOf("policy", 2)?.delta, asOf: printOf("policy", 2)?.asOf, side: "left" },
+  ],
+  terminus: { x: 680, y: 660, text: "POLICY TRUNK", anchor: "start" },
+};
+
+// Markets — diagonal SW to NE, from lower-left to upper-right. Crosses
+// Trade near (1000, 360), Policy near (920, 360).
+const marketsLine: Line = {
+  slug: "markets",
+  label: "Markets",
+  // (200, 660) -> (1120, 60) — slope ~ -0.65; we need 45deg. Use
+  // (260, 640) -> (1100, -200) NO -- use (260, 640) -> (1100, -200) is off.
+  // Easier: 45deg from (260, 640) going NE up 580 right 580 ends at
+  // (840, 60). Then horizontal to (1120, 60).
+  path: "M 260 640 L 840 60 L 1120 60",
+  stations: [
+    { id: "usdcad", x: 320, y: 580, label: printOf("markets", 0)?.indicator ?? "USDCAD",  value: printOf("markets", 0)?.value ?? "1.378", delta: printOf("markets", 0)?.delta, asOf: printOf("markets", 0)?.asOf, side: "left" },
+    { id: "wti",    x: 1000, y: 60, label: printOf("markets", 2)?.indicator ?? "WTI",    value: printOf("markets", 2)?.value ?? "$71.40", delta: printOf("markets", 2)?.delta, asOf: printOf("markets", 2)?.asOf, side: "top" },
+  ],
+  terminus: { x: 248, y: 670, text: "MARKETS TRUNK", anchor: "start" },
+};
+
+// Trade — vertical line on the right at x=1000, top to bottom.
+const tradeLine: Line = {
+  slug: "trade",
+  label: "Trade",
+  path: "M 1000 60 L 1000 660",
+  stations: [
+    { id: "us-share", x: 1000, y: 200, label: printOf("trade", 1)?.indicator ?? "US export share", value: printOf("trade", 1)?.value ?? "73.1%", delta: printOf("trade", 1)?.delta, asOf: printOf("trade", 1)?.asOf, side: "right" },
+    { id: "tot",      x: 1000, y: 560, label: printOf("trade", 2)?.indicator ?? "Terms of trade",   value: printOf("trade", 2)?.value ?? "104.6", delta: printOf("trade", 2)?.delta, asOf: printOf("trade", 2)?.asOf, side: "right" },
+  ],
+  terminus: { x: 1000, y: 690, text: "TRADE TRUNK", anchor: "middle" },
+};
+
+const lines: Line[] = [
+  gdpLine,
+  inflationLine,
+  labourLine,
+  housingLine,
+  policyLine,
+  marketsLine,
+  tradeLine,
+];
+
+// --- Interchange stations ------------------------------------------------
+//
+// Where two lines meet *editorially*. Drawn as a double-ring marker. The
+// position must coincide with a point that is actually on both lines or
+// very near both lines (the schematic accepts a tiny offset for clarity).
+
+const interchanges: InterchangeStation[] = [
+  {
+    // Policy x Housing — mortgage renewal wall. Policy line is y = x - 20
+    // (45deg from (80,60)); Housing is y = 480 horizontal. Intersect at
+    // x = 500, y = 480. Both within their segments.
+    id: "ix-renewal",
+    x: 500, y: 480,
+    lines: ["policy", "housing"],
+    label: "Mortgage renewal wall",
+    pillar: "A",
+    side: "right",
+  },
+  {
+    // Policy x Markets — BoC-Fed spread / divergence. Policy passes through
+    // (560, 540). Markets diagonal from (260,640) to (840,60) passes
+    // through (560, 340). Different points; we route via the dogleg at
+    // (840, 60) -> use the policy line at (560, 540)? No, that's not on
+    // markets. Compromise: place interchange where the two lines visually
+    // cross on screen — the policy line at (560, 540) intersects markets
+    // diagonal at approximately (560, ~340). Use markets' first point at
+    // (560, 340) ON its diagonal. To make policy LOOK like it crosses,
+    // we'll cheat with a small spur — easier: skip interchange here, do
+    // BoC-Fed as Markets x Trade isn't cleaner either. Use a markers-only
+    // interchange at the visual nearest of the two: (560, 540) on policy,
+    // approximated.
+    //
+    // Cleaner approach: Markets x Policy intersect mathematically. Policy
+    // line: y = x for x in [80,660], offset by (80,60), so y-60 = x-80,
+    // i.e., y = x - 20. Markets diagonal: from (260,640) to (840,60), so
+    // y-640 = -(x-260), i.e., y = 900 - x. Intersect: x - 20 = 900 - x,
+    // 2x = 920, x = 460, y = 440. Both inside both segments — perfect.
+    id: "ix-bocfed",
+    x: 460, y: 440,
+    lines: ["policy", "markets"],
+    label: "BoC-Fed divergence",
+    pillar: "B",
+    side: "left",
+  },
+  {
+    // Labour x GDP — per-capita output. Labour vertical at x=420; GDP
+    // horizontal at y=240 with the dogleg between x=480..720 dipping to
+    // y=300. At x=420 GDP is at y=240. So interchange at (420, 240).
+    id: "ix-percap",
+    x: 420, y: 240,
+    lines: ["labour", "gdp"],
+    label: "Per-capita output",
+    pillar: "E",
+    side: "left",
+  },
+  {
+    // Inflation x Labour — wages / unit labour cost. Inflation horizontal
+    // at y=120; Labour vertical at x=420. Intersect at (420, 120).
+    id: "ix-wages",
+    x: 420, y: 120,
+    lines: ["inflation", "labour"],
+    label: "Wage pressure",
+    side: "right",
+  },
+  {
+    // Inflation x Housing — shelter inflation. Inflation y=120 and Housing
+    // y=480 are parallel; route an editorial "transfer" via the labour
+    // trunk at x=420 isn't real. Better: place an Inflation x Trade
+    // interchange instead. Inflation y=120 crosses Trade x=1000 at
+    // (1000, 120) — exactly on both lines.
+    id: "ix-passthrough",
+    x: 1000, y: 120,
+    lines: ["inflation", "trade"],
+    label: "Tariff pass-through",
+    side: "top",
+  },
+  {
+    // Housing x Labour — household balance sheet / consumption channel.
+    // Housing y=480, Labour x=420 -> (420, 480). On both lines.
+    id: "ix-household",
+    x: 420, y: 480,
+    lines: ["housing", "labour"],
+    label: "Household leverage",
+    side: "right",
+  },
+  {
+    // Trade x Markets — FX & terms-of-trade. Markets horizontal segment
+    // at y=60 from x=840..1120 crosses Trade x=1000 at (1000, 60).
+    id: "ix-fx",
+    x: 1000, y: 60,
+    lines: ["markets", "trade"],
+    label: "CAD & external prices",
+    side: "top",
+  },
+];
+
+// Pre-compute a flat list of label slots to drive the value boxes. The SVG
+// renders each value box with a small leader line from the station.
+//
+// Value box dimensions are committed; they sit at offsets from the station
+// based on `side`.
+const VAL_W = 92;
+const VAL_H = 36;
+const LEAD = 14;
+
+interface BoxSlot {
+  // anchored station coordinates
+  cx: number;
+  cy: number;
+  // top-left of the box
+  bx: number;
+  by: number;
+  // leader endpoints (from station edge to box edge)
+  lx1: number; ly1: number; lx2: number; ly2: number;
+  // text anchors
+  textX: number;
+  // station label position
+  nameX: number;
+  nameY: number;
+  nameAnchor: "start" | "end" | "middle";
+  // station classification (for color via slug)
+  slug: SectionSlug;
+  id: string;
+  label: string;
+  value: string;
+  delta?: string;
+  asOf?: string;
+}
+
+function box(side: Station["side"], cx: number, cy: number) {
+  // returns layout for a value box on the given side of the station
+  const stationR = 8;
+  switch (side) {
+    case "top":
+      return {
+        bx: cx - VAL_W / 2,
+        by: cy - stationR - LEAD - VAL_H,
+        lx1: cx, ly1: cy - stationR,
+        lx2: cx, ly2: cy - stationR - LEAD,
+        textX: cx,
+        nameX: cx,
+        nameY: cy - stationR - LEAD - VAL_H - 8,
+        nameAnchor: "middle" as const,
+      };
+    case "bottom":
+      return {
+        bx: cx - VAL_W / 2,
+        by: cy + stationR + LEAD,
+        lx1: cx, ly1: cy + stationR,
+        lx2: cx, ly2: cy + stationR + LEAD,
+        textX: cx,
+        nameX: cx,
+        nameY: cy + stationR + LEAD + VAL_H + 18,
+        nameAnchor: "middle" as const,
+      };
+    case "left":
+      return {
+        bx: cx - stationR - LEAD - VAL_W,
+        by: cy - VAL_H / 2,
+        lx1: cx - stationR, ly1: cy,
+        lx2: cx - stationR - LEAD, ly2: cy,
+        textX: cx - stationR - LEAD - VAL_W / 2,
+        nameX: cx - stationR - LEAD - VAL_W - 6,
+        nameY: cy + 4,
+        nameAnchor: "end" as const,
+      };
+    case "right":
+    default:
+      return {
+        bx: cx + stationR + LEAD,
+        by: cy - VAL_H / 2,
+        lx1: cx + stationR, ly1: cy,
+        lx2: cx + stationR + LEAD, ly2: cy,
+        textX: cx + stationR + LEAD + VAL_W / 2,
+        nameX: cx + stationR + LEAD + VAL_W + 6,
+        nameY: cy + 4,
+        nameAnchor: "start" as const,
+      };
+  }
+}
+
+const slots: BoxSlot[] = lines.flatMap((ln) =>
+  ln.stations.map<BoxSlot>((st) => {
+    const b = box(st.side ?? "right", st.x, st.y);
+    return {
+      cx: st.x, cy: st.y,
+      bx: b.bx, by: b.by,
+      lx1: b.lx1, ly1: b.ly1, lx2: b.lx2, ly2: b.ly2,
+      textX: b.textX,
+      nameX: b.nameX, nameY: b.nameY, nameAnchor: b.nameAnchor,
+      slug: ln.slug,
+      id: st.id,
+      label: st.label,
+      value: st.value,
+      delta: st.delta,
+      asOf: st.asOf,
+    };
+  }),
+);
+
+// Color helper — line color CSS var by slug
+const colorVar = (slug: SectionSlug) => `var(--tx-line-${slug})`;
+---
+
+<figure class="tx-map" role="group" aria-labelledby="tx-map-title" aria-describedby="tx-map-desc">
+  <figcaption class="tx-map__cap">
+    <h2 id="tx-map-title" class="tx-map__title">The Canadian macro network</h2>
+    <p id="tx-map-desc" class="tx-map__desc">
+      Seven lines, twenty stations, seven interchanges. Each line is one section of the dashboard;
+      each station is an indicator currently in print; each interchange marks an editorial cross-reference.
+    </p>
+  </figcaption>
+
+  <svg
+    class="tx-map__svg"
+    viewBox="0 0 1200 720"
+    preserveAspectRatio="xMidYMid meet"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Schematic transit map of seven Canadian macro indicator lines and their interchanges"
+  >
+    {/* Background grid — very faint, like a Beck/Vignelli backing graph paper */}
+    <defs>
+      <pattern id="tx-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="var(--tx-grid)" stroke-width="0.5" />
+      </pattern>
+      <filter id="tx-glow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="3.5" result="blur" />
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+    </defs>
+
+    <rect x="0" y="0" width="1200" height="720" fill="url(#tx-grid)" />
+
+    {/* ----- LINES ----------------------------------------------------- */}
+    <g class="tx-map__lines">
+      {lines.map((ln) => (
+        <g class={`tx-map__line tx-map__line--${ln.slug}`}>
+          {/* Slight ink underlay for crisp Beck-style edge */}
+          <path
+            d={ln.path}
+            fill="none"
+            stroke="var(--tx-ink)"
+            stroke-width="9"
+            stroke-linecap="square"
+            stroke-linejoin="miter"
+            opacity="0.08"
+          />
+          <path
+            d={ln.path}
+            fill="none"
+            stroke={colorVar(ln.slug)}
+            stroke-width="6"
+            stroke-linecap="square"
+            stroke-linejoin="miter"
+          />
+        </g>
+      ))}
+    </g>
+
+    {/* ----- TERMINI --------------------------------------------------- */}
+    <g class="tx-map__termini">
+      {lines.map((ln) => ln.terminus && (
+        <text
+          x={ln.terminus.x}
+          y={ln.terminus.y}
+          class="tx-map__terminus"
+          fill={colorVar(ln.slug)}
+          text-anchor={ln.terminus.anchor ?? "start"}
+        >{ln.terminus.text}</text>
+      ))}
+    </g>
+
+    {/* ----- STATIONS -------------------------------------------------- */}
+    <g class="tx-map__stations">
+      {slots.map((s) => (
+        <g class="tx-map__station" role="group" aria-labelledby={`tx-st-${s.id}`}>
+          {/* Leader line from station to value box */}
+          <line
+            x1={s.lx1} y1={s.ly1}
+            x2={s.lx2} y2={s.ly2}
+            stroke="var(--tx-ink)"
+            stroke-width="1.2"
+          />
+
+          {/* Value box */}
+          <rect
+            x={s.bx} y={s.by}
+            width={VAL_W} height={VAL_H}
+            fill="var(--tx-cream)"
+            stroke="var(--tx-ink)"
+            stroke-width="1.6"
+            rx="3"
+          />
+          <text
+            x={s.textX}
+            y={s.by + 16}
+            class="tx-map__val"
+            text-anchor="middle"
+            fill="var(--tx-ink)"
+          >{s.value}</text>
+          {s.delta && (
+            <text
+              x={s.textX}
+              y={s.by + 29}
+              class="tx-map__delta"
+              text-anchor="middle"
+              fill="var(--tx-ink)"
+              opacity="0.65"
+            >{s.delta}</text>
+          )}
+
+          {/* Station label */}
+          <text
+            id={`tx-st-${s.id}`}
+            x={s.nameX}
+            y={s.nameY}
+            class="tx-map__name"
+            text-anchor={s.nameAnchor}
+            fill="var(--tx-ink)"
+          >{s.label}</text>
+
+          {/* Station dot — ink outer, line-color inner */}
+          <circle
+            cx={s.cx} cy={s.cy} r="8"
+            fill="var(--tx-cream)"
+            stroke={colorVar(s.slug)}
+            stroke-width="4"
+          />
+        </g>
+      ))}
+    </g>
+
+    {/* ----- INTERCHANGES (rendered on top of stations) ---------------- */}
+    <g class="tx-map__ix">
+      {interchanges.map((ix) => {
+        const lblBox = box(ix.side ?? "right", ix.x, ix.y);
+        return (
+          <g class="tx-map__interchange" role="group" aria-labelledby={`tx-ix-${ix.id}`}>
+            {/* Connector — small white bar joining the two lines visually */}
+            <circle
+              cx={ix.x} cy={ix.y} r="14"
+              fill="var(--tx-cream)"
+              stroke="var(--tx-ink)"
+              stroke-width="2.2"
+            />
+            <circle
+              cx={ix.x} cy={ix.y} r="6"
+              fill="var(--tx-ink)"
+              stroke="none"
+            />
+            <text
+              id={`tx-ix-${ix.id}`}
+              x={lblBox.nameX}
+              y={lblBox.nameY}
+              class="tx-map__ix-name"
+              text-anchor={lblBox.nameAnchor}
+              fill="var(--tx-ink)"
+            >
+              {ix.pillar && (
+                <tspan class="tx-map__ix-pillar">PILLAR {ix.pillar} . </tspan>
+              )}
+              {ix.label}
+            </text>
+            <text
+              x={lblBox.nameX}
+              y={lblBox.nameY + 13}
+              class="tx-map__ix-lines"
+              text-anchor={lblBox.nameAnchor}
+              fill="var(--tx-ink)"
+              opacity="0.55"
+            >
+              {ix.lines.map((sl) => labelOf(sl).toUpperCase()).join("  /  ")}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+
+    {/* ----- COMPASS / SCALE ORNAMENT ---------------------------------- */}
+    <g class="tx-map__compass" transform="translate(110, 670)">
+      <circle cx="0" cy="0" r="22" fill="none" stroke="var(--tx-ink)" stroke-width="1.4" />
+      <line x1="0" y1="-18" x2="0" y2="18" stroke="var(--tx-ink)" stroke-width="1.2" />
+      <line x1="-18" y1="0" x2="18" y2="0" stroke="var(--tx-ink)" stroke-width="1.2" />
+      <polygon points="0,-22 -4,-12 4,-12" fill="var(--tx-ink)" />
+      <text x="0" y="-26" class="tx-map__compass-n" text-anchor="middle" fill="var(--tx-ink)">N</text>
+      <text x="40" y="4" class="tx-map__compass-cap" fill="var(--tx-ink)">SCHEMATIC . NOT TO GEOGRAPHIC SCALE</text>
+    </g>
+  </svg>
+
+  <p class="tx-map__sr-only">
+    Lines on the diagram: {lines.map((ln) => labelOf(ln.slug)).join(", ")}.
+    Stations are the indicators currently in print for each line.
+    Interchanges mark editorial cross-references: {interchanges.map((ix) => ix.label).join(", ")}.
+  </p>
+</figure>
+
+<style>
+  .tx-map {
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .tx-map__cap {
+    max-width: 64ch;
+  }
+  .tx-map__title {
+    margin: 0;
+    font-family: var(--tx-display);
+    font-weight: 800;
+    font-size: clamp(22px, 2.6vw, 30px);
+    letter-spacing: -0.005em;
+    color: var(--tx-ink);
+    line-height: 1.1;
+  }
+  .tx-map__desc {
+    margin: 6px 0 0;
+    font-family: var(--tx-body);
+    font-weight: 400;
+    font-size: 14px;
+    color: var(--tx-ink);
+    opacity: 0.78;
+    line-height: 1.5;
+  }
+
+  .tx-map__svg {
+    width: 100%;
+    height: auto;
+    background: var(--tx-cream);
+    border: 2px solid var(--tx-ink);
+    /* Crisp on hi-dpi; SVG already vector but anti-aliased rules read cleaner */
+    shape-rendering: geometricPrecision;
+    text-rendering: geometricPrecision;
+    display: block;
+  }
+
+  :global(.tx-map__svg text.tx-map__val) {
+    font-family: var(--tx-mono);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  :global(.tx-map__svg text.tx-map__delta) {
+    font-family: var(--tx-mono);
+    font-weight: 400;
+    font-size: 9.5px;
+    letter-spacing: 0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  :global(.tx-map__svg text.tx-map__name) {
+    font-family: var(--tx-subhead);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  :global(.tx-map__svg text.tx-map__terminus) {
+    font-family: var(--tx-display);
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  :global(.tx-map__svg text.tx-map__ix-name) {
+    font-family: var(--tx-display);
+    font-weight: 800;
+    font-size: 12.5px;
+    letter-spacing: 0.04em;
+  }
+  :global(.tx-map__svg text.tx-map__ix-pillar) {
+    font-family: var(--tx-mono);
+    font-weight: 700;
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    fill: var(--tx-line-policy);
+  }
+  :global(.tx-map__svg text.tx-map__ix-lines) {
+    font-family: var(--tx-mono);
+    font-weight: 700;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+  }
+  :global(.tx-map__svg text.tx-map__compass-n) {
+    font-family: var(--tx-subhead);
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+  :global(.tx-map__svg text.tx-map__compass-cap) {
+    font-family: var(--tx-mono);
+    font-weight: 700;
+    font-size: 9.5px;
+    letter-spacing: 0.22em;
+  }
+
+  /* Focus glow on stations and interchanges */
+  :global(.tx-map__svg .tx-map__station:hover circle:last-of-type),
+  :global(.tx-map__svg .tx-map__station:focus-within circle:last-of-type),
+  :global(.tx-map__svg .tx-map__interchange:hover circle:first-of-type),
+  :global(.tx-map__svg .tx-map__interchange:focus-within circle:first-of-type) {
+    filter: url(#tx-glow);
+  }
+
+  /* Visually hidden but available to screen readers */
+  .tx-map__sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>

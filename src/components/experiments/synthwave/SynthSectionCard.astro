@@ -1,0 +1,254 @@
+---
+/*
+ * SynthSectionCard - Lane G compact section card for the right-rail
+ * grid. Renders one section as a neon-bordered tile: index, label, the
+ * load-bearing print (value + delta + indicator), a tiny SVG sparkline
+ * with neon stroke, and an as-of stamp.
+ *
+ * Five tiles repeat in a 2-column grid on the right of the page; the
+ * sixth + seventh slot one extra row each on the same grid.
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  section: Section;
+  index: number;
+  /** Accent name used as the card's neon color. */
+  accent: "magenta" | "cyan" | "acid" | "orange";
+}
+
+const { section, index, accent } = Astro.props;
+
+const print =
+  section.prints.find((p) => p.key === section.chartSeriesKey) ??
+  section.prints[0];
+
+const series = print.spark ?? [];
+const w = 220;
+const h = 36;
+const pad = 3;
+let pathD = "";
+let last: { x: number; y: number } | null = null;
+if (series.length > 1) {
+  const min = Math.min(...series);
+  const max = Math.max(...series);
+  const span = max - min || 1;
+  const step = (w - pad * 2) / (series.length - 1);
+  const pts = series.map((v, i) => {
+    const x = pad + i * step;
+    const y = pad + (1 - (v - min) / span) * (h - pad * 2);
+    return { x, y };
+  });
+  pathD = pts
+    .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+    .join(" ");
+  last = pts[pts.length - 1];
+}
+
+const deltaClass =
+  print.deltaDir === "pos"
+    ? "is-pos"
+    : print.deltaDir === "neg"
+    ? "is-neg"
+    : "is-neutral";
+
+const sparkVar =
+  print.deltaDir === "pos"
+    ? "var(--sy-acid)"
+    : print.deltaDir === "neg"
+    ? "var(--sy-magenta)"
+    : "var(--sy-cyan)";
+
+const fid = `sy-card-${section.slug}`;
+const idx2 = String(index).padStart(2, "0");
+---
+<a href={`/${section.slug}/`} class:list={["scard", `scard--${accent}`]}>
+  <div class="scard__top">
+    <span class="scard__idx" aria-hidden="true">{idx2}</span>
+    <span class="scard__label">{section.label}</span>
+    <span class="scard__cadence" aria-hidden="true">{section.cadence}</span>
+  </div>
+
+  <p class="scard__indicator">{print.indicator}</p>
+
+  <div class="scard__readout">
+    <p class="scard__value">{print.value}</p>
+    <p class:list={["scard__delta", deltaClass]}>
+      <span class="scard__delta-val">{print.delta}</span>
+      <span class="scard__delta-asof">{print.asOf}</span>
+    </p>
+  </div>
+
+  {pathD ? (
+    <svg class="scard__spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <filter id={fid} x="-20%" y="-50%" width="140%" height="200%">
+          <feGaussianBlur stdDeviation="1.4" result="b1" />
+          <feMerge>
+            <feMergeNode in="b1" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <path
+        d={pathD}
+        fill="none"
+        stroke={sparkVar}
+        stroke-width="1.4"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+        filter={`url(#${fid})`}
+      />
+      {last ? (
+        <circle cx={last.x} cy={last.y} r="1.8" fill={sparkVar} filter={`url(#${fid})`} />
+      ) : null}
+    </svg>
+  ) : null}
+
+  <p class="scard__q">{section.headlineQuestion}</p>
+</a>
+
+<style>
+  .scard {
+    --acc: var(--sy-magenta);
+    --acc-rgb: 255, 46, 151;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px 14px;
+    border: 1px solid rgba(var(--acc-rgb), 0.4);
+    background: linear-gradient(160deg, rgba(var(--acc-rgb), 0.04), rgba(10, 4, 20, 0.4));
+    color: var(--sy-ink);
+    text-decoration: none;
+    transition: box-shadow 160ms ease, border-color 160ms ease, transform 160ms ease;
+    box-shadow:
+      inset 0 0 20px rgba(var(--acc-rgb), 0.03),
+      0 0 14px rgba(var(--acc-rgb), 0.06);
+    min-height: 160px;
+  }
+
+  .scard--cyan { --acc: var(--sy-cyan); --acc-rgb: 0, 229, 255; }
+  .scard--acid { --acc: var(--sy-acid); --acc-rgb: 0, 255, 133; }
+  .scard--orange { --acc: var(--sy-orange); --acc-rgb: 255, 107, 53; }
+
+  .scard:hover,
+  .scard:focus-visible {
+    border-color: var(--acc);
+    box-shadow:
+      0 0 0 1px rgba(var(--acc-rgb), 0.4),
+      0 0 22px rgba(var(--acc-rgb), 0.35),
+      inset 0 0 18px rgba(var(--acc-rgb), 0.08);
+    outline: none;
+  }
+  .scard:focus-visible {
+    outline: 2px solid var(--sy-cyan);
+    outline-offset: 2px;
+  }
+
+  /* Corner tick top-right - identity hint */
+  .scard::after {
+    content: "";
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    width: 8px;
+    height: 8px;
+    border-top: 2px solid var(--acc);
+    border-right: 2px solid var(--acc);
+    box-shadow: 0 0 6px rgba(var(--acc-rgb), 0.5);
+    pointer-events: none;
+  }
+
+  .scard__top {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: baseline;
+    gap: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed rgba(var(--acc-rgb), 0.25);
+  }
+  .scard__idx {
+    font-family: var(--sy-font-crt);
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    color: var(--sy-ink-faint);
+  }
+  .scard__label {
+    font-family: var(--sy-font-display);
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.2em;
+    color: var(--acc);
+    text-transform: uppercase;
+    text-shadow: 0 0 6px rgba(var(--acc-rgb), 0.55);
+  }
+  .scard__cadence {
+    font-family: var(--sy-font-crt);
+    font-size: 13px;
+    color: var(--sy-ink-faint);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .scard__indicator {
+    margin: 0;
+    font-family: var(--sy-font-display);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--sy-ink-muted);
+  }
+
+  .scard__readout {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .scard__value {
+    margin: 0;
+    font-family: var(--sy-font-display);
+    font-weight: 800;
+    font-size: 30px;
+    color: #FFFFFF;
+    letter-spacing: -0.01em;
+    font-feature-settings: "tnum", "lnum";
+    text-shadow:
+      0 0 2px rgba(255, 255, 255, 0.9),
+      0 0 10px rgba(var(--acc-rgb), 0.55),
+      0 0 22px rgba(var(--acc-rgb), 0.3);
+  }
+  .scard__delta {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--sy-font-crt);
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    line-height: 1.15;
+    font-feature-settings: "tnum", "lnum";
+  }
+  .scard__delta-val { font-weight: 400; }
+  .scard__delta.is-pos .scard__delta-val { color: var(--sy-acid); text-shadow: 0 0 6px rgba(0, 255, 133, 0.5); }
+  .scard__delta.is-neg .scard__delta-val { color: var(--sy-magenta); text-shadow: 0 0 6px rgba(255, 46, 151, 0.5); }
+  .scard__delta.is-neutral .scard__delta-val { color: var(--sy-cyan); text-shadow: 0 0 6px rgba(0, 229, 255, 0.5); }
+  .scard__delta-asof { color: var(--sy-ink-faint); font-size: 12px; }
+
+  .scard__spark {
+    width: 100%;
+    height: 36px;
+    display: block;
+  }
+
+  .scard__q {
+    margin: 0;
+    font-family: var(--sy-font-body);
+    font-style: italic;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--sy-ink-muted);
+  }
+</style>

@@ -1,0 +1,177 @@
+---
+/*
+ * Lane R - Status Page: row of summary pills under the banner.
+ *
+ * One "Overall" pill (sticky-feeling, ink-filled) on the left, then a
+ * pill per service category. Each pill = small dot + name + state
+ * abbreviation. Style follows Linear/Stripe Status: rounded, low-key,
+ * not buttons.
+ */
+
+interface Pill {
+  label: string;
+  state: "operational" | "degraded" | "outage" | "watch";
+  href?: string;
+}
+
+interface Props {
+  overall: Pill;
+  pills: Pill[];
+}
+
+const { overall, pills } = Astro.props;
+
+const colorMap: Record<Pill["state"], string> = {
+  operational: "green",
+  degraded:    "amber",
+  outage:      "red",
+  watch:       "info",
+};
+
+const labelMap: Record<Pill["state"], string> = {
+  operational: "Operational",
+  degraded:    "Degraded",
+  outage:      "Outage",
+  watch:       "Watch",
+};
+---
+<nav class="st-pills" aria-label="Service summary">
+  <a class={`st-pill st-pill--overall st-pill--${colorMap[overall.state]}`} href={overall.href ?? "#services"}>
+    <span class={`st-dot st-dot--${colorMap[overall.state]}`} aria-hidden="true">
+      <span class="st-dot__core"></span>
+      <span class="st-dot__halo"></span>
+    </span>
+    <span class="st-pill__label">{overall.label}</span>
+    <span class="st-pill__state">{labelMap[overall.state]}</span>
+  </a>
+
+  <ul class="st-pills__list" role="list">
+    {pills.map((p) => (
+      <li>
+        <a class={`st-pill st-pill--${colorMap[p.state]}`} href={p.href ?? "#services"}>
+          <span class={`st-dot st-dot--${colorMap[p.state]}`} aria-hidden="true">
+            <span class="st-dot__core"></span>
+            <span class="st-dot__halo"></span>
+          </span>
+          <span class="st-pill__label">{p.label}</span>
+        </a>
+      </li>
+    ))}
+  </ul>
+</nav>
+
+<style>
+  .st-pills {
+    max-width: var(--st-max);
+    margin: 0 auto;
+    padding: 20px var(--st-gutter) 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .st-pills__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .st-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--st-line);
+    background: var(--st-paper);
+    font-family: var(--st-sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--st-ink);
+    text-decoration: none;
+    line-height: 1;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+  .st-pill:hover {
+    border-color: color-mix(in srgb, var(--st-ink) 30%, var(--st-line));
+    background: color-mix(in srgb, var(--st-ink) 2%, var(--st-paper));
+  }
+  .st-pill:focus-visible {
+    outline: 2px solid var(--st-info);
+    outline-offset: 2px;
+  }
+
+  .st-pill--overall {
+    background: var(--st-ink);
+    color: var(--st-paper);
+    border-color: var(--st-ink);
+    padding-right: 14px;
+  }
+  .st-pill--overall:hover {
+    background: color-mix(in srgb, white 6%, var(--st-ink));
+    border-color: var(--st-ink);
+  }
+  .st-pill--overall .st-pill__label {
+    color: var(--st-paper);
+    font-weight: 600;
+  }
+  .st-pill--overall .st-pill__state {
+    color: color-mix(in srgb, white 70%, var(--st-ink));
+    font-family: var(--st-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding-left: 8px;
+    border-left: 1px solid color-mix(in srgb, white 22%, var(--st-ink));
+  }
+
+  .st-pill__label {
+    color: var(--st-ink);
+  }
+  .st-pill__state {
+    display: none;
+  }
+
+  /* dot reused from banner; smaller default already */
+  .st-dot {
+    --dot-size: 8px;
+    --dot-color: var(--st-green);
+    position: relative;
+    display: inline-block;
+    width: var(--dot-size);
+    height: var(--dot-size);
+  }
+  .st-dot--green { --dot-color: var(--st-green); }
+  .st-dot--amber { --dot-color: var(--st-amber); }
+  .st-dot--red   { --dot-color: var(--st-red); }
+  .st-dot--info  { --dot-color: var(--st-info); }
+  .st-dot__core {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--dot-color);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--dot-color) 20%, transparent);
+  }
+  .st-dot__halo {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--dot-color);
+    opacity: 0.4;
+    animation: st-pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  .st-dot--amber .st-dot__halo { animation-duration: 1.6s; }
+  .st-dot--red   .st-dot__halo { animation-duration: 1.2s; }
+  @media (prefers-reduced-motion: reduce) {
+    .st-dot__halo { animation: none; opacity: 0; }
+  }
+</style>

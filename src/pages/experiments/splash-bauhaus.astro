@@ -1,0 +1,757 @@
+---
+/*
+ * Lane D - Bauhaus / Constructivist splash.
+ *
+ * 1920s Bauhaus / De Stijl / Soviet Constructivist heritage. Pure
+ * primary palette, geometric shapes as data, severe angular composition,
+ * posterized. Reads like a Rodchenko poster or an El Lissitzky page
+ * redesigned for live Canadian macro.
+ *
+ * Self-contained: this page does NOT use BaseLayout, does NOT import
+ * the production tokens, and only uses components from
+ * src/components/experiments/bauhaus/.
+ *
+ * Palette: paper #FFFFFF, ink #000000, Bauhaus red #E20613, Bauhaus
+ * yellow #FFD500, Bauhaus blue #0046A1. Five colors total. Shapes hold
+ * color: circles = blue, squares = red, triangles = yellow. The page
+ * commits to that mapping and doesn't break it.
+ *
+ * Typography: Anton (display slab), Archivo Narrow (subhead heavy),
+ * Work Sans (body light), Space Mono (numbers/labels tabular).
+ *
+ * Motion: a single yellow triangle on the hero rotates 45deg over
+ * 600ms on load. Respects prefers-reduced-motion.
+ */
+
+import BauhausMasthead from "../../components/experiments/bauhaus/BauhausMasthead.astro";
+import BauhausHero from "../../components/experiments/bauhaus/BauhausHero.astro";
+import BauhausSectionShape from "../../components/experiments/bauhaus/BauhausSectionShape.astro";
+import BauhausDeepDive from "../../components/experiments/bauhaus/BauhausDeepDive.astro";
+import BauhausDiagonalSpine from "../../components/experiments/bauhaus/BauhausDiagonalSpine.astro";
+import {
+  sections,
+  deepDives,
+  nextRelease,
+  site,
+  type Section,
+  type SectionSlug,
+} from "../../data/sections";
+
+// ---- Hero selection: same most-recent-print rule as production. ----
+const heroSection: Section = sections.reduce((a, b) =>
+  (b.updatedAt ?? 0) > (a.updatedAt ?? 0) ? b : a,
+);
+
+// Order: hero last so the hero stays in its own row above the grid.
+const gridSections: Section[] = sections.filter((s) => s.slug !== heroSection.slug);
+
+// Deterministic shape mapping per section, committed at page level. Each
+// section gets a shape that holds its primary read; the mapping cycles
+// blue-circle / red-square / yellow-triangle in a balanced way.
+const shapeBySlug: Record<SectionSlug, "circle" | "square" | "triangle"> = {
+  gdp: "circle",
+  inflation: "circle",
+  labour: "square",
+  housing: "triangle",
+  policy: "square",
+  markets: "circle",
+  trade: "triangle",
+};
+
+// Stamps -------------------------------------------------------------
+const now = new Date();
+const editionDate = now.toLocaleDateString("en-CA", {
+  weekday: "short",
+  year: "numeric",
+  month: "short",
+  day: "2-digit",
+}).toUpperCase();
+
+const buildStamp =
+  `${now.getUTCFullYear()}.` +
+  `${String(now.getUTCMonth() + 1).padStart(2, "0")}.` +
+  `${String(now.getUTCDate()).padStart(2, "0")}-` +
+  `${String(now.getUTCHours()).padStart(2, "0")}` +
+  `${String(now.getUTCMinutes()).padStart(2, "0")}Z`;
+
+const pageTitle = `${site.shortName} // BAUHAUS // ${editionDate}`;
+const pageDesc =
+  "Experimental Bauhaus / Constructivist splash for the Macro Research Department. Geometric primaries and slab type over live Canadian macro state.";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta name="theme-color" content="#FFFFFF" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Narrow:wght@500;700&family=Work+Sans:wght@300;400;600&family=Space+Mono:wght@400;700&display=swap"
+    />
+  </head>
+  <body>
+    <a class="bh-skip" href="#bh-main">Skip to live macro state</a>
+    <BauhausDiagonalSpine />
+
+    <div class="bh-page">
+      <BauhausMasthead
+        shortName={site.shortName}
+        fullName={site.name}
+        editionDate={editionDate}
+        buildStamp={buildStamp}
+        laneLabel="D / BAUHAUS"
+      />
+
+      <main id="bh-main" class="bh-main">
+
+        {/* --- Status bar: a flat Constructivist rule of three primary cells --- */}
+        <div class="bh-status" aria-label="Page status">
+          <div class="bh-status__cell bh-status__cell--ink">
+            <span class="bh-status__k">FOCUS</span>
+            <span class="bh-status__v">{heroSection.label.toUpperCase()}</span>
+          </div>
+          <div class="bh-status__cell bh-status__cell--yellow">
+            <span class="bh-status__k">NEXT</span>
+            <span class="bh-status__v">{nextRelease.label}</span>
+          </div>
+          <div class="bh-status__cell bh-status__cell--blue">
+            <span class="bh-status__k">DATE</span>
+            <span class="bh-status__v">{nextRelease.date}</span>
+          </div>
+          <div class="bh-status__cell bh-status__cell--red">
+            <span class="bh-status__k">AGENCY</span>
+            <span class="bh-status__v">{nextRelease.agency}</span>
+          </div>
+        </div>
+
+        {/* --- Section 1: live state --- */}
+        <section class="bh-section" aria-labelledby="bh-feed-1">
+          <header class="bh-section__head">
+            <span class="bh-section__giantnum" aria-hidden="true">1</span>
+            <div class="bh-section__heading">
+              <p class="bh-section__kicker">FEED 01</p>
+              <h2 id="bh-feed-1" class="bh-section__title">Live macro state</h2>
+              <p class="bh-section__sub">
+                One section leads. The rest hold the room.
+              </p>
+            </div>
+            <span class="bh-section__rotlabel" aria-hidden="true">SECTION ONE / LIVE STATE</span>
+          </header>
+
+          <BauhausHero section={heroSection} />
+        </section>
+
+        {/* --- Section 2: shape grid --- */}
+        <section class="bh-section" aria-labelledby="bh-feed-2">
+          <header class="bh-section__head">
+            <span class="bh-section__giantnum" aria-hidden="true">2</span>
+            <div class="bh-section__heading">
+              <p class="bh-section__kicker">FEED 02</p>
+              <h2 id="bh-feed-2" class="bh-section__title">Sections</h2>
+              <p class="bh-section__sub">
+                Six standing reads. Geometry holds the number.
+              </p>
+            </div>
+            <span class="bh-section__rotlabel" aria-hidden="true">SECTION TWO / SHAPE GRID</span>
+          </header>
+
+          <ul role="list" class="bh-grid">
+            {gridSections.map((s, i) => (
+              <li class="bh-grid__cell">
+                <BauhausSectionShape
+                  section={s}
+                  num={i + 2}
+                  shape={shapeBySlug[s.slug]}
+                />
+              </li>
+            ))}
+          </ul>
+
+          <p class="bh-grid__legend">
+            <span class="bh-grid__legend-cell">
+              <span class="bh-grid__legend-shape bh-grid__legend-shape--circle" aria-hidden="true"></span>
+              Circle / Blue
+            </span>
+            <span class="bh-grid__legend-cell">
+              <span class="bh-grid__legend-shape bh-grid__legend-shape--square" aria-hidden="true"></span>
+              Square / Red
+            </span>
+            <span class="bh-grid__legend-cell">
+              <span class="bh-grid__legend-shape bh-grid__legend-shape--triangle" aria-hidden="true"></span>
+              Triangle / Yellow
+            </span>
+            <span class="bh-grid__legend-cell bh-grid__legend-cell--note">
+              Shape carries the colour. Colour carries no other meaning.
+            </span>
+          </p>
+        </section>
+
+        {/* --- Section 3: deep dives --- */}
+        <section class="bh-section" aria-labelledby="bh-feed-3">
+          <header class="bh-section__head">
+            <span class="bh-section__giantnum" aria-hidden="true">3</span>
+            <div class="bh-section__heading">
+              <p class="bh-section__kicker">FEED 03</p>
+              <h2 id="bh-feed-3" class="bh-section__title">Deep dives</h2>
+              <p class="bh-section__sub">
+                Long-form work in flight. Status, not promise.
+              </p>
+            </div>
+            <span class="bh-section__rotlabel" aria-hidden="true">SECTION THREE / DEEP DIVES</span>
+          </header>
+
+          <ul role="list" class="bh-dives">
+            {deepDives.map((dd, i) => {
+              const s = sections.find((x) => x.slug === dd.section);
+              if (!s) return null;
+              return (
+                <li>
+                  <BauhausDeepDive item={dd} section={s} index={i} />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        {/* --- Section 4: nav --- */}
+        <nav class="bh-nav" aria-label="Sections">
+          <p class="bh-nav__label">
+            <span class="bh-nav__num" aria-hidden="true">4</span>
+            Sections index
+          </p>
+          <ul role="list" class="bh-nav__list">
+            <li><a href="/">Home</a></li>
+            {sections.map((s) => (
+              <li>
+                <a href={`/${s.slug}/`}>{s.label}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </main>
+
+      <footer class="bh-foot" role="contentinfo">
+        <div class="bh-foot__bar" aria-hidden="true">
+          <span class="bh-foot__bar-blue"></span>
+          <span class="bh-foot__bar-red"></span>
+          <span class="bh-foot__bar-yellow"></span>
+        </div>
+        <div class="bh-foot__row">
+          <p class="bh-foot__sig">
+            {site.name} / Lane D / Bauhaus
+          </p>
+          <p class="bh-foot__meta">
+            <span class="bh-foot__meta-k">Build</span> {buildStamp}
+            <span class="bh-foot__sep" aria-hidden="true">/</span>
+            <span class="bh-foot__meta-k">Edition</span> {editionDate}
+          </p>
+          <p class="bh-foot__copy">
+            (c) {now.getFullYear()} {site.shortName}. Data attributed at point of use.
+          </p>
+        </div>
+      </footer>
+    </div>
+
+    <style is:global>
+      /* ===========================================================
+       * Bauhaus / Constructivist - page-scoped tokens + resets.
+       * Prefix: bh-
+       * Five colors only. Type from Google Fonts (Anton, Archivo
+       * Narrow, Work Sans, Space Mono). No system fallback for
+       * display fonts that would defeat the lane.
+       * =========================================================== */
+
+      :root {
+        /* Palette - five tokens, no derived hues. */
+        --bh-paper:  #FFFFFF;
+        --bh-ink:    #000000;
+        --bh-red:    #E20613;
+        --bh-yellow: #FFD500;
+        --bh-blue:   #0046A1;
+
+        /* Type stacks */
+        --bh-display:  "Anton", "Archivo Narrow", "Oswald", Impact, sans-serif;
+        --bh-subhead:  "Archivo Narrow", "Oswald", "Anton", sans-serif;
+        --bh-body:     "Work Sans", "Manrope", sans-serif;
+        --bh-mono:     "Space Mono", "Roboto Mono", ui-monospace, monospace;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--bh-paper);
+        color: var(--bh-ink);
+        font-family: var(--bh-body);
+        font-weight: 300;
+        font-size: 16px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: "tnum", "lnum";
+      }
+
+      body {
+        /* Faint paper grain - barely visible; gives the white surface a
+           hand-printed quality without becoming texture-noisy. */
+        background-image:
+          radial-gradient(
+            circle at 12% 18%,
+            rgba(0, 0, 0, 0.014) 0,
+            rgba(0, 0, 0, 0) 65%
+          ),
+          radial-gradient(
+            circle at 88% 76%,
+            rgba(0, 0, 0, 0.014) 0,
+            rgba(0, 0, 0, 0) 70%
+          );
+        min-height: 100vh;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      ul, ol {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      ::selection {
+        background: var(--bh-yellow);
+        color: var(--bh-ink);
+      }
+
+      .bh-skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        background: var(--bh-red);
+        color: var(--bh-paper);
+        padding: 8px 12px;
+        font-family: var(--bh-subhead);
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        text-decoration: none;
+        z-index: 100;
+      }
+      .bh-skip:focus {
+        left: 16px;
+        top: 16px;
+        outline: 3px solid var(--bh-blue);
+        outline-offset: 0;
+      }
+
+      :focus-visible {
+        outline: 3px solid var(--bh-blue);
+        outline-offset: 2px;
+      }
+
+      /* =========================================================
+       * Page shell
+       * ========================================================= */
+      .bh-page {
+        position: relative;
+        z-index: 1;
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 0 clamp(18px, 3.6vw, 56px);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .bh-main {
+        flex: 1 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 40px;
+        padding-top: 22px;
+      }
+
+      /* =========================================================
+       * Status bar (under masthead)
+       * Four hard-coloured cells, ranged left-to-right. Pure
+       * Constructivist information rule.
+       * ========================================================= */
+      .bh-status {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0;
+        border: 2px solid var(--bh-ink);
+      }
+      @media (min-width: 720px) {
+        .bh-status {
+          grid-template-columns: 1fr 1.4fr 1fr 1.2fr;
+        }
+      }
+      .bh-status__cell {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        padding: 12px 16px;
+        border-right: 2px solid var(--bh-ink);
+        font-family: var(--bh-mono);
+        font-size: 12px;
+        letter-spacing: 0.1em;
+        line-height: 1.2;
+      }
+      .bh-status__cell:last-child {
+        border-right: 0;
+      }
+      @media (max-width: 719px) {
+        .bh-status__cell {
+          border-right: 0;
+          border-bottom: 2px solid var(--bh-ink);
+        }
+        .bh-status__cell:last-child {
+          border-bottom: 0;
+        }
+      }
+      .bh-status__cell--ink {
+        background: var(--bh-ink);
+        color: var(--bh-paper);
+      }
+      .bh-status__cell--yellow {
+        background: var(--bh-yellow);
+        color: var(--bh-ink);
+      }
+      .bh-status__cell--blue {
+        background: var(--bh-blue);
+        color: var(--bh-paper);
+      }
+      .bh-status__cell--red {
+        background: var(--bh-red);
+        color: var(--bh-paper);
+      }
+      .bh-status__k {
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        opacity: 0.7;
+        font-size: 10px;
+      }
+      .bh-status__v {
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* =========================================================
+       * Section heading (giant numeral + heading + rotated label)
+       * ========================================================= */
+      .bh-section {
+        position: relative;
+      }
+      .bh-section__head {
+        position: relative;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 18px;
+        align-items: end;
+        border-bottom: 2px solid var(--bh-ink);
+        padding-bottom: 12px;
+        margin-bottom: 24px;
+      }
+      @media (min-width: 900px) {
+        .bh-section__head {
+          grid-template-columns: auto 1fr auto;
+          gap: 28px;
+        }
+      }
+      .bh-section__giantnum {
+        font-family: var(--bh-display);
+        font-size: clamp(96px, 14vw, 200px);
+        line-height: 0.75;
+        letter-spacing: -0.06em;
+        color: var(--bh-ink);
+        padding-right: 4px;
+      }
+      .bh-section__heading {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding-bottom: 8px;
+      }
+      .bh-section__kicker {
+        margin: 0;
+        font-family: var(--bh-mono);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--bh-red);
+      }
+      .bh-section__title {
+        margin: 0;
+        font-family: var(--bh-display);
+        font-weight: 400;
+        font-size: clamp(36px, 5vw, 64px);
+        line-height: 0.9;
+        letter-spacing: -0.01em;
+        text-transform: uppercase;
+        color: var(--bh-ink);
+      }
+      .bh-section__sub {
+        margin: 4px 0 0;
+        font-family: var(--bh-body);
+        font-weight: 300;
+        font-size: 15px;
+        line-height: 1.4;
+        color: var(--bh-ink);
+        max-width: 56ch;
+      }
+      .bh-section__rotlabel {
+        display: none;
+      }
+      @media (min-width: 900px) {
+        .bh-section__rotlabel {
+          display: inline-block;
+          align-self: end;
+          font-family: var(--bh-mono);
+          font-size: 11px;
+          letter-spacing: 0.24em;
+          text-transform: uppercase;
+          color: var(--bh-ink);
+          writing-mode: vertical-rl;
+          transform: rotate(180deg);
+          opacity: 0.45;
+          padding-bottom: 6px;
+        }
+      }
+
+      /* =========================================================
+       * Shape grid
+       * ========================================================= */
+      .bh-grid {
+        display: grid;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+        gap: 16px;
+      }
+      @media (min-width: 600px) {
+        .bh-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+      }
+      @media (min-width: 960px) {
+        .bh-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+      }
+      .bh-grid__cell {
+        min-width: 0;
+        display: flex;
+      }
+      .bh-grid__cell > * {
+        width: 100%;
+      }
+
+      .bh-grid__legend {
+        margin: 20px 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px 22px;
+        padding-top: 12px;
+        border-top: 1px solid var(--bh-ink);
+        font-family: var(--bh-mono);
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--bh-ink);
+      }
+      .bh-grid__legend-cell {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .bh-grid__legend-cell--note {
+        margin-left: auto;
+        font-family: var(--bh-body);
+        font-weight: 400;
+        font-size: 12px;
+        text-transform: none;
+        letter-spacing: 0;
+        color: var(--bh-ink);
+        opacity: 0.65;
+      }
+      .bh-grid__legend-shape {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+      .bh-grid__legend-shape--circle {
+        background: var(--bh-blue);
+        border-radius: 50%;
+      }
+      .bh-grid__legend-shape--square {
+        background: var(--bh-red);
+      }
+      .bh-grid__legend-shape--triangle {
+        width: 0;
+        height: 0;
+        background: transparent;
+        border-left: 9px solid transparent;
+        border-right: 9px solid transparent;
+        border-bottom: 16px solid var(--bh-yellow);
+      }
+
+      /* =========================================================
+       * Deep dives list
+       * ========================================================= */
+      .bh-dives {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+      @media (min-width: 980px) {
+        .bh-dives { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      }
+
+      /* =========================================================
+       * Nav
+       * ========================================================= */
+      .bh-nav {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+        padding: 18px;
+        background: var(--bh-ink);
+        color: var(--bh-paper);
+        border: 2px solid var(--bh-ink);
+      }
+      @media (min-width: 760px) {
+        .bh-nav {
+          grid-template-columns: auto 1fr;
+          gap: 24px;
+          align-items: center;
+        }
+      }
+      .bh-nav__label {
+        margin: 0;
+        font-family: var(--bh-subhead);
+        font-weight: 700;
+        font-size: 14px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--bh-yellow);
+        display: inline-flex;
+        align-items: baseline;
+        gap: 10px;
+      }
+      .bh-nav__num {
+        font-family: var(--bh-display);
+        font-size: 38px;
+        line-height: 0.8;
+        color: var(--bh-paper);
+        letter-spacing: 0;
+      }
+      .bh-nav__list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 8px;
+      }
+      .bh-nav__list a {
+        color: var(--bh-paper);
+        text-decoration: none;
+        padding: 8px 14px;
+        font-family: var(--bh-subhead);
+        font-weight: 500;
+        font-size: 14px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        background: transparent;
+        border: 2px solid var(--bh-paper);
+        transition: background 100ms linear, color 100ms linear;
+      }
+      .bh-nav__list a:hover,
+      .bh-nav__list a:focus-visible {
+        background: var(--bh-yellow);
+        color: var(--bh-ink);
+        border-color: var(--bh-yellow);
+        outline: none;
+      }
+
+      /* =========================================================
+       * Footer
+       * ========================================================= */
+      .bh-foot {
+        margin-top: 56px;
+        padding-bottom: 32px;
+      }
+      .bh-foot__bar {
+        display: grid;
+        grid-template-columns: 5fr 3fr 4fr;
+        height: 16px;
+      }
+      .bh-foot__bar-blue   { background: var(--bh-blue); }
+      .bh-foot__bar-red    { background: var(--bh-red); }
+      .bh-foot__bar-yellow { background: var(--bh-yellow); }
+
+      .bh-foot__row {
+        margin-top: 16px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+        font-family: var(--bh-mono);
+        font-size: 11px;
+        color: var(--bh-ink);
+        letter-spacing: 0.06em;
+      }
+      @media (min-width: 760px) {
+        .bh-foot__row {
+          grid-template-columns: 1fr auto;
+          align-items: baseline;
+          gap: 8px 24px;
+        }
+      }
+      .bh-foot__sig {
+        margin: 0;
+        font-family: var(--bh-subhead);
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--bh-ink);
+      }
+      .bh-foot__meta {
+        margin: 0;
+        font-variant-numeric: tabular-nums;
+        text-transform: uppercase;
+      }
+      .bh-foot__meta-k {
+        opacity: 0.55;
+        margin-right: 4px;
+      }
+      .bh-foot__sep {
+        margin: 0 8px;
+        color: var(--bh-red);
+        font-weight: 700;
+      }
+      .bh-foot__copy {
+        margin: 0;
+        grid-column: 1 / -1;
+        font-family: var(--bh-mono);
+        font-size: 11px;
+        color: var(--bh-ink);
+        opacity: 0.55;
+        padding-top: 6px;
+        border-top: 1px solid var(--bh-ink);
+      }
+    </style>
+  </body>
+</html>

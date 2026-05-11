@@ -1,0 +1,202 @@
+---
+/*
+ * Masthead - the editorial splash's top rail. Three columns: edition stamp,
+ * publication wordmark (centered), and primary section nav inline.
+ * Owned by the editorial-splash experiment only.
+ */
+import { sections, site } from "../../../data/sections";
+
+interface Props {
+  editionDate: string;
+  volume: string;
+  issue: string;
+}
+
+const { editionDate, volume, issue } = Astro.props;
+---
+<header class="ed-masthead" role="banner">
+  <div class="ed-masthead__rail">
+    <div class="ed-masthead__edition">
+      <span class="ed-masthead__vol">Vol. {volume} &middot; No. {issue}</span>
+      <span class="ed-masthead__date">{editionDate}</span>
+    </div>
+    <div class="ed-masthead__center">
+      <span class="ed-masthead__locator">Ottawa &middot; Toronto</span>
+    </div>
+    <div class="ed-masthead__price">
+      <span class="ed-masthead__locator">en-CA &middot; print</span>
+    </div>
+  </div>
+
+  <a class="ed-masthead__wordmark" href="/" aria-label={`${site.name} home`}>
+    <span class="ed-masthead__name">Macro Research</span>
+    <span class="ed-masthead__name ed-masthead__name--two">Department</span>
+  </a>
+
+  <p class="ed-masthead__motto">
+    <span aria-hidden="true" class="ed-pilcrow">&#182;</span>
+    A reading-first record of Canadian macro
+    <span aria-hidden="true" class="ed-bullet">&middot;</span>
+    Established two thousand twenty-six
+  </p>
+
+  <nav class="ed-masthead__nav" aria-label="Sections">
+    <ul role="list" class="ed-masthead__list">
+      {sections.map((s, i) => (
+        <li class="ed-masthead__item">
+          <a href={`/${s.slug}/`} class="ed-masthead__link">
+            <span class="ed-masthead__num">{String(i + 1).padStart(2, "0")}</span>
+            <span class="ed-masthead__label">{s.label}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+</header>
+
+<style>
+  .ed-masthead {
+    position: relative;
+    z-index: 3;
+    padding-top: 1.75rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--ed-rule);
+  }
+
+  .ed-masthead__rail {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    font-family: var(--ed-font-body);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ed-ink-mute);
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--ed-rule-faint);
+  }
+
+  .ed-masthead__edition,
+  .ed-masthead__price {
+    flex: 1;
+  }
+  .ed-masthead__price { text-align: right; }
+  .ed-masthead__center {
+    flex: 1;
+    text-align: center;
+  }
+
+  .ed-masthead__vol::after {
+    content: "  /  ";
+    color: var(--ed-rule);
+  }
+
+  .ed-masthead__wordmark {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    color: var(--ed-ink);
+    margin-top: 1.5rem;
+    line-height: 0.86;
+    opacity: 0;
+    animation: ed-fade 700ms 80ms cubic-bezier(0.2, 0.6, 0.2, 1) forwards;
+  }
+
+  .ed-masthead__name {
+    display: block;
+    font-family: var(--ed-font-display);
+    font-weight: 900;
+    font-style: normal;
+    font-size: clamp(3.2rem, 9.5vw, 7.5rem);
+    letter-spacing: -0.035em;
+    font-variation-settings: "opsz" 144, "SOFT" 30, "WONK" 0;
+  }
+  .ed-masthead__name--two {
+    font-style: italic;
+    color: var(--ed-accent);
+    margin-top: -0.04em;
+    font-variation-settings: "opsz" 144, "SOFT" 60, "WONK" 1;
+  }
+
+  .ed-masthead__motto {
+    text-align: center;
+    margin: 1rem 0 0;
+    font-family: var(--ed-font-body);
+    font-style: italic;
+    font-size: 0.95rem;
+    color: var(--ed-ink-mute);
+    letter-spacing: 0.005em;
+    opacity: 0;
+    animation: ed-fade 700ms 220ms cubic-bezier(0.2, 0.6, 0.2, 1) forwards;
+  }
+  .ed-pilcrow {
+    color: var(--ed-accent);
+    font-size: 1rem;
+    margin-right: 0.35em;
+  }
+  .ed-bullet {
+    margin: 0 0.55em;
+    color: var(--ed-rule);
+  }
+
+  .ed-masthead__nav {
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--ed-rule);
+    border-bottom: 3px double var(--ed-rule);
+    padding: 0.55rem 0;
+  }
+
+  .ed-masthead__list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem 1.2rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .ed-masthead__link {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    color: var(--ed-ink);
+    text-decoration: none;
+    font-family: var(--ed-font-display);
+    transition: color 150ms ease;
+  }
+  .ed-masthead__link:hover { color: var(--ed-accent); }
+  .ed-masthead__link:focus-visible {
+    outline: 2px solid var(--ed-accent);
+    outline-offset: 3px;
+  }
+
+  .ed-masthead__num {
+    font-family: var(--ed-font-mono);
+    font-size: 0.7rem;
+    color: var(--ed-accent);
+    letter-spacing: 0.04em;
+  }
+  .ed-masthead__label {
+    font-weight: 500;
+    font-size: 0.96rem;
+    font-style: italic;
+    letter-spacing: 0.005em;
+  }
+
+  @media (max-width: 720px) {
+    .ed-masthead__rail { flex-direction: column; align-items: flex-start; }
+    .ed-masthead__center, .ed-masthead__price { text-align: left; }
+    .ed-masthead__list { justify-content: flex-start; gap: 0.4rem 1rem; }
+  }
+
+  @keyframes ed-fade {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ed-masthead__wordmark,
+    .ed-masthead__motto { animation: none; opacity: 1; }
+  }
+</style>

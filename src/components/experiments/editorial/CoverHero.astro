@@ -1,0 +1,294 @@
+---
+/*
+ * CoverHero - asymmetric magazine cover. Eyebrow kicker, big serif
+ * headline, italic deck, a hairline chart-reserved block on the right, big
+ * numeric callout, and a single-line standfirst. Self-contained.
+ */
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  hero: Section;
+}
+
+const { hero } = Astro.props;
+
+const print = hero.prints[0];
+const headline = hero.headlineQuestion;
+const deck = hero.blurb.body ?? "";
+const editionStamp = hero.blurb.date ?? "";
+
+// Sparkline rendering - tiny, in-component, no Sparkline import.
+const spark = print.spark ?? [];
+const sw = 320;
+const sh = 60;
+let path = "";
+if (spark.length > 1) {
+  const min = Math.min(...spark);
+  const max = Math.max(...spark);
+  const range = max - min || 1;
+  const stepX = sw / (spark.length - 1);
+  path = spark
+    .map((v, i) => {
+      const x = i * stepX;
+      const y = sh - ((v - min) / range) * sh;
+      return `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
+const deltaColor =
+  print.deltaDir === "pos"
+    ? "var(--ed-pos)"
+    : print.deltaDir === "neg"
+      ? "var(--ed-accent)"
+      : "var(--ed-ink-mute)";
+---
+<section class="ed-cover" aria-labelledby="ed-cover-headline">
+  <div class="ed-cover__kicker-row">
+    <span class="ed-cover__feature">Cover Feature</span>
+    <span class="ed-cover__rule" aria-hidden="true"></span>
+    <span class="ed-cover__section">{hero.label}</span>
+    <span class="ed-cover__rule" aria-hidden="true"></span>
+    <span class="ed-cover__hero-kick">{hero.heroKicker}</span>
+  </div>
+
+  <div class="ed-cover__grid">
+    <div class="ed-cover__type">
+      <h1 id="ed-cover-headline" class="ed-cover__headline">
+        <span class="ed-cover__drop" aria-hidden="true">{headline[0]}</span><span class="ed-cover__headtail">{headline.slice(1)}</span>
+      </h1>
+
+      <p class="ed-cover__deck">{deck}</p>
+
+      <div class="ed-cover__byline">
+        <span class="ed-cover__byline-by">A report by the Department</span>
+        <span class="ed-cover__byline-rule" aria-hidden="true"></span>
+        <span class="ed-cover__byline-date">Edition stamp: {editionStamp}</span>
+      </div>
+    </div>
+
+    <aside class="ed-cover__plate" aria-label={`Cover plate: ${print.indicator}`}>
+      <div class="ed-cover__plate-eyebrow">
+        <span>Plate I</span>
+        <span class="ed-cover__plate-name">{print.indicator}</span>
+      </div>
+
+      <div class="ed-cover__number">
+        <span class="ed-cover__value">{print.value}</span>
+        <span class="ed-cover__delta" style={`color:${deltaColor}`}>{print.delta}</span>
+      </div>
+
+      <figure class="ed-cover__chart" aria-hidden="true">
+        <svg viewBox={`0 0 ${sw} ${sh}`} preserveAspectRatio="none" width="100%" height={sh}>
+          {/* Reserved chart space - hairline rule + sparkline placeholder. */}
+          <line x1="0" y1={sh - 0.5} x2={sw} y2={sh - 0.5} stroke="var(--ed-rule)" stroke-width="1" />
+          <path d={path} fill="none" stroke="var(--ed-accent)" stroke-width="1.5" />
+        </svg>
+        <figcaption class="ed-cover__caption">
+          Twenty-four-period series &middot; oldest at left
+        </figcaption>
+      </figure>
+
+      <div class="ed-cover__plate-foot">
+        <span class="ed-cover__as-of">As of {print.asOf}</span>
+        <span class="ed-cover__cadence">{hero.cadence}</span>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<style>
+  .ed-cover {
+    position: relative;
+    z-index: 2;
+    padding-top: 2.2rem;
+    padding-bottom: 2.6rem;
+    border-bottom: 1px solid var(--ed-rule);
+  }
+
+  /* Kicker rail */
+  .ed-cover__kicker-row {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    font-family: var(--ed-font-body);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ed-ink-mute);
+    margin-bottom: 1.4rem;
+    opacity: 0;
+    animation: ed-fade 700ms 360ms cubic-bezier(0.2, 0.6, 0.2, 1) forwards;
+  }
+  .ed-cover__feature {
+    color: var(--ed-accent);
+    font-weight: 600;
+  }
+  .ed-cover__rule {
+    flex: 0 0 28px;
+    height: 1px;
+    background: var(--ed-rule);
+  }
+  .ed-cover__section { font-weight: 600; color: var(--ed-ink); }
+  .ed-cover__hero-kick { color: var(--ed-ink-mute); }
+
+  /* Asymmetric grid: headline column wider than plate */
+  .ed-cover__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: 3rem;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    .ed-cover__grid {
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+  }
+
+  /* Headline */
+  .ed-cover__type {
+    opacity: 0;
+    animation: ed-fade 800ms 440ms cubic-bezier(0.2, 0.6, 0.2, 1) forwards;
+  }
+
+  .ed-cover__headline {
+    margin: 0;
+    font-family: var(--ed-font-display);
+    font-weight: 900;
+    font-size: clamp(2.8rem, 6.2vw, 5.4rem);
+    line-height: 0.94;
+    letter-spacing: -0.025em;
+    color: var(--ed-ink);
+    font-variation-settings: "opsz" 144, "SOFT" 20, "WONK" 0;
+    text-wrap: balance;
+  }
+
+  /* Drop-cap */
+  .ed-cover__drop {
+    float: left;
+    font-family: var(--ed-font-display);
+    font-style: italic;
+    font-weight: 900;
+    color: var(--ed-accent);
+    font-size: 1.55em;
+    line-height: 0.84;
+    padding-right: 0.06em;
+    margin-top: 0.04em;
+    font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1;
+  }
+
+  .ed-cover__deck {
+    font-family: var(--ed-font-display);
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(1.1rem, 1.6vw, 1.45rem);
+    line-height: 1.4;
+    letter-spacing: -0.003em;
+    color: var(--ed-ink);
+    margin: 1.6rem 0 0;
+    max-width: 56ch;
+    font-variation-settings: "opsz" 36, "SOFT" 80, "WONK" 1;
+  }
+
+  .ed-cover__byline {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin-top: 1.6rem;
+    font-family: var(--ed-font-body);
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ed-ink-mute);
+  }
+  .ed-cover__byline-rule {
+    flex: 0 0 36px;
+    height: 1px;
+    background: var(--ed-rule);
+  }
+
+  /* Plate (cover art / chart reservation) */
+  .ed-cover__plate {
+    border-top: 3px double var(--ed-ink);
+    border-bottom: 1px solid var(--ed-rule);
+    padding: 0.9rem 0 1.1rem;
+    opacity: 0;
+    animation: ed-fade 800ms 580ms cubic-bezier(0.2, 0.6, 0.2, 1) forwards;
+  }
+
+  .ed-cover__plate-eyebrow {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--ed-font-body);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ed-ink-mute);
+  }
+  .ed-cover__plate-name { color: var(--ed-ink); font-weight: 600; }
+
+  .ed-cover__number {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0.7rem 0 0.4rem;
+  }
+  .ed-cover__value {
+    font-family: var(--ed-font-display);
+    font-weight: 900;
+    font-size: clamp(3rem, 6vw, 4.8rem);
+    line-height: 0.9;
+    color: var(--ed-ink);
+    letter-spacing: -0.035em;
+    font-variation-settings: "opsz" 144, "SOFT" 10, "WONK" 0;
+    font-feature-settings: "tnum" 1, "lnum" 1;
+  }
+  .ed-cover__delta {
+    font-family: var(--ed-font-mono);
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
+  }
+
+  .ed-cover__chart {
+    margin: 0.6rem 0 0;
+    border-top: 1px solid var(--ed-rule);
+    padding-top: 0.6rem;
+  }
+  .ed-cover__chart svg {
+    width: 100%;
+    height: 60px;
+    display: block;
+  }
+  .ed-cover__caption {
+    margin-top: 0.5rem;
+    font-family: var(--ed-font-body);
+    font-style: italic;
+    font-size: 0.78rem;
+    color: var(--ed-ink-mute);
+  }
+
+  .ed-cover__plate-foot {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.7rem;
+    font-family: var(--ed-font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ed-ink-mute);
+  }
+
+  @keyframes ed-fade {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ed-cover__kicker-row,
+    .ed-cover__type,
+    .ed-cover__plate { animation: none; opacity: 1; }
+  }
+</style>

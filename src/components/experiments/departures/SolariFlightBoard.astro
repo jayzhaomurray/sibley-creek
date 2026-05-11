@@ -1,0 +1,207 @@
+---
+/*
+ * Lane J - Solari Departures Board.
+ *
+ * "CURRENTLY IN FLIGHT" board - deep dives rendered as departures-in-
+ * progress. Columns:
+ *
+ *   [ FLT ]  [ ORIGIN ]  [ PIECE ]  [ STATUS ]  [ ETA ]
+ *
+ * The "flight number" is the deep dive's pillar code prefixed with MRD
+ * (e.g. "MRD A", "MRD B"). Origin is the section, set in caps. Piece is
+ * the deep-dive title.
+ *
+ * Status maps:
+ *   research -> "RESEARCH"   muted amber
+ *   drafted  -> "BOARDING"   amber, blinking pip
+ *   shipped  -> "ARRIVED"    signal green
+ *
+ * ETA is the lastUpdated stamp re-presented as a scheduled time string.
+ */
+
+import SolariFlipText from "./SolariFlipText.astro";
+import type { DeepDive } from "../../../data/sections";
+
+interface Props {
+  items: DeepDive[];
+  /** Stagger origin in ms. */
+  delay?: number;
+}
+
+const { items, delay = 1700 } = Astro.props;
+
+function statusFor(s: DeepDive["status"]): { label: string; tone: "active" | "muted" | "pos" | "neg"; blink: boolean } {
+  if (s === "shipped")  return { label: "ARRIVED",  tone: "pos",    blink: false };
+  if (s === "drafted")  return { label: "BOARDING", tone: "active", blink: true  };
+  return                       { label: "RESEARCH", tone: "muted",  blink: false };
+}
+---
+<section class="sol-flt" aria-labelledby="sol-flt-h">
+  <header class="sol-flt__hd">
+    <h2 id="sol-flt-h" class="sol-flt__h1">
+      <span class="sol-flt__bracket" aria-hidden="true">[</span>
+      <SolariFlipText
+        text="CURRENTLY IN FLIGHT"
+        tone="active"
+        weight="bold"
+        delay={delay - 200}
+        stagger={24}
+        ariaHidden
+      />
+      <span class="sol-flt__bracket" aria-hidden="true">]</span>
+      <span class="sol-flip__sr">Currently in flight</span>
+    </h2>
+    <p class="sol-flt__sub">
+      DEEP DIVES IN MOTION AT THE RESEARCH DESK
+    </p>
+  </header>
+
+  <div class="sol-flt__hdrow" role="row" aria-hidden="true">
+    <span class="sol-flt__col sol-flt__col--flt">FLT</span>
+    <span class="sol-flt__col sol-flt__col--origin">ORIGIN</span>
+    <span class="sol-flt__col sol-flt__col--piece">PIECE</span>
+    <span class="sol-flt__col sol-flt__col--status">STATUS</span>
+    <span class="sol-flt__col sol-flt__col--eta">ETA</span>
+  </div>
+
+  <ol class="sol-flt__list" role="list">
+    {items.map((dd, i) => {
+      const st = statusFor(dd.status);
+      const base = delay + i * 100;
+      const flt = `MRD ${dd.pillar}`;
+      return (
+        <li class="sol-flt__row" role="listitem">
+          <span class="sol-flt__col sol-flt__col--flt">
+            <SolariFlipText text={flt} tone="active" weight="bold" delay={base} stagger={22} ariaHidden />
+            <span class="sol-flip__sr">{flt}</span>
+          </span>
+          <span class="sol-flt__col sol-flt__col--origin">
+            <SolariFlipText text={dd.section.toUpperCase()} tone="muted" delay={base + 80} stagger={20} ariaHidden />
+            <span class="sol-flip__sr">{dd.section}</span>
+          </span>
+          <span class="sol-flt__col sol-flt__col--piece">
+            <SolariFlipText text={dd.title.toUpperCase()} tone="active" delay={base + 160} stagger={12} ariaHidden />
+            <span class="sol-flip__sr">{dd.title}</span>
+          </span>
+          <span class="sol-flt__col sol-flt__col--status">
+            {st.blink && <span class="sol-flt__pip" aria-hidden="true"></span>}
+            <SolariFlipText text={st.label} tone={st.tone} weight="bold" delay={base + 240} stagger={22} ariaHidden />
+            <span class="sol-flip__sr">{st.label}</span>
+          </span>
+          <span class="sol-flt__col sol-flt__col--eta">
+            <SolariFlipText text={dd.lastUpdated.toUpperCase()} tone="muted" delay={base + 300} stagger={14} ariaHidden />
+            <span class="sol-flip__sr">{dd.lastUpdated}</span>
+          </span>
+        </li>
+      );
+    })}
+  </ol>
+</section>
+
+<style>
+  .sol-flt {
+    border-top: 1px solid var(--sol-frame);
+    background: linear-gradient(
+      180deg,
+      rgba(14,14,16,0.65) 0%,
+      rgba(31,31,35,0.30) 100%
+    );
+  }
+  .sol-flt__hd {
+    padding: clamp(14px, 2.4vw, 22px) clamp(16px, 3vw, 32px) 6px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 20px 32px;
+    justify-content: space-between;
+  }
+  .sol-flt__h1 {
+    margin: 0;
+    font-family: var(--sol-display);
+    font-size: clamp(16px, 1.8vw, 22px);
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--sol-amber);
+    display: inline-flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .sol-flt__bracket { color: var(--sol-amber-faded); font-family: var(--sol-display); }
+  .sol-flt__sub {
+    margin: 0;
+    font-family: var(--sol-mono);
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--sol-amber-faded);
+  }
+
+  .sol-flt__hdrow,
+  .sol-flt__row {
+    display: grid;
+    grid-template-columns:
+      120px           /* FLT */
+      130px           /* ORIGIN */
+      minmax(0, 1fr)  /* PIECE */
+      170px           /* STATUS */
+      150px;          /* ETA */
+    column-gap: clamp(10px, 1.6vw, 18px);
+    align-items: baseline;
+    padding: 12px clamp(16px, 3vw, 32px);
+    border-bottom: 1px solid var(--sol-frame);
+  }
+  .sol-flt__hdrow {
+    border-top: 1px solid var(--sol-frame);
+    font-family: var(--sol-mono);
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--sol-amber-faded);
+    background: rgba(31, 31, 35, 0.55);
+  }
+
+  .sol-flt__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .sol-flt__row {
+    font-family: var(--sol-mono);
+    color: var(--sol-amber);
+    font-size: clamp(13px, 1.2vw, 15px);
+    letter-spacing: 0.06em;
+  }
+  .sol-flt__col--piece { letter-spacing: 0.12em; }
+  .sol-flt__col--status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sol-flt__pip {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--sol-amber);
+    box-shadow: 0 0 8px rgba(242, 167, 20, 0.6);
+    animation: sol-pip-blink 1.4s steps(2, end) infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sol-flt__pip { animation: none; }
+  }
+
+  @media (max-width: 980px) {
+    .sol-flt__hdrow,
+    .sol-flt__row {
+      grid-template-columns: 100px 110px minmax(0, 1fr) 140px;
+      column-gap: 12px;
+    }
+    .sol-flt__col--eta { display: none; }
+  }
+  @media (max-width: 640px) {
+    .sol-flt__hdrow,
+    .sol-flt__row {
+      grid-template-columns: 90px minmax(0, 1fr) 120px;
+      column-gap: 10px;
+    }
+    .sol-flt__col--origin { display: none; }
+  }
+</style>

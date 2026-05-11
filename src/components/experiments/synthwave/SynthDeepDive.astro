@@ -1,0 +1,219 @@
+---
+/*
+ * SynthDeepDive - Lane G deep-dive row.
+ *
+ * Each deep dive renders as a neon-edged horizontal record: pillar code
+ * stamp, status pill, section tag in section accent, title in Audiowide
+ * caps, deck in body sans, and the last-updated stamp.
+ */
+
+import type { DeepDive, Section } from "../../../data/sections";
+
+interface Props {
+  item: DeepDive;
+  section: Section;
+  index: number;
+}
+
+const { item, section, index } = Astro.props;
+
+const statusClass =
+  item.status === "shipped"
+    ? "is-shipped"
+    : item.status === "drafted"
+    ? "is-drafted"
+    : "is-research";
+
+const statusGlyph =
+  item.status === "shipped"
+    ? "PUB"
+    : item.status === "drafted"
+    ? "DRF"
+    : "RND";
+
+// Section accent map - matches the per-section accent palette on the
+// right-rail cards.
+const sectionAccent: Record<string, string> = {
+  gdp: "cyan",
+  inflation: "magenta",
+  labour: "acid",
+  housing: "orange",
+  policy: "magenta",
+  markets: "cyan",
+  trade: "acid",
+};
+const accent = sectionAccent[section.slug] ?? "magenta";
+
+const idx2 = String(index + 1).padStart(2, "0");
+---
+<article class:list={["sdive", `sdive--${accent}`]}>
+  <div class="sdive__rail">
+    <span class="sdive__idx">{idx2}</span>
+    <span class="sdive__pillar" aria-label={`Pillar ${item.pillar}`}>
+      <span class="sdive__pillar-k">PILLAR</span>
+      <span class="sdive__pillar-v">{item.pillar}</span>
+    </span>
+  </div>
+
+  <div class="sdive__body">
+    <header class="sdive__head">
+      <span class:list={["sdive__status", statusClass]}>
+        <span class="sdive__status-dot" aria-hidden="true"></span>
+        <span class="sdive__status-tag">{statusGlyph}</span>
+        <span class="sdive__status-label">{item.status}</span>
+      </span>
+      <span class="sdive__section">/ {section.label.toUpperCase()}</span>
+      <span class="sdive__updated">{item.lastUpdated}</span>
+    </header>
+    <h3 class="sdive__title">{item.title}</h3>
+    <p class="sdive__deck">{item.deck}</p>
+  </div>
+</article>
+
+<style>
+  .sdive {
+    --acc: var(--sy-magenta);
+    --acc-rgb: 255, 46, 151;
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 16px;
+    padding: 12px 14px;
+    border: 1px solid rgba(var(--acc-rgb), 0.32);
+    background: linear-gradient(180deg, rgba(var(--acc-rgb), 0.03), rgba(10, 4, 20, 0.4));
+    color: var(--sy-ink);
+    box-shadow: inset 0 0 16px rgba(var(--acc-rgb), 0.03);
+  }
+  .sdive--cyan { --acc: var(--sy-cyan); --acc-rgb: 0, 229, 255; }
+  .sdive--acid { --acc: var(--sy-acid); --acc-rgb: 0, 255, 133; }
+  .sdive--orange { --acc: var(--sy-orange); --acc-rgb: 255, 107, 53; }
+
+  .sdive__rail {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+    padding-right: 12px;
+    border-right: 1px dashed rgba(var(--acc-rgb), 0.25);
+  }
+  .sdive__idx {
+    font-family: var(--sy-font-crt);
+    font-size: 18px;
+    color: var(--sy-ink-faint);
+    letter-spacing: 0.06em;
+  }
+  .sdive__pillar {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    font-family: var(--sy-font-display);
+    line-height: 1;
+  }
+  .sdive__pillar-k {
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    color: var(--sy-ink-faint);
+    font-weight: 700;
+  }
+  .sdive__pillar-v {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--acc);
+    text-shadow: 0 0 10px rgba(var(--acc-rgb), 0.6);
+  }
+
+  .sdive__body {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .sdive__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    font-family: var(--sy-font-crt);
+    font-size: 14px;
+    letter-spacing: 0.06em;
+  }
+  .sdive__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border: 1px solid currentColor;
+    font-family: var(--sy-font-display);
+    font-weight: 800;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .sdive__status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 6px currentColor;
+  }
+  .sdive__status-tag { letter-spacing: 0.14em; }
+  .sdive__status-label {
+    font-family: var(--sy-font-crt);
+    font-weight: 400;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: lowercase;
+    color: var(--sy-ink-faint);
+  }
+  .sdive__status.is-shipped { color: var(--sy-acid); }
+  .sdive__status.is-drafted { color: var(--sy-cyan); }
+  .sdive__status.is-research { color: var(--sy-magenta); }
+
+  .sdive__section {
+    color: var(--acc);
+    font-family: var(--sy-font-display);
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    text-shadow: 0 0 6px rgba(var(--acc-rgb), 0.5);
+  }
+  .sdive__updated {
+    margin-left: auto;
+    color: var(--sy-ink-faint);
+    font-feature-settings: "tnum", "lnum";
+  }
+
+  .sdive__title {
+    margin: 0;
+    font-family: var(--sy-font-display);
+    font-weight: 700;
+    font-size: clamp(18px, 2.6vw, 24px);
+    line-height: 1.15;
+    color: var(--sy-ink);
+    letter-spacing: 0.01em;
+  }
+  .sdive__deck {
+    margin: 0;
+    font-family: var(--sy-font-body);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--sy-ink-muted);
+  }
+
+  @media (max-width: 640px) {
+    .sdive {
+      grid-template-columns: 1fr;
+    }
+    .sdive__rail {
+      flex-direction: row;
+      align-items: baseline;
+      padding-right: 0;
+      padding-bottom: 6px;
+      border-right: none;
+      border-bottom: 1px dashed rgba(var(--acc-rgb), 0.25);
+    }
+    .sdive__pillar { flex-direction: row; align-items: baseline; gap: 6px; }
+    .sdive__pillar-v { font-size: 20px; }
+  }
+</style>

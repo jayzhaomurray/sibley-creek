@@ -1,0 +1,261 @@
+---
+/*
+ * BackCover - the closing leaf of the notebook splash. Four blocks across:
+ * a hand-signed return-to-owner mark, the next release as a typed sticker,
+ * methodology / sources list (typewritten), and a colophon strip with a
+ * coffee-stain decoration.
+ */
+import { site } from "../../../data/sections";
+
+interface Props {
+  nextRelease: {
+    label: string;
+    date: string;
+    agency: string;
+  };
+}
+
+const { nextRelease } = Astro.props;
+const year = new Date().getFullYear();
+---
+<footer class="nb-back" role="contentinfo">
+  <div class="nb-back__rule" aria-hidden="true"></div>
+
+  <div class="nb-back__grid">
+    <div class="nb-back__col nb-back__col--owner">
+      <p class="nb-back__owner-pen">
+        If found, please<br />return to the desk.
+      </p>
+      <p class="nb-back__owner-sig" aria-label="Signature">
+        <span class="nb-back__sig">M.R.D.</span>
+      </p>
+      <div class="nb-back__coffee" aria-hidden="true">
+        <span class="nb-back__coffee-ring"></span>
+        <span class="nb-back__coffee-ring nb-back__coffee-ring--inner"></span>
+      </div>
+    </div>
+
+    <div class="nb-back__col">
+      <h3 class="nb-back__h">Next release</h3>
+      <p class="nb-back__release">{nextRelease.label}</p>
+      <p class="nb-back__release-date">
+        {nextRelease.date}
+      </p>
+      <p class="nb-back__release-agency">{nextRelease.agency}</p>
+      <p class="nb-back__release-pen">— marked on the calendar</p>
+    </div>
+
+    <div class="nb-back__col">
+      <h3 class="nb-back__h">The work</h3>
+      <ul role="list" class="nb-back__list">
+        <li><a href="/about/">About the Department</a></li>
+        <li><a href="/methodology/">Methodology &amp; revisions</a></li>
+        <li><a href="/sources/">Sources cited</a></li>
+        <li><a href="/accessibility/">Accessibility</a></li>
+      </ul>
+    </div>
+
+    <div class="nb-back__col">
+      <h3 class="nb-back__h">Colophon</h3>
+      <p class="nb-back__colo">
+        Bound on the open web. Set in <em>Old Standard TT</em>,
+        <em>Special Elite</em>, <em>Caveat</em>, and <em>Cutive Mono</em>.
+        Paper: kraft #E8DCC4.
+      </p>
+    </div>
+  </div>
+
+  <p class="nb-back__base">
+    <span>(c) {year} {site.name}</span>
+    <span aria-hidden="true" class="nb-back__sep">&middot;</span>
+    <span>data attributed at point of use</span>
+    <span aria-hidden="true" class="nb-back__sep">&middot;</span>
+    <span>{site.locale}</span>
+    <span aria-hidden="true" class="nb-back__sep">&middot;</span>
+    <span>experiment / lane H</span>
+  </p>
+</footer>
+
+<style>
+  .nb-back {
+    position: relative;
+    z-index: 2;
+    padding: 1.4rem 0 2.4rem;
+  }
+
+  .nb-back__rule {
+    height: 6px;
+    border-top: 1.5px solid var(--nb-ink);
+    border-bottom: 1px solid var(--nb-ink);
+    margin-bottom: 1.6rem;
+  }
+
+  .nb-back__grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr 1fr 1.3fr;
+    gap: 2.2rem;
+    padding-left: calc(var(--nb-margin-width) + var(--nb-gutter));
+  }
+  @media (max-width: 900px) {
+    .nb-back__grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 1.6rem;
+      padding-left: 0;
+    }
+  }
+  @media (max-width: 560px) {
+    .nb-back__grid { grid-template-columns: 1fr; }
+  }
+
+  .nb-back__col--owner {
+    position: relative;
+  }
+  .nb-back__owner-pen {
+    margin: 0;
+    font-family: var(--nb-font-hand);
+    font-size: 1.35rem;
+    line-height: 1.15;
+    color: var(--nb-ink);
+    transform: rotate(-0.8deg);
+    transform-origin: left center;
+  }
+  .nb-back__owner-sig {
+    margin: 0.8rem 0 0;
+  }
+  .nb-back__sig {
+    display: inline-block;
+    font-family: var(--nb-font-hand);
+    font-size: 2.2rem;
+    color: var(--nb-blue);
+    border-bottom: 1.5px solid var(--nb-blue);
+    padding: 0 0.4rem 0.1rem 0;
+    transform: rotate(-3deg);
+    line-height: 1;
+  }
+
+  /* Coffee-stain decoration */
+  .nb-back__coffee {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 78px;
+    height: 78px;
+    pointer-events: none;
+    transform: rotate(8deg);
+    opacity: 0.55;
+  }
+  .nb-back__coffee-ring {
+    position: absolute;
+    inset: 0;
+    border: 3px solid rgba(120, 80, 40, 0.4);
+    border-radius: 50%;
+    background:
+      radial-gradient(ellipse at 30% 40%, rgba(120, 80, 40, 0.18) 0%, transparent 60%),
+      radial-gradient(ellipse at 70% 70%, rgba(120, 80, 40, 0.10) 0%, transparent 50%);
+    filter: blur(0.4px);
+  }
+  .nb-back__coffee-ring--inner {
+    inset: 18px;
+    border-width: 1.5px;
+    border-color: rgba(120, 80, 40, 0.3);
+    background: transparent;
+  }
+
+  .nb-back__h {
+    margin: 0 0 0.5rem;
+    font-family: var(--nb-font-typewriter);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--nb-blue);
+    font-weight: 700;
+    border-bottom: 1px dashed var(--nb-pencil-faint);
+    padding-bottom: 0.3rem;
+  }
+
+  .nb-back__release {
+    margin: 0;
+    font-family: var(--nb-font-display);
+    font-weight: 700;
+    font-size: 1.15rem;
+    line-height: 1.2;
+    color: var(--nb-ink);
+  }
+  .nb-back__release-date {
+    margin: 0.25rem 0 0;
+    font-family: var(--nb-font-typewriter);
+    font-size: 0.9rem;
+    color: var(--nb-ink);
+    letter-spacing: 0.02em;
+  }
+  .nb-back__release-agency {
+    margin: 0.15rem 0 0;
+    font-family: var(--nb-font-typewriter);
+    font-size: 0.78rem;
+    color: var(--nb-ink-mute);
+    letter-spacing: 0.04em;
+  }
+  .nb-back__release-pen {
+    margin: 0.5rem 0 0;
+    font-family: var(--nb-font-hand);
+    font-size: 1rem;
+    color: var(--nb-pencil);
+    transform: rotate(-1.2deg);
+    display: inline-block;
+    transform-origin: left center;
+  }
+
+  .nb-back__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.35rem;
+  }
+  .nb-back__list a {
+    font-family: var(--nb-font-typewriter);
+    font-size: 0.95rem;
+    color: var(--nb-ink);
+    text-decoration: underline;
+    text-decoration-color: var(--nb-pencil);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: color 150ms ease, text-decoration-color 150ms ease;
+  }
+  .nb-back__list a:hover {
+    color: var(--nb-red);
+    text-decoration-color: var(--nb-red);
+  }
+  .nb-back__list a:focus-visible {
+    outline: 2px solid var(--nb-red);
+    outline-offset: 2px;
+  }
+
+  .nb-back__colo {
+    margin: 0;
+    font-family: var(--nb-font-typewriter);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--nb-ink);
+  }
+  .nb-back__colo em {
+    font-style: italic;
+    color: var(--nb-blue);
+  }
+
+  .nb-back__base {
+    margin: 2rem 0 0;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--nb-pencil-faint);
+    padding-left: calc(var(--nb-margin-width) + var(--nb-gutter));
+    font-family: var(--nb-font-mono);
+    font-size: 0.72rem;
+    color: var(--nb-ink-mute);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  @media (max-width: 900px) {
+    .nb-back__base { padding-left: 0; }
+  }
+  .nb-back__sep { margin: 0 0.55em; color: var(--nb-pencil); }
+</style>

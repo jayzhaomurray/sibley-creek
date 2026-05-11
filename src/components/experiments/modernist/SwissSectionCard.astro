@@ -1,0 +1,303 @@
+---
+/*
+ * SwissSectionCard - one numbered section block on the Modernist splash.
+ *
+ * Layout (desktop, 12 cols within the card):
+ *   col 1-2:  big section number "01" (Black, tabular)
+ *   col 3-7:  label, kicker, headline question, blurb
+ *   col 8-12: load-bearing prints stacked
+ *
+ * Mobile collapses to a single-column stack.
+ *
+ * Visible column dividers (hairline) between the three groups. Top rule
+ * is heavy (2px). Bottom flush with the next card's top rule.
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  section: Section;
+  num: string;
+  total: string;
+  /** Which print is the load-bearing one. Falls back to prints[0]. */
+}
+
+const { section, num, total } = Astro.props;
+
+const loadBearing = section.chartSeriesKey
+  ? section.prints.find((p) => p.key === section.chartSeriesKey) ?? section.prints[0]
+  : section.prints[0];
+
+// All three prints rendered; load-bearing gets prominence.
+const allPrints = section.prints;
+---
+<article
+  class="sw-card"
+  id={`sec-${section.slug}`}
+  aria-labelledby={`sec-${section.slug}-h`}
+>
+  <header class="sw-card__head">
+    <span class="sw-card__pageno" aria-hidden="true">{num} / {total}</span>
+    <span class="sw-card__cadence">{section.cadence}</span>
+  </header>
+
+  <div class="sw-card__body">
+    <div class="sw-card__num" aria-hidden="true">{num}</div>
+
+    <div class="sw-card__mid">
+      <h2 id={`sec-${section.slug}-h`} class="sw-card__label">
+        <a class="sw-card__label-link" href={`/${section.slug}/`}>{section.label}</a>
+      </h2>
+      {section.kicker && (
+        <p class="sw-card__kicker">{section.kicker}</p>
+      )}
+      <p class="sw-card__question">{section.headlineQuestion}</p>
+      {section.blurb.body && (
+        <p class="sw-card__blurb">
+          {section.blurb.date && (
+            <span class="sw-card__blurb-date">{section.blurb.date}.</span>
+          )}{" "}
+          {section.blurb.body}
+        </p>
+      )}
+    </div>
+
+    <ul role="list" class="sw-card__prints">
+      {allPrints.map((p) => {
+        const isPrimary = p === loadBearing;
+        const dirClass =
+          p.deltaDir === "pos" ? "sw-card__delta--pos"
+          : p.deltaDir === "neg" ? "sw-card__delta--neg"
+          : "sw-card__delta--neutral";
+        return (
+          <li class:list={["sw-card__print", isPrimary && "sw-card__print--primary"]}>
+            <p class="sw-card__indicator">{p.indicator}</p>
+            <p class="sw-card__value">
+              <span class="sw-card__value-num">{p.value}</span>
+            </p>
+            <p class="sw-card__metarow">
+              <span class:list={["sw-card__delta", dirClass]}>{p.delta}</span>
+              <span class="sw-card__asof">{p.asOf}</span>
+            </p>
+          </li>
+        );
+      })}
+    </ul>
+  </div>
+</article>
+
+<style>
+  .sw-card {
+    padding-block: 32px 32px;
+    border-top: 2px solid var(--sw-ink);
+  }
+
+  .sw-card__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: 16px;
+    font-family: var(--sw-mono);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sw-ink-faint);
+  }
+  .sw-card__pageno {
+    font-variant-numeric: tabular-nums;
+  }
+  .sw-card__cadence {
+    color: var(--sw-ink);
+  }
+
+  .sw-card__body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  @media (min-width: 720px) {
+    .sw-card__body {
+      grid-template-columns: 2fr 5fr 5fr;
+      gap: 32px;
+    }
+  }
+  @media (min-width: 1100px) {
+    .sw-card__body {
+      grid-template-columns: 2fr 6fr 4fr;
+      gap: 48px;
+    }
+  }
+
+  .sw-card__num {
+    font-family: var(--sw-sans);
+    font-weight: 900;
+    font-size: clamp(64px, 9vw, 128px);
+    line-height: 0.85;
+    letter-spacing: -0.04em;
+    color: var(--sw-ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Mid column ---------------------------------------------------------- */
+
+  .sw-card__mid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+    padding-left: 0;
+  }
+  @media (min-width: 720px) {
+    .sw-card__mid {
+      border-left: 1px solid var(--sw-ink);
+      padding-left: 24px;
+    }
+  }
+
+  .sw-card__label {
+    margin: 0;
+    font-family: var(--sw-sans);
+    font-weight: 900;
+    font-size: clamp(22px, 3.2vw, 40px);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    color: var(--sw-ink);
+  }
+  .sw-card__label-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color 100ms linear;
+  }
+  .sw-card__label-link:hover {
+    color: var(--sw-red);
+  }
+  .sw-card__label-link:focus-visible {
+    outline: 2px solid var(--sw-red);
+    outline-offset: 4px;
+  }
+
+  .sw-card__kicker {
+    margin: 0;
+    font-family: var(--sw-sans);
+    font-weight: 200;
+    font-size: 16px;
+    line-height: 1.4;
+    color: var(--sw-ink);
+    letter-spacing: 0;
+    max-width: 52ch;
+  }
+
+  .sw-card__question {
+    margin: 0;
+    font-family: var(--sw-sans);
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--sw-ink);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding-top: 12px;
+    border-top: 1px solid var(--sw-ink);
+    max-width: 56ch;
+  }
+
+  .sw-card__blurb {
+    margin: 0;
+    font-family: var(--sw-sans);
+    font-weight: 300;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--sw-ink);
+    max-width: 56ch;
+  }
+  .sw-card__blurb-date {
+    font-weight: 700;
+    color: var(--sw-ink);
+    margin-right: 4px;
+  }
+
+  /* Prints column ------------------------------------------------------- */
+
+  .sw-card__prints {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    min-width: 0;
+  }
+  @media (min-width: 720px) {
+    .sw-card__prints {
+      border-left: 1px solid var(--sw-ink);
+      padding-left: 24px;
+    }
+  }
+
+  .sw-card__print {
+    padding-block: 16px;
+    border-bottom: 1px solid var(--sw-ink-faint);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .sw-card__print:first-child {
+    padding-top: 0;
+  }
+  .sw-card__print:last-child {
+    border-bottom: 0;
+  }
+
+  .sw-card__print--primary .sw-card__value-num {
+    font-size: clamp(36px, 5vw, 56px);
+    font-weight: 900;
+  }
+
+  .sw-card__indicator {
+    margin: 0;
+    font-family: var(--sw-mono);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sw-ink-faint);
+  }
+  .sw-card__value {
+    margin: 0;
+    line-height: 1;
+  }
+  .sw-card__value-num {
+    font-family: var(--sw-sans);
+    font-weight: 800;
+    font-size: clamp(24px, 3vw, 32px);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--sw-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .sw-card__metarow {
+    margin: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-family: var(--sw-mono);
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.04em;
+  }
+  .sw-card__delta {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+  .sw-card__delta--pos { color: var(--sw-blue); }
+  .sw-card__delta--neg { color: var(--sw-red); }
+  .sw-card__delta--neutral { color: var(--sw-ink); }
+  .sw-card__asof {
+    color: var(--sw-ink-faint);
+    text-transform: uppercase;
+  }
+</style>

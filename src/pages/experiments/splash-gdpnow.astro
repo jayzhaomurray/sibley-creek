@@ -1,0 +1,273 @@
+---
+/*
+ * Splash experiment: Lane I - Atlanta Fed GDPNow Academic.
+ *
+ * Federal-Reserve-staff-page aesthetic. Calm academic blue/gray, modest
+ * serif/sans, lots of small precise numbers, minimal chrome. Reads like a
+ * research-bank staff page (Atlanta Fed GDPNow, NY Fed dashboards, Chicago
+ * Fed NFCI page) — institutional, trustworthy, not slick.
+ *
+ * Layout: academic-paper-style. Small institutional masthead, brief title
+ * statement, seven sections in a 2x4 grid with the 8th cell occupied by
+ * "Working papers" (deep dives). No hero, no motion. Static SVG charts
+ * inline, zero JS.
+ *
+ * Entirely self-contained: no production homepage components, no shared
+ * design tokens. Aesthetic choices scoped under
+ * `src/components/experiments/gdpnow/`.
+ *
+ * Reads (read-only): src/data/sections.ts.
+ * Does not touch: pipeline/, design/, editorial/, .claude/,
+ *                 src/pages/index.astro, other splash experiments.
+ */
+
+import {
+  sections,
+  deepDives,
+  nextRelease,
+  site,
+  type Section,
+} from "../../data/sections";
+
+import Masthead from "../../components/experiments/gdpnow/Masthead.astro";
+import TitleStatement from "../../components/experiments/gdpnow/TitleStatement.astro";
+import SectionPanel from "../../components/experiments/gdpnow/SectionPanel.astro";
+import DeepDivePanel from "../../components/experiments/gdpnow/DeepDivePanel.astro";
+import Colophon from "../../components/experiments/gdpnow/Colophon.astro";
+
+// Canonical section ordering.
+const ordered: Section[] = (
+  ["gdp", "inflation", "labour", "housing", "policy", "markets", "trade"] as const
+)
+  .map((slug) => sections.find((s) => s.slug === slug))
+  .filter((s): s is Section => Boolean(s));
+
+// Title-statement date line, sentence-case month per the lane spec.
+const today = new Date(Date.UTC(2026, 4, 11)); // May 11, 2026
+const longDate = today.toLocaleDateString("en-CA", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+// Produced stamp for the colophon.
+const produced = today.toISOString().slice(0, 10);
+const edition = "Lane I · Atlanta Fed Academic";
+
+const pageTitle = `${site.name} — Canadian Macro Overview, ${longDate}`;
+const pageDesc =
+  "A staff-page academic splash for Canadian macro: seven indicator panels with small precise charts, headline readings, and three working papers. Calm, institutional, reading-first.";
+
+const abstract =
+  "A reading-first summary of the Canadian macro picture as of " +
+  longDate +
+  ". Seven indicator domains, each rendered as a compact panel with one " +
+  "load-bearing chart, the latest headline reading, and a small table of " +
+  "supporting prints. Working papers index follows the section grid.";
+---
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDesc} />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#FAFAF7" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDesc} />
+    <meta property="og:locale" content="en_CA" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Source+Sans+3:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+  </head>
+  <body class="gdp-body">
+    <a class="gdp-skip" href="#gdp-main">Skip to main content</a>
+
+    <div class="gdp-shell">
+      <Masthead publication={site.name} asOf={longDate} edition="Lane I" />
+
+      <main id="gdp-main" class="gdp-main">
+        <TitleStatement
+          dateLine={longDate}
+          abstract={abstract}
+          sections={sections}
+        />
+
+        <section class="gdp-grid" aria-label="Indicator panels">
+          <h2 class="gdp-vh">Indicator panels</h2>
+          {ordered.map((s, i) => (
+            <div class="gdp-grid__cell">
+              <SectionPanel section={s} figureNum={String(i + 1)} />
+            </div>
+          ))}
+          {/* 8th cell: working papers */}
+          <div class="gdp-grid__cell">
+            <DeepDivePanel deepDives={deepDives} figureNum="8" />
+          </div>
+        </section>
+
+        <Colophon
+          publication={site.name}
+          nextLabel={nextRelease.label}
+          nextDate={nextRelease.date}
+          nextAgency={nextRelease.agency}
+          produced={produced}
+          edition={edition}
+        />
+      </main>
+    </div>
+
+    <style is:global>
+      /* ===========================================================
+       * Lane I — Atlanta Fed GDPNow Academic.
+       * Five-color palette + three font families. Nothing else.
+       * =========================================================== */
+      :root {
+        --gdp-paper: #FAFAF7;
+        --gdp-ink: #1B1B22;
+        --gdp-navy: #1F3A66;
+        --gdp-gray: #5F6470;
+        --gdp-gold: #A87521;
+
+        /* Hairline rule color: derived (faded navy/gray). Not a palette
+         * entry, just a tint of gray for table rows and panel borders. */
+        --gdp-rule: #D6D2C8;
+
+        --gdp-display: "Lora", "Cormorant Garamond", Georgia, "Times New Roman", serif;
+        --gdp-body: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        --gdp-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+        --gdp-max: 1240px;
+        --gdp-gutter: 24px;
+      }
+
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--gdp-paper);
+        color: var(--gdp-ink);
+      }
+      body.gdp-body {
+        font-family: var(--gdp-body);
+        font-weight: 400;
+        font-size: 15px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "kern" 1, "liga" 1;
+        font-variant-numeric: lining-nums;
+        min-height: 100vh;
+      }
+
+      a {
+        color: var(--gdp-navy);
+      }
+
+      h1, h2, h3, h4 {
+        margin: 0;
+      }
+
+      ::selection {
+        background: rgba(168, 117, 33, 0.22);
+        color: var(--gdp-ink);
+      }
+
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--gdp-gold);
+        outline-offset: 3px;
+      }
+
+      .gdp-skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+      }
+      .gdp-skip:focus {
+        position: static;
+        display: inline-block;
+        margin: 8px 0 0 12px;
+        background: var(--gdp-navy);
+        color: var(--gdp-paper);
+        padding: 6px 10px;
+        font-family: var(--gdp-mono);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-decoration: none;
+      }
+
+      .gdp-vh {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
+
+    <style>
+      .gdp-shell {
+        width: 100%;
+        max-width: var(--gdp-max);
+        margin: 0 auto;
+        padding: 0 var(--gdp-gutter) 0;
+      }
+      @media (min-width: 1100px) {
+        .gdp-shell {
+          padding-inline: 40px;
+        }
+      }
+
+      .gdp-main {
+        padding-block: 0 0;
+      }
+
+      .gdp-grid {
+        margin-top: 28px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+      @media (min-width: 760px) {
+        .gdp-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 20px;
+        }
+      }
+      @media (min-width: 1100px) {
+        .gdp-grid {
+          gap: 24px;
+        }
+      }
+      .gdp-grid__cell {
+        min-width: 0;
+        display: flex;
+      }
+      .gdp-grid__cell > * {
+        width: 100%;
+      }
+    </style>
+  </body>
+</html>

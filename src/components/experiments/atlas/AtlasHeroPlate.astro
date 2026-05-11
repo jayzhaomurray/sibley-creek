@@ -1,0 +1,613 @@
+---
+/*
+ * AtlasHeroPlate - the centerpiece "Plate I" chart.
+ *
+ * Renders the most recently updated section as a topographic-atlas-style
+ * chart. The chart is hand-drawn in SVG: cross-hatched fill under the
+ * line, hairline plot frame, italic tick labels, a single crimson "site
+ * of interest" pin marking the most recent observation. Coordinate
+ * label below the pin.
+ *
+ * No JS. Sparkline series, hero kicker, and blurb come from the section.
+ */
+
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  section: Section;
+  num: string;
+  total: string;
+  lat: string;
+  lon: string;
+}
+
+const { section, num, total, lat, lon } = Astro.props;
+
+const loadBearing = section.chartSeriesKey
+  ? section.prints.find((p) => p.key === section.chartSeriesKey) ?? section.prints[0]
+  : section.prints[0];
+
+// Sparkline series. Fall back to an evenly-stepped placeholder if absent.
+const series = loadBearing.spark ?? [0, 0.2, 0.3, 0.4];
+
+// Chart plot frame, in SVG user units.
+const W = 720;
+const H = 280;
+const PAD_L = 56;
+const PAD_R = 28;
+const PAD_T = 28;
+const PAD_B = 44;
+
+const plotW = W - PAD_L - PAD_R;
+const plotH = H - PAD_T - PAD_B;
+
+const minV = Math.min(...series);
+const maxV = Math.max(...series);
+const rangeV = (maxV - minV) || 1;
+
+// Cushion the y-range so the line doesn't kiss the frame.
+const yMin = minV - rangeV * 0.08;
+const yMax = maxV + rangeV * 0.08;
+const yRange = (yMax - yMin) || 1;
+
+function xOf(i: number): number {
+  return PAD_L + (i / (series.length - 1)) * plotW;
+}
+function yOf(v: number): number {
+  return PAD_T + (1 - (v - yMin) / yRange) * plotH;
+}
+
+const points = series.map((v, i) => `${xOf(i).toFixed(2)},${yOf(v).toFixed(2)}`);
+const linePath = "M " + points.join(" L ");
+
+// Closed polygon for the cross-hatched fill underneath the line:
+// line points then down to baseline.
+const baseY = PAD_T + plotH;
+const fillPath =
+  "M " + points.join(" L ") +
+  ` L ${xOf(series.length - 1).toFixed(2)},${baseY}` +
+  ` L ${xOf(0).toFixed(2)},${baseY} Z`;
+
+// "Site of interest" pin marks the last observation.
+const lastX = xOf(series.length - 1);
+const lastY = yOf(series[series.length - 1] as number);
+
+// Y-axis tick marks: floor, mid, ceil of the cushioned range.
+const yTicks = [yMin, (yMin + yMax) / 2, yMax];
+const yLabel = (v: number): string => {
+  // Round to one decimal for a clean engraving feel.
+  const r = Math.round(v * 10) / 10;
+  return (r >= 0 ? "+" : "") + r.toFixed(1);
+};
+
+// X axis tick labels: roughly first / mid / last index of series, with
+// asOf treated as the last tick text. The mid/first are decorative.
+const lastTickLabel = loadBearing.asOf;
+const firstTickLabel = `t-${series.length - 1}`;
+const midTickLabel = `t-${Math.floor(series.length / 2)}`;
+
+const deltaDirClass =
+  loadBearing.deltaDir === "pos" ? "at-hero__delta--pos"
+  : loadBearing.deltaDir === "neg" ? "at-hero__delta--neg"
+  : "at-hero__delta--neutral";
+
+const blurbDate = section.blurb.date;
+const blurbBody = section.blurb.body;
+---
+<article
+  class="at-hero"
+  id={`plate-${section.slug}`}
+  aria-labelledby={`plate-${section.slug}-h`}
+>
+  <header class="at-hero__head">
+    <div class="at-hero__plateno">
+      <span class="at-hero__plateno-word">Plate</span>
+      <span class="at-hero__plateno-num">{num}</span>
+      <span class="at-hero__plateno-tot">/ {total}</span>
+    </div>
+    <div class="at-hero__head-mid">
+      <p class="at-hero__kicker">{section.heroKicker ?? "Most recent observation"}</p>
+      <h2 id={`plate-${section.slug}-h`} class="at-hero__title">
+        <a class="at-hero__title-link" href={`/${section.slug}/`}>{section.label}</a>
+      </h2>
+      <p class="at-hero__question">
+        <em>{section.headlineQuestion}</em>
+      </p>
+    </div>
+    <div class="at-hero__coords" aria-hidden="true">
+      <p class="at-hero__coords-line">{lat}</p>
+      <p class="at-hero__coords-line">{lon}</p>
+      <p class="at-hero__coords-cad">Updated {section.cadence.toLowerCase()}</p>
+    </div>
+  </header>
+
+  <hr class="at-hero__rule at-hero__rule--heavy" aria-hidden="true" />
+  <hr class="at-hero__rule at-hero__rule--hair" aria-hidden="true" />
+
+  <div class="at-hero__body">
+    <figure class="at-hero__figure" aria-labelledby={`plate-${section.slug}-fig`}>
+      <figcaption id={`plate-${section.slug}-fig`} class="at-hero__fig-cap">
+        <span class="at-hero__fig-cap-key">Figure {num}.A</span>
+        <span class="at-hero__fig-cap-val">
+          {loadBearing.indicator}, charted across the previous{" "}
+          {series.length} observations.
+        </span>
+      </figcaption>
+
+      <svg
+        class="at-hero__svg"
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label={`${loadBearing.indicator} time series chart, ${loadBearing.value} as of ${loadBearing.asOf}.`}
+      >
+        <!-- Plot frame -->
+        <rect
+          x={PAD_L}
+          y={PAD_T}
+          width={plotW}
+          height={plotH}
+          fill="#EEE6D2"
+          stroke="#1B2F4B"
+          stroke-width="0.8"
+        />
+
+        <!-- Lat/lon style graticule inside the plot, faint -->
+        <g stroke="#7A6549" stroke-width="0.4" stroke-opacity="0.35">
+          {Array.from({ length: 5 }).map((_, i) => {
+            const x = PAD_L + ((i + 1) * plotW) / 6;
+            return <line x1={x} y1={PAD_T} x2={x} y2={PAD_T + plotH} />;
+          })}
+          {Array.from({ length: 3 }).map((_, i) => {
+            const y = PAD_T + ((i + 1) * plotH) / 4;
+            return <line x1={PAD_L} y1={y} x2={PAD_L + plotW} y2={y} />;
+          })}
+        </g>
+
+        <!-- Cross-hatched fill under the line -->
+        <path d={fillPath} fill="url(#at-hatch-dense)" />
+
+        <!-- Plot line, navy, hand-drawn weight -->
+        <path
+          d={linePath}
+          fill="none"
+          stroke="#1B2F4B"
+          stroke-width="1.6"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
+
+        <!-- Observation tick marks on the line -->
+        {series.map((v, i) => (
+          <circle
+            cx={xOf(i)}
+            cy={yOf(v as number)}
+            r="1.4"
+            fill="#1B2F4B"
+            stroke="none"
+          />
+        ))}
+
+        <!-- Y-axis ticks + labels (italic, taxonomic) -->
+        {yTicks.map((tv) => {
+          const yy = yOf(tv);
+          return (
+            <g>
+              <line
+                x1={PAD_L - 6}
+                y1={yy}
+                x2={PAD_L}
+                y2={yy}
+                stroke="#1B2F4B"
+                stroke-width="0.8"
+              />
+              <text
+                x={PAD_L - 10}
+                y={yy}
+                dy="0.32em"
+                text-anchor="end"
+                font-family="IBM Plex Mono, monospace"
+                font-size="11"
+                fill="#1B2F4B"
+              >
+                {yLabel(tv)}
+              </text>
+            </g>
+          );
+        })}
+
+        <!-- X-axis tick labels -->
+        <g
+          font-family="Cormorant Garamond, serif"
+          font-style="italic"
+          font-size="12"
+          fill="#1B2F4B"
+        >
+          <text x={xOf(0)} y={PAD_T + plotH + 18} text-anchor="start">{firstTickLabel}</text>
+          <text x={xOf(Math.floor((series.length - 1) / 2))} y={PAD_T + plotH + 18} text-anchor="middle">{midTickLabel}</text>
+          <text x={xOf(series.length - 1)} y={PAD_T + plotH + 18} text-anchor="end">{lastTickLabel}</text>
+        </g>
+
+        <!-- "Site of interest" crimson pin on last value -->
+        <g transform={`translate(${(lastX - 10).toFixed(2)}, ${(lastY - 28).toFixed(2)})`}>
+          <use href="#at-pin" width="20" height="28" />
+        </g>
+
+        <!-- Coordinate label next to the pin -->
+        <g transform={`translate(${(lastX + 12).toFixed(2)}, ${(lastY - 12).toFixed(2)})`}>
+          <rect x="0" y="-12" width="86" height="16" fill="#EEE6D2" stroke="#1B2F4B" stroke-width="0.5" />
+          <text
+            x="4"
+            y="0"
+            font-family="IBM Plex Mono, monospace"
+            font-size="10"
+            fill="#1B2F4B"
+            letter-spacing="0.06em"
+          >
+            {loadBearing.value} &#xb7; {loadBearing.asOf}
+          </text>
+        </g>
+
+        <!-- Axis title, italic, bottom-left -->
+        <text
+          x={PAD_L}
+          y={H - 6}
+          font-family="Cormorant Garamond, serif"
+          font-style="italic"
+          font-size="12"
+          fill="#1B2F4B"
+        >
+          fig. {loadBearing.indicator}, charted in native units
+        </text>
+      </svg>
+    </figure>
+
+    <aside class="at-hero__aside" aria-label="Hero plate metadata">
+      <dl class="at-hero__readout">
+        <div class="at-hero__readout-row at-hero__readout-row--big">
+          <dt>{loadBearing.indicator}</dt>
+          <dd>
+            <span class="at-hero__readout-val">{loadBearing.value}</span>
+            <span class:list={["at-hero__delta", deltaDirClass]}>{loadBearing.delta}</span>
+          </dd>
+        </div>
+        <div class="at-hero__readout-row">
+          <dt>As of</dt>
+          <dd>{loadBearing.asOf}</dd>
+        </div>
+        <div class="at-hero__readout-row">
+          <dt>Cadence</dt>
+          <dd>{section.cadence}</dd>
+        </div>
+        {section.prints.filter((p) => p !== loadBearing).map((p) => (
+          <div class="at-hero__readout-row">
+            <dt>{p.indicator}</dt>
+            <dd>
+              <span class="at-hero__readout-val at-hero__readout-val--sm">{p.value}</span>
+              <span class:list={[
+                "at-hero__delta",
+                p.deltaDir === "pos" ? "at-hero__delta--pos"
+                : p.deltaDir === "neg" ? "at-hero__delta--neg"
+                : "at-hero__delta--neutral",
+              ]}>{p.delta}</span>
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      {blurbBody && (
+        <p class="at-hero__blurb">
+          {blurbDate && (
+            <span class="at-hero__blurb-date">{blurbDate}.</span>
+          )}{" "}
+          <em>{blurbBody}</em>
+        </p>
+      )}
+
+      <p class="at-hero__source">
+        <span class="at-hero__source-key">Source.</span>{" "}
+        official agencies; cf. plate methodology.
+      </p>
+    </aside>
+  </div>
+</article>
+
+<style>
+  .at-hero {
+    position: relative;
+    padding: 28px 24px 32px;
+    background-color: var(--at-paper);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><path d='M 96,0 L 0,0 0,96' fill='none' stroke='%237A6549' stroke-width='0.6' stroke-opacity='0.35'/></svg>");
+    background-size: 96px 96px;
+    background-position: 0 0;
+    border: 1px solid var(--at-rule);
+    box-shadow:
+      0 0 0 6px var(--at-paper),
+      0 0 0 6.5px var(--at-rule);
+  }
+
+  @media (min-width: 720px) {
+    .at-hero {
+      padding: 36px 36px 40px;
+    }
+  }
+
+  .at-hero__head {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 16px 28px;
+    align-items: start;
+    padding-bottom: 18px;
+  }
+  @media (max-width: 719px) {
+    .at-hero__head {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+  }
+
+  .at-hero__plateno {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    font-family: var(--at-display);
+    color: var(--at-ink);
+  }
+  .at-hero__plateno-word {
+    font-size: 13px;
+    font-variant: small-caps;
+    letter-spacing: 0.14em;
+    color: var(--at-ink-mute);
+  }
+  .at-hero__plateno-num {
+    font-family: var(--at-display);
+    font-weight: 500;
+    font-size: 56px;
+    line-height: 0.85;
+    letter-spacing: 0.01em;
+  }
+  .at-hero__plateno-tot {
+    font-family: var(--at-mono);
+    font-size: 10.5px;
+    color: var(--at-ink-mute);
+    letter-spacing: 0.1em;
+  }
+
+  .at-hero__head-mid {
+    min-width: 0;
+  }
+  .at-hero__kicker {
+    margin: 0 0 6px;
+    font-family: var(--at-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--at-ink-mute);
+  }
+  .at-hero__title {
+    margin: 0;
+    font-family: var(--at-display);
+    font-weight: 600;
+    font-size: clamp(40px, 5.6vw, 64px);
+    line-height: 0.95;
+    letter-spacing: 0.005em;
+    color: var(--at-ink);
+    font-variant: small-caps;
+    text-transform: lowercase;
+  }
+  .at-hero__title-link {
+    color: inherit;
+    text-decoration: none;
+    background-image: linear-gradient(to right, var(--at-ink) 50%, transparent 50%);
+    background-repeat: repeat-x;
+    background-size: 6px 0.5px;
+    background-position: 0 100%;
+    padding-bottom: 2px;
+  }
+  .at-hero__title-link:hover {
+    color: var(--at-crimson);
+    background-image: linear-gradient(to right, var(--at-crimson) 50%, transparent 50%);
+  }
+  .at-hero__title-link:focus-visible {
+    outline: 2px solid var(--at-crimson);
+    outline-offset: 4px;
+  }
+  .at-hero__question {
+    margin: 14px 0 0;
+    font-family: var(--at-body);
+    font-style: italic;
+    font-size: 16px;
+    line-height: 1.45;
+    color: var(--at-ink);
+    max-width: 58ch;
+  }
+
+  .at-hero__coords {
+    text-align: right;
+    font-family: var(--at-mono);
+    font-size: 10.5px;
+    line-height: 1.5;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--at-ink-mute);
+  }
+  @media (max-width: 719px) {
+    .at-hero__coords { text-align: left; }
+  }
+  .at-hero__coords-line {
+    margin: 0;
+  }
+  .at-hero__coords-cad {
+    margin: 6px 0 0;
+    color: var(--at-ink);
+  }
+
+  .at-hero__rule {
+    border: 0;
+    margin: 0;
+    height: 0;
+  }
+  .at-hero__rule--heavy { border-top: 1.2px solid var(--at-ink); }
+  .at-hero__rule--hair {
+    border-top: 0.5px solid var(--at-ink);
+    margin-top: 3px;
+  }
+
+  .at-hero__body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding-top: 22px;
+  }
+  @media (min-width: 900px) {
+    .at-hero__body {
+      grid-template-columns: 7fr 5fr;
+      gap: 36px;
+    }
+  }
+
+  .at-hero__figure {
+    margin: 0;
+    border: 0.7px solid var(--at-rule);
+    background-color: var(--at-paper);
+    padding: 12px 12px 6px;
+    position: relative;
+  }
+  .at-hero__fig-cap {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding-bottom: 10px;
+    font-family: var(--at-body);
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--at-ink);
+  }
+  .at-hero__fig-cap-key {
+    font-variant: small-caps;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+    color: var(--at-ink);
+  }
+  .at-hero__fig-cap-val {
+    font-style: italic;
+    color: var(--at-ink-mute);
+  }
+  .at-hero__svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .at-hero__aside {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+  }
+
+  .at-hero__readout {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-top: 0.6px solid var(--at-rule);
+    border-bottom: 0.6px solid var(--at-rule);
+  }
+  .at-hero__readout-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding-block: 10px;
+    border-bottom: 0.4px dashed var(--at-rule);
+  }
+  .at-hero__readout-row:last-child {
+    border-bottom: 0;
+  }
+  .at-hero__readout-row dt {
+    margin: 0;
+    font-family: var(--at-body);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--at-ink);
+  }
+  .at-hero__readout-row dd {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-family: var(--at-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--at-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .at-hero__readout-val {
+    font-family: var(--at-display);
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: 0.005em;
+    color: var(--at-ink);
+    font-variant-numeric: tabular-nums;
+    font-style: normal;
+  }
+  .at-hero__readout-val--sm {
+    font-size: 16px;
+    font-weight: 500;
+  }
+  .at-hero__readout-row--big {
+    border-bottom: 0.6px solid var(--at-ink);
+    padding-block: 14px;
+  }
+  .at-hero__readout-row--big dt {
+    font-style: italic;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .at-hero__delta {
+    font-family: var(--at-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+  }
+  .at-hero__delta--pos { color: var(--at-navy); }
+  .at-hero__delta--neg { color: var(--at-crimson); }
+  .at-hero__delta--neutral { color: var(--at-ink-mute); }
+
+  .at-hero__blurb {
+    margin: 0;
+    font-family: var(--at-body);
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--at-ink);
+    max-width: 56ch;
+  }
+  .at-hero__blurb em { font-style: italic; }
+  .at-hero__blurb-date {
+    font-style: normal;
+    font-variant: small-caps;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    color: var(--at-ink);
+    margin-right: 4px;
+  }
+
+  .at-hero__source {
+    margin: 0;
+    padding-top: 10px;
+    border-top: 0.5px solid var(--at-rule);
+    font-family: var(--at-body);
+    font-size: 12px;
+    font-style: italic;
+    color: var(--at-ink-mute);
+  }
+  .at-hero__source-key {
+    font-variant: small-caps;
+    letter-spacing: 0.08em;
+    font-style: normal;
+    font-weight: 600;
+    color: var(--at-ink);
+  }
+</style>

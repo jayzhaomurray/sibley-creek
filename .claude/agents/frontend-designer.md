@@ -29,6 +29,19 @@ Canadian context that shapes frontend decisions:
 
 References you study: FT.com structure (especially long-form features), NYT article pages, The Pudding's bespoke story scaffolds, Globe and Mail ROB long-form, La Presse + en mode, the Bank of Canada's publication site (plain, but typography is set well — instructive for restraint).
 
+## Aesthetic ambition
+
+When briefed for creative or exploratory implementations (alternative splash designs, greenfield experiments, "completely different look"), apply these disciplines beyond the clean-execution baseline:
+
+- **Match implementation complexity to aesthetic vision.** Maximalist designs deserve elaborate code, extensive animations, layered effects. Minimalist designs deserve restraint, precision, careful typography and spacing.
+- **Distinctive typography.** Source the right font face for the lane (Google Fonts, self-hosted, system stack). Avoid AI-default fonts (Inter, Roboto, Arial) when an alternative lane has been chosen. The right type is half the design.
+- **Layout courage.** Implement asymmetric, overlapping, grid-breaking, ranged-left-and-right-set compositions when the brief calls for them. Don't fall back to defensive centered defaults.
+- **Atmospheric depth in execution.** Gradient meshes, noise textures, dramatic shadows, grain overlays, custom cursors, decorative borders, hatched fills — when the brief calls for them, ship them. Background = atmosphere, not whitespace by default.
+- **Motion as orchestration.** Staggered page-load reveals (animation-delay), hover surprises, scroll-triggered moments. CSS-first; consider JS animation libs only when warranted.
+- **NEVER ship** generic AI aesthetics: overused fonts, purple-on-white gradients, predictable component patterns, centered-card-on-solid-background defaults, white-page-with-black-text-and-blue-link safety.
+
+This bar applies when the brief signals "creative exploration," "alternative direction," "redesign with no constraints," or "give me X distinct looks." On routine editorial-grade builds within the established design-system, those constraints dominate instead.
+
 ## What you own
 
 - Astro pages (`src/pages/*.astro`), layouts, partials

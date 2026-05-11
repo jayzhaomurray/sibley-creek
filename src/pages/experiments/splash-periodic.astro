@@ -1,0 +1,650 @@
+---
+/*
+ * Lane N - Periodic Table.
+ *
+ * Dashboard-as-taxonomic-grid. The Canadian-economy table reimagined as a
+ * chemistry-textbook periodic table: each indicator is an "element" with
+ * an atomic number, symbol, name, and atomic weight; indicators are
+ * grouped into seven family-rows by hue (Activity, Prices, Labour,
+ * Housing, Policy, External, Context). Deep dives sit beneath as a
+ * detached "rare earths" row.
+ *
+ * The page IS the table. No surrounding chrome beyond a small department
+ * header. The reader scans rows like in a textbook: the eye picks out the
+ * family color, then the symbol, then the atomic weight (latest reading).
+ *
+ * Self-contained: this file renders a complete HTML document and imports
+ * only from `../../data/sections` and `../../components/experiments/
+ * periodic/*`. No production design tokens, no BaseLayout. Google Fonts
+ * only.
+ *
+ * Typography:
+ *   - Cormorant Garamond (italic, weight 500) for element-name italics +
+ *     page title accents
+ *   - IBM Plex Sans Condensed (weight 600-700) for atomic symbols /
+ *     numbers
+ *   - Source Serif 4 for any body prose
+ *
+ * Motion: a single hover-state lift on cells with a colored block-shadow.
+ *
+ * SEO: noindex (experiment route).
+ */
+
+import { sections, deepDives, site } from "../../data/sections";
+import TitleBlock from "../../components/experiments/periodic/TitleBlock.astro";
+import LegendKey, { type FamilyEntry } from "../../components/experiments/periodic/LegendKey.astro";
+import FamilyRow from "../../components/experiments/periodic/FamilyRow.astro";
+import ElementCell from "../../components/experiments/periodic/ElementCell.astro";
+import RareEarthRow from "../../components/experiments/periodic/RareEarthRow.astro";
+
+// ============================================================
+// Family palette — the seven colors named in the brief.
+// ============================================================
+const FAMILY = {
+  activity: "#E68A30", // warm orange — activity indicators
+  prices:   "#5C8C5A", // sage — prices
+  labour:   "#B85042", // rust — labour
+  housing:  "#8B4F7A", // plum — housing
+  policy:   "#3D5A8C", // deep blue — policy
+  external: "#A87521", // ochre — trade / external
+  context:  "#7C7C82", // gray — context
+} as const;
+
+// Section slug -> family color (for the rare-earths row + cross-refs).
+const sectionColor: Record<string, string> = {
+  gdp:       FAMILY.activity,
+  inflation: FAMILY.prices,
+  labour:    FAMILY.labour,
+  housing:   FAMILY.housing,
+  policy:    FAMILY.policy,
+  markets:   FAMILY.external,
+  trade:     FAMILY.external,
+};
+
+// ============================================================
+// Elements. ~28 cells across 7 family rows. The first cell of each
+// row is the headline indicator the section already publishes; the
+// rest are companions that round out the family.
+//
+// For sections present in the data registry we cite their canonical
+// `prints[]` so the table reads as a true index of the dashboard.
+// Where a cell expresses an indicator not yet in the registry, we use
+// hand-tuned placeholders consistent with v1 mock data.
+// ============================================================
+type CellSpec = {
+  symbol: string;
+  name: string;
+  weight: string;
+  delta?: string;
+  deltaDir?: "pos" | "neg" | "neutral";
+  state?: "stable" | "trace" | "synthetic";
+};
+
+function pickPrint(slug: string, key: string) {
+  const s = sections.find((x) => x.slug === slug);
+  if (!s) return null;
+  return s.prints.find((p) => p.key === key)
+    ?? s.prints.find((p) => p.indicator.toLowerCase().includes(key.toLowerCase()))
+    ?? null;
+}
+
+const gdpMM = pickPrint("gdp", "gdp-mm");
+const gdpQQ = pickPrint("gdp", "q/q");
+const outputGap = pickPrint("gdp", "output gap");
+
+const cpiYoY = pickPrint("inflation", "cpi-yoy");
+const coreTrim = pickPrint("inflation", "core-trim");
+const coreMedian = pickPrint("inflation", "core-median");
+
+const unrate = pickPrint("labour", "unrate");
+const employ = pickPrint("labour", "employment");
+const wages = pickPrint("labour", "wages");
+
+const hpi = pickPrint("housing", "hpi-yoy");
+const starts = pickPrint("housing", "starts");
+const slr = pickPrint("housing", "sales");
+
+const policyRate = pickPrint("policy", "policy-rate");
+const bocFed = pickPrint("policy", "spread");
+const deficit = pickPrint("policy", "deficit");
+
+const usdcad = pickPrint("markets", "usdcad");
+const goc10y = pickPrint("markets", "goc 10y");
+const wti = pickPrint("markets", "wti");
+
+const tradeBal = pickPrint("trade", "trade-balance");
+const usShare = pickPrint("trade", "us export");
+const tot = pickPrint("trade", "terms");
+
+// Helpers
+const v = (p: ReturnType<typeof pickPrint>, fallback: string) =>
+  p ? p.value : fallback;
+const d = (p: ReturnType<typeof pickPrint>, fallback: string) =>
+  p ? p.delta : fallback;
+const dir = (
+  p: ReturnType<typeof pickPrint>,
+  fallback: "pos" | "neg" | "neutral",
+): "pos" | "neg" | "neutral" => (p ? p.deltaDir : fallback);
+
+// ---------- Row I — Activity (warm orange) ----------
+const activityRow: CellSpec[] = [
+  { symbol: "GDP", name: "Real GDP m/m",       weight: v(gdpMM, "+0.2%"),     delta: d(gdpMM, "-0.1 pp"),   deltaDir: dir(gdpMM, "neg") },
+  { symbol: "GDQ", name: "Real GDP q/q SAAR",  weight: v(gdpQQ, "1.4%"),      delta: d(gdpQQ, "-0.3 pp"),   deltaDir: dir(gdpQQ, "neg") },
+  { symbol: "OGP", name: "Output gap",          weight: v(outputGap, "-0.6%"), delta: d(outputGap, "+0.1 pp"), deltaDir: dir(outputGap, "pos") },
+  { symbol: "PCG", name: "Per-capita GDP",      weight: "-0.4%",  delta: "-0.1 pp",  deltaDir: "neg" },
+  { symbol: "IPI", name: "Industrial product",  weight: "+0.1%",  delta: "+0.0 pp",  deltaDir: "neutral", state: "trace" },
+];
+
+// ---------- Row II — Prices (sage) ----------
+const pricesRow: CellSpec[] = [
+  { symbol: "CPI", name: "Headline CPI y/y", weight: v(cpiYoY, "2.3%"),    delta: d(cpiYoY, "+0.1 pp"),    deltaDir: dir(cpiYoY, "neutral") },
+  { symbol: "TRM", name: "CPI-trim y/y",     weight: v(coreTrim, "2.6%"),  delta: d(coreTrim, "-0.1 pp"),  deltaDir: dir(coreTrim, "pos") },
+  { symbol: "MED", name: "CPI-median y/y",   weight: v(coreMedian, "2.5%"), delta: d(coreMedian, "0.0 pp"), deltaDir: dir(coreMedian, "neutral") },
+  { symbol: "EXS", name: "CPI ex-shelter",    weight: "1.2%",  delta: "+0.0 pp",  deltaDir: "neutral" },
+  { symbol: "5Y5", name: "5y5y expectations", weight: "2.10%", delta: "-2 bps",   deltaDir: "pos", state: "trace" },
+];
+
+// ---------- Row III — Labour (rust) ----------
+const labourRow: CellSpec[] = [
+  { symbol: "UR",  name: "Unemployment rate", weight: v(unrate, "6.1%"),  delta: d(unrate, "0.0 pp"),    deltaDir: dir(unrate, "neutral") },
+  { symbol: "EMP", name: "Employment m/m",    weight: v(employ, "+12k"),  delta: d(employ, "vs +25k cons."), deltaDir: dir(employ, "neg") },
+  { symbol: "WAG", name: "Hourly wages y/y",  weight: v(wages, "+3.9%"),  delta: d(wages, "-0.2 pp"),    deltaDir: dir(wages, "neg") },
+  { symbol: "PRT", name: "Participation",      weight: "65.1%", delta: "-0.1 pp",  deltaDir: "neg" },
+  { symbol: "VAC", name: "Job vacancies",      weight: "498k",  delta: "-21k",     deltaDir: "neg", state: "trace" },
+];
+
+// ---------- Row IV — Housing (plum) ----------
+const housingRow: CellSpec[] = [
+  { symbol: "HPI", name: "MLS HPI y/y",        weight: v(hpi, "-1.4%"),    delta: d(hpi, "-0.3 pp"),     deltaDir: dir(hpi, "neg") },
+  { symbol: "STR", name: "Housing starts 3MMA", weight: v(starts, "238k"), delta: d(starts, "-6k"),       deltaDir: dir(starts, "neg") },
+  { symbol: "SLR", name: "Sales-to-listings",   weight: v(slr, "0.42"),    delta: d(slr, "-0.03"),        deltaDir: dir(slr, "neg") },
+  { symbol: "MTG", name: "5y conv. mortgage",   weight: "4.84%", delta: "-12 bps", deltaDir: "pos" },
+  { symbol: "DTI", name: "Debt-to-income",       weight: "180%",  delta: "+1 pp",   deltaDir: "neg", state: "trace" },
+];
+
+// ---------- Row V — Policy (deep blue) ----------
+const policyRow: CellSpec[] = [
+  { symbol: "OVN", name: "BoC overnight rate", weight: v(policyRate, "2.75%"), delta: d(policyRate, "-25 bps"), deltaDir: dir(policyRate, "pos") },
+  { symbol: "SPR", name: "BoC-Fed 2y spread",   weight: v(bocFed, "-152 bps"),  delta: d(bocFed, "-8 bps"),       deltaDir: dir(bocFed, "neg") },
+  { symbol: "NTR", name: "Neutral midpoint",    weight: "2.65%", delta: "-10 bps", deltaDir: "neutral", state: "synthetic" },
+  { symbol: "DEF", name: "Federal deficit YTD", weight: v(deficit, "$38.2B"),   delta: d(deficit, "+$4.1B"),      deltaDir: dir(deficit, "neg") },
+];
+
+// ---------- Row VI — External / Markets + Trade (ochre) ----------
+const externalRow: CellSpec[] = [
+  { symbol: "FX",  name: "USDCAD spot",        weight: v(usdcad, "1.378"),    delta: d(usdcad, "+0.4% w/w"), deltaDir: dir(usdcad, "neg") },
+  { symbol: "10Y", name: "GoC 10-year",         weight: v(goc10y, "3.41%"),   delta: d(goc10y, "+6 bps"),    deltaDir: dir(goc10y, "neutral") },
+  { symbol: "WTI", name: "WTI crude",           weight: v(wti, "$71.40"),     delta: d(wti, "-2.1% w/w"),    deltaDir: dir(wti, "neg") },
+  { symbol: "BAL", name: "Merch trade balance", weight: v(tradeBal, "-$2.3B"), delta: d(tradeBal, "-$1.1B m/m"), deltaDir: dir(tradeBal, "neg") },
+  { symbol: "USS", name: "US export share",     weight: v(usShare, "73.1%"),   delta: d(usShare, "-0.4 pp y/y"), deltaDir: dir(usShare, "neutral") },
+  { symbol: "TOT", name: "Terms of trade",      weight: v(tot, "104.6"),       delta: d(tot, "-0.8"),         deltaDir: dir(tot, "neg") },
+];
+
+// ---------- Row VII — Context (gray) ----------
+const contextRow: CellSpec[] = [
+  { symbol: "POP", name: "Population growth",     weight: "+2.1%", delta: "-0.3 pp", deltaDir: "neutral" },
+  { symbol: "PRD", name: "Labour productivity",   weight: "-0.6%", delta: "-0.2 pp", deltaDir: "neg" },
+  { symbol: "CCN", name: "Consumer confidence",   weight: "58.4",  delta: "-1.2",    deltaDir: "neg", state: "trace" },
+  { symbol: "BCN", name: "Business confidence",   weight: "47.1",  delta: "+0.6",    deltaDir: "pos", state: "trace" },
+  { symbol: "FCI", name: "Financial conditions",  weight: "-0.21", delta: "+0.04",   deltaDir: "neutral", state: "synthetic" },
+];
+
+// ============================================================
+// Atomic numbering. Assigned 1..n in declaration order, so the eye
+// reads them as a single contiguous catalogue across rows.
+// ============================================================
+type RowSpec = {
+  romanRow: string;
+  family: string;
+  color: string;
+  slug: string;
+  gloss: string;
+  cells: CellSpec[];
+};
+
+const rows: RowSpec[] = [
+  { romanRow: "Row I",   family: "Activity",  color: FAMILY.activity, slug: "activity", gloss: "Output, expenditure, capacity.", cells: activityRow },
+  { romanRow: "Row II",  family: "Prices",    color: FAMILY.prices,   slug: "prices",   gloss: "Headline, core, expectations.",  cells: pricesRow },
+  { romanRow: "Row III", family: "Labour",    color: FAMILY.labour,   slug: "labour",   gloss: "Jobs, wages, slack.",            cells: labourRow },
+  { romanRow: "Row IV",  family: "Housing",   color: FAMILY.housing,  slug: "housing",  gloss: "Prices, starts, leverage.",      cells: housingRow },
+  { romanRow: "Row V",   family: "Policy",    color: FAMILY.policy,   slug: "policy",   gloss: "Monetary stance, fiscal.",       cells: policyRow },
+  { romanRow: "Row VI",  family: "External",  color: FAMILY.external, slug: "external", gloss: "Markets, trade, the loonie.",    cells: externalRow },
+  { romanRow: "Row VII", family: "Context",   color: FAMILY.context,  slug: "context",  gloss: "Demographics, sentiment, FCI.",  cells: contextRow },
+];
+
+let zCounter = 0;
+const numberedRows = rows.map((r) => ({
+  ...r,
+  cells: r.cells.map((c) => {
+    zCounter += 1;
+    return { ...c, z: zCounter };
+  }),
+}));
+
+const totalElements = zCounter;
+
+// Legend entries.
+const legendFamilies: FamilyEntry[] = rows.map((r) => ({
+  name: r.family,
+  color: r.color,
+  gloss: r.gloss,
+  count: r.cells.length,
+}));
+
+// Deep dives -> rare earths, cap at 6.
+const rareEarths = [...deepDives]
+  .sort((a, b) => (a.lastUpdated < b.lastUpdated ? 1 : -1))
+  .slice(0, 6);
+
+// Build stamp.
+const now = new Date();
+const produced =
+  `${now.getUTCFullYear()}.` +
+  `${String(now.getUTCMonth() + 1).padStart(2, "0")}.` +
+  `${String(now.getUTCDate()).padStart(2, "0")}`;
+
+const startOfYear = new Date(now.getFullYear(), 0, 1);
+const issueNo = Math.ceil(
+  ((now.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7,
+);
+const volNo = now.getFullYear() - 2025;
+const edition = `Vol. ${String(volNo).padStart(2, "0")}, No. ${String(issueNo).padStart(2, "0")}`;
+
+const pageTitle = `${site.name} - Lane N, periodic table`;
+const description =
+  "An index of Canadian macroeconomic indicators arranged as a periodic table. Activity, prices, labour, housing, policy, external, and context families, with deep dives set apart in the manner of rare earth elements.";
+---
+<!doctype html>
+<html lang="en-CA">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="generator" content={Astro.generator} />
+  <title>{pageTitle}</title>
+  <meta name="description" content={description} />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#F8F5EE" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content={pageTitle} />
+  <meta property="og:description" content={description} />
+  <meta property="og:locale" content="en_CA" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..700&display=swap"
+  />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+
+  <style is:global>
+    :root {
+      /* Paper + ink */
+      --pt-paper: #F8F5EE;
+      --pt-paper-bright: #FCFAF3;
+      --pt-ink: #171717;
+      --pt-ink-faint: #6B6B6B;
+      --pt-rule: #C9C2B0;
+
+      /* Semantic signals — used on cell deltas only. */
+      --pt-pos: #2D6B3A;
+      --pt-neg: #B23A2F;
+
+      /* Type families. Cormorant Garamond + IBM Plex Sans Condensed +
+         Source Serif 4, per the lane spec. */
+      --pt-serif-display: "Cormorant Garamond", "EB Garamond", "Georgia", serif;
+      --pt-serif-body:    "Source Serif 4", "Georgia", "Times New Roman", serif;
+      --pt-mono:          "IBM Plex Sans Condensed", "Helvetica Neue", "Arial Narrow", sans-serif;
+
+      --pt-max: 1400px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--pt-paper);
+      color: var(--pt-ink);
+      font-family: var(--pt-serif-body);
+      font-weight: 400;
+      font-size: 16px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-feature-settings: "kern", "liga";
+    }
+
+    body {
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* Faint textbook-paper grain. */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.45;
+      background-image:
+        radial-gradient(circle at 17% 32%, rgba(120, 110, 92, 0.05) 0, transparent 1.1px),
+        radial-gradient(circle at 73% 18%, rgba(120, 110, 92, 0.04) 0, transparent 1.1px),
+        radial-gradient(circle at 42% 78%, rgba(120, 110, 92, 0.045) 0, transparent 1.1px),
+        radial-gradient(circle at 88% 64%, rgba(120, 110, 92, 0.04) 0, transparent 1.1px);
+      background-size: 240px 240px;
+    }
+
+    a { color: var(--pt-ink); }
+
+    /* Skip link */
+    .pt-skip {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+    }
+    .pt-skip:focus {
+      left: 16px;
+      top: 16px;
+      z-index: 100;
+      background: var(--pt-ink);
+      color: var(--pt-paper);
+      padding: 10px 14px;
+      font-family: var(--pt-mono);
+      font-size: 12px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    body > * { position: relative; z-index: 1; }
+  </style>
+</head>
+<body>
+  <a class="pt-skip" href="#pt-main">Skip to content</a>
+
+  {/* Top rail: department label, edition, back link. */}
+  <div class="pt-toprail">
+    <div class="pt-toprail__inner">
+      <p class="pt-toprail__dept">{site.name}</p>
+      <p class="pt-toprail__edition">
+        <span class="pt-toprail__key">Edition</span>
+        <span class="pt-toprail__val">{produced}</span>
+        <span class="pt-toprail__sep" aria-hidden="true">&middot;</span>
+        <span class="pt-toprail__val">{edition}</span>
+      </p>
+      <p class="pt-toprail__back">
+        <a class="pt-toprail__back-link" href="/">
+          <span aria-hidden="true">&larr;</span>
+          Production homepage
+        </a>
+      </p>
+    </div>
+  </div>
+
+  {/* TITLE + LEGEND: top of the table, in a two-column composition. */}
+  <header class="pt-head">
+    <div class="pt-head__inner">
+      <TitleBlock
+        department={site.name}
+        title="The Canadian Macro Periodic Table"
+        subtitle="An Index of Canadian Macroeconomic Indicators."
+        edition={edition}
+        produced={produced}
+        elementCount={totalElements}
+        familyCount={rows.length}
+      />
+      <LegendKey families={legendFamilies} />
+    </div>
+  </header>
+
+  <main id="pt-main">
+    <section class="pt-grid" aria-label="Periodic table of Canadian macro indicators">
+      <div class="pt-grid__inner">
+        {numberedRows.map((row) => (
+          <FamilyRow
+            romanRow={row.romanRow}
+            family={row.family}
+            color={row.color}
+            slug={row.slug}
+            gloss={row.gloss}
+            count={row.cells.length}
+          >
+            {row.cells.map((c) => (
+              <div role="listitem">
+                <ElementCell
+                  z={c.z}
+                  symbol={c.symbol}
+                  name={c.name}
+                  weight={c.weight}
+                  delta={c.delta}
+                  deltaDir={c.deltaDir}
+                  family={row.family}
+                  state={c.state}
+                />
+              </div>
+            ))}
+          </FamilyRow>
+        ))}
+
+        <RareEarthRow items={rareEarths} sectionColor={sectionColor} />
+      </div>
+    </section>
+  </main>
+
+  {/* Colophon: a short bibliographic plate at the foot of the page. */}
+  <footer class="pt-colophon" aria-label="Colophon">
+    <div class="pt-colophon__inner">
+      <div class="pt-colophon__col">
+        <p class="pt-colophon__kicker">Notation</p>
+        <p class="pt-colophon__body">
+          Atomic numbers run <em>1 to {totalElements}</em> in declaration
+          order across the seven families. The symbol is set in IBM Plex
+          Sans Condensed; the element name is set in Cormorant Garamond
+          italic. The atomic weight is the latest reading; the delta is
+          the change versus the prior period, signed by direction.
+        </p>
+      </div>
+      <div class="pt-colophon__col">
+        <p class="pt-colophon__kicker">State markers</p>
+        <p class="pt-colophon__body">
+          <span class="pt-colophon__tag">st</span> &mdash; stable, in
+          steady release. <span class="pt-colophon__tag">tr</span> &mdash;
+          trace, released at lower cadence or partial coverage.
+          <span class="pt-colophon__tag">syn</span> &mdash; synthetic, a
+          model-derived or composite indicator rather than a direct
+          observation.
+        </p>
+      </div>
+      <div class="pt-colophon__col">
+        <p class="pt-colophon__kicker">Set</p>
+        <p class="pt-colophon__body">
+          The table catalogues <em>{totalElements}</em> elements across
+          <em>{rows.length}</em> families, plus <em>{rareEarths.length}</em>
+          rare earths set apart in Row VIII. Sources: Statistics Canada,
+          Bank of Canada, CREA, CMHC, Statistics Canada Labour Force
+          Survey, Department of Finance.
+        </p>
+      </div>
+    </div>
+    <p class="pt-colophon__sign">
+      <em>Macro Research Department</em>
+      <span aria-hidden="true"> &middot; </span>
+      <span>Lane N, periodic table</span>
+      <span aria-hidden="true"> &middot; </span>
+      <span class="pt-colophon__tnum">{produced}</span>
+    </p>
+  </footer>
+
+  <style>
+    /* ---- Top rail ---- */
+    .pt-toprail {
+      border-bottom: 1px solid var(--pt-rule);
+      background: var(--pt-paper-bright);
+    }
+    .pt-toprail__inner {
+      max-width: var(--pt-max);
+      margin: 0 auto;
+      padding: 10px clamp(20px, 3vw, 40px);
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: baseline;
+      gap: 16px;
+      font-family: var(--pt-mono);
+      font-size: 10.5px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--pt-ink-faint);
+    }
+    .pt-toprail__dept {
+      margin: 0;
+      color: var(--pt-ink);
+      font-weight: 600;
+    }
+    .pt-toprail__edition {
+      margin: 0;
+      text-align: center;
+      display: inline-flex;
+      gap: 8px;
+      justify-content: center;
+    }
+    .pt-toprail__key {
+      color: var(--pt-ink-faint);
+    }
+    .pt-toprail__val {
+      color: var(--pt-ink);
+      font-variant-numeric: tabular-nums;
+    }
+    .pt-toprail__sep {
+      color: var(--pt-ink-faint);
+    }
+    .pt-toprail__back {
+      margin: 0;
+      text-align: right;
+    }
+    .pt-toprail__back-link {
+      color: var(--pt-ink);
+      text-decoration: none;
+      border-bottom: 1px solid var(--pt-rule);
+      padding-bottom: 1px;
+      display: inline-flex;
+      gap: 6px;
+      align-items: baseline;
+      transition: color 200ms ease, border-color 200ms ease;
+    }
+    .pt-toprail__back-link:hover,
+    .pt-toprail__back-link:focus-visible {
+      color: var(--pt-ink);
+      border-bottom-color: var(--pt-ink);
+      outline: none;
+    }
+    @media (max-width: 720px) {
+      .pt-toprail__inner { grid-template-columns: 1fr; gap: 4px; }
+      .pt-toprail__edition { text-align: left; justify-content: flex-start; }
+      .pt-toprail__back { text-align: left; }
+    }
+
+    /* ---- Title block + legend wrapper ---- */
+    .pt-head {
+      padding: clamp(20px, 3vw, 40px) clamp(20px, 3vw, 40px) clamp(16px, 2vw, 28px);
+    }
+    .pt-head__inner {
+      max-width: var(--pt-max);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: clamp(16px, 2.5vw, 32px);
+      align-items: stretch;
+    }
+    @media (max-width: 960px) {
+      .pt-head__inner { grid-template-columns: 1fr; }
+    }
+
+    /* ---- Grid (the table itself) ---- */
+    .pt-grid {
+      padding: 0 clamp(20px, 3vw, 40px) clamp(40px, 6vw, 80px);
+    }
+    .pt-grid__inner {
+      max-width: var(--pt-max);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      border-top: 2px solid var(--pt-ink);
+      padding-top: 24px;
+    }
+
+    /* ---- Colophon ---- */
+    .pt-colophon {
+      border-top: 2px solid var(--pt-ink);
+      padding: clamp(24px, 4vw, 48px) clamp(20px, 3vw, 40px);
+      background: var(--pt-paper-bright);
+    }
+    .pt-colophon__inner {
+      max-width: var(--pt-max);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: clamp(16px, 3vw, 40px);
+    }
+    @media (max-width: 860px) {
+      .pt-colophon__inner { grid-template-columns: 1fr; gap: 16px; }
+    }
+    .pt-colophon__col { }
+    .pt-colophon__kicker {
+      margin: 0 0 6px 0;
+      font-family: var(--pt-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--pt-ink-faint);
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--pt-rule);
+    }
+    .pt-colophon__body {
+      margin: 0;
+      font-family: var(--pt-serif-body);
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--pt-ink);
+    }
+    .pt-colophon__body em { font-style: italic; }
+    .pt-colophon__tag {
+      font-family: var(--pt-mono);
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      padding: 1px 5px;
+      border: 1px solid var(--pt-ink);
+      background: var(--pt-paper);
+    }
+    .pt-colophon__sign {
+      max-width: var(--pt-max);
+      margin: 18px auto 0 auto;
+      padding-top: 14px;
+      border-top: 1px dotted var(--pt-rule);
+      font-family: var(--pt-mono);
+      font-size: 10.5px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--pt-ink-faint);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .pt-colophon__sign em {
+      font-family: var(--pt-serif-display);
+      font-style: italic;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      text-transform: none;
+      color: var(--pt-ink);
+    }
+    .pt-colophon__tnum { font-variant-numeric: tabular-nums; }
+  </style>
+</body>
+</html>

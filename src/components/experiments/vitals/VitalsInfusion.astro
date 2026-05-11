@@ -1,0 +1,279 @@
+---
+/*
+ * VitalsInfusion - "drug infusion pump" strip showing upcoming releases.
+ *
+ * Patterned after the IV-pump strip across the foot of a bedside
+ * monitor. Three "channels" hold the next release info; the active one
+ * carries the cadence stamp, rate, and an animated progress bar
+ * (drip simulation).
+ *
+ * Self-contained scoped CSS. Single prop set; no data loading inside.
+ */
+
+interface Props {
+  nextLabel: string;
+  nextDate: string;
+  nextAgency: string;
+  editionISO: string;
+}
+
+const { nextLabel, nextDate, nextAgency, editionISO } = Astro.props;
+
+// Static secondary slots - decorative; phrased as standing infusions to
+// keep the metaphor. These are NOT real release data; they read as the
+// chrome of a monitor, not as analytical content.
+const secondary = [
+  {
+    chan: "B",
+    label: "LFS data feed",
+    rate: "30 d / cycle",
+    state: "RUNNING",
+  },
+  {
+    chan: "C",
+    label: "Banker's acceptance refresh",
+    rate: "1 d / cycle",
+    state: "RUNNING",
+  },
+] as const;
+---
+
+<section class="vt-inf" aria-label="Upcoming release schedule">
+  <header class="vt-inf__head">
+    <p class="vt-inf__key">INFUSION</p>
+    <p class="vt-inf__title">Scheduled release queue</p>
+    <p class="vt-inf__edition">ISO {editionISO}</p>
+  </header>
+
+  <ol class="vt-inf__list" role="list">
+    {/* Primary infusion - the next macro release. */}
+    <li class="vt-inf__chan vt-inf__chan--primary">
+      <p class="vt-inf__chan-id">A</p>
+      <div class="vt-inf__chan-body">
+        <p class="vt-inf__chan-label">{nextLabel}</p>
+        <p class="vt-inf__chan-meta">
+          <span class="vt-inf__chan-meta-k">FROM</span>
+          <span class="vt-inf__chan-meta-v">{nextAgency}</span>
+        </p>
+        <div class="vt-inf__progress" aria-hidden="true">
+          <span class="vt-inf__progress-fill"></span>
+        </div>
+      </div>
+      <div class="vt-inf__chan-right">
+        <p class="vt-inf__rate">{nextDate}</p>
+        <p class="vt-inf__state" data-state="running">
+          <span class="vt-inf__state-pip" aria-hidden="true"></span>
+          DUE
+        </p>
+      </div>
+    </li>
+
+    {/* Two ambient secondary channels. */}
+    {secondary.map((s) => (
+      <li class="vt-inf__chan">
+        <p class="vt-inf__chan-id">{s.chan}</p>
+        <div class="vt-inf__chan-body">
+          <p class="vt-inf__chan-label">{s.label}</p>
+          <p class="vt-inf__chan-meta">
+            <span class="vt-inf__chan-meta-k">CYCLE</span>
+            <span class="vt-inf__chan-meta-v">{s.rate}</span>
+          </p>
+          <div class="vt-inf__progress vt-inf__progress--ambient" aria-hidden="true">
+            <span class="vt-inf__progress-fill"></span>
+          </div>
+        </div>
+        <div class="vt-inf__chan-right">
+          <p class="vt-inf__rate">{s.rate}</p>
+          <p class="vt-inf__state" data-state="ambient">
+            <span class="vt-inf__state-pip" aria-hidden="true"></span>
+            {s.state}
+          </p>
+        </div>
+      </li>
+    ))}
+  </ol>
+</section>
+
+<style>
+  .vt-inf {
+    background: var(--vt-panel);
+    border: 1px solid var(--vt-panel-edge);
+    border-left: 3px solid var(--vt-yellow);
+    position: relative;
+  }
+  .vt-inf::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: var(--vt-yellow);
+    opacity: 0.32;
+  }
+
+  .vt-inf__head {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    align-items: baseline;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--vt-rule);
+    background: var(--vt-panel-deep);
+  }
+  .vt-inf__key {
+    font-family: var(--vt-label);
+    font-size: 9.5px;
+    letter-spacing: 0.22em;
+    color: var(--vt-yellow);
+    font-weight: 500;
+  }
+  .vt-inf__title {
+    font-family: var(--vt-display);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    color: var(--vt-ink);
+  }
+  .vt-inf__edition {
+    font-family: var(--vt-display);
+    font-size: 11px;
+    color: var(--vt-ink-faint);
+    letter-spacing: 0.06em;
+  }
+
+  .vt-inf__list {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 880px) {
+    .vt-inf__list {
+      grid-template-columns: 2fr 1fr 1fr;
+    }
+  }
+
+  .vt-inf__chan {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: stretch;
+    padding: 12px 14px;
+    border-top: 1px solid var(--vt-rule-soft);
+    gap: 12px;
+  }
+  .vt-inf__chan:first-child { border-top: none; }
+  @media (min-width: 880px) {
+    .vt-inf__chan {
+      border-top: none;
+      border-left: 1px solid var(--vt-rule-soft);
+    }
+    .vt-inf__chan:first-child { border-left: none; }
+  }
+
+  .vt-inf__chan-id {
+    font-family: var(--vt-display);
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 0.08em;
+    color: var(--vt-yellow);
+    line-height: 1;
+    padding-top: 2px;
+  }
+  .vt-inf__chan--primary .vt-inf__chan-id {
+    color: var(--vt-green);
+  }
+
+  .vt-inf__chan-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .vt-inf__chan-label {
+    font-family: var(--vt-display);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--vt-ink);
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+  }
+  .vt-inf__chan-meta {
+    display: inline-flex;
+    gap: 6px;
+    font-family: var(--vt-label);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .vt-inf__chan-meta-k { color: var(--vt-ink-faint); }
+  .vt-inf__chan-meta-v { color: var(--vt-ink-mute); }
+
+  .vt-inf__progress {
+    height: 4px;
+    margin-top: 6px;
+    background: var(--vt-panel-deep);
+    border: 1px solid var(--vt-rule-soft);
+    position: relative;
+    overflow: hidden;
+  }
+  .vt-inf__progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 28%;
+    background: linear-gradient(90deg,
+      color-mix(in srgb, var(--vt-green) 0%, transparent) 0%,
+      var(--vt-green) 100%);
+    animation: vt-drip 6s linear infinite;
+  }
+  .vt-inf__progress--ambient .vt-inf__progress-fill {
+    background: linear-gradient(90deg,
+      color-mix(in srgb, var(--vt-yellow) 0%, transparent) 0%,
+      var(--vt-yellow) 100%);
+    animation-duration: 10s;
+    opacity: 0.7;
+  }
+  @keyframes vt-drip {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(380%); }
+  }
+
+  .vt-inf__chan-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    text-align: right;
+  }
+  .vt-inf__rate {
+    font-family: var(--vt-display);
+    font-weight: 500;
+    font-size: 12px;
+    color: var(--vt-ink);
+    letter-spacing: 0.04em;
+  }
+  .vt-inf__state {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--vt-label);
+    font-size: 9.5px;
+    letter-spacing: 0.2em;
+    color: var(--vt-ink-faint);
+  }
+  .vt-inf__state[data-state="running"] { color: var(--vt-green); }
+  .vt-inf__state[data-state="ambient"] { color: var(--vt-yellow); }
+  .vt-inf__state-pip {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 5px currentColor;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .vt-inf__progress-fill {
+      animation: none !important;
+      width: 60%;
+      transform: none;
+    }
+  }
+</style>

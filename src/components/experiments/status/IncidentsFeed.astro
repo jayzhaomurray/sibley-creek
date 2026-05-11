@@ -1,0 +1,468 @@
+---
+/*
+ * Lane R - Status Page: incidents feed.
+ *
+ * Treats deep dives as "active investigations" rendered in a status-page
+ * incidents feed. Each incident shows:
+ *  - top line: severity dot, title, current status pill, last update stamp
+ *  - deck (writer's one-sentence summary)
+ *  - vertical status timeline: Identified -> Investigating -> Monitoring -> Resolved
+ *
+ * Pure presentational; the timeline is built from a fixed status order
+ * and the current `status` value (research/drafted/shipped) maps onto it.
+ */
+
+import type { DeepDive, DeepDiveStatus } from "../../../data/sections";
+
+interface Props {
+  incidents: DeepDive[];
+}
+
+const { incidents } = Astro.props as Props;
+
+// Map editorial deep-dive status onto a status-page incident timeline.
+// The page reads them as: opened -> in research -> drafted -> shipped.
+type Stage = {
+  key: string;
+  label: string;
+  state: "done" | "current" | "pending";
+};
+
+function timelineFor(status: DeepDiveStatus): Stage[] {
+  const order: { key: string; label: string }[] = [
+    { key: "identified",  label: "Identified" },
+    { key: "research",    label: "Investigating" },
+    { key: "drafted",     label: "Monitoring" },
+    { key: "shipped",     label: "Resolved" },
+  ];
+  // Internal model: identified is always done; research/drafted/shipped
+  // mark the current stage.
+  const currentKey =
+    status === "research" ? "research" :
+    status === "drafted"  ? "drafted"  :
+    status === "shipped"  ? "shipped"  :
+    "identified";
+  let hit = false;
+  return order.map((stage) => {
+    if (hit) return { ...stage, state: "pending" as const };
+    if (stage.key === currentKey) {
+      hit = true;
+      return { ...stage, state: status === "shipped" ? ("done" as const) : ("current" as const) };
+    }
+    return { ...stage, state: "done" as const };
+  });
+}
+
+function pillFor(status: DeepDiveStatus): { color: string; label: string } {
+  if (status === "shipped")  return { color: "green", label: "Resolved" };
+  if (status === "drafted")  return { color: "info",  label: "Monitoring" };
+  if (status === "research") return { color: "amber", label: "Investigating" };
+  return { color: "slate", label: "Identified" };
+}
+
+function severityFor(status: DeepDiveStatus): string {
+  if (status === "research") return "amber";
+  if (status === "drafted")  return "info";
+  return "green";
+}
+---
+<section class="st-incidents" aria-labelledby="st-incidents-h">
+  <header class="st-incidents__head">
+    <div class="st-incidents__headtext">
+      <p class="st-incidents__eyebrow">Active investigations</p>
+      <h2 id="st-incidents-h" class="st-incidents__title">Incident feed</h2>
+      <p class="st-incidents__sub">
+        Open research threads tracked against the Canadian macro stack.
+        Each thread runs through identification, investigation, monitoring,
+        and a published resolution.
+      </p>
+    </div>
+    <p class="st-incidents__count">
+      <span class="st-incidents__countnum">{incidents.length}</span>
+      <span class="st-incidents__countlabel">open</span>
+    </p>
+  </header>
+
+  <ol class="st-incidents__list" role="list">
+    {incidents.map((inc) => {
+      const pill = pillFor(inc.status);
+      const sev = severityFor(inc.status);
+      const stages = timelineFor(inc.status);
+      return (
+        <li class="st-incident">
+          <div class="st-incident__head">
+            <div class="st-incident__leading">
+              <span class={`st-dot st-dot--${sev}`} aria-hidden="true">
+                <span class="st-dot__core"></span>
+                <span class="st-dot__halo"></span>
+              </span>
+              <div class="st-incident__titlewrap">
+                <p class="st-incident__meta">
+                  <span class="st-incident__pillar">Pillar {inc.pillar}</span>
+                  <span class="st-incident__sep" aria-hidden="true">&middot;</span>
+                  <span class="st-incident__service">{inc.section}</span>
+                </p>
+                <h3 class="st-incident__title">
+                  <a href={inc.href ?? `#sec-${inc.section}`}>{inc.title}</a>
+                </h3>
+              </div>
+            </div>
+            <div class="st-incident__statusbox">
+              <span class={`st-badge st-badge--${pill.color}`}>
+                <span class="st-badge__label">{pill.label}</span>
+              </span>
+              <p class="st-incident__stamp">
+                <span class="st-incident__stampkey">Updated</span>
+                <span class="st-incident__stampval">{inc.lastUpdated}</span>
+              </p>
+            </div>
+          </div>
+
+          <p class="st-incident__deck">{inc.deck}</p>
+
+          <ol class="st-incident__timeline" role="list" aria-label="Investigation timeline">
+            {stages.map((stage) => (
+              <li class={`st-stage st-stage--${stage.state}`}>
+                <span class="st-stage__bullet" aria-hidden="true">
+                  <span class="st-stage__bulletcore"></span>
+                </span>
+                <span class="st-stage__label">{stage.label}</span>
+              </li>
+            ))}
+          </ol>
+        </li>
+      );
+    })}
+  </ol>
+</section>
+
+<style>
+  .st-incidents {
+    max-width: var(--st-max);
+    margin: 0 auto;
+    padding: 48px var(--st-gutter) 16px;
+  }
+  .st-incidents__head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: end;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--st-line);
+    margin-bottom: 0;
+  }
+  .st-incidents__headtext {
+    max-width: 64ch;
+  }
+  .st-incidents__eyebrow {
+    margin: 0 0 6px;
+    font-family: var(--st-mono);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--st-slate);
+  }
+  .st-incidents__title {
+    margin: 0 0 8px;
+    font-family: var(--st-sans);
+    font-weight: 700;
+    font-size: clamp(24px, 3vw, 30px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--st-ink);
+  }
+  .st-incidents__sub {
+    margin: 0;
+    font-family: var(--st-sans);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--st-slate);
+  }
+  .st-incidents__count {
+    margin: 0;
+    text-align: right;
+    font-family: var(--st-mono);
+  }
+  .st-incidents__countnum {
+    display: block;
+    font-size: 32px;
+    color: var(--st-ink);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .st-incidents__countlabel {
+    font-size: 11px;
+    color: var(--st-slate);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .st-incidents__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .st-incident {
+    padding: 24px 0;
+    border-bottom: 1px solid var(--st-line);
+  }
+  .st-incident:last-child {
+    border-bottom: none;
+  }
+
+  .st-incident__head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px 24px;
+    align-items: start;
+    margin-bottom: 12px;
+  }
+  .st-incident__leading {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: start;
+    min-width: 0;
+  }
+  .st-incident__leading .st-dot {
+    margin-top: 7px;
+  }
+  .st-incident__titlewrap {
+    min-width: 0;
+  }
+  .st-incident__meta {
+    margin: 0 0 4px;
+    font-family: var(--st-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--st-slate);
+  }
+  .st-incident__pillar {
+    color: var(--st-ink);
+    font-weight: 500;
+  }
+  .st-incident__sep {
+    margin: 0 6px;
+  }
+  .st-incident__service {
+    color: var(--st-slate);
+  }
+  .st-incident__title {
+    margin: 0;
+    font-family: var(--st-sans);
+    font-weight: 600;
+    font-size: clamp(17px, 2vw, 20px);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+  .st-incident__title a {
+    color: var(--st-ink);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+  }
+  .st-incident__title a:hover {
+    border-bottom-color: var(--st-ink);
+  }
+  .st-incident__title a:focus-visible {
+    outline: 2px solid var(--st-info);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  .st-incident__statusbox {
+    text-align: right;
+    display: grid;
+    gap: 6px;
+    justify-items: end;
+  }
+  .st-incident__stamp {
+    margin: 0;
+    font-family: var(--st-mono);
+    font-size: 11px;
+    color: var(--st-slate);
+  }
+  .st-incident__stampkey {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-right: 6px;
+  }
+  .st-incident__stampval {
+    color: var(--st-ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .st-incident__deck {
+    margin: 0 0 16px 22px;
+    font-family: var(--st-sans);
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: var(--st-ink);
+    max-width: 72ch;
+  }
+
+  /* Timeline */
+  .st-incident__timeline {
+    list-style: none;
+    margin: 0 0 0 22px;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    align-items: stretch;
+    border-left: 1px solid var(--st-line);
+    border-top: 1px solid var(--st-line);
+    border-right: 1px solid var(--st-line);
+    border-bottom: 1px solid var(--st-line);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--st-ink) 1.5%, var(--st-paper));
+    overflow: hidden;
+  }
+  .st-stage {
+    flex: 1 1 0;
+    min-width: 120px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-right: 1px solid var(--st-line);
+    font-family: var(--st-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--st-slate);
+  }
+  .st-stage:last-child { border-right: none; }
+  .st-stage__bullet {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1.5px solid var(--st-line);
+    background: var(--st-paper);
+    flex-shrink: 0;
+    position: relative;
+  }
+  .st-stage__bulletcore {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: transparent;
+  }
+  .st-stage--done {
+    background: color-mix(in srgb, var(--st-green) 6%, transparent);
+    color: var(--st-ink);
+  }
+  .st-stage--done .st-stage__bullet {
+    border-color: var(--st-green);
+    background: var(--st-green);
+  }
+  .st-stage--done .st-stage__bulletcore {
+    background: var(--st-paper);
+  }
+  .st-stage--current {
+    background: color-mix(in srgb, var(--st-info) 8%, transparent);
+    color: var(--st-ink);
+    font-weight: 500;
+  }
+  .st-stage--current .st-stage__bullet {
+    border-color: var(--st-info);
+    background: var(--st-info);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--st-info) 28%, transparent);
+    animation: st-stage-pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes st-stage-pulse {
+    0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--st-info) 28%, transparent); }
+    50%      { box-shadow: 0 0 0 6px color-mix(in srgb, var(--st-info) 14%, transparent); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .st-stage--current .st-stage__bullet { animation: none; }
+  }
+  .st-stage--pending {
+    color: var(--st-slate);
+    opacity: 0.7;
+  }
+
+  /* dot reuse */
+  .st-dot {
+    --dot-size: 10px;
+    --dot-color: var(--st-green);
+    position: relative;
+    display: inline-block;
+    width: var(--dot-size);
+    height: var(--dot-size);
+    flex-shrink: 0;
+  }
+  .st-dot--green { --dot-color: var(--st-green); }
+  .st-dot--amber { --dot-color: var(--st-amber); }
+  .st-dot--red   { --dot-color: var(--st-red); }
+  .st-dot--info  { --dot-color: var(--st-info); }
+  .st-dot__core {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--dot-color);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--dot-color) 20%, transparent);
+  }
+  .st-dot__halo {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--dot-color);
+    opacity: 0.4;
+    animation: st-pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  .st-dot--amber .st-dot__halo { animation-duration: 1.6s; }
+  .st-dot--red   .st-dot__halo { animation-duration: 1.2s; }
+  @media (prefers-reduced-motion: reduce) {
+    .st-dot__halo { animation: none; opacity: 0; }
+  }
+
+  /* Badge reuse */
+  .st-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-family: var(--st-mono);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    border: 1px solid currentColor;
+    background: color-mix(in srgb, currentColor 8%, var(--st-paper));
+  }
+  .st-badge--green { color: var(--st-green); }
+  .st-badge--amber { color: var(--st-amber); }
+  .st-badge--red   { color: var(--st-red); }
+  .st-badge--info  { color: var(--st-info); }
+  .st-badge--slate { color: var(--st-slate); }
+  .st-badge__label {
+    color: color-mix(in srgb, black 30%, currentColor);
+  }
+
+  @media (max-width: 720px) {
+    .st-incident__head {
+      grid-template-columns: 1fr;
+    }
+    .st-incident__statusbox {
+      text-align: left;
+      justify-items: start;
+    }
+    .st-stage {
+      flex-basis: 50%;
+    }
+  }
+</style>

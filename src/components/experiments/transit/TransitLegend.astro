@@ -1,0 +1,182 @@
+---
+/*
+ * Transit splash (Lane M) — line legend.
+ *
+ * Set as a TfL / Vignelli-style "lines & services" key. One row per
+ * section, with a bullet of the line color, the line name, and the list
+ * of stations on that line. Heavy sans, all-caps, generous letter spacing.
+ */
+
+import { sections, type Section } from "../../../data/sections";
+
+interface Props {
+  sections?: Section[];
+}
+
+// Default to the canonical 7 lines
+const ordered: Section[] = Astro.props.sections ?? sections;
+---
+
+<aside class="tx-leg" aria-labelledby="tx-leg-title">
+  <header class="tx-leg__head">
+    <p id="tx-leg-title" class="tx-leg__title">Lines &amp; stations</p>
+    <p class="tx-leg__sub">Read across.</p>
+  </header>
+
+  <ul role="list" class="tx-leg__list">
+    {ordered.map((s) => (
+      <li class={`tx-leg__line tx-leg__line--${s.slug}`}>
+        <div class="tx-leg__row">
+          <span class="tx-leg__bullet" aria-hidden="true"></span>
+          <span class="tx-leg__name">{s.label}</span>
+          <span class="tx-leg__cad">{s.cadence}</span>
+        </div>
+        <ul role="list" class="tx-leg__stations">
+          {s.prints.map((p) => (
+            <li class="tx-leg__station">
+              <span class="tx-leg__st-dot" aria-hidden="true"></span>
+              <span class="tx-leg__st-name">{p.indicator}</span>
+              <span class="tx-leg__st-val">{p.value}</span>
+            </li>
+          ))}
+        </ul>
+      </li>
+    ))}
+  </ul>
+</aside>
+
+<style>
+  .tx-leg {
+    background: var(--tx-cream);
+    border: 2px solid var(--tx-ink);
+    padding: 18px 18px 20px;
+  }
+  .tx-leg__head {
+    border-bottom: 2px solid var(--tx-ink);
+    padding-bottom: 10px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .tx-leg__title {
+    margin: 0;
+    font-family: var(--tx-display);
+    font-weight: 800;
+    font-size: 16px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tx-ink);
+  }
+  .tx-leg__sub {
+    margin: 0;
+    font-family: var(--tx-mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--tx-ink);
+    opacity: 0.55;
+  }
+
+  .tx-leg__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .tx-leg__line {
+    position: relative;
+  }
+  .tx-leg__row {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(26, 26, 26, 0.18);
+  }
+  .tx-leg__bullet {
+    display: block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 3px solid var(--bullet, var(--tx-ink));
+    background: var(--tx-cream);
+  }
+  .tx-leg__line--gdp       .tx-leg__bullet { --bullet: var(--tx-line-gdp); }
+  .tx-leg__line--inflation .tx-leg__bullet { --bullet: var(--tx-line-inflation); }
+  .tx-leg__line--labour    .tx-leg__bullet { --bullet: var(--tx-line-labour); }
+  .tx-leg__line--housing   .tx-leg__bullet { --bullet: var(--tx-line-housing); }
+  .tx-leg__line--policy    .tx-leg__bullet { --bullet: var(--tx-line-policy); }
+  .tx-leg__line--markets   .tx-leg__bullet { --bullet: var(--tx-line-markets); }
+  .tx-leg__line--trade     .tx-leg__bullet { --bullet: var(--tx-line-trade); }
+
+  .tx-leg__name {
+    font-family: var(--tx-display);
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--tx-ink);
+  }
+  .tx-leg__cad {
+    font-family: var(--tx-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tx-ink);
+    opacity: 0.6;
+  }
+
+  .tx-leg__stations {
+    list-style: none;
+    margin: 6px 0 0;
+    padding: 0 0 0 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-left: 3px solid var(--bullet, transparent);
+  }
+  .tx-leg__line--gdp       .tx-leg__stations { border-left-color: var(--tx-line-gdp); }
+  .tx-leg__line--inflation .tx-leg__stations { border-left-color: var(--tx-line-inflation); }
+  .tx-leg__line--labour    .tx-leg__stations { border-left-color: var(--tx-line-labour); }
+  .tx-leg__line--housing   .tx-leg__stations { border-left-color: var(--tx-line-housing); }
+  .tx-leg__line--policy    .tx-leg__stations { border-left-color: var(--tx-line-policy); }
+  .tx-leg__line--markets   .tx-leg__stations { border-left-color: var(--tx-line-markets); }
+  .tx-leg__line--trade     .tx-leg__stations { border-left-color: var(--tx-line-trade); }
+
+  .tx-leg__station {
+    display: grid;
+    grid-template-columns: 12px 1fr auto;
+    align-items: baseline;
+    gap: 6px;
+    padding: 4px 0 4px 6px;
+    border-bottom: 1px dotted rgba(26, 26, 26, 0.18);
+  }
+  .tx-leg__station:last-child { border-bottom: 0; }
+  .tx-leg__st-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--tx-ink);
+    align-self: center;
+  }
+  .tx-leg__st-name {
+    font-family: var(--tx-subhead);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    color: var(--tx-ink);
+  }
+  .tx-leg__st-val {
+    font-family: var(--tx-mono);
+    font-weight: 700;
+    font-size: 11px;
+    color: var(--tx-ink);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

@@ -1,0 +1,219 @@
+---
+/*
+ * InsideThisIssue - "Inside this issue" contents column. A typographic
+ * three-column listing of the remaining sections with their headline
+ * questions and load-bearing prints. Editorial rhythm, no card chrome.
+ */
+import type { Section } from "../../../data/sections";
+
+interface Props {
+  sections: Section[];
+  heroSlug: string;
+}
+
+const { sections, heroSlug } = Astro.props;
+const otherSections = sections.filter((s) => s.slug !== heroSlug);
+---
+<section class="ed-inside" aria-labelledby="ed-inside-title">
+  <div class="ed-inside__head">
+    <h2 id="ed-inside-title" class="ed-inside__title">
+      Inside <em>this</em> issue
+    </h2>
+    <p class="ed-inside__lede">
+      Six sections, six questions. Each turns on a single load-bearing series.
+    </p>
+  </div>
+
+  <ol class="ed-inside__list" role="list">
+    {otherSections.map((s, i) => {
+      const p = s.prints[0];
+      return (
+        <li class="ed-inside__item">
+          <a href={`/${s.slug}/`} class="ed-inside__link">
+            <div class="ed-inside__top">
+              <span class="ed-inside__folio">{String(i + 2).padStart(2, "0")}</span>
+              <span class="ed-inside__kicker">{s.label}</span>
+            </div>
+            <h3 class="ed-inside__q">
+              {s.headlineQuestion}
+            </h3>
+            <p class="ed-inside__deck">
+              <span class="ed-inside__indicator">{p.indicator}</span>
+              <span class="ed-inside__value">{p.value}</span>
+              <span class="ed-inside__delta" data-dir={p.deltaDir}>{p.delta}</span>
+              <span class="ed-inside__asof">As of {p.asOf}</span>
+            </p>
+          </a>
+        </li>
+      );
+    })}
+  </ol>
+</section>
+
+<style>
+  .ed-inside {
+    position: relative;
+    z-index: 2;
+    padding: 2.4rem 0 2.4rem;
+    border-bottom: 1px solid var(--ed-rule);
+  }
+
+  .ed-inside__head {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+    margin-bottom: 1.6rem;
+    max-width: 56ch;
+  }
+
+  .ed-inside__title {
+    margin: 0;
+    font-family: var(--ed-font-display);
+    font-weight: 900;
+    font-size: clamp(2rem, 3.6vw, 2.9rem);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--ed-ink);
+  }
+  .ed-inside__title em {
+    font-style: italic;
+    color: var(--ed-accent);
+    font-weight: 500;
+  }
+
+  .ed-inside__lede {
+    margin: 0;
+    font-family: var(--ed-font-display);
+    font-style: italic;
+    font-size: 1.1rem;
+    line-height: 1.4;
+    color: var(--ed-ink-mute);
+  }
+
+  .ed-inside__list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--ed-rule);
+  }
+
+  @media (max-width: 900px) {
+    .ed-inside__list { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 560px) {
+    .ed-inside__list { grid-template-columns: 1fr; }
+  }
+
+  .ed-inside__item {
+    border-bottom: 1px solid var(--ed-rule-faint);
+    border-right: 1px solid var(--ed-rule-faint);
+    padding: 1.2rem 1.2rem 1.4rem;
+    background: transparent;
+  }
+  .ed-inside__item:nth-child(3n) { border-right: 0; }
+  @media (max-width: 900px) {
+    .ed-inside__item { border-right: 1px solid var(--ed-rule-faint); }
+    .ed-inside__item:nth-child(3n) { border-right: 1px solid var(--ed-rule-faint); }
+    .ed-inside__item:nth-child(2n) { border-right: 0; }
+  }
+  @media (max-width: 560px) {
+    .ed-inside__item, .ed-inside__item:nth-child(n) { border-right: 0; padding-inline: 0; }
+  }
+
+  .ed-inside__link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    height: 100%;
+  }
+  .ed-inside__link:hover .ed-inside__q { color: var(--ed-accent); }
+  .ed-inside__link:focus-visible {
+    outline: 2px solid var(--ed-accent);
+    outline-offset: 4px;
+  }
+
+  .ed-inside__top {
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
+    margin-bottom: 0.7rem;
+  }
+  .ed-inside__folio {
+    font-family: var(--ed-font-mono);
+    font-size: 0.78rem;
+    color: var(--ed-accent);
+    letter-spacing: 0.05em;
+  }
+  .ed-inside__kicker {
+    font-family: var(--ed-font-body);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ed-ink-mute);
+  }
+
+  .ed-inside__q {
+    margin: 0;
+    font-family: var(--ed-font-display);
+    font-weight: 500;
+    font-style: italic;
+    font-size: clamp(1.15rem, 1.6vw, 1.42rem);
+    line-height: 1.18;
+    letter-spacing: -0.005em;
+    color: var(--ed-ink);
+    text-wrap: balance;
+    transition: color 150ms ease;
+    font-variation-settings: "opsz" 60, "SOFT" 70, "WONK" 1;
+  }
+
+  .ed-inside__deck {
+    margin: 0.95rem 0 0;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "indicator value"
+      "asof delta";
+    gap: 0.2rem 0.6rem;
+    align-items: baseline;
+    border-top: 1px solid var(--ed-rule-faint);
+    padding-top: 0.7rem;
+  }
+  .ed-inside__indicator {
+    grid-area: indicator;
+    font-family: var(--ed-font-body);
+    font-size: 0.86rem;
+    color: var(--ed-ink);
+  }
+  .ed-inside__value {
+    grid-area: value;
+    font-family: var(--ed-font-display);
+    font-weight: 900;
+    font-size: 1.45rem;
+    line-height: 1;
+    color: var(--ed-ink);
+    text-align: right;
+    letter-spacing: -0.02em;
+    font-feature-settings: "tnum" 1, "lnum" 1;
+  }
+  .ed-inside__asof {
+    grid-area: asof;
+    font-family: var(--ed-font-body);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ed-ink-mute);
+  }
+  .ed-inside__delta {
+    grid-area: delta;
+    text-align: right;
+    font-family: var(--ed-font-mono);
+    font-size: 0.78rem;
+    color: var(--ed-ink-mute);
+  }
+  .ed-inside__delta[data-dir="pos"] { color: var(--ed-pos); }
+  .ed-inside__delta[data-dir="neg"] { color: var(--ed-accent); }
+</style>

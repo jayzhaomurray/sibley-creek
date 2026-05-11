@@ -1,0 +1,242 @@
+---
+/*
+ * AtlasMasthead - the scientific-atlas frontispiece.
+ *
+ * Sets the title "ATLAS OF THE CANADIAN ECONOMY" in small-caps Cormorant
+ * with a hairline above and below the rule line. A volume/plate stamp
+ * sits to the left, an edition stamp to the right, and a compass rose
+ * sits inset on the upper-right corner like a frontispiece engraving.
+ *
+ * No JS. All ornaments are SVG <use> references to symbols defined in
+ * AtlasPatterns. Coordinates next to the compass are decorative.
+ */
+
+interface Props {
+  vol: string;
+  plate: string;
+  edition: string;
+  produced: string;
+  lat: string;
+  lon: string;
+}
+
+const { vol, plate, edition, produced, lat, lon } = Astro.props;
+---
+<header class="at-mast" aria-labelledby="at-mast-h">
+  <div class="at-mast__rail at-mast__rail--top">
+    <span class="at-mast__rail-key">Atlas of the Canadian Economy</span>
+    <span class="at-mast__rail-sep" aria-hidden="true">&#xb7;</span>
+    <span class="at-mast__rail-val">a scientific compendium of the macro-financial state</span>
+  </div>
+
+  <div class="at-mast__row">
+    <p class="at-mast__stamp at-mast__stamp--left">
+      <span class="at-mast__stamp-key">Vol.</span>
+      <span class="at-mast__stamp-val">{vol}</span>
+      <span class="at-mast__stamp-key">Plate</span>
+      <span class="at-mast__stamp-val">{plate}</span>
+    </p>
+
+    <p class="at-mast__stamp at-mast__stamp--right">
+      <span class="at-mast__stamp-key">Edition</span>
+      <span class="at-mast__stamp-val">{edition}</span>
+    </p>
+  </div>
+
+  <hr class="at-mast__rule at-mast__rule--heavy" aria-hidden="true" />
+  <hr class="at-mast__rule at-mast__rule--hair" aria-hidden="true" />
+
+  <div class="at-mast__title-wrap">
+    <h1 id="at-mast-h" class="at-mast__title">
+      Atlas of the Canadian Economy
+    </h1>
+
+    <svg
+      class="at-mast__compass"
+      viewBox="0 0 120 120"
+      role="img"
+      aria-label="Cartographer&apos;s compass rose"
+    >
+      <use href="#at-compass" />
+    </svg>
+
+    <p class="at-mast__deck">
+      <em>A bound register of the prevailing winds in Canadian macroeconomic data,</em>
+      drawn from the official agencies and rendered in two-colour plate.
+      <span class="at-mast__deck-tail">Engraved at {produced}.</span>
+    </p>
+  </div>
+
+  <hr class="at-mast__rule at-mast__rule--hair" aria-hidden="true" />
+  <hr class="at-mast__rule at-mast__rule--heavy" aria-hidden="true" />
+
+  <div class="at-mast__coords" aria-hidden="true">
+    <span>Lat. {lat}</span>
+    <span class="at-mast__coords-sep">&#xb7;</span>
+    <span>Lon. {lon}</span>
+    <span class="at-mast__coords-sep">&#xb7;</span>
+    <span>Projection: Lambert Conformal</span>
+    <span class="at-mast__coords-sep">&#xb7;</span>
+    <span>Scale: 1 : indicative</span>
+  </div>
+</header>
+
+<style>
+  .at-mast {
+    position: relative;
+    padding-block: 28px 20px;
+  }
+
+  .at-mast__rail {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    align-items: baseline;
+    font-family: var(--at-mono);
+    font-size: 10.5px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--at-ink-mute);
+    padding-bottom: 14px;
+  }
+  .at-mast__rail-key {
+    color: var(--at-ink);
+    font-weight: 600;
+  }
+  .at-mast__rail-sep {
+    color: var(--at-ink-faint);
+  }
+
+  .at-mast__row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding-bottom: 6px;
+  }
+
+  .at-mast__stamp {
+    margin: 0;
+    font-family: var(--at-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    color: var(--at-ink);
+  }
+  .at-mast__stamp-key {
+    color: var(--at-ink-mute);
+    font-style: italic;
+    margin-right: 4px;
+  }
+  .at-mast__stamp-val {
+    font-family: var(--at-mono);
+    font-style: normal;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--at-ink);
+    margin-right: 18px;
+  }
+  .at-mast__stamp--right .at-mast__stamp-val:last-child {
+    margin-right: 0;
+  }
+
+  .at-mast__rule {
+    border: 0;
+    margin: 0;
+    height: 0;
+  }
+  .at-mast__rule--heavy {
+    border-top: 1.5px solid var(--at-ink);
+  }
+  .at-mast__rule--hair {
+    border-top: 0.5px solid var(--at-ink);
+    margin-top: 3px;
+  }
+
+  .at-mast__title-wrap {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding-block: 28px 28px;
+    align-items: center;
+  }
+  @media (min-width: 800px) {
+    .at-mast__title-wrap {
+      grid-template-columns: 1fr auto;
+      gap: 36px;
+    }
+  }
+
+  .at-mast__title {
+    margin: 0;
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+    font-family: var(--at-display);
+    font-weight: 500;
+    font-size: clamp(36px, 7.4vw, 90px);
+    line-height: 0.95;
+    letter-spacing: 0.012em;
+    color: var(--at-ink);
+    font-variant: small-caps;
+    text-transform: lowercase;
+  }
+
+  .at-mast__compass {
+    grid-row: 1 / 3;
+    grid-column: 1 / 2;
+    width: clamp(86px, 12vw, 124px);
+    height: clamp(86px, 12vw, 124px);
+    justify-self: end;
+  }
+  @media (min-width: 800px) {
+    .at-mast__compass {
+      grid-column: 2 / 3;
+      grid-row: 1 / 3;
+    }
+  }
+
+  .at-mast__deck {
+    grid-column: 1 / 2;
+    grid-row: 2 / 3;
+    margin: 0;
+    max-width: 58ch;
+    font-family: var(--at-body);
+    font-weight: 400;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--at-ink);
+  }
+  .at-mast__deck em {
+    color: var(--at-ink);
+  }
+  .at-mast__deck-tail {
+    display: inline-block;
+    margin-left: 6px;
+    font-family: var(--at-mono);
+    font-style: normal;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--at-ink-mute);
+    text-transform: uppercase;
+  }
+
+  .at-mast__coords {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: baseline;
+    font-family: var(--at-mono);
+    font-size: 10.5px;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--at-ink-mute);
+    padding-top: 12px;
+  }
+  .at-mast__coords-sep {
+    color: var(--at-ink-faint);
+  }
+</style>

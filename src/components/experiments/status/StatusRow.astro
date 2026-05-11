@@ -1,0 +1,366 @@
+---
+/*
+ * Lane R - Status Page: a single service row.
+ *
+ * Each macro section is rendered as a "service" the page is monitoring.
+ * Columns: dot + name (with kicker), state badge, latest value + delta,
+ * last refresh stamp, 24-period sparkline, details link.
+ *
+ * Visual rules:
+ *  - row height stable so density is regular and scannable
+ *  - mono for values, sans for labels
+ *  - sparkline tinted by row state via currentColor
+ *  - hover lightly tints the row (subtle, sysadmin)
+ */
+
+import Sparkline from "./Sparkline.astro";
+
+type State = "operational" | "degraded" | "outage" | "watch";
+
+interface Props {
+  slug: string;
+  name: string;
+  kicker?: string;
+  state: State;
+  value: string;
+  indicator: string;
+  delta: string;
+  deltaDir: "pos" | "neg" | "neutral";
+  lastRefresh: string;
+  cadence: string;
+  spark: number[];
+  href: string;
+}
+
+const {
+  slug,
+  name,
+  kicker,
+  state,
+  value,
+  indicator,
+  delta,
+  deltaDir,
+  lastRefresh,
+  cadence,
+  spark,
+  href,
+} = Astro.props;
+
+const colorMap: Record<State, string> = {
+  operational: "green",
+  degraded:    "amber",
+  outage:      "red",
+  watch:       "info",
+};
+
+const stateLabel: Record<State, string> = {
+  operational: "Operational",
+  degraded:    "Degraded",
+  outage:      "Outage",
+  watch:       "Watch",
+};
+
+const color = colorMap[state];
+---
+<li class={`st-row st-row--${color}`} id={`sec-${slug}`}>
+  <div class="st-row__name">
+    <span class={`st-dot st-dot--${color}`} aria-hidden="true">
+      <span class="st-dot__core"></span>
+      <span class="st-dot__halo"></span>
+    </span>
+    <div class="st-row__nametext">
+      <p class="st-row__title">{name}</p>
+      {kicker && <p class="st-row__kicker">{kicker}</p>}
+    </div>
+  </div>
+
+  <div class="st-row__state">
+    <span class={`st-badge st-badge--${color}`}>
+      <span class="st-badge__label">{stateLabel[state]}</span>
+    </span>
+  </div>
+
+  <div class="st-row__value">
+    <p class="st-row__indicator">{indicator}</p>
+    <p class="st-row__num">
+      <span class="st-row__numval">{value}</span>
+      <span class={`st-row__delta st-row__delta--${deltaDir}`}>{delta}</span>
+    </p>
+  </div>
+
+  <div class="st-row__refresh">
+    <p class="st-row__refreshkey">Last refresh</p>
+    <p class="st-row__refreshval">{lastRefresh}</p>
+    <p class="st-row__cadence">{cadence}</p>
+  </div>
+
+  <div class={`st-row__spark st-row__spark--${color}`}>
+    <Sparkline values={spark} label={`${name} 24-period trend`} />
+  </div>
+
+  <div class="st-row__action">
+    <a class="st-row__link" href={href}>
+      Details
+      <span aria-hidden="true" class="st-row__arrow">&rarr;</span>
+    </a>
+  </div>
+</li>
+
+<style>
+  .st-row {
+    display: grid;
+    grid-template-columns:
+      minmax(180px, 1.6fr)
+      minmax(120px, 0.9fr)
+      minmax(160px, 1.4fr)
+      minmax(140px, 1fr)
+      minmax(140px, 1fr)
+      auto;
+    column-gap: 24px;
+    align-items: center;
+    padding: 14px var(--st-gutter);
+    border-bottom: 1px solid var(--st-line);
+    background: var(--st-paper);
+    transition: background 120ms ease;
+  }
+  .st-row:first-child {
+    border-top: 1px solid var(--st-line);
+  }
+  .st-row:hover {
+    background: color-mix(in srgb, var(--st-ink) 2%, var(--st-paper));
+  }
+  .st-row:focus-within {
+    background: color-mix(in srgb, var(--st-info) 4%, var(--st-paper));
+  }
+
+  /* Name column */
+  .st-row__name {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+  .st-row__nametext {
+    min-width: 0;
+  }
+  .st-row__title {
+    margin: 0;
+    font-family: var(--st-sans);
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--st-ink);
+    line-height: 1.2;
+  }
+  .st-row__kicker {
+    margin: 2px 0 0;
+    font-family: var(--st-sans);
+    font-size: 12px;
+    color: var(--st-slate);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* State badge */
+  .st-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-family: var(--st-mono);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    border: 1px solid currentColor;
+    background: color-mix(in srgb, currentColor 8%, var(--st-paper));
+  }
+  .st-badge--green { color: var(--st-green); }
+  .st-badge--amber { color: var(--st-amber); }
+  .st-badge--red   { color: var(--st-red); }
+  .st-badge--info  { color: var(--st-info); }
+  .st-badge__label {
+    color: color-mix(in srgb, black 30%, currentColor);
+  }
+
+  /* Value column */
+  .st-row__value {
+    min-width: 0;
+  }
+  .st-row__indicator {
+    margin: 0 0 2px;
+    font-family: var(--st-mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--st-slate);
+    line-height: 1;
+  }
+  .st-row__num {
+    margin: 0;
+    font-family: var(--st-mono);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--st-ink);
+    font-variant-numeric: tabular-nums;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    line-height: 1.2;
+  }
+  .st-row__numval {
+    color: var(--st-ink);
+  }
+  .st-row__delta {
+    font-size: 12px;
+    font-weight: 400;
+  }
+  .st-row__delta--pos { color: var(--st-green); }
+  .st-row__delta--neg { color: var(--st-red); }
+  .st-row__delta--neutral { color: var(--st-slate); }
+
+  /* Refresh column */
+  .st-row__refresh {
+    min-width: 0;
+  }
+  .st-row__refreshkey {
+    margin: 0;
+    font-family: var(--st-mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--st-slate);
+    line-height: 1;
+  }
+  .st-row__refreshval {
+    margin: 2px 0 0;
+    font-family: var(--st-mono);
+    font-size: 13px;
+    color: var(--st-ink);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+  }
+  .st-row__cadence {
+    margin: 1px 0 0;
+    font-family: var(--st-sans);
+    font-size: 11px;
+    color: var(--st-slate);
+    line-height: 1.2;
+  }
+
+  /* Sparkline column */
+  .st-row__spark {
+    width: 120px;
+    height: 28px;
+    color: var(--st-slate);
+  }
+  .st-row__spark--green { color: var(--st-green); }
+  .st-row__spark--amber { color: var(--st-amber); }
+  .st-row__spark--red   { color: var(--st-red); }
+  .st-row__spark--info  { color: var(--st-info); }
+
+  /* Action column */
+  .st-row__action {
+    text-align: right;
+  }
+  .st-row__link {
+    font-family: var(--st-sans);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--st-info);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border-radius: 4px;
+  }
+  .st-row__link:hover {
+    background: color-mix(in srgb, var(--st-info) 8%, var(--st-paper));
+  }
+  .st-row__link:focus-visible {
+    outline: 2px solid var(--st-info);
+    outline-offset: 2px;
+  }
+  .st-row__arrow {
+    transition: transform 120ms ease;
+  }
+  .st-row__link:hover .st-row__arrow {
+    transform: translateX(2px);
+  }
+
+  /* dot styles --- reused */
+  .st-dot {
+    --dot-size: 10px;
+    --dot-color: var(--st-green);
+    position: relative;
+    display: inline-block;
+    width: var(--dot-size);
+    height: var(--dot-size);
+    flex-shrink: 0;
+  }
+  .st-dot--green { --dot-color: var(--st-green); }
+  .st-dot--amber { --dot-color: var(--st-amber); }
+  .st-dot--red   { --dot-color: var(--st-red); }
+  .st-dot--info  { --dot-color: var(--st-info); }
+  .st-dot__core {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--dot-color);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--dot-color) 20%, transparent);
+  }
+  .st-dot__halo {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--dot-color);
+    opacity: 0.4;
+    animation: st-pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  .st-dot--amber .st-dot__halo { animation-duration: 1.6s; }
+  .st-dot--red   .st-dot__halo { animation-duration: 1.2s; }
+  @media (prefers-reduced-motion: reduce) {
+    .st-dot__halo { animation: none; opacity: 0; }
+  }
+
+  /* Responsive collapse: stack at tablet, shrink columns first.
+     At narrow widths we lose the sparkline and refresh column, keeping
+     name + state + value + details. */
+  @media (max-width: 1100px) {
+    .st-row {
+      grid-template-columns:
+        minmax(180px, 1.6fr)
+        minmax(110px, 0.8fr)
+        minmax(160px, 1.4fr)
+        minmax(120px, 1fr)
+        auto;
+      column-gap: 16px;
+    }
+    .st-row__spark {
+      display: none;
+    }
+  }
+  @media (max-width: 820px) {
+    .st-row {
+      grid-template-columns: 1fr auto;
+      row-gap: 8px;
+      padding: 14px var(--st-gutter);
+    }
+    .st-row__name { grid-column: 1; }
+    .st-row__state { grid-column: 2; justify-self: end; }
+    .st-row__value { grid-column: 1 / -1; }
+    .st-row__refresh { grid-column: 1; }
+    .st-row__action { grid-column: 2; justify-self: end; }
+  }
+</style>

@@ -1,0 +1,202 @@
+---
+/*
+ * Transit splash (Lane M) — masthead.
+ *
+ * Transit-system-style header. Wordmark in the manner of the Vignelli
+ * NYC Subway Diagram cover or TfL's roundel banner. Lane label, edition,
+ * build stamp; one cream/ink rule under it.
+ */
+
+interface Props {
+  shortName: string;
+  fullName: string;
+  editionDate: string;
+  buildStamp: string;
+  laneLabel: string;
+  systemTag: string;
+}
+
+const { shortName, fullName, editionDate, buildStamp, laneLabel, systemTag } = Astro.props;
+---
+
+<header class="tx-mast">
+  <div class="tx-mast__row">
+    <div class="tx-mast__brand">
+      <div class="tx-mast__roundel" aria-hidden="true">
+        <span class="tx-mast__roundel-bar"></span>
+        <span class="tx-mast__roundel-text">M</span>
+      </div>
+      <div class="tx-mast__wordmark">
+        <p class="tx-mast__short">{shortName}</p>
+        <p class="tx-mast__long">{fullName} <span class="tx-mast__metro">METRO</span></p>
+      </div>
+    </div>
+    <div class="tx-mast__stamps">
+      <p class="tx-mast__stamp">
+        <span class="tx-mast__stamp-k">SYSTEM</span>
+        <span class="tx-mast__stamp-v">{systemTag}</span>
+      </p>
+      <p class="tx-mast__stamp">
+        <span class="tx-mast__stamp-k">LANE</span>
+        <span class="tx-mast__stamp-v">{laneLabel}</span>
+      </p>
+      <p class="tx-mast__stamp">
+        <span class="tx-mast__stamp-k">EDITION</span>
+        <span class="tx-mast__stamp-v">{editionDate}</span>
+      </p>
+      <p class="tx-mast__stamp">
+        <span class="tx-mast__stamp-k">BUILD</span>
+        <span class="tx-mast__stamp-v">{buildStamp}</span>
+      </p>
+    </div>
+  </div>
+  <div class="tx-mast__rule" aria-hidden="true"></div>
+</header>
+
+<style>
+  .tx-mast {
+    padding: 18px 0 0;
+  }
+  .tx-mast__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    align-items: end;
+  }
+  @media (min-width: 860px) {
+    .tx-mast__row {
+      grid-template-columns: 1fr auto;
+      gap: 32px;
+    }
+  }
+
+  .tx-mast__brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .tx-mast__roundel {
+    position: relative;
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--tx-ink);
+    color: var(--tx-cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--tx-display);
+    font-weight: 800;
+    font-size: 32px;
+    letter-spacing: -0.02em;
+  }
+  .tx-mast__roundel-bar {
+    position: absolute;
+    left: -6px;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 8px;
+    background: var(--tx-ink);
+    z-index: 0;
+  }
+  .tx-mast__roundel-text {
+    position: relative;
+    z-index: 1;
+    background: var(--tx-ink);
+    padding: 0 6px;
+    line-height: 1;
+  }
+
+  .tx-mast__wordmark {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .tx-mast__short {
+    margin: 0;
+    font-family: var(--tx-display);
+    font-weight: 800;
+    font-size: clamp(22px, 3.4vw, 32px);
+    letter-spacing: 0.02em;
+    color: var(--tx-ink);
+    line-height: 1;
+  }
+  .tx-mast__long {
+    margin: 0;
+    font-family: var(--tx-subhead);
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--tx-ink);
+  }
+  .tx-mast__metro {
+    color: var(--tx-line-policy);
+    font-weight: 800;
+    margin-left: 4px;
+    border-left: 2px solid var(--tx-ink);
+    padding-left: 8px;
+  }
+
+  .tx-mast__stamps {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 4px 18px;
+    align-self: center;
+  }
+  @media (min-width: 1080px) {
+    .tx-mast__stamps {
+      grid-template-columns: repeat(4, auto);
+      gap: 4px 22px;
+    }
+  }
+  .tx-mast__stamp {
+    margin: 0;
+    font-family: var(--tx-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    line-height: 1.4;
+    color: var(--tx-ink);
+    display: flex;
+    flex-direction: column;
+  }
+  .tx-mast__stamp-k {
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    opacity: 0.55;
+    font-size: 9px;
+  }
+  .tx-mast__stamp-v {
+    font-variant-numeric: tabular-nums;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .tx-mast__rule {
+    margin-top: 14px;
+    height: 6px;
+    background: linear-gradient(
+      to right,
+      var(--tx-line-gdp) 0%,
+      var(--tx-line-gdp) 14.28%,
+      var(--tx-line-inflation) 14.28%,
+      var(--tx-line-inflation) 28.57%,
+      var(--tx-line-labour) 28.57%,
+      var(--tx-line-labour) 42.85%,
+      var(--tx-line-housing) 42.85%,
+      var(--tx-line-housing) 57.14%,
+      var(--tx-line-policy) 57.14%,
+      var(--tx-line-policy) 71.42%,
+      var(--tx-line-markets) 71.42%,
+      var(--tx-line-markets) 85.71%,
+      var(--tx-line-trade) 85.71%,
+      var(--tx-line-trade) 100%
+    );
+  }
+</style>

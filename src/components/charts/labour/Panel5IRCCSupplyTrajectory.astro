@@ -1,0 +1,450 @@
+---
+/*
+ * Panel5IRCCSupplyTrajectory - stacked PR+NPR inflows, with dated IRCC plan
+ * annotations.
+ *
+ * Implements design/basics-layer-template.md Section 9.B Panel 5 +
+ * research/wave2_labour_methodology.md Section 4.
+ *
+ * Visual: stacked area chart of trailing-4Q PR + NPR inflows over the
+ * last ~8 years. PR (bottom) in series-3 sage; NPR (top) in series-4
+ * plum. Vertical dated annotation lines at each IRCC plan release date
+ * read from data/ircc_levels_plan.json.
+ *
+ * The Oct 2024 structural-break pivot gets a heavier annotation:
+ *   `accent` red (#A6192E), 1.5px solid line, label in `accent`.
+ * Other plans are dashed `ink-faint`.
+ *
+ * `accent` red is reserved across the entire basics layer to this single
+ * data-adjacent moment (per template Sec 9.B). The reader learns the
+ * convention here.
+ *
+ * Plot vs SVG: hand-rolled SVG (zero JS).
+ */
+
+import ircc from "../../../../data/ircc_levels_plan.json";
+
+interface InflowRow {
+  date: string;        // "YYYY-Qn"
+  pr: number;          // trailing-4Q PR inflows
+  npr: number;         // trailing-4Q NPR inflows
+}
+interface IRCCPlan {
+  plan_vintage: string;
+  release_date: string;
+  structural_break: boolean;
+  structural_break_note: string | null;
+  years: Array<{
+    year: number;
+    pr_target_total: number;
+    npr_target_total: number | null;
+  }>;
+}
+
+interface Props {
+  data?: InflowRow[];
+  plans?: IRCCPlan[];
+  ariaLabel?: string;
+}
+
+function makeInflows(): InflowRow[] {
+  // ~33 quarters: 2018Q1 -> 2026Q1.
+  // PR trailing-4Q: 280k -> 405k (2018->2020), dip 2020Q2, 437k (2022),
+  // 485k (2023-24), drop to ~395k post-Oct-2024.
+  // NPR trailing-4Q: 250k (2018), 200k (2020), 400k (2022), 800k (2023-24
+  // surge), pulling back to ~570k by 2026.
+  const out: InflowRow[] = [];
+  for (let i = 0; i < 33; i++) {
+    const y = 2018 + Math.floor(i / 4);
+    const q = (i % 4) + 1;
+    let pr: number;
+    if (i < 8) pr = 280 + (340 - 280) * (i / 8);
+    else if (i < 10) pr = 340 - 60; // 2020 dip
+    else if (i < 16) pr = 280 + (437 - 280) * ((i - 10) / 6);
+    else if (i < 24) pr = 437 + (485 - 437) * ((i - 16) / 8);
+    else if (i < 28) pr = 485 + 5 * Math.sin((i - 24) * 0.7);
+    else pr = 485 - (485 - 395) * ((i - 28) / 4);
+    let npr: number;
+    if (i < 4) npr = 250;
+    else if (i < 10) npr = 250 - (250 - 200) * ((i - 4) / 6);
+    else if (i < 16) npr = 200 + (400 - 200) * ((i - 10) / 6);
+    else if (i < 24) npr = 400 + (820 - 400) * ((i - 16) / 8);
+    else if (i < 28) npr = 820 - 0 * (i - 24);
+    else npr = 820 - (820 - 580) * ((i - 28) / 4);
+    out.push({
+      date: `${y}-Q${q}`,
+      pr: Math.round(pr),
+      npr: Math.round(npr),
+    });
+  }
+  return out;
+}
+
+const {
+  data = makeInflows(),
+  plans = ircc as IRCCPlan[],
+  ariaLabel = "PR and NPR inflows (trailing 4Q) and IRCC levels-plan timeline",
+} = Astro.props;
+
+// ---- Geometry --------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 60; // wider for thousands labels
+const M_R = 100;
+const M_T = 44;
+const M_B = 36;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+const n = data.length;
+function decYearOfQ(d: string): number {
+  const [yy, q] = d.split("-Q").map(Number);
+  return yy + (q * 3 - 1.5) / 12;
+}
+const xs = data.map((d) => decYearOfQ(d.date));
+const xMin = xs[0];
+const xMax = xs[xs.length - 1];
+
+const totals = data.map((d) => d.pr + d.npr);
+const yMax = Math.ceil(Math.max(...totals) / 100) * 100 + 100;
+const yMin = 0;
+
+function xScale(decY: number): number {
+  // Clamp dec years a touch outside [xMin, xMax] (for annotation lines from
+  // release-date November releases just before/after edges).
+  return PLOT_X0 + ((decY - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - yMin) / (yMax - yMin)) * PLOT_H;
+}
+
+// PR (bottom) area: forward along PR, back along zero.
+function buildPrArea(): string {
+  let d = "";
+  data.forEach((row, i) => {
+    const x = xScale(xs[i]);
+    const y = yScale(row.pr);
+    d += `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)} `;
+  });
+  for (let i = n - 1; i >= 0; i--) {
+    const x = xScale(xs[i]);
+    const y = yScale(0);
+    d += `L${x.toFixed(2)} ${y.toFixed(2)} `;
+  }
+  d += "Z";
+  return d;
+}
+// NPR (top) area: forward along (pr+npr), back along PR.
+function buildNprArea(): string {
+  let d = "";
+  data.forEach((row, i) => {
+    const x = xScale(xs[i]);
+    const y = yScale(row.pr + row.npr);
+    d += `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)} `;
+  });
+  for (let i = n - 1; i >= 0; i--) {
+    const x = xScale(xs[i]);
+    const y = yScale(data[i].pr);
+    d += `L${x.toFixed(2)} ${y.toFixed(2)} `;
+  }
+  d += "Z";
+  return d;
+}
+const prArea = buildPrArea();
+const nprArea = buildNprArea();
+
+// Boundary lines (1px surface overdraw)
+function buildBoundary(pickV: (row: InflowRow) => number): string {
+  return data
+    .map((row, i) => {
+      const x = xScale(xs[i]);
+      const y = yScale(pickV(row));
+      return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+const prBoundary = buildBoundary((r) => r.pr);
+// const totalBoundary = buildBoundary((r) => r.pr + r.npr);  // unused; kept for future
+
+// Y ticks (in thousands)
+const yTicks: number[] = [];
+for (let v = yMin; v <= yMax + 1e-9; v += 200) yTicks.push(v);
+
+// X ticks
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const yearTicks: Array<{ x: number; label: string }> = [];
+for (let yy = yearStart; yy <= yearEnd; yy++) {
+  const decY = yy + (1 - 0.5) / 12;
+  if (decY < xMin || decY > xMax) continue;
+  yearTicks.push({ x: xScale(decY), label: String(yy) });
+}
+
+// ---- IRCC plan annotation lines -------------------------------------------
+interface PlanAnno {
+  x: number;
+  vintage: string;
+  releaseDate: string;
+  structuralBreak: boolean;
+  pr_first_year: number;
+}
+const planAnnos: PlanAnno[] = plans
+  .map((p) => {
+    const [y, m] = p.release_date.split("-").map(Number);
+    const decY = y + (m - 0.5) / 12;
+    return {
+      x: xScale(decY),
+      vintage: p.plan_vintage,
+      releaseDate: p.release_date,
+      structuralBreak: p.structural_break,
+      pr_first_year: p.years[0].pr_target_total,
+    };
+  })
+  // Only include plans whose release date falls within the chart window.
+  .filter((a) => a.x >= PLOT_X0 - 0.5 && a.x <= PLOT_X1 + 0.5);
+
+// Short label per plan: month/year + plan vintage + PR target
+const monthShort = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function formatPlanLabel(a: PlanAnno): string {
+  const [y, m] = a.releaseDate.split("-").map(Number);
+  const dateStr = `${monthShort[m - 1]} ${y}`;
+  const prK = `${Math.round(a.pr_first_year / 1000)}k`;
+  return `${dateStr}: ${a.vintage} plan, PR ${prK}`;
+}
+
+// ---- Latest values for direct labels --------------------------------------
+const latest = data[n - 1];
+const latestTotalY = yScale(latest.pr + latest.npr);
+// Mid-band positions for direct labels at right rail.
+const prMidY = yScale(latest.pr / 2);
+const nprMidY = yScale(latest.pr + latest.npr / 2);
+
+// Format a value in thousands.
+function fmtK(v: number): string { return `${v}k`; }
+---
+<div class="labour-panel-chart" data-panel="5">
+  <svg
+    class="labour-panel-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* Y gridlines */}
+    {yTicks.map((v) => {
+      const y = yScale(v);
+      return (
+        <line
+          class="labour-panel-chart__gridline"
+          x1={PLOT_X0}
+          y1={y.toFixed(2)}
+          x2={PLOT_X1}
+          y2={y.toFixed(2)}
+        />
+      );
+    })}
+
+    {/* PR area (bottom band) */}
+    <path class="labour-panel-chart__band-pr" d={prArea} />
+
+    {/* NPR area (top band) */}
+    <path class="labour-panel-chart__band-npr" d={nprArea} />
+
+    {/* Boundary line between PR and NPR (1px surface overdraw) */}
+    <path class="labour-panel-chart__band-boundary" d={prBoundary} fill="none" />
+
+    {/* IRCC plan annotation lines */}
+    {planAnnos.map((a) => {
+      const isBreak = a.structuralBreak;
+      return (
+        <g class:list={["labour-panel-chart__plan-anno", { "labour-panel-chart__plan-anno--break": isBreak }]}>
+          <line
+            class:list={["labour-panel-chart__plan-line", { "labour-panel-chart__plan-line--break": isBreak }]}
+            x1={a.x.toFixed(2)}
+            y1={PLOT_Y0.toFixed(2)}
+            x2={a.x.toFixed(2)}
+            y2={PLOT_Y1.toFixed(2)}
+          />
+          <text
+            class:list={["labour-panel-chart__plan-label", { "labour-panel-chart__plan-label--break": isBreak }]}
+            x={a.x.toFixed(2)}
+            y={(PLOT_Y0 - 6).toFixed(2)}
+            text-anchor="middle"
+          >{formatPlanLabel(a)}</text>
+        </g>
+      );
+    })}
+
+    {/* X-axis */}
+    <line
+      class="labour-panel-chart__xaxis"
+      x1={PLOT_X0}
+      y1={PLOT_Y1.toFixed(2)}
+      x2={PLOT_X1}
+      y2={PLOT_Y1.toFixed(2)}
+    />
+    {yearTicks.map((t) => (
+      <g>
+        <line
+          class="labour-panel-chart__xtick"
+          x1={t.x.toFixed(2)}
+          y1={PLOT_Y1.toFixed(2)}
+          x2={t.x.toFixed(2)}
+          y2={(PLOT_Y1 + 4).toFixed(2)}
+        />
+        <text
+          class="labour-panel-chart__xtick-label"
+          x={t.x.toFixed(2)}
+          y={(PLOT_Y1 + 16).toFixed(2)}
+          text-anchor="middle"
+        >{t.label}</text>
+      </g>
+    ))}
+
+    {/* Y-axis labels */}
+    {yTicks.map((v, i) => {
+      const y = yScale(v);
+      const isTop = i === yTicks.length - 1;
+      return (
+        <text
+          class="labour-panel-chart__ytick-label"
+          x={(PLOT_X0 - 6).toFixed(2)}
+          y={(y + 3.5).toFixed(2)}
+          text-anchor="end"
+        >{`${v}${isTop ? "k" : ""}`}</text>
+      );
+    })}
+
+    {/* Unit */}
+    <text
+      class="labour-panel-chart__unit"
+      x={PLOT_X0.toFixed(2)}
+      y={(PLOT_Y0 - 24).toFixed(2)}
+      text-anchor="start"
+    >Trailing-4Q inflows (thousands)</text>
+
+    {/* Direct labels at right rail */}
+    <text
+      class="labour-panel-chart__direct-label labour-panel-chart__direct-label--pr"
+      x={(PLOT_X1 + 6).toFixed(2)}
+      y={(prMidY + 4).toFixed(2)}
+      text-anchor="start"
+    >{`PR ${fmtK(latest.pr)}`}</text>
+    <text
+      class="labour-panel-chart__direct-label labour-panel-chart__direct-label--npr"
+      x={(PLOT_X1 + 6).toFixed(2)}
+      y={(nprMidY + 4).toFixed(2)}
+      text-anchor="start"
+    >{`NPR ${fmtK(latest.npr)}`}</text>
+
+    {/* Latest total marker (top of stack) */}
+    <circle
+      class="labour-panel-chart__total-marker"
+      cx={xScale(xs[n - 1]).toFixed(2)}
+      cy={latestTotalY.toFixed(2)}
+      r="3.5"
+    >
+      <title>{`${latest.date}: total ${fmtK(latest.pr + latest.npr)} (PR ${fmtK(latest.pr)} + NPR ${fmtK(latest.npr)})`}</title>
+    </circle>
+  </svg>
+</div>
+
+<style>
+  .labour-panel-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--surface);
+    overflow: visible;
+  }
+  .labour-panel-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+  .labour-panel-chart__gridline {
+    stroke: var(--rule-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  /* PR band (bottom): series-3 sage @ 60% opacity */
+  .labour-panel-chart__band-pr {
+    fill: var(--series-3);
+    fill-opacity: 0.6;
+    stroke: none;
+  }
+  /* NPR band (top): series-4 plum @ 50% opacity */
+  .labour-panel-chart__band-npr {
+    fill: var(--series-4);
+    fill-opacity: 0.5;
+    stroke: none;
+  }
+  /* Boundary overdraw to make stack legible */
+  .labour-panel-chart__band-boundary {
+    stroke: var(--surface);
+    stroke-width: 1;
+    fill: none;
+  }
+  /* Standard plan annotation line: 1px dashed in ink-faint */
+  .labour-panel-chart__plan-line {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    shape-rendering: crispEdges;
+  }
+  /* Structural-break plan: 1.5px solid in accent red */
+  .labour-panel-chart__plan-line--break {
+    stroke: var(--accent);
+    stroke-width: 1.5;
+    stroke-dasharray: none;
+  }
+  .labour-panel-chart__plan-label {
+    fill: var(--ink-faint);
+    font-size: 10px;
+    font-weight: var(--fw-regular);
+    letter-spacing: 0.02em;
+  }
+  .labour-panel-chart__plan-label--break {
+    fill: var(--accent);
+    font-weight: var(--fw-medium);
+  }
+  .labour-panel-chart__xaxis {
+    stroke: var(--rule);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__xtick {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .labour-panel-chart__ytick-label,
+  .labour-panel-chart__xtick-label {
+    fill: var(--ink-faint);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .labour-panel-chart__unit {
+    fill: var(--ink-faint);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+  }
+  .labour-panel-chart__direct-label {
+    font-size: 12px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+  }
+  .labour-panel-chart__direct-label--pr { fill: var(--series-3); }
+  .labour-panel-chart__direct-label--npr { fill: var(--series-4); }
+  .labour-panel-chart__total-marker {
+    fill: var(--ink);
+    stroke: var(--surface);
+    stroke-width: 1.5;
+  }
+</style>
