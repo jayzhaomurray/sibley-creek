@@ -223,7 +223,7 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 30, 2026",
       body:
-        "Real GDP rose 1.0% Y/Y in February, per Statistics Canada, a 0.3pp acceleration from January but still well below the run of 1.5-2.0% readings that ran through last summer. The monthly print held at 0.2% m/m. The output gap widened to negative 1.0% in Q4 2025, half a point softer than Q3 and below the Bank of Canada's potential growth estimate near 1.6%.",
+        "Real GDP rose 1.0% Y/Y in February, per Statistics Canada, a 0.3pp acceleration from January but still well below the 1.5 to 2.0% run that held through last summer. The monthly print stayed at 0.2% m/m. The Q4 2025 output gap widened to negative 1.0%, half a point softer than Q3 and below the Bank of Canada's potential growth estimate near 1.6%.",
     },
   },
   {
@@ -288,7 +288,7 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 20, 2026",
       body:
-        "Headline CPI ran at 2.3% Y/Y in the latest print, per Statistics Canada, a 0.5pp acceleration that pushes headline back above the Bank of Canada's 2% target. Core-trim eased a tenth to 2.2% and core-median held at 2.3%, so the underlying signal is steadier than the headline suggests. Both core measures now sit inside the 1-3% band for the third consecutive print.",
+        "Headline CPI ran at 2.3% Y/Y in the latest print, per Statistics Canada, a 0.5pp acceleration that pushes headline back above the Bank of Canada's 2% target. Core-trim eased a tenth to 2.2% and core-median held at 2.3%; the underlying signal is steadier than the headline. Both cores now sit inside the 1-3% band for the third straight print.",
     },
   },
   {
@@ -345,7 +345,7 @@ export const sections: Section[] = [
       kind: "fresh",
       date: "May 8, 2026",
       body:
-        "The unemployment rate climbed to 6.9% in April, per the Statistics Canada Labour Force Survey, a 0.2pp move that returns the rate to the high end of the recent range. Aggregate hours worked turned negative on a year-over-year basis at -0.5%, the deepest sub-zero reading in this cycle. Wage growth on the LFS-Micro series printed 3.1% Y/Y, up 0.5pp.",
+        "Unemployment climbed to 6.9% in April, per the Statistics Canada Labour Force Survey, a 0.2pp move that returns the rate to the high end of the recent range. Aggregate hours worked turned negative Y/Y at -0.5%, the deepest sub-zero reading this cycle. Wage growth on the LFS-Micro series printed 3.1% Y/Y, up 0.5pp.",
     },
   },
   {
@@ -408,7 +408,7 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 29, 2026",
       body:
-        "The Bank of Canada held its overnight rate at 2.25% on April 29, the sixth straight hold since October's cut and 50 bps below the 2.75% neutral midpoint. The 2y GoC yield closed at 2.94% on May 7, leaving the BoC-Fed 2y spread at -98 bps. The fiscal year-to-date federal budget balance stood at -$25.6B through February, per the Department of Finance Canada fiscal monitor.",
+        "The Bank of Canada held the overnight rate at 2.25% on April 29, the sixth straight hold since October's cut and 50 bps below the 2.75% neutral midpoint. The 2y GoC yield closed at 2.94% on May 7, leaving the BoC-Fed 2y spread at -98 bps. The fiscal year-to-date federal budget balance stood at -$25.6B through February, per the Department of Finance Canada fiscal monitor.",
     },
   },
   {
@@ -477,7 +477,7 @@ export const sections: Section[] = [
       kind: "last",
       date: "May 8, 2026",
       body:
-        "USDCAD closed May 8 at 1.369, up 0.4% on the week, per Bank of Canada noon rates. The 10y GoC yield closed at 3.53% on May 7, two basis points firmer. WTI rose to $109.76 by May 4, a 4.2% move that keeps crude above $100 for a second consecutive month; the TSX Composite closed near 34.1k, flat on the session.",
+        "USDCAD closed May 8 at 1.369, up 0.4% on the week, per Bank of Canada noon rates. The 10y GoC yield closed at 3.53% on May 7, two basis points firmer. WTI rose to $109.76 by May 4, a 4.2% move that keeps crude above $100 for a second straight month; the TSX Composite closed near 34.1k, flat on the session.",
     },
   },
   {
@@ -536,7 +536,7 @@ export const sections: Section[] = [
       kind: "last",
       date: "May 6, 2026",
       body:
-        "The goods trade balance narrowed to -$2.2B on a 3mma basis in March, per Statistics Canada, an $876M improvement from February. The US export share fell 2.5pp to 66.1%, the lowest reading in the available window and the continuation of a year-long drift down from the 76-80% range that held through 2024. The Q4 2025 current account narrowed to -$706M, a $4.6B improvement; terms of trade ticked up 0.6 to 105.5.",
+        "The goods trade balance narrowed to -$2.2B on a 3mma basis in March, per Statistics Canada, an $876M improvement from February. The US export share fell 2.5pp to 66.1%, the lowest reading in the available window and a continuation of the year-long drift down from the 76 to 80% range that held through 2024. The Q4 2025 current account narrowed to -$706M, a $4.6B improvement; terms of trade ticked up 0.6 to 105.5.",
     },
   },
   {
@@ -586,7 +586,7 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 15, 2026",
       body:
-        "The MLS HPI fell 4.6% Y/Y in the latest print, per the Canadian Real Estate Association, a tenth shallower than the prior month but the eighth consecutive negative reading. Housing starts on a 3mma basis stepped down to 241k from 257k, per Canada Mortgage and Housing Corporation. Affordability held at 42.7% of household income in Q4 2025, half a percentage point easier on continued mortgage-cost relief.",
+        "The MLS HPI fell 4.6% Y/Y in the latest print, per the Canadian Real Estate Association, a tenth shallower than the prior month but the eighth straight negative reading. Housing starts on a 3mma basis stepped down to 241k from 257k, per Canada Mortgage and Housing Corporation. Affordability held at 42.7% of household income in Q4 2025, half a point easier on continued mortgage-cost relief.",
     },
   },
 ];

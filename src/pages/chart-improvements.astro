@@ -74,7 +74,7 @@ const pairs: Pair[] = [
     panel: "Panel 3 - Partner shares",
     title: "Item 2: Two raw export levels - US share line",
     description:
-      "Original ships two parallel rising level lines (US exports + total exports). The reader cannot eyeball \"US share at 66% and falling\" from levels. V2 derives the US share of total exports as a single % line so the structural-shift narrative becomes visible in the chart shape.",
+      "Original plots two parallel rising level lines (US exports + total exports). The reader cannot eyeball \"US share at 66% and falling\" from levels. V2 derives the US share as a single % line; the structural drift becomes visible in the chart shape.",
     OriginalComponent: Trade3Orig,
     V2Component: Trade3V2,
     data: trade3,
@@ -85,7 +85,7 @@ const pairs: Pair[] = [
     panel: "Panel 1 - Headline GDP",
     title: "Item 3: GDP levels - m/m growth (solid) + Q/Q SAAR (dashed)",
     description:
-      "The section's headline question is about growth rates, not levels. Original renders monthly + quarterly level lines (smooth, rising). V2 derives m/m % from monthly GDP as the primary solid line and Q/Q SAAR % from quarterly GDP as the dashed secondary - both in %, zero-line reference for the cycle read.",
+      "The section asks about growth rates, not levels. Original renders monthly + quarterly level lines (smooth, rising). V2 derives m/m % as the primary solid line and Q/Q SAAR % as the dashed secondary, with a zero-line reference for the cycle read.",
     OriginalComponent: Gdp1Orig,
     V2Component: Gdp1V2,
     data: gdp1,
@@ -96,7 +96,7 @@ const pairs: Pair[] = [
     panel: "Panel 3 - BoC-Fed spread",
     title: "Item 5: Two parallel 2y yields - the spread itself",
     description:
-      "Two parallel yield lines force the reader to do the arithmetic visually. V2 derives the Canada-minus-US 2y spread in basis points as a single line with a zero-line reference rule (parity). The cross-zero events become the editorial argument directly.",
+      "Two parallel yield lines force the reader to do the arithmetic. V2 derives the Canada-minus-US 2y spread in bps as a single line with a zero-line (parity) reference. Cross-zero events read directly.",
     OriginalComponent: Policy3Orig,
     V2Component: Policy3V2,
     data: policy3,
@@ -107,7 +107,7 @@ const pairs: Pair[] = [
     panel: "Panel 5 - Terms of trade",
     title: "Item 8: WTI/Brent proxies - actual terms-of-trade index",
     description:
-      "The original wrapper labelled the chart \"WTI / Brent\" - but the pipeline already emits the StatCan terms-of-trade index (2017=100, quarterly). V2 keeps the same primary series but with honest labelling and drops the proxy secondary. The editorial title finally matches the chart.",
+      "Original labelled the chart \"WTI / Brent\" while the pipeline emits the StatCan terms-of-trade ratio (national-accounts basis, quarterly) as primary, with a Y/Y % secondary. V2 keeps the same primary series, relabels honestly, and drops the Y/Y secondary so the canvas shows a single index line. The title now matches the chart.",
     OriginalComponent: Trade5Orig,
     V2Component: Trade5V2,
     data: trade5,
@@ -118,7 +118,7 @@ const pairs: Pair[] = [
     panel: "Panel 2 - Per-capita employment",
     title: "Item 9: Two raw levels - per-capita employment Y/Y",
     description:
-      "Original surfaces unemployment level (millions) + aggregate hours (thousands of hours) - two unrelated levels with no per-capita arithmetic. V2 derives per-capita employment Y/Y from the employment-rate series (employment divided by 15+ population, by definition). Single line, % Y/Y.",
+      "Original plots unemployment (millions) and aggregate hours (thousands) -- two unrelated levels with no per-capita arithmetic. V2 derives per-capita employment Y/Y from the employment-rate series (employment over 15+ population). Single line, % Y/Y.",
     OriginalComponent: Labour2Orig,
     V2Component: Labour2V2,
     data: labour2,
@@ -129,7 +129,7 @@ const pairs: Pair[] = [
     panel: "Panel 4 - Per-capita GDP",
     title: "Item 10: Two raw levels - per-capita GDP Y/Y",
     description:
-      "Original renders quarterly real GDP level + an immigrant-flow proxy for population - two unrelated levels misnamed as a per-capita chart. V2 derives per-capita GDP Y/Y from gdp_quarterly / pop_total at build time. Single % Y/Y line, zero-line reference.",
+      "Original renders quarterly real GDP and an immigrant-flow proxy for population -- two unrelated levels misnamed as per-capita. V2 derives per-capita GDP Y/Y from gdp_quarterly / pop_total at build. Single % Y/Y line, zero-line reference.",
     OriginalComponent: Gdp4Orig,
     V2Component: Gdp4V2,
     data: gdp4,
@@ -140,7 +140,7 @@ const pairs: Pair[] = [
     panel: "Panel 5 - Output gap",
     title: "Item 7: Stale \"GDP, quarterly\" label - honest \"Output gap\" label",
     description:
-      "Pipeline correctly emits the BoC MPR output gap (%, quarterly) as primary and total capacity utilization (%) as secondary - both lines render fine. But the wrapper still labelled the primary \"GDP, quarterly\" (a leftover from when the panel showed a raw GDP level). The chart was telling the reader it was a GDP level while showing a % gap. V2 keeps the same data wiring and corrects the direct-labels and aria copy. Label-only fix.",
+      "Pipeline emits the BoC MPR output gap (%, quarterly) as primary and total capacity utilization (%) as secondary -- both lines render fine. The wrapper still labelled the primary \"GDP, quarterly\" (leftover from a prior raw-level panel), so the chart told the reader it was a GDP level while showing a % gap. V2 keeps the data wiring and corrects the direct labels and aria copy. Label-only fix.",
     OriginalComponent: Gdp5Orig,
     V2Component: Gdp5V2,
     data: gdp5,
@@ -151,7 +151,7 @@ const pairs: Pair[] = [
     panel: "Panel 2 - Current account",
     title: "Item 8: Stale \"Trade bal.\" label - honest \"Current account\" label",
     description:
-      "Pipeline emits `current_account_balance` (StatCan 36-10-0018, quarterly SA, C$ millions) as primary - the right series for the panel - but the wrapper still labelled the line \"Trade bal.\" (leftover from when the primary was the monthly merchandise trade balance). V2 keeps the same data wiring, corrects the direct-label and aria copy, and drops the components-level secondary (CA goods balance) so the canvas shows a single honest quarterly headline line. The components-level stacked decomposition belongs to a future Panel 2b.",
+      "Pipeline emits `current_account_balance` (StatCan 36-10-0018, quarterly SA, C$ millions) as primary -- the right series -- but the wrapper still labelled the line \"Trade bal.\" (leftover from when the primary was the monthly merchandise balance). V2 keeps the data wiring, corrects the direct label and aria copy, and drops the components-level secondary so the canvas shows a single quarterly headline line. The stacked decomposition belongs to a future Panel 2b.",
     OriginalComponent: Trade2Orig,
     V2Component: Trade2V2,
     data: trade2,
@@ -167,10 +167,9 @@ const pageDescription = "Side-by-side V2 chart comparisons from the 2026-05-11 e
       <p class="cmp__eyebrow">Editorial audit 2026-05-11</p>
       <h1 class="cmp__title">Chart improvements - V2 comparison</h1>
       <p class="cmp__lede">
-        Eight wrapper-level fixes - six from the editorial audit, two from the
-        label-vs-data audit. Each pair shows the live production chart (left) and
-        the proposed V2 (right). Pick what survives. Originals are tagged in their
-        frontmatter; deletion is your call.
+        Eight wrapper-level fixes: six from the editorial audit, two from the
+        label-vs-data audit. Each pair shows the live production chart (left)
+        and the proposed V2 (right). Pick what survives.
       </p>
     </header>
 
@@ -195,7 +194,7 @@ const pageDescription = "Side-by-side V2 chart comparisons from the 2026-05-11 e
     ))}
 
     <footer class="cmp__foot">
-      <p>End of comparison. No production behaviour has changed; section pages still render the originals.</p>
+      <p>End of comparison. Production unchanged; section pages still render the originals.</p>
     </footer>
   </div>
 </BaseLayout>
