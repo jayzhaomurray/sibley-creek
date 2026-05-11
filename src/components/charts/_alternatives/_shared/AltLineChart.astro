@@ -24,6 +24,14 @@ interface Props {
   ariaLabel: string;
   windowMonths?: number;          // tail
   showZero?: boolean;
+  // Step-after rendering for POLICY RATES only (BoC overnight, Fed funds,
+  // and any difference of policy rates). A smooth linear line between
+  // discrete decision dates implies a gradual move; central banks set
+  // rates at meetings and hold them flat. Default false (market series
+  // stay linear).
+  primaryStep?: boolean;
+  secondaryStep?: boolean;
+  tertiaryStep?: boolean;
 }
 
 const {
@@ -40,6 +48,9 @@ const {
   ariaLabel,
   windowMonths,
   showZero = true,
+  primaryStep = false,
+  secondaryStep = false,
+  tertiaryStep = false,
 } = Astro.props as Props;
 
 function tailMonths<T extends AltPoint>(s: T[], n: number | undefined): T[] {
@@ -79,21 +90,36 @@ const xMax = xs.length ? Math.max(...xs) : 1;
 const xScale = (yr: number) => PLOT.X0 + ((yr - xMin) / (xMax - xMin || 1)) * PLOT.W;
 const yScale = (v: number) => PLOT.Y0 + PLOT.H - ((v - yLo) / (yHi - yLo || 1)) * PLOT.H;
 
-function buildPath(series: AltPoint[]): string {
+// When `step=true`, emit step-after segments (hold prev y to new x, then
+// jump vertically to new y). Reserved for policy-rate series. Default
+// behavior is the standard linear interpolation used for market data.
+function buildPath(series: AltPoint[], step = false): string {
   let d = "", started = false;
+  let prevY: number | null = null;
   for (const p of series) {
-    if (typeof p.value !== "number" || Number.isNaN(p.value)) { started = false; continue; }
+    if (typeof p.value !== "number" || Number.isNaN(p.value)) { started = false; prevY = null; continue; }
     const xv = decYear(p.date);
     if (Number.isNaN(xv)) continue;
-    d += `${started ? "L" : "M"}${xScale(xv).toFixed(2)} ${yScale(p.value).toFixed(2)} `;
-    started = true;
+    const x = xScale(xv);
+    const y = yScale(p.value);
+    const xs = x.toFixed(2);
+    const ys = y.toFixed(2);
+    if (!started) {
+      d += `M${xs} ${ys} `;
+      started = true;
+    } else if (step && prevY !== null) {
+      d += `L${xs} ${prevY.toFixed(2)} L${xs} ${ys} `;
+    } else {
+      d += `L${xs} ${ys} `;
+    }
+    prevY = y;
   }
   return d.trim();
 }
 
-const primPath = buildPath(prim);
-const secPath = buildPath(sec);
-const terPath = buildPath(ter);
+const primPath = buildPath(prim, primaryStep);
+const secPath = buildPath(sec, secondaryStep);
+const terPath = buildPath(ter, tertiaryStep);
 
 function lastReal(s: AltPoint[]): { x: number; y: number; v: number; date: string } | null {
   for (let i = s.length - 1; i >= 0; i--) {

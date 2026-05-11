@@ -4,11 +4,17 @@
  *
  * Six plates per editorial canon section 4.1, in EDR-fixed order:
  *   01 Headline real GDP
- *   02 Industry vs expenditure cross-check
- *   03 Contributions to quarterly growth
- *   04 Per-capita real GDP
+ *   02 Total vs per-capita GDP, indexed to 2019Q4 (population-padded read)
+ *   03 Growth-rate cross-check (monthly m/m + quarterly Q/Q SAAR)
+ *   04 Contributions to quarterly growth
  *   05 Output gap vs BoC potential
  *   06 Labour productivity, business sector
+ *
+ * NOTE 2026-05-11: Old P4 (per-capita Y/Y single line) replaced by the
+ * total-vs-per-capita side-by-side chart, and promoted to slot 02. The
+ * side-by-side is the thesis visual for /research/per-capita-output/ and
+ * earns its placement immediately after headline GDP. Original P4 block
+ * preserved below as a comment for user review.
  *
  * Each plate is a chart on the left, 2-4 sentence interpretation on the
  * right (vertical stack on mobile), callout strip below, source line.
@@ -38,6 +44,28 @@ const panel4Data = pickPanel(panelDataFile, 4);
 const panel5Data = pickPanel(panelDataFile, 5);
 const panel6Data = pickPanel(panelDataFile, 6);
 
+// ORIGINAL Plate 04 (per-capita Y/Y single line) — preserved 2026-05-11
+// for user review. Replaced by the total-vs-per-capita side-by-side chart,
+// which has been promoted into slot 02. Delete this comment block once
+// the user confirms the swap.
+//
+//   {
+//     id: "plate-4",
+//     number: "04",
+//     indicator: "Per-capita real GDP, year-over-year",
+//     plateIndexLabel: "Per-capita",
+//     asOf: "2025Q4",
+//     title: "Per-capita output is back in positive territory, barely.",
+//     interpretationHtml:
+//       "Per-capita real GDP rose <strong>0.5% y/y</strong> in Q4 2025, down 0.1pp from the prior quarter. " +
+//       "Aggregate GDP grew 0.7% over the same window; with population growth slowing as immigration moderates, the per-capita gap to the headline is narrower than it was through 2023 and 2024. " +
+//       "Positive does not yet mean recovered: the level still trails the pre-2022 path.",
+//     callout: { value: "+0.5%", unit: "Y/Y, 2025Q4", delta: "-0.1pp vs prior quarter", direction: "pos" },
+//     source: "Statistics Canada Tables 36-10-0104-01 and 17-10-0009-01; per-capita calculation by Sibley Creek.",
+//     chartKey: "gdp-panel-4",
+//     data: panel4Data,
+//   },
+
 const plates: Plate[] = [
   {
     id: "plate-1",
@@ -63,6 +91,28 @@ const plates: Plate[] = [
   {
     id: "plate-2",
     number: "02",
+    indicator: "Total vs per-capita real GDP, indexed to 2019Q4",
+    plateIndexLabel: "Population-padded",
+    asOf: "2025Q4",
+    title: "Aggregate growth has run well ahead of per-capita output since 2019.",
+    interpretationHtml:
+      "Indexed to the eve of the pandemic, total real GDP sits roughly <strong>+11%</strong> above its 2019Q4 level; per-capita real GDP sits at <strong>+1%</strong>. " +
+      "The gap between the two lines is the population contribution &mdash; the share of headline growth that has gone into adding people rather than into output per person. " +
+      "Per-capita output has barely cleared the pre-pandemic level six years on, which is the central fact behind the deep dive on <a href=\"/research/per-capita-output/\">population-padded GDP</a>.",
+    callout: {
+      value: "+1%",
+      unit: "per-capita real GDP, cumulative since 2019Q4",
+      delta: "Total +11%",
+      direction: "neutral",
+    },
+    source:
+      "Statistics Canada Tables 36-10-0104-01 and 17-10-0009-01; per-capita and indexation by Sibley Creek.",
+    chartKey: "gdp-panel-4",
+    data: panel4Data,
+  },
+  {
+    id: "plate-3",
+    number: "03",
     indicator: "Growth-rate cross-check: monthly m/m and quarterly Q/Q SAAR",
     plateIndexLabel: "Growth rates",
     asOf: "Feb 2026 (m/m) / 2025Q4 (Q/Q SAAR)",
@@ -82,8 +132,8 @@ const plates: Plate[] = [
     data: panel1Data,
   },
   {
-    id: "plate-3",
-    number: "03",
+    id: "plate-4",
+    number: "04",
     indicator: "Contributions to quarterly growth",
     plateIndexLabel: "Contributions",
     asOf: "2025Q4",
@@ -101,28 +151,6 @@ const plates: Plate[] = [
     source: "Statistics Canada Table 36-10-0104-01.",
     chartKey: "gdp-panel-3",
     data: panel3Data,
-  },
-  {
-    id: "plate-4",
-    number: "04",
-    indicator: "Per-capita real GDP, year-over-year",
-    plateIndexLabel: "Per-capita",
-    asOf: "2025Q4",
-    title: "Per-capita output is back in positive territory, barely.",
-    interpretationHtml:
-      "Per-capita real GDP rose <strong>0.5% y/y</strong> in Q4 2025, down 0.1pp from the prior quarter. " +
-      "Aggregate GDP grew 0.7% over the same window; with population growth slowing as immigration moderates, the per-capita gap to the headline is narrower than it was through 2023 and 2024. " +
-      "Positive does not yet mean recovered: the level still trails the pre-2022 path.",
-    callout: {
-      value: "+0.5%",
-      unit: "Y/Y, 2025Q4",
-      delta: "-0.1pp vs prior quarter",
-      direction: "pos",
-    },
-    source:
-      "Statistics Canada Tables 36-10-0104-01 and 17-10-0009-01; per-capita calculation by Sibley Creek.",
-    chartKey: "gdp-panel-4",
-    data: panel4Data,
   },
   {
     id: "plate-5",
@@ -175,9 +203,10 @@ const pageDescription =
   "GDP chartbook: monthly and quarterly real GDP, contributions to growth, per-capita output, output gap, and labour productivity. " +
   "Sources: Statistics Canada, Bank of Canada.";
 
-const lede =
-  "Canadian real output through the monthly print and the quarterly cross-check, " +
-  "the decomposition of growth, the per-capita cut, and the gap to potential.";
+// Lede reads the same editorial blurb the auto-blurb pipeline writes for the
+// splash tile (sections.ts -> section.blurb.body). Single source of truth: a
+// release-day fan-out updates one field and both surfaces refresh.
+const lede = section.blurb?.body ?? "";
 ---
 <SectionLayout
   slug="gdp"

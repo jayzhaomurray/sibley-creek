@@ -24,7 +24,7 @@ const plates: Plate[] = [
     indicator: "Headline CPI, Y/Y",
     plateIndexLabel: "Headline CPI",
     asOf: "Mar 2026",
-    title: "Headline CPI back to 2.3%, with three-month momentum running hotter",
+    title: "Headline disinflation has stalled, with three-month momentum now running above the year-over-year read.",
     interpretationHtml:
       "Headline CPI rose <strong>2.3% Y/Y</strong> in March, up 0.5pp from February's 1.8% and back above the BoC's 2% target. " +
       "The three-month annualized print, near 2.9%, is running above the Y/Y &mdash; the bounce in February's index has carried through. " +
@@ -46,7 +46,7 @@ const plates: Plate[] = [
     indicator: "Core-trim and core-median, Y/Y",
     plateIndexLabel: "Preferred cores",
     asOf: "Mar 2026",
-    title: "Core-trim ticks down to 2.2%; core-median holds at 2.3%",
+    title: "Both preferred cores have settled near 2% even as headline turned.",
     interpretationHtml:
       "Core-trim eased to <strong>2.2% Y/Y</strong> in March, down 0.1pp from February. Core-median held at <strong>2.3%</strong>. " +
       "Both preferred measures now sit inside the BoC's 1-3% control band and within 0.3pp of the 2% midpoint &mdash; the underlying disinflation has held even as headline turned. " +
@@ -67,7 +67,7 @@ const plates: Plate[] = [
     indicator: "Share of CPI basket above 3% Y/Y",
     plateIndexLabel: "Breadth",
     asOf: "Mar 2026",
-    title: "Breadth widens: a quarter of the basket back above 3%",
+    title: "Breadth has turned higher for the first time in months, matching the headline reacceleration.",
     interpretationHtml:
       "The share of CPI components rising more than 3% Y/Y jumped to <strong>27.2%</strong> in March from 22.3% in February &mdash; a 4.9pp widening and the first meaningful breadth expansion since late 2025. " +
       "The level is still well below the 2022 peak above two thirds, but the direction matches the headline reacceleration. " +
@@ -88,7 +88,7 @@ const plates: Plate[] = [
     indicator: "Shelter, services, goods, food, energy, Y/Y",
     plateIndexLabel: "Sub-aggregates",
     asOf: "Mar 2026",
-    title: "Food and energy now lead; shelter has rolled below target",
+    title: "The composition of inflation has flipped from shelter to food and energy.",
     interpretationHtml:
       "Food rose <strong>4.0% Y/Y</strong> and energy <strong>3.9%</strong> in March &mdash; the two above-target lines and the bulk of the headline reacceleration. " +
       "Shelter has cooled to 1.7% as mortgage-interest cost faded to 0.7% and rent slowed to 0.9%; the line that drove the 2023-24 overshoot is no longer a source of pressure. " +
@@ -109,17 +109,15 @@ const plates: Plate[] = [
     number: "05",
     indicator: "Consumer and firm inflation expectations",
     plateIndexLabel: "Expectations",
-    asOf: "Q1 2026",
-    title: "Firm expectations keep falling; consumer one-year still sticky near 4%",
+    asOf: "Q1 2026 (CSCE / BOS)",
+    title: "Both groups still see inflation pulling back toward target.",
     interpretationHtml:
-      "The Canadian Survey of Consumer Expectations one-year measure held at <strong>4.0%</strong> in Q1 2026, essentially unchanged from 4.1% in Q4 and well above realized CPI. The five-year measure eased to <strong>3.0%</strong>. " +
-      "The share of Business Outlook Survey firms expecting CPI above 3% fell to <strong>11%</strong> from 16% in Q4 &mdash; the lowest reading since 2021 and a third of its mid-2024 level. " +
-      "Firms have largely re-anchored; consumers have not yet followed.",
+      "Consumers' five-year-ahead inflation expectations slipped to <strong>3.0%</strong> in Q1, down from a 3.67% peak in mid-2025 and the closest reading to the 2% target since 2021. On the firm side, the share of businesses expecting inflation above 3% fell to <strong>11%</strong> &mdash; a quarter of the level that prevailed in early 2024, with the modal firm now expecting inflation between 1% and 2%. The anchoring chain is moderating on both sides of the survey, which is the condition the Bank of Canada has named as binding for further easing.",
     callout: {
-      value: "11%",
-      unit: "BOS firms expecting CPI >3%, Q1 2026",
-      delta: "-5pp vs prior",
-      direction: "neg",
+      value: "3.0%",
+      unit: "CSCE 5y consumer expectations, Q1 2026",
+      delta: "vs 2% BoC target",
+      direction: "neutral",
     },
     source: "Bank of Canada Canadian Survey of Consumer Expectations and Business Outlook Survey, Q1 2026.",
     chartKey: "inflation-panel-5",
@@ -131,7 +129,7 @@ const plates: Plate[] = [
     indicator: "FX and wage pass-through into goods and services",
     plateIndexLabel: "Pass-through",
     asOf: "Pending wiring",
-    title: "Pass-through panel awaits the ex-energy and ex-shelter derivations",
+    title: "Pass-through panel awaits the ex-energy and ex-shelter derivations.",
     interpretation:
       "Pairs the FX channel (USDCAD Y/Y against goods-ex-energy CPI) with the wage channel (LFS-Micro wage growth against services-ex-shelter CPI). The two basket-weighted ex-aggregates are not yet in the processed tier; the chart renders once the derivations land.",
     source:
@@ -146,10 +144,10 @@ const pageDescription =
   "Inflation chartbook: headline CPI, BoC preferred cores, breadth, sub-aggregates, expectations, and FX / wage pass-through. " +
   "Sources: Statistics Canada, Bank of Canada.";
 
-const lede =
-  "Where prices sit relative to the Bank of Canada's 2% target: the headline print, the preferred cores, " +
-  "the breadth of pressure across the basket, the sub-aggregate composition, expectations from households and firms, " +
-  "and the FX and wage channels feeding pass-through.";
+// Lede reads the same editorial blurb the auto-blurb pipeline writes for the
+// splash tile (sections.ts -> section.blurb.body). Single source of truth: a
+// release-day fan-out updates one field and both surfaces refresh.
+const lede = section.blurb?.body ?? "";
 ---
 <SectionLayout
   slug="inflation"

@@ -1,0 +1,299 @@
+---
+/*
+ * Panel5ExpectationsV2 - inflation expectations as two side-by-side small
+ * multiples: CSCE five-year-ahead consumer inflation expectations on the
+ * left, BOS share of firms expecting CPI above 3% on the right.
+ *
+ * Pairs with PanelTotalVsPerCapita: same hand-rolled two-panel geometry
+ * (M_L=56, PANEL_W=292, GAP=36, PANEL_W=292, M_R=44 = 720 viewBox),
+ * latest-dot Plex Mono 11px pure-ink label sitting 6px right of the
+ * MTA-red dot, small-multiple titles above each panel.
+ *
+ * The two source series live on disjoint y-scales (consumer expectations
+ * trade roughly 2-4% while the BOS share trades 0-60%), so each panel
+ * derives its own y-domain. Both panels share the x-domain trimmed to the
+ * overlap window (~Q2 2015 -> Q1 2026, ~44 quarters) so the side-by-side
+ * comparison is honest.
+ *
+ * Left panel: explicit y-floor 1.5% / ceiling 4.0%, 1px dashed 2% BoC
+ * target reference rule labelled "2% target".
+ * Right panel: y-floor 0% / ceiling 60%, no reference rule - any non-zero
+ * reading IS the signal.
+ *
+ * Data path. The pipeline panel-data shape for panel-5 currently emits a
+ * primary/secondary slot pair (1y + 5y consumer series); the new BOS line
+ * is not surfaced through data/site/panel_data/inflation.json. Reads
+ * raw CSVs directly via the _alternatives build-time readCsv helper,
+ * same pattern as PanelTotalVsPerCapita. Both CSVs (infl_exp_consumer_5y,
+ * bos_dist_above3) are force-added to git per the project's gitignored-
+ * CSV gotcha.
+ *
+ * The original Panel5Expectations.astro is tag-and-leave; the routing
+ * swap to V2 lives in SectionLayout.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import {
+  readCsv,
+  decYear,
+  VB,
+  yearTicksFromX,
+  type AltPoint,
+} from "../_alternatives/_shared/altUtils";
+import AltChartStyle from "../_alternatives/_shared/AltChartStyle.astro";
+
+// SectionLayout dispatches with `data={plate.data}`; the chart reads raw
+// CSVs directly but accepts the prop to keep the dispatch signature uniform.
+interface Props {
+  data?: PanelData | null;
+}
+const { data: _ignored = null } = Astro.props;
+void _ignored;
+
+const csceRaw = readCsv("infl_exp_consumer_5y.csv");
+const bosRaw = readCsv("bos_dist_above3.csv");
+
+// Trim to overlap window. CSCE 5y first observation 2015-04-01; BOS goes
+// back to 2003. Anchor the x-domain to the CSCE start so the two panels
+// align quarter-by-quarter.
+const OVERLAP_START = "2015-04-01";
+
+function filterFrom(series: AltPoint[], fromDate: string): AltPoint[] {
+  return series.filter((p) => p.date >= fromDate);
+}
+const csce = filterFrom(csceRaw, OVERLAP_START);
+const bos = filterFrom(bosRaw, OVERLAP_START);
+
+// Layout. Mirrors PanelTotalVsPerCapita geometry inside the 720x405
+// viewBox. M_L (56) + PANEL_W (292) + GAP (36) + PANEL_W (292) + M_R (44)
+// = 720. M_R seats the right panel's latest-value label.
+const PANEL_W = 292;
+const GAP = 36;
+const M_L = 56;
+const M_R = 44;
+const M_T = 44;
+const M_B = 40;
+const panel_h = VB.H - M_T - M_B;
+const panel_x0_left = M_L;
+const panel_x0_right = panel_x0_left + PANEL_W + GAP;
+void M_R; // budget-documenting; rendering uses panel_x0_right + PANEL_W
+
+// Per-panel y-domains (the two series live on disjoint scales).
+// LEFT: 1.5% to 4.0% gives headroom above the 3.67% Q3 2025 peak while
+// keeping the 2% BoC target visible inside the frame.
+const yLoA = 1.5;
+const yHiA = 4.0;
+const yRangeA = yHiA - yLoA;
+
+// RIGHT: 0% to 60% - the 2022 cycle peak landed near 55% and the floor
+// of zero is structural (the share can't go negative).
+const yLoB = 0;
+const yHiB = 60;
+const yRangeB = yHiB - yLoB;
+
+// Shared x-domain across both panels. Both series are on the same
+// quarterly grid; the BOS series can be slightly shorter / longer at the
+// tails, so derive the x-extent from the union of decimal years.
+function xExtent(...arrs: AltPoint[][]): [number, number] {
+  let lo = Infinity, hi = -Infinity;
+  for (const arr of arrs) {
+    for (const p of arr) {
+      const v = decYear(p.date);
+      if (Number.isNaN(v)) continue;
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
+  }
+  if (!Number.isFinite(lo)) return [0, 1];
+  return [lo, hi];
+}
+const [xMin, xMax] = xExtent(csce, bos);
+
+function makeScales(x0: number, w: number, yLo: number, yRange: number) {
+  const xScale = (yr: number) => x0 + ((yr - xMin) / (xMax - xMin || 1)) * w;
+  const yScale = (v: number) => M_T + panel_h - ((v - yLo) / yRange) * panel_h;
+  return { xScale, yScale };
+}
+function buildPath(
+  series: AltPoint[],
+  xScale: (yr: number) => number,
+  yScale: (v: number) => number,
+): string {
+  let d = "", started = false;
+  for (const p of series) {
+    if (typeof p.value !== "number") { started = false; continue; }
+    const xv = decYear(p.date);
+    if (Number.isNaN(xv)) continue;
+    d += `${started ? "L" : "M"}${xScale(xv).toFixed(2)} ${yScale(p.value).toFixed(2)} `;
+    started = true;
+  }
+  return d.trim();
+}
+
+// Y-ticks. Hand-pick per panel so the axis aligns with editorial-meaningful
+// values (2% BoC target on the left; 0-60% decadal stride on the right).
+const yTicksA = [1.5, 2.0, 2.5, 3.0, 3.5, 4.0];
+const yTicksB = [0, 15, 30, 45, 60];
+
+function fmtPctTickA(v: number, isTop: boolean): string {
+  // Left panel uses one decimal place (1.5%, 2.0%, ...). Top tick keeps "%".
+  const oneDp = v.toFixed(1);
+  return isTop ? `${oneDp}%` : oneDp;
+}
+function fmtPctTickB(v: number, isTop: boolean): string {
+  // Right panel uses whole integers (0%, 15%, ...). Top tick keeps "%".
+  return isTop ? `${Math.round(v)}%` : String(Math.round(v));
+}
+
+// Latest-dot value labels. CSCE rounds to one decimal (3.0%); BOS rounds
+// to whole integer (11%).
+function fmtLabelA(v: number): string {
+  return `${v.toFixed(1)}%`;
+}
+function fmtLabelB(v: number): string {
+  return `${Math.round(v)}%`;
+}
+
+const A = makeScales(panel_x0_left, PANEL_W, yLoA, yRangeA);
+const B = makeScales(panel_x0_right, PANEL_W, yLoB, yRangeB);
+const pathA = buildPath(csce, A.xScale, A.yScale);
+const pathB = buildPath(bos, B.xScale, B.yScale);
+
+const lastA = [...csce].reverse().find((p) => typeof p.value === "number");
+const lastB = [...bos].reverse().find((p) => typeof p.value === "number");
+const xTicksA = yearTicksFromX(xMin, xMax, A.xScale);
+const xTicksB = yearTicksFromX(xMin, xMax, B.xScale);
+
+// 2% BoC target reference rule (left panel only).
+const targetY = A.yScale(2);
+// Compute whether the "2% target" label collides horizontally with the
+// latest-dot value label. The label sits flush-left at the panel's
+// left edge plus 4px; the latest value label sits 6px right of the
+// rightmost dot. They live in different y-bands (target on the 2% rule,
+// latest-value at the dot's y), so collision is geometric only when both
+// happen to land on the same horizontal band. The latest value is 3.0%,
+// well above the 2% rule; no collision risk. We render the label.
+---
+
+<div class="alt-chart" data-panel="inflation-5-v2">
+  <svg
+    class="alt-chart__svg"
+    viewBox={`0 0 ${VB.W} ${VB.H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label="Inflation expectations: CSCE five-year-ahead consumer expectations on the left, BOS share of firms expecting CPI above 3% on the right; two small multiples trimmed to the overlap window 2015 Q2 through 2026 Q1."
+  >
+    {/* LEFT panel: CSCE 5y consumer */}
+    <g>
+      {yTicksA.map((v) => {
+        const yy = A.yScale(v);
+        return <line class="alt-chart__gridline" x1={panel_x0_left} y1={yy.toFixed(2)} x2={panel_x0_left + PANEL_W} y2={yy.toFixed(2)} />;
+      })}
+      <line class="alt-chart__reference-rule" x1={panel_x0_left} y1={targetY.toFixed(2)} x2={panel_x0_left + PANEL_W} y2={targetY.toFixed(2)} />
+      <text class="alt-chart__reference-label" x={(panel_x0_left + 4).toFixed(2)} y={(targetY - 4).toFixed(2)} text-anchor="start">
+        2% target
+      </text>
+      <path class="alt-chart__line" d={pathA} fill="none" />
+      {lastA && (
+        <>
+          <circle
+            class="alt-chart__latest-dot"
+            cx={A.xScale(decYear(lastA.date)).toFixed(2)}
+            cy={A.yScale(lastA.value as number).toFixed(2)}
+            r="3.5"
+          >
+            <title>{`CSCE 5y consumer ${lastA.date}: ${fmtLabelA(lastA.value as number)}`}</title>
+          </circle>
+          <text
+            class="panel5v2__value-label"
+            x={(A.xScale(decYear(lastA.date)) + 6).toFixed(2)}
+            y={(A.yScale(lastA.value as number) + 4).toFixed(2)}
+            text-anchor="start"
+          >
+            {fmtLabelA(lastA.value as number)}
+          </text>
+        </>
+      )}
+      <rect class="alt-chart__frame" x={panel_x0_left} y={M_T} width={PANEL_W} height={panel_h} />
+      <text class="alt-chart__small-multiple-title" x={panel_x0_left} y={M_T - 14}>CSCE 5Y CONSUMER</text>
+      {xTicksA.map((t) => (
+        <g>
+          <line class="alt-chart__xtick" x1={t.x.toFixed(2)} y1={(M_T + panel_h).toFixed(2)} x2={t.x.toFixed(2)} y2={(M_T + panel_h + 4).toFixed(2)} />
+          <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(M_T + panel_h + 18).toFixed(2)} text-anchor="middle">{t.label}</text>
+        </g>
+      ))}
+      {yTicksA.map((v, i) => {
+        const yy = A.yScale(v);
+        const isTop = i === yTicksA.length - 1;
+        return (
+          <text class="alt-chart__ytick-label" x={(panel_x0_left - 8).toFixed(2)} y={(yy + 4).toFixed(2)} text-anchor="end">
+            {fmtPctTickA(v, isTop)}
+          </text>
+        );
+      })}
+    </g>
+
+    {/* RIGHT panel: BOS share of firms expecting CPI > 3% */}
+    <g>
+      {yTicksB.map((v) => {
+        const yy = B.yScale(v);
+        return <line class="alt-chart__gridline" x1={panel_x0_right} y1={yy.toFixed(2)} x2={panel_x0_right + PANEL_W} y2={yy.toFixed(2)} />;
+      })}
+      <path class="alt-chart__line" d={pathB} fill="none" />
+      {lastB && (
+        <>
+          <circle
+            class="alt-chart__latest-dot"
+            cx={B.xScale(decYear(lastB.date)).toFixed(2)}
+            cy={B.yScale(lastB.value as number).toFixed(2)}
+            r="3.5"
+          >
+            <title>{`BOS share above 3% ${lastB.date}: ${fmtLabelB(lastB.value as number)}`}</title>
+          </circle>
+          <text
+            class="panel5v2__value-label"
+            x={(B.xScale(decYear(lastB.date)) + 6).toFixed(2)}
+            y={(B.yScale(lastB.value as number) + 4).toFixed(2)}
+            text-anchor="start"
+          >
+            {fmtLabelB(lastB.value as number)}
+          </text>
+        </>
+      )}
+      <rect class="alt-chart__frame" x={panel_x0_right} y={M_T} width={PANEL_W} height={panel_h} />
+      <text class="alt-chart__small-multiple-title" x={panel_x0_right} y={M_T - 14}>BOS SHARE &gt;3%</text>
+      {xTicksB.map((t) => (
+        <g>
+          <line class="alt-chart__xtick" x1={t.x.toFixed(2)} y1={(M_T + panel_h).toFixed(2)} x2={t.x.toFixed(2)} y2={(M_T + panel_h + 4).toFixed(2)} />
+          <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(M_T + panel_h + 18).toFixed(2)} text-anchor="middle">{t.label}</text>
+        </g>
+      ))}
+      {yTicksB.map((v, i) => {
+        const yy = B.yScale(v);
+        const isTop = i === yTicksB.length - 1;
+        return (
+          <text class="alt-chart__ytick-label" x={(panel_x0_right - 8).toFixed(2)} y={(yy + 4).toFixed(2)} text-anchor="end">
+            {fmtPctTickB(v, isTop)}
+          </text>
+        );
+      })}
+    </g>
+  </svg>
+</div>
+
+<AltChartStyle />
+
+<style is:global>
+  /*
+   * Latest-dot value label. Plex Mono 11px, pure ink (NOT MTA red). The
+   * MTA-red dot is already the brand stamp; the label reads as a
+   * measurement. Mirrors .panel-tvpc__value-label / .panel4v2__value-label.
+   */
+  .panel5v2__value-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

@@ -25,7 +25,7 @@ const plates: Plate[] = [
     indicator: "USDCAD spot",
     plateIndexLabel: "CAD",
     asOf: "May 8, 2026",
-    title: "USDCAD closes the week at 1.3686, the loonie giving back its early-May gains",
+    title: "The loonie has settled into a range well below last fall's stress reach.",
     interpretationHtml:
       "USDCAD closed the week at <strong>1.3686</strong>, weaker by about a cent from 1.3576 on May 1 as the early-May CAD rally reversed. " +
       "The pair has spent the past month inside a 1.36 to 1.38 band, well below the 1.42 stress reach of late 2025. " +
@@ -47,7 +47,7 @@ const plates: Plate[] = [
     indicator: "GoC yield curve",
     plateIndexLabel: "GoC curve",
     asOf: "May 7, 2026",
-    title: "GoC 10y at 3.53%, the curve steepens as the front end lifts",
+    title: "The front end has repriced on firmer inflation while the long end stayed anchored.",
     interpretationHtml:
       "The GoC 10y sits at <strong>3.53%</strong>, with the 2y at 2.94%, the 5y at 3.18%, and the 30y at 3.90%. " +
       "The 2s10s spread of 59 bps marks the steepest reading in months, driven by a 12 bps lift at the 2y over the past two weeks as front-end repricing absorbed firmer near-term inflation prints. " +
@@ -69,7 +69,7 @@ const plates: Plate[] = [
     indicator: "Canadian corporate credit spreads",
     plateIndexLabel: "Credit spreads",
     asOf: "May 7, 2026",
-    title: "Canadian IG and HY OAS series pending; GoC 10y shown as the rate benchmark",
+    title: "Canadian IG and HY OAS series pending, with GoC 10y shown as the rate benchmark.",
     interpretationHtml:
       "Canadian investment-grade and high-yield option-adjusted spread series are not yet wired; the GoC 10y benchmark anchors the chart at <strong>3.53%</strong>. " +
       "Spread data is the load-bearing read for this plate and will be added once the corporate-index feed is in place.",
@@ -83,7 +83,7 @@ const plates: Plate[] = [
     indicator: "WTI, Brent, and WCS oil prices",
     plateIndexLabel: "Energy",
     asOf: "May 4, 2026 (WTI, Brent); March 2026 (WCS)",
-    title: "WTI rallies to US$109.76 as crude breaks higher in late April",
+    title: "Crude has broken higher and the Canadian heavy differential has compressed sharply.",
     interpretationHtml:
       "WTI closed at <strong>US$109.76</strong> on May 4, up nearly US$10 from US$99.89 a week earlier, with Brent at US$118.26 (May 1) tracking the same move higher. " +
       "WCS averaged US$75.85 in March, well above the US$50 range that held through late 2025 and a sharply narrower differential to WTI than the typical post-2018 discount. " +
@@ -105,7 +105,7 @@ const plates: Plate[] = [
     indicator: "BoC settlement balances",
     plateIndexLabel: "Bank stability",
     asOf: "May 6, 2026",
-    title: "Big-Six PCL and CET1 series pending; settlement balances at $63.9 billion",
+    title: "Big-Six PCL and CET1 series pending, with settlement balances at $63.9 billion.",
     interpretationHtml:
       "Bank-level provisions for credit losses and CET1 ratios from the latest earnings round are not yet wired; settlement balances at the Bank of Canada anchor the chart at <strong>$63.9 billion</strong> on May 6, inside the $60 to $80 billion band that has held since late 2025. " +
       "PCL builds and CET1 versus the OSFI Domestic Stability Buffer are the load-bearing reads and will be added once the bank-disclosure feed is in place.",
@@ -125,7 +125,7 @@ const plates: Plate[] = [
     indicator: "Financial conditions",
     plateIndexLabel: "FCI",
     asOf: "May 7, 2026",
-    title: "Standardized FCI series pending; GoC 10y and USDCAD shown as rate and FX inputs",
+    title: "Standardized FCI series pending, with GoC 10y and USDCAD shown as rate and FX inputs.",
     interpretationHtml:
       "A standardized financial conditions index for Canada is not yet wired; the GoC 10y at <strong>3.53%</strong> and USDCAD at 1.3686 are shown as the rate and FX components that any composite would draw on. " +
       "An FCI composite is the load-bearing read for this plate and will be added once the index feed is in place.",
@@ -140,9 +140,10 @@ const pageDescription =
   "Markets chartbook: CAD, GoC curve, credit spreads, energy prices, bank stability, and the financial conditions index. " +
   "Sources: BoC, FRED, OSFI, EIA, CER.";
 
-const lede =
-  "External winds and the financial-system thermometer: the loonie, the GoC curve, " +
-  "credit spreads, energy prices, bank-stability metrics, and the financial conditions index.";
+// Lede reads the same editorial blurb the auto-blurb pipeline writes for the
+// splash tile (sections.ts -> section.blurb.body). Single source of truth: a
+// release-day fan-out updates one field and both surfaces refresh.
+const lede = section.blurb?.body ?? "";
 ---
 <SectionLayout
   slug="markets"

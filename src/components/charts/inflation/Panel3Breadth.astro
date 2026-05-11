@@ -1,13 +1,18 @@
 ---
 /*
- * Panel3Breadth - breadth of price pressure.
+ * Panel3Breadth - share-of-basket breadth of price pressure.
  *
- * Editorial argument is "share of CPI basket running above 3% Y/Y" -
- * a constructed share series. The pipeline emits the raw `cpi_components`
- * index (per-component); the breadth derivation is not on disk. Until
- * the share series lands we fall back to PanelEmpty.
+ * Dual-series chart: share of the CPI basket running Y/Y > 3% (primary,
+ * solid pure-ink line) alongside share running Y/Y < 1% (secondary, 1px
+ * dashed pure-ink line). No reference rules - the two series read against
+ * each other directly. (Historical-average rules were considered and
+ * dropped per user direction 2026-05-11: dual reference labels added
+ * chrome without sharpening the read; the dual-series treatment alone
+ * carries the breadth-of-pressure argument.)
  *
- * Synthetic-data fallback removed.
+ * The pipeline emits both series in `% of weighted basket` (Statistics
+ * Canada CPI components, weighted by basket weight, kept set = 59
+ * components with first-valid-index <= 1995-01-01).
  */
 
 import type { PanelData } from "../_shared/panelData";
@@ -19,14 +24,21 @@ interface Props {
 }
 
 const { data = null } = Astro.props;
+
+// PanelLiveChart's unitsMatch guard requires identical unit strings; the
+// pipeline emits both at "% of weighted basket" so they share an axis.
+const unitOk = !!data && !!data.primary
+  && typeof data.primary.unit === "string"
+  && data.primary.unit.toLowerCase().startsWith("%");
 ---
-{data && data.primary && data.primary.unit === "%" ? (
+{data && data.primary && unitOk ? (
   <PanelLiveChart
     primary={data.primary}
     secondary={data.secondary}
     primaryLabel="Share >3%"
+    secondaryLabel="Share <1%"
     dataPanelAttr="inflation-3"
-    ariaLabel="Share of CPI basket running above 3% year-over-year."
+    ariaLabel="Share of CPI basket running year-over-year above 3 percent alongside share running below 1 percent."
   />
 ) : (
   <PanelEmpty reason="Breadth share-of-basket derivation not yet emitted." />

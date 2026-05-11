@@ -1,0 +1,43 @@
+---
+/*
+ * Panel2GoCCurveV2 - GoC 2y / 5y / 10y curve, three-line overlay.
+ *
+ * Ported from src/components/charts/_alternatives/policy/Alt3_YieldCurveTriple
+ * after the alternative validated that the full curve-shape read (2s10s
+ * slope, intermediate kink) is the fixed-income-desk view, vs the prior
+ * two-line 2y/5y treatment in Panel2GoCCurve.astro.
+ *
+ * Pipeline emits panel-2 with primary=yield_2yr, secondary=yield_5yr,
+ * tertiary=yield_10yr - all %, daily. PanelLiveChart was extended on
+ * 2026-05-11 to render the tertiary as 1px pure-ink stroke-dasharray
+ * "2 3" per the canon's multi-series adaptation (design/canon_reference_panel.md
+ * line 136-138). Direct labels at the right gutter; MTA red latest-print
+ * dot on the 2y primary; small pure-ink dots on the 5y and 10y termini.
+ *
+ * Tag-and-leave: Panel2GoCCurve.astro stays in place for review.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+---
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    tertiary={data.tertiary}
+    primaryLabel="2y GoC"
+    secondaryLabel="5y GoC"
+    tertiaryLabel="10y GoC"
+    dataPanelAttr="markets-2"
+    ariaLabel="Government of Canada 2-year, 5-year, and 10-year yields, daily."
+  />
+) : (
+  <PanelEmpty reason="Pipeline did not emit panel-2 data." />
+)}

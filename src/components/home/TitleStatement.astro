@@ -14,6 +14,7 @@
  */
 
 import { enrichedBySlug, PLACEHOLDER } from "../../data/site_data_loader";
+import { withBase } from "../../lib/urls";
 
 interface Props {
   dateLine: string;
@@ -59,13 +60,15 @@ const stamp: StampCell[] = stampSources.map((row) => {
     <span class="vig-title__eyebrow-tok">Independent</span>
     <span class="vig-title__eyebrow-dot" aria-hidden="true"></span>
     <span class="vig-title__eyebrow-tok vig-title__eyebrow-tok--accent">Proudly Canadian</span>
+    <span class="vig-title__eyebrow-dot" aria-hidden="true"></span>
+    <a class="vig-title__eyebrow-tok vig-title__eyebrow-link" href={withBase("/about/")}>By Jay Zhao-Murray</a>
   </p>
   <h1 id="vig-title-h" class="vig-title__h">
     <span class="vig-title__h-line">Canadian Macro Overview</span>
     <span class="vig-title__h-date">{dateLine}</span>
   </h1>
   <p class="vig-title__abs">
-    Sibley Creek is an independent Canadian macroeconomics publication, written from primary sources in declarative prose. The Canadian cycle is loosening: unemployment is back at 6.9%, the output gap sits at negative 1.0%, the Bank of Canada has cut the overnight rate to 2.25% -- half a percentage point below neutral -- and headline CPI has firmed to 2.3%. Data come from Statistics Canada, the Bank of Canada, CREA, and CMHC; the underlying series are published alongside the read.
+    Headline CPI firmed back to 2.3% Y/Y in March, with food and energy now carrying the above-target weight. Unemployment climbed to 6.9% in April and aggregate hours turned negative Y/Y. The Bank of Canada held the overnight rate at 2.25% on April 29 -- the fourth straight hold since October's cut, 50 bps below the neutral midpoint. The output gap sits at negative 1.0%; the US export share has fallen to 66.1%.
   </p>
 
   <dl class="vig-title__stamp" aria-label="Headline numbers at a glance">
@@ -117,6 +120,23 @@ const stamp: StampCell[] = stampSources.map((row) => {
   }
   .vig-title__eyebrow-tok--accent {
     color: var(--accent);
+  }
+  /* Byline link token. Matches the masthead's .vig-mast__mark-link hover
+   * vocabulary: plain ink default, 1px ink underline on hover, accent
+   * focus ring on focus-visible. The third token is a credential channel,
+   * not a data signal — red stays on "Canadian macro" (token 2). */
+  .vig-title__eyebrow-link {
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 80ms linear;
+  }
+  .vig-title__eyebrow-link:hover {
+    border-bottom-color: var(--ink);
+  }
+  .vig-title__eyebrow-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
   }
   .vig-title__eyebrow-dot {
     display: inline-block;

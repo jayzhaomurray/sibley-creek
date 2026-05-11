@@ -24,7 +24,7 @@ const plates: Plate[] = [
     indicator: "Overnight rate",
     plateIndexLabel: "Overnight rate",
     asOf: "April 29, 2026 (rate decision)",
-    title: "BoC holds the overnight rate at 2.25% for a fourth straight meeting",
+    title: "The Bank has settled the overnight rate inside its neutral range.",
     interpretationHtml:
       "The Bank held the overnight rate target at <strong>2.25%</strong> on April 29, the fourth consecutive hold since the 25 bps cut to 2.25% on October 29, 2025. " +
       "The setting sits inside the BoC's stated 2.25 to 3.25% nominal neutral range; further easing would push policy into accommodative territory. " +
@@ -45,7 +45,7 @@ const plates: Plate[] = [
     indicator: "2y GoC vs overnight",
     plateIndexLabel: "Market path",
     asOf: "May 7, 2026",
-    title: "Two-year GoC sits 69 bps above the overnight target",
+    title: "The market has stopped pricing further near-term easing.",
     interpretationHtml:
       "The 2-year Government of Canada yield closed at <strong>2.94%</strong> on May 7, roughly <strong>69 bps</strong> above the 2.25% overnight target. " +
       "The curve is no longer pricing further near-term easing; the gap reflects term premium and a market that has converged toward the Bank's hold. " +
@@ -60,7 +60,7 @@ const plates: Plate[] = [
     indicator: "Canada 2y minus US 2y",
     plateIndexLabel: "BoC-Fed spread",
     asOf: "May 7, 2026",
-    title: "Canada-US 2y spread at minus 98 bps, near the post-2001 floor",
+    title: "The cross-border spread is deep but no longer the binding constraint on the BoC.",
     interpretationHtml:
       "GoC 2y at 2.94% against UST 2y at 3.92% leaves the Canada-US 2y spread at <strong>minus 98 bps</strong>. " +
       "On daily data since 2001, that reading sits at the 5th percentile of the distribution -- deep, but roughly 70 bps off the all-time minus 170 bps trough reached on February 3, 2025. " +
@@ -81,7 +81,7 @@ const plates: Plate[] = [
     indicator: "Settlement balances and assets",
     plateIndexLabel: "Balance sheet",
     asOf: "May 6, 2026 (weekly statement)",
-    title: "Settlement balances near $64 billion as floor-maintenance phase continues",
+    title: "The Bank's balance-sheet runoff is done.",
     interpretationHtml:
       "Settlement balances stood at <strong>$63.9 billion</strong> on May 6, with total Bank assets at $219.0 billion. " +
       "The Bank exited passive quantitative tightening in 2025 and the system is now in floor-maintenance phase, with balances oscillating in the operating range communicated in the Bank's December 2024 framework statement. " +
@@ -97,7 +97,7 @@ const plates: Plate[] = [
     indicator: "Federal deficit YTD and debt charges",
     plateIndexLabel: "Federal trajectory",
     asOf: "February 28, 2026 (Fiscal Monitor)",
-    title: "Federal deficit at $25.5 billion through the first 11 months of fiscal 2025-26",
+    title: "Debt service is now the binding line in the federal expense profile.",
     interpretationHtml:
       "The federal balance ran a deficit of <strong>$25.5 billion</strong> over the first 11 months of fiscal 2025-26, on revenues of $453.2 billion and program-plus-debt expenses of $478.8 billion. " +
       "Public debt charges totalled <strong>$49.3 billion</strong> over the same period, the largest single line outside major transfers. " +
@@ -119,7 +119,7 @@ const plates: Plate[] = [
     indicator: "Capacity utilization, output-gap proxy",
     plateIndexLabel: "Fiscal stance",
     asOf: "Q4 2025 (capacity utilization)",
-    title: "Capacity utilization at 78.5%, well below its post-1996 average",
+    title: "Capacity utilization remains consistent with a negative output gap.",
     interpretationHtml:
       "Total-economy capacity utilization stood at <strong>78.5%</strong> in Q4 2025, several points below its post-1996 average and consistent with an output gap that remains negative. " +
       "Canada's Department of Finance does not publish a cyclically-adjusted primary balance; the IMF Article IV and OECD Economic Survey are the standing references for the stance read. " +
@@ -135,7 +135,7 @@ const plates: Plate[] = [
     indicator: "BoC and Fed policy paths over time",
     plateIndexLabel: "Policy divergence",
     asOf: "April 2026 (BoC monthly)",
-    title: "BoC at 2.25% sits 138 bps below the Fed's 3.63% -- the widest negative gap since the easing cycles diverged",
+    title: "The BoC-Fed policy gap has reached a generational depth.",
     interpretationHtml:
       "BoC overnight at <strong>2.25%</strong> against Fed funds at <strong>3.63%</strong> leaves the policy-rate spread at <strong>-138 bps</strong> in monthly data through April 2026 -- a deeper gap than at any point in the prior two decades outside the 2002-2004 episode. " +
       "The bottom panel tracks the BoC-Fed spread directly: a near-zero line through most of the 1996-2019 window, a sharp positive spike during the 2022-23 BoC-leads-hiking phase, and a clean monotone descent into the current negative regime as the Bank cut ahead of the Fed through 2024-25. " +
@@ -154,9 +154,10 @@ const pageDescription =
   "Policy chartbook: BoC overnight rate, market path, BoC-Fed spread, balance sheet, federal trajectory, and fiscal stance against the cycle. " +
   "Sources: Bank of Canada, Department of Finance, PBO, IMF, OECD.";
 
-const lede =
-  "The Canadian policy stance, monetary and fiscal: the rate decision and its market path, the spread to the Fed, " +
-  "the balance sheet, the federal trajectory, and where the cyclically-adjusted fiscal stance sits relative to the cycle.";
+// Lede reads the same editorial blurb the auto-blurb pipeline writes for the
+// splash tile (sections.ts -> section.blurb.body). Single source of truth: a
+// release-day fan-out updates one field and both surfaces refresh.
+const lede = section.blurb?.body ?? "";
 ---
 <SectionLayout
   slug="policy"

@@ -480,6 +480,118 @@ def test_derive_cpi_breadth_gt3_is_noop_when_inputs_missing(tmp_path, monkeypatc
     assert not (data_root / "processed" / "cpi_breadth_gt3.csv").exists()
 
 
+def test_derive_cpi_breadth_band_math(tmp_path, monkeypatch):
+    """`derive_cpi_breadth_band()` ports the boc-tracker recipe:
+
+      - Keep only components with first_valid_index <= 1995-01-01.
+      - Normalize the surviving weights to sum to 1.
+      - For each month: above3 = sum(weight x I(yoy > 3)) x 100.
+                         below1 = sum(weight x I(yoy < 1)) x 100.
+      - Drop months where any kept component is missing Y/Y.
+      - 1996-2019 average = mean over that window (inclusive).
+
+    Construction: three deep-history components A/B/C (all start 1994-01) plus
+    one young component D (starts 2020) which must be filtered out by the
+    cutoff. Inflation pattern: latest month has Y/Y A=0.5% (below 1), B=4%
+    (above 3), C=2% (between). With raw weights 10/20/30/40 and D dropped,
+    the kept weights are 10/20/30 -> normalized 1/6, 2/6, 3/6. Expected
+    latest above3 = (2/6) x 100 x 100 = 33.33%. Expected latest below1 =
+    (1/6) x 100 x 100 = 16.67%.
+    """
+    data_root = tmp_path / "data"
+    raw_dir = data_root / "raw"
+    derived_dir = data_root / "derived"
+    processed_dir = data_root / "processed"
+    raw_dir.mkdir(parents=True)
+    derived_dir.mkdir(parents=True)
+    processed_dir.mkdir(parents=True)
+
+    # 26 monthly observations starting 1994-01. Months 13..26 (1995-01..1996-02)
+    # have defined Y/Y. We need at least one observation on or before 1995-01-01
+    # for A/B/C so they pass the cutoff filter. D starts in month 25 (2020-style
+    # late entrant in the synthetic) so its first_valid_index is well after the
+    # cutoff and it gets dropped.
+    dates = pd.date_range(start="1994-01-01", periods=26, freq="MS")
+    a_levels = [100.0] * 25 + [100.5]  # latest Y/Y = +0.5% (below 1)
+    b_levels = [100.0] * 25 + [104.0]  # latest Y/Y = +4.0% (above 3)
+    c_levels = [100.0] * 25 + [102.0]  # latest Y/Y = +2.0% (between bands)
+    d_levels: list[float] = [float("nan")] * 24 + [100.0, 102.0]  # first_valid after cutoff
+    df_components = pd.DataFrame({
+        "date": dates,
+        "A": a_levels,
+        "B": b_levels,
+        "C": c_levels,
+        "D": d_levels,
+    })
+    df_components.to_csv(raw_dir / "cpi_components.csv", index=False)
+
+    weights = [
+        {"name": "A", "wt_value": 10.0, "cpi_vector": 1, "wt_refPer": "2024-01-01"},
+        {"name": "B", "wt_value": 20.0, "cpi_vector": 2, "wt_refPer": "2024-01-01"},
+        {"name": "C", "wt_value": 30.0, "cpi_vector": 3, "wt_refPer": "2024-01-01"},
+        {"name": "D", "wt_value": 40.0, "cpi_vector": 4, "wt_refPer": "2024-01-01"},
+    ]
+    (derived_dir / "cpi_component_weights_canada.json").write_text(
+        json.dumps(weights), encoding="utf-8",
+    )
+
+    from pipeline import build as build_mod
+
+    monkeypatch.setattr(build_mod, "DATA_RAW", raw_dir)
+    monkeypatch.setattr(build_mod, "DATA_PROCESSED", processed_dir)
+    monkeypatch.setattr(build_mod, "DATA_DERIVED", derived_dir)
+
+    build_mod.derive_cpi_breadth_band()
+
+    above_csv = processed_dir / "cpi_breadth_above3.csv"
+    below_csv = processed_dir / "cpi_breadth_below1.csv"
+    band_meta = derived_dir / "cpi_breadth_band_metadata.json"
+    assert above_csv.exists()
+    assert below_csv.exists()
+    assert band_meta.exists()
+
+    above_df = pd.read_csv(above_csv, parse_dates=["date"])
+    below_df = pd.read_csv(below_csv, parse_dates=["date"])
+
+    # Latest month: B at 4% -> above3 numerator = w_B normalized = 20/60.
+    # Multiplied by 100 (gt) then x100 (% scaling) = 33.333%.
+    assert above_df["value"].iloc[-1] == pytest.approx(20.0 / 60.0 * 100.0, rel=1e-9)
+    # A at 0.5% -> below1 numerator = w_A normalized = 10/60. = 16.667%.
+    assert below_df["value"].iloc[-1] == pytest.approx(10.0 / 60.0 * 100.0, rel=1e-9)
+
+    band = json.loads(band_meta.read_text(encoding="utf-8"))
+    assert band["components_kept"] == 3  # D was filtered out by the cutoff
+    assert band["weights_unnormalised_sum_pct"] == pytest.approx(60.0)
+    assert band["latest_above3"] == pytest.approx(20.0 / 60.0 * 100.0, rel=1e-9)
+    assert band["latest_below1"] == pytest.approx(10.0 / 60.0 * 100.0, rel=1e-9)
+    # The synthetic levels are flat 100 in every comparison month except the
+    # last, so Y/Y is 0 for months 1995-01..1996-01. None of those are inside
+    # 1996-2019 except 1996-01..1996-02; latest (1996-02) has 4%/0.5%/2%
+    # for B/A/C. Historical-window average = mean over those rows.
+    assert band["historical_avg_above3_1996_2019"] >= 0.0
+    assert band["historical_avg_below1_1996_2019"] >= 0.0
+
+
+def test_derive_cpi_breadth_band_is_noop_when_inputs_missing(tmp_path, monkeypatch, caplog):
+    """Missing cpi_components OR missing the weights JSON -> log + return."""
+    data_root = tmp_path / "data"
+    (data_root / "raw").mkdir(parents=True)
+    (data_root / "processed").mkdir(parents=True)
+    (data_root / "derived").mkdir(parents=True)
+
+    from pipeline import build as build_mod
+
+    monkeypatch.setattr(build_mod, "DATA_RAW", data_root / "raw")
+    monkeypatch.setattr(build_mod, "DATA_PROCESSED", data_root / "processed")
+    monkeypatch.setattr(build_mod, "DATA_DERIVED", data_root / "derived")
+
+    with caplog.at_level("WARNING"):
+        build_mod.derive_cpi_breadth_band()  # should NOT raise
+
+    assert not (data_root / "processed" / "cpi_breadth_above3.csv").exists()
+    assert not (data_root / "processed" / "cpi_breadth_below1.csv").exists()
+
+
 def test_derive_gdp_views_is_noop_when_raw_missing(tmp_path, monkeypatch, caplog):
     """If `data/raw/gdp_monthly.csv` is absent, derive_gdp_views() emits a
     warning and returns cleanly without writing anything (mirrors the

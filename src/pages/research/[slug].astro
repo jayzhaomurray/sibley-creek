@@ -250,6 +250,14 @@ const isStale =
         </>
       )}
 
+      {deepDive.draftStatus === "draft" && (
+        <p class="deepdive__draft">
+          <span class="deepdive__draft-label">Status</span>
+          <span aria-hidden="true" class="deepdive__draft-sep">·</span>
+          <span class="deepdive__draft-body">Draft - human revision pending</span>
+        </p>
+      )}
+
       <hr class="deepdive__rule" aria-hidden="true" />
     </header>
 
@@ -413,6 +421,53 @@ const isStale =
       line-height: 1.4;
       color: #8A8A8A;
       max-width: 48ch;
+    }
+
+    /* ---- Draft stamp ----
+     *
+     * Reader-facing credibility marker for AI-generated pieces pending
+     * human revision. Sits under the data-vintage paragraph, inside the
+     * header band, before the band's bottom rule. Mirrors the layout
+     * vocabulary of .deepdive__vintage (inline-flex, micro-cap label +
+     * dot separator + mono body) so the header band keeps its rhythm.
+     *
+     * Treatment per art-director:
+     *   - Label: Manrope SemiBold 10px 0.22em, ink (matches stamp labels).
+     *   - Body: Plex Mono 11px, var(--accent) (MTA red). This is the ONE
+     *     place red signals a non-data caveat; design-system.md sec 3 lists
+     *     red as data signal, but this stamp is justified as a
+     *     credibility-protection lever rendered ONCE on the page.
+     */
+    .deepdive__draft {
+      margin: 12px 0 0;
+      font-family: var(--font-mono);
+      font-weight: 400;
+      font-size: 11px;
+      line-height: 1;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+      display: inline-flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .deepdive__draft-label {
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .deepdive__draft-sep {
+      opacity: 0.6;
+      color: var(--accent);
+    }
+    .deepdive__draft-body {
+      color: var(--accent);
     }
 
     .deepdive__rule {

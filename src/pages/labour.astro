@@ -25,7 +25,7 @@ const plates: Plate[] = [
     indicator: "Unemployment, employment, participation",
     plateIndexLabel: "LFS headline",
     asOf: "Apr 2026",
-    title: "Unemployment back to 6.9% as the employment rate slips again.",
+    title: "The headline unemployment rate is steady; the employment rate is doing the softening underneath.",
     interpretationHtml:
       "The unemployment rate ticked up to <strong>6.9%</strong> in April from 6.7% in March, matching the cycle level of a year earlier. " +
       "The employment rate fell to <strong>60.5%</strong> &mdash; a third consecutive monthly decline and 0.3pp below April 2025 &mdash; while participation edged back to 65.0%. " +
@@ -46,7 +46,7 @@ const plates: Plate[] = [
     indicator: "Wage measures vs services CPI",
     plateIndexLabel: "Wage band",
     asOf: "Apr 2026 (LFS) / Feb 2026 (SEPH)",
-    title: "Wage measures span 3.1% to 4.8%; the composition-adjusted reading sits at the bottom.",
+    title: "The headline wage measures overstate underlying pressure once composition is stripped out.",
     interpretationHtml:
       "LFS permanent wages are running <strong>+4.8% y/y</strong> and LFS all-employee <strong>+4.5%</strong>; SEPH average weekly earnings are at 3.4% (Feb), and the Bank's composition-adjusted LFS-Micro sits at <strong>3.1%</strong> (Mar). " +
       "The gap between the front-line LFS reads and LFS-Micro is the composition story &mdash; the headline overstates underlying wage pressure. " +
@@ -62,7 +62,7 @@ const plates: Plate[] = [
     indicator: "Job vacancy rate, V/U, Beveridge curve",
     plateIndexLabel: "Vacancies",
     asOf: "Feb 2026 (JVWS)",
-    title: "Vacancy rate at 2.6%, V/U near 0.30 &mdash; through the pre-pandemic floor.",
+    title: "Labour demand has not just normalized but is drifting through pre-pandemic norms.",
     interpretationHtml:
       "The job vacancy rate sits at <strong>2.6%</strong> in February, off the 3.2% peak a year earlier and well below the 2022 high above 5%. " +
       "Vacancies of 458,000 against 1.51 million unemployed put the V/U ratio near <strong>0.30</strong> &mdash; lower than the 2018-19 norm. " +
@@ -77,7 +77,7 @@ const plates: Plate[] = [
     indicator: "PR landings and net NPR vs IRCC plan",
     plateIndexLabel: "Supply trajectory",
     asOf: "Q4 2025; current IRCC levels plan",
-    title: "Net NPR negative for five consecutive quarters; the per-capita denominator is rolling.",
+    title: "The population denominator is rolling over as the IRCC plan pivot works through.",
     interpretationHtml:
       "Net non-permanent-resident flows printed <strong>-171,000</strong> in Q4 2025, the fifth consecutive negative quarter since the <strong>October 2024</strong> plan pivot. " +
       "PR landings of 83,000 in Q4 keep permanent inflows tracking within plan range. The supply trajectory now implied by the IRCC plan is materially flatter than 2023-24 realized.",
@@ -91,7 +91,7 @@ const plates: Plate[] = [
     indicator: "Provincial unemployment rates vs Canada",
     plateIndexLabel: "Regional",
     asOf: "Apr 2026",
-    title: "BC unemployment up the most; Ontario and Alberta tightened modestly.",
+    title: "The national headline hides a four-way split rather than a coherent regional swing.",
     interpretationHtml:
       "Against a flat <strong>6.9%</strong> national rate, BC has moved most over twelve months: from 6.2% to <strong>6.8%</strong> in April. " +
       "Ontario eased 0.3pp to 7.5% but still sits above national; Alberta is 0.2pp tighter at 7.0%; Quebec drifted 0.2pp higher to 6.2%. " +
@@ -106,7 +106,7 @@ const plates: Plate[] = [
     indicator: "EI regular beneficiaries, Canada",
     plateIndexLabel: "EI beneficiaries",
     asOf: "Feb 2026",
-    title: "EI caseload eased to 542,000 from a November peak; the cycle indicator is rolling.",
+    title: "The leading EI signal has rolled over even as the LFS unemployment rate climbed back up.",
     interpretationHtml:
       "Regular beneficiaries fell to <strong>542,110</strong> in February, the second monthly decline from the <strong>568,720</strong> November 2025 peak. " +
       "EI is a leading cyclical indicator and typically inflects before LFS unemployment; here, the caseload turned down two months before April's unemployment rate climbed back to 6.9%. " +
@@ -128,10 +128,10 @@ const pageDescription =
   "Labour chartbook: LFS headline, the wage band, vacancies and slack, the IRCC supply trajectory, " +
   "regional dispersion across the four largest provinces, and EI regular beneficiaries.";
 
-const lede =
-  "The Canadian labour market through the headline LFS print, the band of wage measures, vacancies and slack, " +
-  "the population supply trajectory implied by the IRCC plan, the regional pattern under the national rate, " +
-  "and the EI uptake that fires before the headline turns.";
+// Lede reads the same editorial blurb the auto-blurb pipeline writes for the
+// splash tile (sections.ts -> section.blurb.body). Single source of truth: a
+// release-day fan-out updates one field and both surfaces refresh.
+const lede = section.blurb?.body ?? "";
 ---
 <SectionLayout
   slug="labour"

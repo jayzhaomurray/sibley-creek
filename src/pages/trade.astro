@@ -25,7 +25,7 @@ const plates: Plate[] = [
     indicator: "Goods trade balance, monthly + 3mma",
     plateIndexLabel: "Goods balance",
     asOf: "Mar 2026",
-    title: "Goods balance flips to a $1.8 billion surplus in March",
+    title: "March's surplus reads as a single-print reversal, not a settled turn.",
     interpretationHtml:
       "The goods trade balance swung to a <strong>$1.8 billion surplus</strong> in March 2026 from a $5.1 billion deficit in February, the first monthly surplus since September 2025. " +
       "Total exports hit a record $68.8 billion; exports to the US rose to $45.5 billion, leaving the bilateral surplus with the United States at $7.1 billion. " +
@@ -47,7 +47,7 @@ const plates: Plate[] = [
     indicator: "Current account: goods, services, primary income",
     plateIndexLabel: "Current account",
     asOf: "Q4 2025",
-    title: "Current account deficit narrows to $0.7 billion as primary income holds in surplus",
+    title: "Primary income has flipped to a structural surplus, narrowing the external shortfall.",
     interpretationHtml:
       "The current account deficit narrowed to <strong>$0.7 billion</strong> in Q4 2025 from $5.3 billion in Q3, the smallest quarterly shortfall in over a year. " +
       "Goods remained the binding drag at -$4.5 billion; services held a $1.4 billion surplus and primary income stayed positive at $3.3 billion. " +
@@ -62,7 +62,7 @@ const plates: Plate[] = [
     indicator: "US export share of total goods exports",
     plateIndexLabel: "US export share",
     asOf: "Mar 2026",
-    title: "US export share at 66.1%, down from 74.4% a year ago",
+    title: "Canadian exports are reorienting away from the US at the fastest peacetime pace in decades.",
     interpretationHtml:
       "The US absorbed <strong>66.1%</strong> of Canadian goods exports in March 2026, down from 74.4% in March 2025 and a 2024 calendar average near 76.3%. " +
       "Total exports rose to a record $68.8 billion over the same window, so the share decline reflects geographic redirection rather than an export contraction. " +
@@ -83,7 +83,7 @@ const plates: Plate[] = [
     indicator: "Tariff state: US trade actions affecting Canada",
     plateIndexLabel: "Tariff state",
     asOf: "Current as of May 11, 2026",
-    title: "The Section 232 stack is the durable threat into the July USMCA review",
+    title: "The USMCA review is the visible event; the Section 232 stack is the binding exposure.",
     interpretationHtml:
       "Section 232 rates of <strong>50%</strong> on steel and aluminum have been in force since June 2025; copper joined the stack in April 2026 under the April 2 proclamation. Autos and parts carry 25%, and a 10% Section 232 line on softwood lumber stacks atop AD/CVD duties for an effective burden near 45%. " +
       "A preliminary Commerce Department review on April 14 proposes cutting the softwood AD/CVD components to 24.83%, with final determinations due in August and October. " +
@@ -99,7 +99,7 @@ const plates: Plate[] = [
     indicator: "Terms of trade, national accounts",
     plateIndexLabel: "Terms of trade",
     asOf: "Q4 2025",
-    title: "Terms of trade hold at 105.5, roughly a point below the 2024 peak",
+    title: "The export-price income tailwind has flattened rather than reversed.",
     interpretationHtml:
       "The terms-of-trade index sat at <strong>105.5</strong> in Q4 2025, up 0.6 points on the quarter and essentially flat against Q4 2024. " +
       "The index remains above 100 â€” export prices still favorable relative to imports â€” but roughly a point below the Q2 2024 peak of 106.6. " +
@@ -120,7 +120,7 @@ const plates: Plate[] = [
     indicator: "FDI by sector: inward and outward",
     plateIndexLabel: "FDI",
     asOf: "Pending",
-    title: "Foreign direct investment by sector, inward and outward",
+    title: "Foreign direct investment by sector, inward and outward, awaits ingestion.",
     interpretation:
       "Sectoral foreign direct-investment flows from Statistics Canada Table 36-10-0008 are pending ingestion; this plate will update once the series is wired.",
     source: "Statistics Canada Table 36-10-0008-01 (FDI by industry).",
@@ -133,9 +133,10 @@ const pageDescription =
   "Trade chartbook: merchandise balance, current account, partner shares, tariff state, terms of trade, and FDI. " +
   "Sources: Statistics Canada, USTR, Global Affairs Canada.";
 
-const lede =
-  "Canada's external position: the merchandise balance and the current account, the partner-share drift, " +
-  "the currently effective US tariff state, the terms of trade, and the sectoral pattern of foreign direct investment.";
+// Lede reads the same editorial blurb the auto-blurb pipeline writes for the
+// splash tile (sections.ts -> section.blurb.body). Single source of truth: a
+// release-day fan-out updates one field and both surfaces refresh.
+const lede = section.blurb?.body ?? "";
 ---
 <SectionLayout
   slug="trade"

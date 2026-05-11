@@ -1,0 +1,231 @@
+---
+/*
+ * Panel4SubAggregatesV2 - CPI components, cumulative % change since Jan 2019.
+ *
+ * Four sub-aggregates (Shelter / Food / Energy / Services) on a shared 2x2
+ * small-multiples grid. Each panel reads as cumulative % change versus the
+ * January 2019 baseline (= 0%) - the editorial story is the LEVEL gap
+ * (shelter +33%, food +36%, etc.), not Y/Y momentum.
+ *
+ * Inherits the layout, geometry, and data-loading pattern from
+ * src/components/charts/_alternatives/inflation/Alt2_ComponentsSmallMultiples.astro.
+ *
+ * What's new vs Alt2:
+ *   - Y-axis units are % change, not index = 100. Subtract 100 from the
+ *     indexed series so "128" reads as "+28%".
+ *   - Reference rule sits at 0% (Jan 2019 baseline), not 100.
+ *   - Each panel's latest dot carries a direct-label of its cumulative
+ *     % change ("+33%"), Plex Mono 11px, pure ink. Decision note: in a
+ *     4-up grid all four MTA-red dots already fire; coloring the four
+ *     value labels red would over-saturate the page. The dot keeps the
+ *     brand stamp; the label reads as a measurement (mono, ink).
+ *   - Right margin widened from 24px to 44px to seat "+XX%" without
+ *     overrunning the frame.
+ *
+ * Data. cpi_shelter.csv, cpi_food.csv, cpi_energy.csv, cpi_services.csv
+ * (all force-added to git per the project's gitignored-CSV gotcha).
+ *
+ * Note. This is a production component but uses the alternatives' build-time
+ * readCsv path because the per-aggregate CPI levels are not surfaced through
+ * data/site/panel_data/inflation.json. The required CSVs are tracked in git.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import { readCsv, decYear, indexAt, VB, pickStride, yearTicksFromX, tail, type AltPoint } from "../_alternatives/_shared/altUtils";
+import AltChartStyle from "../_alternatives/_shared/AltChartStyle.astro";
+
+// SectionLayout dispatches with `data={plate.data}`; we don't consume it
+// here (this chart reads the four component CSVs directly) but accept it
+// to keep the dispatch signature uniform.
+interface Props {
+  data?: PanelData | null;
+}
+const { data: _ignored = null } = Astro.props;
+void _ignored;
+
+interface Panel { key: string; label: string; data: AltPoint[]; }
+
+// Index to Jan 2019 = 100, then subtract 100 so values read as % change.
+function toPctChange(series: AltPoint[]): AltPoint[] {
+  return series.map((p) => ({
+    date: p.date,
+    value: typeof p.value === "number" ? p.value - 100 : null,
+  }));
+}
+
+// Order: TOP row = food, energy (the two most-inflated components since 2019,
+// per the latest data); BOTTOM row = shelter, services. Reading the grid
+// top-down-left-right surfaces the headline (energy lead) first, then walks
+// to the stickier components below. Order per user direction 2026-05-11.
+const panels: Panel[] = [
+  { key: "food",     label: "FOOD",     data: toPctChange(indexAt(readCsv("cpi_food.csv"),     "2019-01-01")) },
+  { key: "energy",   label: "ENERGY",   data: toPctChange(indexAt(readCsv("cpi_energy.csv"),   "2019-01-01")) },
+  { key: "shelter",  label: "SHELTER",  data: toPctChange(indexAt(readCsv("cpi_shelter.csv"),  "2019-01-01")) },
+  { key: "services", label: "SERVICES", data: toPctChange(indexAt(readCsv("cpi_services.csv"), "2019-01-01")) },
+];
+
+const N = 84; // 7y window - keeps the pandemic period visible
+const trimmed = panels.map((p) => ({ ...p, data: tail(p.data, N) }));
+
+// Shared y-domain across all four panels.
+let yLo = Infinity, yHi = -Infinity;
+for (const p of trimmed) for (const pt of p.data) if (typeof pt.value === "number") {
+  if (pt.value < yLo) yLo = pt.value;
+  if (pt.value > yHi) yHi = pt.value;
+}
+if (!Number.isFinite(yLo)) { yLo = 0; yHi = 40; }
+
+// Pad. Always include 0% (the baseline reference rule).
+if (yLo > 0) yLo = 0;
+const spanRaw = yHi - yLo || 1;
+yHi += spanRaw * 0.08;
+if (yLo < 0) yLo -= spanRaw * 0.04;
+
+// Shared x-domain.
+const allX: number[] = [];
+for (const p of trimmed) for (const pt of p.data) {
+  const x = decYear(pt.date);
+  if (!Number.isNaN(x)) allX.push(x);
+}
+const xMin = Math.min(...allX);
+const xMax = Math.max(...allX);
+
+// 2x2 layout inside 720x405. Geometry tuned to seat:
+//   - The "+XX%" latest-dot label outside each panel without colliding
+//     with the adjacent panel in the same row OR running past the viewBox.
+//   - The x-axis date labels below row 1 WITHOUT colliding with row 2's
+//     panel titles. (GAP_Y must seat: 18px date-label offset below row 1's
+//     frame + ~11px text height + ~11px text height for row 2's title +
+//     8px title offset above row 2's frame + breathing room. 48px clears
+//     it with ~12px of breathing.)
+//
+// Horizontal label budget: Plex Mono 11px "+43%" reads ~30px wide. Label
+// starts 6px right of the dot, so the right-edge spill is ~36px past the
+// panel's right frame.
+//   - GAP_X = 60 leaves ~24px clear between a left-column label-end and
+//     the right-column panel start.
+//   - M_R = 48 leaves ~12px clear inside the viewBox right edge for the
+//     right-column label-end.
+const M_L = 56, M_R = 48, M_T = 36, M_B = 32;
+const GAP_X = 60, GAP_Y = 48;
+const cellW = (VB.W - M_L - M_R - GAP_X) / 2;
+const cellH = (VB.H - M_T - M_B - GAP_Y) / 2;
+
+// Y ticks - cover the full domain; force a tick at 0 by aligning stride.
+const yStride = pickStride(yLo, yHi);
+const yTicks: number[] = [];
+const startY = Math.ceil(yLo / yStride) * yStride;
+for (let v = startY; v <= yHi + 1e-9; v += yStride) yTicks.push(Number(v.toFixed(1)));
+
+// Format a tick value as a percent-change label. Top tick carries "%" unit.
+function fmtPctTick(v: number, isTop: boolean): string {
+  const rounded = Math.round(v);
+  if (rounded === 0) return isTop ? "0%" : "0";
+  const sign = rounded > 0 ? "+" : ""; // negative sign comes through naturally
+  return isTop ? `${sign}${rounded}%` : `${sign}${rounded}`;
+}
+
+// Format the latest-dot value label. Integer for >=10, one decimal if <10.
+function fmtValueLabel(v: number): string {
+  const a = Math.abs(v);
+  const sign = v >= 0 ? "+" : "-";
+  if (a >= 10) return `${sign}${Math.round(a)}%`;
+  // one decimal only if it adds information
+  const oneDp = a.toFixed(1);
+  if (oneDp.endsWith(".0")) return `${sign}${oneDp.slice(0, -2)}%`;
+  return `${sign}${oneDp}%`;
+}
+---
+
+<div class="alt-chart" data-panel="inflation-4-v2">
+  <svg
+    class="alt-chart__svg"
+    viewBox={`0 0 ${VB.W} ${VB.H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label="CPI components, four small multiples showing cumulative percent change since January 2019."
+  >
+    {trimmed.map((panel, idx) => {
+      const col = idx % 2;
+      const row = Math.floor(idx / 2);
+      const x0 = M_L + col * (cellW + GAP_X);
+      const y0 = M_T + row * (cellH + GAP_Y);
+      const x1 = x0 + cellW;
+      const y1 = y0 + cellH;
+      const xScale = (yr: number) => x0 + ((yr - xMin) / (xMax - xMin || 1)) * cellW;
+      const yScale = (v: number) => y0 + cellH - ((v - yLo) / (yHi - yLo)) * cellH;
+      let path = "", started = false;
+      for (const pt of panel.data) {
+        if (typeof pt.value !== "number") { started = false; continue; }
+        const xv = decYear(pt.date);
+        if (Number.isNaN(xv)) continue;
+        path += `${started ? "L" : "M"}${xScale(xv).toFixed(2)} ${yScale(pt.value).toFixed(2)} `;
+        started = true;
+      }
+      const last = [...panel.data].reverse().find((p) => typeof p.value === "number");
+      const xTicks = yearTicksFromX(xMin, xMax, xScale).filter((_, i) => i % 2 === 0);
+      return (
+        <g>
+          {yTicks.map((v) => {
+            const yy = yScale(v);
+            return <line class="alt-chart__gridline" x1={x0} y1={yy.toFixed(2)} x2={x1} y2={yy.toFixed(2)} />;
+          })}
+          <line class="alt-chart__reference-rule" x1={x0} y1={yScale(0).toFixed(2)} x2={x1} y2={yScale(0).toFixed(2)} />
+          <path class="alt-chart__line" d={path} fill="none" />
+          {last && (
+            <>
+              <circle
+                class="alt-chart__latest-dot"
+                cx={xScale(decYear(last.date)).toFixed(2)}
+                cy={yScale(last.value as number).toFixed(2)}
+                r="3.5"
+              >
+                <title>{`${panel.label} ${last.date}: ${fmtValueLabel(last.value as number)} vs Jan 2019`}</title>
+              </circle>
+              <text
+                class="panel4v2__value-label"
+                x={(xScale(decYear(last.date)) + 6).toFixed(2)}
+                y={(yScale(last.value as number) + 4).toFixed(2)}
+                text-anchor="start"
+              >
+                {fmtValueLabel(last.value as number)}
+              </text>
+            </>
+          )}
+          <rect class="alt-chart__frame" x={x0} y={y0} width={cellW} height={cellH} />
+          <text class="alt-chart__small-multiple-title" x={x0} y={y0 - 8}>{panel.label}</text>
+          {xTicks.map((t) => (
+            <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(y1 + 18).toFixed(2)} text-anchor="middle">{t.label}</text>
+          ))}
+          {row === 0 && col === 0 && yTicks.map((v, i) => {
+            const yy = yScale(v);
+            const isTop = i === yTicks.length - 1;
+            return (
+              <text class="alt-chart__ytick-label" x={(x0 - 8).toFixed(2)} y={(yy + 4).toFixed(2)} text-anchor="end">
+                {fmtPctTick(v, isTop)}
+              </text>
+            );
+          })}
+        </g>
+      );
+    })}
+  </svg>
+</div>
+
+<AltChartStyle />
+
+<style is:global>
+  /*
+   * Latest-dot value label. Plex Mono 11px, pure ink (NOT MTA red).
+   * Rationale: the four red dots already fire the brand-stamp moment;
+   * coloring the four labels red would over-saturate the 4-up grid.
+   * The dot reads as a brand stamp; the label reads as a measurement.
+   */
+  .panel4v2__value-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

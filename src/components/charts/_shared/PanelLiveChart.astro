@@ -34,18 +34,51 @@ import {
 interface Props {
   primary: PanelSeries;
   secondary?: PanelSeries | null;
+  /**
+   * Optional third series. Canon multi-series adaptation: rendered as 1px
+   * pure-ink stroke-dasharray "2 3" (sparser dash than secondary's "4 2");
+   * no latest-print red dot (the MTA-red stamp is reserved for the primary).
+   * Suppressed when its unit disagrees with the primary, identically to
+   * the secondary series. Defaults to null so existing two-series panels
+   * see zero visual change.
+   */
+  tertiary?: PanelSeries | null;
   /** Direct-label for the primary series. Manrope 600 at the line terminus. */
   primaryLabel?: string;
   /** Direct-label for the secondary series. Manrope 400 at the line terminus. */
   secondaryLabel?: string;
+  /** Direct-label for the tertiary series. Manrope 400 at the line terminus. */
+  tertiaryLabel?: string;
   /** Number of months of history to display. Default 60 (5 years). */
   windowMonths?: number;
   /** ARIA label override. */
   ariaLabel?: string;
+  /**
+   * Render the primary series as a step-after line (hold the previous value
+   * horizontally to the next observation, then jump vertically to the new
+   * value). Reserved for POLICY RATES, which are constant between discrete
+   * decision dates - a smooth linear interpolation implies a gradual move
+   * that did not happen. Default false (existing market / macro series stay
+   * linear).
+   */
+  primaryStep?: boolean;
+  /** Step-after rendering for the secondary series. Default false. */
+  secondaryStep?: boolean;
+  /** Step-after rendering for the tertiary series. Default false. */
+  tertiaryStep?: boolean;
   /** Reference rule value (eg 2 for the BoC target). */
   referenceValue?: number | null;
   /** Reference rule label (eg "2% BoC target"). */
   referenceLabel?: string | null;
+  /**
+   * Optional secondary reference rule value (eg the historical average for
+   * the secondary series in a dual-band panel). Same dashed-4-2 1px ink
+   * treatment as the primary reference rule; labels obey Rule L4
+   * suppression.
+   */
+  referenceValueSecondary?: number | null;
+  /** Optional secondary reference rule label. */
+  referenceLabelSecondary?: string | null;
   /** data-panel attribute for QA / theming hooks. */
   dataPanelAttr?: string;
 }
@@ -53,12 +86,19 @@ interface Props {
 const {
   primary,
   secondary = null,
+  tertiary = null,
   primaryLabel,
   secondaryLabel,
+  tertiaryLabel,
   windowMonths = 60,
   ariaLabel,
+  primaryStep = false,
+  secondaryStep = false,
+  tertiaryStep = false,
   referenceValue = null,
   referenceLabel = null,
+  referenceValueSecondary = null,
+  referenceLabelSecondary = null,
   dataPanelAttr,
 } = Astro.props;
 
@@ -66,6 +106,9 @@ const {
 const primDataFull: SeriesPoint[] = tailWindow(primary.data, windowMonths, primary.frequency);
 const secDataFull: SeriesPoint[] = secondary
   ? tailWindow(secondary.data, windowMonths, secondary.frequency)
+  : [];
+const terDataFull: SeriesPoint[] = tertiary
+  ? tailWindow(tertiary.data, windowMonths, tertiary.frequency)
   : [];
 
 // ---- Polyline simplification --------------------------------------------
@@ -88,6 +131,7 @@ function decimate(series: SeriesPoint[]): SeriesPoint[] {
 }
 const primData: SeriesPoint[] = decimate(primDataFull);
 const secData: SeriesPoint[] = decimate(secDataFull);
+const terData: SeriesPoint[] = decimate(terDataFull);
 
 // ---- Geometry (pinned to canon) ------------------------------------------
 const VB_W = 720;
@@ -103,10 +147,11 @@ const PLOT_H = VB_H - M_T - M_B;
 const PLOT_X1 = PLOT_X0 + PLOT_W;
 const PLOT_Y1 = PLOT_Y0 + PLOT_H;
 
-// ---- x-domain spans both series so they share an axis -------------------
+// ---- x-domain spans all series so they share an axis --------------------
 const primX = primData.map((d) => decYear(d.date)).filter((v) => !Number.isNaN(v));
 const secX = secData.map((d) => decYear(d.date)).filter((v) => !Number.isNaN(v));
-const xs = primX.concat(secX);
+const terX = terData.map((d) => decYear(d.date)).filter((v) => !Number.isNaN(v));
+const xs = primX.concat(secX).concat(terX);
 const xMin = xs.length > 0 ? Math.min(...xs) : 0;
 const xMax = xs.length > 0 ? Math.max(...xs) : 1;
 
@@ -117,11 +162,19 @@ const xMax = xs.length > 0 ? Math.max(...xs) : 1;
 const unitsMatch = secondary
   ? (primary.unit ?? "").toLowerCase() === (secondary.unit ?? "").toLowerCase()
   : false;
+const terUnitsMatch = tertiary
+  ? (primary.unit ?? "").toLowerCase() === (tertiary.unit ?? "").toLowerCase()
+  : false;
 const sharedSeries: number[] = primData
   .map((d) => d.value)
   .filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
 if (unitsMatch) {
   for (const d of secData) {
+    if (typeof d.value === "number" && !Number.isNaN(d.value)) sharedSeries.push(d.value);
+  }
+}
+if (terUnitsMatch) {
+  for (const d of terData) {
     if (typeof d.value === "number" && !Number.isNaN(d.value)) sharedSeries.push(d.value);
   }
 }
@@ -155,6 +208,10 @@ if (sharedSeries.length > 0) {
     if (referenceValue < yLo) yLo = referenceValue - span * 0.05;
     if (referenceValue > yHi) yHi = referenceValue + span * 0.05;
   }
+  if (referenceValueSecondary !== null && referenceValueSecondary !== undefined) {
+    if (referenceValueSecondary < yLo) yLo = referenceValueSecondary - span * 0.05;
+    if (referenceValueSecondary > yHi) yHi = referenceValueSecondary + span * 0.05;
+  }
 }
 const yRange = yHi - yLo || 1;
 const crossesZero = yLo < 0 && yHi > 0;
@@ -167,23 +224,41 @@ function yScale(v: number): number {
   return PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
 }
 
-function buildLinePath(series: SeriesPoint[]): string {
+// Path-builder. When `step=true`, emit a step-after line: hold the previous
+// value horizontally to the new observation's x, then jump vertically to the
+// new value. This is the correct rendering for policy rates (constant
+// between discrete decision dates). When `step=false` (default), emit the
+// canonical linear interpolation used for continuously traded market series.
+function buildLinePath(series: SeriesPoint[], step = false): string {
   let d = "";
   let started = false;
+  let prevY: number | null = null;
   for (const pt of series) {
     if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
     const xv = decYear(pt.date);
     if (Number.isNaN(xv)) continue;
-    const x = xScale(xv).toFixed(2);
-    const y = yScale(pt.value).toFixed(2);
-    d += `${started ? "L" : "M"}${x} ${y} `;
-    started = true;
+    const x = xScale(xv);
+    const y = yScale(pt.value);
+    const xs = x.toFixed(2);
+    const ys = y.toFixed(2);
+    if (!started) {
+      d += `M${xs} ${ys} `;
+      started = true;
+    } else if (step && prevY !== null) {
+      // Step-after: horizontal segment at the previous y to the new x,
+      // then vertical jump at the new x to the new y.
+      d += `L${xs} ${prevY.toFixed(2)} L${xs} ${ys} `;
+    } else {
+      d += `L${xs} ${ys} `;
+    }
+    prevY = y;
   }
   return d.trim();
 }
 
-const primPath = buildLinePath(primData);
-const secPath = unitsMatch ? buildLinePath(secData) : "";
+const primPath = buildLinePath(primData, primaryStep);
+const secPath = unitsMatch ? buildLinePath(secData, secondaryStep) : "";
+const terPath = terUnitsMatch ? buildLinePath(terData, tertiaryStep) : "";
 
 // ---- Latest ---------------------------------------------------------------
 function lastReal(series: SeriesPoint[]): { x: number; y: number; v: number; date: string } | null {
@@ -199,6 +274,7 @@ function lastReal(series: SeriesPoint[]): { x: number; y: number; v: number; dat
 }
 const lastPrim = lastReal(primData);
 const lastSec = unitsMatch ? lastReal(secData) : null;
+const lastTer = terUnitsMatch ? lastReal(terData) : null;
 
 // ---- Y-axis ticks --------------------------------------------------------
 function pickStride(lo: number, hi: number): number {
@@ -252,32 +328,56 @@ const primaryKind: ValueKind = (primary.kind as ValueKind | null | undefined)
   ?? inferKindFromUnit(primary.unit);
 const primaryScale = unitScaleFactor(primary.unit);
 
-const computedAria = ariaLabel ?? `${primary.label}${secondary && unitsMatch ? ` and ${secondary.label}` : ""}, last ${windowMonths} months. Latest print marked.`;
+const computedAria = ariaLabel ?? `${primary.label}${secondary && unitsMatch ? ` and ${secondary.label}` : ""}${tertiary && terUnitsMatch ? ` and ${tertiary.label}` : ""}, last ${windowMonths} months. Latest print marked.`;
 
-// ---- Reference rule -----------------------------------------------------
+// ---- Reference rule(s) --------------------------------------------------
 const refY = referenceValue !== null && referenceValue !== undefined
   ? yScale(referenceValue)
   : null;
 const showRef = refY !== null && referenceValue! >= yLo && referenceValue! <= yHi;
+const refY2 = referenceValueSecondary !== null && referenceValueSecondary !== undefined
+  ? yScale(referenceValueSecondary)
+  : null;
+const showRef2 = refY2 !== null && referenceValueSecondary! >= yLo && referenceValueSecondary! <= yHi;
 
 // ---- Direct label fallbacks ---------------------------------------------
-// Cap series-name labels at 14 chars per art-director canon (label-canon
-// rules in design/canon_reference_panel.md). The 96px right gutter on
-// the 720-wide viewBox gives ~14 Manrope chars at 13px before the label
-// risks running past the SVG viewBox right edge. Anything longer is
-// silently truncated with an ellipsis - the wrappers in
-// src/components/charts/<section>/Panel*.astro should pass short forms
-// (see chart-builder report 2026-05-11).
+// Series-name labels wrap to two lines when they exceed the 14-char budget
+// for a single line in the 96px right gutter (720-wide viewBox, Manrope
+// 13px). Break order: comma, space, dash/slash, hard split. Ellipsis is
+// NEVER used - per editorial direction, labels spill to a second line
+// rather than truncate. The wrappers in src/components/charts/<section>/
+// Panel*.astro should still pass concise forms; this is the safety net.
 const LABEL_MAX_CHARS = 14;
-function capLabel(s: string | null | undefined): string {
-  if (!s) return "";
-  if (s.length <= LABEL_MAX_CHARS) return s;
-  return s.slice(0, LABEL_MAX_CHARS - 1).trimEnd() + "…";
+function splitLabel(s: string | null | undefined): string[] {
+  if (!s) return [];
+  if (s.length <= LABEL_MAX_CHARS) return [s];
+  const trySplit = (idx: number, includeChar: boolean): string[] => {
+    const cut = includeChar ? idx + 1 : idx;
+    return [s.slice(0, cut).trimEnd(), s.slice(cut).trimStart()];
+  };
+  // 1. Comma in budget — split immediately after the comma so it stays
+  //    on the first line ("Per-cap GDP, Y/Y" -> ["Per-cap GDP,", "Y/Y"]).
+  const commaIdx = s.lastIndexOf(",", LABEL_MAX_CHARS - 1);
+  if (commaIdx > 0) return trySplit(commaIdx, true);
+  // 2. Space in budget.
+  const spaceIdx = s.lastIndexOf(" ", LABEL_MAX_CHARS - 1);
+  if (spaceIdx > 0) return trySplit(spaceIdx, false);
+  // 3. Slash or hyphen in budget — keep delimiter on first line.
+  const slashIdx = s.lastIndexOf("/", LABEL_MAX_CHARS - 1);
+  const dashIdx = s.lastIndexOf("-", LABEL_MAX_CHARS - 1);
+  const delimIdx = Math.max(slashIdx, dashIdx);
+  if (delimIdx > 0) return trySplit(delimIdx, true);
+  // 4. No breakable character — hard split at the budget. Reader still
+  //    sees the full label rather than an ellipsis.
+  return [s.slice(0, LABEL_MAX_CHARS), s.slice(LABEL_MAX_CHARS)];
 }
-const primDirectLabel = capLabel(primaryLabel ?? primary.label);
-const secDirectLabel = secondary && unitsMatch
-  ? capLabel(secondaryLabel ?? secondary.label)
-  : null;
+const primDirectLabelLines = splitLabel(primaryLabel ?? primary.label);
+const secDirectLabelLines = secondary && unitsMatch
+  ? splitLabel(secondaryLabel ?? secondary.label)
+  : [];
+const terDirectLabelLines = tertiary && terUnitsMatch
+  ? splitLabel(tertiaryLabel ?? tertiary.label)
+  : [];
 
 // ---- Label placement, no-overlap canon -----------------------------------
 // See design/canon_reference_panel.md "Label placement rules (no-overlap
@@ -295,31 +395,80 @@ const RECESSION_LABEL_Y = PLOT_Y0 + 12; // baseline of the recession label
 // natural anchor; secondary moves. If the secondary would fall off the
 // bottom margin, the move flips - secondary stays put and primary moves
 // up.
+// Multi-line labels (when splitLabel wrapped) extend further down the
+// y-axis. Inflate the collision guards so a 2-line primary label does not
+// land on top of the secondary direct label or the reference-rule label.
+const primExtraLines = Math.max(0, primDirectLabelLines.length - 1);
+const secExtraLines = Math.max(0, secDirectLabelLines.length - 1);
+const terExtraLines = Math.max(0, terDirectLabelLines.length - 1);
+const minDyForStack = LABEL_MIN_DY + Math.max(primExtraLines, secExtraLines, terExtraLines) * LABEL_LH;
+const minDyForRef = REF_LABEL_MIN_DY + Math.max(primExtraLines, secExtraLines, terExtraLines) * LABEL_LH;
+
 let primLabelY = lastPrim ? lastPrim.y + 4 : 0;
 let secLabelY = lastSec ? lastSec.y + 4 : 0;
-if (lastPrim && lastSec && secDirectLabel) {
-  if (Math.abs(primLabelY - secLabelY) < LABEL_MIN_DY) {
+let terLabelY = lastTer ? lastTer.y + 4 : 0;
+if (lastPrim && lastSec && secDirectLabelLines.length > 0) {
+  if (Math.abs(primLabelY - secLabelY) < minDyForStack) {
     // Default: secondary slides away from primary. Move direction = away
     // from primary's natural baseline. If both are at near-identical y,
     // the secondary slides DOWN (positive y) so the primary keeps its
     // visually-anchored position on the upper series.
     const moveDown = secLabelY >= primLabelY;
-    secLabelY = moveDown ? primLabelY + LABEL_LH : primLabelY - LABEL_LH;
+    const stackGap = LABEL_LH + primExtraLines * LABEL_LH;
+    secLabelY = moveDown ? primLabelY + stackGap : primLabelY - stackGap;
     // Bounds check: if the moved secondary would fall outside [PLOT_Y0+4,
     // PLOT_Y1 + M_B - 4], flip the move (primary moves instead).
     if (secLabelY < PLOT_Y0 + 4 || secLabelY > PLOT_Y1 + M_B - 4) {
       secLabelY = lastSec.y + 4;
-      primLabelY = moveDown ? secLabelY - LABEL_LH : secLabelY + LABEL_LH;
+      const flipGap = LABEL_LH + secExtraLines * LABEL_LH;
+      primLabelY = moveDown ? secLabelY - flipGap : secLabelY + flipGap;
     }
   }
+}
+// Tertiary stacks against BOTH primary and (post-stack) secondary. The
+// tertiary always moves; primary keeps its natural anchor, secondary keeps
+// the position assigned above. Pattern mirrors AltLineChart's three-line
+// stacking heuristic.
+if (lastTer && terDirectLabelLines.length > 0) {
+  const stackGapTer = LABEL_LH + Math.max(primExtraLines, secExtraLines) * LABEL_LH;
+  if (lastPrim && Math.abs(primLabelY - terLabelY) < minDyForStack) {
+    terLabelY = primLabelY + (terLabelY >= primLabelY ? stackGapTer : -stackGapTer);
+  }
+  if (lastSec && secDirectLabelLines.length > 0
+      && Math.abs(secLabelY - terLabelY) < minDyForStack) {
+    terLabelY = secLabelY + (terLabelY >= secLabelY ? stackGapTer : -stackGapTer);
+  }
+  // Bounds clamp - if the moved tertiary fell outside the legal band,
+  // snap it back inside; loss of strict no-overlap is acceptable here
+  // (three lines crowded into the same right gutter is an editorial
+  // signal the panel may need a wider window or per-chart spec, not a
+  // layout failure).
+  if (terLabelY < PLOT_Y0 + 4) terLabelY = PLOT_Y0 + 4;
+  if (terLabelY > PLOT_Y1 + M_B - 4) terLabelY = PLOT_Y1 + M_B - 4;
 }
 
 // Rule L4: reference-rule label is suppressed when within
 // REF_LABEL_MIN_DY of any direct label.
 let showRefLabel = showRef && !!referenceLabel;
 if (showRefLabel && refY !== null) {
-  if (lastPrim && Math.abs(primLabelY - refY) < REF_LABEL_MIN_DY) showRefLabel = false;
-  if (lastSec && secDirectLabel && Math.abs(secLabelY - refY) < REF_LABEL_MIN_DY) showRefLabel = false;
+  if (lastPrim && Math.abs(primLabelY - refY) < minDyForRef) showRefLabel = false;
+  if (lastSec && secDirectLabelLines.length > 0 && Math.abs(secLabelY - refY) < minDyForRef) showRefLabel = false;
+  if (lastTer && terDirectLabelLines.length > 0 && Math.abs(terLabelY - refY) < minDyForRef) showRefLabel = false;
+}
+let showRefLabel2 = showRef2 && !!referenceLabelSecondary;
+if (showRefLabel2 && refY2 !== null) {
+  if (lastPrim && Math.abs(primLabelY - refY2) < minDyForRef) showRefLabel2 = false;
+  if (lastSec && secDirectLabelLines.length > 0 && Math.abs(secLabelY - refY2) < minDyForRef) showRefLabel2 = false;
+  if (lastTer && terDirectLabelLines.length > 0 && Math.abs(terLabelY - refY2) < minDyForRef) showRefLabel2 = false;
+}
+// Inter-reference label collision: when both reference labels render and
+// their y-positions sit within REF_LABEL_MIN_DY of each other, suppress
+// the SECONDARY label. The primary reference label is the higher-priority
+// editorial signal (it carries the first-named historical average in the
+// breadth panel).
+if (showRefLabel && showRefLabel2 && refY !== null && refY2 !== null
+    && Math.abs(refY - refY2) < REF_LABEL_MIN_DY) {
+  showRefLabel2 = false;
 }
 
 // Rule L3: y-tick labels are suppressed within RECESSION_LABEL_GUARD of
@@ -401,12 +550,57 @@ function ytickSuppressed(tickY: number, isTopTick: boolean): boolean {
       </g>
     )}
 
+    {showRef2 && (
+      <g class="canon-chart__reference-group">
+        <line
+          class="canon-chart__reference-rule"
+          x1={PLOT_X0}
+          y1={(refY2 as number).toFixed(2)}
+          x2={PLOT_X1}
+          y2={(refY2 as number).toFixed(2)}
+        />
+        {showRefLabel2 && (
+          <text
+            class="canon-chart__reference-label"
+            x={(PLOT_X1 - 6).toFixed(2)}
+            y={((refY2 as number) - 5).toFixed(2)}
+            text-anchor="end"
+          >{referenceLabelSecondary}</text>
+        )}
+      </g>
+    )}
+
+    {terPath && (
+      <path class="canon-chart__line-tertiary" d={terPath} fill="none" />
+    )}
+
     {secPath && (
       <path class="canon-chart__line-secondary" d={secPath} fill="none" />
     )}
 
     {primPath && (
       <path class="canon-chart__line" d={primPath} fill="none" />
+    )}
+
+    {/* When the chart is a three-line panel, the secondary and tertiary
+       termini carry small pure-ink dots so each line's latest print
+       resolves visually under the direct label. Two-line panels keep the
+       canon's "dot on primary only" treatment (no change to existing). */}
+    {terPath && lastSec && (
+      <circle
+        class="canon-chart__latest-dot-secondary"
+        cx={lastSec.x.toFixed(2)}
+        cy={lastSec.y.toFixed(2)}
+        r="3"
+      />
+    )}
+    {terPath && lastTer && (
+      <circle
+        class="canon-chart__latest-dot-tertiary"
+        cx={lastTer.x.toFixed(2)}
+        cy={lastTer.y.toFixed(2)}
+        r="3"
+      />
     )}
 
     {lastPrim && (
@@ -463,21 +657,47 @@ function ytickSuppressed(tickY: number, isTopTick: boolean): boolean {
       );
     })}
 
-    {lastPrim && (
+    {lastPrim && primDirectLabelLines.length > 0 && (
       <text
         class="canon-chart__direct-label"
         x={(lastPrim.x + LABEL_GAP_X).toFixed(2)}
         y={primLabelY.toFixed(2)}
         text-anchor="start"
-      >{primDirectLabel}</text>
+      >
+        {primDirectLabelLines.map((line, i) => (
+          i === 0
+            ? <tspan>{line}</tspan>
+            : <tspan x={(lastPrim.x + LABEL_GAP_X).toFixed(2)} dy={LABEL_LH}>{line}</tspan>
+        ))}
+      </text>
     )}
-    {lastSec && secDirectLabel && (
+    {lastSec && secDirectLabelLines.length > 0 && (
       <text
         class="canon-chart__direct-label-secondary"
         x={(lastSec.x + LABEL_GAP_X).toFixed(2)}
         y={secLabelY.toFixed(2)}
         text-anchor="start"
-      >{secDirectLabel}</text>
+      >
+        {secDirectLabelLines.map((line, i) => (
+          i === 0
+            ? <tspan>{line}</tspan>
+            : <tspan x={(lastSec.x + LABEL_GAP_X).toFixed(2)} dy={LABEL_LH}>{line}</tspan>
+        ))}
+      </text>
+    )}
+    {lastTer && terDirectLabelLines.length > 0 && (
+      <text
+        class="canon-chart__direct-label-tertiary"
+        x={(lastTer.x + LABEL_GAP_X).toFixed(2)}
+        y={terLabelY.toFixed(2)}
+        text-anchor="start"
+      >
+        {terDirectLabelLines.map((line, i) => (
+          i === 0
+            ? <tspan>{line}</tspan>
+            : <tspan x={(lastTer.x + LABEL_GAP_X).toFixed(2)} dy={LABEL_LH}>{line}</tspan>
+        ))}
+      </text>
     )}
   </svg>
 </div>
@@ -505,7 +725,13 @@ function ytickSuppressed(tickY: number, isTopTick: boolean): boolean {
     stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2;
     stroke-linejoin: round; stroke-linecap: butt; fill: none; vector-effect: non-scaling-stroke;
   }
+  .canon-chart__line-tertiary {
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 2 3;
+    stroke-linejoin: round; stroke-linecap: butt; fill: none; vector-effect: non-scaling-stroke;
+  }
   .canon-chart__latest-dot { fill: var(--accent); stroke: none; }
+  .canon-chart__latest-dot-secondary { fill: var(--ink); stroke: none; }
+  .canon-chart__latest-dot-tertiary { fill: var(--ink); stroke: none; }
   .canon-chart__frame { fill: none; stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
   .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
   .canon-chart__xtick-label {
@@ -521,6 +747,10 @@ function ytickSuppressed(tickY: number, isTopTick: boolean): boolean {
     font-size: 13px; font-weight: var(--fw-semibold);
   }
   .canon-chart__direct-label-secondary {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px; font-weight: var(--fw-regular);
+  }
+  .canon-chart__direct-label-tertiary {
     fill: var(--ink); font-family: var(--font-sans);
     font-size: 13px; font-weight: var(--fw-regular);
   }

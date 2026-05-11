@@ -667,6 +667,19 @@ export interface DeepDive {
    * /experiments/* renders don't break.
    */
   status?: DeepDiveStatus;
+  /**
+   * Reader-facing draft flag. When set to "draft", the piece is shipped
+   * but the prose is AI-generated and pending human revision. The site
+   * renders a "DRAFT - HUMAN REVISION PENDING" stamp in the deep-dive
+   * header band (under the data-vintage line) and a "DRAFT" chip on the
+   * /research/ index row. Omit (or set to undefined) for human-edited
+   * pieces — no stamp renders.
+   *
+   * This is a credibility-protection lever for the reader: machine prose
+   * is acknowledged on-surface rather than passed off as authored copy.
+   * It is the one place red signals a non-data caveat in the canon.
+   */
+  draftStatus?: "draft";
 }
 
 export const deepDives: DeepDive[] = [
@@ -676,7 +689,7 @@ export const deepDives: DeepDive[] = [
     title: "Mortgage renewal wall: has it peaked?",
     deck:
       "The 2026 renewal cohort is the largest single tranche in the stack. We map where the residual transmission lands through 2027.",
-    publishedAt: "2026-05-11",
+    publishedAt: "2026-05-08",
     lastUpdated: "TK",
     // Latest dated source in the data-stamp paragraph is the BoC April 2026
     // MPR (April 29, 2026); CREA MLS HPI April 2026 ties on month but the
@@ -694,13 +707,14 @@ export const deepDives: DeepDive[] = [
     title: "BoC vs. Fed: how far can the divergence run?",
     deck:
       "The policy spread sits at the 8th percentile of three decades; USDCAD is at the 67th and strengthening. The binding constraint is not the loonie but the expectations chain.",
-    publishedAt: "2026-05-11",
-    lastUpdated: "2026-05-11",
+    publishedAt: "2026-05-10",
+    lastUpdated: "2026-05-10",
     dataVintage: "2026-05-11",
     draftPath: "editorial/drafts/deepdive_pillar_b_boc_fed_divergence_v1.md",
     publishedPath: "editorial/published/boc-fed-divergence.md",
     pillar: "B",
     status: "shipped",
+    draftStatus: "draft",
   },
   {
     slug: "per-capita-output",
@@ -708,13 +722,14 @@ export const deepDives: DeepDive[] = [
     title: "Per-capita output: deceleration or weakness?",
     deck:
       "The headline labour print is flattering. The per-capita series is not. We separate the population-deceleration story from the cyclical weakness story.",
-    publishedAt: "2026-05-11",
-    lastUpdated: "TK",
+    publishedAt: "2026-05-09",
+    lastUpdated: "2026-05-09",
     dataVintage: "2026-05-11",
     draftPath: "editorial/drafts/deepdive_pillar_e_per_capita_output_v1.md",
     publishedPath: "editorial/published/per-capita-output.md",
     pillar: "E",
     status: "drafted",
+    draftStatus: "draft",
   },
   {
     slug: "us-tariff-repricing",
@@ -728,6 +743,7 @@ export const deepDives: DeepDive[] = [
     draftPath: "editorial/drafts/deepdive_trade_tariffs_v1.md",
     publishedPath: "editorial/published/us-tariff-repricing.md",
     status: "shipped",
+    draftStatus: "draft",
   },
 ];
 
@@ -761,7 +777,7 @@ export const site = {
   // tagline to "Canadian macro" - confident, label-sized.
   tagline: "Canadian macro",
   description:
-    "Sibley Creek - Canadian macroeconomic indicators and analysis. A reading-first dashboard for analysts, policymakers, and serious citizens.",
+    "Sibley Creek - Canadian macroeconomic indicators and analysis. Independent research on GDP, inflation, labour, housing, monetary policy, markets, and trade.",
   locale: "en-CA",
   url: "https://example.invalid",
 };

@@ -71,6 +71,11 @@ class SlotSpec:
     tier: str = "raw"           # "raw" | "processed" | "derived"
     label: Optional[str] = None # display hint for the chart
     unit_override: Optional[str] = None  # if None, read from meta.units
+    # Override the cadence-based RECENT_WINDOW cap. Use sparingly: charts
+    # whose context requires the full history (e.g. breadth panels that
+    # compare to 1996-2019 historical averages) need more than the default
+    # 20 years of monthly data. None = use the cadence-based default.
+    window_override: Optional[int] = None
 
 
 @dataclass(frozen=True)
@@ -83,6 +88,11 @@ class PanelSpec:
     secondary: Optional[SlotSpec] = None
     tertiary: Optional[SlotSpec] = None
     extras: tuple[SlotSpec, ...] = ()  # ordered additional slots
+    # Optional companion JSON in data/derived/ surfaced verbatim under the
+    # panel's `metadata` field. Use this for scalar reference values that
+    # don't fit the {date, value} time-series schema (e.g. historical
+    # averages for reference bands). Path is relative to data/derived/.
+    metadata_path: Optional[str] = None
     # Status against current disk:
     #   "WIRED" - every named slot has a CSV on disk somewhere
     #   "NEAR"  - partial; some slots present, some missing -- see notes
@@ -193,9 +203,23 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         PanelSpec(
             panel_id="panel-3", section="inflation", panel_num=3,
             file="inflation/Panel3Breadth.astro",
-            primary=SlotSpec("cpi_components", "raw", label="Wide-format CPI components (date x ~60 components)"),
-            expected_status="NEAR",
-            notes="cpi_components.csv is wide-format (one column per component). Chart-builder computes share-above-3 / share-1-3 / share-below-1 + tilt distribution. Companion mapping JSON (cpi_breadth_mapping.json) lives in boc-tracker; can be re-derived from StatCan Table 18-10-0004 once on disk.",
+            primary=SlotSpec("cpi_breadth_above3", "processed",
+                             label="Share of basket with Y/Y > 3% (weighted)",
+                             window_override=420),  # ~35 years; covers 1995-12-present
+            secondary=SlotSpec("cpi_breadth_below1", "processed",
+                               label="Share of basket with Y/Y < 1% (weighted)",
+                               window_override=420),
+            metadata_path="cpi_breadth_band_metadata.json",
+            expected_status="WIRED",
+            notes=(
+                "Boc-tracker breadth recipe ported into pipeline.build."
+                "derive_cpi_breadth_band(). Two monthly time series (above3, "
+                "below1) plus a scalar metadata payload carrying the "
+                "1996-2019 historical averages for reference bands on the "
+                "chart. Weights from data/derived/cpi_component_weights_"
+                "canada.json; per-component levels from data/raw/cpi_"
+                "components.csv (must be force-added to git for CI deploys)."
+            ),
         ),
         PanelSpec(
             panel_id="panel-4", section="inflation", panel_num=4,
@@ -637,9 +661,12 @@ def _read_slot(slot: SlotSpec, data_root: Path) -> Optional[dict]:
                 logger.warning("panel_data: failed to parse meta %s: %s: %s",
                                meta_path, type(exc).__name__, exc)
                 meta = {}
-        # Window the data to keep file sizes sane.
+        # Window the data to keep file sizes sane. Per-slot override allows
+        # panels that need deeper history (e.g. inflation Panel 3 breadth,
+        # which references 1996-2019 averages) to opt out of the default.
         freq = (meta.get("frequency") or "monthly").lower()
-        window = RECENT_WINDOW.get(freq, RECENT_WINDOW["monthly"])
+        default_window = RECENT_WINDOW.get(freq, RECENT_WINDOW["monthly"])
+        window = slot.window_override if slot.window_override is not None else default_window
         if "date" in df.columns and not df.empty:
             df = df.sort_values("date").tail(window).reset_index(drop=True)
         as_of_iso = None
@@ -702,6 +729,26 @@ def _df_to_records(df: pd.DataFrame) -> list[dict]:
 # Per-section emitter
 # --------------------------------------------------------------------------- #
 
+def _read_metadata(path_rel: str, data_root: Path) -> Optional[dict]:
+    """Load a companion JSON from data/derived/<path_rel> for a panel.
+
+    Returns the parsed dict, or None if the file is missing / unparseable.
+    Per-panel-metadata is for scalar reference values that don't fit the
+    {date, value} time-series schema (e.g. historical averages for the
+    breadth chart's reference bands).
+    """
+    p = data_root / "derived" / path_rel
+    if not p.exists():
+        logger.warning("panel_data: metadata file not found: %s", p)
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("panel_data: failed to parse metadata %s: %s: %s",
+                       p, type(exc).__name__, exc)
+        return None
+
+
 def build_section_payload(section: str, data_root: Path) -> dict:
     """Build the per-section panel data payload for one section."""
     specs = PANEL_SPECS.get(section, [])
@@ -728,6 +775,10 @@ def build_section_payload(section: str, data_root: Path) -> dict:
                 payload = _read_slot(extra, data_root)
                 if payload is not None:
                     panel_obj["extras"].append(payload)
+            if spec.metadata_path is not None:
+                meta_payload = _read_metadata(spec.metadata_path, data_root)
+                if meta_payload is not None:
+                    panel_obj["metadata"] = meta_payload
         except Exception as exc:  # noqa: BLE001
             logger.error("panel_data: panel %s/%s construction failed: %s: %s",
                          section, spec.panel_id, type(exc).__name__, exc)

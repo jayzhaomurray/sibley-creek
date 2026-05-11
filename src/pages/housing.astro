@@ -38,7 +38,7 @@ const plates: Plate[] = [
     indicator: "MLS HPI, national + six CMAs, Y/Y",
     plateIndexLabel: "Prices",
     asOf: "Mar 2026",
-    title: "Composite HPI down 4.6% Y/Y; Toronto and Vancouver carry the drift, Montreal runs the other way",
+    title: "The national price decline masks a widening split between Toronto-Vancouver and Montreal.",
     interpretationHtml:
       "The national MLS HPI sits at <strong>-4.6% Y/Y</strong> in March 2026, the eighth consecutive month in negative territory. " +
       "Toronto (-7.2%) and Vancouver (-6.8%) lead the decline; Calgary, Ottawa, and Edmonton sit between -1.9 and -2.9%; " +
@@ -59,7 +59,7 @@ const plates: Plate[] = [
     indicator: "Starts, units under construction, residential permits",
     plateIndexLabel: "Activity",
     asOf: "Mar 2026 (starts) / Feb 2026 (permits)",
-    title: "Starts pulled back to 236K SAAR in March; the under-construction stock is the load-bearing variable",
+    title: "The completions pipeline, not new starts, is now carrying supply.",
     interpretation:
       "Housing starts came in at <strong>235.9K SAAR</strong> in March 2026, down from 251.0K in February and below the 2021-2023 average. " +
       "Units under construction held near 246K SAAR (January), keeping the completions pipeline elevated relative to the pre-2020 norm. " +
@@ -75,7 +75,7 @@ const plates: Plate[] = [
     indicator: "Sales-to-new-listings ratio, Canada",
     plateIndexLabel: "Inventory",
     asOf: "Feb 2026",
-    title: "Sales-to-new-listings at 47.6, the lower edge of balanced",
+    title: "Absorption is soft but has not tipped into a buyers' market.",
     interpretationHtml:
       "The national sales-to-new-listings ratio sits at <strong>47.6</strong> in February 2026, up from 46.4 in January but below the 50-to-70 band CREA describes as balanced. " +
       "The resale index has eased to 85.6, leaving Canada in a soft absorption regime rather than an outright buyers' market. " +
@@ -91,7 +91,7 @@ const plates: Plate[] = [
     indicator: "CPI rent and rented accommodation, Y/Y",
     plateIndexLabel: "Rent",
     asOf: "Mar 2026",
-    title: "CPI rent at 0.9% Y/Y; rented-accommodation prices turned negative",
+    title: "Rents are no longer rising; the level is now adjusting downward.",
     interpretation:
       "CPI rent decelerated to <strong>0.9% Y/Y</strong> in March 2026, the slowest reading since the 2020-2021 demand vacuum. " +
       "The rented-accommodation sub-series fell <strong>-2.5% Y/Y</strong>, an outright price decline driven by the unwind of the 2023-2024 newcomer-flow surge. " +
@@ -107,7 +107,7 @@ const plates: Plate[] = [
     indicator: "5-year conventional mortgage rate",
     plateIndexLabel: "Mortgage stack",
     asOf: "May 6, 2026",
-    title: "5-year conventional rate flat at 6.09% since February; the renewal wall has peaked",
+    title: "The renewal wall has peaked, with the residual risk rotating to the labour channel.",
     interpretation:
       "The 5-year conventional mortgage rate has held at <strong>6.09%</strong> for three months, anchored by the BoC's four consecutive holds at 2.25%. " +
       "The 2020-2021 fixed-rate cohort has now mostly rolled, and the mechanical pulse on household cash flows is fading. " +
@@ -123,7 +123,7 @@ const plates: Plate[] = [
     indicator: "Immigrant flow proxy and housing starts",
     plateIndexLabel: "Supply ratio",
     asOf: "Q4 2025 (immigrants) / Mar 2026 (starts)",
-    title: "Immigrant inflows have stepped down; the supply pipeline is finally running ahead of incremental demand",
+    title: "Supply is finally running ahead of incremental population-driven demand.",
     interpretation:
       "Quarterly immigrant arrivals fell to <strong>83,168</strong> in Q4 2025, down from 102,867 in Q3 and well below the 2022-2024 average that drove the rental squeeze. " +
       "Housing starts running near 236K SAAR in March now sit above the pace at which the incremental population is forming households. " +
@@ -139,7 +139,7 @@ const plates: Plate[] = [
     indicator: "BoC qualifying mortgage payment to income",
     plateIndexLabel: "Affordability",
     asOf: "Q4 2025",
-    title: "Affordability index at 42.7% of income, down 7.7pp from the Q2 2024 peak",
+    title: "Affordability is improving from peak but remains worse than prior stress episodes.",
     interpretationHtml:
       "The BoC's qualifying-mortgage-payment-to-income ratio sits at <strong>42.7%</strong> in Q4 2025, down from 43.2% in Q3 and 50.4% at the Q2 2024 peak. " +
       "The improvement traces to lower qualifying rates &mdash; the 5-year conventional has settled at 6.09% &mdash; partly offset by softer wage growth in the denominator. " +
@@ -161,10 +161,10 @@ const pageDescription =
   "Housing chartbook: prices (MLS HPI), starts and permits, sales and inventory, rents, the mortgage stack, " +
   "the population-to-housing-stock ratio, and the BoC affordability index.";
 
-const lede =
-  "The rate-sensitive sector: prices and activity, inventory and rents, the mortgage stack that carries " +
-  "the household balance sheet, the supply ratio against the population it has to absorb, and the affordability index " +
-  "that names what a new borrower would pay against current income.";
+// Lede reads the same editorial blurb the auto-blurb pipeline writes for the
+// splash tile (sections.ts -> section.blurb.body). Single source of truth: a
+// release-day fan-out updates one field and both surfaces refresh.
+const lede = section.blurb?.body ?? "";
 ---
 <SectionLayout
   slug="housing"

@@ -47,10 +47,16 @@ import logging
 import os
 import sys
 import traceback
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
 import pandas as pd
+
+
+def datetime_now_iso() -> str:
+    """ISO-formatted current UTC timestamp; isolated so tests can monkeypatch."""
+    return datetime.now(timezone.utc).isoformat()
 
 from pipeline.catalog import BOC_VALET_SERIES, STATCAN_SERIES
 from pipeline.catalog.boc_series import BocSpec
@@ -700,6 +706,178 @@ def derive_cpi_breadth_gt3() -> None:
     write_series(out, meta, DATA_PROCESSED)
 
 
+def derive_cpi_breadth_band() -> None:
+    """CPI breadth: share of basket with Y/Y above 3 and below 1 percent.
+
+    Ports the boc-tracker calculation (analyze.py lines ~88-104). Distinct
+    from `derive_cpi_breadth_gt3()`, which produces a different "share of
+    valid components" metric used by the inflation tile supporting print.
+    This derivation feeds the inflation Panel 3 breadth chart.
+
+    Algorithm (matches boc-tracker exactly):
+
+      1. Load per-component weights from cpi_component_weights_canada.json.
+      2. Load wide-format per-component CPI levels from cpi_components.csv.
+      3. Keep only components whose first valid observation is on or before
+         1995-01-01 (deep-history filter; sloughs off newer subindexes that
+         would distort the historical-average band).
+      4. Normalize the surviving weights to sum to 1.
+      5. Compute per-component Y/Y % change.
+      6. above3 = sum over components of weight x I(yoy > 3) x 100  (% of basket)
+         below1 = sum over components of weight x I(yoy < 1) x 100  (% of basket)
+      7. Drop months where any kept component has a missing Y/Y (the all-NaN
+         filter; protects against partial-release windows biasing the share).
+      8. 1996-2019 historical averages serve as reference lines on the chart.
+
+    Outputs:
+        data/processed/cpi_breadth_above3.csv  - monthly date, value (%)
+        data/processed/cpi_breadth_below1.csv  - monthly date, value (%)
+        data/derived/cpi_breadth_band_metadata.json
+            { "historical_avg_above3_1996_2019": float,
+              "historical_avg_below1_1996_2019": float,
+              "components_kept": int,
+              "weights_normalized_from": float,
+              "as_of_date": "YYYY-MM-DD",
+              "latest_above3": float,
+              "latest_below1": float,
+              "source": "...", "source_url": "...", "generated_at": ISO }
+
+    Boc-tracker leaves the original component coverage at the 1995-01-01
+    cutoff intentionally: this is the same component set the historical
+    averages are computed against, so changing it would invalidate the
+    1996-2019 reference lines. Do NOT relax this without re-checking
+    `editorial/methodology.md`.
+    """
+    import json as _json
+
+    components = _read_raw("cpi_components")
+    if components is None:
+        return
+    weights_path = DATA_DERIVED / "cpi_component_weights_canada.json"
+    if not weights_path.exists():
+        logger.warning("derive_cpi_breadth_band skipped: missing %s", weights_path)
+        return
+    mapping = _json.loads(weights_path.read_text(encoding="utf-8"))
+    weights = pd.Series(
+        {m["name"]: float(m["wt_value"]) for m in mapping if m.get("wt_value") is not None}
+    )
+
+    components = components.sort_values("date").reset_index(drop=True)
+    components = components.set_index("date")
+
+    # Deep-history filter: first valid index on or before 1995-01-01.
+    cutoff = pd.Timestamp("1995-01-01")
+    keep = [
+        c for c in components.columns
+        if c in weights.index and components[c].first_valid_index() is not None
+        and components[c].first_valid_index() <= cutoff
+    ]
+    if not keep:
+        logger.warning("derive_cpi_breadth_band: no components pass the 1995-01-01 filter")
+        return
+
+    comp = components[keep]
+    w = weights.reindex(keep).fillna(0.0)
+    w_sum_pre = float(w.sum())
+    if w_sum_pre <= 0:
+        logger.warning("derive_cpi_breadth_band: sum of kept weights is non-positive")
+        return
+    w = w / w.sum()
+
+    yoy_c = comp.pct_change(periods=12) * 100.0
+    above3 = yoy_c.gt(3.0).multiply(w, axis=1).sum(axis=1) * 100.0
+    below1 = yoy_c.lt(1.0).multiply(w, axis=1).sum(axis=1) * 100.0
+    valid = yoy_c.notna().all(axis=1)
+    above3 = above3[valid]
+    below1 = below1[valid]
+    if above3.empty:
+        logger.warning("derive_cpi_breadth_band: no months with full component coverage")
+        return
+
+    # Historical averages over 1996-2019 (BoC inflation-targeting era through
+    # the COVID break). Used as reference bands on the chart.
+    ha_above = float(above3.loc["1996":"2019"].mean())
+    ha_below = float(below1.loc["1996":"2019"].mean())
+    latest_date = above3.index.max()
+    latest_above3 = float(above3.loc[latest_date])
+    latest_below1 = float(below1.loc[latest_date])
+
+    def _series_to_df(s: pd.Series) -> pd.DataFrame:
+        out = s.reset_index()
+        out.columns = ["date", "value"]
+        return out
+
+    notes_common = (
+        f"Boc-tracker port (analyze.py 2026-05-11 vintage). Components kept = "
+        f"{len(keep)} (those with first_valid_index <= 1995-01-01, intersected "
+        f"with cpi_component_weights_canada.json). Weights renormalised over "
+        f"the kept set; original weight sum was {w_sum_pre:.2f} of 100. "
+        f"Monthly rows dropped when any kept component is missing its 12-mo "
+        f"prior observation (the all-valid mask). Historical reference: "
+        f"1996-2019 averages are {ha_above:.2f}% (above3) and {ha_below:.2f}% (below1)."
+    )
+
+    above_meta = SeriesMeta(
+        name="cpi_breadth_above3",
+        source="Statistics Canada Web Data Service (derived)",
+        source_url="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401",
+        source_id="cpi_components_yoy_basket_weighted_share_gt_3pct_bocrecipe",
+        units="% of weighted basket",
+        frequency="monthly",
+        notes=(
+            "Share of the CPI basket (weighted) with Y/Y inflation above 3%. "
+            + notes_common
+        ),
+        transform="basket_weighted_share(yoy>3, deep_history_1995_filter)",
+    )
+    write_series(_series_to_df(above3), above_meta, DATA_PROCESSED)
+
+    below_meta = SeriesMeta(
+        name="cpi_breadth_below1",
+        source="Statistics Canada Web Data Service (derived)",
+        source_url="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401",
+        source_id="cpi_components_yoy_basket_weighted_share_lt_1pct_bocrecipe",
+        units="% of weighted basket",
+        frequency="monthly",
+        notes=(
+            "Share of the CPI basket (weighted) with Y/Y inflation below 1%. "
+            + notes_common
+        ),
+        transform="basket_weighted_share(yoy<1, deep_history_1995_filter)",
+    )
+    write_series(_series_to_df(below1), below_meta, DATA_PROCESSED)
+
+    # Companion scalar payload: historical averages + provenance for the
+    # chart's reference bands. Lives in data/derived/ so panel_data can
+    # surface it without inventing a CSV-shaped wrapper for two scalars.
+    DATA_DERIVED.mkdir(parents=True, exist_ok=True)
+    band_meta = {
+        "name": "cpi_breadth_band_metadata",
+        "source": "Statistics Canada Web Data Service (derived)",
+        "source_url": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401",
+        "source_id": "cpi_breadth_band_historical_averages_1996_2019",
+        "units": "% of weighted basket",
+        "frequency": "monthly",
+        "components_kept": len(keep),
+        "weights_unnormalised_sum_pct": w_sum_pre,
+        "deep_history_cutoff": cutoff.date().isoformat(),
+        "historical_window_start": "1996-01-01",
+        "historical_window_end": "2019-12-31",
+        "historical_avg_above3_1996_2019": ha_above,
+        "historical_avg_below1_1996_2019": ha_below,
+        "as_of_date": latest_date.date().isoformat(),
+        "latest_above3": latest_above3,
+        "latest_below1": latest_below1,
+        "n_observations": int(len(above3)),
+        "generated_at": datetime_now_iso(),
+        "notes": notes_common,
+    }
+    (DATA_DERIVED / "cpi_breadth_band_metadata.json").write_text(
+        _json.dumps(band_meta, indent=2, sort_keys=False) + "\n",
+        encoding="utf-8",
+    )
+
+
 def derive_gdp_views() -> None:
     """Compute Y/Y for the monthly real-GDP series (Table 36-10-0434-01).
 
@@ -1123,6 +1301,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     logger.info("--- Derivations ---")
     _safe("derive_cpi_views", derive_cpi_views, failed)
     _safe("derive_cpi_breadth_gt3", derive_cpi_breadth_gt3, failed)
+    _safe("derive_cpi_breadth_band", derive_cpi_breadth_band, failed)
     _safe("derive_gdp_views", derive_gdp_views, failed)
     _safe("derive_gdp_per_capita_yoy", derive_gdp_per_capita_yoy, failed)
     _safe("derive_productivity_views", derive_productivity_views, failed)

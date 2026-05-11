@@ -63,7 +63,13 @@ export interface PanelData {
   notes?: string | null;
   primary: PanelSeries | null;
   secondary: PanelSeries | null;
-  /** Pipeline emits additional fields (tertiary, extras) which we ignore. */
+  /**
+   * Third series, when the panel's editorial argument calls for one
+   * (e.g. the markets-2 GoC curve view: 2y / 5y / 10y). Most panels
+   * leave this null. Consumed by PanelLiveChart via its `tertiary` prop.
+   */
+  tertiary?: PanelSeries | null;
+  /** Pipeline emits additional fields (extras) which we ignore. */
   [key: string]: unknown;
 }
 

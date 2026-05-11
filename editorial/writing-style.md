@@ -145,16 +145,78 @@ See Section 7 below for the full distinction. In one line:
 - Tonnes, barrels, cubic metres: SI / metric. `bbl/d` is acceptable
   for oil flows on second reference.
 
-### Headlines and chart titles
+### Chart-plate titles
 
-- Headlines and chart titles are sentence case, not title case:
-  `Core-trim ticks down, but services ex-shelter holds`.
-- No terminal period in headlines or chart titles.
-- A chart title states what the chart shows, not what the reader
-  should conclude: `Vacancy-to-unemployment ratio, 2015-2026` is a
-  title; `Labour market is loosening fastest in Ontario` is an
-  editorial annotation or a callout, not a chart title. Editorial
-  director scopes which is which.
+**Voice canon (the GDP page is the live reference).** A chart-plate
+title is a finished editorial sentence — not a description of the
+chart, not a recitation of the data, not a question. **The title
+carries the takeaway; the chart carries the data.** If a reader can
+get the title's content by glancing at the chart for two seconds, the
+title is doing nothing.
+
+Specifically: do NOT recite what the chart already shows
+("Wage measures spanned 3.1% to 4.8%"). DO state what the data MEANS
+("Wage growth is no longer the binding inflation risk."). Numbers in
+the title earn their place only when they ARE the takeaway (a
+threshold crossing, a regime shift, a record level).
+
+Rules:
+
+- **Sentence case, not title case.** Capitalize only the first word and
+  proper nouns.
+- **Terminal period.** Every chart-plate title ends with a period.
+  The period is the signal that this is a finished editorial
+  sentence, not a headline fragment.
+- **One declarative verb, present or past.** "Output gap widened to
+  -1.0% in Q4 2025, doubling the Q3 shortfall." "Aggregate growth
+  has run well ahead of per-capita output since 2019."
+- **Names the finding, not just the level.** "Productivity growth
+  decelerated sharply into year-end." beats "Productivity 0.3% Y/Y."
+- **One clause preferred; one extending clause OK.** Use a comma or
+  em-dash to extend; avoid semicolons (they push toward compound-
+  headline register and away from a single declarative sentence).
+- **No colons.** Colons are headline-style ("Breadth widens: a
+  quarter of the basket back above 3%"); we want a sentence.
+
+Examples (GDP page, live):
+
+- "An inventory drawdown swamped a positive domestic profile in
+  Q4." — takeaway only. The -0.6% headline is in the chart and the
+  callout. The title names the read: the headline misrepresents the
+  underlying picture.
+- "Aggregate growth has run well ahead of per-capita output since
+  2019." — takeaway only. No numbers. The chart shows the gap;
+  the title says why it matters.
+- "Productivity growth decelerated sharply into year-end." —
+  takeaway only.
+- "Output gap widened to -1.0% in Q4 2025, doubling the Q3
+  shortfall." — number-in-title format OK here: the threshold (-1%)
+  is itself a regime read, and "doubling" is the takeaway.
+
+Counter-examples (drift to fix — data recitation, no takeaway):
+
+- BAD: "Wage measures spanned 3.1% to 4.8%, with the composition-
+  adjusted reading sitting at the bottom." — pure description of
+  what's on the chart.
+  FIX: "Wage growth is no longer the binding inflation risk."
+  (Or whatever the actual editorial read is.)
+- BAD: "Settlement balances held near $64 billion as the floor-
+  maintenance phase continued." — describes the level.
+  FIX: "The Bank's balance sheet has settled into a stable
+  floor-maintenance regime."
+- BAD: "Capacity utilization sat at 78.5% in Q4, well below its
+  post-1996 average." — describes the level + reference.
+  FIX: "Capacity utilization remains consistent with a negative
+  output gap."
+- BAD: "Foreign direct investment by sector, inward and outward,
+  awaits ingestion." — describes the slot state.
+  FIX: keep as a passive descriptive line ONLY because the slot is
+  in-progress; flag the plate as data-pending so the canon doesn't
+  apply.
+
+The test: read the title without the chart. Does the reader learn
+something they couldn't get from a 2-second glance at the chart
+itself? If no, the title needs to be rewritten until yes.
 - Chart subtitles carry the unit and the date: `Per cent, monthly,
   to March 2026`.
 - Sources line, every chart: `Source: Statistics Canada Table
@@ -505,8 +567,17 @@ not allowed.
 ### Mode B: Deep-dive voice
 
 **Where it lives.** The eight pillars (Section 5 of
-`dashboard_purpose.md`) and any future deep dives. 1,200 to 2,500
-words typically; longer when the question demands.
+`dashboard_purpose.md`) and any future deep dives. Typical length is
+**1,000 to 1,750 words** (a 4-7 minute read). Reasoning: the
+publication's primary distribution is LinkedIn to a credentialed-
+but-skim-first audience; longer than ~1,750 words bleeds attention
+without proportional argument-gain. A piece that needs to run longer
+should be split into a sequence rather than scoped wider — one piece,
+one argument, one sit.
+
+If a piece is running past 1,750 words, the right cut is structural:
+delete a supporting sub-thesis, do not line-edit. Length without
+weight is verbosity.
 
 **What it sounds like.** A senior Canadian economist writing for a
 peer at CPP Investments. Argument-bearing. Willing to take a side.
