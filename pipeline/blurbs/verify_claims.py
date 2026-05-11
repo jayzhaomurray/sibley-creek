@@ -7,16 +7,17 @@ for the LLM-side judgment (claim_overreach detection) is documented in
 `pipeline/blurbs/README.md`:
 
     The LLM judgment step ("is `claim` a fair summary of the matched
-    span?") runs via direct Anthropic API call to `claude-opus-4-7` with
-    the API key in env var `ANTHROPIC_API_KEY`. Each card is one
-    fresh-context API call; the orchestrator does NOT batch cards across
-    a single API call -- one fresh context per card is the structural
-    defense against LLM consistency bias (auto_blurb_process.md Section
-    1.1). The dispatch mechanism is `anthropic.Anthropic().messages.create`;
-    if the `anthropic` package is not installed the orchestrator falls
-    back to mechanical verification only (url_404, text_not_present,
-    value_mismatch, source_kind_mismatch checks; claim_overreach is
-    flagged for human review).
+    span?") runs via `pipeline.blurbs.llm_client.call_claude` with model
+    pin `claude-opus-4-7`. Each card is one fresh-context call; the
+    orchestrator does NOT batch cards across a single call -- one fresh
+    context per card is the structural defense against LLM consistency
+    bias (auto_blurb_process.md Section 1.1). The dispatch resolves
+    to the `claude --print` CLI subprocess (subscription path) by
+    default, falling back to `anthropic.Anthropic().messages.create`
+    when `ANTHROPIC_API_KEY` is set. If neither is available, the
+    orchestrator falls back to mechanical verification only (url_404,
+    text_not_present, value_mismatch, source_kind_mismatch checks;
+    claim_overreach is flagged for human review).
 
 The mechanical checks (url_404, text_not_present, value_mismatch,
 source_kind_mismatch) do NOT need the LLM. They run as deterministic

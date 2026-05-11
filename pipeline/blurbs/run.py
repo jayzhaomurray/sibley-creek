@@ -10,10 +10,12 @@ Usage:
 
 Agent dispatch in Phase 1 ships as pluggable callables so tests can
 inject fixture responses without invoking LLMs. The production dispatch
-mechanism is documented in pipeline/blurbs/verify_claims.py (Anthropic
-API direct, env var `ANTHROPIC_API_KEY`); the dispatch hook itself lives
-in this module's `AGENT_DISPATCH` registry. The `verify_claims` step
-calls `verify_claim_file` directly (fresh-context Mode A).
+mechanism is `pipeline.blurbs.llm_client.call_claude`, which prefers the
+`claude --print` CLI subprocess (subscription path) and falls back to
+the Anthropic SDK (`ANTHROPIC_API_KEY`) when the CLI is unavailable. The
+dispatch hook itself lives in this module's `AGENT_DISPATCH` registry.
+The `verify_claims` step calls `verify_claim_file` directly
+(fresh-context Mode A).
 
 The orchestrator is intentionally side-effect heavy: it writes the
 wrapper cycle JSON, the per-surface artifact .md files, the shared-card
@@ -32,6 +34,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional, Protocol
@@ -39,7 +42,7 @@ from typing import Callable, Optional, Protocol
 from pipeline.blurbs import factcheck as fc_mod
 from pipeline.blurbs import validators as vd
 from pipeline.blurbs.artifact import CycleArtifact, read_artifact, write_artifact
-from pipeline.blurbs.email import send_release_cycle_review_email
+from pipeline.blurbs.email import render_email_body, send_release_cycle_review_email  # noqa: F401
 from pipeline.blurbs.registry import (
     RELEASE_KEYS,
     ReleaseKeySpec,
@@ -704,10 +707,53 @@ def _send_cycle_email(
     repo_root: Path,
     email_sender: Optional[Callable],
 ) -> None:
+    """Surface the completed cycle to the user.
+
+    v1: skip SMTP entirely. Append the cycle to `editorial/blurbs/_inbox.md`
+    and rely on the per-surface draft files (already written by
+    `_sync_artifact` at `editorial/blurbs/<section>/<unit-slug>/<release-id>.md`)
+    as the user-facing review surface.
+
+    Tests still pass `email_sender=<callable>`, in which case we honour the
+    test contract (delivery + assertion). Production runs leave
+    `email_sender=None`; SMTP is suppressed via the `BLURB_SKIP_EMAIL`
+    env var (default-on for v1) below.
+
+    DEFERRED v2: re-enable SMTP notification once delivery is wired.
+    """
+    # Test-injected sender: keep the existing path so unit tests still
+    # exercise `send_release_cycle_review_email` end-to-end.
+    if email_sender is not None:
+        result = send_release_cycle_review_email(
+            rc, repo_root=repo_root,
+            sender=email_sender,
+            backoff_seconds=(0.01, 0.01, 0.01),
+        )
+        for slot in rc.surfaces:
+            _append_log(
+                repo_root, slot, rc.release_id,
+                f"email_send sent={result.sent} "
+                f"inbox_appended={result.inbox_appended} "
+                f"error={result.error}",
+            )
+        return
+
+    # v1 production path: inbox file only. SMTP deferred.
+    if os.environ.get("BLURB_SKIP_EMAIL", "1") == "1":
+        subject, _body = render_email_body(rc, repo_root)
+        _write_inbox_v1(repo_root, rc, subject)
+        for slot in rc.surfaces:
+            _append_log(
+                repo_root, slot, rc.release_id,
+                f"inbox_appended=True (v1 file-mode; SMTP deferred)",
+            )
+        return
+
+    # DEFERRED v2: SMTP notification. To re-enable, unset BLURB_SKIP_EMAIL.
     result = send_release_cycle_review_email(
         rc, repo_root=repo_root,
-        sender=email_sender,
-        backoff_seconds=(0.01, 0.01, 0.01) if email_sender else (60.0, 300.0, 1800.0),
+        sender=None,
+        backoff_seconds=(60.0, 300.0, 1800.0),
     )
     for slot in rc.surfaces:
         _append_log(
@@ -716,6 +762,49 @@ def _send_cycle_email(
             f"inbox_appended={result.inbox_appended} "
             f"error={result.error}",
         )
+
+
+def _write_inbox_v1(repo_root: Path, rc: ReleaseCycle, subject: str) -> None:
+    """Append one entry per cycle to `editorial/blurbs/_inbox.md`.
+
+    The inbox is the v1 review surface (SMTP deferred). Each entry lists
+    the cycle id, the per-surface draft paths, and the wrapper-cycle path,
+    so the user can pivot from the inbox to any draft in one click.
+    """
+    inbox = repo_root / "editorial" / "blurbs" / "_inbox.md"
+    inbox.parent.mkdir(parents=True, exist_ok=True)
+    if not inbox.exists():
+        inbox.write_text(
+            "# Pending auto-blurb review\n\n"
+            "v1 file-mode inbox. Each entry below is one release-cycle "
+            "ready for human review. Open the per-surface draft files, "
+            "edit, then flip `status: ready_for_user` to `status: "
+            "approved` and commit.\n",
+            encoding="utf-8",
+        )
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    section_label = (
+        rc.section.capitalize() if rc.section != "_global" else "Global"
+    )
+    lines = [
+        "",
+        f"## {now} {rc.release_id}",
+        f"- subject: {subject}",
+        f"- section: {section_label}",
+        f"- reference period: {rc.reference_period}",
+        f"- release date: {rc.release_date or '(unknown)'}",
+        f"- surfaces: {len(rc.surfaces)}",
+        f"- wrapper: editorial/blurbs/_cycles/{rc.release_id}.json",
+        "- drafts:",
+    ]
+    for slot in rc.surfaces:
+        tag = (
+            " [ESCALATED]" if slot.last_state == "escalated"
+            else f" [{slot.last_state}]"
+        )
+        lines.append(f"  - {slot.surface_id}{tag}: {slot.artifact_path}")
+    with inbox.open("a", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
 
 
 # ---------------------------------------------------------------------------
