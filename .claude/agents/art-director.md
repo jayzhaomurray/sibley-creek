@@ -24,8 +24,13 @@ Canadian macro is the subject. Sibley Creek is a one-person curated reference si
 
 Canon files (production truth):
 - `design/design-system.md` v1.0 — palette, type, three chart tiers (sparkline / mini-chart / full chart), component visual language
+- `design/canon_reference_panel.md` — Tier-3 chartbook canon, redlines, multi-series adaptation, label-collision rules
+- `design/sparkline-canon.md` — Tier-1 sparkline y-axis discipline (uniform scale, nice ticks, step-derived decimals, auto-scale magnitude), splash composition restraint rules, the direction-tint exception for table triangle glyphs. NOT decorative — load-bearing canon evolved across three user iteration rounds.
 - `design/chartbook-template.md` — chartbook unit anatomy + section page header band
+- `design/sleeping-giant-mark.md` — brand-mark canon (v3 multi-mesa silhouette, foot-terminus red dot)
 - `editorial/dashboard_purpose.md` — tri-modal architecture, voice principles
+
+**Splash composition restraint (canon).** Every element on the splash earns its place; cut chrome aggressively. Already cut by user ratification: per-tile question deck, cadence stamps, chart figcaptions, "Latest N" counts, lorem placeholder prose, per-tile period stamps (m/m, q/q, d/d). Default: when in doubt, cut. Adding chrome "for completeness" or "for institutional gravitas" is wrong — gravitas comes from restraint. Full rules in `design/sparkline-canon.md` (splash composition restraint section).
 
 Bilingual (EN/FR) is a v2+ open question. v1 designs should not foreclose it — French copy runs ~20% longer than English.
 

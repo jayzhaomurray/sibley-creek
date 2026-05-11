@@ -48,7 +48,11 @@ interface Props {
   showRail?: boolean;
 }
 
-// Props.showRail is intentionally not destructured; see interface doc above.
+// Props.showRail is intentionally not consumed at render; see interface doc
+// above. We destructure it into `_showRail` so the Props interface is
+// referenced (silencing ts(6196) "declared but never used") while making the
+// "intentionally unread" intent visible at the call site.
+const { showRail: _showRail } = Astro.props as Props;
 
 const pathname = Astro.url.pathname;
 const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";

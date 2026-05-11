@@ -1,0 +1,226 @@
+---
+/*
+ * 404 - "Not in the publication" page.
+ *
+ * Vignelli register, single page treatment. Renders inside BaseLayout so
+ * the masthead and colophon match every other page; the body is a tight
+ * one-pane composition:
+ *
+ *   - Display "404" set in Manrope 800 at the page-hero size.
+ *   - A single signal-red dot follows the numeral (the permitted accent
+ *     moment per design-system Section 3; same vocabulary as a chart
+ *     latest-print dot).
+ *   - One-line explanation in Manrope ExtraLight (200), the same quiet
+ *     weight TitleStatement uses for its abstract.
+ *   - A "Return home" link in micro-caps eyebrow style.
+ *   - A secondary affordance: the seven section labels as pipe-separated
+ *     micro-caps, echoing the masthead nav exactly so the reader can
+ *     re-enter the publication wherever they meant to land.
+ *
+ * No JS. No animation. No images. Astro renders this to dist/404.html;
+ * GitHub Pages serves it for unknown routes automatically.
+ */
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { sections } from "../data/sections";
+import { withBase } from "../lib/urls";
+
+const title = "404";
+// SEO description: short, accurate, brand-neutral. Search engines should
+// know this is a not-found page; we don't pretend it's content.
+const description =
+  "Page not found. The address you followed is not part of Sibley Creek.";
+---
+<BaseLayout
+  title={title}
+  description={description}
+  pageClass="not-found-page"
+>
+  <article class="nf" aria-labelledby="nf-h">
+    <p class="nf__eyebrow">Not found</p>
+
+    <h1 id="nf-h" class="nf__h">
+      <span class="nf__num">404</span>
+      <span class="nf__dot" aria-hidden="true"></span>
+    </h1>
+
+    <p class="nf__lede">
+      This page is not part of the publication.
+    </p>
+
+    <p class="nf__return">
+      <a class="nf__return-link" href={withBase("/")}>Return home</a>
+    </p>
+
+    <nav class="nf__sections" aria-label="Publication sections">
+      <ul role="list" class="nf__sections-list">
+        {sections.map((section) => (
+          <li class="nf__sections-item">
+            <a
+              class="nf__sections-link"
+              href={withBase(`/${section.slug}/`)}
+            >
+              {section.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </article>
+</BaseLayout>
+
+<style>
+  /* Pane spacing: generous top so the numeral has air, generous bottom so
+   * the colophon doesn't crowd. The numeral does the work; everything
+   * else is restrained. */
+  .nf {
+    padding-block: 96px 96px;
+    max-width: 64ch;
+  }
+
+  .nf__eyebrow {
+    margin: 0 0 24px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  .nf__h {
+    margin: 0;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 14px;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    /* Manrope 800 display numeral. Sized one notch above display-xl
+     * (40px) because a 3-digit numeral set alone needs the weight of a
+     * real headline mark, not a sub-display. Clamps for small screens. */
+    font-size: clamp(72px, 12vw, 128px);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .nf__num {
+    /* tabular figures so the three digits sit on an even rhythm. */
+    font-variant-numeric: tabular-nums;
+  }
+  /* The permitted accent moment: a single signal-red dot, sized to match
+   * a chart latest-print dot (8px). Sits on the baseline of the numeral,
+   * a hair off the right edge - same role as the dot beside a load-
+   * bearing print value elsewhere on the site. */
+  .nf__dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background: var(--accent);
+    border-radius: 50%;
+    /* Lift it slightly off the descender baseline so it reads beside
+     * the numeral's optical center, not under it. */
+    transform: translateY(-6px);
+  }
+
+  .nf__lede {
+    margin: 28px 0 0;
+    font-family: var(--font-sans);
+    /* ExtraLight (200) - the quiet weight, matches TitleStatement's
+     * abstract and the deck role in the design-system type ladder. */
+    font-weight: 200;
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--ink);
+    max-width: 48ch;
+  }
+
+  .nf__return {
+    margin: 36px 0 0;
+  }
+  .nf__return-link {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+    text-decoration: none;
+    padding-bottom: 3px;
+    border-bottom: 1px solid var(--ink);
+    transition: color 80ms linear, border-color 80ms linear;
+  }
+  .nf__return-link:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .nf__return-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  /* Secondary affordance: the seven section labels in the same
+   * micro-caps + pipe-separator vocabulary as the masthead nav. Kept
+   * intentionally tight so it reads as a chrome row, not a menu. */
+  .nf__sections {
+    margin-top: 56px;
+    padding-top: 16px;
+    border-top: 1px solid var(--ink);
+  }
+  .nf__sections-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    row-gap: 6px;
+  }
+  .nf__sections-item {
+    display: inline-flex;
+    align-items: baseline;
+  }
+  .nf__sections-item + .nf__sections-item::before {
+    content: "|";
+    display: inline-block;
+    margin: 0 9px;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 11px;
+    line-height: 1.2;
+    color: var(--ink-faint);
+    opacity: 0.32;
+    vertical-align: baseline;
+  }
+  .nf__sections-link {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink);
+    text-decoration: none;
+    padding-block: 4px;
+    border-bottom: 1px solid transparent;
+    transition: border-color 80ms linear;
+    white-space: nowrap;
+  }
+  .nf__sections-link:hover {
+    border-bottom-color: var(--ink);
+  }
+  .nf__sections-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  @media (max-width: 720px) {
+    .nf {
+      padding-block: 56px 64px;
+    }
+    .nf__sections {
+      margin-top: 40px;
+    }
+  }
+</style>

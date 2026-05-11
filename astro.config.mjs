@@ -1,5 +1,6 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 //
@@ -19,12 +20,25 @@ import { defineConfig } from 'astro/config';
 // build.format: 'directory' — every page emits as /path/index.html,
 //   which pairs with trailingSlash=always for clean URLs.
 //
-// Keep this file minimal. Integrations (sitemap, mdx, etc.) get added
-// here when there is a concrete reader-facing reason — not preemptively.
+// Integrations:
+//   sitemap — auto-discovers static routes that Astro emits during the
+//     build. Emits /sitemap-index.xml + /sitemap-0.xml, honoring `site`
+//     above. Dynamic /research/<slug>/ pages are already gated by the
+//     getStaticPaths publishedPath filter in src/pages/research/[slug].astro,
+//     so unpublished deep-dives never reach the sitemap. The `filter`
+//     defensively excludes /_experiments/* (Astro already skips _-prefixed
+//     pages, but we don't want one to ever leak via a future rename) and
+//     /og-preview/ (the OG-card render-target page, not a reader route).
 export default defineConfig({
   site: 'https://sibleycreek.ca',
   trailingSlash: 'always',
   build: {
     format: 'directory',
   },
+  integrations: [
+    sitemap({
+      filter: (page) =>
+        !page.includes('/_experiments/') && !page.includes('/og-preview/'),
+    }),
+  ],
 });
