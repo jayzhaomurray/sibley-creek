@@ -1,0 +1,594 @@
+---
+/*
+ * PanelCanonReference - CANONICAL Tier-3 chartbook chart reference.
+ *
+ * STATUS. Blessed template. Authored by art-director, 2026-05-11.
+ * Source of truth for every Tier-3 panel in src/components/charts/<section>/
+ * (GDP, Inflation, Labour, Housing, Policy, Markets, Trade). chart-builder
+ * copies this file's structure when authoring a new panel; deviations
+ * require art-director sign-off.
+ *
+ * Companion doc: design/canon_reference_panel.md. Read it before copying.
+ *
+ * Scope of this file. Demonstrates every Tier-3 rule from
+ * design/design-system.md Section 5.3, Section 10, and the resolved
+ * tick-typography decision (see companion doc). Concretely:
+ *
+ *   1. Pure ink (#000000) 1.5px line stroke. No section-accent on data.
+ *   2. 4px MTA red filled circle (var(--accent)) at the latest print.
+ *   3. 1px pure ink hairline plot frame (rectangle around plot area).
+ *   4. 4 horizontal gridlines, pure ink, stroke-opacity 0.18.
+ *   5. Y-axis tick labels in IBM Plex Mono 400 micro (12px) pure ink,
+ *      right-aligned in left gutter; topmost tick carries the unit.
+ *      (Section 10 cohesion wins over Section 5.3 Manrope-400 wording -
+ *      see companion doc "Resolved canon contradiction.")
+ *   6. X-axis tick labels in Manrope 400 micro (12px) pure ink, 5 ticks.
+ *   7. Zero line at 1px pure ink, 100% opacity, heavier than gridlines
+ *      (gated by data.crossesZero).
+ *   8. Optional reference rule (e.g. 2% BoC target) at 1px pure ink
+ *      dashed 4 2.
+ *   9. Optional recession band at rgba(21,23,26,0.06) ink wash, behind
+ *      data, with a micro-caps 600 pure-ink label at the top of the band.
+ *  10. One direct end-of-line label, Manrope 600 label-size (13px), pure
+ *      ink. Replaces a legend.
+ *  11. One hand-tuned annotation: 1px pure ink leader (no arrowhead),
+ *      Manrope 400 body-sm (15px) anchor word in 600. Sits in white space.
+ *  12. Native SVG <title> on every data point. No custom hover, no JS.
+ *  13. 720 x 405 viewBox (16:9), preserveAspectRatio xMidYMid meet.
+ *  14. aspect-ratio CSS reserves space in the chartbook-unit slot.
+ *  15. aria-label for accessibility.
+ *
+ * Scenario. A single-series time series of headline CPI Y/Y, 60 monthly
+ * prints ending Apr 2026, with a 2% BoC target reference rule, the
+ * 2020Q1-Q2 recession band (mostly outside the 5-year window in the
+ * synthetic data, retained as a wiring demonstration), one direct
+ * end-of-line label "CPI Y/Y", and one anchored annotation on the most
+ * recent print. Synthetic data; the point is the chart treatment, not
+ * the data.
+ *
+ * What this file does NOT do.
+ *   - No section-accent tokens on data marks. EVER. Section accents may
+ *     appear on chartbook-unit chrome (e.g. the plate-number numeral
+ *     elsewhere), but not on the line, the dot, or the direct label.
+ *   - No dual-axis. Tier-3 single-series default per Section 5.3.
+ *   - No legend. Direct labels replace legends.
+ *   - No client JS. No hover crosshair. No animated reveals.
+ *
+ * Multi-series adaptation. For a multi-series panel (e.g. labour Panel 1
+ * unrate primary + emprate secondary), the secondary series is a 1px
+ * pure-ink dashed line (stroke-dasharray "4 2"), NOT a second color.
+ * See companion doc for the labour Panel 1 redline.
+ */
+
+interface DataPoint {
+  /** ISO month string "YYYY-MM" for the print. */
+  date: string;
+  /** Y/Y percent. */
+  yoy: number;
+}
+
+interface Props {
+  /** Tidy frame from backend. If omitted, synthetic placeholder is used. */
+  data?: DataPoint[];
+  /**
+   * Reference-rule value in same units as data (e.g. 2 for "2% BoC target").
+   * Null disables the reference rule.
+   */
+  referenceValue?: number | null;
+  /** Label for the reference rule, e.g. "2% BoC target". */
+  referenceLabel?: string;
+  /**
+   * Annotation copy on the latest print. Owned by writer; the anchor word
+   * is wrapped in **double asterisks** which this component renders in 600.
+   * e.g. "**Apr** print held at 2.1%, fourth month at target."
+   */
+  recentAnnotation?: string;
+  /** Direct label at the line terminus. */
+  seriesLabel?: string;
+  /** ARIA label for the SVG. */
+  ariaLabel?: string;
+}
+
+// ---- Synthetic placeholder series (60 months ending Apr 2026) -------------
+function buildPlaceholder(): DataPoint[] {
+  const out: DataPoint[] = [];
+  // Shape: pre-2021 ~2%, climbs through 2021, peaks mid-2022 around 8.1%,
+  // disinflates through 2023-2024, settles near 2.1% by 2025-2026.
+  let y = 2021;
+  let m = 5; // May 2021 -> Apr 2026, 60 months.
+  for (let i = 0; i < 60; i++) {
+    let v: number;
+    if (i < 14) v = 3.6 + (8.1 - 3.6) * (i / 14);          // climb to peak
+    else if (i < 28) v = 8.1 - (8.1 - 3.5) * ((i - 14) / 14); // disinflate
+    else if (i < 44) v = 3.5 - (3.5 - 2.1) * ((i - 28) / 16); // glide
+    else v = 2.1 + 0.05 * Math.sin(i * 0.7);                 // hover at target
+    out.push({ date: `${y}-${String(m).padStart(2, "0")}`, yoy: Number(v.toFixed(2)) });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+const {
+  data = buildPlaceholder(),
+  referenceValue = 2,
+  referenceLabel = "2% BoC target",
+  recentAnnotation = "**Apr** print held at 2.1%, fourth month at target.",
+  seriesLabel = "CPI Y/Y",
+  ariaLabel = "Headline CPI year-over-year, monthly, last 5 years. Latest print is the most recent month.",
+} = Astro.props;
+
+// ---- Geometry -------------------------------------------------------------
+// 16:9 viewBox keeps a chartbook-unit slot legible at any width.
+const VB_W = 720;
+const VB_H = 405;
+// Generous left gutter for Plex Mono tick labels (mono is wider than sans).
+const M_L = 56;
+// Right gutter holds the end-of-line direct label.
+const M_R = 88;
+const M_T = 44;  // top: room for recession-band label, hand-tuned annotation
+const M_B = 40;  // bottom: x-axis ticks + Manrope micro labels
+
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+// ---- Scales ---------------------------------------------------------------
+function decYearOf(d: string): number {
+  const [yy, mm] = d.split("-").map(Number);
+  return yy + (mm - 0.5) / 12;
+}
+const xs = data.map((d) => decYearOf(d.date));
+const xMin = xs[0];
+const xMax = xs[xs.length - 1];
+
+const ys = data.map((d) => d.yoy);
+const rawMin = Math.min(...ys, referenceValue ?? Infinity);
+const rawMax = Math.max(...ys, referenceValue ?? -Infinity);
+// Symmetric padding; clip to whole-percent ticks.
+const yPad = (rawMax - rawMin) * 0.10;
+const yLo = Math.floor(rawMin - yPad);
+const yHi = Math.ceil(rawMax + yPad);
+const crossesZero = yLo < 0 && yHi > 0;
+
+function xScale(decY: number): number {
+  if (xMax === xMin) return PLOT_X0 + PLOT_W / 2;
+  return PLOT_X0 + ((decY - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - yLo) / (yHi - yLo)) * PLOT_H;
+}
+
+// ---- Gridlines ------------------------------------------------------------
+// Aim for 4 horizontal gridlines (Section 5.3: 3-5 max). Pick a stride that
+// lands integer ticks across the y range.
+function pickGridStride(lo: number, hi: number): number {
+  const span = hi - lo;
+  const candidates = [0.5, 1, 2, 2.5, 5];
+  for (const s of candidates) {
+    const n = Math.round(span / s);
+    if (n >= 3 && n <= 5) return s;
+  }
+  return Math.max(1, Math.round(span / 4));
+}
+const gridStride = pickGridStride(yLo, yHi);
+const yTicks: number[] = [];
+for (let v = yLo; v <= yHi + 1e-9; v += gridStride) {
+  yTicks.push(Number(v.toFixed(2)));
+}
+
+// ---- X ticks: ~5 evenly spaced year anchors -------------------------------
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const allYearTicks: Array<{ x: number; label: string }> = [];
+for (let yr = yearStart; yr <= yearEnd; yr++) {
+  const decY = yr + (1 - 0.5) / 12; // mid-January
+  if (decY < xMin || decY > xMax) continue;
+  allYearTicks.push({ x: xScale(decY), label: String(yr) });
+}
+// Cap at 5 ticks: pick every-Nth so density stays editorial.
+const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 5));
+const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
+
+// ---- Line path ------------------------------------------------------------
+const linePath = data
+  .map((d, i) => {
+    const x = xScale(xs[i]);
+    const y = yScale(d.yoy);
+    return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+  })
+  .join(" ");
+
+// ---- Latest print --------------------------------------------------------
+const n = data.length;
+const latest = data[n - 1];
+const latestX = xScale(xs[n - 1]);
+const latestY = yScale(latest.yoy);
+
+// ---- Recession band (2020Q1-Q2) ------------------------------------------
+// Outside the 5-year window in synthetic data; retained as a wiring example.
+const recStart = 2020 + (2 - 0.5) / 12;
+const recEnd = 2020 + (4 - 0.5) / 12;
+const recVisible = recEnd >= xMin && recStart <= xMax;
+const recX0 = recVisible ? xScale(Math.max(recStart, xMin)) : 0;
+const recX1 = recVisible ? xScale(Math.min(recEnd, xMax)) : 0;
+
+// ---- Annotation geometry --------------------------------------------------
+// Anchor word goes in 600; rest in 400. Owned by writer; we parse **bold**.
+function parseAnchor(s: string): Array<{ text: string; bold: boolean }> {
+  const parts: Array<{ text: string; bold: boolean }> = [];
+  const re = /\*\*([^*]+)\*\*/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(s)) !== null) {
+    if (m.index > last) parts.push({ text: s.slice(last, m.index), bold: false });
+    parts.push({ text: m[1], bold: true });
+    last = m.index + m[0].length;
+  }
+  if (last < s.length) parts.push({ text: s.slice(last), bold: false });
+  return parts;
+}
+const annoParts = recentAnnotation ? parseAnchor(recentAnnotation) : [];
+
+// Hand-tuned placement. Annotation sits in upper-left white space, leader
+// runs from the annotation right-edge to the latest-point dot, ending 4px
+// short of the dot.
+const annoX0 = PLOT_X0 + 18;                 // left edge of annotation block
+const annoY0 = PLOT_Y0 + 22;                 // baseline of annotation
+const annoMaxWidth = PLOT_W * 0.50;          // ~50% of plot width for wrap
+// Leader: from annotation right-end to the latest dot. Simple straight
+// segment; we elbow vertically if the annotation row is far above the dot.
+const leaderStartX = annoX0 + Math.min(annoMaxWidth, 220);
+const leaderStartY = annoY0 - 4;
+const leaderEndX = latestX - 7;              // 4px short of the 4px-radius dot
+const leaderEndY = latestY;
+---
+<div class="canon-chart" data-canon-reference>
+  <svg
+    class="canon-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* 1. Recession band - behind everything */}
+    {recVisible && (
+      <g class="canon-chart__recession-group">
+        <rect
+          class="canon-chart__recession"
+          x={recX0.toFixed(2)}
+          y={PLOT_Y0}
+          width={Math.max(1, recX1 - recX0).toFixed(2)}
+          height={PLOT_H}
+        />
+        <text
+          class="canon-chart__recession-label"
+          x={((recX0 + recX1) / 2).toFixed(2)}
+          y={(PLOT_Y0 + 12).toFixed(2)}
+          text-anchor="middle"
+        >RECESSION (2020Q1-Q2)</text>
+      </g>
+    )}
+
+    {/* 2. Horizontal gridlines - pure ink at low opacity */}
+    {yTicks.map((v) => {
+      const y = yScale(v);
+      const isZero = crossesZero && Math.abs(v) < 1e-9;
+      // Skip the zero line here; drawn separately at full opacity.
+      if (isZero) return null;
+      return (
+        <line
+          class="canon-chart__gridline"
+          x1={PLOT_X0}
+          y1={y.toFixed(2)}
+          x2={PLOT_X1}
+          y2={y.toFixed(2)}
+        />
+      );
+    })}
+
+    {/* 3. Zero line - heavier than gridlines, only when data crosses zero */}
+    {crossesZero && (
+      <line
+        class="canon-chart__zero-line"
+        x1={PLOT_X0}
+        y1={yScale(0).toFixed(2)}
+        x2={PLOT_X1}
+        y2={yScale(0).toFixed(2)}
+      />
+    )}
+
+    {/* 4. Reference rule (e.g. 2% BoC target) - dashed pure ink */}
+    {referenceValue !== null && referenceValue >= yLo && referenceValue <= yHi && (
+      <g class="canon-chart__reference-group">
+        <line
+          class="canon-chart__reference-rule"
+          x1={PLOT_X0}
+          y1={yScale(referenceValue).toFixed(2)}
+          x2={PLOT_X1}
+          y2={yScale(referenceValue).toFixed(2)}
+        />
+        <text
+          class="canon-chart__reference-label"
+          x={(PLOT_X1 - 6).toFixed(2)}
+          y={(yScale(referenceValue) - 5).toFixed(2)}
+          text-anchor="end"
+        >{referenceLabel}</text>
+      </g>
+    )}
+
+    {/* 5. Data line - pure ink, 1.5px stroke. NO section-accent. */}
+    <path class="canon-chart__line" d={linePath} fill="none" />
+
+    {/* 6. Native SVG <title> per data point - zero-JS hover. We render one
+           invisible hit-area circle per print and put the <title> inside. */}
+    {data.map((d, i) => {
+      const x = xScale(xs[i]);
+      const y = yScale(d.yoy);
+      return (
+        <circle
+          class="canon-chart__hit"
+          cx={x.toFixed(2)}
+          cy={y.toFixed(2)}
+          r="4"
+        >
+          <title>{`${d.date}: ${d.yoy.toFixed(1)}%`}</title>
+        </circle>
+      );
+    })}
+
+    {/* 7. Latest-print dot - MTA red, the brand stamp */}
+    <circle
+      class="canon-chart__latest-dot"
+      cx={latestX.toFixed(2)}
+      cy={latestY.toFixed(2)}
+      r="4"
+    >
+      <title>{`Latest: ${latest.date}: ${latest.yoy.toFixed(1)}%`}</title>
+    </circle>
+
+    {/* 8. Plot frame - 1px pure ink hairline rectangle */}
+    <rect
+      class="canon-chart__frame"
+      x={PLOT_X0}
+      y={PLOT_Y0}
+      width={PLOT_W}
+      height={PLOT_H}
+    />
+
+    {/* 9. X-axis tick marks + Manrope micro labels */}
+    {xTicks.map((t) => (
+      <g>
+        <line
+          class="canon-chart__xtick"
+          x1={t.x.toFixed(2)}
+          y1={PLOT_Y1.toFixed(2)}
+          x2={t.x.toFixed(2)}
+          y2={(PLOT_Y1 + 4).toFixed(2)}
+        />
+        <text
+          class="canon-chart__xtick-label"
+          x={t.x.toFixed(2)}
+          y={(PLOT_Y1 + 18).toFixed(2)}
+          text-anchor="middle"
+        >{t.label}</text>
+      </g>
+    ))}
+
+    {/* 10. Y-axis tick labels - Plex Mono, pure ink, right-aligned in left
+           gutter. Topmost tick carries the unit. */}
+    {yTicks.map((v, i) => {
+      const y = yScale(v);
+      const isTop = i === yTicks.length - 1;
+      // Topmost tick: carry the unit "%". Others: bare number, with sign.
+      const sign = v > 0 ? "+" : v < 0 ? "" : ""; // unsigned for zero
+      const num = `${sign}${v.toFixed(1)}`;
+      const txt = isTop ? `${num}%` : num;
+      return (
+        <text
+          class="canon-chart__ytick-label"
+          x={(PLOT_X0 - 8).toFixed(2)}
+          y={(y + 4).toFixed(2)}
+          text-anchor="end"
+        >{txt}</text>
+      );
+    })}
+
+    {/* 11. Direct end-of-line label - Manrope 600 label, pure ink. No legend. */}
+    <text
+      class="canon-chart__direct-label"
+      x={(latestX + 10).toFixed(2)}
+      y={(latestY + 4).toFixed(2)}
+      text-anchor="start"
+    >{seriesLabel}</text>
+
+    {/* 12. Hand-tuned annotation - 1px ink leader (no arrowhead) + Manrope
+           400 body-sm with the anchor word in 600. */}
+    {recentAnnotation && (
+      <g class="canon-chart__annotation">
+        <line
+          class="canon-chart__anno-leader"
+          x1={leaderStartX.toFixed(2)}
+          y1={leaderStartY.toFixed(2)}
+          x2={leaderEndX.toFixed(2)}
+          y2={leaderEndY.toFixed(2)}
+        />
+        <foreignObject
+          x={annoX0.toFixed(2)}
+          y={(annoY0 - 18).toFixed(2)}
+          width={annoMaxWidth.toFixed(2)}
+          height="44"
+        >
+          <p
+            xmlns="http://www.w3.org/1999/xhtml"
+            class="canon-chart__anno-text"
+          >
+            {annoParts.map((part) =>
+              part.bold
+                ? <strong class="canon-chart__anno-anchor">{part.text}</strong>
+                : <span>{part.text}</span>
+            )}
+          </p>
+        </foreignObject>
+      </g>
+    )}
+  </svg>
+</div>
+
+<style>
+  /* ----------------------------------------------------------------------
+     PanelCanonReference - the canon. Every Tier-3 chartbook chart styles
+     by this stylesheet's pattern. Token surface is monochrome (Section 3);
+     accent appears exactly once, on the latest-print dot.
+     ---------------------------------------------------------------------- */
+  .canon-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+  .canon-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  /* Recession band - ink wash at 6% (Section 3 "Recession / event shading"). */
+  .canon-chart__recession {
+    fill: rgba(21, 23, 26, 0.06);
+  }
+  .canon-chart__recession-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.18em;
+  }
+
+  /* Gridlines - pure ink, low opacity. Section 5.3. */
+  .canon-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+
+  /* Zero line - heavier than gridlines, full opacity, pure ink. */
+  .canon-chart__zero-line {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Reference rule - 1px pure ink dashed 4 2. */
+  .canon-chart__reference-rule {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    shape-rendering: crispEdges;
+  }
+  .canon-chart__reference-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.04em;
+  }
+
+  /* Data line - pure ink, 1.5px. The non-negotiable. */
+  .canon-chart__line {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Invisible hit-area for native SVG <title> hover - no JS. */
+  .canon-chart__hit {
+    fill: transparent;
+    pointer-events: all;
+  }
+
+  /* Latest-print dot - MTA red. The brand-signal moment per Section 3. */
+  .canon-chart__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  /* Plot frame - 1px pure ink hairline rectangle. */
+  .canon-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* X-axis tick marks - 4px outward, pure ink. */
+  .canon-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  /* X-axis tick LABELS - Manrope 400 micro (12px) pure ink. */
+  .canon-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Y-axis tick LABELS - Plex Mono 400 micro (12px) pure ink.
+     RESOLVED CANON CONTRADICTION (see companion doc):
+     Section 5.3 says Manrope; Section 10 cohesion says Plex Mono (same as
+     the table's numeric column). Section 10 wins. The y-axis is a column
+     of numbers; the table is a column of numbers; they read as the same
+     kind of measurement. */
+  .canon-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Direct end-of-line label - Manrope 600 label (13px) pure ink.
+     Same Manrope SemiBold as the eyebrow micro-caps (Section 10 cohesion). */
+  .canon-chart__direct-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0;
+  }
+
+  /* Annotation leader - 1px pure ink, no arrowhead. Ends 4px short of dot. */
+  .canon-chart__anno-leader {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+    fill: none;
+  }
+  /* Annotation text - Manrope 400 body-sm (15px) pure ink. The anchor
+     word is rendered as <strong> at 600 inline. */
+  .canon-chart__anno-text {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: var(--fw-regular);
+    line-height: 1.30;
+    letter-spacing: 0;
+  }
+  .canon-chart__anno-anchor {
+    font-weight: var(--fw-semibold);
+  }
+</style>

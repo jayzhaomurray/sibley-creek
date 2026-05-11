@@ -1,0 +1,323 @@
+---
+/*
+ * Panel5BankStability - Markets plate 5.
+ *
+ * Spec: editorial canon 4.6.5. Big-Six aggregate PCL builds (quarterly,
+ * vertical bars) on the left axis, Big-Six CET1 ratio average (line) on
+ * the right axis, with the OSFI Domestic Stability Buffer (3.5%) drawn
+ * as a horizontal reference rule. Uninsured residential exposure is
+ * called out as a single right-aligned stamp - the metric is semi-annual
+ * scrape cadence and doesn't merit a third co-axis.
+ *
+ * This is the one Markets panel where a dual-axis is unavoidable: PCL
+ * is a dollar quantity, CET1 is a percentage. The Vignelli discipline
+ * is to make the dual-axis honest:
+ *   - left axis explicitly labels CAD billions
+ *   - right axis explicitly labels CET1 %
+ *   - the DSB reference rule sits on the CET1 axis only
+ *   - no shared zero
+ * Black bars (PCL), black 1.5px line (CET1), MTA red dot on latest CET1.
+ *
+ * Plot vs SVG: hand-rolled SVG. Bars + line + dot + reference rule.
+ */
+
+interface BankRow {
+  date: string;     // "YYYY-Q1" style
+  pcl_cad_bn: number;     // total PCL build, CAD billions
+  cet1_avg_pct: number;   // Big-Six CET1 average, percent
+}
+
+interface Props {
+  data?: BankRow[];
+  /** Uninsured residential exposure as a CAD-billion stamp. */
+  uninsuredCadBn?: number;
+  ariaLabel?: string;
+}
+
+function makePlaceholder(): BankRow[] {
+  // 20 quarters ending Q1 2026, starting Q2 2021.
+  const out: BankRow[] = [];
+  let y = 2021;
+  let q = 2;
+  const pclSeq = [0.4, 0.6, 0.5, 0.7, 1.2, 1.8, 2.3, 2.7, 3.1, 3.4, 3.0, 2.6, 2.4, 2.1, 1.9, 1.8, 1.7, 1.6, 1.5, 1.6];
+  const cet1Seq = [12.4, 12.5, 12.7, 12.8, 12.6, 12.5, 12.4, 12.5, 12.7, 12.9, 13.0, 13.1, 13.2, 13.3, 13.3, 13.2, 13.1, 13.0, 13.0, 12.9];
+  for (let i = 0; i < 20; i++) {
+    out.push({
+      date: `${y}-Q${q}`,
+      pcl_cad_bn: pclSeq[i],
+      cet1_avg_pct: cet1Seq[i],
+    });
+    q += 1;
+    if (q > 4) { q = 1; y += 1; }
+  }
+  return out;
+}
+
+const {
+  data = makePlaceholder(),
+  uninsuredCadBn = 480,
+  ariaLabel = "Big-Six PCL builds and CET1 vs OSFI DSB.",
+} = Astro.props;
+
+// ---- Geometry ----
+const VB_W = 720;
+const VB_H = 432;
+const M_L = 56;
+const M_R = 80;
+const M_T = 30;
+const M_B = 50; // bottom carries quarter ticks + uninsured stamp
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+// Left axis: PCL CAD billions, 0..pclHi.
+const pclMax = Math.max(...data.map((d) => d.pcl_cad_bn));
+const pclHi = Math.ceil(pclMax + 0.5);
+const pclTicks: number[] = [];
+for (let v = 0; v <= pclHi + 1e-9; v += 1) pclTicks.push(v);
+
+// Right axis: CET1, e.g. 11..14.
+const cet1Min = Math.min(...data.map((d) => d.cet1_avg_pct));
+const cet1Max = Math.max(...data.map((d) => d.cet1_avg_pct));
+const cet1Lo = Math.floor(cet1Min - 0.5);
+const cet1Hi = Math.ceil(cet1Max + 0.5);
+const cet1Ticks: number[] = [];
+for (let v = cet1Lo; v <= cet1Hi + 1e-9; v += 1) cet1Ticks.push(v);
+
+// DSB level (3.5% buffer is applied as a minimum on top of the 4.5%
+// common-equity minimum -> effective minimum 8.0%. The "8.0% effective
+// minimum CET1 with DSB" interpretation is the editorial reference. In
+// practice analysts cite the all-in 11.5% (8% + 3.5% buffer) - we use
+// 11.5 as the reference rule for the visible CET1-axis story.
+const DSB_REFERENCE = 11.5;
+
+const n = data.length;
+const slotW = PLOT_W / n;
+const barW = slotW * 0.55;
+function xScale(i: number): number {
+  return PLOT_X0 + (i + 0.5) * slotW;
+}
+function pclScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - (v / pclHi) * PLOT_H;
+}
+function cet1Scale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - cet1Lo) / (cet1Hi - cet1Lo)) * PLOT_H;
+}
+
+const cet1Path = data.map((d, i) => `${i === 0 ? "M" : "L"}${xScale(i).toFixed(2)} ${cet1Scale(d.cet1_avg_pct).toFixed(2)}`).join(" ");
+
+// X tick labels: every Q1 year, plus latest.
+const xLabels: Array<{ x: number; label: string }> = [];
+data.forEach((d, i) => {
+  if (d.date.endsWith("Q1") || i === data.length - 1) {
+    const yr = d.date.split("-")[0];
+    xLabels.push({ x: xScale(i), label: i === data.length - 1 ? d.date.replace("-", " ") : `'${yr.slice(-2)}` });
+  }
+});
+
+const last = data[data.length - 1];
+const lastX = xScale(data.length - 1);
+const lastCet1Y = cet1Scale(last.cet1_avg_pct);
+---
+<figure class="markets-panel-5" aria-label={ariaLabel}>
+  <svg
+    class="markets-panel-5__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+  >
+    {/* PCL gridlines on left axis */}
+    {pclTicks.map((v) => (
+      <line
+        class="markets-panel-5__gridline"
+        x1={PLOT_X0}
+        y1={pclScale(v).toFixed(2)}
+        x2={PLOT_X1}
+        y2={pclScale(v).toFixed(2)}
+      />
+    ))}
+
+    {/* DSB reference rule on CET1 axis */}
+    <line
+      class="markets-panel-5__dsb"
+      x1={PLOT_X0}
+      y1={cet1Scale(DSB_REFERENCE).toFixed(2)}
+      x2={PLOT_X1}
+      y2={cet1Scale(DSB_REFERENCE).toFixed(2)}
+    />
+    <text
+      class="markets-panel-5__dsb-label"
+      x={(PLOT_X1 - 6).toFixed(2)}
+      y={(cet1Scale(DSB_REFERENCE) - 4).toFixed(2)}
+      text-anchor="end"
+    >CET1 minimum with DSB (~11.5%)</text>
+
+    {/* PCL bars (left axis) */}
+    {data.map((d, i) => {
+      const x = xScale(i) - barW / 2;
+      const y = pclScale(d.pcl_cad_bn);
+      const h = PLOT_Y1 - y;
+      return (
+        <rect
+          class="markets-panel-5__bar"
+          x={x.toFixed(2)}
+          y={y.toFixed(2)}
+          width={barW.toFixed(2)}
+          height={h.toFixed(2)}
+        >
+          <title>{`${d.date}: PCL CAD ${d.pcl_cad_bn.toFixed(1)}B`}</title>
+        </rect>
+      );
+    })}
+
+    {/* CET1 line (right axis) */}
+    <path class="markets-panel-5__line" d={cet1Path} fill="none" />
+
+    {/* Latest CET1 dot */}
+    <circle
+      class="markets-panel-5__marker"
+      cx={lastX.toFixed(2)}
+      cy={lastCet1Y.toFixed(2)}
+      r="3.5"
+    >
+      <title>{`${last.date}: CET1 ${last.cet1_avg_pct.toFixed(2)}%`}</title>
+    </circle>
+
+    {/* Plot frame */}
+    <rect
+      class="markets-panel-5__frame"
+      x={PLOT_X0}
+      y={PLOT_Y0}
+      width={PLOT_W}
+      height={PLOT_H}
+      fill="none"
+    />
+
+    {/* X-axis quarter tick labels */}
+    {xLabels.map((t) => (
+      <text
+        class="markets-panel-5__xtick-label"
+        x={t.x.toFixed(2)}
+        y={(PLOT_Y1 + 16).toFixed(2)}
+        text-anchor="middle"
+      >{t.label}</text>
+    ))}
+
+    {/* Left axis (PCL) tick labels */}
+    {pclTicks.map((v, i) => (
+      <text
+        class="markets-panel-5__ytick-label"
+        x={(PLOT_X0 - 6).toFixed(2)}
+        y={(pclScale(v) + 3.5).toFixed(2)}
+        text-anchor="end"
+      >{i === pclTicks.length - 1 ? `$${v}B` : `${v}`}</text>
+    ))}
+
+    {/* Right axis (CET1) tick labels */}
+    {cet1Ticks.map((v, i) => (
+      <text
+        class="markets-panel-5__ytick-label markets-panel-5__ytick-label--right"
+        x={(PLOT_X1 + 6).toFixed(2)}
+        y={(cet1Scale(v) + 3.5).toFixed(2)}
+        text-anchor="start"
+      >{i === cet1Ticks.length - 1 ? `${v}%` : `${v}`}</text>
+    ))}
+
+    {/* Panel axis labels */}
+    <text
+      class="markets-panel-5__axis-title markets-panel-5__axis-title--left"
+      x={PLOT_X0.toFixed(2)}
+      y={(PLOT_Y0 - 12).toFixed(2)}
+      text-anchor="start"
+    >PCL builds, CAD billions (bars)</text>
+    <text
+      class="markets-panel-5__axis-title markets-panel-5__axis-title--right"
+      x={PLOT_X1.toFixed(2)}
+      y={(PLOT_Y0 - 12).toFixed(2)}
+      text-anchor="end"
+    >CET1 average, % (line)</text>
+
+    {/* Uninsured residential exposure stamp under x-axis */}
+    <text
+      class="markets-panel-5__stamp"
+      x={PLOT_X0.toFixed(2)}
+      y={(PLOT_Y1 + 36).toFixed(2)}
+      text-anchor="start"
+    >{`Big-Six uninsured residential exposure (latest scrape): CAD ${uninsuredCadBn}B`}</text>
+  </svg>
+</figure>
+
+<style>
+  .markets-panel-5 {
+    width: 100%;
+    margin: 0;
+    background-color: var(--surface);
+  }
+  .markets-panel-5__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: var(--font-sans);
+    overflow: visible;
+  }
+  .markets-panel-5__gridline {
+    stroke: var(--ink);
+    stroke-opacity: 0.15;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .markets-panel-5__dsb {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 3;
+    shape-rendering: crispEdges;
+  }
+  .markets-panel-5__dsb-label {
+    fill: var(--ink);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+  }
+  .markets-panel-5__bar {
+    fill: #000000;
+  }
+  .markets-panel-5__line {
+    stroke: #000000;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+  }
+  .markets-panel-5__marker {
+    fill: #E63946;
+    stroke: var(--surface);
+    stroke-width: 1.25;
+  }
+  .markets-panel-5__frame {
+    stroke: #000000;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .markets-panel-5__xtick-label,
+  .markets-panel-5__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+  .markets-panel-5__axis-title {
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.02em;
+  }
+  .markets-panel-5__stamp {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+  }
+</style>

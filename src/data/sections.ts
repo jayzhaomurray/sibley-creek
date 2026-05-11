@@ -175,40 +175,55 @@ export const sections: Section[] = [
     cadence: "Monthly + quarterly",
     // Most recent monthly GDP print landed May 1, 2026 (StatCan ~60d lag).
     updatedAt: Date.UTC(2026, 4, 1, 8, 30),
-    chartSeriesKey: "gdp-mm",
+    chartSeriesKey: "gdp-yoy",
     heroKicker: "February GDP",
     tileLine:
       "February GDP came in soft on goods-producing industries; services held up.",
     prints: [
       {
+        // Real GDP y/y is the load-bearing print — first row, matches the
+        // pipeline output (key gdp-yoy) so the loader enriches it in place.
+        key: "gdp-yoy",
+        indicator: "Real GDP, y/y",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+        spark: [
+          1.2, 1.6, 1.7, 2.0, 2.1, 2.2, 2.5, 2.8, 2.3, 2.7, 2.9, 2.2,
+          2.2, 1.7, 1.5, 1.3, 1.7, 1.6, 1.5, 0.8, 1.1, 1.0, 0.6, 1.0,
+        ],
+      },
+      {
         key: "gdp-mm",
         indicator: "Real GDP, m/m",
-        value: "+0.2%",
-        delta: "-0.1 pp",
-        deltaDir: "neg",
-        asOf: "Feb 2026",
-        // m/m % change — wobbling around zero with a recent soft tilt.
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         spark: [
           0.4, 0.3, 0.5, 0.2, 0.1, 0.3, 0.4, 0.2, 0.5, 0.3, 0.1, 0.0,
           0.2, 0.4, 0.3, 0.1, 0.2, 0.4, 0.5, 0.3, 0.4, 0.3, 0.3, 0.2,
         ],
       },
       {
-        indicator: "Real GDP, q/q SAAR",
-        value: "1.4%",
-        delta: "-0.3 pp",
-        deltaDir: "neg",
-        asOf: "2026Q1",
-        // Quarterly SAAR — fewer points (8 quarters) to read as quarterly.
-        spark: [3.1, 2.7, 2.2, 1.9, 2.4, 2.1, 1.7, 1.4],
+        key: "gdp-percap-yoy",
+        indicator: "Per-capita GDP, y/y",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+        spark: [
+          -1.6, -1.5, -1.5, -1.4, -1.4, -1.3, -1.2, -1.2, -1.1, -1.1, -1.0, -0.9, -0.8, -0.7,
+        ],
       },
       {
+        key: "output-gap",
         indicator: "Output gap",
-        value: "-0.6%",
-        delta: "+0.1 pp",
-        deltaDir: "pos",
-        asOf: "2026Q1",
-        // Output gap closing slowly from a deeper trough.
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         spark: [
           -1.4, -1.5, -1.4, -1.3, -1.2, -1.1, -1.0, -1.1, -1.0, -0.9, -0.8, -0.9,
           -0.8, -0.7, -0.8, -0.7, -0.7, -0.6,
@@ -240,12 +255,17 @@ export const sections: Section[] = [
       "Headline CPI ticked up to 2.3% in April, shelter still doing the work.",
     prints: [
       {
+        // The pipeline produces a real value for this row (data/site/sections.json:
+        // headline CPI y/y, currently 2.3% as of Mar 2026). The fields below are
+        // canon scaffold defaults that the loader overwrites with pipeline data
+        // before render — TK markers here are visible only when the pipeline
+        // payload is unavailable.
         key: "cpi-yoy",
         indicator: "Headline CPI, y/y",
-        value: "2.3%",
-        delta: "+0.1 pp",
+        value: "TK",
+        delta: "TK",
         deltaDir: "neutral",
-        asOf: "Apr 2026",
+        asOf: "TK",
         // y/y % — sliding down off a higher plateau toward the 2% target.
         spark: [
           3.6, 3.5, 3.4, 3.1, 2.9, 2.8, 2.7, 2.9, 2.7, 2.6, 2.5, 2.6,
@@ -253,11 +273,12 @@ export const sections: Section[] = [
         ],
       },
       {
+        key: "core-trim-yoy",
         indicator: "Core-trim, y/y",
-        value: "2.6%",
-        delta: "-0.1 pp",
-        deltaDir: "pos",
-        asOf: "Apr 2026",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         // Core measures slower to ease but still trending down.
         spark: [
           3.7, 3.6, 3.6, 3.5, 3.4, 3.3, 3.2, 3.2, 3.0, 3.0, 2.9, 2.9,
@@ -265,14 +286,26 @@ export const sections: Section[] = [
         ],
       },
       {
+        key: "core-median-yoy",
         indicator: "Core-median, y/y",
-        value: "2.5%",
-        delta: "0.0 pp",
+        value: "TK",
+        delta: "TK",
         deltaDir: "neutral",
-        asOf: "Apr 2026",
+        asOf: "TK",
         spark: [
           3.5, 3.4, 3.4, 3.3, 3.2, 3.2, 3.1, 3.0, 3.0, 2.9, 2.9, 2.8,
           2.7, 2.7, 2.6, 2.6, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
+        ],
+      },
+      {
+        key: "cpi-breadth-gt3",
+        indicator: "CPI breadth >3%",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+        spark: [
+          52, 50, 48, 46, 44, 42, 40, 38, 37, 36, 35, 34, 33, 32, 31, 30, 30, 29, 29, 29, 28, 29, 29, 28,
         ],
       },
     ],
@@ -303,12 +336,15 @@ export const sections: Section[] = [
       "April employment softened against consensus; unemployment held at 6.1% as participation slipped.",
     prints: [
       {
+        // Pipeline produces a real value for this row (unemployment rate,
+        // currently 6.9% Apr 2026); loader overwrites canon scaffold with
+        // real data before render. TK is a fallback marker.
         key: "unrate",
         indicator: "Unemployment rate",
-        value: "6.1%",
-        delta: "0.0 pp",
+        value: "TK",
+        delta: "TK",
         deltaDir: "neutral",
-        asOf: "Apr 2026",
+        asOf: "TK",
         // U-rate rising slowly off the trough, recently flattening.
         spark: [
           5.0, 5.1, 5.1, 5.2, 5.3, 5.3, 5.4, 5.5, 5.6, 5.6, 5.7, 5.8,
@@ -316,27 +352,39 @@ export const sections: Section[] = [
         ],
       },
       {
-        indicator: "Employment, m/m",
-        value: "+12k",
-        delta: "vs +25k cons.",
-        deltaDir: "neg",
-        asOf: "Apr 2026",
-        // Choppy m/m job gains, recent print softer.
+        key: "emp-percap-yoy",
+        indicator: "Per-capita employment, y/y",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         spark: [
-          45, 32, 28, 51, 22, 18, 41, 35, 27, 38, 24, 30,
-          19, 33, 28, 22, 31, 26, 18, 24, 20, 22, 15, 12,
+          0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.0, -0.1, -0.1, -0.2, -0.2, -0.3,
+          -0.3, -0.3, -0.3, -0.4, -0.4, -0.3, -0.3, -0.4, -0.3, -0.4, -0.4, -0.4,
         ],
       },
       {
-        indicator: "Hourly wages, y/y",
-        value: "+3.9%",
-        delta: "-0.2 pp",
-        deltaDir: "neg",
-        asOf: "Apr 2026",
-        // Wages easing off cycle highs.
+        key: "agg-hours-yoy",
+        indicator: "Aggregate hours, y/y",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         spark: [
-          5.2, 5.1, 5.0, 4.9, 4.9, 5.0, 4.9, 4.8, 4.7, 4.6, 4.6, 4.5,
-          4.4, 4.4, 4.3, 4.2, 4.2, 4.1, 4.1, 4.0, 4.0, 4.1, 4.0, 3.9,
+          2.4, 2.3, 2.1, 2.0, 1.9, 1.8, 1.7, 1.7, 1.6, 1.5, 1.4, 1.3,
+          1.3, 1.2, 1.2, 1.2, 1.1, 1.1, 1.1, 1.0, 1.0, 1.1, 1.0, 0.9,
+        ],
+      },
+      {
+        key: "wage-lfs-micro",
+        indicator: "Wage growth (LFS-Micro)",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+        spark: [
+          5.0, 4.9, 4.8, 4.8, 4.7, 4.6, 4.5, 4.4, 4.4, 4.3, 4.2, 4.2,
+          4.1, 4.1, 4.0, 4.0, 3.9, 3.9, 3.9, 3.8, 3.8, 3.8, 3.7, 3.6,
         ],
       },
     ],
@@ -365,10 +413,10 @@ export const sections: Section[] = [
       {
         key: "hpi-yoy",
         indicator: "MLS HPI, y/y",
-        value: "-1.4%",
-        delta: "-0.3 pp",
-        deltaDir: "neg",
-        asOf: "Apr 2026",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         // HPI rolled positive, crossed through zero, now sliding.
         spark: [
           3.2, 2.8, 2.4, 1.9, 1.5, 1.1, 0.8, 0.4, 0.1, -0.2, -0.4, -0.5,
@@ -376,25 +424,38 @@ export const sections: Section[] = [
         ],
       },
       {
+        key: "housing-starts-3mma",
         indicator: "Housing starts, 3M MA",
-        value: "238k",
-        delta: "-6k",
-        deltaDir: "neg",
-        asOf: "Apr 2026",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         spark: [
           262, 268, 270, 265, 258, 262, 255, 250, 248, 252, 246, 250,
           244, 248, 250, 246, 244, 246, 242, 248, 246, 244, 244, 238,
         ],
       },
       {
-        indicator: "Sales-to-new-listings",
-        value: "0.42",
-        delta: "-0.03",
-        deltaDir: "neg",
-        asOf: "Apr 2026",
+        key: "cmhc-arrears",
+        indicator: "CMHC arrears rate",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         spark: [
-          0.58, 0.56, 0.55, 0.53, 0.52, 0.54, 0.52, 0.50, 0.49, 0.51, 0.48, 0.47,
-          0.49, 0.46, 0.47, 0.45, 0.46, 0.45, 0.46, 0.45, 0.44, 0.43, 0.45, 0.42,
+          0.14, 0.14, 0.15, 0.15, 0.16, 0.17, 0.17, 0.18, 0.19, 0.19, 0.20, 0.21,
+        ],
+      },
+      {
+        key: "months-inventory",
+        indicator: "Months of inventory",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+        spark: [
+          2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7,
+          3.7, 3.8, 3.9, 3.9, 4.0, 4.0, 4.1, 4.1, 4.2, 4.1, 4.2, 4.3,
         ],
       },
     ],
@@ -422,12 +483,15 @@ export const sections: Section[] = [
       "BoC cut 25 bps to 2.75% and dropped the line about needing more evidence on services inflation.",
     prints: [
       {
+        // Pipeline produces a real value for this row (BoC overnight rate,
+        // currently 2.25% Apr 2026); loader overwrites canon scaffold with
+        // real data before render. TK is a fallback marker.
         key: "policy-rate",
         indicator: "BoC overnight rate",
-        value: "2.75%",
-        delta: "-25 bps",
-        deltaDir: "pos",
-        asOf: "Apr 29, 2026",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         // Staircase cuts off the 5.00 peak, with hold periods between.
         spark: [
           5.00, 5.00, 5.00, 5.00, 4.75, 4.75, 4.50, 4.50, 4.25, 4.25, 4.00, 4.00,
@@ -435,11 +499,24 @@ export const sections: Section[] = [
         ],
       },
       {
+        key: "goc-2y",
+        indicator: "2y GoC yield",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+        spark: [
+          4.20, 4.10, 4.00, 3.90, 3.80, 3.70, 3.65, 3.55, 3.50, 3.40, 3.35, 3.30,
+          3.25, 3.20, 3.15, 3.10, 3.10, 3.05, 3.05, 3.00, 3.00, 2.97, 2.95, 2.92,
+        ],
+      },
+      {
+        key: "boc-fed-spread",
         indicator: "BoC-Fed spread, 2y",
-        value: "-152 bps",
-        delta: "-8 bps",
-        deltaDir: "neg",
-        asOf: "May 9, 2026",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         // Spread widening more negative as BoC cuts faster than Fed.
         spark: [
           -25, -32, -45, -58, -64, -72, -85, -91, -98, -108, -115, -120,
@@ -447,14 +524,14 @@ export const sections: Section[] = [
         ],
       },
       {
-        indicator: "Federal deficit, YTD",
-        value: "$38.2B",
-        delta: "+$4.1B vs plan",
-        deltaDir: "neg",
-        asOf: "Feb 2026",
-        // YTD accumulation — fiscal year cumulative, so monotone up.
+        key: "neutral-midpoint",
+        indicator: "Estimated neutral midpoint",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         spark: [
-          2.1, 4.4, 7.2, 10.1, 13.0, 15.8, 18.5, 21.4, 24.3, 27.6, 30.8, 33.6, 38.2,
+          3.00, 3.00, 2.95, 2.90, 2.90, 2.85, 2.85, 2.80, 2.80, 2.80, 2.75, 2.75,
         ],
       },
     ],
@@ -488,12 +565,15 @@ export const sections: Section[] = [
       "USDCAD pushed to 1.378 on the week as the BoC-Fed spread ground wider on divergent paths.",
     prints: [
       {
+        // Pipeline produces a real value for this row (USDCAD, currently 1.369
+        // May 8, 2026); loader overwrites canon scaffold with real data before
+        // render. TK is a fallback marker.
         key: "usdcad",
         indicator: "USDCAD",
-        value: "1.378",
-        delta: "+0.4% w/w",
-        deltaDir: "neg",
-        asOf: "May 9, 2026",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         // CAD weakening; FX walk.
         spark: [
           1.348, 1.352, 1.351, 1.355, 1.358, 1.354, 1.357, 1.361, 1.360, 1.364, 1.366, 1.362,
@@ -501,11 +581,12 @@ export const sections: Section[] = [
         ],
       },
       {
-        indicator: "GoC 10y",
-        value: "3.41%",
-        delta: "+6 bps",
+        key: "goc-10y",
+        indicator: "10y GoC yield",
+        value: "TK",
+        delta: "TK",
         deltaDir: "neutral",
-        asOf: "May 9, 2026",
+        asOf: "TK",
         // 10y wandering in a 30bp range.
         spark: [
           3.55, 3.52, 3.48, 3.45, 3.42, 3.38, 3.35, 3.32, 3.30, 3.33, 3.36, 3.34,
@@ -513,11 +594,24 @@ export const sections: Section[] = [
         ],
       },
       {
+        key: "tsx-composite",
+        indicator: "TSX Composite",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+        spark: [
+          21100, 21240, 21380, 21450, 21520, 21610, 21680, 21750, 21810, 21880, 21940, 22020,
+          22080, 22140, 22210, 22280, 22340, 22400, 22480, 22550, 22620, 22700, 22770, 22840,
+        ],
+      },
+      {
+        key: "wti",
         indicator: "WTI",
-        value: "$71.40",
-        delta: "-2.1% w/w",
-        deltaDir: "neg",
-        asOf: "May 9, 2026",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         // Crude drifting lower.
         spark: [
           82.4, 81.2, 80.5, 79.8, 78.6, 79.2, 78.0, 76.9, 77.4, 76.1, 75.3, 74.8,
@@ -550,10 +644,10 @@ export const sections: Section[] = [
       {
         key: "trade-balance",
         indicator: "Merch trade balance",
-        value: "-$2.3B",
-        delta: "-$1.1B m/m",
-        deltaDir: "neg",
-        asOf: "Mar 2026",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         // Swings across zero, lately deeper deficit.
         spark: [
           1.4, 0.8, 1.1, 0.2, -0.3, 0.5, 0.1, -0.4, -0.8, 0.2, -0.6, -1.0,
@@ -561,11 +655,23 @@ export const sections: Section[] = [
         ],
       },
       {
-        indicator: "US export share",
-        value: "73.1%",
-        delta: "-0.4 pp y/y",
+        key: "current-account",
+        indicator: "Current account",
+        value: "TK",
+        delta: "TK",
         deltaDir: "neutral",
-        asOf: "Mar 2026",
+        asOf: "TK",
+        spark: [
+          -2.1, -3.0, -4.2, -5.1, -5.8, -6.3, -6.9, -7.4, -7.6, -7.9, -8.1, -8.4,
+        ],
+      },
+      {
+        key: "us-partner-share",
+        indicator: "US partner share",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         // Slow secular drift down from mid-70s.
         spark: [
           75.2, 75.0, 74.9, 74.8, 74.6, 74.5, 74.3, 74.4, 74.2, 74.0, 73.9, 73.8,
@@ -573,11 +679,12 @@ export const sections: Section[] = [
         ],
       },
       {
+        key: "terms-of-trade",
         indicator: "Terms of trade",
-        value: "104.6",
-        delta: "-0.8",
-        deltaDir: "neg",
-        asOf: "2026Q1",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
         // Quarterly index, fewer points.
         spark: [
           106.2, 106.8, 107.1, 106.5, 105.9, 105.4, 105.2, 104.6,
@@ -631,16 +738,16 @@ export const deepDives: DeepDive[] = [
     deck:
       "The 2026 renewal cohort is the largest single tranche in the stack. We map where the residual transmission lands through 2027.",
     status: "drafted",
-    lastUpdated: "May 6, 2026",
+    lastUpdated: "TK",
   },
   {
     pillar: "B",
     section: "policy",
     title: "BoC vs. Fed: how far can the divergence run?",
     deck:
-      "152 basis points and counting. We trace the CAD, GoC curve, and credit channels that would force a back-off, and where the breakpoints sit.",
+      "TK basis points and counting. We trace the CAD, GoC curve, and credit channels that would force a back-off, and where the breakpoints sit.",
     status: "shipped",
-    lastUpdated: "Apr 30, 2026",
+    lastUpdated: "TK",
   },
   {
     pillar: "E",
@@ -649,7 +756,7 @@ export const deepDives: DeepDive[] = [
     deck:
       "The headline labour print is flattering. The per-capita series is not. We separate the population-deceleration story from the cyclical weakness story.",
     status: "research",
-    lastUpdated: "May 8, 2026",
+    lastUpdated: "TK",
   },
 ];
 
@@ -660,8 +767,8 @@ export const deepDives: DeepDive[] = [
  * in editorial/dashboard_purpose.md sec 6.
  */
 export const nextRelease = {
-  label: "CPI, April 2026",
-  date: "Tue, May 21, 2026",
+  label: "TK",
+  date: "TK",
   agency: "Statistics Canada",
 };
 
@@ -670,15 +777,20 @@ export const nextRelease = {
  * editorial-director / art-director as the brand crystallizes.
  */
 export const site = {
-  name: "Macro Research Department",
-  shortName: "MRD",
+  // Publication brand. Folder/path name (macro-research-department) is the
+  // project slug on disk and stays as-is; only the human-facing brand name
+  // changed in the 2026-05-11 rename pass. Wordmark renders all-caps via CSS
+  // (text-transform: uppercase); keep the source string in title case.
+  name: "Sibley Creek",
+  shortName: "Sibley Creek",
   // F7 (art-director): the previous italic tagline competed with the wordmark
   // and the section names. Replaced with a short all-caps label rail; the
   // wordmark below renders it in label-sized sans with letter-spacing so it
-  // reads as a category line, not a slogan.
-  tagline: "Canadian macro research",
+  // reads as a category line, not a slogan. Rebrand pass shortened the
+  // tagline to "Canadian macro" - confident, label-sized.
+  tagline: "Canadian macro",
   description:
-    "A reading-first dashboard for Canadian macroeconomic indicators. Written for analysts, policymakers, and serious citizens.",
+    "Sibley Creek - Canadian macroeconomic indicators and analysis. A reading-first dashboard for analysts, policymakers, and serious citizens.",
   locale: "en-CA",
   url: "https://example.invalid",
 };

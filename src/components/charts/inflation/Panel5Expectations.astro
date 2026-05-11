@@ -514,128 +514,84 @@ const ariaLabel = `Inflation expectations: CSCE 1-year ${csceLast.cons_1y.toFixe
 </figure>
 
 <style>
-  .panel-5-exp {
-    width: 100%;
-    margin: 0;
-    background-color: var(--surface);
-  }
-  .panel-5-exp__svg {
-    display: block;
-    width: 100%;
-    height: auto;
-    font-family: var(--font-sans);
-    overflow: visible;
-  }
-
+  /* Vignelli v1.0 canon-compliant restyle (2026-05-11). Two stacked
+     sub-charts on the same page; each obeys the line-chart canon. CSCE
+     5-year = primary (pure ink solid, MTA red latest dot). CSCE 1-year
+     = secondary (pure ink dashed 4 2, no dot). BOS = its own primary
+     (pure ink solid, MTA red latest dot). Bucket stack inset uses ink
+     opacity ramp, not hue. */
+  .panel-5-exp { width: 100%; margin: 0; background-color: var(--paper); }
+  .panel-5-exp__svg { display: block; width: 100%; height: auto; font-family: var(--font-sans); overflow: visible; }
   .panel-5-exp__gridline {
-    stroke: var(--rule-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges;
   }
   .panel-5-exp__target {
-    stroke: var(--ink-faint);
-    stroke-width: 1;
-    stroke-dasharray: 4 2;
-    shape-rendering: crispEdges;
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2; shape-rendering: crispEdges;
   }
   .panel-5-exp__target-label {
-    fill: var(--ink-faint);
-    font-size: 10px;
-    font-weight: var(--fw-medium);
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-semibold); letter-spacing: 0.04em;
   }
-  .panel-5-exp__xaxis {
-    stroke: var(--rule);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+  .panel-5-exp__xaxis { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .panel-5-exp__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .panel-5-exp__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
-  .panel-5-exp__xtick {
-    stroke: var(--ink-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .panel-5-exp__xtick-label,
   .panel-5-exp__ytick-label {
-    fill: var(--ink-faint);
-    font-size: 10px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
-
-  /* CSCE 5y is the anchor: full weight brand red.
-     1y is faded + dashed (per spec's reversed-convention rationale). */
+  /* CSCE 5y = primary; CSCE 1y = secondary (dashed). */
   .panel-5-exp__line--csce5 {
-    stroke: var(--accent);
-    stroke-width: 1.75;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+    fill: none; vector-effect: non-scaling-stroke;
   }
   .panel-5-exp__line--csce1 {
-    stroke: var(--accent);
-    stroke-width: 1.25;
-    stroke-dasharray: 3 3;
-    opacity: 0.6;
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2;
+    fill: none; vector-effect: non-scaling-stroke;
   }
-
-  /* BOS line: series-4 (plum), per panel md / template. */
+  /* BOS line: solid ink, separate primary on lower canvas. */
   .panel-5-exp__line--bos {
-    stroke: var(--series-4);
-    stroke-width: 1.75;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+    fill: none; vector-effect: non-scaling-stroke;
   }
-
+  /* Latest markers: MTA red on the primaries, no marker on secondary. */
   .panel-5-exp__marker {
-    fill: var(--accent);
-    stroke: var(--surface);
-    stroke-width: 1.5;
+    fill: var(--accent); stroke: none;
   }
   .panel-5-exp__marker--faded {
-    fill: var(--accent);
-    opacity: 0.6;
+    fill: transparent; stroke: none;
   }
   .panel-5-exp__marker--bos {
-    fill: var(--series-4);
-    stroke: var(--surface);
-    stroke-width: 1.5;
+    fill: var(--accent); stroke: none;
   }
-
   .panel-5-exp__direct-label {
-    fill: var(--accent);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px; font-weight: var(--fw-semibold);
   }
   .panel-5-exp__direct-label--faded {
-    opacity: 0.65;
+    font-weight: var(--fw-regular);
   }
   .panel-5-exp__direct-label--bos {
-    fill: var(--series-4);
+    font-weight: var(--fw-semibold);
   }
-
   .panel-5-exp__sub-title {
-    fill: var(--ink-muted);
-    font-size: 10px;
-    font-weight: var(--fw-medium);
-    letter-spacing: 0.04em;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
   }
-
-  /* Bucket stack: brand-accent ramp from heaviest (above3) to lightest
-     (below1). Each segment separated by a thin surface hairline via
-     `stroke`, not by a separate rect. */
+  /* Bucket stack: ink opacity ramp from heaviest (above3) to lightest (below1).
+     Hairline white separators between segments. */
   .panel-5-exp__bucket {
-    stroke: var(--surface);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+    stroke: var(--paper); stroke-width: 1; shape-rendering: crispEdges;
   }
-  .panel-5-exp__bucket--above3 { fill: var(--accent); fill-opacity: 0.9; }
-  .panel-5-exp__bucket--two3   { fill: var(--accent); fill-opacity: 0.65; }
-  .panel-5-exp__bucket--one2   { fill: var(--accent); fill-opacity: 0.40; }
-  .panel-5-exp__bucket--below1 { fill: var(--accent); fill-opacity: 0.20; }
-
+  .panel-5-exp__bucket--above3 { fill: var(--ink); fill-opacity: 1; }
+  .panel-5-exp__bucket--two3   { fill: var(--ink); fill-opacity: 0.55; }
+  .panel-5-exp__bucket--one2   { fill: var(--ink); fill-opacity: 0.30; }
+  .panel-5-exp__bucket--below1 { fill: var(--ink); fill-opacity: 0.12; }
   .panel-5-exp__bucket-label {
-    font-size: 9px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
-    fill: var(--ink-muted);
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 11px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
-  .panel-5-exp__bucket-label--above3 { fill: var(--accent); }
+  .panel-5-exp__bucket-label--above3 { font-weight: var(--fw-semibold); font-family: var(--font-sans); }
 </style>

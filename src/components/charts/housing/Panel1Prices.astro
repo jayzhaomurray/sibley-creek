@@ -1,0 +1,363 @@
+---
+/*
+ * Panel1Prices - Housing chartbook, plate 01.
+ *
+ * Editorial canon Section 4.4: MLS HPI national + 6 CMAs (Y/Y and 6-month
+ * annualized). Per art-director's brief the panel shows the CMA dispersion;
+ * the small-multiples treatment is the load-bearing visual move.
+ *
+ * Visual: 2x4 small-multiples grid (national + 6 CMAs = 7 cells, 8 slots
+ * with the last cell holding a legend hairline). Each cell:
+ *   - one black 1.5px line: HPI composite Y/Y over a 5-year window
+ *   - one MTA red latest-point dot (the only red mark)
+ *   - one 1px hairline plot frame (Vignelli)
+ *   - 6% ink recession band (2020Q1-Q2)
+ *   - identical y-axis range so eye-comparison is honest
+ *
+ * Vignelli canon: single-series default, pure black line, MTA red dot,
+ * direction-by-glyph (never color), no legend. Cell label is the CMA name
+ * in Manrope 600 micro-caps; the latest value sits to the right of the
+ * line terminus in Plex Mono.
+ *
+ * Plot vs SVG: hand-rolled SVG. Small multiples with shared axes is a
+ * solved geometry problem; Plot would add a runtime for marginal gain.
+ * Zero client JS, follows Panel2CoreTrio precedent.
+ *
+ * Placeholder data: backend ships {date, hpi_yoy} per region once the
+ * CREA bulk wiring lands. Until then we synthesize a plausible 60-month
+ * shape per region: national + 6 CMAs, peaks early 2022, troughs mid-
+ * 2023, recovers, then drifts negative through 2025-2026 with Toronto
+ * and Vancouver leading the drift.
+ */
+
+interface RegionPoint {
+  /** ISO month string "YYYY-MM". */
+  date: string;
+  /** HPI Y/Y, percent. */
+  hpi_yoy: number;
+}
+
+interface RegionSeries {
+  /** Short region code. */
+  code: string;
+  /** Display label. */
+  label: string;
+  /** Time series. */
+  points: RegionPoint[];
+}
+
+interface Props {
+  /** Tidy frames per region. If omitted, placeholder is used. */
+  data?: RegionSeries[];
+  /** Reference month label. */
+  asOf?: string;
+  ariaLabel?: string;
+}
+
+// 7 regions: national + 6 CMAs.
+const REGIONS: Array<{ code: string; label: string; shape: (t: number) => number }> = [
+  { code: "CA",  label: "Canada",      shape: (t) => baseCurve(t, 0) },
+  { code: "TOR", label: "Toronto",     shape: (t) => baseCurve(t, -2.5) },
+  { code: "VAN", label: "Vancouver",   shape: (t) => baseCurve(t, -2.0) },
+  { code: "MTL", label: "Montreal",    shape: (t) => baseCurve(t, +0.5) },
+  { code: "CGY", label: "Calgary",     shape: (t) => baseCurve(t, +5.0) },
+  { code: "OTT", label: "Ottawa",      shape: (t) => baseCurve(t, -0.5) },
+  { code: "EDM", label: "Edmonton",    shape: (t) => baseCurve(t, +3.0) },
+];
+
+// Synthetic curve: pre-2022 ~6% Y/Y, peaks ~18% mid-2022, troughs ~-10%
+// mid-2023, recovers to ~+4% through 2024, drifts back toward zero / negative
+// through 2025-2026. `bias` shifts the whole curve up or down so regions
+// differ in level.
+function baseCurve(t: number, bias: number): number {
+  // t in [0, 1] over 60 months ending Apr 2026.
+  let v: number;
+  if (t < 0.20)      v = 6 + (16 - 6) * (t / 0.20);
+  else if (t < 0.40) v = 16 - (16 - (-9)) * ((t - 0.20) / 0.20);
+  else if (t < 0.60) v = -9 + (-9 - 4) * -1 * ((t - 0.40) / 0.20);
+  else if (t < 0.80) v = 4 - (4 - 1) * ((t - 0.60) / 0.20);
+  else               v = 1 - (1 - (-3)) * ((t - 0.80) / 0.20);
+  return Math.round((v + bias) * 100) / 100;
+}
+
+function buildPlaceholder(): RegionSeries[] {
+  const out: RegionSeries[] = [];
+  for (const region of REGIONS) {
+    const points: RegionPoint[] = [];
+    let y = 2021;
+    let m = 5;
+    for (let i = 0; i < 60; i++) {
+      const t = i / 59;
+      points.push({ date: `${y}-${String(m).padStart(2, "0")}`, hpi_yoy: region.shape(t) });
+      m += 1;
+      if (m > 12) { m = 1; y += 1; }
+    }
+    out.push({ code: region.code, label: region.label, points });
+  }
+  return out;
+}
+
+const {
+  data = buildPlaceholder(),
+  asOf = "Apr 2026",
+  ariaLabel = `MLS HPI year-over-year, national plus six CMAs, ${asOf}`,
+} = Astro.props;
+
+// ---- Geometry --------------------------------------------------------------
+// 4 columns x 2 rows = 8 cells; we use 7 (national + 6 CMAs).
+const VB_W = 720;
+const VB_H = 420;
+const M_T = 18;
+const M_B = 36;
+const M_L = 36;
+const M_R = 24;
+const COLS = 4;
+const ROWS = 2;
+const GUT_X = 18;
+const GUT_Y = 36;
+const CELL_W = (VB_W - M_L - M_R - (COLS - 1) * GUT_X) / COLS;
+const CELL_H = (VB_H - M_T - M_B - (ROWS - 1) * GUT_Y) / ROWS;
+
+// ---- Shared scales ---------------------------------------------------------
+function decYearOf(d: string): number {
+  const [yy, mm] = d.split("-").map(Number);
+  return yy + (mm - 0.5) / 12;
+}
+const xs = data[0].points.map((p) => decYearOf(p.date));
+const xMin = xs[0];
+const xMax = xs[xs.length - 1];
+
+// Shared y-range across cells: snap to [-12, +20] so the band always reads.
+const Y_MIN = -12;
+const Y_MAX = 20;
+const yTicks = [-10, 0, 10, 20];
+
+function cellX0(col: number): number {
+  return M_L + col * (CELL_W + GUT_X);
+}
+function cellY0(row: number): number {
+  return M_T + row * (CELL_H + GUT_Y);
+}
+function xScale(yr: number, c0: number): number {
+  return c0 + ((yr - xMin) / (xMax - xMin)) * CELL_W;
+}
+function yScale(v: number, r0: number): number {
+  return r0 + CELL_H - ((v - Y_MIN) / (Y_MAX - Y_MIN)) * CELL_H;
+}
+
+function buildLine(points: RegionPoint[], c0: number, r0: number): string {
+  return points
+    .map((p, i) => {
+      const x = xScale(decYearOf(p.date), c0);
+      const y = yScale(p.hpi_yoy, r0);
+      return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
+// Recession band 2020Q1-Q2 - outside the placeholder window, kept here as
+// the canon's standard treatment in case the data extends back.
+const recStart = 2020 + (2 - 0.5) / 12;
+const recEnd = 2020 + (4 - 0.5) / 12;
+const recVisible = !(recEnd < xMin || recStart > xMax);
+
+interface CellRender {
+  col: number;
+  row: number;
+  region: RegionSeries;
+  c0: number;
+  r0: number;
+  path: string;
+  lastX: number;
+  lastY: number;
+  lastVal: number;
+}
+
+const cells: CellRender[] = data.slice(0, 7).map((region, i) => {
+  const col = i % COLS;
+  const row = Math.floor(i / COLS);
+  const c0 = cellX0(col);
+  const r0 = cellY0(row);
+  const path = buildLine(region.points, c0, r0);
+  const last = region.points[region.points.length - 1];
+  const lastX = xScale(decYearOf(last.date), c0);
+  const lastY = yScale(last.hpi_yoy, r0);
+  return { col, row, region, c0, r0, path, lastX, lastY, lastVal: last.hpi_yoy };
+});
+---
+<div class="housing-panel-1" aria-label={ariaLabel}>
+  <svg
+    class="housing-panel-1__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {cells.map((cell) => {
+      const x1 = cell.c0 + CELL_W;
+      const y1 = cell.r0 + CELL_H;
+      const zeroY = yScale(0, cell.r0);
+      return (
+        <g class="housing-panel-1__cell">
+          {/* Recession band */}
+          {recVisible && (
+            <rect
+              class="housing-panel-1__recession"
+              x={xScale(Math.max(recStart, xMin), cell.c0).toFixed(2)}
+              y={cell.r0.toFixed(2)}
+              width={(xScale(Math.min(recEnd, xMax), cell.c0) - xScale(Math.max(recStart, xMin), cell.c0)).toFixed(2)}
+              height={CELL_H.toFixed(2)}
+            />
+          )}
+
+          {/* Gridlines */}
+          {yTicks.map((v) => {
+            const y = yScale(v, cell.r0);
+            const isZero = v === 0;
+            return (
+              <line
+                class:list={["housing-panel-1__gridline", { "housing-panel-1__gridline--zero": isZero }]}
+                x1={cell.c0.toFixed(2)}
+                y1={y.toFixed(2)}
+                x2={x1.toFixed(2)}
+                y2={y.toFixed(2)}
+              />
+            );
+          })}
+
+          {/* Data line: pure black 1.5px */}
+          <path class="housing-panel-1__line" d={cell.path} fill="none" />
+
+          {/* Latest-point dot - MTA red */}
+          <circle
+            class="housing-panel-1__marker"
+            cx={cell.lastX.toFixed(2)}
+            cy={cell.lastY.toFixed(2)}
+            r="3"
+          >
+            <title>{`${cell.region.label}: ${cell.lastVal.toFixed(1)}% Y/Y`}</title>
+          </circle>
+
+          {/* Plot frame - 1px black hairline (Vignelli) */}
+          <rect
+            class="housing-panel-1__frame"
+            x={cell.c0.toFixed(2)}
+            y={cell.r0.toFixed(2)}
+            width={CELL_W.toFixed(2)}
+            height={CELL_H.toFixed(2)}
+            fill="none"
+          />
+
+          {/* Cell label (CMA name) above */}
+          <text
+            class="housing-panel-1__cell-label"
+            x={cell.c0.toFixed(2)}
+            y={(cell.r0 - 6).toFixed(2)}
+            text-anchor="start"
+          >{cell.region.label}</text>
+
+          {/* Latest value to right of frame */}
+          <text
+            class="housing-panel-1__cell-val"
+            x={(x1 - 4).toFixed(2)}
+            y={(cell.r0 - 6).toFixed(2)}
+            text-anchor="end"
+          >{`${cell.lastVal >= 0 ? "+" : ""}${cell.lastVal.toFixed(1)}%`}</text>
+
+          {/* Y-tick labels on first column only */}
+          {cell.col === 0 && yTicks.map((v, i) => (
+            <text
+              class="housing-panel-1__ytick-label"
+              x={(cell.c0 - 4).toFixed(2)}
+              y={(yScale(v, cell.r0) + 3.5).toFixed(2)}
+              text-anchor="end"
+            >{i === yTicks.length - 1 ? `${v}%` : `${v}`}</text>
+          ))}
+
+          {/* X-tick labels on bottom row only */}
+          {cell.row === ROWS - 1 && (
+            <g>
+              <text
+                class="housing-panel-1__xtick-label"
+                x={cell.c0.toFixed(2)}
+                y={(y1 + 14).toFixed(2)}
+                text-anchor="start"
+              >{`'${String(Math.ceil(xMin)).slice(-2)}`}</text>
+              <text
+                class="housing-panel-1__xtick-label"
+                x={x1.toFixed(2)}
+                y={(y1 + 14).toFixed(2)}
+                text-anchor="end"
+              >{`'${String(Math.floor(xMax)).slice(-2)}`}</text>
+            </g>
+          )}
+        </g>
+      );
+    })}
+  </svg>
+</div>
+
+<style>
+  .housing-panel-1 {
+    width: 100%;
+    aspect-ratio: 720 / 420;
+    background-color: var(--surface);
+  }
+  .housing-panel-1__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+  .housing-panel-1__recession {
+    fill: rgba(21, 23, 26, 0.06);
+  }
+  .housing-panel-1__gridline {
+    stroke: var(--rule);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  .housing-panel-1__gridline--zero {
+    stroke: var(--ink);
+    stroke-opacity: 1;
+  }
+  .housing-panel-1__frame {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .housing-panel-1__line {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+  }
+  .housing-panel-1__marker {
+    fill: var(--accent);
+  }
+  .housing-panel-1__cell-label {
+    fill: var(--ink);
+    font-size: 10px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .housing-panel-1__cell-val {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+  .housing-panel-1__ytick-label,
+  .housing-panel-1__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

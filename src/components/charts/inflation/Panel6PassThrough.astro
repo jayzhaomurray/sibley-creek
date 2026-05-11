@@ -503,113 +503,69 @@ const ariaLabel = gated
 </figure>
 
 <style>
-  .panel-6-pt {
-    width: 100%;
-    margin: 0;
-    background-color: var(--surface);
-  }
-  .panel-6-pt__svg {
-    display: block;
-    width: 100%;
-    height: auto;
-    font-family: var(--font-sans);
-    overflow: visible;
-  }
+  /* Vignelli v1.0 canon-compliant restyle (2026-05-11). Two strips,
+     each with dual axes. Driver = primary (pure ink solid, MTA red latest
+     dot, Manrope 600 direct label). Response = secondary (pure ink dashed
+     4 2, no dot, Manrope 400 direct label). Identical canon to single-
+     panel multi-series. */
+  .panel-6-pt { width: 100%; margin: 0; background-color: var(--paper); }
+  .panel-6-pt__svg { display: block; width: 100%; height: auto; font-family: var(--font-sans); overflow: visible; }
   .panel-6-pt__foot {
-    margin: var(--s-2) 0 0;
-    font-family: var(--font-sans);
-    font-size: var(--fs-micro);
-    color: var(--ink-faint);
-    text-align: right;
+    margin: var(--s-2) 0 0; font-family: var(--font-sans);
+    font-size: var(--fs-micro); color: var(--ink); text-align: right; opacity: 0.65;
   }
   .panel-6-pt__foot em { font-style: italic; }
-
   .panel-6-pt__strip-title {
-    fill: var(--ink-muted);
-    font-size: 10px;
-    font-weight: var(--fw-medium);
-    letter-spacing: 0.04em;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
   }
-
   .panel-6-pt__gridline {
-    stroke: var(--rule-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges;
   }
   .panel-6-pt__zero {
-    stroke: var(--ink-muted);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 1; shape-rendering: crispEdges;
   }
   .panel-6-pt__target {
-    stroke: var(--ink-faint);
-    stroke-width: 1;
-    stroke-dasharray: 4 2;
-    shape-rendering: crispEdges;
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2; shape-rendering: crispEdges;
   }
-  .panel-6-pt__xaxis {
-    stroke: var(--rule);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+  .panel-6-pt__xaxis { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .panel-6-pt__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .panel-6-pt__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
-  .panel-6-pt__xtick {
-    stroke: var(--ink-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .panel-6-pt__xtick-label,
   .panel-6-pt__ytick-label {
-    fill: var(--ink-faint);
-    font-size: 9px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 11px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
-
-  /* Driver line: brand accent (the editorial argument: "driver leads") */
+  /* Driver = primary; response = secondary. */
   .panel-6-pt__line--driver {
-    stroke: var(--accent);
-    stroke-width: 1.75;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+    fill: none; vector-effect: non-scaling-stroke;
   }
-  /* Response line: slate (recedes; the driver is the lead) */
   .panel-6-pt__line--response {
-    stroke: var(--series-7);
-    stroke-width: 1.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    opacity: 0.85;
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2;
+    stroke-linejoin: round; fill: none; vector-effect: non-scaling-stroke;
   }
-
+  /* MTA red latest dot only on the driver. */
   .panel-6-pt__marker--driver {
-    fill: var(--accent);
-    stroke: var(--surface);
-    stroke-width: 1;
+    fill: var(--accent); stroke: none;
   }
   .panel-6-pt__marker--response {
-    fill: var(--series-7);
-    stroke: var(--surface);
-    stroke-width: 1;
+    fill: transparent; stroke: none;
   }
-
   .panel-6-pt__direct-label {
-    font-size: 10px;
-    font-weight: var(--fw-medium);
+    fill: var(--ink); font-family: var(--font-sans); font-size: 12px;
   }
-  .panel-6-pt__direct-label--driver   { fill: var(--accent); }
-  .panel-6-pt__direct-label--response { fill: var(--series-7); }
-
-  .panel-6-pt__gated-strip {
-    fill: var(--surface-sunk);
-  }
+  .panel-6-pt__direct-label--driver   { font-weight: var(--fw-semibold); }
+  .panel-6-pt__direct-label--response { font-weight: var(--fw-regular); }
+  .panel-6-pt__gated-strip { fill: var(--ink); fill-opacity: 0.06; }
   .panel-6-pt__gated-text {
-    fill: var(--ink);
-    font-size: 14px;
-    font-weight: var(--fw-medium);
-    font-family: var(--font-serif);
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 15px; font-weight: var(--fw-semibold);
   }
   .panel-6-pt__gated-sub {
-    fill: var(--ink-muted);
-    font-size: 11px;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular);
   }
 </style>

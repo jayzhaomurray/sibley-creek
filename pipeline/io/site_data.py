@@ -126,11 +126,16 @@ class SectionConfig:
                             "pp"    -> delta = latest - prior, force "pp" label
                             "bps"   -> delta = (latest - prior) * 100, label "bps"
                             "pct"   -> delta = (latest / prior - 1) * 100, label "%"
-        positive_is_good:   for deltaDir resolution. True means an increase
-                            is "pos" (e.g. employment up). False means a
-                            decrease is "pos" (e.g. unemployment down,
-                            inflation cooling). None means "neutral always"
-                            (the editorial reading on FX, yields, etc).
+        positive_is_good:   editorial semantic flag describing whether an
+                            upward move in this series is "good" (True),
+                            "bad" (False), or ambient/no-side (None).
+                            NOT used to drive `deltaDir` -- per
+                            design-system.md Section 4 the glyph encodes
+                            direction-of-change, not direction-of-goodness.
+                            Preserved on the config because a future
+                            editorial "WORSE / BETTER / UNCHANGED" stamp
+                            (separate from the directional glyph) will
+                            consume it.
     """
 
     slug: str
@@ -427,28 +432,43 @@ def _format_delta(latest: float, prior: float, cfg: SectionConfig) -> str:
 def _resolve_delta_dir(latest: float, prior: float, cfg: SectionConfig) -> str:
     """Map delta sign to editorial direction (pos/neg/neutral).
 
-    Treats a delta below the format threshold as 'neutral' to keep the
-    tile from rendering "+0.0 pp" with a green chevron.
+    Per design-system.md Section 4 (the direction-by-glyph canon): the
+    glyph encodes direction-of-CHANGE, not direction-of-goodness. A rise
+    in inflation, unemployment, or USDCAD all render with the up-triangle
+    because the value went up. The `positive_is_good` flag on the catalog
+    is preserved for future editorial features (e.g. a separate
+    WORSE/BETTER/UNCHANGED semantic stamp) but it MUST NOT drive
+    `deltaDir`.
+
+    Tolerance: a delta whose magnitude is below half the last printed
+    decimal is treated as 'neutral' so the tile does not render
+    "+0.0 pp" or "-0.0 pp" next to an up/down triangle. The comparison
+    is done in the SAME UNITS the delta is displayed in (pp, %, bps, or
+    billions), so the threshold and the rendered string agree.
     """
-    if cfg.positive_is_good is None:
-        return "neutral"
-    diff = latest - prior
-    # Threshold: smaller than 1/2 the last printed decimal.
-    threshold = 0.5 * (10 ** -cfg.delta_decimals)
     if cfg.delta_kind == "bps":
-        # Compare in bps space
-        threshold = 0.5  # 0.5 bps
-        diff = (latest - prior) * 100.0
-    elif cfg.delta_kind == "pct":
+        # Displayed as "+/-X bps" with delta_decimals=0 by convention; the
+        # smallest visible motion is 1 bps, so half-step is 0.5 bps.
+        diff_display = (latest - prior) * 100.0
         threshold = 0.5 * (10 ** -cfg.delta_decimals)
+    elif cfg.delta_kind == "pct":
         if prior == 0:
             return "neutral"
-        diff = (latest / prior - 1.0) * 100.0
-    if abs(diff) < threshold:
+        diff_display = (latest / prior - 1.0) * 100.0
+        threshold = 0.5 * (10 ** -cfg.delta_decimals)
+    elif cfg.delta_kind == "level" and cfg.unit_display == "B":
+        # Trade balance: stored in CAD millions, displayed in CAD billions.
+        # Compare in billions so the threshold matches the printed decimal.
+        diff_display = (latest - prior) / 1000.0
+        threshold = 0.5 * (10 ** -cfg.delta_decimals)
+    else:
+        # "pp" | "yoy" | "level" (non-B units): displayed difference is in
+        # the same units as the raw values.
+        diff_display = latest - prior
+        threshold = 0.5 * (10 ** -cfg.delta_decimals)
+    if abs(diff_display) < threshold:
         return "neutral"
-    if cfg.positive_is_good:
-        return "pos" if diff > 0 else "neg"
-    return "pos" if diff < 0 else "neg"
+    return "pos" if diff_display > 0 else "neg"
 
 
 def _format_as_of(d: pd.Timestamp, kind: str) -> str:

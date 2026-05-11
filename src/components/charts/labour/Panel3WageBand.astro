@@ -315,92 +315,50 @@ const cpiAnno = `Services CPI: ${last.cpi.toFixed(1)}%`;
 </div>
 
 <style>
-  .labour-panel-chart {
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    background-color: var(--surface);
-    overflow: visible;
-  }
-  .labour-panel-chart__svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-    font-family: var(--font-sans);
-  }
+  /* Vignelli v1.0 canon-compliant restyle (2026-05-11). The wage band
+     uses ink wash at 8% opacity (slightly heavier than the standard
+     recession band - earned, this IS the data). Median = primary (pure
+     ink solid, MTA red latest dot). CPI services comparator = secondary
+     (pure ink dashed 4 2, no dot). */
+  .labour-panel-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
+  .labour-panel-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
   .labour-panel-chart__gridline {
-    stroke: var(--rule-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges;
   }
-  .labour-panel-chart__band-fill {
-    fill: var(--series-3);
-    fill-opacity: 0.2;
-    stroke: none;
-  }
-  .labour-panel-chart__band-edge {
-    stroke: var(--series-3);
-    stroke-opacity: 0.4;
-    stroke-width: 1;
-    fill: none;
-  }
+  .labour-panel-chart__band-fill { fill: var(--ink); fill-opacity: 0.08; stroke: none; }
+  .labour-panel-chart__band-edge { stroke: var(--ink); stroke-opacity: 0.30; stroke-width: 1; fill: none; }
   .labour-panel-chart__line-med {
-    stroke: var(--series-3);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-    fill: none;
+    stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
+    fill: none; vector-effect: non-scaling-stroke;
   }
   .labour-panel-chart__line-cpi {
-    stroke: var(--series-2);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-    fill: none;
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2;
+    stroke-linejoin: round; fill: none; vector-effect: non-scaling-stroke;
   }
-  .labour-panel-chart__marker-med {
-    fill: var(--series-3);
-    stroke: var(--surface);
-    stroke-width: 1;
-  }
-  .labour-panel-chart__marker-cpi {
-    fill: var(--series-2);
-    stroke: var(--surface);
-    stroke-width: 1;
-  }
-  .labour-panel-chart__xaxis {
-    stroke: var(--rule);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .labour-panel-chart__xtick {
-    stroke: var(--ink-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .labour-panel-chart__ytick-label,
+  .labour-panel-chart__marker-med { fill: var(--accent); stroke: none; }
+  .labour-panel-chart__marker-cpi { fill: transparent; stroke: none; }
+  .labour-panel-chart__xaxis { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .labour-panel-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
   .labour-panel-chart__xtick-label {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .labour-panel-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
   .labour-panel-chart__unit {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
   }
   .labour-panel-chart__caption {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-regular);
-    font-style: italic;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-regular); opacity: 0.65;
   }
   .labour-panel-chart__direct-label {
+    fill: var(--ink); font-family: var(--font-sans);
     font-size: 12px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
   }
-  .labour-panel-chart__direct-label--med { fill: var(--series-3); }
-  .labour-panel-chart__direct-label--cpi { fill: var(--series-2); }
+  .labour-panel-chart__direct-label--med { font-weight: var(--fw-semibold); }
+  .labour-panel-chart__direct-label--cpi { font-weight: var(--fw-regular); }
 </style>

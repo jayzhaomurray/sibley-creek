@@ -1,0 +1,295 @@
+---
+/*
+ * Panel3CreditSpreads - Markets plate 3.
+ *
+ * Spec: editorial canon 4.6.3. US ICE BofA IG OAS (BAMLC0A0CM) and HY
+ * OAS (BAMLH0A0HYM2) as a single dual-line risk-appetite proxy. The
+ * Canadian-blind-spot caveat (Canada lacks a public daily OAS series of
+ * comparable history) is captured in the source line in the page wiring.
+ *
+ * Visual: HY is the load-bearing series (the volatility carries the
+ * regime story); IG sits as a recessive 1px dashed companion. Both
+ * black. MTA red dot on the HY latest. The two series share the same
+ * y-axis in basis points (HY swings 300-1000, IG 80-280).
+ *
+ * Plot vs SVG: hand-rolled SVG. Two lines, recession bands, dot. Same
+ * pattern as Panel1CAD.
+ *
+ * Placeholder: synthesized 120-month series ending Apr 2026. 2020 COVID
+ * spike, 2022 selloff, 2023-2025 grind tighter, current near cycle tights.
+ */
+
+interface SpreadRow {
+  date: string;   // "YYYY-MM"
+  ig_bps: number; // IG OAS, basis points
+  hy_bps: number; // HY OAS, basis points
+}
+
+interface Props {
+  data?: SpreadRow[];
+  ariaLabel?: string;
+}
+
+function makePlaceholder(): SpreadRow[] {
+  const out: SpreadRow[] = [];
+  let y = 2016;
+  let m = 5;
+  for (let i = 0; i < 120; i++) {
+    // Base levels with regime shifts.
+    let ig = 130;
+    let hy = 400;
+    // 2020 COVID spike: i ~46 (Feb-Apr 2020).
+    if (i >= 44 && i <= 50) {
+      ig = 130 + 200 * Math.exp(-Math.pow((i - 47) / 1.5, 2));
+      hy = 400 + 700 * Math.exp(-Math.pow((i - 47) / 1.5, 2));
+    }
+    // 2022 selloff: i ~70-82.
+    if (i >= 68 && i <= 84) {
+      ig = 130 + 80 * Math.exp(-Math.pow((i - 76) / 4, 2));
+      hy = 400 + 250 * Math.exp(-Math.pow((i - 76) / 4, 2));
+    }
+    // 2023-2026: grind tighter.
+    if (i >= 85) {
+      const tt = (i - 85) / 34;
+      ig = 130 - 55 * tt + 10 * Math.sin(i * 0.5);
+      hy = 400 - 110 * tt + 20 * Math.sin(i * 0.5);
+    }
+    // Noise.
+    ig += 8 * Math.sin(i * 0.3);
+    hy += 18 * Math.sin(i * 0.3 + 0.5);
+    out.push({
+      date: `${y}-${String(m).padStart(2, "0")}`,
+      ig_bps: Number(Math.max(70, ig).toFixed(0)),
+      hy_bps: Number(Math.max(280, hy).toFixed(0)),
+    });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+const {
+  data = makePlaceholder(),
+  ariaLabel = "US investment-grade and high-yield option-adjusted spreads, last 10 years.",
+} = Astro.props;
+
+// ---- Geometry ----
+const VB_W = 720;
+const VB_H = 432;
+const M_L = 56;
+const M_R = 72;
+const M_T = 30;
+const M_B = 34;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+function decYearOf(d: string): number {
+  const [yy, mm] = d.split("-").map(Number);
+  return yy + (mm - 0.5) / 12;
+}
+const xs = data.map((d) => decYearOf(d.date));
+const xMin = xs[0];
+const xMax = xs[xs.length - 1];
+
+// Y: 0 to top.
+const yLo = 0;
+const yHi = Math.ceil(Math.max(...data.map((d) => d.hy_bps)) / 200) * 200 + 100;
+const yTicks: number[] = [];
+for (let v = 0; v <= yHi + 1e-9; v += 200) yTicks.push(v);
+
+function xScale(decY: number): number {
+  return PLOT_X0 + ((decY - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - yLo) / (yHi - yLo)) * PLOT_H;
+}
+
+const igPath = data.map((d, i) => `${i === 0 ? "M" : "L"}${xScale(xs[i]).toFixed(2)} ${yScale(d.ig_bps).toFixed(2)}`).join(" ");
+const hyPath = data.map((d, i) => `${i === 0 ? "M" : "L"}${xScale(xs[i]).toFixed(2)} ${yScale(d.hy_bps).toFixed(2)}`).join(" ");
+
+const yearTicks: Array<{ x: number; label: string }> = [];
+for (let yy = Math.ceil(xMin); yy <= Math.floor(xMax); yy++) {
+  if (yy % 2 !== 0) continue;
+  const decY = yy + (1 - 0.5) / 12;
+  if (decY < xMin || decY > xMax) continue;
+  yearTicks.push({ x: xScale(decY), label: `'${String(yy).slice(-2)}` });
+}
+
+// Recession band 2020 Q1-Q2.
+const recStart = 2020 + (2 - 0.5) / 12;
+const recEnd = 2020 + (4 - 0.5) / 12;
+const recVisible = recEnd >= xMin && recStart <= xMax;
+const recX0 = recVisible ? xScale(Math.max(recStart, xMin)) : 0;
+const recX1 = recVisible ? xScale(Math.min(recEnd, xMax)) : 0;
+
+const last = data[data.length - 1];
+const lastX = xScale(xs[xs.length - 1]);
+const lastHyY = yScale(last.hy_bps);
+const lastIgY = yScale(last.ig_bps);
+const monthShort = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const lastDate = `${monthShort[Number(last.date.split("-")[1]) - 1]} ${last.date.split("-")[0]}`;
+---
+<figure class="markets-panel-3" aria-label={ariaLabel}>
+  <svg
+    class="markets-panel-3__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+  >
+    {recVisible && (
+      <rect
+        class="markets-panel-3__recession"
+        x={recX0.toFixed(2)}
+        y={PLOT_Y0}
+        width={Math.max(1, recX1 - recX0).toFixed(2)}
+        height={PLOT_H}
+      />
+    )}
+
+    {yTicks.map((v) => (
+      <line
+        class="markets-panel-3__gridline"
+        x1={PLOT_X0}
+        y1={yScale(v).toFixed(2)}
+        x2={PLOT_X1}
+        y2={yScale(v).toFixed(2)}
+      />
+    ))}
+
+    {/* IG (recessive, dashed) */}
+    <path class="markets-panel-3__line markets-panel-3__line--ig" d={igPath} fill="none" />
+    {/* HY (primary, solid) */}
+    <path class="markets-panel-3__line markets-panel-3__line--hy" d={hyPath} fill="none" />
+
+    {/* Latest dot on HY */}
+    <circle
+      class="markets-panel-3__marker"
+      cx={lastX.toFixed(2)}
+      cy={lastHyY.toFixed(2)}
+      r="3.5"
+    >
+      <title>{`${lastDate}: HY OAS ${last.hy_bps} bps`}</title>
+    </circle>
+
+    <rect
+      class="markets-panel-3__frame"
+      x={PLOT_X0}
+      y={PLOT_Y0}
+      width={PLOT_W}
+      height={PLOT_H}
+      fill="none"
+    />
+
+    {yearTicks.map((t) => (
+      <text
+        class="markets-panel-3__xtick-label"
+        x={t.x.toFixed(2)}
+        y={(PLOT_Y1 + 16).toFixed(2)}
+        text-anchor="middle"
+      >{t.label}</text>
+    ))}
+
+    {yTicks.map((v, i) => (
+      <text
+        class="markets-panel-3__ytick-label"
+        x={(PLOT_X0 - 6).toFixed(2)}
+        y={(yScale(v) + 3.5).toFixed(2)}
+        text-anchor="end"
+      >{i === yTicks.length - 1 ? `${v} bps` : `${v}`}</text>
+    ))}
+
+    {/* Direct labels */}
+    <text
+      class="markets-panel-3__direct-label"
+      x={(lastX + 6).toFixed(2)}
+      y={(lastHyY + 4).toFixed(2)}
+      text-anchor="start"
+    >HY</text>
+    <text
+      class="markets-panel-3__direct-label markets-panel-3__direct-label--ig"
+      x={(lastX + 6).toFixed(2)}
+      y={(lastIgY + 4).toFixed(2)}
+      text-anchor="start"
+    >IG</text>
+
+    <text
+      class="markets-panel-3__unit"
+      x={PLOT_X0.toFixed(2)}
+      y={(PLOT_Y0 - 12).toFixed(2)}
+      text-anchor="start"
+    >ICE BofA US corporate OAS, basis points. HY solid; IG dashed.</text>
+  </svg>
+</figure>
+
+<style>
+  .markets-panel-3 {
+    width: 100%;
+    margin: 0;
+    background-color: var(--surface);
+  }
+  .markets-panel-3__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: var(--font-sans);
+    overflow: visible;
+  }
+  .markets-panel-3__recession {
+    fill: rgba(0, 0, 0, 0.06);
+  }
+  .markets-panel-3__gridline {
+    stroke: var(--ink);
+    stroke-opacity: 0.15;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .markets-panel-3__line--hy {
+    stroke: #000000;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .markets-panel-3__line--ig {
+    stroke: #000000;
+    stroke-width: 1;
+    stroke-dasharray: 3 2;
+    opacity: 0.55;
+  }
+  .markets-panel-3__marker {
+    fill: #E63946;
+    stroke: var(--surface);
+    stroke-width: 1.25;
+  }
+  .markets-panel-3__frame {
+    stroke: #000000;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .markets-panel-3__xtick-label,
+  .markets-panel-3__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+  .markets-panel-3__direct-label {
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+    fill: var(--ink);
+  }
+  .markets-panel-3__direct-label--ig {
+    opacity: 0.7;
+  }
+  .markets-panel-3__unit {
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.02em;
+  }
+</style>

@@ -1,0 +1,293 @@
+---
+/*
+ * Panel6FDIBySector - Trade plate 6.
+ *
+ * Spec: editorial canon 4.7.6. Sector composition of FDI flows, inward
+ * and outward, latest quarter. Horizontal bar pairs - each sector row
+ * shows an inward bar (filled ink) and an outward bar (hollow / 1px ink
+ * outline). The horizontal layout reads as a comparative slate: sectors
+ * stacked top-to-bottom, two bars per row, sorted by inward magnitude.
+ *
+ * Vignelli canon: pure ink fills, 1px black plot frame around the chart
+ * area, Plex Mono numeric labels at the bar termini, Manrope micro-caps
+ * sector labels in the left gutter. No accent color on bars; the MTA red
+ * dot is reserved for time-series latest-print moments which a snapshot
+ * bar chart does not have. We drop the dot for this plate (per design-
+ * system 3 / section accent rules - "the accent is brand-signal moments,
+ * not bar-chart ornaments"). The plate-number eyebrow on the chartbook
+ * unit retains the red numeral - that's enough brand thread.
+ *
+ * Plot vs SVG: hand-rolled SVG. Trivial horizontal-bar geometry.
+ *
+ * Placeholder: 6 sectors, inward and outward in CAD billions for the
+ * latest quarter.
+ */
+
+interface FDIRow {
+  sector: string;
+  inward: number;   // CAD billions (positive)
+  outward: number;  // CAD billions (positive)
+}
+
+interface Props {
+  data?: FDIRow[];
+  ariaLabel?: string;
+  /** Reference label for the period (eg "Q4 2025"). */
+  periodLabel?: string;
+}
+
+function makePlaceholder(): FDIRow[] {
+  // Approximate stylized composition.
+  return [
+    { sector: "Oil and gas extraction",  inward: 12.4, outward: 4.1 },
+    { sector: "Finance and insurance",    inward: 9.8,  outward: 14.6 },
+    { sector: "Manufacturing",            inward: 7.2,  outward: 5.4 },
+    { sector: "Real estate and rental",   inward: 4.6,  outward: 8.9 },
+    { sector: "Mining (ex. oil and gas)", inward: 3.9,  outward: 2.8 },
+    { sector: "Information / culture",    inward: 2.1,  outward: 1.9 },
+  ];
+}
+
+const {
+  data = makePlaceholder(),
+  ariaLabel = "FDI flows by sector, inward versus outward, latest quarter.",
+  periodLabel = "Q4 2025",
+} = Astro.props;
+
+// ---- Geometry ----
+const VB_W = 720;
+const VB_H = 432;
+const M_L = 192;
+const M_R = 56;
+const M_T = 30;
+const M_B = 40;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+const n = data.length;
+const rowH = PLOT_H / n;
+const BAR_GAP = 4;
+const barH = Math.max(6, (rowH - BAR_GAP) / 2);
+
+const maxVal = Math.max(...data.flatMap((d) => [d.inward, d.outward]));
+const xLo = 0;
+const xHi = Math.ceil(maxVal / 5) * 5;
+const xTicks: number[] = [];
+for (let v = 0; v <= xHi + 1e-9; v += 5) xTicks.push(v);
+
+function xScale(v: number): number {
+  return PLOT_X0 + ((v - xLo) / (xHi - xLo)) * PLOT_W;
+}
+function rowY(i: number): number {
+  return PLOT_Y0 + (i + 0.5) * rowH;
+}
+---
+<figure class="trade-panel-6" aria-label={ariaLabel}>
+  <svg
+    class="trade-panel-6__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+  >
+    {/* Vertical gridlines (light) */}
+    {xTicks.map((v) => {
+      if (v === 0) return null;
+      return (
+        <line
+          class="trade-panel-6__gridline"
+          x1={xScale(v).toFixed(2)}
+          y1={PLOT_Y0}
+          x2={xScale(v).toFixed(2)}
+          y2={PLOT_Y1}
+        />
+      );
+    })}
+
+    {/* Bars */}
+    {data.map((d, i) => {
+      const yMid = rowY(i);
+      const yIn = yMid - barH - BAR_GAP / 2;
+      const yOut = yMid + BAR_GAP / 2;
+      const wIn = Math.max(1, xScale(d.inward) - PLOT_X0);
+      const wOut = Math.max(1, xScale(d.outward) - PLOT_X0);
+      return (
+        <g>
+          <rect
+            class="trade-panel-6__bar trade-panel-6__bar--in"
+            x={PLOT_X0.toFixed(2)}
+            y={yIn.toFixed(2)}
+            width={wIn.toFixed(2)}
+            height={barH.toFixed(2)}
+          >
+            <title>{`${d.sector}: inward CAD ${d.inward.toFixed(1)}B`}</title>
+          </rect>
+          <rect
+            class="trade-panel-6__bar trade-panel-6__bar--out"
+            x={PLOT_X0.toFixed(2)}
+            y={yOut.toFixed(2)}
+            width={wOut.toFixed(2)}
+            height={barH.toFixed(2)}
+          >
+            <title>{`${d.sector}: outward CAD ${d.outward.toFixed(1)}B`}</title>
+          </rect>
+          {/* Sector label in left gutter */}
+          <text
+            class="trade-panel-6__row-label"
+            x={(PLOT_X0 - 10).toFixed(2)}
+            y={yMid.toFixed(2)}
+            text-anchor="end"
+            dominant-baseline="middle"
+          >{d.sector}</text>
+          {/* Value labels at bar termini */}
+          <text
+            class="trade-panel-6__value"
+            x={(PLOT_X0 + wIn + 4).toFixed(2)}
+            y={(yIn + barH / 2 + 3.5).toFixed(2)}
+            text-anchor="start"
+          >{d.inward.toFixed(1)}</text>
+          <text
+            class="trade-panel-6__value trade-panel-6__value--secondary"
+            x={(PLOT_X0 + wOut + 4).toFixed(2)}
+            y={(yOut + barH / 2 + 3.5).toFixed(2)}
+            text-anchor="start"
+          >{d.outward.toFixed(1)}</text>
+        </g>
+      );
+    })}
+
+    {/* Plot frame */}
+    <rect
+      class="trade-panel-6__frame"
+      x={PLOT_X0}
+      y={PLOT_Y0}
+      width={PLOT_W}
+      height={PLOT_H}
+      fill="none"
+    />
+
+    {/* X-axis tick labels (CAD billions) */}
+    {xTicks.map((v, i) => (
+      <text
+        class="trade-panel-6__xtick-label"
+        x={xScale(v).toFixed(2)}
+        y={(PLOT_Y1 + 16).toFixed(2)}
+        text-anchor="middle"
+      >{i === xTicks.length - 1 ? `${v} CAD B` : `${v}`}</text>
+    ))}
+
+    {/* Legend in top-right */}
+    <g class="trade-panel-6__legend">
+      <rect
+        class="trade-panel-6__bar trade-panel-6__bar--in"
+        x={(PLOT_X1 - 110).toFixed(2)}
+        y={(PLOT_Y0 - 22).toFixed(2)}
+        width="10"
+        height="8"
+      />
+      <text
+        class="trade-panel-6__legend-label"
+        x={(PLOT_X1 - 96).toFixed(2)}
+        y={(PLOT_Y0 - 15).toFixed(2)}
+        text-anchor="start"
+      >Inward</text>
+      <rect
+        class="trade-panel-6__bar trade-panel-6__bar--out"
+        x={(PLOT_X1 - 56).toFixed(2)}
+        y={(PLOT_Y0 - 22).toFixed(2)}
+        width="10"
+        height="8"
+      />
+      <text
+        class="trade-panel-6__legend-label"
+        x={(PLOT_X1 - 42).toFixed(2)}
+        y={(PLOT_Y0 - 15).toFixed(2)}
+        text-anchor="start"
+      >Outward</text>
+    </g>
+
+    {/* Unit annotation top-left */}
+    <text
+      class="trade-panel-6__unit"
+      x={PLOT_X0.toFixed(2)}
+      y={(PLOT_Y0 - 12).toFixed(2)}
+      text-anchor="start"
+    >{`FDI by sector, CAD billions, ${periodLabel}.`}</text>
+  </svg>
+</figure>
+
+<style>
+  .trade-panel-6 {
+    width: 100%;
+    margin: 0;
+    background-color: var(--surface);
+  }
+  .trade-panel-6__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: var(--font-sans);
+    overflow: visible;
+  }
+  .trade-panel-6__gridline {
+    stroke: var(--ink);
+    stroke-opacity: 0.15;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  /* Inward: filled ink. Outward: hollow with 1px ink stroke. The
+   * weight-contrast (filled vs outlined) is the discriminator, mirroring
+   * the dashed-vs-solid pattern on line charts - monochrome with shape. */
+  .trade-panel-6__bar--in {
+    fill: #000000;
+  }
+  .trade-panel-6__bar--out {
+    fill: none;
+    stroke: #000000;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .trade-panel-6__frame {
+    stroke: #000000;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .trade-panel-6__row-label {
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    letter-spacing: 0.01em;
+  }
+  .trade-panel-6__value {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+  .trade-panel-6__value--secondary {
+    opacity: 0.7;
+  }
+  .trade-panel-6__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+  .trade-panel-6__legend-label {
+    fill: var(--ink);
+    font-size: 10px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.02em;
+  }
+  .trade-panel-6__unit {
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.02em;
+  }
+</style>

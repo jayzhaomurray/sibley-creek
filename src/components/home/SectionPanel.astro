@@ -2,35 +2,109 @@
 /*
  * SectionPanel - homepage indicator panel (production).
  *
- * Promoted from src/components/experiments/academic-vignelli/SectionPanel.astro.
- * Same structure; references production design tokens.
+ * Consumes the merged "enriched section" shape from
+ * src/data/site_data_loader.ts: editorial canon (slug, label,
+ * headlineQuestion, cadence) plus pipeline data (prints, spark, asOf,
+ * reference). Every field the pipeline did not produce is rendered as an
+ * obvious placeholder (em-dashes for numbers, mono "[ NOT WIRED ]" for
+ * dates, a dashed-border empty box for the chart). The intent is that an
+ * editor scanning the homepage can tell at a glance which numbers are real
+ * and which are still stubs.
  *
  * Aesthetic:
- *  - No fill. Panel is white with a 1px black hairline (the cell border in
- *    the parent grid supplies the bottom + right rules).
- *  - One sans family (Manrope). Weights: 200 / 400 / 600 / 800.
- *  - Tabular data in Plex Mono regular (one weight only).
- *  - Deltas encoded by ^ / v glyphs + sign in pure black. Hue is NEVER
- *    used to encode direction.
- *  - Chart: black 1.5px line, black axis labels, black hairline frame.
- *    Latest-print dot is the only red on the chart.
- *  - "Figure N." eyebrow numeral is red as the brand signal.
+ *  - No fill. Panel is white with a 1px black hairline.
+ *  - One sans family (Manrope). Tabular data in Plex Mono regular.
+ *  - Deltas encoded by ^ / v glyphs in pure black; hue is NEVER used to
+ *    encode direction.
+ *  - Real chart: black 1.5px line, latest-print dot is the only red.
+ *  - Placeholder chart: dashed-border empty box with "DATA NOT YET WIRED"
+ *    micro caps centered in faint gray (so it cannot be confused with a
+ *    real chart at any size).
  */
 
-import type { Section } from "../../data/sections";
+import type { EnrichedSection, EnrichedPrint } from "../../data/site_data_loader";
+import { PLACEHOLDER } from "../../data/site_data_loader";
 
 interface Props {
-  section: Section;
+  section: EnrichedSection;
   figureNum: string;
 }
 
 const { section, figureNum } = Astro.props;
 
-const loadBearing = section.chartSeriesKey
-  ? section.prints.find((p) => p.key === section.chartSeriesKey) ?? section.prints[0]
-  : section.prints[0];
+const loadBearing: EnrichedPrint = section.loadBearing;
 
-const series = loadBearing.spark ?? [0, 0.2, 0.3, 0.4];
+// ---- Chart affordance helpers --------------------------------------------
+// (1) Earliest-date label: derive from asOfISO and the spark window length so
+//     the reader can see the time span the chart covers (e.g. "MAY 2024 ...
+//     APR 2026") instead of an opaque "EARLIEST" stamp.
+// (2) Y-tick unit suffix: pulled from the pipeline's `units` field and pinned
+//     to the topmost tick only, per canon Section 5.3 ("topmost tick carries
+//     the unit").
+// (3) Delta-period stamp: "m/m" / "d/d" / "q/q" derived from the series'
+//     `frequency` so the reader knows what window the delta compares.
+
+function fmtDateLabel(iso: string, withDay: boolean): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return iso.toUpperCase();
+  const [, yy, mm, dd] = m;
+  const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+  const mon = months[parseInt(mm!, 10) - 1] ?? mm!;
+  if (withDay) return `${mon} ${parseInt(dd!, 10)}, ${yy}`;
+  return `${mon} ${yy}`;
+}
+
+function computeEarliestISO(asOfISO: string | null, n: number, frequency: string | null): string | null {
+  if (!asOfISO || n < 2) return null;
+  const m = asOfISO.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const yy = parseInt(m[1]!, 10);
+  const mm = parseInt(m[2]!, 10);
+  const dd = parseInt(m[3]!, 10);
+  const back = n - 1;
+  if (frequency === "daily") {
+    const t = new Date(Date.UTC(yy, mm - 1, dd));
+    t.setUTCDate(t.getUTCDate() - back);
+    const py = t.getUTCFullYear();
+    const pm = String(t.getUTCMonth() + 1).padStart(2, "0");
+    const pd = String(t.getUTCDate()).padStart(2, "0");
+    return `${py}-${pm}-${pd}`;
+  }
+  if (frequency === "quarterly") {
+    const totalMonths = (yy * 12 + (mm - 1)) - back * 3;
+    const py = Math.floor(totalMonths / 12);
+    const pm = String((totalMonths % 12) + 1).padStart(2, "0");
+    return `${py}-${pm}-01`;
+  }
+  // monthly (default)
+  const totalMonths = (yy * 12 + (mm - 1)) - back;
+  const py = Math.floor(totalMonths / 12);
+  const pm = String((totalMonths % 12) + 1).padStart(2, "0");
+  return `${py}-${pm}-01`;
+}
+
+function periodStampFor(frequency: string | null): string {
+  if (frequency === "daily") return "d/d";
+  if (frequency === "quarterly") return "q/q";
+  if (frequency === "monthly") return "m/m";
+  return "";
+}
+
+function unitSuffixFor(units: string | null): string {
+  if (!units) return "";
+  const u = units.toLowerCase();
+  if (u === "%" || u.startsWith("% ")) return "%";
+  if (u.includes("cad per usd")) return "";
+  if (u.includes("cad millions")) return "M";
+  if (u.includes("cad billions")) return "B";
+  return "";
+}
+
+function fmtTopTick(v: number, suffix: string): string {
+  const a = Math.abs(v);
+  const body = a >= 100 ? v.toFixed(0) : a >= 10 ? v.toFixed(1) : v.toFixed(2);
+  return suffix ? `${body}${suffix}` : body;
+}
 
 const W = 320;
 const H = 110;
@@ -42,8 +116,13 @@ const PAD_B = 18;
 const plotW = W - PAD_L - PAD_R;
 const plotH = H - PAD_T - PAD_B;
 
-const minV = Math.min(...series);
-const maxV = Math.max(...series);
+// Chart math only runs when we actually have a series. When `spark` is null
+// the markup renders a dashed-border placeholder instead.
+const hasSeries = Array.isArray(loadBearing.spark) && loadBearing.spark.length >= 2;
+const series: number[] = hasSeries ? (loadBearing.spark as number[]) : [];
+
+const minV = hasSeries ? Math.min(...series) : 0;
+const maxV = hasSeries ? Math.max(...series) : 1;
 const rangeRaw = maxV - minV || 1;
 const yMin = minV - rangeRaw * 0.12;
 const yMax = maxV + rangeRaw * 0.12;
@@ -56,8 +135,10 @@ function yOf(v: number): number {
   return PAD_T + (1 - (v - yMin) / yRange) * plotH;
 }
 
-const pts = series.map((v, i) => `${xOf(i).toFixed(2)},${yOf(v).toFixed(2)}`);
-const linePath = "M " + pts.join(" L ");
+const pts = hasSeries
+  ? series.map((v, i) => `${xOf(i).toFixed(2)},${yOf(v).toFixed(2)}`)
+  : [];
+const linePath = hasSeries ? "M " + pts.join(" L ") : "";
 
 function fmtTick(v: number): string {
   const a = Math.abs(v);
@@ -65,30 +146,55 @@ function fmtTick(v: number): string {
   if (a >= 10) return v.toFixed(1);
   return v.toFixed(2);
 }
-const ticks = [yMin, (yMin + yMax) / 2, yMax].map((v) => ({
-  v,
-  y: yOf(v),
-  label: fmtTick(v),
-}));
+const ticks = hasSeries
+  ? [yMin, (yMin + yMax) / 2, yMax].map((v) => ({
+      v,
+      y: yOf(v),
+      label: fmtTick(v),
+    }))
+  : [];
 
-const lastX = xOf(series.length - 1);
-const lastY = yOf(series[series.length - 1] as number);
+const lastX = hasSeries ? xOf(series.length - 1) : 0;
+const lastY = hasSeries ? yOf(series[series.length - 1] as number) : 0;
 
-const zeroInRange = yMin < 0 && yMax > 0;
+const zeroInRange = hasSeries && yMin < 0 && yMax > 0;
 const zeroY = zeroInRange ? yOf(0) : null;
 
-function dirGlyph(d: "pos" | "neg" | "neutral"): string {
+function dirGlyph(d: "pos" | "neg" | "neutral" | null): string {
   if (d === "pos") return "▲"; // black up-pointing triangle
   if (d === "neg") return "▼"; // black down-pointing triangle
-  return "—";                  // em dash for neutral
+  if (d === "neutral") return "—"; // em dash
+  return PLACEHOLDER.directionNone; // placeholder when not wired
 }
 
 const allPrints = section.prints;
+
+// asOf display (for SVG aria + caption). If the section has no real data we
+// still need a string to substitute into the aria-label and the right-edge
+// caption, but it must read clearly as a placeholder.
+const asOfDisplay = loadBearing.asOf ?? PLACEHOLDER.notWired;
+const valueDisplay = loadBearing.value ?? PLACEHOLDER.value;
+const deltaDisplay = loadBearing.delta ?? PLACEHOLDER.value;
+
+// Earliest-date stamp (left x-axis) — derived from the window the spark
+// covers. Falls back to "—" when we don't have an ISO date to anchor off.
+const earliestISO = computeEarliestISO(loadBearing.asOfISO, series.length, section.frequency);
+const earliestDisplay = earliestISO
+  ? fmtDateLabel(earliestISO, section.frequency === "daily")
+  : "";
+
+// Topmost y-tick gets the unit (canon Section 5.3). Other ticks render bare.
+const unitSuffix = unitSuffixFor(section.units);
+
+// Delta-period stamp ("m/m" / "d/d" / "q/q") so the reader knows what window
+// the delta compares.
+const periodStamp = periodStampFor(section.frequency);
 ---
 <article
   class="vig-panel"
   id={`panel-${section.slug}`}
   aria-labelledby={`panel-${section.slug}-h`}
+  data-real={section.hasRealData ? "true" : "false"}
 >
   <header class="vig-panel__head">
     <div class="vig-panel__head-left">
@@ -107,102 +213,144 @@ const allPrints = section.prints;
 
   <div class="vig-panel__body">
     <figure class="vig-panel__fig-wrap">
-      <svg
-        class="vig-panel__svg"
-        viewBox={`0 0 ${W} ${H}`}
-        role="img"
-        aria-label={`${loadBearing.indicator}. Latest: ${loadBearing.value} (${loadBearing.asOf}). Change: ${loadBearing.delta}.`}
-      >
-        <rect
-          x={PAD_L}
-          y={PAD_T}
-          width={plotW}
-          height={plotH}
-          fill="#FFFFFF"
-          stroke="#000000"
-          stroke-width="1"
-        />
-        {ticks.map((t) => (
+      {hasSeries ? (
+        <svg
+          class="vig-panel__svg"
+          viewBox={`0 0 ${W} ${H}`}
+          role="img"
+          aria-label={`${loadBearing.indicator}. Latest: ${valueDisplay} (${asOfDisplay}). Change: ${deltaDisplay}.`}
+        >
+          <rect
+            x={PAD_L}
+            y={PAD_T}
+            width={plotW}
+            height={plotH}
+            fill="#FFFFFF"
+            stroke="#000000"
+            stroke-width="1"
+          />
+          {ticks.map((t, i) => (
+            <text
+              x={PAD_L - 5}
+              y={t.y}
+              text-anchor="end"
+              dominant-baseline="middle"
+              font-family="IBM Plex Mono, ui-monospace, monospace"
+              font-size="8"
+              fill="#000000"
+            >
+              {i === ticks.length - 1 ? fmtTopTick(t.v, unitSuffix) : t.label}
+            </text>
+          ))}
+          {zeroY !== null && (
+            <line
+              x1={PAD_L}
+              x2={PAD_L + plotW}
+              y1={zeroY}
+              y2={zeroY}
+              stroke="#000000"
+              stroke-width="0.5"
+              stroke-dasharray="2 2"
+            />
+          )}
+          <path
+            d={linePath}
+            fill="none"
+            stroke="#000000"
+            stroke-width="1.5"
+            stroke-linejoin="round"
+            stroke-linecap="round"
+          />
+          <circle cx={lastX} cy={lastY} r="3" fill="#E63946" stroke="#FFFFFF" stroke-width="1" />
           <text
-            x={PAD_L - 5}
-            y={t.y}
-            text-anchor="end"
-            dominant-baseline="middle"
-            font-family="IBM Plex Mono, ui-monospace, monospace"
+            x={PAD_L}
+            y={H - 4}
+            text-anchor="start"
+            font-family="Manrope, Helvetica, Arial, sans-serif"
+            font-weight="600"
             font-size="8"
+            letter-spacing="1.4"
             fill="#000000"
           >
-            {t.label}
+            {earliestDisplay}
           </text>
-        ))}
-        {zeroY !== null && (
-          <line
-            x1={PAD_L}
-            x2={PAD_L + plotW}
-            y1={zeroY}
-            y2={zeroY}
-            stroke="#000000"
-            stroke-width="0.5"
-            stroke-dasharray="2 2"
-          />
-        )}
-        <path
-          d={linePath}
-          fill="none"
-          stroke="#000000"
-          stroke-width="1.5"
-          stroke-linejoin="round"
-          stroke-linecap="round"
-        />
-        <circle cx={lastX} cy={lastY} r="3" fill="#E63946" stroke="#FFFFFF" stroke-width="1" />
-        <text
-          x={PAD_L}
-          y={H - 4}
-          text-anchor="start"
-          font-family="Manrope, Helvetica, Arial, sans-serif"
-          font-weight="600"
-          font-size="8"
-          letter-spacing="1.4"
-          fill="#000000"
+          <text
+            x={PAD_L + plotW}
+            y={H - 4}
+            text-anchor="end"
+            font-family="Manrope, Helvetica, Arial, sans-serif"
+            font-weight="600"
+            font-size="8"
+            letter-spacing="1.4"
+            fill="#000000"
+          >
+            {asOfDisplay.toUpperCase()}
+          </text>
+        </svg>
+      ) : (
+        <div
+          class="vig-panel__empty"
+          role="img"
+          aria-label={`${loadBearing.indicator} chart: data not yet wired.`}
         >
-          EARLIEST
-        </text>
-        <text
-          x={PAD_L + plotW}
-          y={H - 4}
-          text-anchor="end"
-          font-family="Manrope, Helvetica, Arial, sans-serif"
-          font-weight="600"
-          font-size="8"
-          letter-spacing="1.4"
-          fill="#000000"
-        >
-          {loadBearing.asOf.toUpperCase()}
-        </text>
-      </svg>
+          <p class="vig-panel__empty-cap">{PLACEHOLDER.chartEmpty}</p>
+          {section.pipelineError && (
+            <p class="vig-panel__empty-sub">{section.pipelineError}</p>
+          )}
+        </div>
+      )}
       <figcaption class="vig-panel__cap">
         <span class="vig-panel__cap-mark">Fig. {figureNum}.</span>
-        {loadBearing.indicator}, recent history. Last observation marked.
+        {loadBearing.indicator}, recent history.
+        {hasSeries ? " Last observation marked." : (
+          <span class="vig-panel__cap-placeholder"> {PLACEHOLDER.notWired}</span>
+        )}
       </figcaption>
     </figure>
 
     <aside class="vig-panel__readout" aria-label="Headline reading">
       <p class="vig-panel__readout-k">{loadBearing.indicator}</p>
       <p class="vig-panel__readout-v">
-        <span class="vig-panel__readout-num">{loadBearing.value}</span>
+        {loadBearing.value !== null ? (
+          <span class="vig-panel__readout-num">{loadBearing.value}</span>
+        ) : (
+          <span class="vig-panel__readout-num vig-panel__placeholder vig-panel__placeholder--mono">
+            {PLACEHOLDER.value}
+          </span>
+        )}
       </p>
       <p class="vig-panel__readout-meta">
-        <span class="vig-panel__delta" aria-label={`Change ${loadBearing.delta}, direction ${loadBearing.deltaDir}`}>
+        <span
+          class="vig-panel__delta"
+          aria-label={
+            loadBearing.delta
+              ? `Change ${loadBearing.delta} ${periodStamp}, direction ${loadBearing.deltaDir ?? "unknown"}`
+              : "Change not yet wired"
+          }
+        >
           <span class="vig-panel__delta-glyph" aria-hidden="true">{dirGlyph(loadBearing.deltaDir)}</span>
-          <span class="vig-panel__delta-val">{loadBearing.delta}</span>
+          {loadBearing.delta !== null ? (
+            <span class="vig-panel__delta-val">{loadBearing.delta}</span>
+          ) : (
+            <span class="vig-panel__delta-val vig-panel__placeholder vig-panel__placeholder--mono">
+              {PLACEHOLDER.value}
+            </span>
+          )}
+          {periodStamp && loadBearing.delta !== null && (
+            <span class="vig-panel__delta-period" aria-hidden="true">{periodStamp}</span>
+          )}
         </span>
-        <span class="vig-panel__readout-asof">{loadBearing.asOf}</span>
+        {loadBearing.asOf !== null ? (
+          <span class="vig-panel__readout-asof">{loadBearing.asOf}</span>
+        ) : (
+          <span class="vig-panel__readout-asof vig-panel__placeholder vig-panel__placeholder--micro">
+            {PLACEHOLDER.notWired}
+          </span>
+        )}
       </p>
-      {section.blurb.body && (
-        <p class="vig-panel__note">
-          {section.blurb.body}
-        </p>
-      )}
+      <p class="vig-panel__note vig-panel__placeholder">
+        {PLACEHOLDER.loremShort}
+      </p>
     </aside>
   </div>
 
@@ -219,12 +367,22 @@ const allPrints = section.prints;
       {allPrints.map((p) => (
         <tr class={p === loadBearing ? "vig-panel__tr vig-panel__tr--primary" : "vig-panel__tr"}>
           <td class="vig-panel__td vig-panel__td--ind">{p.indicator}</td>
-          <td class="vig-panel__td vig-panel__td--val">{p.value}</td>
+          <td class={`vig-panel__td vig-panel__td--val${p.value === null ? " vig-panel__placeholder vig-panel__placeholder--mono" : ""}`}>
+            {p.value ?? PLACEHOLDER.value}
+          </td>
           <td class="vig-panel__td vig-panel__td--delta">
             <span class="vig-panel__td-glyph" aria-hidden="true">{dirGlyph(p.deltaDir)}</span>
-            <span class="vig-panel__td-delta-val">{p.delta}</span>
+            {p.delta !== null ? (
+              <span class="vig-panel__td-delta-val">{p.delta}</span>
+            ) : (
+              <span class="vig-panel__td-delta-val vig-panel__placeholder vig-panel__placeholder--mono">
+                {PLACEHOLDER.value}
+              </span>
+            )}
           </td>
-          <td class="vig-panel__td vig-panel__td--asof">{p.asOf}</td>
+          <td class={`vig-panel__td vig-panel__td--asof${p.asOf === null ? " vig-panel__placeholder vig-panel__placeholder--micro" : ""}`}>
+            {p.asOf ?? PLACEHOLDER.notWired}
+          </td>
         </tr>
       ))}
     </tbody>
@@ -337,6 +495,54 @@ const allPrints = section.prints;
     height: auto;
     display: block;
   }
+
+  /* Dashed-border placeholder chart slot.
+   * - Aspect ratio chosen to match the real SVG (320 x 110) so layout
+   *   does not shift when the same section flips to real data.
+   * - Dashed-border + light gray ink so it is OBVIOUSLY a stub at any
+   *   size. The "DATA NOT YET WIRED" caption is the load-bearing tell. */
+  .vig-panel__empty {
+    width: 100%;
+    aspect-ratio: 320 / 110;
+    border: 1.5px dashed #9A9A9A;
+    background:
+      repeating-linear-gradient(
+        135deg,
+        transparent 0,
+        transparent 8px,
+        rgba(0, 0, 0, 0.025) 8px,
+        rgba(0, 0, 0, 0.025) 9px
+      );
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    box-sizing: border-box;
+  }
+  .vig-panel__empty-cap {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #6B6B6B;
+    text-align: center;
+  }
+  .vig-panel__empty-sub {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 9px;
+    line-height: 1.3;
+    color: #9A9A9A;
+    text-align: center;
+    max-width: 32ch;
+  }
+
   .vig-panel__cap {
     margin: 6px 0 0;
     font-family: var(--font-sans);
@@ -352,6 +558,13 @@ const allPrints = section.prints;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     font-size: 10px;
+  }
+  .vig-panel__cap-placeholder {
+    font-family: var(--font-mono);
+    color: #6B6B6B;
+    letter-spacing: 0.14em;
+    font-size: 9.5px;
+    text-transform: uppercase;
   }
 
   .vig-panel__readout {
@@ -415,6 +628,17 @@ const allPrints = section.prints;
     font-weight: 400;
     color: var(--ink);
   }
+  /* Period stamp ("m/m" / "d/d" / "q/q") — quiet Plex Mono caps tail so the
+   * reader knows what window the delta compares against. */
+  .vig-panel__delta-period {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 10px;
+    color: var(--ink);
+    opacity: 0.55;
+    margin-left: 4px;
+    letter-spacing: 0.04em;
+  }
   .vig-panel__readout-asof {
     font-family: var(--font-sans);
     font-weight: 600;
@@ -435,6 +659,24 @@ const allPrints = section.prints;
     -webkit-box-orient: vertical;
     overflow: hidden;
     max-width: 44ch;
+  }
+
+  /* Placeholder ink. Tokens.css resolves --ink-faint to pure black under
+   * the Vignelli canon, so we cannot rely on it for visible softening.
+   * Hard-code a mid-gray here so the placeholder is unmistakable. */
+  .vig-panel__placeholder {
+    color: #8A8A8A;
+  }
+  .vig-panel__placeholder--mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+  }
+  .vig-panel__placeholder--micro {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
   }
 
   .vig-panel__table {

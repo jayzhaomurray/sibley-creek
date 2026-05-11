@@ -2,41 +2,42 @@
 /*
  * Panel6RecessionState - horizontal Gantt timeline of cycle states.
  *
- * Implements charts/gdp_basics/panel-6-recession-state.md (spec v0.1).
+ * Vignelli v1.0 canon-compliant rebuild (2026-05-11).
  *
- * Visual: single ~24px-tall horizontal track spanning ~20 years.
- * Recession periods rendered as rgba(21,23,26,0.12) rectangles (heavier
- * than the standard 6% chart-background tint, because here the band IS
- * the data). Expansion periods unfilled. Current expansion's right edge
- * is a 2px solid series-1 vertical bar + 4px dot. Date labels above each
- * recession band; "Expansion since 2020Q3" call-out above the current
- * marker.
+ * Editorial argument: a step-function chart in spirit. Recession periods
+ * shaded as ink-wash bands (rgba(21,23,26,0.12) - heavier than the
+ * standard 6% chart-background tint because here the band IS the data).
+ * Expansion periods unfilled. The current-expansion right edge carries
+ * the MTA red latest-print dot - the brand stamp falls on "today."
  *
- * Spec calls for D3 + custom SVG. We hand-roll the SVG (no D3 dep).
- * Tractable: one time-scale, fixed y, rects and text.
+ * Canon rules applied:
+ *   - All chrome in pure ink. No `--section-accent-*` on data.
+ *   - 1px pure-ink hairline plot frame (the timeline track).
+ *   - X-axis ticks in Manrope 400 12px pure ink.
+ *   - Recession labels in Manrope 400 12px pure ink (date-strings, not
+ *     measurements -> Manrope not Plex Mono).
+ *   - "Expansion since 2020Q3" direct label in Manrope 600 13px.
+ *   - Communique annotation as foreignObject 15px Manrope 400 with anchor
+ *     word in 600.
  *
- * Data: hardcoded cycles for v0.1 (BCC has not yet been wired through
- * data/derived/cdhowe_bcc_cycles.json; backend builds that file).
+ * Data contract preserved: { state, start, end, label?, current? }.
  */
 
 interface Cycle {
   state: "recession" | "expansion";
-  start: string;        // ISO yyyy-mm-dd
-  end: string | null;   // null = ongoing
+  start: string;
+  end: string | null;
   label?: string;
   current?: boolean;
 }
 
 interface Props {
   cycles?: Cycle[];
-  /** "Today" anchor for current-state marker. ISO yyyy-mm-dd. */
   asOf?: string;
-  /** BCC communique annotation. Owned by writer. */
   communiqueAnnotation?: string;
   ariaLabel?: string;
 }
 
-// Hardcoded BCC cycles per spec example (placeholder until JSON wires).
 const DEFAULT_CYCLES: Cycle[] = [
   { state: "expansion",  start: "2003-04-01", end: "2008-09-30" },
   { state: "recession",  start: "2008-10-01", end: "2009-06-30", label: "2008-09" },
@@ -47,55 +48,67 @@ const DEFAULT_CYCLES: Cycle[] = [
 
 const {
   cycles = DEFAULT_CYCLES,
-  asOf = "2026-05-11",
-  communiqueAnnotation = "C.D. Howe BCC, Mar 14, 2026: classification unchanged; expansion continues from 2020Q3.",
-  ariaLabel = "Canadian business cycle state, 2005 to present, C.D. Howe BCC dating",
+  asOf = "2026-05-01",
+  communiqueAnnotation = "Current cycle: **expansion**, per the C.D. Howe BCC's latest communique.",
+  ariaLabel = "Canadian business cycle state, 2005 to present, C.D. Howe BCC dating.",
 } = Astro.props;
 
 // ---- Geometry --------------------------------------------------------------
 const VB_W = 720;
-const VB_H = 405; // 16:9 per spec
+const VB_H = 405;
 const M_L = 32;
 const M_R = 32;
-const M_T = 80; // room for recession labels above track
-const M_B = 80; // room for axis + communique annotation
+const M_T = 80;
+const M_B = 92;
 const PLOT_X0 = M_L;
 const PLOT_W = VB_W - M_L - M_R;
 const PLOT_X1 = PLOT_X0 + PLOT_W;
 
-const TRACK_H = 24;
+const TRACK_H = 28;
 const TRACK_Y = M_T + (VB_H - M_T - M_B - TRACK_H) / 2;
 const TRACK_Y_BOTTOM = TRACK_Y + TRACK_H;
 const AXIS_Y = TRACK_Y_BOTTOM;
 
-// ---- Time scale: 2005-01-01 to (asOf + ~6 months padding) -----------------
 function parseDate(s: string): number {
-  // Return decimal year
   const [yy, mm, dd] = s.split("-").map(Number);
-  // Approximate day-of-year via 30-day months (good enough for plot scale)
   return yy + (mm - 1 + (dd - 1) / 30) / 12;
 }
 const xMin = 2005.0;
 const asOfDec = parseDate(asOf);
-const xMax = asOfDec + 0.5; // ~6 months padding
+const xMax = asOfDec + 0.5;
 
 function xScale(decY: number): number {
   return PLOT_X0 + ((decY - xMin) / (xMax - xMin)) * PLOT_W;
 }
 
-// ---- Cycle rects ----------------------------------------------------------
-const renderedCycles = cycles
-  .map((c) => {
+interface RenderedCycle {
+  state: "recession" | "expansion";
+  label?: string;
+  current?: boolean;
+  start: number;
+  end: number;
+  x0: number;
+  x1: number;
+  width: number;
+}
+const renderedCycles: RenderedCycle[] = (cycles as Cycle[])
+  .map((c: Cycle): RenderedCycle | null => {
     const start = parseDate(c.start);
     const end = c.end ? parseDate(c.end) : asOfDec;
     if (end < xMin || start > xMax) return null;
     const x0 = xScale(Math.max(start, xMin));
     const x1 = xScale(Math.min(end, xMax));
-    return { ...c, start, end, x0, x1, width: Math.max(1, x1 - x0) };
+    return {
+      state: c.state,
+      label: c.label,
+      current: c.current,
+      start, end, x0, x1,
+      width: Math.max(1, x1 - x0),
+    };
   })
-  .filter((c): c is NonNullable<typeof c> => c !== null);
+  .filter((c: RenderedCycle | null): c is RenderedCycle => c !== null);
 
-// ---- Year ticks: every January from 2005 to xMax floor() ------------------
+// ---- Year ticks ----------------------------------------------------------
 const yearTicks: Array<{ x: number; label: string | null; major: boolean }> = [];
 const startYear = 2005;
 const endYear = Math.floor(xMax);
@@ -106,80 +119,90 @@ for (let y = startYear; y <= endYear; y++) {
   yearTicks.push({ x, label: isLabel ? String(y) : null, major: isLabel });
 }
 
-// ---- Current marker -------------------------------------------------------
 const currentCycle = renderedCycles.find((c) => c.current);
 const currentX = currentCycle ? xScale(asOfDec) : null;
 
-// ---- Recession label collision avoidance ----------------------------------
-// Place each recession label centered above the band by default.
-// If two band centers are too close (< 80px), nudge one up.
-type RecLabel = { x: number; y: number; text: string; band: typeof renderedCycles[number] };
+// ---- Recession label collision avoidance --------------------------------
+type RecLabel = { x: number; y: number; text: string };
 const recLabels: RecLabel[] = [];
 const recCycles = renderedCycles.filter((c) => c.state === "recession" && c.label);
-const labelBaseY = TRACK_Y - 10;
+const labelBaseY = TRACK_Y - 14;
 let prevCenterX = -Infinity;
 let layerOffset = 0;
 for (const rc of recCycles) {
   const cx = (rc.x0 + rc.x1) / 2;
   let labelY = labelBaseY;
   if (cx - prevCenterX < 80) {
-    layerOffset = layerOffset === 0 ? 16 : 0;
+    layerOffset = layerOffset === 0 ? 18 : 0;
     labelY = labelBaseY - layerOffset;
   } else {
     layerOffset = 0;
   }
-  recLabels.push({ x: cx, y: labelY, text: rc.label as string, band: rc });
+  recLabels.push({ x: cx, y: labelY, text: rc.label as string });
   prevCenterX = cx;
 }
+
+// ---- Annotation ---------------------------------------------------------
+function parseAnchor(s: string): Array<{ text: string; bold: boolean }> {
+  const parts: Array<{ text: string; bold: boolean }> = [];
+  const re = /\*\*([^*]+)\*\*/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(s)) !== null) {
+    if (m.index > last) parts.push({ text: s.slice(last, m.index), bold: false });
+    parts.push({ text: m[1], bold: true });
+    last = m.index + m[0].length;
+  }
+  if (last < s.length) parts.push({ text: s.slice(last), bold: false });
+  return parts;
+}
+const annoParts = communiqueAnnotation ? parseAnchor(communiqueAnnotation) : [];
 ---
-<div class="gdp-panel-chart" data-panel="6">
+<div class="canon-chart" data-panel="gdp-6">
   <svg
-    class="gdp-panel-chart__svg"
+    class="canon-chart__svg"
     viewBox={`0 0 ${VB_W} ${VB_H}`}
     preserveAspectRatio="xMidYMid meet"
     role="img"
     aria-label={ariaLabel}
   >
-    {/* Track outline: a single hairline rule along the bottom so the eye
-        finds the timeline even where there are no bands */}
-    <line
-      class="gdp-panel-chart__axis"
-      x1={PLOT_X0.toFixed(2)}
-      y1={AXIS_Y.toFixed(2)}
-      x2={PLOT_X1.toFixed(2)}
-      y2={AXIS_Y.toFixed(2)}
+    {/* Track frame - hairline rectangle around the timeline */}
+    <rect
+      class="canon-chart__frame"
+      x={PLOT_X0}
+      y={TRACK_Y.toFixed(2)}
+      width={PLOT_W}
+      height={TRACK_H}
     />
 
-    {/* Recession bands */}
+    {/* Recession bands - earned ink wash at 12% (the data) */}
     {renderedCycles.filter((c) => c.state === "recession").map((c) => (
       <rect
-        class="gdp-panel-chart__recession-band"
+        class="canon-chart__recession-band"
         x={c.x0.toFixed(2)}
         y={TRACK_Y.toFixed(2)}
         width={c.width.toFixed(2)}
         height={TRACK_H}
       >
-        <title>{`Recession${c.label ? " " + c.label : ""}: ${c.start.toFixed(2)} to ${c.end.toFixed(2)}`}</title>
+        <title>{`Recession${c.label ? " " + c.label : ""}`}</title>
       </rect>
     ))}
 
     {/* Recession date labels */}
     {recLabels.map((rl) => (
-      <g>
-        <text
-          class="gdp-panel-chart__rec-label"
-          x={rl.x.toFixed(2)}
-          y={rl.y.toFixed(2)}
-          text-anchor="middle"
-        >{rl.text}</text>
-      </g>
+      <text
+        class="canon-chart__rec-label"
+        x={rl.x.toFixed(2)}
+        y={rl.y.toFixed(2)}
+        text-anchor="middle"
+      >{rl.text}</text>
     ))}
 
-    {/* X ticks */}
+    {/* X-axis tick marks + labels */}
     {yearTicks.map((t) => (
       <g>
         <line
-          class:list={["gdp-panel-chart__xtick", { "gdp-panel-chart__xtick--major": t.major }]}
+          class:list={["canon-chart__xtick", { "canon-chart__xtick--major": t.major }]}
           x1={t.x.toFixed(2)}
           y1={AXIS_Y.toFixed(2)}
           x2={t.x.toFixed(2)}
@@ -187,114 +210,86 @@ for (const rc of recCycles) {
         />
         {t.label && (
           <text
-            class="gdp-panel-chart__xtick-label"
+            class="canon-chart__xtick-label"
             x={t.x.toFixed(2)}
-            y={(AXIS_Y + 18).toFixed(2)}
+            y={(AXIS_Y + 20).toFixed(2)}
             text-anchor="middle"
           >{t.label}</text>
         )}
       </g>
     ))}
 
-    {/* Current-state right-edge marker */}
+    {/* MTA red dot at today's edge - the latest-print stamp */}
     {currentX !== null && (
       <g>
-        {/* Vertical bar */}
         <line
-          class="gdp-panel-chart__current-bar"
+          class="canon-chart__current-bar"
           x1={currentX.toFixed(2)}
-          y1={(TRACK_Y - 6).toFixed(2)}
+          y1={(TRACK_Y - 8).toFixed(2)}
           x2={currentX.toFixed(2)}
-          y2={(TRACK_Y_BOTTOM + 6).toFixed(2)}
+          y2={(TRACK_Y_BOTTOM + 8).toFixed(2)}
         />
-        {/* Dot at top */}
         <circle
-          class="gdp-panel-chart__current-dot"
+          class="canon-chart__latest-dot"
           cx={currentX.toFixed(2)}
-          cy={(TRACK_Y - 6).toFixed(2)}
-          r="3"
-        />
-        {/* Label */}
+          cy={(TRACK_Y - 8).toFixed(2)}
+          r="4"
+        >
+          <title>{`As of ${asOf}: expansion`}</title>
+        </circle>
         <text
-          class="gdp-panel-chart__current-label"
-          x={currentX.toFixed(2)}
-          y={(TRACK_Y - 22).toFixed(2)}
+          class="canon-chart__direct-label"
+          x={(currentX - 8).toFixed(2)}
+          y={(TRACK_Y - 26).toFixed(2)}
           text-anchor="end"
         >Expansion since 2020Q3</text>
       </g>
     )}
 
-    {/* Communique annotation at bottom */}
+    {/* Communique annotation - foreignObject for inline anchor word */}
     {communiqueAnnotation && (
-      <text
-        class="gdp-panel-chart__communique"
-        x={PLOT_X1.toFixed(2)}
-        y={(VB_H - 12).toFixed(2)}
-        text-anchor="end"
-      >{communiqueAnnotation}</text>
+      <foreignObject
+        x={PLOT_X0.toFixed(2)}
+        y={(VB_H - M_B + 24).toFixed(2)}
+        width={PLOT_W.toFixed(2)}
+        height="44"
+      >
+        <p class="canon-chart__anno-text">
+          {annoParts.map((part) =>
+            part.bold
+              ? <strong class="canon-chart__anno-anchor">{part.text}</strong>
+              : <span>{part.text}</span>
+          )}
+        </p>
+      </foreignObject>
     )}
   </svg>
 </div>
 
 <style>
-  .gdp-panel-chart {
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    background-color: var(--surface);
-    overflow: visible;
+  .canon-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
+  .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
+  .canon-chart__frame { fill: none; stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__recession-band { fill: rgba(21, 23, 26, 0.12); }
+  .canon-chart__rec-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
-  .gdp-panel-chart__svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-    font-family: var(--font-sans);
+  .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.45; shape-rendering: crispEdges; }
+  .canon-chart__xtick--major { stroke-opacity: 1; }
+  .canon-chart__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
-  .gdp-panel-chart__recession-band {
-    fill: rgba(21, 23, 26, 0.12);
+  .canon-chart__current-bar { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__latest-dot { fill: var(--accent); stroke: none; }
+  .canon-chart__direct-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px; font-weight: var(--fw-semibold);
   }
-  .gdp-panel-chart__rec-label {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-regular);
-    font-variant-numeric: tabular-nums;
+  .canon-chart__anno-text {
+    margin: 0; color: var(--ink); font-family: var(--font-sans);
+    font-size: 15px; font-weight: var(--fw-regular); line-height: 1.30;
   }
-  .gdp-panel-chart__axis {
-    stroke: var(--rule);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .gdp-panel-chart__xtick {
-    stroke: var(--ink-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-    opacity: 0.5;
-  }
-  .gdp-panel-chart__xtick--major {
-    opacity: 1;
-  }
-  .gdp-panel-chart__xtick-label {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
-  }
-  .gdp-panel-chart__current-bar {
-    stroke: var(--series-1);
-    stroke-width: 2;
-    shape-rendering: crispEdges;
-  }
-  .gdp-panel-chart__current-dot {
-    fill: var(--series-1);
-  }
-  .gdp-panel-chart__current-label {
-    fill: var(--ink);
-    font-size: 13px;
-    font-weight: var(--fw-medium);
-  }
-  .gdp-panel-chart__communique {
-    fill: var(--ink-muted);
-    font-size: 13px;
-    font-weight: var(--fw-regular);
-  }
+  .canon-chart__anno-anchor { font-weight: var(--fw-semibold); }
 </style>

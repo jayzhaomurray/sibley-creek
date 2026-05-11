@@ -486,144 +486,74 @@ const ariaLabel = `Inflation breadth composition, ${asOf}: above 3% ${(lastPt.sh
 </figure>
 
 <style>
-  .panel-3-breadth {
-    width: 100%;
-    margin: 0;
-    background-color: var(--surface);
-  }
-
-  .panel-3-breadth__svg {
-    display: block;
-    width: 100%;
-    height: auto;
-    font-family: var(--font-sans);
-    overflow: visible;
-  }
-
-  .panel-3-breadth__recession {
-    fill: rgba(21, 23, 26, 0.06);
-  }
-
-  /* Stacked composition bands. Sequential ramp keyed off the brand red:
-     above-3% reads heaviest in accent; target-band reads neutral; below-1%
-     reads palest. This honors the user brief's brand-red mandate without
-     conflating composition with editorial valence (the EDR explicitly
-     wants composition shown as data, not as good/bad). */
-  .panel-3-breadth__band--above {
-    fill: var(--accent);
-    fill-opacity: 0.65;
-  }
-  .panel-3-breadth__band--mid {
-    fill: var(--accent-soft);
-    fill-opacity: 0.85;
-  }
-  .panel-3-breadth__band--below {
-    fill: var(--rule-faint);
-    fill-opacity: 1;
-  }
+  /* Vignelli v1.0 canon-compliant restyle (2026-05-11). Three-band stacked
+     composition deviates from the single-line canon (justified by the
+     hero-chart status); composition encoded by ink opacity, not hue.
+     above-3% = pure ink solid; target-band = ink at 35% opacity;
+     below-1% = ink at 12% opacity. Reader reads stack as a density gradient
+     against a pure-paper backdrop. Current-tilt marker is the MTA red
+     latest stamp. */
+  .panel-3-breadth { width: 100%; margin: 0; background-color: var(--paper); }
+  .panel-3-breadth__svg { display: block; width: 100%; height: auto; font-family: var(--font-sans); overflow: visible; }
+  .panel-3-breadth__recession { fill: rgba(21, 23, 26, 0.06); }
+  .panel-3-breadth__band--above { fill: var(--ink); fill-opacity: 1; }
+  .panel-3-breadth__band--mid   { fill: var(--ink); fill-opacity: 0.35; }
+  .panel-3-breadth__band--below { fill: var(--ink); fill-opacity: 0.12; }
   .panel-3-breadth__edge--below,
   .panel-3-breadth__edge--mid {
-    stroke: var(--surface);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+    stroke: var(--paper); stroke-width: 1; shape-rendering: crispEdges;
   }
-
   .panel-3-breadth__gridline {
-    stroke: var(--rule-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-    stroke-opacity: 0.6;
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges;
   }
   .panel-3-breadth__gridline--majority {
-    stroke: var(--ink-faint);
-    stroke-dasharray: 2 2;
-    stroke-opacity: 0.7;
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2; stroke-opacity: 1;
   }
-
-  .panel-3-breadth__xaxis {
-    stroke: var(--rule);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+  .panel-3-breadth__xaxis { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .panel-3-breadth__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .panel-3-breadth__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
-  .panel-3-breadth__xtick {
-    stroke: var(--ink-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .panel-3-breadth__xtick-label,
   .panel-3-breadth__ytick-label {
-    fill: var(--ink-faint);
-    font-size: 10px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
-
   .panel-3-breadth__share-label {
-    font-size: 10px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
-  .panel-3-breadth__share-label--above { fill: var(--accent); }
-  .panel-3-breadth__share-label--mid   { fill: var(--ink-muted); }
-  .panel-3-breadth__share-label--below { fill: var(--ink-faint); }
-
+  .panel-3-breadth__share-label--above { font-weight: var(--fw-semibold); }
   .panel-3-breadth__majority-label {
-    fill: var(--ink-faint);
-    font-size: 10px;
-    font-style: italic;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-semibold); letter-spacing: 0.04em;
   }
   .panel-3-breadth__rec-label {
-    fill: var(--ink-faint);
-    font-size: 10px;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
   }
-
-  .panel-3-breadth__leader {
-    stroke: var(--ink-muted);
-    stroke-width: 1;
-    fill: none;
-  }
+  .panel-3-breadth__leader { stroke: var(--ink); stroke-width: 1; fill: none; shape-rendering: crispEdges; }
   .panel-3-breadth__annotation-line {
-    fill: var(--ink);
-    font-size: 11px;
-    font-weight: var(--fw-regular);
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px; font-weight: var(--fw-semibold);
   }
-
-  /* Lower canvas: tilt ladder */
   .panel-3-breadth__ladder-title {
-    fill: var(--ink-muted);
-    font-size: 10px;
-    font-weight: var(--fw-medium);
-    letter-spacing: 0.04em;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
   }
-  .panel-3-breadth__ladder-lane {
-    fill: var(--surface-sunk);
-  }
-  .panel-3-breadth__ladder-bound {
-    stroke: var(--rule);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .panel-3-breadth__ladder-tick {
-    stroke: var(--ink-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
+  .panel-3-breadth__ladder-lane { fill: var(--ink); fill-opacity: 0.06; }
+  .panel-3-breadth__ladder-bound { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .panel-3-breadth__ladder-tick { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.45; shape-rendering: crispEdges; }
   .panel-3-breadth__ladder-tick-label {
-    fill: var(--ink-faint);
-    font-size: 10px;
-    font-weight: var(--fw-medium);
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
-  /* Current-month marker uses brand accent at full saturation.
-     One of the two approved accent-on-data exceptions on the page. */
+  /* Current-tilt marker: MTA red. The brand stamp. */
   .panel-3-breadth__ladder-current {
-    stroke: var(--accent);
-    stroke-width: 2.5;
-    stroke-linecap: round;
+    stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round;
   }
   .panel-3-breadth__ladder-current-label {
-    fill: var(--accent);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px; font-weight: var(--fw-semibold);
   }
 </style>

@@ -255,6 +255,75 @@ def test_missing_series_yields_error_sentinel(tmp_path):
         assert section["updatedAt"] is None
 
 
+def test_delta_dir_encodes_direction_of_change_not_goodness(tmp_path):
+    """Canon (design-system.md Section 4): the glyph encodes direction-of-
+    change, NOT direction-of-goodness. A rise in inflation, unemployment,
+    or USDCAD renders 'pos' because the value went up -- the editorial
+    'this is bad news' framing is carried in prose, not in the glyph.
+
+    Regression guard for the 2026-05-11 bug where deltaDir was being
+    flipped by `positive_is_good` and producing combinations like
+    "[down-triangle] +0.5 pp" on the homepage.
+    """
+    data_root = tmp_path / "data"
+    _seed_minimal_pipeline(data_root)
+    payload = build_site_data(data_root)
+
+    # Inflation rose 2.2 -> 2.32 -> +0.1 pp; positive_is_good=False on the
+    # catalog. New canon: deltaDir follows the sign, so this is "pos".
+    inflation = payload["sections"]["inflation"]["prints"][0]
+    assert inflation["delta"].startswith("+")
+    assert inflation["deltaDir"] == "pos"
+
+    # Labour: unemployment 6.7 -> 6.9 -> +0.2 pp; positive_is_good=False.
+    # Glyph follows the change, so "pos".
+    labour = payload["sections"]["labour"]["prints"][0]
+    assert labour["delta"].startswith("+")
+    assert labour["deltaDir"] == "pos"
+
+    # Markets: USDCAD rose across the daily seed; positive_is_good=False
+    # on the catalog. Glyph follows the change, so "pos".
+    markets = payload["sections"]["markets"]["prints"][0]
+    assert markets["delta"].startswith("+")
+    assert markets["deltaDir"] == "pos"
+
+    # Policy: 2.25 -> 2.25 -> 0 bps. Below the half-decimal threshold, so
+    # "neutral" regardless of positive_is_good.
+    policy = payload["sections"]["policy"]["prints"][0]
+    assert policy["deltaDir"] == "neutral"
+
+
+def test_delta_dir_neutral_for_ambient_series_when_change_below_threshold(tmp_path):
+    """A section whose catalog flag is `positive_is_good=None` (housing,
+    in v1) used to short-circuit to 'neutral' for ALL prints under the
+    old logic. Under canon, the None flag stops mattering for deltaDir;
+    only the magnitude of the change does.
+    """
+    data_root = tmp_path / "data"
+    # Seed housing with a clear monthly rise of +0.3 pp on the YoY series.
+    _write_pair(
+        data_root, "processed", "crea_hpi_canada_yoy",
+        _monthly_df(
+            [-1.0, -1.5, -2.0, -2.4, -2.9, -3.3, -3.5, -3.6, -3.7, -3.8,
+             -3.9, -4.0, -4.1, -4.2, -4.3, -4.4, -4.5, -4.6, -4.7, -4.8,
+             -4.9, -5.0, -4.9, -4.6],
+            start="2024-04-01",
+        ),
+        {
+            "name": "crea_hpi_canada_yoy", "source": "CREA",
+            "source_url": "https://example.invalid/hpi", "source_id": "CREA-HPI-AGGREGATE",
+            "units": "%", "frequency": "monthly",
+            "fetched_at": "2026-05-11T00:00:00+00:00",
+            "release_date": None,
+        },
+    )
+    payload = build_site_data(data_root)
+    housing = payload["sections"]["housing"]["prints"][0]
+    # -4.9 -> -4.6 is +0.3 pp; well above the 0.05 pp half-decimal threshold.
+    assert housing["delta"].startswith("+")
+    assert housing["deltaDir"] == "pos"
+
+
 def test_print_shape_matches_frontend_section_print_type(tmp_path):
     """The fields on each print[] entry must be the superset the frontend's
     `SectionPrint` interface accepts: key, indicator, value, delta, deltaDir,

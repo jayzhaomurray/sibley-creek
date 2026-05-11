@@ -354,97 +354,53 @@ function fmtK(v: number): string { return `${v}k`; }
 </div>
 
 <style>
-  .labour-panel-chart {
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    background-color: var(--surface);
-    overflow: visible;
-  }
-  .labour-panel-chart__svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-    font-family: var(--font-sans);
-  }
+  /* Vignelli v1.0 canon-compliant restyle (2026-05-11). Stacked area
+     (PR + NPR) encoded by ink opacity, not hue. PR (bottom, the policy
+     anchor) at higher opacity; NPR (top, the surge story) at lower
+     opacity so the eye reads top-of-stack as the more recent argument.
+     Structural-break plan line keeps MTA red (the only data-adjacent
+     accent on the chart - approved at Section 9.B). MTA red dot on the
+     latest total point. */
+  .labour-panel-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
+  .labour-panel-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
   .labour-panel-chart__gridline {
-    stroke: var(--rule-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges;
   }
-  /* PR band (bottom): series-3 sage @ 60% opacity */
-  .labour-panel-chart__band-pr {
-    fill: var(--series-3);
-    fill-opacity: 0.6;
-    stroke: none;
-  }
-  /* NPR band (top): series-4 plum @ 50% opacity */
-  .labour-panel-chart__band-npr {
-    fill: var(--series-4);
-    fill-opacity: 0.5;
-    stroke: none;
-  }
-  /* Boundary overdraw to make stack legible */
-  .labour-panel-chart__band-boundary {
-    stroke: var(--surface);
-    stroke-width: 1;
-    fill: none;
-  }
-  /* Standard plan annotation line: 1px dashed in ink-faint */
+  .labour-panel-chart__band-pr { fill: var(--ink); fill-opacity: 0.65; stroke: none; }
+  .labour-panel-chart__band-npr { fill: var(--ink); fill-opacity: 0.20; stroke: none; }
+  .labour-panel-chart__band-boundary { stroke: var(--paper); stroke-width: 1; fill: none; }
   .labour-panel-chart__plan-line {
-    stroke: var(--ink-faint);
-    stroke-width: 1;
-    stroke-dasharray: 4 2;
-    shape-rendering: crispEdges;
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2; shape-rendering: crispEdges;
   }
-  /* Structural-break plan: 1.5px solid in accent red */
   .labour-panel-chart__plan-line--break {
-    stroke: var(--accent);
-    stroke-width: 1.5;
-    stroke-dasharray: none;
+    stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: none;
   }
   .labour-panel-chart__plan-label {
-    fill: var(--ink-faint);
-    font-size: 10px;
-    font-weight: var(--fw-regular);
-    letter-spacing: 0.02em;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-regular); letter-spacing: 0.02em;
   }
   .labour-panel-chart__plan-label--break {
-    fill: var(--accent);
-    font-weight: var(--fw-medium);
+    fill: var(--accent); font-weight: var(--fw-semibold);
   }
-  .labour-panel-chart__xaxis {
-    stroke: var(--rule);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .labour-panel-chart__xtick {
-    stroke: var(--ink-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .labour-panel-chart__ytick-label,
+  .labour-panel-chart__xaxis { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .labour-panel-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
   .labour-panel-chart__xtick-label {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .labour-panel-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
   .labour-panel-chart__unit {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
   }
   .labour-panel-chart__direct-label {
-    font-size: 12px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
-  .labour-panel-chart__direct-label--pr { fill: var(--series-3); }
-  .labour-panel-chart__direct-label--npr { fill: var(--series-4); }
-  .labour-panel-chart__total-marker {
-    fill: var(--ink);
-    stroke: var(--surface);
-    stroke-width: 1.5;
-  }
+  .labour-panel-chart__direct-label--pr { font-family: var(--font-sans); font-weight: var(--fw-semibold); }
+  .labour-panel-chart__direct-label--npr { font-family: var(--font-sans); font-weight: var(--fw-regular); }
+  .labour-panel-chart__total-marker { fill: var(--accent); stroke: none; }
 </style>

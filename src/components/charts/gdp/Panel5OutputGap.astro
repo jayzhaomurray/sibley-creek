@@ -1,53 +1,46 @@
 ---
 /*
- * Panel5OutputGap - real GDP vs BoC potential with shaded gap polygon.
+ * Panel5OutputGap - real GDP vs BoC potential, indexed, with gap polygon.
  *
- * Implements charts/gdp_basics/panel-5-output-gap.md (spec v0.1).
+ * Vignelli v1.0 canon-compliant rebuild (2026-05-11). Anchors to
+ * src/components/charts/_canon_reference/PanelCanonReference.astro.
  *
- * Visual: real GDP (solid series-1 1.5px) and BoC potential (dashed
- * series-7 1.5px), both indexed to 2019Q4 = 100, over ~16 years. Closed
- * polygon between the two lines filled at ink @ 6% (same tint as
- * recession bands). Rotated `Output gap` label at the polygon's
- * centroid, slope-aligned. Current-gap annotation anchored to the
- * latest GDP marker. Recession bands 2008Q4-Q2 and 2020Q1-Q2.
+ * Multi-series treatment: primary = real GDP (pure ink 1.5px solid, MTA
+ * red latest dot, Manrope 600 "Real GDP" direct label). Secondary = BoC
+ * potential (pure ink 1px dashed `4 2`, no dot, Manrope 400 direct
+ * label). Gap polygon fills the area between in `rgba(21,23,26,0.06)`
+ * ink wash (same tint as the recession band - earned, because here the
+ * shaded area IS the editorial point).
  *
- * Spec calls for D3 + custom SVG. We hand-roll the SVG geometry (no D3
- * dependency, to stay zero-JS server-side). The "D3 territory" portion
- * is the polygon construction and the rotated centroid label — both
- * are tractable with pure JS math.
+ * Reference rule at 2019Q4=100 (Manrope 600 right-side label). Recession
+ * bands for 2008-09 and 2020Q1-Q2.
+ *
+ * Data contract preserved: { date, gdp_idx, potential_idx, output_gap_pct }.
  */
 
 interface QuarterPoint {
-  date: string;        // "YYYY-Qn"
-  gdp_idx: number;     // real GDP indexed 2019Q4=100
+  date: string;
+  gdp_idx: number;
   potential_idx: number;
   output_gap_pct: number;
 }
 
 interface Props {
   data?: QuarterPoint[];
-  /** Annotation text near latest point. Owned by writer. */
   gapAnnotation?: string;
   ariaLabel?: string;
 }
 
 function makePlaceholder(): QuarterPoint[] {
-  // 2010Q1 through 2026Q1 = 65 quarters
-  // Indexed 2019Q4=100. Real GDP grows ~2%/yr until 2020 crash, then
-  // bounces back. Potential is a smoother line, ~1.5%/yr.
   const out: QuarterPoint[] = [];
   for (let i = 0; i < 65; i++) {
     const y = 2010 + Math.floor(i / 4);
     const q = (i % 4) + 1;
-    // i=39 is 2019Q4 (index target)
-    const tFrom2019 = (i - 39) / 4; // years from 2019Q4
+    const tFrom2019 = (i - 39) / 4;
     let gdp: number;
-    let pot: number;
-    // Potential: smooth ~1.5%/yr around 100 at 2019Q4
-    pot = 100 * Math.pow(1.015, tFrom2019);
-    // Real GDP: similar trajectory but with 2008-09 dent (i=0..6) and 2020 crash (i=40..42)
-    if (i < 4) gdp = 100 * Math.pow(1.015, tFrom2019) - 2.5; // early recovery from 2008-09
-    else if (i < 40) gdp = 100 * Math.pow(1.018, tFrom2019); // pre-2020 outpacing potential slightly
+    const pot = 100 * Math.pow(1.015, tFrom2019);
+    if (i < 4) gdp = 100 * Math.pow(1.015, tFrom2019) - 2.5;
+    else if (i < 40) gdp = 100 * Math.pow(1.018, tFrom2019);
     else if (i === 40) gdp = pot - 4;
     else if (i === 41) gdp = pot - 11.5;
     else if (i === 42) gdp = pot - 5.5;
@@ -67,17 +60,17 @@ function makePlaceholder(): QuarterPoint[] {
 
 const {
   data = makePlaceholder(),
-  gapAnnotation = "Q1 2026: -0.5% gap",
-  ariaLabel = "Real GDP vs BoC potential, indexed to 2019Q4=100, with output gap shaded",
+  gapAnnotation = "Latest gap reads **just below** potential after two clean recoveries.",
+  ariaLabel = "Real GDP vs BoC potential, indexed to 2019Q4=100. Output gap shaded between the two lines.",
 } = Astro.props;
 
 // ---- Geometry --------------------------------------------------------------
 const VB_W = 720;
 const VB_H = 405;
-const M_L = 44;
+const M_L = 56;
 const M_R = 112;
-const M_T = 36;
-const M_B = 36;
+const M_T = 44;
+const M_B = 40;
 const PLOT_X0 = M_L;
 const PLOT_Y0 = M_T;
 const PLOT_W = VB_W - M_L - M_R;
@@ -110,7 +103,6 @@ function yScale(v: number): number {
   return PLOT_Y0 + PLOT_H - ((v - yLo) / (yHi - yLo)) * PLOT_H;
 }
 
-// ---- Pre-compute coordinates ----------------------------------------------
 const coords = data.map((d, i) => ({
   x: xScale(xs[i]),
   yGdp: yScale(d.gdp_idx),
@@ -118,75 +110,46 @@ const coords = data.map((d, i) => ({
   gap: d.output_gap_pct,
 }));
 
-// ---- Lines ----------------------------------------------------------------
 const gdpPath = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(2)} ${c.yGdp.toFixed(2)}`).join(" ");
 const potPath = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(2)} ${c.yPot.toFixed(2)}`).join(" ");
 
-// ---- Gap polygon (closed area between GDP and potential) ------------------
-// Forward along GDP, then backward along potential.
 const polyForward = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(2)} ${c.yGdp.toFixed(2)}`).join(" ");
 const polyBack = [...coords].reverse().map((c) => `L${c.x.toFixed(2)} ${c.yPot.toFixed(2)}`).join(" ");
 const polyPath = `${polyForward} ${polyBack} Z`;
 
-// ---- Rotated `Output gap` label at centroid -------------------------------
-// Compute geometric centroid of polygon (average of midline points weighted by gap magnitude)
-let cxSum = 0;
-let cySum = 0;
-let wSum = 0;
-for (const c of coords) {
-  const wt = Math.abs(c.yGdp - c.yPot);
-  const midY = (c.yGdp + c.yPot) / 2;
-  cxSum += c.x * wt;
-  cySum += midY * wt;
-  wSum += wt;
-}
-const centroidX = wSum > 0 ? cxSum / wSum : PLOT_X0 + PLOT_W / 2;
-const centroidY = wSum > 0 ? cySum / wSum : PLOT_Y0 + PLOT_H / 2;
-
-// Slope of midline near centroid: use coords ~25% on each side of centroid
-function findIdxByX(targetX: number): number {
-  let bestI = 0;
-  let bestD = Infinity;
-  for (let i = 0; i < coords.length; i++) {
-    const d = Math.abs(coords[i].x - targetX);
-    if (d < bestD) { bestD = d; bestI = i; }
-  }
-  return bestI;
-}
-const ci = findIdxByX(centroidX);
-const winL = Math.max(0, ci - 4);
-const winR = Math.min(coords.length - 1, ci + 4);
-const midL = (coords[winL].yGdp + coords[winL].yPot) / 2;
-const midR = (coords[winR].yGdp + coords[winR].yPot) / 2;
-const dx = coords[winR].x - coords[winL].x;
-const dy = midR - midL;
-const slopeRad = dx === 0 ? 0 : Math.atan2(dy, dx);
-const slopeDeg = (slopeRad * 180) / Math.PI;
-
-// ---- Reference line at 100 -----------------------------------------------
+// ---- Reference at 100 -----------------------------------------------------
 const y100 = yScale(100);
+const showRef = 100 >= yLo && 100 <= yHi;
 
-// ---- Gridlines + axis ticks ----------------------------------------------
+// ---- Gridlines + ticks ----------------------------------------------------
 const yTicks: number[] = [];
-const yStep = (yHi - yLo) > 12 ? 4 : 2;
-for (let v = yLo; v <= yHi + 1e-9; v += yStep) {
-  yTicks.push(v);
+function pickStride(lo: number, hi: number): number {
+  const span = hi - lo;
+  for (const s of [2, 4, 5, 10, 20]) {
+    const n = Math.round(span / s);
+    if (n >= 3 && n <= 5) return s;
+  }
+  return Math.max(2, Math.round(span / 4));
 }
+const yStride = pickStride(yLo, yHi);
+for (let v = yLo; v <= yHi + 1e-9; v += yStride) yTicks.push(v);
 
 const yearStart = Math.ceil(xMin);
 const yearEnd = Math.floor(xMax);
-const yearTicks: Array<{ x: number; label: string }> = [];
-for (let y = yearStart; y <= yearEnd; y += 2) {
-  const decY = y + (1 - 0.5) / 12;
+const allYearTicks: Array<{ x: number; label: string }> = [];
+for (let yr = yearStart; yr <= yearEnd; yr++) {
+  const decY = yr + (1 - 0.5) / 12;
   if (decY < xMin || decY > xMax) continue;
-  yearTicks.push({ x: xScale(decY), label: String(y) });
+  allYearTicks.push({ x: xScale(decY), label: String(yr) });
 }
+const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 5));
+const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
 
 // ---- Recession bands ------------------------------------------------------
 interface BandSpec { start: number; end: number; label: string | null; }
 const bands: BandSpec[] = [
-  { start: 2008 + (10 - 0.5) / 12, end: 2009 + (5 - 0.5) / 12, label: null }, // unlabeled
-  { start: 2020 + (2 - 0.5) / 12, end: 2020 + (4 - 0.5) / 12, label: "Recession (2020Q1-Q2)" },
+  { start: 2008 + (10 - 0.5) / 12, end: 2009 + (5 - 0.5) / 12, label: "2008-09" },
+  { start: 2020 + (2 - 0.5) / 12, end: 2020 + (4 - 0.5) / 12, label: "2020Q1-Q2" },
 ];
 const visibleBands = bands
   .filter((b) => b.end >= xMin && b.start <= xMax)
@@ -196,298 +159,191 @@ const visibleBands = bands
     label: b.label,
   }));
 
-// ---- Latest GDP marker + annotation --------------------------------------
+// ---- Latest -------------------------------------------------------------
 const latestIdx = n - 1;
 const latest = data[latestIdx];
 const lastGdpX = coords[latestIdx].x;
 const lastGdpY = coords[latestIdx].yGdp;
 const lastPotY = coords[latestIdx].yPot;
-const midLatestY = (lastGdpY + lastPotY) / 2;
 
-// Annotation: gap is negative -> place upper-right
-const annoX = Math.min(lastGdpX - 80, PLOT_X1 - 160);
-const annoY = latest.output_gap_pct < 0
-  ? Math.max(PLOT_Y0 + 24, Math.min(lastGdpY, lastPotY) - 28)
-  : Math.min(PLOT_Y1 - 24, Math.max(lastGdpY, lastPotY) + 36);
-const annoAnchorX = lastGdpX;
-const annoAnchorY = midLatestY;
+// ---- Annotation ----------------------------------------------------------
+function parseAnchor(s: string): Array<{ text: string; bold: boolean }> {
+  const parts: Array<{ text: string; bold: boolean }> = [];
+  const re = /\*\*([^*]+)\*\*/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(s)) !== null) {
+    if (m.index > last) parts.push({ text: s.slice(last, m.index), bold: false });
+    parts.push({ text: m[1], bold: true });
+    last = m.index + m[0].length;
+  }
+  if (last < s.length) parts.push({ text: s.slice(last), bold: false });
+  return parts;
+}
+const annoParts = gapAnnotation ? parseAnchor(gapAnnotation) : [];
+const annoX0 = PLOT_X0 + 18;
+const annoY0 = PLOT_Y0 + 22;
+const annoMaxWidth = PLOT_W * 0.40;
+const leaderStartX = annoX0 + Math.min(annoMaxWidth, 200);
+const leaderStartY = annoY0 - 4;
+const leaderEndX = lastGdpX - 7;
+const leaderEndY = lastGdpY;
 ---
-<div class="gdp-panel-chart" data-panel="5">
+<div class="canon-chart" data-panel="gdp-5">
   <svg
-    class="gdp-panel-chart__svg"
+    class="canon-chart__svg"
     viewBox={`0 0 ${VB_W} ${VB_H}`}
     preserveAspectRatio="xMidYMid meet"
     role="img"
     aria-label={ariaLabel}
   >
-    {/* Recession bands */}
     {visibleBands.map((b) => (
       <g>
-        <rect
-          class="gdp-panel-chart__recession"
-          x={b.x0.toFixed(2)}
-          y={PLOT_Y0}
-          width={Math.max(1, b.x1 - b.x0).toFixed(2)}
-          height={PLOT_H}
-        />
+        <rect class="canon-chart__recession" x={b.x0.toFixed(2)} y={PLOT_Y0}
+          width={Math.max(1, b.x1 - b.x0).toFixed(2)} height={PLOT_H} />
         {b.label && (
-          <text
-            class="gdp-panel-chart__recession-label"
-            x={((b.x0 + b.x1) / 2).toFixed(2)}
-            y={(PLOT_Y0 - 6).toFixed(2)}
-            text-anchor="middle"
-          >{b.label}</text>
+          <text class="canon-chart__recession-label"
+            x={((b.x0 + b.x1) / 2).toFixed(2)} y={(PLOT_Y0 + 12).toFixed(2)}
+            text-anchor="middle">{`RECESSION (${b.label})`}</text>
         )}
       </g>
     ))}
 
-    {/* Y gridlines */}
     {yTicks.map((v) => (
-      <line
-        class="gdp-panel-chart__gridline"
-        x1={PLOT_X0}
-        y1={yScale(v).toFixed(2)}
-        x2={PLOT_X1}
-        y2={yScale(v).toFixed(2)}
-      />
+      <line class="canon-chart__gridline"
+        x1={PLOT_X0} y1={yScale(v).toFixed(2)} x2={PLOT_X1} y2={yScale(v).toFixed(2)} />
     ))}
 
-    {/* Reference line at 100 */}
-    <line
-      class="gdp-panel-chart__refline"
-      x1={PLOT_X0}
-      y1={y100.toFixed(2)}
-      x2={PLOT_X1}
-      y2={y100.toFixed(2)}
-    />
-    <text
-      class="gdp-panel-chart__refline-label"
-      x={(PLOT_X1 + 4).toFixed(2)}
-      y={(y100 + 3.5).toFixed(2)}
-      text-anchor="start"
-    >2019Q4 = 100</text>
+    {showRef && (
+      <g class="canon-chart__reference-group">
+        <line class="canon-chart__reference-rule"
+          x1={PLOT_X0} y1={y100.toFixed(2)} x2={PLOT_X1} y2={y100.toFixed(2)} />
+        <text class="canon-chart__reference-label"
+          x={(PLOT_X1 - 6).toFixed(2)} y={(y100 - 5).toFixed(2)}
+          text-anchor="end">2019Q4 = 100</text>
+      </g>
+    )}
 
-    {/* Gap polygon between the two lines */}
-    <path class="gdp-panel-chart__gap-poly" d={polyPath} />
+    {/* Gap polygon - ink wash, earned-shaded (the editorial point) */}
+    <path class="canon-chart__gap-poly" d={polyPath} />
 
-    {/* Rotated 'Output gap' label inside polygon */}
-    <text
-      class="gdp-panel-chart__gap-label"
-      x={centroidX.toFixed(2)}
-      y={centroidY.toFixed(2)}
-      text-anchor="middle"
-      transform={`rotate(${slopeDeg.toFixed(1)}, ${centroidX.toFixed(2)}, ${centroidY.toFixed(2)})`}
-    >Output gap</text>
+    {/* Secondary: potential dashed */}
+    <path class="canon-chart__line-secondary" d={potPath} fill="none" />
 
-    {/* Potential line (dashed, behind GDP) */}
-    <path class="gdp-panel-chart__line-pot" d={potPath} fill="none" />
+    {/* Primary: GDP solid */}
+    <path class="canon-chart__line" d={gdpPath} fill="none" />
 
-    {/* Real GDP line */}
-    <path class="gdp-panel-chart__line-gdp" d={gdpPath} fill="none" />
-
-    {/* Latest GDP marker */}
-    <circle
-      class="gdp-panel-chart__marker-latest"
-      cx={lastGdpX.toFixed(2)}
-      cy={lastGdpY.toFixed(2)}
-      r="4"
-    >
-      <title>{`${latest.date}: GDP ${latest.gdp_idx.toFixed(1)}, potential ${latest.potential_idx.toFixed(1)}, gap ${latest.output_gap_pct.toFixed(1)}%`}</title>
-    </circle>
-
-    {/* X-axis */}
-    <line
-      class="gdp-panel-chart__xaxis"
-      x1={PLOT_X0}
-      y1={PLOT_Y1.toFixed(2)}
-      x2={PLOT_X1}
-      y2={PLOT_Y1.toFixed(2)}
-    />
-    {yearTicks.map((t) => (
+    {/* Hit areas */}
+    {coords.map((c, i) => (
       <g>
-        <line
-          class="gdp-panel-chart__xtick"
-          x1={t.x.toFixed(2)}
-          y1={PLOT_Y1.toFixed(2)}
-          x2={t.x.toFixed(2)}
-          y2={(PLOT_Y1 + 4).toFixed(2)}
-        />
-        <text
-          class="gdp-panel-chart__xtick-label"
-          x={t.x.toFixed(2)}
-          y={(PLOT_Y1 + 16).toFixed(2)}
-          text-anchor="middle"
-        >{t.label}</text>
+        <circle class="canon-chart__hit" cx={c.x.toFixed(2)} cy={c.yGdp.toFixed(2)} r="4">
+          <title>{`${data[i].date}: GDP ${data[i].gdp_idx.toFixed(1)} (gap ${data[i].output_gap_pct.toFixed(1)}%)`}</title>
+        </circle>
+        <circle class="canon-chart__hit" cx={c.x.toFixed(2)} cy={c.yPot.toFixed(2)} r="4">
+          <title>{`${data[i].date}: potential ${data[i].potential_idx.toFixed(1)}`}</title>
+        </circle>
       </g>
     ))}
 
-    {/* Y-axis labels */}
+    {/* MTA red latest dot on the primary */}
+    <circle class="canon-chart__latest-dot" cx={lastGdpX.toFixed(2)} cy={lastGdpY.toFixed(2)} r="4">
+      <title>{`Latest: ${latest.date}: GDP ${latest.gdp_idx.toFixed(1)}, gap ${latest.output_gap_pct.toFixed(1)}%`}</title>
+    </circle>
+
+    <rect class="canon-chart__frame" x={PLOT_X0} y={PLOT_Y0} width={PLOT_W} height={PLOT_H} />
+
+    {xTicks.map((t) => (
+      <g>
+        <line class="canon-chart__xtick" x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+          x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 4).toFixed(2)} />
+        <text class="canon-chart__xtick-label" x={t.x.toFixed(2)} y={(PLOT_Y1 + 18).toFixed(2)}
+          text-anchor="middle">{t.label}</text>
+      </g>
+    ))}
+
     {yTicks.map((v, i) => {
       const y = yScale(v);
       const isTop = i === yTicks.length - 1;
+      const num = v.toFixed(0);
+      const txt = isTop ? `${num} idx` : num;
       return (
-        <text
-          class="gdp-panel-chart__ytick-label"
-          x={(PLOT_X0 - 6).toFixed(2)}
-          y={(y + 3.5).toFixed(2)}
-          text-anchor="end"
-        >{isTop ? `${v.toFixed(0)} idx` : v.toFixed(0)}</text>
+        <text class="canon-chart__ytick-label" x={(PLOT_X0 - 8).toFixed(2)} y={(y + 4).toFixed(2)}
+          text-anchor="end">{txt}</text>
       );
     })}
 
-    {/* Unit annotation */}
-    <text
-      class="gdp-panel-chart__unit"
-      x={PLOT_X0.toFixed(2)}
-      y={(PLOT_Y0 - 18).toFixed(2)}
-      text-anchor="start"
-    >Index, 2019Q4 = 100</text>
+    <text class="canon-chart__direct-label" x={(lastGdpX + 10).toFixed(2)} y={(lastGdpY + 4).toFixed(2)}
+      text-anchor="start">Real GDP</text>
+    <text class="canon-chart__direct-label-secondary" x={(lastGdpX + 10).toFixed(2)} y={(lastPotY + 4).toFixed(2)}
+      text-anchor="start">BoC potential</text>
 
-    {/* Direct labels */}
-    <text
-      class="gdp-panel-chart__direct-label gdp-panel-chart__direct-label--gdp"
-      x={(lastGdpX + 8).toFixed(2)}
-      y={(lastGdpY + 4).toFixed(2)}
-      text-anchor="start"
-    >Real GDP</text>
-    <text
-      class="gdp-panel-chart__direct-label gdp-panel-chart__direct-label--pot"
-      x={(lastGdpX + 8).toFixed(2)}
-      y={(lastPotY + 4).toFixed(2)}
-      text-anchor="start"
-    >BoC potential</text>
-
-    {/* Current-gap annotation */}
     {gapAnnotation && (
-      <g>
-        <line
-          class="gdp-panel-chart__anno-leader"
-          x1={(annoX + 4).toFixed(2)}
-          y1={annoY.toFixed(2)}
-          x2={annoAnchorX.toFixed(2)}
-          y2={annoY.toFixed(2)}
-        />
-        <line
-          class="gdp-panel-chart__anno-leader"
-          x1={annoAnchorX.toFixed(2)}
-          y1={annoY.toFixed(2)}
-          x2={annoAnchorX.toFixed(2)}
-          y2={(annoAnchorY - (annoY < annoAnchorY ? 4 : -4)).toFixed(2)}
-        />
-        <text
-          class="gdp-panel-chart__anno-text"
-          x={annoX.toFixed(2)}
-          y={(annoY + 4).toFixed(2)}
-          text-anchor="end"
-        >{gapAnnotation}</text>
+      <g class="canon-chart__annotation">
+        <line class="canon-chart__anno-leader"
+          x1={leaderStartX.toFixed(2)} y1={leaderStartY.toFixed(2)}
+          x2={leaderEndX.toFixed(2)} y2={leaderEndY.toFixed(2)} />
+        <foreignObject x={annoX0.toFixed(2)} y={(annoY0 - 18).toFixed(2)}
+          width={annoMaxWidth.toFixed(2)} height="44">
+          <p class="canon-chart__anno-text">
+            {annoParts.map((part) =>
+              part.bold
+                ? <strong class="canon-chart__anno-anchor">{part.text}</strong>
+                : <span>{part.text}</span>
+            )}
+          </p>
+        </foreignObject>
       </g>
     )}
   </svg>
 </div>
 
 <style>
-  .gdp-panel-chart {
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    background-color: var(--surface);
-    overflow: visible;
+  .canon-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
+  .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
+  .canon-chart__recession { fill: rgba(21, 23, 26, 0.06); }
+  .canon-chart__recession-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
   }
-  .gdp-panel-chart__svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-    font-family: var(--font-sans);
+  .canon-chart__gridline { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges; }
+  .canon-chart__reference-rule { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2; shape-rendering: crispEdges; }
+  .canon-chart__reference-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-semibold); letter-spacing: 0.04em;
   }
-  .gdp-panel-chart__recession { fill: rgba(21, 23, 26, 0.06); }
-  .gdp-panel-chart__recession-label {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
+  .canon-chart__gap-poly { fill: rgba(21, 23, 26, 0.06); stroke: none; }
+  .canon-chart__line {
+    stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
+    fill: none; vector-effect: non-scaling-stroke;
   }
-  .gdp-panel-chart__gridline {
-    stroke: var(--rule-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+  .canon-chart__line-secondary {
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2;
+    stroke-linejoin: round; stroke-linecap: butt; fill: none; vector-effect: non-scaling-stroke;
   }
-  .gdp-panel-chart__refline {
-    stroke: var(--ink-faint);
-    stroke-width: 1;
-    stroke-dasharray: 4 2;
-    shape-rendering: crispEdges;
+  .canon-chart__hit { fill: transparent; pointer-events: all; }
+  .canon-chart__latest-dot { fill: var(--accent); stroke: none; }
+  .canon-chart__frame { fill: none; stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
-  .gdp-panel-chart__refline-label {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+  .canon-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
-  .gdp-panel-chart__gap-poly {
-    fill: rgba(21, 23, 26, 0.06);
-    stroke: none;
+  .canon-chart__direct-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px; font-weight: var(--fw-semibold);
   }
-  .gdp-panel-chart__gap-label {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-regular);
-    letter-spacing: 0.04em;
+  .canon-chart__direct-label-secondary {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px; font-weight: var(--fw-regular);
   }
-  .gdp-panel-chart__line-gdp {
-    stroke: var(--series-1);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-    fill: none;
+  .canon-chart__anno-leader { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; fill: none; }
+  .canon-chart__anno-text {
+    margin: 0; color: var(--ink); font-family: var(--font-sans);
+    font-size: 15px; font-weight: var(--fw-regular); line-height: 1.30;
   }
-  .gdp-panel-chart__line-pot {
-    stroke: var(--series-7);
-    stroke-width: 1.5;
-    stroke-dasharray: 4 2;
-    stroke-linejoin: round;
-    fill: none;
-  }
-  .gdp-panel-chart__marker-latest {
-    fill: var(--series-1);
-    stroke: var(--surface);
-    stroke-width: 1;
-  }
-  .gdp-panel-chart__xaxis {
-    stroke: var(--rule);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .gdp-panel-chart__xtick {
-    stroke: var(--ink-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .gdp-panel-chart__ytick-label,
-  .gdp-panel-chart__xtick-label {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
-  }
-  .gdp-panel-chart__unit {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-  }
-  .gdp-panel-chart__direct-label {
-    font-size: 13px;
-    font-weight: var(--fw-medium);
-  }
-  .gdp-panel-chart__direct-label--gdp { fill: var(--series-1); }
-  .gdp-panel-chart__direct-label--pot { fill: var(--series-7); }
-  .gdp-panel-chart__anno-leader {
-    stroke: var(--ink-muted);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .gdp-panel-chart__anno-text {
-    fill: var(--ink);
-    font-size: 13px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
-  }
+  .canon-chart__anno-anchor { font-weight: var(--fw-semibold); }
 </style>

@@ -500,103 +500,58 @@ const annoHrs = annoPlacement(lastPcH_X, lastPcH_Y, B_X1);
 </div>
 
 <style>
+  /* Vignelli v1.0 canon-compliant restyle (2026-05-11). Side-by-side small
+     multiples; each cell obeys the line-chart canon. Per-capita = primary
+     (pure ink 1.5px solid, MTA red latest dot, Manrope 600 direct label).
+     Aggregate = secondary (pure ink 1px dashed 4 2, no dot, Manrope 400
+     direct label). Contraction polygons use the ink wash (same tint as
+     recession band) - the editorial story is in those shaded periods. */
   .labour-panel-chart {
-    width: 100%;
-    aspect-ratio: 720 / 420;
-    background-color: var(--surface);
-    overflow: visible;
+    width: 100%; aspect-ratio: 720 / 420; background-color: var(--paper); overflow: visible;
   }
-  .labour-panel-chart__svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-    font-family: var(--font-sans);
-  }
+  .labour-panel-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
   .labour-panel-chart__gridline {
-    stroke: var(--rule-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges;
   }
   .labour-panel-chart__gridline--zero {
-    stroke: var(--ink-muted);
-    stroke-width: 1;
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 1;
   }
-  /* Contraction area: --neg-soft @ 40% opacity. The single editorial-weight
-   * soft-color fill on the entire basics layer. */
   .labour-panel-chart__contraction {
-    fill: var(--neg-soft);
-    fill-opacity: 0.4;
-    stroke: none;
+    fill: var(--ink); fill-opacity: 0.06; stroke: none;
   }
-  /* Aggregate line: slate, weight 400 (1.5px). */
   .labour-panel-chart__line-aggregate {
-    stroke: var(--series-7);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-    fill: none;
-    opacity: 0.85;
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2;
+    stroke-linejoin: round; fill: none; vector-effect: non-scaling-stroke;
   }
-  /* Per-capita line: sage section accent, 2px solid weight 600.
-   * Deliberately the heaviest line on the entire Labour basics page. */
   .labour-panel-chart__line-pc {
-    stroke: var(--series-3);
-    stroke-width: 2;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-    fill: none;
+    stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
+    fill: none; vector-effect: non-scaling-stroke;
   }
-  .labour-panel-chart__marker-agg { fill: var(--series-7); }
-  .labour-panel-chart__marker-pc {
-    fill: var(--series-3);
-    stroke: var(--surface);
-    stroke-width: 1;
-  }
-  .labour-panel-chart__xaxis {
-    stroke: var(--rule);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .labour-panel-chart__xtick {
-    stroke: var(--ink-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .labour-panel-chart__ytick-label,
+  .labour-panel-chart__marker-agg { fill: transparent; stroke: none; }
+  .labour-panel-chart__marker-pc { fill: var(--accent); stroke: none; }
+  .labour-panel-chart__xaxis { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .labour-panel-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
   .labour-panel-chart__xtick-label {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .labour-panel-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
   .labour-panel-chart__cell-title {
-    fill: var(--ink-muted);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    letter-spacing: 0.02em;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
   }
   .labour-panel-chart__direct-label {
-    font-size: 12px;
-    font-weight: var(--fw-medium);
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px;
   }
-  .labour-panel-chart__direct-label--agg {
-    fill: var(--series-7);
-    font-weight: var(--fw-regular);
-  }
-  .labour-panel-chart__direct-label--pc {
-    fill: var(--series-3);
-    font-weight: var(--fw-semibold);
-  }
-  .labour-panel-chart__anno-leader {
-    stroke: var(--ink-muted);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
+  .labour-panel-chart__direct-label--agg { font-weight: var(--fw-regular); }
+  .labour-panel-chart__direct-label--pc  { font-weight: var(--fw-semibold); }
+  .labour-panel-chart__anno-leader { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; fill: none; }
   .labour-panel-chart__anno-text {
-    fill: var(--ink);
-    font-size: 12px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px; font-weight: var(--fw-regular);
   }
 </style>

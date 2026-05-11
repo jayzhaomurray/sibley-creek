@@ -3,9 +3,8 @@
  * ChartbookUnit - the atom of a topic page.
  *
  * One unit is: indicator eyebrow, headline title sentence, a real chart
- * on the left, a 2-4 sentence interpretation paragraph on the right, a
- * callout strip with the big number + delta + direction glyph, and a
- * source line. Hairline rule separates consecutive units.
+ * on the left, a 2-4 sentence interpretation paragraph on the right, and
+ * a source line. Hairline rule separates consecutive units.
  *
  * Vignelli register, matching the homepage:
  *   - Pure white paper, pure black ink, MTA red (#E63946) accent
@@ -23,8 +22,6 @@
  *                   [ Real chart (>= 900px), stacks on   ]   paragraph,
  *                   [ mobile)                            ]   ~40% width,
  *                                                          max-width 360px ]
- *   [callout strip] BIG NUMBER  +0.2 pp     (triangle)
- *                   28-36px Manrope Black   12px Plex Mono
  *   [source line]   Source: Statistics Canada Table 36-10-0434-01.
  *                   12px Plex Mono micro
  *
@@ -181,31 +178,6 @@ function dirGlyph(d?: "pos" | "neg" | "neutral"): string {
       </slot>
     </div>
   </div>
-
-  {/* Callout strip: big number + delta + direction glyph */}
-  {callout && (
-    <div class="chartbook-unit__callout">
-      <p class="chartbook-unit__callout-value">{callout.value}</p>
-      <div class="chartbook-unit__callout-meta">
-        {callout.unit && (
-          <span class="chartbook-unit__callout-unit">{callout.unit}</span>
-        )}
-        {callout.delta && (
-          <span class="chartbook-unit__callout-delta">
-            <span
-              class="chartbook-unit__callout-glyph"
-              aria-label={`Direction: ${callout.direction ?? "neutral"}`}
-            >
-              {dirGlyph(callout.direction)}
-            </span>
-            <span class="chartbook-unit__callout-delta-val">
-              {callout.delta}
-            </span>
-          </span>
-        )}
-      </div>
-    </div>
-  )}
 
   {/* Source line */}
   <footer class="chartbook-unit__foot">
@@ -390,62 +362,9 @@ function dirGlyph(d?: "pos" | "neg" | "neutral"): string {
     color: var(--ink);
   }
 
-  /* ---- Callout strip ---- */
-  .chartbook-unit__callout {
-    margin-top: 28px;
-    padding-top: 16px;
-    border-top: 1px solid var(--ink);
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 18px;
-    flex-wrap: wrap;
-  }
-  .chartbook-unit__callout-value {
-    margin: 0;
-    font-family: var(--font-sans);
-    font-weight: 800;
-    font-size: clamp(28px, 3vw, 36px);
-    line-height: 1;
-    letter-spacing: -0.01em;
-    color: var(--ink);
-    font-variant-numeric: tabular-nums;
-  }
-  .chartbook-unit__callout-meta {
-    display: flex;
-    align-items: baseline;
-    gap: 18px;
-    flex-wrap: wrap;
-  }
-  .chartbook-unit__callout-unit {
-    font-family: var(--font-sans);
-    font-weight: 400;
-    font-size: 12px;
-    line-height: 1.3;
-    letter-spacing: 0.02em;
-    color: var(--ink);
-    max-width: 36ch;
-  }
-  .chartbook-unit__callout-delta {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 6px;
-    font-family: var(--font-mono);
-    font-weight: 400;
-    font-size: 12px;
-    line-height: 1.3;
-    color: var(--ink);
-    font-variant-numeric: tabular-nums;
-  }
-  .chartbook-unit__callout-glyph {
-    color: var(--ink);
-    font-family: var(--font-sans);
-    font-size: 10px;
-  }
-
   /* ---- Source line ---- */
   .chartbook-unit__foot {
-    margin-top: 16px;
+    margin-top: var(--s-5);
   }
   .chartbook-unit__source {
     margin: 0;

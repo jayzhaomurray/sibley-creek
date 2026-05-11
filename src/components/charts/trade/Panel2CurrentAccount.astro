@@ -1,0 +1,304 @@
+---
+/*
+ * Panel2CurrentAccount - Trade plate 2.
+ *
+ * Spec: editorial canon 4.7.2. Quarterly current-account balance as a
+ * single load-bearing line (the net) in pure ink at 1.5px. The three
+ * sub-component lines (goods, services, primary income) sit as 1px
+ * dashed ink companions per the Vignelli multi-series rule: secondary
+ * series in 1px ink with a dashed pattern, not a second color
+ * (design-system 5.3). Zero line is the load-bearing reference and
+ * gets full ink opacity.
+ *
+ * MTA red dot on the latest net balance print.
+ *
+ * Plot vs SVG: hand-rolled SVG. Four lines, zero rule, dot - well below
+ * Plot's worth-it threshold and zero client JS.
+ *
+ * Placeholder: 20 quarters ending Q1 2026. Net in modest deficit, with
+ * goods near zero, services narrowing surplus, primary-income persistent
+ * drag.
+ */
+
+interface CARow {
+  date: string;     // "YYYY-Qn"
+  goods: number;    // CAD billions (quarterly)
+  services: number; // CAD billions
+  primary: number;  // CAD billions (primary income; typically negative)
+  net: number;      // net current account
+}
+
+interface Props {
+  data?: CARow[];
+  ariaLabel?: string;
+}
+
+function makePlaceholder(): CARow[] {
+  const out: CARow[] = [];
+  let y = 2021;
+  let q = 2;
+  for (let i = 0; i < 20; i++) {
+    const t = i / 19;
+    // Goods: +6 -> -2, with noise.
+    const goods = 6 - 9 * t + 2 * Math.sin(i * 0.7);
+    // Services: +6 -> +3, slowly narrowing surplus.
+    const services = 6 - 3 * t + 0.7 * Math.cos(i * 0.5);
+    // Primary income: persistent -12 to -16.
+    const primary = -12 - 2 * t + 1.0 * Math.sin(i * 0.4);
+    const net = goods + services + primary;
+    out.push({
+      date: `${y}-Q${q}`,
+      goods: Number(goods.toFixed(2)),
+      services: Number(services.toFixed(2)),
+      primary: Number(primary.toFixed(2)),
+      net: Number(net.toFixed(2)),
+    });
+    q += 1;
+    if (q > 4) { q = 1; y += 1; }
+  }
+  return out;
+}
+
+const {
+  data = makePlaceholder(),
+  ariaLabel = "Quarterly current-account balance and components: goods, services, primary income.",
+} = Astro.props;
+
+// ---- Geometry ----
+const VB_W = 720;
+const VB_H = 432;
+const M_L = 48;
+const M_R = 80;
+const M_T = 30;
+const M_B = 34;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+const n = data.length;
+const allVals = data.flatMap((d) => [d.goods, d.services, d.primary, d.net]);
+const rawMax = Math.max(...allVals);
+const rawMin = Math.min(...allVals);
+const absMax = Math.max(Math.abs(rawMax), Math.abs(rawMin), 5);
+const yHi = Math.ceil(absMax / 5) * 5;
+const yLo = -yHi;
+const yTicks: number[] = [];
+for (let v = yLo; v <= yHi + 1e-9; v += 5) yTicks.push(v);
+
+function xScale(i: number): number {
+  return PLOT_X0 + (i / (n - 1)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - yLo) / (yHi - yLo)) * PLOT_H;
+}
+const zeroY = yScale(0);
+
+function buildPath(key: "goods" | "services" | "primary" | "net"): string {
+  return data
+    .map((d, i) => `${i === 0 ? "M" : "L"}${xScale(i).toFixed(2)} ${yScale(d[key]).toFixed(2)}`)
+    .join(" ");
+}
+const goodsPath = buildPath("goods");
+const servicesPath = buildPath("services");
+const primaryPath = buildPath("primary");
+const netPath = buildPath("net");
+
+// X tick labels: every Q1.
+const xLabels: Array<{ x: number; label: string }> = [];
+data.forEach((d, i) => {
+  if (d.date.endsWith("Q1") || i === n - 1) {
+    const yr = d.date.split("-")[0];
+    xLabels.push({ x: xScale(i), label: i === n - 1 ? d.date.replace("-", " ") : `'${yr.slice(-2)}` });
+  }
+});
+
+const last = data[n - 1];
+const lastX = xScale(n - 1);
+const lastNetY = yScale(last.net);
+const lastGoodsY = yScale(last.goods);
+const lastServicesY = yScale(last.services);
+const lastPrimaryY = yScale(last.primary);
+---
+<figure class="trade-panel-2" aria-label={ariaLabel}>
+  <svg
+    class="trade-panel-2__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+  >
+    {/* Gridlines (non-zero) */}
+    {yTicks.map((v) => {
+      if (Math.abs(v) < 1e-9) return null;
+      return (
+        <line
+          class="trade-panel-2__gridline"
+          x1={PLOT_X0}
+          y1={yScale(v).toFixed(2)}
+          x2={PLOT_X1}
+          y2={yScale(v).toFixed(2)}
+        />
+      );
+    })}
+
+    {/* Zero line (load-bearing) */}
+    <line
+      class="trade-panel-2__zero"
+      x1={PLOT_X0}
+      y1={zeroY.toFixed(2)}
+      x2={PLOT_X1}
+      y2={zeroY.toFixed(2)}
+    />
+
+    {/* Components - dashed 1px ink */}
+    <path class="trade-panel-2__line trade-panel-2__line--goods" d={goodsPath} fill="none" />
+    <path class="trade-panel-2__line trade-panel-2__line--services" d={servicesPath} fill="none" />
+    <path class="trade-panel-2__line trade-panel-2__line--primary" d={primaryPath} fill="none" />
+
+    {/* Net (load-bearing, solid) */}
+    <path class="trade-panel-2__line trade-panel-2__line--net" d={netPath} fill="none" />
+
+    {/* Latest net dot */}
+    <circle
+      class="trade-panel-2__marker"
+      cx={lastX.toFixed(2)}
+      cy={lastNetY.toFixed(2)}
+      r="3.5"
+    >
+      <title>{`${last.date}: net CA CAD ${last.net.toFixed(2)}B`}</title>
+    </circle>
+
+    {/* Plot frame */}
+    <rect
+      class="trade-panel-2__frame"
+      x={PLOT_X0}
+      y={PLOT_Y0}
+      width={PLOT_W}
+      height={PLOT_H}
+      fill="none"
+    />
+
+    {/* X-axis tick labels */}
+    {xLabels.map((t) => (
+      <text
+        class="trade-panel-2__xtick-label"
+        x={t.x.toFixed(2)}
+        y={(PLOT_Y1 + 16).toFixed(2)}
+        text-anchor="middle"
+      >{t.label}</text>
+    ))}
+
+    {/* Y-axis tick labels */}
+    {yTicks.map((v) => {
+      const sign = v > 0 ? "+" : "";
+      const isTop = v === yHi;
+      return (
+        <text
+          class="trade-panel-2__ytick-label"
+          x={(PLOT_X0 - 6).toFixed(2)}
+          y={(yScale(v) + 3.5).toFixed(2)}
+          text-anchor="end"
+        >{isTop ? `${sign}${v}B` : `${sign}${v}`}</text>
+      );
+    })}
+
+    {/* Direct labels at termini */}
+    <text class="trade-panel-2__direct-label" x={(lastX + 6).toFixed(2)} y={(lastNetY + 4).toFixed(2)}>Net</text>
+    <text class="trade-panel-2__direct-label trade-panel-2__direct-label--secondary" x={(lastX + 6).toFixed(2)} y={(lastGoodsY + 4).toFixed(2)}>Goods</text>
+    <text class="trade-panel-2__direct-label trade-panel-2__direct-label--secondary" x={(lastX + 6).toFixed(2)} y={(lastServicesY + 4).toFixed(2)}>Services</text>
+    <text class="trade-panel-2__direct-label trade-panel-2__direct-label--secondary" x={(lastX + 6).toFixed(2)} y={(lastPrimaryY + 4).toFixed(2)}>Primary inc.</text>
+
+    {/* Unit annotation top-left */}
+    <text
+      class="trade-panel-2__unit"
+      x={PLOT_X0.toFixed(2)}
+      y={(PLOT_Y0 - 12).toFixed(2)}
+      text-anchor="start"
+    >Quarterly current account, CAD billions. Net solid; components dashed.</text>
+  </svg>
+</figure>
+
+<style>
+  .trade-panel-2 {
+    width: 100%;
+    margin: 0;
+    background-color: var(--surface);
+  }
+  .trade-panel-2__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: var(--font-sans);
+    overflow: visible;
+  }
+  .trade-panel-2__gridline {
+    stroke: var(--ink);
+    stroke-opacity: 0.15;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .trade-panel-2__zero {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .trade-panel-2__line--net {
+    stroke: #000000;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .trade-panel-2__line--goods {
+    stroke: #000000;
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    opacity: 0.55;
+  }
+  .trade-panel-2__line--services {
+    stroke: #000000;
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+    opacity: 0.55;
+  }
+  .trade-panel-2__line--primary {
+    stroke: #000000;
+    stroke-width: 1;
+    stroke-dasharray: 6 3;
+    opacity: 0.55;
+  }
+  .trade-panel-2__marker {
+    fill: #E63946;
+    stroke: var(--surface);
+    stroke-width: 1.25;
+  }
+  .trade-panel-2__frame {
+    stroke: #000000;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .trade-panel-2__xtick-label,
+  .trade-panel-2__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+  .trade-panel-2__direct-label {
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+    fill: var(--ink);
+  }
+  .trade-panel-2__direct-label--secondary {
+    opacity: 0.65;
+  }
+  .trade-panel-2__unit {
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.02em;
+  }
+</style>

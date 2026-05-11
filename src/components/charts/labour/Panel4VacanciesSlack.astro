@@ -120,7 +120,7 @@ function makeBev(): BeveridgePoint[] {
 const {
   vu = makeVu(),
   bev = makeBev(),
-  vuRecentAnnotation = "Apr 2026: 0.47 (in 2018-19 BoC tightening range)",
+  vuRecentAnnotation = "TK",
   bevAnnotation = "Loosening toward 2018-2019 territory",
   shiftAnnotation = "Post-COVID outward shift",
   ariaLabel = "V/U ratio and Beveridge curve, 2015-present (3M MA)",
@@ -547,121 +547,65 @@ const annoVuAnchorY = latestVuY - 4;
 </div>
 
 <style>
-  .labour-panel-chart {
-    width: 100%;
-    aspect-ratio: 720 / 540;
-    background-color: var(--surface);
-    overflow: visible;
-  }
-  .labour-panel-chart__svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-    font-family: var(--font-sans);
-  }
+  /* Vignelli v1.0 canon-compliant restyle (2026-05-11). Composite: V/U
+     time series (top) + Beveridge curve (bottom). All series in pure ink;
+     anchor bands and history points are ink at various low opacities.
+     MTA red latest dot on V/U latest and on Beveridge curve latest. */
+  .labour-panel-chart { width: 100%; aspect-ratio: 720 / 540; background-color: var(--paper); overflow: visible; }
+  .labour-panel-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
   .labour-panel-chart__gridline {
-    stroke: var(--rule-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges;
   }
-  .labour-panel-chart__anchor-band {
-    fill: var(--series-3);
-    stroke: none;
-  }
+  .labour-panel-chart__anchor-band { fill: var(--ink); stroke: none; }
   .labour-panel-chart__vu-line {
-    stroke: var(--series-3);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-    fill: none;
+    stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
+    fill: none; vector-effect: non-scaling-stroke;
   }
-  .labour-panel-chart__vu-marker {
-    fill: var(--series-3);
-    stroke: var(--surface);
-    stroke-width: 1.5;
-  }
-  .labour-panel-chart__bev-bg {
-    fill: var(--series-1);
-    stroke: none;
-  }
+  .labour-panel-chart__vu-marker { fill: var(--accent); stroke: none; }
+  .labour-panel-chart__bev-bg { fill: var(--ink); stroke: none; }
   .labour-panel-chart__bev-trail {
-    stroke: var(--series-3);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-    fill: none;
+    stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
+    fill: none; vector-effect: non-scaling-stroke;
   }
-  .labour-panel-chart__bev-trail-pt {
-    fill: var(--series-3);
-    fill-opacity: 0.7;
-  }
-  .labour-panel-chart__bev-trail-pt--latest {
-    fill: var(--series-3);
-    fill-opacity: 1;
-    stroke: var(--surface);
-    stroke-width: 1.5;
-  }
-  .labour-panel-chart__xaxis {
-    stroke: var(--rule);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .labour-panel-chart__xtick {
-    stroke: var(--ink-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .labour-panel-chart__ytick-label,
+  .labour-panel-chart__bev-trail-pt { fill: var(--ink); fill-opacity: 0.65; }
+  .labour-panel-chart__bev-trail-pt--latest { fill: var(--accent); fill-opacity: 1; stroke: none; }
+  .labour-panel-chart__xaxis { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .labour-panel-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
   .labour-panel-chart__xtick-label {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .labour-panel-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
   .labour-panel-chart__band-label {
-    fill: var(--ink-faint);
-    font-size: 10px;
-    font-weight: var(--fw-medium);
-    letter-spacing: 0.02em;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.02em;
   }
   .labour-panel-chart__axis-title {
-    fill: var(--ink-muted);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular);
   }
   .labour-panel-chart__subview-title {
-    fill: var(--ink-muted);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    letter-spacing: 0.02em;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
   }
-  .labour-panel-chart__anno-leader {
-    stroke: var(--ink-muted);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
+  .labour-panel-chart__anno-leader { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; fill: none; }
   .labour-panel-chart__anno-text {
-    fill: var(--ink);
-    font-size: 12px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px; font-weight: var(--fw-regular);
   }
   .labour-panel-chart__bev-anno {
-    fill: var(--ink);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-semibold);
   }
   .labour-panel-chart__bev-shift {
-    fill: var(--ink-faint);
-    font-size: 10px;
-    font-weight: var(--fw-medium);
-    font-style: italic;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-regular); opacity: 0.7;
   }
   .labour-panel-chart__foot-disclosure {
-    fill: var(--ink-faint);
-    font-size: 10px;
-    font-weight: var(--fw-regular);
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-regular); opacity: 0.65;
   }
 </style>

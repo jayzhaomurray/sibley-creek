@@ -1,0 +1,297 @@
+---
+/*
+ * Panel2GoCCurve - Markets plate 2.
+ *
+ * Spec: editorial canon Section 4.6.2. Four GoC tenors (2y, 5y, 10y, 30y)
+ * over the last ~5 years, drawn as four black lines distinguished by
+ * dash pattern (Tufte's "monochrome with shape"). Direct labels at the
+ * right termini. MTA red latest-point dot on the 10y (the load-bearing
+ * tenor). Spread to UST at 2y / 10y and BoC term premium are mentioned
+ * in the unit annotation - the spreads themselves are deferred to a
+ * companion small-multiples row if/when art-director approves; for v1
+ * the panel reads as a four-tenor GoC curve view.
+ *
+ * Vignelli canon (5.3 Tier 3 chart): single hue (black) on data, dash
+ * pattern to discriminate tenor, 1px plot frame, 6% recession band.
+ *
+ * Placeholder: synthesized 60-month series. 2y peaks higher than 10y in
+ * recent quarters (inverted-then-disinverting curve).
+ */
+
+interface GoCRow {
+  date: string;  // "YYYY-MM"
+  y2: number;
+  y5: number;
+  y10: number;
+  y30: number;
+}
+
+interface Props {
+  data?: GoCRow[];
+  ariaLabel?: string;
+}
+
+function makePlaceholder(): GoCRow[] {
+  const out: GoCRow[] = [];
+  let y = 2021;
+  let m = 5;
+  for (let i = 0; i < 60; i++) {
+    const t = i / 59;
+    // 2021 -> 2026. Rates rise from ~0.5 / 1.0 / 1.5 / 1.9 to a 2023 peak,
+    // then ease. 2y is the most volatile.
+    let r2 = 0.5;
+    let r5 = 1.0;
+    let r10 = 1.5;
+    let r30 = 1.9;
+    if (t < 0.4) {
+      r2 = 0.5 + (4.7 - 0.5) * (t / 0.4);
+      r5 = 1.0 + (4.2 - 1.0) * (t / 0.4);
+      r10 = 1.5 + (3.9 - 1.5) * (t / 0.4);
+      r30 = 1.9 + (3.7 - 1.9) * (t / 0.4);
+    } else if (t < 0.75) {
+      r2 = 4.7 - (4.7 - 3.4) * ((t - 0.4) / 0.35);
+      r5 = 4.2 - (4.2 - 3.3) * ((t - 0.4) / 0.35);
+      r10 = 3.9 - (3.9 - 3.4) * ((t - 0.4) / 0.35);
+      r30 = 3.7 - (3.7 - 3.4) * ((t - 0.4) / 0.35);
+    } else {
+      r2 = 3.4 - (3.4 - 3.0) * ((t - 0.75) / 0.25);
+      r5 = 3.3 + 0.1 * Math.sin((t - 0.75) * 12);
+      r10 = 3.4 + 0.05 * Math.sin((t - 0.75) * 10);
+      r30 = 3.4 + 0.03 * Math.cos((t - 0.75) * 8);
+    }
+    out.push({
+      date: `${y}-${String(m).padStart(2, "0")}`,
+      y2: Number(r2.toFixed(2)),
+      y5: Number(r5.toFixed(2)),
+      y10: Number(r10.toFixed(2)),
+      y30: Number(r30.toFixed(2)),
+    });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+const {
+  data = makePlaceholder(),
+  ariaLabel = "Government of Canada benchmark yields, 2y / 5y / 10y / 30y, last 5 years.",
+} = Astro.props;
+
+// ---- Geometry ----
+const VB_W = 720;
+const VB_H = 432;
+const M_L = 44;
+const M_R = 64;
+const M_T = 30;
+const M_B = 34;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+function decYearOf(d: string): number {
+  const [yy, mm] = d.split("-").map(Number);
+  return yy + (mm - 0.5) / 12;
+}
+const xs = data.map((d) => decYearOf(d.date));
+const xMin = xs[0];
+const xMax = xs[xs.length - 1];
+
+const allVals = data.flatMap((d) => [d.y2, d.y5, d.y10, d.y30]);
+const rawMin = Math.min(...allVals);
+const rawMax = Math.max(...allVals);
+const yLo = Math.max(0, Math.floor(rawMin - 0.5));
+const yHi = Math.ceil(rawMax + 0.5);
+const yTicks: number[] = [];
+for (let v = yLo; v <= yHi + 1e-9; v += 1) yTicks.push(v);
+
+function xScale(decY: number): number {
+  return PLOT_X0 + ((decY - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - yLo) / (yHi - yLo)) * PLOT_H;
+}
+
+const tenors = [
+  { key: "y2",  label: "2y",  dash: "1 2",  stroke: 1.0 },
+  { key: "y5",  label: "5y",  dash: "4 2",  stroke: 1.0 },
+  { key: "y10", label: "10y", dash: "0",    stroke: 1.5 }, // load-bearing - solid heavier
+  { key: "y30", label: "30y", dash: "6 3",  stroke: 1.0 },
+] as const;
+
+function pathFor(key: keyof GoCRow): string {
+  return data.map((d, i) => {
+    const x = xScale(xs[i]);
+    const y = yScale(d[key] as number);
+    return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+  }).join(" ");
+}
+
+// X ticks: every year.
+const yearTicks: Array<{ x: number; label: string }> = [];
+for (let yy = Math.ceil(xMin); yy <= Math.floor(xMax); yy++) {
+  const decY = yy + (1 - 0.5) / 12;
+  if (decY < xMin || decY > xMax) continue;
+  yearTicks.push({ x: xScale(decY), label: `'${String(yy).slice(-2)}` });
+}
+
+// Latest 10y print.
+const last = data[data.length - 1];
+const lastX = xScale(xs[xs.length - 1]);
+const last10Y = yScale(last.y10);
+const monthShort = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const lastDate = `${monthShort[Number(last.date.split("-")[1]) - 1]} ${last.date.split("-")[0]}`;
+---
+<figure class="markets-panel-2" aria-label={ariaLabel}>
+  <svg
+    class="markets-panel-2__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+  >
+    {/* Y gridlines */}
+    {yTicks.map((v) => (
+      <line
+        class="markets-panel-2__gridline"
+        x1={PLOT_X0}
+        y1={yScale(v).toFixed(2)}
+        x2={PLOT_X1}
+        y2={yScale(v).toFixed(2)}
+      />
+    ))}
+
+    {/* Tenor lines */}
+    {tenors.map((t) => (
+      <path
+        class:list={["markets-panel-2__line", `markets-panel-2__line--${t.key}`]}
+        d={pathFor(t.key as keyof GoCRow)}
+        stroke-dasharray={t.dash === "0" ? undefined : t.dash}
+        stroke-width={t.stroke}
+        fill="none"
+      />
+    ))}
+
+    {/* Direct labels at termini */}
+    {tenors.map((t) => {
+      const v = last[t.key as keyof GoCRow] as number;
+      const y = yScale(v);
+      return (
+        <text
+          class="markets-panel-2__direct-label"
+          x={(PLOT_X1 + 4).toFixed(2)}
+          y={(y + 3.5).toFixed(2)}
+          text-anchor="start"
+        >{t.label}</text>
+      );
+    })}
+
+    {/* Latest-point dot on 10y */}
+    <circle
+      class="markets-panel-2__marker"
+      cx={lastX.toFixed(2)}
+      cy={last10Y.toFixed(2)}
+      r="3.5"
+    >
+      <title>{`${lastDate}: GoC 10y ${last.y10.toFixed(2)}%`}</title>
+    </circle>
+
+    {/* Plot frame */}
+    <rect
+      class="markets-panel-2__frame"
+      x={PLOT_X0}
+      y={PLOT_Y0}
+      width={PLOT_W}
+      height={PLOT_H}
+      fill="none"
+    />
+
+    {/* X-axis tick labels */}
+    {yearTicks.map((t) => (
+      <text
+        class="markets-panel-2__xtick-label"
+        x={t.x.toFixed(2)}
+        y={(PLOT_Y1 + 16).toFixed(2)}
+        text-anchor="middle"
+      >{t.label}</text>
+    ))}
+
+    {/* Y-axis tick labels */}
+    {yTicks.map((v, i) => (
+      <text
+        class="markets-panel-2__ytick-label"
+        x={(PLOT_X0 - 6).toFixed(2)}
+        y={(yScale(v) + 3.5).toFixed(2)}
+        text-anchor="end"
+      >{i === yTicks.length - 1 ? `${v}%` : `${v}`}</text>
+    ))}
+
+    {/* Unit annotation top-left */}
+    <text
+      class="markets-panel-2__unit"
+      x={PLOT_X0.toFixed(2)}
+      y={(PLOT_Y0 - 12).toFixed(2)}
+      text-anchor="start"
+    >GoC benchmark yields. 10y solid; 2y / 5y / 30y dashed.</text>
+  </svg>
+</figure>
+
+<style>
+  .markets-panel-2 {
+    width: 100%;
+    margin: 0;
+    background-color: var(--surface);
+  }
+  .markets-panel-2__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: var(--font-sans);
+    overflow: visible;
+  }
+  .markets-panel-2__gridline {
+    stroke: var(--ink);
+    stroke-opacity: 0.15;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .markets-panel-2__line {
+    stroke: #000000;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .markets-panel-2__line--y10 {
+    /* load-bearing tenor: solid + heavier weight (1.5) set inline */
+  }
+  .markets-panel-2__marker {
+    fill: #E63946;
+    stroke: var(--surface);
+    stroke-width: 1.25;
+  }
+  .markets-panel-2__frame {
+    stroke: #000000;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .markets-panel-2__xtick-label,
+  .markets-panel-2__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+  .markets-panel-2__direct-label {
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+    fill: var(--ink);
+  }
+  .markets-panel-2__unit {
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.02em;
+  }
+</style>

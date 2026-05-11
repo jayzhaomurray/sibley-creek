@@ -297,115 +297,60 @@ const nationalX = xScale(nationalCurrent);
 </div>
 
 <style>
-  .labour-panel-chart {
-    width: 100%;
-    aspect-ratio: 2 / 1;
-    background-color: var(--surface);
-    overflow: visible;
-  }
-  .labour-panel-chart__svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-    font-family: var(--font-sans);
-  }
+  /* Vignelli v1.0 canon-compliant restyle (2026-05-11). Dumbbell pairs in
+     pure ink hairlines. Both endpoints (prior + current) draw in pure ink;
+     the current dot in MTA red (the latest-print stamp). Direction encoded
+     by glyph in the current-value label (the +/- sign), NOT by hue. */
+  .labour-panel-chart { width: 100%; aspect-ratio: 2 / 1; background-color: var(--paper); overflow: visible; }
+  .labour-panel-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
   .labour-panel-chart__gridline {
-    stroke: var(--rule-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges;
   }
   .labour-panel-chart__national-line {
-    stroke: var(--ink-muted);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2; shape-rendering: crispEdges;
   }
   .labour-panel-chart__national-label {
-    fill: var(--ink-muted);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums;
   }
-  /* Dumbbell line: direction-of-motion encoded.
-   * pos = u-rate fell, market tightened -> --pos
-   * neg = u-rate rose, market loosened -> --neg
-   * neutral = within tolerance band -> --series-3 @ 40% */
-  .labour-panel-chart__dumb-line {
-    stroke-width: 1.5;
-    shape-rendering: crispEdges;
-  }
-  .labour-panel-chart__dumb-line--pos {
-    stroke: var(--pos);
-    stroke-opacity: 0.6;
-  }
-  .labour-panel-chart__dumb-line--neg {
-    stroke: var(--neg);
-    stroke-opacity: 0.6;
-  }
-  .labour-panel-chart__dumb-line--neutral {
-    stroke: var(--series-3);
-    stroke-opacity: 0.4;
-  }
-  /* 12-months-ago: open circle */
-  .labour-panel-chart__pt-prior {
-    fill: transparent;
-    stroke: var(--series-3);
-    stroke-width: 1.5;
-  }
-  /* Current: filled */
-  .labour-panel-chart__pt-current {
-    fill: var(--series-3);
-    stroke: var(--surface);
-    stroke-width: 1;
-  }
+  /* All dumbbell lines in pure ink; direction in the value label glyph, not stroke. */
+  .labour-panel-chart__dumb-line { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .labour-panel-chart__dumb-line--pos,
+  .labour-panel-chart__dumb-line--neg,
+  .labour-panel-chart__dumb-line--neutral { stroke: var(--ink); stroke-opacity: 1; }
+  /* Prior endpoint: open ink circle hairline */
+  .labour-panel-chart__pt-prior { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
+  /* Current endpoint: MTA red filled - the latest-print stamp */
+  .labour-panel-chart__pt-current { fill: var(--accent); stroke: none; }
   .labour-panel-chart__row-name {
-    fill: var(--ink);
-    font-size: 13px;
-    font-weight: var(--fw-medium);
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px; font-weight: var(--fw-semibold);
   }
   .labour-panel-chart__row-prior {
-    fill: var(--ink-muted);
-    font-size: 11px;
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+    opacity: 0.65;
   }
   .labour-panel-chart__row-current {
-    fill: var(--ink);
-    font-size: 11px;
-    font-family: var(--font-mono);
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
-  .labour-panel-chart__xaxis {
-    stroke: var(--rule);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .labour-panel-chart__xtick {
-    stroke: var(--ink-faint);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
+  .labour-panel-chart__xaxis { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .labour-panel-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
   .labour-panel-chart__xtick-label {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
   }
   .labour-panel-chart__axis-title {
-    fill: var(--ink-muted);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
   }
   .labour-panel-chart__legend-label {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular);
   }
   .labour-panel-chart__callout-anno {
-    fill: var(--ink);
-    font-size: 12px;
-    font-weight: var(--fw-semibold);
-    font-variant-numeric: tabular-nums;
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px; font-weight: var(--fw-semibold);
   }
 </style>

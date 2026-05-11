@@ -2,34 +2,20 @@
 /*
  * Panel1HeadlineGDP - dual-frequency view of headline real GDP.
  *
- * Implements charts/gdp_basics/panel-1-headline-real-gdp.md (spec v0.1).
+ * Vignelli v1.0 canon-compliant rebuild (2026-05-11). Anchors to
+ * src/components/charts/_canon_reference/PanelCanonReference.astro and
+ * design/canon_reference_panel.md (Redline 1).
  *
- * Visual: monthly m/m % as thin vertical columns + quarterly Q/Q SAAR as
- * a 1.5px line with 3px quarter-end markers, both in series-1 (deep blue,
- * the GDP section accent). Single shared y-axis in percent, zero line in
- * ink-muted. Recession band for 2020Q1-Q2 (hardcoded until the BCC JSON
- * lands at data/derived/cdhowe_bcc_recessions.json).
+ * Editorial argument: pure ink m/m bars (the trace), pure ink dashed Q/Q
+ * SAAR line on top, single MTA red dot on the latest quarterly print.
+ * One direct "Monthly m/m" label upper-left; one direct "Quarterly Q/Q
+ * SAAR" label at the line terminus. 1px ink hairline plot frame,
+ * gridlines at 0.18 opacity, Plex Mono y-ticks, Manrope x-ticks, no
+ * unit caption (topmost y-tick carries the unit).
  *
- * Plot vs hand-rolled SVG: the spec defaults to Observable Plot but the
- * existing site precedent (HeroChart.astro, Sparkline.astro) is hand-
- * rolled server-rendered SVG for a zero-JS Astro default. Pulling in
- * Plot would mean a React island + ~100KB bundle for a static panel.
- * The marks here (bars, line, markers, gridlines, recession rect, two
- * direct labels, one annotation with leader) are ~80 lines of geometry;
- * the Plot escape-hatches needed to honor the design-system axes (no
- * axis line on y, custom recession rect z-index, hand-tuned tick stride)
- * would not cost less. So: SVG.
- *
- * Data: placeholder series for the most recent 60 months. Backend wires
- * data/derived/gdp_basics/panel-1.csv at a later pass (columns:
- * date, mom_pct, qq_saar_pct, mom_pct_prior_vintage). Component accepts
- * a `data` prop now so the wire-through is a one-line page change later.
- *
- * Responsive: the SVG carries a fixed 720x405 viewBox (16:9), scales to
- * the panel chart slot via preserveAspectRatio. The sm-variant
- * compression (drop to 24-month window) is owned by the backend prep —
- * when the page renders at sm, the parent CSS can swap to a different
- * pre-binned dataset. For v0.1 we ship a single window.
+ * Data contract preserved: { date, mom_pct, qq_saar_pct,
+ * mom_pct_prior_vintage }. Backend wires data/derived/gdp_basics/
+ * panel-1.csv at a later one-line page change.
  */
 
 interface MonthlyPoint {
@@ -41,7 +27,7 @@ interface MonthlyPoint {
 
 interface Props {
   data?: MonthlyPoint[];
-  /** Annotation text on most recent print. Owned by writer. */
+  /** Annotation text on most recent print. Owned by writer. Anchor word in **bold**. */
   recentAnnotation?: string;
   /** ARIA label for the SVG. */
   ariaLabel?: string;
@@ -50,14 +36,10 @@ interface Props {
 // ---- Placeholder data: last 60 months ending Mar 2026 ---------------------
 function makePlaceholder(): MonthlyPoint[] {
   const out: MonthlyPoint[] = [];
-  // Approx pattern: 2020 trough, then recovery, then noise around +0.1-0.3.
-  // Quarter ends carry a SAAR print; other months null.
-  // Build oldest -> newest, 60 entries ending 2026-03.
   const startY = 2021;
-  const startM = 4; // Apr 2021 (60 months back from Mar 2026)
+  const startM = 4;
   let y = startY;
   let m = startM;
-  // Seeded synth values
   const seedMom = [
     -0.3, 0.2, 0.6, 0.4, 0.1, -0.1, 0.3, 0.2, 0.4, 0.1, -0.2, 0.0,
      0.3, 0.5, 0.2, 0.0, 0.1, 0.3, 0.4, 0.2, -0.1, 0.0, 0.2, 0.3,
@@ -73,12 +55,11 @@ function makePlaceholder(): MonthlyPoint[] {
     null, null,  1.6, null, null,  2.0, null, null,  1.8, null, null,  1.4,
   ];
   for (let i = 0; i < 60; i++) {
-    const dateStr = `${y}-${String(m).padStart(2, "0")}`;
     out.push({
-      date: dateStr,
+      date: `${y}-${String(m).padStart(2, "0")}`,
       mom_pct: seedMom[i] ?? null,
       qq_saar_pct: seedSaar[i] ?? null,
-      mom_pct_prior_vintage: i === 59 ? 0.1 : null, // revised up from 0.1 to 0.2 on latest
+      mom_pct_prior_vintage: i === 59 ? 0.1 : null,
     });
     m += 1;
     if (m > 12) { m = 1; y += 1; }
@@ -88,17 +69,17 @@ function makePlaceholder(): MonthlyPoint[] {
 
 const {
   data = makePlaceholder(),
-  recentAnnotation = "Mar 2026: +0.2% m/m, revised up from +0.1%",
-  ariaLabel = "Headline real GDP: monthly m/m % and quarterly Q/Q SAAR, last 5 years",
+  recentAnnotation = "**Mar** print held above zero; quarterly SAAR settled near 1.4%.",
+  ariaLabel = "Headline real GDP: monthly m/m % and quarterly Q/Q SAAR, last 5 years. Latest print is the most recent month.",
 } = Astro.props;
 
 // ---- Geometry --------------------------------------------------------------
 const VB_W = 720;
-const VB_H = 405; // 16:9
-const M_L = 44;   // left gutter for y-tick labels
-const M_R = 96;   // right gutter for direct labels
-const M_T = 36;   // top: unit annotation + recession label
-const M_B = 36;   // bottom: x-axis ticks + labels
+const VB_H = 405;
+const M_L = 56;   // Plex Mono y-tick gutter
+const M_R = 88;   // right gutter for direct label
+const M_T = 44;
+const M_B = 40;
 const PLOT_X0 = M_L;
 const PLOT_Y0 = M_T;
 const PLOT_W = VB_W - M_L - M_R;
@@ -116,23 +97,14 @@ const xs = data.map((d) => decYearOf(d.date));
 const xMin = xs[0];
 const xMax = xs[xs.length - 1];
 
-// Y range: symmetric around zero, minimum [-1.0, +1.0].
-const allVals: number[] = [];
-data.forEach((d) => {
-  if (d.mom_pct !== null) allVals.push(d.mom_pct);
-  if (d.qq_saar_pct !== null) allVals.push(d.qq_saar_pct / 4); // rescale for visual co-axis sanity? No - spec uses single axis. Use raw values.
-});
-// Spec: single y-axis in percent. m/m typically -1 to +1; SAAR typically -10 to +10.
-// We rescale SAAR onto the same axis by dividing by 4 (approx m/m equivalent).
-// This is a defensible visual: "compare frequency, not magnitude."
-// Add the raw m/m as-is and the SAAR/4 to the range.
-const rawMomMax = Math.max(...data.filter((d) => d.mom_pct !== null).map((d) => d.mom_pct as number));
-const rawMomMin = Math.min(...data.filter((d) => d.mom_pct !== null).map((d) => d.mom_pct as number));
-const rawSaarMax = Math.max(...data.filter((d) => d.qq_saar_pct !== null).map((d) => (d.qq_saar_pct as number) / 4));
-const rawSaarMin = Math.min(...data.filter((d) => d.qq_saar_pct !== null).map((d) => (d.qq_saar_pct as number) / 4));
-const absMax = Math.max(Math.abs(rawMomMax), Math.abs(rawMomMin), Math.abs(rawSaarMax), Math.abs(rawSaarMin), 1.0);
-const yMax = Math.ceil(absMax * 1.2 * 2) / 2; // round to 0.5
+// Single y-axis in percent. Rescale Q/Q SAAR by /4 to read against m/m on
+// the shared axis (a "compare frequency, not magnitude" visual).
+const momVals = data.filter((d) => d.mom_pct !== null).map((d) => d.mom_pct as number);
+const saarVals = data.filter((d) => d.qq_saar_pct !== null).map((d) => (d.qq_saar_pct as number) / 4);
+const absMax = Math.max(...momVals.map(Math.abs), ...saarVals.map(Math.abs), 1.0);
+const yMax = Math.ceil(absMax * 1.2 * 2) / 2;
 const yMin = -yMax;
+const crossesZero = yMin < 0 && yMax > 0;
 
 function xScale(decY: number): number {
   if (xMax === xMin) return PLOT_X0 + PLOT_W / 2;
@@ -149,39 +121,44 @@ const barBaselineY = yScale(0);
 
 // ---- Quarterly line + markers --------------------------------------------
 const quarterlyPoints = data
-  .map((d, i) => (d.qq_saar_pct !== null ? { i, x: xScale(xs[i]), y: yScale((d.qq_saar_pct as number) / 4), v: d.qq_saar_pct as number } : null))
+  .map((d, i) => (d.qq_saar_pct !== null
+    ? { i, x: xScale(xs[i]), y: yScale((d.qq_saar_pct as number) / 4), v: d.qq_saar_pct as number }
+    : null))
   .filter((p): p is { i: number; x: number; y: number; v: number } => p !== null);
 const linePath = quarterlyPoints
   .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
   .join(" ");
+const lastQ = quarterlyPoints[quarterlyPoints.length - 1];
 
-// ---- Y gridlines: every 0.5 ---------------------------------------------
+// ---- Y ticks: pick stride so 3-5 ticks land ------------------------------
+function pickGridStride(lo: number, hi: number): number {
+  const span = hi - lo;
+  const candidates = [0.25, 0.5, 1, 2, 2.5, 5];
+  for (const s of candidates) {
+    const n = Math.round(span / s);
+    if (n >= 3 && n <= 5) return s;
+  }
+  return Math.max(0.5, Math.round(span / 4));
+}
+const gridStride = pickGridStride(yMin, yMax);
 const yTicks: number[] = [];
-for (let v = Math.ceil(yMin / 0.5) * 0.5; v <= yMax + 1e-9; v += 0.5) {
+for (let v = yMin; v <= yMax + 1e-9; v += gridStride) {
   yTicks.push(Number(v.toFixed(2)));
 }
 
-// ---- X ticks: every January in window ------------------------------------
+// ---- X ticks: ~5 evenly spaced year anchors -------------------------------
 const yearStart = Math.ceil(xMin);
 const yearEnd = Math.floor(xMax);
-const yearTicks: Array<{ x: number; label: string }> = [];
-for (let y = yearStart; y <= yearEnd; y++) {
-  const decY = y + (1 - 0.5) / 12; // Jan
+const allYearTicks: Array<{ x: number; label: string }> = [];
+for (let yr = yearStart; yr <= yearEnd; yr++) {
+  const decY = yr + (1 - 0.5) / 12;
   if (decY < xMin || decY > xMax) continue;
-  yearTicks.push({ x: xScale(decY), label: String(y) });
+  allYearTicks.push({ x: xScale(decY), label: String(yr) });
 }
-// Quarter ticks (minor, unlabeled)
-const quarterTicks: number[] = [];
-for (let y = Math.floor(xMin); y <= Math.ceil(xMax); y++) {
-  for (const qm of [1, 4, 7, 10]) {
-    const decY = y + (qm - 0.5) / 12;
-    if (decY < xMin || decY > xMax) continue;
-    quarterTicks.push(xScale(decY));
-  }
-}
+const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 5));
+const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
 
-// ---- Recession band: 2020Q1-Q2 ------------------------------------------
-// 2020-02 (peak) through 2020-04 (trough). Clip to window.
+// ---- Recession band -------------------------------------------------------
 const recStart = 2020 + (2 - 0.5) / 12;
 const recEnd = 2020 + (4 - 0.5) / 12;
 const recVisible = recEnd >= xMin && recStart <= xMax;
@@ -190,67 +167,81 @@ const recX1 = recVisible ? xScale(Math.min(recEnd, xMax)) : 0;
 
 // ---- Latest print + revision marker --------------------------------------
 const latest = data[n - 1];
-const latestX = xScale(xs[n - 1]);
-const latestY = latest.mom_pct !== null ? yScale(latest.mom_pct) : barBaselineY;
 const priorVintageY = latest.mom_pct_prior_vintage !== null && latest.mom_pct_prior_vintage !== undefined
   ? yScale(latest.mom_pct_prior_vintage)
   : null;
 const showRevision = priorVintageY !== null
   && latest.mom_pct !== null
   && Math.abs((latest.mom_pct as number) - (latest.mom_pct_prior_vintage as number)) > 0.05;
+const latestMomX = xScale(xs[n - 1]);
 
-// ---- Direct labels --------------------------------------------------------
-// Quarterly line terminus
-const lastQ = quarterlyPoints[quarterlyPoints.length - 1];
-const quarterlyLabelX = lastQ ? lastQ.x + 8 : PLOT_X1 + 8;
-const quarterlyLabelY = lastQ ? lastQ.y + 4 : PLOT_Y0 + PLOT_H / 2;
-
-// Monthly bars label: place in upper-left whitespace
+// ---- Direct label positions ----------------------------------------------
 const monthlyLabelX = PLOT_X0 + 12;
 const monthlyLabelY = PLOT_Y0 + 16;
+const quarterlyLabelX = lastQ ? lastQ.x + 10 : PLOT_X1 + 8;
+const quarterlyLabelY = lastQ ? lastQ.y + 4 : PLOT_Y0 + PLOT_H / 2;
 
-// ---- Annotation leader geometry ------------------------------------------
-const annoX = Math.min(latestX - 100, PLOT_X1 - 200);
-const annoY = latest.mom_pct !== null && latest.mom_pct >= 0
-  ? Math.max(PLOT_Y0 + 24, latestY - 40)
-  : Math.min(PLOT_Y1 - 24, latestY + 48);
-const annoAnchorX = latestX;
-const annoAnchorY = latest.mom_pct !== null && latest.mom_pct >= 0 ? latestY - 4 : latestY + 4;
+// ---- Annotation: parse **anchor** word, place in white space -------------
+function parseAnchor(s: string): Array<{ text: string; bold: boolean }> {
+  const parts: Array<{ text: string; bold: boolean }> = [];
+  const re = /\*\*([^*]+)\*\*/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(s)) !== null) {
+    if (m.index > last) parts.push({ text: s.slice(last, m.index), bold: false });
+    parts.push({ text: m[1], bold: true });
+    last = m.index + m[0].length;
+  }
+  if (last < s.length) parts.push({ text: s.slice(last), bold: false });
+  return parts;
+}
+const annoParts = recentAnnotation ? parseAnchor(recentAnnotation) : [];
+const annoX0 = PLOT_X0 + 18;
+const annoY0 = PLOT_Y0 + 22;
+const annoMaxWidth = PLOT_W * 0.46;
+const leaderStartX = annoX0 + Math.min(annoMaxWidth, 220);
+const leaderStartY = annoY0 - 4;
+const anchorX = lastQ ? lastQ.x : latestMomX;
+const anchorY = lastQ ? lastQ.y : barBaselineY;
+const leaderEndX = anchorX - 7;
+const leaderEndY = anchorY;
 ---
-<div class="gdp-panel-chart" data-panel="1">
+<div class="canon-chart" data-panel="gdp-1">
   <svg
-    class="gdp-panel-chart__svg"
+    class="canon-chart__svg"
     viewBox={`0 0 ${VB_W} ${VB_H}`}
     preserveAspectRatio="xMidYMid meet"
     role="img"
     aria-label={ariaLabel}
   >
-    {/* Recession band - behind data */}
+    {/* 1. Recession band (behind everything) */}
     {recVisible && (
-      <g class="gdp-panel-chart__recession-group">
+      <g class="canon-chart__recession-group">
         <rect
-          class="gdp-panel-chart__recession"
+          class="canon-chart__recession"
           x={recX0.toFixed(2)}
           y={PLOT_Y0}
           width={Math.max(1, recX1 - recX0).toFixed(2)}
           height={PLOT_H}
         />
         <text
-          class="gdp-panel-chart__recession-label"
+          class="canon-chart__recession-label"
           x={((recX0 + recX1) / 2).toFixed(2)}
-          y={(PLOT_Y0 - 6).toFixed(2)}
+          y={(PLOT_Y0 + 12).toFixed(2)}
           text-anchor="middle"
-        >Recession (2020Q1-Q2)</text>
+        >RECESSION (2020Q1-Q2)</text>
       </g>
     )}
 
-    {/* Y gridlines */}
+    {/* 2. Horizontal gridlines - pure ink at 0.18 opacity. Skip the zero
+           line; drawn separately at full opacity. */}
     {yTicks.map((v) => {
       const y = yScale(v);
-      const isZero = Math.abs(v) < 1e-9;
+      const isZero = crossesZero && Math.abs(v) < 1e-9;
+      if (isZero) return null;
       return (
         <line
-          class:list={["gdp-panel-chart__gridline", { "gdp-panel-chart__gridline--zero": isZero }]}
+          class="canon-chart__gridline"
           x1={PLOT_X0}
           y1={y.toFixed(2)}
           x2={PLOT_X1}
@@ -259,7 +250,18 @@ const annoAnchorY = latest.mom_pct !== null && latest.mom_pct >= 0 ? latestY - 4
       );
     })}
 
-    {/* Monthly bars */}
+    {/* 3. Zero line at full opacity */}
+    {crossesZero && (
+      <line
+        class="canon-chart__zero-line"
+        x1={PLOT_X0}
+        y1={barBaselineY.toFixed(2)}
+        x2={PLOT_X1}
+        y2={barBaselineY.toFixed(2)}
+      />
+    )}
+
+    {/* 4. Monthly bars - pure ink fill */}
     {data.map((d, i) => {
       if (d.mom_pct === null) return null;
       const cx = xScale(xs[i]);
@@ -268,7 +270,7 @@ const annoAnchorY = latest.mom_pct !== null && latest.mom_pct >= 0 ? latestY - 4
       const h = Math.max(1, Math.abs(barBaselineY - yTop));
       return (
         <rect
-          class="gdp-panel-chart__bar"
+          class="canon-chart__bar"
           x={(cx - barW / 2).toFixed(2)}
           y={top.toFixed(2)}
           width={barW.toFixed(2)}
@@ -279,109 +281,95 @@ const annoAnchorY = latest.mom_pct !== null && latest.mom_pct >= 0 ? latestY - 4
       );
     })}
 
-    {/* Revision dashed line at prior vintage on latest bar */}
+    {/* 5. Revision dashed hairline at prior vintage on latest bar */}
     {showRevision && priorVintageY !== null && (
       <line
-        class="gdp-panel-chart__revision"
-        x1={(latestX - barW / 2 - 1).toFixed(2)}
+        class="canon-chart__revision"
+        x1={(latestMomX - barW / 2 - 1).toFixed(2)}
         y1={priorVintageY.toFixed(2)}
-        x2={(latestX + barW / 2 + 1).toFixed(2)}
+        x2={(latestMomX + barW / 2 + 1).toFixed(2)}
         y2={priorVintageY.toFixed(2)}
       />
     )}
 
-    {/* Quarterly line */}
+    {/* 6. Quarterly SAAR line - pure ink dashed 4 2 (secondary series) */}
     {linePath && (
-      <path class="gdp-panel-chart__line" d={linePath} fill="none" />
+      <path class="canon-chart__line-secondary" d={linePath} fill="none" />
     )}
 
-    {/* Quarterly markers */}
+    {/* 7. Invisible hit-areas with native SVG <title> for quarterly points */}
     {quarterlyPoints.map((p) => (
       <circle
-        class="gdp-panel-chart__marker"
+        class="canon-chart__hit"
         cx={p.x.toFixed(2)}
         cy={p.y.toFixed(2)}
-        r="3"
+        r="4"
       >
         <title>{`${data[p.i].date}: ${p.v.toFixed(1)}% Q/Q SAAR`}</title>
       </circle>
     ))}
 
-    {/* Latest quarterly marker: filled with surface ring */}
+    {/* 8. Latest-quarter dot - MTA red */}
     {lastQ && (
       <circle
-        class="gdp-panel-chart__marker-latest"
+        class="canon-chart__latest-dot"
         cx={lastQ.x.toFixed(2)}
         cy={lastQ.y.toFixed(2)}
         r="4"
-      />
+      >
+        <title>{`Latest: ${data[lastQ.i].date}: ${lastQ.v.toFixed(1)}% Q/Q SAAR`}</title>
+      </circle>
     )}
 
-    {/* X-axis rule */}
-    <line
-      class="gdp-panel-chart__xaxis"
-      x1={PLOT_X0}
-      y1={PLOT_Y1.toFixed(2)}
-      x2={PLOT_X1}
-      y2={PLOT_Y1.toFixed(2)}
+    {/* 9. Plot frame - 1px pure ink hairline rectangle */}
+    <rect
+      class="canon-chart__frame"
+      x={PLOT_X0}
+      y={PLOT_Y0}
+      width={PLOT_W}
+      height={PLOT_H}
     />
 
-    {/* Quarter ticks (minor) */}
-    {quarterTicks.map((x) => (
-      <line
-        class="gdp-panel-chart__xtick gdp-panel-chart__xtick--minor"
-        x1={x.toFixed(2)}
-        y1={PLOT_Y1.toFixed(2)}
-        x2={x.toFixed(2)}
-        y2={(PLOT_Y1 + 2).toFixed(2)}
-      />
-    ))}
-
-    {/* Year ticks (major) + labels */}
-    {yearTicks.map((t) => (
+    {/* 10. X-axis tick marks + Manrope micro labels */}
+    {xTicks.map((t) => (
       <g>
         <line
-          class="gdp-panel-chart__xtick gdp-panel-chart__xtick--major"
+          class="canon-chart__xtick"
           x1={t.x.toFixed(2)}
           y1={PLOT_Y1.toFixed(2)}
           x2={t.x.toFixed(2)}
           y2={(PLOT_Y1 + 4).toFixed(2)}
         />
         <text
-          class="gdp-panel-chart__xtick-label"
+          class="canon-chart__xtick-label"
           x={t.x.toFixed(2)}
-          y={(PLOT_Y1 + 16).toFixed(2)}
+          y={(PLOT_Y1 + 18).toFixed(2)}
           text-anchor="middle"
         >{t.label}</text>
       </g>
     ))}
 
-    {/* Y-axis tick labels - topmost carries unit */}
+    {/* 11. Y-axis tick labels - Plex Mono, pure ink, right-aligned. Topmost
+           tick carries the unit. */}
     {yTicks.map((v, i) => {
       const y = yScale(v);
       const isTop = i === yTicks.length - 1;
-      const text = isTop ? `${v >= 0 ? "+" : ""}${v.toFixed(1)}%` : `${v >= 0 ? "+" : ""}${v.toFixed(1)}`;
+      const sign = v > 0 ? "+" : v < 0 ? "" : "";
+      const num = `${sign}${v.toFixed(1)}`;
+      const txt = isTop ? `${num}%` : num;
       return (
         <text
-          class="gdp-panel-chart__ytick-label"
-          x={(PLOT_X0 - 6).toFixed(2)}
-          y={(y + 3.5).toFixed(2)}
+          class="canon-chart__ytick-label"
+          x={(PLOT_X0 - 8).toFixed(2)}
+          y={(y + 4).toFixed(2)}
           text-anchor="end"
-        >{text}</text>
+        >{txt}</text>
       );
     })}
 
-    {/* Unit annotation top-left */}
+    {/* 12. Direct labels - pure ink Manrope 600. No legend. */}
     <text
-      class="gdp-panel-chart__unit"
-      x={PLOT_X0.toFixed(2)}
-      y={(PLOT_Y0 - 18).toFixed(2)}
-      text-anchor="start"
-    >% per month / quarter</text>
-
-    {/* Direct labels */}
-    <text
-      class="gdp-panel-chart__direct-label"
+      class="canon-chart__direct-label"
       x={monthlyLabelX.toFixed(2)}
       y={monthlyLabelY.toFixed(2)}
       text-anchor="start"
@@ -389,137 +377,153 @@ const annoAnchorY = latest.mom_pct !== null && latest.mom_pct >= 0 ? latestY - 4
 
     {lastQ && (
       <text
-        class="gdp-panel-chart__direct-label"
+        class="canon-chart__direct-label"
         x={quarterlyLabelX.toFixed(2)}
         y={quarterlyLabelY.toFixed(2)}
         text-anchor="start"
       >Quarterly Q/Q SAAR</text>
     )}
 
-    {/* Annotation: most recent print */}
+    {/* 13. Hand-tuned annotation with single-segment ink leader, anchor word in 600 */}
     {recentAnnotation && (
-      <g class="gdp-panel-chart__annotation">
+      <g class="canon-chart__annotation">
         <line
-          class="gdp-panel-chart__anno-leader"
-          x1={(annoX + 4).toFixed(2)}
-          y1={annoY.toFixed(2)}
-          x2={annoAnchorX.toFixed(2)}
-          y2={annoY.toFixed(2)}
+          class="canon-chart__anno-leader"
+          x1={leaderStartX.toFixed(2)}
+          y1={leaderStartY.toFixed(2)}
+          x2={leaderEndX.toFixed(2)}
+          y2={leaderEndY.toFixed(2)}
         />
-        <line
-          class="gdp-panel-chart__anno-leader"
-          x1={annoAnchorX.toFixed(2)}
-          y1={annoY.toFixed(2)}
-          x2={annoAnchorX.toFixed(2)}
-          y2={annoAnchorY.toFixed(2)}
-        />
-        <text
-          class="gdp-panel-chart__anno-text"
-          x={annoX.toFixed(2)}
-          y={(annoY + 4).toFixed(2)}
-          text-anchor="end"
-        >{recentAnnotation}</text>
+        <foreignObject
+          x={annoX0.toFixed(2)}
+          y={(annoY0 - 18).toFixed(2)}
+          width={annoMaxWidth.toFixed(2)}
+          height="44"
+        >
+          <p
+           
+            class="canon-chart__anno-text"
+          >
+            {annoParts.map((part) =>
+              part.bold
+                ? <strong class="canon-chart__anno-anchor">{part.text}</strong>
+                : <span>{part.text}</span>
+            )}
+          </p>
+        </foreignObject>
       </g>
     )}
   </svg>
 </div>
 
 <style>
-  .gdp-panel-chart {
+  .canon-chart {
     width: 100%;
     aspect-ratio: 16 / 9;
-    background-color: var(--surface);
+    background-color: var(--paper);
     overflow: visible;
   }
-  .gdp-panel-chart__svg {
+  .canon-chart__svg {
     display: block;
     width: 100%;
     height: 100%;
     overflow: visible;
     font-family: var(--font-sans);
   }
-  .gdp-panel-chart__recession {
-    fill: rgba(21, 23, 26, 0.06);
-  }
-  .gdp-panel-chart__recession-label {
-    fill: var(--ink-faint);
+  .canon-chart__recession { fill: rgba(21, 23, 26, 0.06); }
+  .canon-chart__recession-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
     font-size: 11px;
-    font-weight: var(--fw-medium);
-    letter-spacing: 0.02em;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.18em;
   }
-  .gdp-panel-chart__gridline {
-    stroke: var(--rule-faint);
+  .canon-chart__gridline {
+    stroke: var(--ink);
     stroke-width: 1;
+    stroke-opacity: 0.18;
     shape-rendering: crispEdges;
   }
-  .gdp-panel-chart__gridline--zero {
-    stroke: var(--ink-muted);
-  }
-  .gdp-panel-chart__bar {
-    fill: var(--section-accent-gdp);
-  }
-  .gdp-panel-chart__line {
-    stroke: var(--section-accent-gdp);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-    fill: none;
-  }
-  .gdp-panel-chart__marker {
-    fill: var(--section-accent-gdp);
-  }
-  .gdp-panel-chart__marker-latest {
-    fill: var(--section-accent-gdp);
-    stroke: var(--surface);
+  .canon-chart__zero-line {
+    stroke: var(--ink);
     stroke-width: 1;
+    stroke-opacity: 1;
+    shape-rendering: crispEdges;
   }
-  .gdp-panel-chart__revision {
-    stroke: var(--ink-faint);
+  .canon-chart__bar {
+    fill: var(--ink);
+  }
+  .canon-chart__line-secondary {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-linejoin: round;
+    stroke-linecap: butt;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+  .canon-chart__revision {
+    stroke: var(--ink);
     stroke-width: 1;
     stroke-dasharray: 2 2;
     shape-rendering: crispEdges;
   }
-  .gdp-panel-chart__xaxis {
-    stroke: var(--rule);
+  .canon-chart__hit {
+    fill: transparent;
+    pointer-events: all;
+  }
+  .canon-chart__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+  .canon-chart__frame {
+    fill: none;
+    stroke: var(--ink);
     stroke-width: 1;
     shape-rendering: crispEdges;
   }
-  .gdp-panel-chart__xtick {
-    stroke: var(--ink-faint);
+  .canon-chart__xtick {
+    stroke: var(--ink);
     stroke-width: 1;
     shape-rendering: crispEdges;
   }
-  .gdp-panel-chart__xtick--minor {
-    opacity: 0.5;
-  }
-  .gdp-panel-chart__ytick-label,
-  .gdp-panel-chart__xtick-label {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
-  }
-  .gdp-panel-chart__unit {
-    fill: var(--ink-faint);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    letter-spacing: 0.02em;
-  }
-  .gdp-panel-chart__direct-label {
-    fill: var(--section-accent-gdp);
-    font-size: 13px;
-    font-weight: var(--fw-medium);
-    font-variant-numeric: tabular-nums;
-  }
-  .gdp-panel-chart__anno-leader {
-    stroke: var(--ink-muted);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .gdp-panel-chart__anno-text {
+  .canon-chart__xtick-label {
     fill: var(--ink);
-    font-size: 13px;
+    font-family: var(--font-sans);
+    font-size: 12px;
     font-weight: var(--fw-regular);
     font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__direct-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0;
+  }
+  .canon-chart__anno-leader {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+    fill: none;
+  }
+  .canon-chart__anno-text {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: var(--fw-regular);
+    line-height: 1.30;
+    letter-spacing: 0;
+  }
+  .canon-chart__anno-anchor {
+    font-weight: var(--fw-semibold);
   }
 </style>

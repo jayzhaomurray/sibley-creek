@@ -1,0 +1,318 @@
+---
+/*
+ * Panel1TradeBalance - Trade plate 1.
+ *
+ * Spec: editorial canon 4.7.1. Monthly merchandise trade balance as
+ * vertical bars (signed, the zero line is the load-bearing reference)
+ * plus a 1.5px 3M MA line in pure black. MTA red dot on the latest 3M
+ * MA print.
+ *
+ * Category decomposition (auto / energy / other) is described in the
+ * page interpretation; the chart visual stays as headline balance + 3M
+ * MA per the Vignelli single-signal discipline (Section 5.3 - "single
+ * series by default; multi-series permitted only when the editorial
+ * point requires it"). The non-monetary-gold-stripped variant is a
+ * caveat in the source line, not a second line - keeps the visual
+ * legible.
+ *
+ * Vignelli canon: bars in pure black, 3M MA line in pure black 1.5px,
+ * MTA red latest-point dot, 1px plot frame, zero line at full opacity
+ * (the trade balance crosses zero - this is the editorial moment).
+ *
+ * Plot vs SVG: hand-rolled SVG. Bars + line + dot + zero line.
+ */
+
+interface TradeRow {
+  date: string;     // "YYYY-MM"
+  balance: number;  // CAD billions (signed)
+}
+
+interface Props {
+  data?: TradeRow[];
+  ariaLabel?: string;
+}
+
+function makePlaceholder(): TradeRow[] {
+  const out: TradeRow[] = [];
+  let y = 2021;
+  let m = 5;
+  for (let i = 0; i < 60; i++) {
+    const t = i / 59;
+    // Range +3 to -3 CAD billion, with a 2022 surplus on energy and
+    // 2024-2025 deficits on weaker auto + soft energy.
+    let v = 1.5 - 2.5 * t + 2 * Math.sin(i * 0.4) + 0.5 * Math.cos(i * 0.7);
+    if (i >= 8 && i <= 22) v += 2 * Math.exp(-Math.pow((i - 14) / 4, 2));
+    if (i >= 36) v -= 1.0 + 0.5 * Math.sin((i - 36) * 0.3);
+    out.push({
+      date: `${y}-${String(m).padStart(2, "0")}`,
+      balance: Number(v.toFixed(2)),
+    });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+const {
+  data = makePlaceholder(),
+  ariaLabel = "Monthly merchandise trade balance and 3-month moving average, last 5 years.",
+} = Astro.props;
+
+// 3M MA (centered or trailing - trailing for v1, standard practice).
+function rolling3M(vals: number[]): Array<number | null> {
+  return vals.map((_, i) => {
+    if (i < 2) return null;
+    return (vals[i] + vals[i - 1] + vals[i - 2]) / 3;
+  });
+}
+
+const balances = data.map((d) => d.balance);
+const ma3 = rolling3M(balances);
+
+// ---- Geometry ----
+const VB_W = 720;
+const VB_H = 432;
+const M_L = 48;
+const M_R = 64;
+const M_T = 30;
+const M_B = 34;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+function decYearOf(d: string): number {
+  const [yy, mm] = d.split("-").map(Number);
+  return yy + (mm - 0.5) / 12;
+}
+const xs = data.map((d) => decYearOf(d.date));
+const xMin = xs[0];
+const xMax = xs[xs.length - 1];
+
+const allVals: number[] = balances.concat(ma3.filter((v): v is number => v !== null));
+const rawMax = Math.max(...allVals);
+const rawMin = Math.min(...allVals);
+const absMax = Math.max(Math.abs(rawMax), Math.abs(rawMin), 2);
+const yHi = Math.ceil(absMax * 1.15);
+const yLo = -yHi;
+const yTicks: number[] = [];
+for (let v = yLo; v <= yHi + 1e-9; v += 2) yTicks.push(v);
+
+function xScale(decY: number): number {
+  return PLOT_X0 + ((decY - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - yLo) / (yHi - yLo)) * PLOT_H;
+}
+const zeroY = yScale(0);
+
+const n = data.length;
+const slotW = PLOT_W / n;
+const barW = Math.max(2, slotW * 0.55);
+
+// 3M MA path
+const maPath = ma3
+  .map((v, i) => v === null ? null : `${xScale(xs[i]).toFixed(2)} ${yScale(v).toFixed(2)}`)
+  .filter((p): p is string => p !== null)
+  .map((p, i) => `${i === 0 ? "M" : "L"}${p}`)
+  .join(" ");
+
+const yearTicks: Array<{ x: number; label: string }> = [];
+for (let yy = Math.ceil(xMin); yy <= Math.floor(xMax); yy++) {
+  const decY = yy + (1 - 0.5) / 12;
+  if (decY < xMin || decY > xMax) continue;
+  yearTicks.push({ x: xScale(decY), label: `'${String(yy).slice(-2)}` });
+}
+
+const last = data[n - 1];
+const lastMa = ma3[n - 1];
+const lastX = xScale(xs[n - 1]);
+const lastMaY = lastMa !== null ? yScale(lastMa) : zeroY;
+const monthShort = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const lastDate = `${monthShort[Number(last.date.split("-")[1]) - 1]} ${last.date.split("-")[0]}`;
+---
+<figure class="trade-panel-1" aria-label={ariaLabel}>
+  <svg
+    class="trade-panel-1__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+  >
+    {/* Gridlines (non-zero) */}
+    {yTicks.map((v) => {
+      const isZero = Math.abs(v) < 1e-9;
+      if (isZero) return null;
+      return (
+        <line
+          class="trade-panel-1__gridline"
+          x1={PLOT_X0}
+          y1={yScale(v).toFixed(2)}
+          x2={PLOT_X1}
+          y2={yScale(v).toFixed(2)}
+        />
+      );
+    })}
+
+    {/* Bars */}
+    {data.map((d, i) => {
+      const cx = xScale(xs[i]);
+      const y0 = yScale(d.balance);
+      const top = Math.min(y0, zeroY);
+      const h = Math.max(1, Math.abs(zeroY - y0));
+      return (
+        <rect
+          class="trade-panel-1__bar"
+          x={(cx - barW / 2).toFixed(2)}
+          y={top.toFixed(2)}
+          width={barW.toFixed(2)}
+          height={h.toFixed(2)}
+        >
+          <title>{`${d.date}: CAD ${d.balance.toFixed(2)}B`}</title>
+        </rect>
+      );
+    })}
+
+    {/* Zero line (load-bearing) */}
+    <line
+      class="trade-panel-1__zero"
+      x1={PLOT_X0}
+      y1={zeroY.toFixed(2)}
+      x2={PLOT_X1}
+      y2={zeroY.toFixed(2)}
+    />
+
+    {/* 3M MA line */}
+    {maPath && (
+      <path class="trade-panel-1__line" d={maPath} fill="none" />
+    )}
+
+    {/* Latest 3M MA dot */}
+    {lastMa !== null && (
+      <circle
+        class="trade-panel-1__marker"
+        cx={lastX.toFixed(2)}
+        cy={lastMaY.toFixed(2)}
+        r="3.5"
+      >
+        <title>{`${lastDate}: 3M MA CAD ${lastMa.toFixed(2)}B`}</title>
+      </circle>
+    )}
+
+    <rect
+      class="trade-panel-1__frame"
+      x={PLOT_X0}
+      y={PLOT_Y0}
+      width={PLOT_W}
+      height={PLOT_H}
+      fill="none"
+    />
+
+    {yearTicks.map((t) => (
+      <text
+        class="trade-panel-1__xtick-label"
+        x={t.x.toFixed(2)}
+        y={(PLOT_Y1 + 16).toFixed(2)}
+        text-anchor="middle"
+      >{t.label}</text>
+    ))}
+
+    {yTicks.map((v) => {
+      const sign = v > 0 ? "+" : "";
+      const label = `${sign}${v}`;
+      const isTop = v === yHi;
+      return (
+        <text
+          class="trade-panel-1__ytick-label"
+          x={(PLOT_X0 - 6).toFixed(2)}
+          y={(yScale(v) + 3.5).toFixed(2)}
+          text-anchor="end"
+        >{isTop ? `${label}B` : label}</text>
+      );
+    })}
+
+    {/* Direct label on 3M MA */}
+    {lastMa !== null && (
+      <text
+        class="trade-panel-1__direct-label"
+        x={(lastX + 6).toFixed(2)}
+        y={(lastMaY + 4).toFixed(2)}
+        text-anchor="start"
+      >3M MA</text>
+    )}
+
+    <text
+      class="trade-panel-1__unit"
+      x={PLOT_X0.toFixed(2)}
+      y={(PLOT_Y0 - 12).toFixed(2)}
+      text-anchor="start"
+    >Merchandise trade balance, BOP basis, CAD billions. Monthly bars; 3M MA line.</text>
+  </svg>
+</figure>
+
+<style>
+  .trade-panel-1 {
+    width: 100%;
+    margin: 0;
+    background-color: var(--surface);
+  }
+  .trade-panel-1__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: var(--font-sans);
+    overflow: visible;
+  }
+  .trade-panel-1__gridline {
+    stroke: var(--ink);
+    stroke-opacity: 0.15;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .trade-panel-1__zero {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .trade-panel-1__bar {
+    fill: #000000;
+    opacity: 0.42;
+  }
+  .trade-panel-1__line {
+    stroke: #000000;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .trade-panel-1__marker {
+    fill: #E63946;
+    stroke: var(--surface);
+    stroke-width: 1.25;
+  }
+  .trade-panel-1__frame {
+    stroke: #000000;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .trade-panel-1__xtick-label,
+  .trade-panel-1__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+  .trade-panel-1__direct-label {
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
+    fill: var(--ink);
+  }
+  .trade-panel-1__unit {
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    letter-spacing: 0.02em;
+  }
+</style>

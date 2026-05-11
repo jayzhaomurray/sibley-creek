@@ -55,6 +55,7 @@ from pipeline.catalog.boc_series import BocSpec
 from pipeline.catalog.statcan_series import StatcanSpec, get_url as statcan_url
 from pipeline.fetch import alberta, boc, cpi_basket, crea, dof_fiscal, statcan
 from pipeline.io import SeriesMeta, build_site_data, write_series
+from pipeline.io.panel_data import build_all_panel_data
 from pipeline.transform import yoy_pct
 from pipeline.transform.derivations import (
     headline_yoy,
@@ -515,6 +516,35 @@ def derive_cpi_views() -> None:
         write_series(yoy, meta, DATA_PROCESSED)
 
 
+def derive_gdp_views() -> None:
+    """Compute Y/Y for the monthly real-GDP series (Table 36-10-0434-01).
+
+    The headline tile (site_data.py SECTION_CONFIGS['gdp']) reads
+    `gdp_monthly_yoy` from data/processed/. Source vector is monthly real GDP,
+    chained 2017$, SAAR. We derive Y/Y % change via the standard
+    `headline_yoy()` wrapper over `yoy_pct(periods_per_year=12)`.
+    """
+    raw = _read_raw("gdp_monthly")
+    if raw is None:
+        return
+    yoy = headline_yoy(raw, periods_per_year=12)
+    spec = STATCAN_SERIES["gdp_monthly"]
+    meta = SeriesMeta(
+        name="gdp_monthly_yoy",
+        source="Statistics Canada Web Data Service",
+        source_url=statcan_url(spec),
+        source_id=f"v{spec.vector_id}",
+        units="%",
+        frequency="monthly",
+        notes=(
+            "Year-over-year % change in monthly real GDP (Table 36-10-0434-01, "
+            "chained 2017$, SAAR). Derived from the raw level series."
+        ),
+        transform="yoy_pct(periods_per_year=12)",
+    )
+    write_series(yoy, meta, DATA_PROCESSED)
+
+
 def derive_per_capita_employment() -> None:
     """Per-capita employment Y/Y, the canon 4.3 element-2 signature.
 
@@ -654,6 +684,7 @@ def main() -> int:
     #    populated. Each derivation is isolated; failures don't cascade.
     logger.info("--- Derivations ---")
     _safe("derive_cpi_views", derive_cpi_views, failed)
+    _safe("derive_gdp_views", derive_gdp_views, failed)
     _safe("derive_per_capita_employment", derive_per_capita_employment, failed)
     _safe("derive_trade_views", derive_trade_views, failed)
 
@@ -665,6 +696,13 @@ def main() -> int:
     logger.info("--- Site data bundle ---")
     DATA_SITE.mkdir(parents=True, exist_ok=True)
     _safe("build_site_data", lambda: build_site_data(DATA_ROOT), failed)
+
+    # 8) Per-section panel data bundle (data/site/panel_data/<section>.json).
+    #    Mirrors the Props interfaces of each src/components/charts/<section>/
+    #    Panel*.astro file; chart-builder consumes the JSON at build time.
+    #    Per-panel failures fall back to a sentinel slot, not an exception.
+    logger.info("--- Panel data bundle ---")
+    _safe("build_panel_data", lambda: build_all_panel_data(DATA_ROOT), failed)
 
     if failed:
         logger.error("Build completed with %d failure(s): %s", len(failed), ", ".join(failed))

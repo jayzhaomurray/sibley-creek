@@ -1,0 +1,405 @@
+---
+/*
+ * Panel3Inventory - Housing chartbook, plate 03.
+ *
+ * Editorial canon Section 4.4: sales-to-new-listings ratio (SNLR) +
+ * months of inventory by CMA. The SNLR is the headline national reading;
+ * months of inventory by CMA give the dispersion.
+ *
+ * Visual: split-canvas:
+ *   - Upper sub-canvas: SNLR national time series, with the BoC
+ *     "balanced" band (40-60%) drawn as a 1px dashed pair. Single black
+ *     line, MTA red latest-point dot.
+ *   - Lower sub-canvas: horizontal bars showing months of inventory by
+ *     CMA at the latest read. Pure black bars with a 1px ink hairline
+ *     at the national average for reference.
+ *
+ * Vignelli canon: single-data-color (pure black), MTA red dot, no legend.
+ * The "balanced" band is annotated via direct labels at right of the SNLR.
+ *
+ * Plot vs SVG: hand-rolled SVG. Two sub-canvases with different geometry
+ * is a hand-tuned composition; no Plot warranted.
+ */
+
+interface SnlrPoint {
+  date: string;
+  snlr: number;  // %, 0..100
+}
+
+interface CmaInventoryRow {
+  code: string;
+  label: string;
+  months: number;
+}
+
+interface Props {
+  snlr?: SnlrPoint[];
+  inventory?: CmaInventoryRow[];
+  /** National-average months of inventory at the latest read. */
+  nationalMonths?: number;
+  asOf?: string;
+  ariaLabel?: string;
+}
+
+function buildSnlr(): SnlrPoint[] {
+  const out: SnlrPoint[] = [];
+  let y = 2021;
+  let m = 5;
+  for (let i = 0; i < 60; i++) {
+    const t = i / 59;
+    // Shape: peaks at ~80% in early 2022 (sellers market), troughs ~38%
+    // mid-2023, recovers to ~55% in 2024, drifts to ~45% by mid-2026.
+    let v: number;
+    if (t < 0.18) v = 70 + (80 - 70) * (t / 0.18);
+    else if (t < 0.50) v = 80 - (80 - 38) * ((t - 0.18) / 0.32);
+    else if (t < 0.70) v = 38 + (55 - 38) * ((t - 0.50) / 0.20);
+    else v = 55 - (55 - 45) * ((t - 0.70) / 0.30);
+    v += 2.5 * Math.sin(i * 0.6);
+    out.push({ date: `${y}-${String(m).padStart(2, "0")}`, snlr: Math.round(v * 10) / 10 });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+function defaultInventory(): CmaInventoryRow[] {
+  return [
+    { code: "TOR", label: "Toronto",     months: 5.4 },
+    { code: "VAN", label: "Vancouver",   months: 4.8 },
+    { code: "MTL", label: "Montreal",    months: 3.6 },
+    { code: "CGY", label: "Calgary",     months: 1.9 },
+    { code: "OTT", label: "Ottawa",      months: 3.1 },
+    { code: "EDM", label: "Edmonton",    months: 2.3 },
+  ];
+}
+
+const {
+  snlr = buildSnlr(),
+  inventory = defaultInventory(),
+  nationalMonths = 3.8,
+  asOf = "Apr 2026",
+  ariaLabel = `Inventory and absorption: sales-to-new-listings and months of inventory by CMA, ${asOf}`,
+} = Astro.props;
+
+// ---- Geometry --------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 440;
+const M_T = 24;
+const M_B = 32;
+const M_L = 100;  // accommodate left labels in lower canvas
+const M_R = 60;
+const UPPER_H = 200;
+const GAP = 36;
+const LOWER_Y0 = M_T + UPPER_H + GAP;
+const LOWER_H = VB_H - M_B - LOWER_Y0;
+
+const PLOT_X0 = M_L;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_W = PLOT_X1 - PLOT_X0;
+
+// Upper canvas - SNLR time series.
+const UP_Y0 = M_T;
+const UP_Y1 = M_T + UPPER_H;
+const SNLR_Y_MIN = 30;
+const SNLR_Y_MAX = 90;
+const snlrTicks = [40, 50, 60, 70, 80];
+
+function decYearOf(d: string): number {
+  const [yy, mm] = d.split("-").map(Number);
+  return yy + (mm - 0.5) / 12;
+}
+const xs = snlr.map((p) => decYearOf(p.date));
+const xMin = xs[0];
+const xMax = xs[xs.length - 1];
+function xScale(yr: number): number {
+  return PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function ySnlr(v: number): number {
+  return UP_Y0 + UPPER_H - ((v - SNLR_Y_MIN) / (SNLR_Y_MAX - SNLR_Y_MIN)) * UPPER_H;
+}
+const snlrPath = snlr
+  .map((p, i) => {
+    const x = xScale(decYearOf(p.date));
+    const y = ySnlr(p.snlr);
+    return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+  })
+  .join(" ");
+const lastSnlr = snlr[snlr.length - 1];
+const lastSnlrX = xScale(decYearOf(lastSnlr.date));
+const lastSnlrY = ySnlr(lastSnlr.snlr);
+
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const xTicks: Array<{ x: number; label: string }> = [];
+for (let yy = yearStart; yy <= yearEnd; yy++) {
+  xTicks.push({ x: xScale(yy), label: `'${String(yy).slice(-2)}` });
+}
+
+// Lower canvas - months of inventory horizontal bars.
+const ROW_H = LOWER_H / inventory.length;
+const BAR_H_FRAC = 0.50; // bar height as fraction of row
+const maxMonths = Math.max(...inventory.map((r) => r.months), nationalMonths, 6);
+const X_MAX_LOWER = Math.ceil(maxMonths + 1);
+function xLower(v: number): number {
+  return PLOT_X0 + (v / X_MAX_LOWER) * PLOT_W;
+}
+const nationalLineX = xLower(nationalMonths);
+const lowerTicks = [0, 2, 4, X_MAX_LOWER];
+---
+<div class="housing-panel-3" aria-label={ariaLabel}>
+  <svg
+    class="housing-panel-3__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* ============ Upper sub-canvas: SNLR ============ */}
+    <text
+      class="housing-panel-3__sub-title"
+      x={PLOT_X0.toFixed(2)}
+      y={(UP_Y0 - 8).toFixed(2)}
+      text-anchor="start"
+    >Sales-to-new-listings, national (%)</text>
+
+    {/* Balanced band 40-60% - fill */}
+    <rect
+      class="housing-panel-3__band"
+      x={PLOT_X0.toFixed(2)}
+      y={ySnlr(60).toFixed(2)}
+      width={PLOT_W.toFixed(2)}
+      height={(ySnlr(40) - ySnlr(60)).toFixed(2)}
+    />
+
+    {/* Gridlines */}
+    {snlrTicks.map((v) => (
+      <line
+        class="housing-panel-3__gridline"
+        x1={PLOT_X0.toFixed(2)}
+        y1={ySnlr(v).toFixed(2)}
+        x2={PLOT_X1.toFixed(2)}
+        y2={ySnlr(v).toFixed(2)}
+      />
+    ))}
+
+    {/* SNLR line */}
+    <path class="housing-panel-3__line" d={snlrPath} fill="none" />
+
+    {/* Latest-point dot */}
+    <circle
+      class="housing-panel-3__marker"
+      cx={lastSnlrX.toFixed(2)}
+      cy={lastSnlrY.toFixed(2)}
+      r="3"
+    >
+      <title>{`${lastSnlr.date}: ${lastSnlr.snlr.toFixed(1)}% SNLR`}</title>
+    </circle>
+
+    {/* Frame upper */}
+    <rect
+      class="housing-panel-3__frame"
+      x={PLOT_X0.toFixed(2)}
+      y={UP_Y0.toFixed(2)}
+      width={PLOT_W.toFixed(2)}
+      height={UPPER_H.toFixed(2)}
+      fill="none"
+    />
+
+    {/* Y-tick labels upper */}
+    {snlrTicks.map((v, i) => (
+      <text
+        class="housing-panel-3__ytick-label"
+        x={(PLOT_X0 - 6).toFixed(2)}
+        y={(ySnlr(v) + 3.5).toFixed(2)}
+        text-anchor="end"
+      >{i === snlrTicks.length - 1 ? `${v}%` : `${v}`}</text>
+    ))}
+
+    {/* Band labels */}
+    <text
+      class="housing-panel-3__band-label"
+      x={(PLOT_X1 + 6).toFixed(2)}
+      y={(ySnlr(50) + 3.5).toFixed(2)}
+      text-anchor="start"
+    >Balanced</text>
+
+    {/* X-tick labels upper */}
+    {xTicks.map((t) => (
+      <text
+        class="housing-panel-3__xtick-label"
+        x={t.x.toFixed(2)}
+        y={(UP_Y1 + 14).toFixed(2)}
+        text-anchor="middle"
+      >{t.label}</text>
+    ))}
+
+    {/* ============ Lower sub-canvas: months of inventory by CMA ============ */}
+    <text
+      class="housing-panel-3__sub-title"
+      x={PLOT_X0.toFixed(2)}
+      y={(LOWER_Y0 - 8).toFixed(2)}
+      text-anchor="start"
+    >Months of inventory by CMA, latest</text>
+
+    {inventory.map((row, i) => {
+      const ry = LOWER_Y0 + i * ROW_H;
+      const barH = ROW_H * BAR_H_FRAC;
+      const barY = ry + (ROW_H - barH) / 2;
+      const barW = xLower(row.months) - PLOT_X0;
+      return (
+        <g>
+          <text
+            class="housing-panel-3__row-label"
+            x={(PLOT_X0 - 6).toFixed(2)}
+            y={(barY + barH / 2 + 3.5).toFixed(2)}
+            text-anchor="end"
+          >{row.label}</text>
+          <rect
+            class="housing-panel-3__bar"
+            x={PLOT_X0.toFixed(2)}
+            y={barY.toFixed(2)}
+            width={Math.max(0, barW).toFixed(2)}
+            height={barH.toFixed(2)}
+          >
+            <title>{`${row.label}: ${row.months.toFixed(1)} months of inventory`}</title>
+          </rect>
+          <text
+            class="housing-panel-3__row-val"
+            x={(xLower(row.months) + 6).toFixed(2)}
+            y={(barY + barH / 2 + 3.5).toFixed(2)}
+            text-anchor="start"
+          >{`${row.months.toFixed(1)}`}</text>
+        </g>
+      );
+    })}
+
+    {/* National-average reference line */}
+    <line
+      class="housing-panel-3__natline"
+      x1={nationalLineX.toFixed(2)}
+      y1={LOWER_Y0.toFixed(2)}
+      x2={nationalLineX.toFixed(2)}
+      y2={(LOWER_Y0 + LOWER_H).toFixed(2)}
+    />
+    <text
+      class="housing-panel-3__natlabel"
+      x={(nationalLineX + 4).toFixed(2)}
+      y={(LOWER_Y0 - 2).toFixed(2)}
+      text-anchor="start"
+    >{`Nat'l ${nationalMonths.toFixed(1)}`}</text>
+
+    {/* X-axis ticks for lower bar canvas */}
+    <line
+      class="housing-panel-3__xaxis"
+      x1={PLOT_X0.toFixed(2)}
+      y1={(LOWER_Y0 + LOWER_H).toFixed(2)}
+      x2={PLOT_X1.toFixed(2)}
+      y2={(LOWER_Y0 + LOWER_H).toFixed(2)}
+    />
+    {lowerTicks.map((v) => (
+      <text
+        class="housing-panel-3__xtick-label"
+        x={xLower(v).toFixed(2)}
+        y={(LOWER_Y0 + LOWER_H + 14).toFixed(2)}
+        text-anchor="middle"
+      >{`${v}`}</text>
+    ))}
+    <text
+      class="housing-panel-3__axis-unit"
+      x={(PLOT_X1 + 6).toFixed(2)}
+      y={(LOWER_Y0 + LOWER_H + 4).toFixed(2)}
+      text-anchor="start"
+    >months</text>
+  </svg>
+</div>
+
+<style>
+  .housing-panel-3 {
+    width: 100%;
+    aspect-ratio: 720 / 440;
+    background-color: var(--surface);
+  }
+  .housing-panel-3__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+  .housing-panel-3__sub-title {
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .housing-panel-3__band {
+    fill: rgba(21, 23, 26, 0.05);
+  }
+  .housing-panel-3__gridline {
+    stroke: var(--rule);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  .housing-panel-3__frame {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .housing-panel-3__line {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+  }
+  .housing-panel-3__marker {
+    fill: var(--accent);
+  }
+  .housing-panel-3__bar {
+    fill: var(--ink);
+  }
+  .housing-panel-3__natline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 3 2;
+    shape-rendering: crispEdges;
+  }
+  .housing-panel-3__natlabel {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: var(--fw-regular);
+  }
+  .housing-panel-3__xaxis {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .housing-panel-3__band-label,
+  .housing-panel-3__axis-unit {
+    fill: var(--ink);
+    font-size: 10px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+  .housing-panel-3__row-label {
+    fill: var(--ink);
+    font-size: 10px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+  .housing-panel-3__row-val,
+  .housing-panel-3__ytick-label,
+  .housing-panel-3__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

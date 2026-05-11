@@ -1,0 +1,373 @@
+---
+/*
+ * Panel5FederalTrajectory - Policy chartbook, plate 05.
+ *
+ * Editorial canon Section 4.5.5: federal fiscal trajectory. Year-to-date
+ * deficit plus debt-service costs as a share of revenues. The two pieces
+ * of evidence sit one above the other:
+ *   - Upper: deficit YTD time series (C$ billions, FY proxy).
+ *   - Lower: debt-service costs and federal revenues, both as growth
+ *     indices (set to 100 at FY2019/20).
+ *
+ * Vignelli canon: pure black on both subcharts; the second-series
+ * distinction in the lower panel is by 1px dashed (not by hue). MTA red
+ * dot on the lower-canvas debt-service terminus only (the load-bearing
+ * "what's growing faster" signal).
+ *
+ * Plot vs SVG: hand-rolled SVG.
+ */
+
+interface DeficitPoint {
+  fy: string;       // "FY24/25"
+  deficit_bn: number; // C$ billions YTD
+  plan_bn?: number;   // FES plan YTD comparator
+}
+
+interface IndexPoint {
+  fy: string;
+  debtService: number;  // index 100 = FY19/20
+  revenues: number;     // index 100 = FY19/20
+}
+
+interface Props {
+  deficits?: DeficitPoint[];
+  growth?: IndexPoint[];
+  asOf?: string;
+  ariaLabel?: string;
+}
+
+function defaultDeficits(): DeficitPoint[] {
+  return [
+    { fy: "FY19/20", deficit_bn:  -39, plan_bn:  -19 },
+    { fy: "FY20/21", deficit_bn: -328, plan_bn: -343 },
+    { fy: "FY21/22", deficit_bn:  -90, plan_bn: -113 },
+    { fy: "FY22/23", deficit_bn:  -35, plan_bn:  -53 },
+    { fy: "FY23/24", deficit_bn:  -50, plan_bn:  -40 },
+    { fy: "FY24/25", deficit_bn:  -62, plan_bn:  -42 },
+    { fy: "FY25/26", deficit_bn:  -71, plan_bn:  -48 },
+  ];
+}
+
+function defaultGrowth(): IndexPoint[] {
+  return [
+    { fy: "FY19/20", debtService: 100, revenues: 100 },
+    { fy: "FY20/21", debtService:  91, revenues: 102 },
+    { fy: "FY21/22", debtService:  88, revenues: 124 },
+    { fy: "FY22/23", debtService: 115, revenues: 138 },
+    { fy: "FY23/24", debtService: 153, revenues: 142 },
+    { fy: "FY24/25", debtService: 184, revenues: 148 },
+    { fy: "FY25/26", debtService: 208, revenues: 154 },
+  ];
+}
+
+const {
+  deficits = defaultDeficits(),
+  growth = defaultGrowth(),
+  asOf = "FY25/26",
+  ariaLabel = `Federal fiscal trajectory: deficit and debt-service growth, ${asOf}`,
+} = Astro.props;
+
+// ---- Geometry --------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 440;
+const M_T = 28;
+const M_B = 36;
+const M_L = 60;
+const M_R = 96;
+const UP_Y0 = M_T;
+const UP_H = 170;
+const GAP = 40;
+const LOW_Y0 = UP_Y0 + UP_H + GAP;
+const LOW_H = VB_H - M_B - LOW_Y0;
+const PLOT_X0 = M_L;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_W = PLOT_X1 - PLOT_X0;
+
+const ROW_W = PLOT_W / deficits.length;
+
+// Upper: deficit bars with FES plan tick
+const allDeficits = deficits.flatMap((d) => [d.deficit_bn, d.plan_bn ?? 0]);
+const upMin = Math.min(...allDeficits, 0);
+const upMax = 0;
+const upRange = upMax - upMin;
+function yUp(v: number): number {
+  return UP_Y0 + ((upMax - v) / upRange) * UP_H;
+}
+const upTicks = [0, -100, -200, -300];
+
+// Lower: index series 0..220
+const lowMin = 80;
+const lowMax = 220;
+function xLow(i: number): number {
+  return PLOT_X0 + (i + 0.5) * (PLOT_W / growth.length);
+}
+function yLow(v: number): number {
+  return LOW_Y0 + LOW_H - ((v - lowMin) / (lowMax - lowMin)) * LOW_H;
+}
+const lowTicks = [100, 150, 200];
+const dsPath = growth
+  .map((p, i) => `${i === 0 ? "M" : "L"}${xLow(i).toFixed(2)} ${yLow(p.debtService).toFixed(2)}`)
+  .join(" ");
+const revPath = growth
+  .map((p, i) => `${i === 0 ? "M" : "L"}${xLow(i).toFixed(2)} ${yLow(p.revenues).toFixed(2)}`)
+  .join(" ");
+
+const lastG = growth[growth.length - 1];
+const lastGX = xLow(growth.length - 1);
+const lastDSY = yLow(lastG.debtService);
+const lastRevY = yLow(lastG.revenues);
+---
+<div class="policy-panel-5" aria-label={ariaLabel}>
+  <svg
+    class="policy-panel-5__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* ============ Upper: deficit YTD bars ============ */}
+    <text
+      class="policy-panel-5__sub-title"
+      x={PLOT_X0.toFixed(2)}
+      y={(UP_Y0 - 8).toFixed(2)}
+      text-anchor="start"
+    >Federal deficit YTD (C$ bn)</text>
+
+    {/* Upper gridlines */}
+    {upTicks.map((v) => (
+      <line
+        class:list={["policy-panel-5__gridline", { "policy-panel-5__gridline--zero": v === 0 }]}
+        x1={PLOT_X0.toFixed(2)}
+        y1={yUp(v).toFixed(2)}
+        x2={PLOT_X1.toFixed(2)}
+        y2={yUp(v).toFixed(2)}
+      />
+    ))}
+
+    {/* Bars: deficits (filled ink at 0.85 opacity for legibility against ticks) */}
+    {deficits.map((d, i) => {
+      const barX = PLOT_X0 + i * ROW_W + ROW_W * 0.18;
+      const barW = ROW_W * 0.64;
+      const y0 = yUp(0);
+      const yV = yUp(d.deficit_bn);
+      return (
+        <g>
+          <rect
+            class="policy-panel-5__bar"
+            x={barX.toFixed(2)}
+            y={Math.min(y0, yV).toFixed(2)}
+            width={barW.toFixed(2)}
+            height={Math.abs(yV - y0).toFixed(2)}
+          >
+            <title>{`${d.fy}: C$${d.deficit_bn} bn deficit YTD`}</title>
+          </rect>
+          {/* FES plan tick - 1px ink horizontal across the bar */}
+          {d.plan_bn !== undefined && (
+            <line
+              class="policy-panel-5__plan-tick"
+              x1={(barX - 2).toFixed(2)}
+              y1={yUp(d.plan_bn).toFixed(2)}
+              x2={(barX + barW + 2).toFixed(2)}
+              y2={yUp(d.plan_bn).toFixed(2)}
+            >
+              <title>{`${d.fy}: FES plan C$${d.plan_bn} bn`}</title>
+            </line>
+          )}
+        </g>
+      );
+    })}
+
+    {/* FY labels under bars */}
+    {deficits.map((d, i) => (
+      <text
+        class="policy-panel-5__fy-label"
+        x={(PLOT_X0 + i * ROW_W + ROW_W / 2).toFixed(2)}
+        y={(UP_Y0 + UP_H + 14).toFixed(2)}
+        text-anchor="middle"
+      >{d.fy.replace("FY", "")}</text>
+    ))}
+
+    {/* Upper Y-tick labels */}
+    {upTicks.map((v) => (
+      <text
+        class="policy-panel-5__ytick-label"
+        x={(PLOT_X0 - 6).toFixed(2)}
+        y={(yUp(v) + 3.5).toFixed(2)}
+        text-anchor="end"
+      >{v}</text>
+    ))}
+
+    {/* Upper frame */}
+    <rect
+      class="policy-panel-5__frame"
+      x={PLOT_X0.toFixed(2)}
+      y={UP_Y0.toFixed(2)}
+      width={PLOT_W.toFixed(2)}
+      height={UP_H.toFixed(2)}
+      fill="none"
+    />
+
+    {/* Plan-tick legend stamp at right of upper */}
+    <line
+      class="policy-panel-5__plan-tick"
+      x1={(PLOT_X1 + 6).toFixed(2)}
+      y1={(UP_Y0 + 8).toFixed(2)}
+      x2={(PLOT_X1 + 26).toFixed(2)}
+      y2={(UP_Y0 + 8).toFixed(2)}
+    />
+    <text
+      class="policy-panel-5__direct policy-panel-5__direct--plan"
+      x={(PLOT_X1 + 30).toFixed(2)}
+      y={(UP_Y0 + 11).toFixed(2)}
+      text-anchor="start"
+    >FES plan</text>
+
+    {/* ============ Lower: index of debt-service vs revenues ============ */}
+    <text
+      class="policy-panel-5__sub-title"
+      x={PLOT_X0.toFixed(2)}
+      y={(LOW_Y0 - 8).toFixed(2)}
+      text-anchor="start"
+    >Debt service vs revenues (FY19/20 = 100)</text>
+
+    {/* Lower gridlines */}
+    {lowTicks.map((v) => (
+      <line
+        class="policy-panel-5__gridline"
+        x1={PLOT_X0.toFixed(2)}
+        y1={yLow(v).toFixed(2)}
+        x2={PLOT_X1.toFixed(2)}
+        y2={yLow(v).toFixed(2)}
+      />
+    ))}
+
+    {/* Revenues line (recessive dashed) */}
+    <path class="policy-panel-5__line policy-panel-5__line--rev" d={revPath} fill="none" />
+    {/* Debt service line (load-bearing) */}
+    <path class="policy-panel-5__line policy-panel-5__line--ds" d={dsPath} fill="none" />
+
+    {/* Latest-point dot on debt service */}
+    <circle
+      class="policy-panel-5__marker"
+      cx={lastGX.toFixed(2)}
+      cy={lastDSY.toFixed(2)}
+      r="3"
+    >
+      <title>{`${lastG.fy}: debt service index ${lastG.debtService}`}</title>
+    </circle>
+
+    {/* Lower frame */}
+    <rect
+      class="policy-panel-5__frame"
+      x={PLOT_X0.toFixed(2)}
+      y={LOW_Y0.toFixed(2)}
+      width={PLOT_W.toFixed(2)}
+      height={LOW_H.toFixed(2)}
+      fill="none"
+    />
+
+    {/* Lower Y-tick labels */}
+    {lowTicks.map((v) => (
+      <text
+        class="policy-panel-5__ytick-label"
+        x={(PLOT_X0 - 6).toFixed(2)}
+        y={(yLow(v) + 3.5).toFixed(2)}
+        text-anchor="end"
+      >{v}</text>
+    ))}
+
+    {/* Lower direct labels */}
+    <text
+      class="policy-panel-5__direct policy-panel-5__direct--ds"
+      x={(PLOT_X1 + 6).toFixed(2)}
+      y={(lastDSY + 3.5).toFixed(2)}
+      text-anchor="start"
+    >Debt service</text>
+    <text
+      class="policy-panel-5__direct policy-panel-5__direct--rev"
+      x={(PLOT_X1 + 6).toFixed(2)}
+      y={(lastRevY + 3.5).toFixed(2)}
+      text-anchor="start"
+    >Revenues</text>
+  </svg>
+</div>
+
+<style>
+  .policy-panel-5 {
+    width: 100%;
+    aspect-ratio: 720 / 440;
+    background-color: var(--surface);
+  }
+  .policy-panel-5__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+  .policy-panel-5__sub-title {
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .policy-panel-5__gridline {
+    stroke: var(--rule);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  .policy-panel-5__gridline--zero {
+    stroke: var(--ink);
+    stroke-opacity: 1;
+  }
+  .policy-panel-5__bar {
+    fill: var(--ink);
+    fill-opacity: 0.85;
+  }
+  .policy-panel-5__plan-tick {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    shape-rendering: crispEdges;
+  }
+  .policy-panel-5__frame {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .policy-panel-5__line--ds {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  .policy-panel-5__line--rev {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+    opacity: 0.55;
+    stroke-linejoin: round;
+  }
+  .policy-panel-5__marker {
+    fill: var(--accent);
+  }
+  .policy-panel-5__ytick-label,
+  .policy-panel-5__fy-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+  .policy-panel-5__direct {
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+  }
+  .policy-panel-5__direct--rev,
+  .policy-panel-5__direct--plan {
+    font-weight: var(--fw-regular);
+    opacity: 0.7;
+  }
+</style>

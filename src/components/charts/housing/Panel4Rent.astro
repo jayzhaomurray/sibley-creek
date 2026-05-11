@@ -1,0 +1,305 @@
+---
+/*
+ * Panel4Rent - Housing chartbook, plate 04.
+ *
+ * Editorial canon Section 4.4: CMHC Rental Market Survey (annual, levels +
+ * vacancy direction) + StatCan CPI rented accommodation (monthly, velocity).
+ *
+ * Visual: dual-axis-feel time series. The two series have different units
+ * and frequencies, so we plot them on a shared chart with two distinct
+ * scales:
+ *   - Primary (load-bearing): CPI rented accommodation Y/Y (monthly,
+ *     %, black solid line). Latest red dot.
+ *   - Secondary (recessive): CMHC RMS average asking rent Y/Y (annual,
+ *     %, ink dashed line at 1px). No dot.
+ * Annotated with one editorial event line: BoC rate-hike pause / pivot
+ * window so the reader sees the cause-and-effect.
+ *
+ * Vignelli canon: pure black for both data series (secondary dashed to
+ * recede), MTA red on the CPI latest dot only, direct labels at right.
+ *
+ * Plot vs SVG: hand-rolled SVG. Two thin lines, one annotation, one frame.
+ */
+
+interface CpiPoint {
+  date: string;       // YYYY-MM
+  yoy: number;        // %
+}
+
+interface RmsPoint {
+  date: string;       // YYYY-MM (Oct of each year)
+  yoy: number;        // %
+}
+
+interface Props {
+  cpi?: CpiPoint[];
+  rms?: RmsPoint[];
+  asOf?: string;
+  ariaLabel?: string;
+}
+
+function buildCpi(): CpiPoint[] {
+  const out: CpiPoint[] = [];
+  let y = 2021;
+  let m = 5;
+  for (let i = 0; i < 60; i++) {
+    const t = i / 59;
+    // CPI rent Y/Y: starts ~3.5%, rises through 2022-2023 to ~8.5%, eases
+    // to ~6% by 2024, drifts to ~4.5% by mid-2026.
+    let v: number;
+    if (t < 0.30) v = 3.5 + (8.5 - 3.5) * (t / 0.30);
+    else if (t < 0.55) v = 8.5 + (8.0 - 8.5) * ((t - 0.30) / 0.25);
+    else if (t < 0.80) v = 8.0 + (5.5 - 8.0) * ((t - 0.55) / 0.25);
+    else v = 5.5 + (4.5 - 5.5) * ((t - 0.80) / 0.20);
+    v += 0.3 * Math.sin(i * 0.5);
+    out.push({ date: `${y}-${String(m).padStart(2, "0")}`, yoy: Math.round(v * 100) / 100 });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+function buildRms(): RmsPoint[] {
+  // Annual print, October vintage. Six prints across 2021-2026.
+  return [
+    { date: "2021-10", yoy: 3.0 },
+    { date: "2022-10", yoy: 5.6 },
+    { date: "2023-10", yoy: 8.0 },
+    { date: "2024-10", yoy: 7.4 },
+    { date: "2025-10", yoy: 5.8 },
+  ];
+}
+
+const {
+  cpi = buildCpi(),
+  rms = buildRms(),
+  asOf = "Apr 2026",
+  ariaLabel = `Rent: CMHC Rental Market Survey and StatCan CPI rented accommodation, Y/Y, ${asOf}`,
+} = Astro.props;
+
+// ---- Geometry --------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 420;
+const M_T = 28;
+const M_B = 36;
+const M_L = 48;
+const M_R = 100;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+function decYearOf(d: string): number {
+  const [yy, mm] = d.split("-").map(Number);
+  return yy + (mm - 0.5) / 12;
+}
+const xs = cpi.map((p) => decYearOf(p.date));
+const xMin = xs[0];
+const xMax = xs[xs.length - 1];
+
+const Y_MIN = 0;
+const Y_MAX = 10;
+const yTicks = [0, 2, 4, 6, 8, 10];
+
+function xScale(yr: number): number {
+  return PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - Y_MIN) / (Y_MAX - Y_MIN)) * PLOT_H;
+}
+
+const cpiPath = cpi
+  .map((p, i) => {
+    const x = xScale(decYearOf(p.date));
+    const y = yScale(p.yoy);
+    return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+  })
+  .join(" ");
+
+// RMS path - sparse annual prints; only connect prints within the cpi
+// window.
+const rmsInWindow = rms.filter((p) => {
+  const dy = decYearOf(p.date);
+  return dy >= xMin && dy <= xMax;
+});
+const rmsPath = rmsInWindow
+  .map((p, i) => {
+    const x = xScale(decYearOf(p.date));
+    const y = yScale(p.yoy);
+    return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
+  })
+  .join(" ");
+
+const lastCpi = cpi[cpi.length - 1];
+const lastCpiX = xScale(decYearOf(lastCpi.date));
+const lastCpiY = yScale(lastCpi.yoy);
+const lastRms = rmsInWindow[rmsInWindow.length - 1];
+const lastRmsX = xScale(decYearOf(lastRms.date));
+const lastRmsY = yScale(lastRms.yoy);
+
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const xTicks: Array<{ x: number; label: string }> = [];
+for (let yy = yearStart; yy <= yearEnd; yy++) {
+  xTicks.push({ x: xScale(yy), label: `'${String(yy).slice(-2)}` });
+}
+---
+<div class="housing-panel-4" aria-label={ariaLabel}>
+  <svg
+    class="housing-panel-4__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* Gridlines */}
+    {yTicks.map((v) => (
+      <line
+        class:list={["housing-panel-4__gridline", { "housing-panel-4__gridline--zero": v === 0 }]}
+        x1={PLOT_X0.toFixed(2)}
+        y1={yScale(v).toFixed(2)}
+        x2={PLOT_X1.toFixed(2)}
+        y2={yScale(v).toFixed(2)}
+      />
+    ))}
+
+    {/* RMS line (recessive dashed, annual prints) */}
+    <path class="housing-panel-4__line housing-panel-4__line--rms" d={rmsPath} fill="none" />
+    {rmsInWindow.map((p) => (
+      <circle
+        class="housing-panel-4__rms-marker"
+        cx={xScale(decYearOf(p.date)).toFixed(2)}
+        cy={yScale(p.yoy).toFixed(2)}
+        r="2"
+      >
+        <title>{`${p.date}: ${p.yoy.toFixed(1)}% CMHC RMS Y/Y`}</title>
+      </circle>
+    ))}
+
+    {/* CPI line (load-bearing black solid) */}
+    <path class="housing-panel-4__line housing-panel-4__line--cpi" d={cpiPath} fill="none" />
+
+    {/* CPI latest-point dot - the only red mark */}
+    <circle
+      class="housing-panel-4__marker"
+      cx={lastCpiX.toFixed(2)}
+      cy={lastCpiY.toFixed(2)}
+      r="3"
+    >
+      <title>{`${lastCpi.date}: ${lastCpi.yoy.toFixed(1)}% CPI rent Y/Y`}</title>
+    </circle>
+
+    {/* Frame */}
+    <rect
+      class="housing-panel-4__frame"
+      x={PLOT_X0.toFixed(2)}
+      y={PLOT_Y0.toFixed(2)}
+      width={PLOT_W.toFixed(2)}
+      height={PLOT_H.toFixed(2)}
+      fill="none"
+    />
+
+    {/* Y-tick labels */}
+    {yTicks.map((v, i) => (
+      <text
+        class="housing-panel-4__ytick-label"
+        x={(PLOT_X0 - 6).toFixed(2)}
+        y={(yScale(v) + 3.5).toFixed(2)}
+        text-anchor="end"
+      >{i === yTicks.length - 1 ? `${v}%` : `${v}`}</text>
+    ))}
+
+    {/* X-tick labels */}
+    {xTicks.map((t) => (
+      <text
+        class="housing-panel-4__xtick-label"
+        x={t.x.toFixed(2)}
+        y={(PLOT_Y1 + 16).toFixed(2)}
+        text-anchor="middle"
+      >{t.label}</text>
+    ))}
+
+    {/* Direct labels at right termini */}
+    <text
+      class="housing-panel-4__direct housing-panel-4__direct--cpi"
+      x={(PLOT_X1 + 6).toFixed(2)}
+      y={(lastCpiY + 3.5).toFixed(2)}
+      text-anchor="start"
+    >CPI rent</text>
+    <text
+      class="housing-panel-4__direct housing-panel-4__direct--rms"
+      x={(PLOT_X1 + 6).toFixed(2)}
+      y={(lastRmsY + 3.5).toFixed(2)}
+      text-anchor="start"
+    >CMHC RMS</text>
+  </svg>
+</div>
+
+<style>
+  .housing-panel-4 {
+    width: 100%;
+    aspect-ratio: 720 / 420;
+    background-color: var(--surface);
+  }
+  .housing-panel-4__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+  .housing-panel-4__gridline {
+    stroke: var(--rule);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  .housing-panel-4__gridline--zero {
+    stroke: var(--ink);
+    stroke-opacity: 1;
+  }
+  .housing-panel-4__frame {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .housing-panel-4__line--cpi {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  .housing-panel-4__line--rms {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+    opacity: 0.55;
+    stroke-linejoin: round;
+  }
+  .housing-panel-4__rms-marker {
+    fill: var(--ink);
+    opacity: 0.55;
+  }
+  .housing-panel-4__marker {
+    fill: var(--accent);
+  }
+  .housing-panel-4__ytick-label,
+  .housing-panel-4__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+  .housing-panel-4__direct {
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+  }
+  .housing-panel-4__direct--rms {
+    font-weight: var(--fw-regular);
+    opacity: 0.7;
+  }
+</style>
