@@ -1,303 +1,41 @@
 ---
 /*
- * Panel1OvernightRate - Policy chartbook, plate 01.
+ * Panel1OvernightRate - BoC overnight rate.
  *
- * Editorial canon Section 4.5.1: BoC overnight rate history with MPR
- * neutral-range band. Headline: where the rate sits, where the Bank says
- * neutral is, and the directional state (cutting / hiking / holding).
+ * Pipeline emits `overnight_rate` (primary, %) and
+ * `overnight_rate_daily` (secondary). Both are policy-rate %; rendered
+ * directly as a single step-like line.
  *
- * Visual: single black 1.5px line of the overnight rate, ~15-year window
- * to give the eye the cycle. Neutral range from latest MPR rendered as
- * a quiet 6% ink fill (upper-lower band). MTA red latest-print dot. 1px
- * black hairline plot frame. Plex Mono y-ticks.
+ * Wave 5 fold (EDR brief Section 3): two toggles added.
+ *   - Peer central bank rates (ECB / BoE / RBA) as a multi-line
+ *     toggle (same units as primary).
+ *   - Real policy rate (overnight minus headline CPI Y/Y) as a
+ *     transform toggle. Different framing (real vs nominal); will be
+ *     a view-switch rather than a single-axis overlay.
+ * Both deferred until the centralized toggle pattern lands.
  *
- * Vignelli canon: single-series pure black, MTA red dot only, no second
- * color. The neutral band is a 6% ink wash (same treatment as a
- * recession band).
- *
- * Plot vs SVG: hand-rolled SVG. One line, one band, four ticks - no
- * Plot warranted.
+ * Synthetic-data fallback removed.
  */
 
-interface RatePoint {
-  date: string;  // YYYY-MM
-  rate: number;  // percent
-}
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
 
 interface Props {
-  data?: RatePoint[];
-  /** Latest MPR neutral range, lower bound. */
-  neutralLow?: number;
-  /** Latest MPR neutral range, upper bound. */
-  neutralHigh?: number;
-  asOf?: string;
-  ariaLabel?: string;
+  data?: PanelData | null;
 }
 
-function buildPlaceholder(): RatePoint[] {
-  // 15 years monthly ending Apr 2026 (180 prints).
-  const out: RatePoint[] = [];
-  let y = 2011;
-  let m = 5;
-  for (let i = 0; i < 180; i++) {
-    const t = i / 179;
-    // Shape: 1.00 in 2011, 0.50 (2015 cut), 0.25 (2020 COVID), step up
-    // through 2022-2023 to 5.00 peak, hold through 2024, cuts back to
-    // 2.75 by mid-2026.
-    let r: number;
-    // Pre-2015 plateau
-    if (t < 0.27) r = 1.00;
-    // 2015 cuts to 0.50
-    else if (t < 0.30) r = 1.00 + (0.50 - 1.00) * ((t - 0.27) / 0.03);
-    // Hold 0.50 through 2019, brief 2017-2018 hike cycle to 1.75
-    else if (t < 0.40) r = 0.50;
-    else if (t < 0.48) r = 0.50 + (1.75 - 0.50) * ((t - 0.40) / 0.08);
-    else if (t < 0.55) r = 1.75;
-    // 2020 COVID cut to 0.25
-    else if (t < 0.59) r = 1.75 + (0.25 - 1.75) * ((t - 0.55) / 0.04);
-    // Hold 0.25 until early 2022
-    else if (t < 0.70) r = 0.25;
-    // Hike cycle to 5.00 by mid-2023
-    else if (t < 0.80) r = 0.25 + (5.00 - 0.25) * ((t - 0.70) / 0.10);
-    // Hold 5.00 through 2024
-    else if (t < 0.88) r = 5.00;
-    // Cut cycle to 2.75 by mid-2026
-    else r = 5.00 + (2.75 - 5.00) * ((t - 0.88) / 0.12);
-    out.push({ date: `${y}-${String(m).padStart(2, "0")}`, rate: Math.round(r * 100) / 100 });
-    m += 1;
-    if (m > 12) { m = 1; y += 1; }
-  }
-  return out;
-}
-
-const {
-  data = buildPlaceholder(),
-  neutralLow = 2.25,
-  neutralHigh = 3.25,
-  asOf = "Apr 2026",
-  ariaLabel = `Bank of Canada overnight rate, ${asOf}`,
-} = Astro.props;
-
-// ---- Geometry --------------------------------------------------------------
-const VB_W = 720;
-const VB_H = 420;
-const M_T = 24;
-const M_B = 36;
-const M_L = 48;
-const M_R = 80;
-const PLOT_X0 = M_L;
-const PLOT_Y0 = M_T;
-const PLOT_W = VB_W - M_L - M_R;
-const PLOT_H = VB_H - M_T - M_B;
-const PLOT_X1 = PLOT_X0 + PLOT_W;
-const PLOT_Y1 = PLOT_Y0 + PLOT_H;
-
-function decYearOf(d: string): number {
-  const [yy, mm] = d.split("-").map(Number);
-  return yy + (mm - 0.5) / 12;
-}
-const xs = data.map((p) => decYearOf(p.date));
-const xMin = xs[0];
-const xMax = xs[xs.length - 1];
-
-// Y: 0..6 covers the full window including the 5.00 peak and the 0.25 floor.
-const Y_MIN = 0;
-const Y_MAX = 6;
-const yTicks = [0, 1, 2, 3, 4, 5];
-
-function xScale(yr: number): number {
-  return PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
-}
-function yScale(v: number): number {
-  return PLOT_Y0 + PLOT_H - ((v - Y_MIN) / (Y_MAX - Y_MIN)) * PLOT_H;
-}
-
-const linePath = data
-  .map((p, i) => {
-    const x = xScale(decYearOf(p.date));
-    const y = yScale(p.rate);
-    return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
-  })
-  .join(" ");
-
-const last = data[data.length - 1];
-const lastX = xScale(decYearOf(last.date));
-const lastY = yScale(last.rate);
-
-// X ticks every 2 years
-const yearStart = Math.ceil(xMin);
-const yearEnd = Math.floor(xMax);
-const xTicks: Array<{ x: number; label: string }> = [];
-for (let yy = yearStart; yy <= yearEnd; yy += 2) {
-  xTicks.push({ x: xScale(yy), label: `'${String(yy).slice(-2)}` });
-}
-
-// Recession band 2020Q1-Q2 within window.
-const recStart = 2020 + (2 - 0.5) / 12;
-const recEnd = 2020 + (4 - 0.5) / 12;
-const recVisible = !(recEnd < xMin || recStart > xMax);
-const recX0 = recVisible ? xScale(Math.max(recStart, xMin)) : 0;
-const recX1 = recVisible ? xScale(Math.min(recEnd, xMax)) : 0;
-
-// Neutral band geometry
-const neutralYHigh = yScale(neutralHigh);
-const neutralYLow = yScale(neutralLow);
+const { data = null } = Astro.props;
 ---
-<div class="policy-panel-1" aria-label={ariaLabel}>
-  <svg
-    class="policy-panel-1__svg"
-    viewBox={`0 0 ${VB_W} ${VB_H}`}
-    preserveAspectRatio="xMidYMid meet"
-    role="img"
-    aria-label={ariaLabel}
-  >
-    {/* Recession band */}
-    {recVisible && (
-      <rect
-        class="policy-panel-1__recession"
-        x={recX0.toFixed(2)}
-        y={PLOT_Y0.toFixed(2)}
-        width={(recX1 - recX0).toFixed(2)}
-        height={PLOT_H.toFixed(2)}
-      />
-    )}
-
-    {/* MPR neutral range band (6% ink wash, same as recession) */}
-    <rect
-      class="policy-panel-1__neutral"
-      x={PLOT_X0.toFixed(2)}
-      y={neutralYHigh.toFixed(2)}
-      width={PLOT_W.toFixed(2)}
-      height={(neutralYLow - neutralYHigh).toFixed(2)}
-    />
-
-    {/* Gridlines */}
-    {yTicks.map((v) => (
-      <line
-        class:list={["policy-panel-1__gridline", { "policy-panel-1__gridline--zero": v === 0 }]}
-        x1={PLOT_X0.toFixed(2)}
-        y1={yScale(v).toFixed(2)}
-        x2={PLOT_X1.toFixed(2)}
-        y2={yScale(v).toFixed(2)}
-      />
-    ))}
-
-    {/* Data line (step-like rate path; draw as continuous line for simplicity) */}
-    <path class="policy-panel-1__line" d={linePath} fill="none" />
-
-    {/* Latest-point dot */}
-    <circle
-      class="policy-panel-1__marker"
-      cx={lastX.toFixed(2)}
-      cy={lastY.toFixed(2)}
-      r="3"
-    >
-      <title>{`${last.date}: ${last.rate.toFixed(2)}% BoC overnight rate`}</title>
-    </circle>
-
-    {/* Frame */}
-    <rect
-      class="policy-panel-1__frame"
-      x={PLOT_X0.toFixed(2)}
-      y={PLOT_Y0.toFixed(2)}
-      width={PLOT_W.toFixed(2)}
-      height={PLOT_H.toFixed(2)}
-      fill="none"
-    />
-
-    {/* Y-tick labels */}
-    {yTicks.map((v, i) => (
-      <text
-        class="policy-panel-1__ytick-label"
-        x={(PLOT_X0 - 6).toFixed(2)}
-        y={(yScale(v) + 3.5).toFixed(2)}
-        text-anchor="end"
-      >{i === yTicks.length - 1 ? `${v}%` : `${v}`}</text>
-    ))}
-
-    {/* X-tick labels */}
-    {xTicks.map((t) => (
-      <text
-        class="policy-panel-1__xtick-label"
-        x={t.x.toFixed(2)}
-        y={(PLOT_Y1 + 16).toFixed(2)}
-        text-anchor="middle"
-      >{t.label}</text>
-    ))}
-
-    {/* Direct labels: overnight rate terminus and neutral band */}
-    <text
-      class="policy-panel-1__direct policy-panel-1__direct--rate"
-      x={(PLOT_X1 + 6).toFixed(2)}
-      y={(lastY + 3.5).toFixed(2)}
-      text-anchor="start"
-    >Overnight</text>
-    <text
-      class="policy-panel-1__direct policy-panel-1__direct--neutral"
-      x={(PLOT_X1 + 6).toFixed(2)}
-      y={((neutralYHigh + neutralYLow) / 2 + 3.5).toFixed(2)}
-      text-anchor="start"
-    >MPR neutral</text>
-  </svg>
-</div>
-
-<style>
-  .policy-panel-1 {
-    width: 100%;
-    aspect-ratio: 720 / 420;
-    background-color: var(--surface);
-  }
-  .policy-panel-1__svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-    font-family: var(--font-sans);
-  }
-  .policy-panel-1__recession,
-  .policy-panel-1__neutral {
-    fill: rgba(21, 23, 26, 0.06);
-  }
-  .policy-panel-1__gridline {
-    stroke: var(--rule);
-    stroke-width: 1;
-    stroke-opacity: 0.18;
-    shape-rendering: crispEdges;
-  }
-  .policy-panel-1__gridline--zero {
-    stroke: var(--ink);
-    stroke-opacity: 1;
-  }
-  .policy-panel-1__frame {
-    stroke: var(--ink);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .policy-panel-1__line {
-    stroke: var(--ink);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-    fill: none;
-  }
-  .policy-panel-1__marker {
-    fill: var(--accent);
-  }
-  .policy-panel-1__ytick-label,
-  .policy-panel-1__xtick-label {
-    fill: var(--ink);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: var(--fw-regular);
-    font-variant-numeric: tabular-nums;
-  }
-  .policy-panel-1__direct {
-    fill: var(--ink);
-    font-size: 11px;
-    font-weight: var(--fw-semibold);
-  }
-  .policy-panel-1__direct--neutral {
-    font-weight: var(--fw-regular);
-    opacity: 0.7;
-  }
-</style>
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    primaryLabel="Overnight rate"
+    secondaryLabel="Daily O/N"
+    dataPanelAttr="policy-1"
+    ariaLabel="BoC overnight rate, percent."
+  />
+) : (
+  <PanelEmpty reason="Pipeline did not emit panel-1 data." />
+)}

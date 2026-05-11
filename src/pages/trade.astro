@@ -19,18 +19,27 @@
 import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
+import panelDataFile from "../../data/site/panel_data/trade.json";
+import { pickPanel } from "../components/charts/_shared/panelData";
 
 const section = sections.find((s) => s.slug === "trade");
 if (!section) {
   throw new Error("Trade section not found in src/data/sections.ts");
 }
 
+const panel1Data = pickPanel(panelDataFile, 1);
+const panel2Data = pickPanel(panelDataFile, 2);
+const panel3Data = pickPanel(panelDataFile, 3);
+const panel4Data = pickPanel(panelDataFile, 4);
+const panel5Data = pickPanel(panelDataFile, 5);
+const panel6Data = pickPanel(panelDataFile, 6);
+
 const plates: Plate[] = [
   {
     id: "plate-1",
     number: "01",
     chartKey: "trade-panel-1",
-    indicator: "Merchandise trade balance, monthly + 3M MA",
+    indicator: "Merchandise trade balance, monthly + 3mma",
     plateIndexLabel: "Merch balance",
     asOf: "TK",
     title: "Merchandise balance at TK; auto and energy in opposite directions.",
@@ -46,6 +55,7 @@ const plates: Plate[] = [
     },
     source:
       "Statistics Canada Tables 12-10-0119-01 (balance), 12-10-0121-01 (exports), 12-10-0122-01 (imports).",
+    data: panel1Data,
   },
   {
     id: "plate-2",
@@ -60,6 +70,7 @@ const plates: Plate[] = [
       "Primary income remains the largest single drag - foreign-claim service costs are sticky against a flatter Canadian growth path. " +
       "Sustained drivers vs one-offs are called out in the blurb.",
     source: "Statistics Canada Table 36-10-0014-01.",
+    data: panel2Data,
   },
   {
     id: "plate-3",
@@ -80,6 +91,7 @@ const plates: Plate[] = [
       direction: "neutral",
     },
     source: "Statistics Canada Table 12-10-0121-01 (exports by country).",
+    data: panel3Data,
   },
   {
     id: "plate-4",
@@ -95,6 +107,7 @@ const plates: Plate[] = [
       "named Section 232 follow-ons from March 2026 are the immediate exposure.",
     source:
       "USTR / DoC effective tariff actions log; Global Affairs Canada countermeasures notices.",
+    data: panel4Data,
   },
   {
     id: "plate-5",
@@ -115,6 +128,7 @@ const plates: Plate[] = [
       direction: "neutral",
     },
     source: "Statistics Canada Table 36-10-0014-01 (terms of trade derived).",
+    data: panel5Data,
   },
   {
     id: "plate-6",
@@ -129,6 +143,7 @@ const plates: Plate[] = [
       "Outward flows by sector skew further toward finance and real estate. The pattern has been consistent across recent quarters; " +
       "no new sector has emerged as a marginal source of inward capital.",
     source: "Statistics Canada Table 36-10-0008-01 (FDI by industry).",
+    data: panel6Data,
   },
 ];
 

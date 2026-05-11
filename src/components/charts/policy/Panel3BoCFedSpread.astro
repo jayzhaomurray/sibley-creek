@@ -1,269 +1,33 @@
 ---
 /*
- * Panel3BoCFedSpread - Policy chartbook, plate 03.
+ * Panel3BoCFedSpread - BoC-Fed 2-year spread.
  *
- * Editorial canon Section 4.5.3: Canada-US 2-year spread (BoC-Fed proxy
- * via 2y govts), with the percentile-distribution context lines from the
- * post-1990 daily series. The story is: where the spread is, where the
- * historical distribution flags as the wide tail, and whether the
- * current setting is approaching the FX-channel breakpoint.
+ * Pipeline emits `yield_2yr` (Canada) and `us_2yr` (US) as % series.
+ * Spread derivation is not on disk; we render the two raw 2y yields
+ * as the load-bearing pair.
  *
- * Visual: single black 1.5px line of the spread (Canada 2y - US 2y, bp).
- * Zero line in 100% ink. Percentile reference lines at the P25/P75/P95
- * absolute-value percentiles of the post-1990 distribution, rendered as
- * 1px ink hairlines at 0.3 opacity, with direct labels at right.
- *
- * MTA red latest-point dot. 1px black hairline plot frame.
- *
- * Vignelli canon: single series, only red is the latest-print dot.
+ * Synthetic-data fallback removed.
  */
 
-interface SpreadPoint {
-  date: string;     // YYYY-MM
-  spread_bp: number; // Canada 2y - US 2y, basis points
-}
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
 
 interface Props {
-  data?: SpreadPoint[];
-  /** Percentiles to overlay as horizontal hairlines (bp). */
-  percentiles?: Array<{ label: string; value: number }>;
-  asOf?: string;
-  ariaLabel?: string;
+  data?: PanelData | null;
 }
 
-function buildPlaceholder(): SpreadPoint[] {
-  // 12y monthly window ending Apr 2026 (144 prints).
-  const out: SpreadPoint[] = [];
-  let y = 2014;
-  let m = 5;
-  for (let i = 0; i < 144; i++) {
-    const t = i / 143;
-    // Shape: spread oscillates between -150 and +50 bp, with periods of
-    // wide negative when BoC is cutting faster than Fed. Recent: wide
-    // negative as BoC cuts ahead of Fed.
-    let s: number;
-    if (t < 0.30) s = -30 + 20 * Math.sin(i * 0.18);
-    else if (t < 0.55) s = -30 + 60 * Math.sin(i * 0.12);
-    else if (t < 0.78) s = -80 + 40 * Math.sin(i * 0.10);
-    else s = -110 + 25 * Math.sin(i * 0.20);
-    out.push({ date: `${y}-${String(m).padStart(2, "0")}`, spread_bp: Math.round(s) });
-    m += 1;
-    if (m > 12) { m = 1; y += 1; }
-  }
-  return out;
-}
-
-function defaultPercentiles(): Array<{ label: string; value: number }> {
-  // Hand-set against rough 1990-2026 abs-value distribution.
-  return [
-    { label: "P95", value: 175 },
-    { label: "P75", value: 100 },
-    { label: "P75", value: -100 },
-    { label: "P95", value: -175 },
-  ];
-}
-
-const {
-  data = buildPlaceholder(),
-  percentiles = defaultPercentiles(),
-  asOf = "Apr 2026",
-  ariaLabel = `Canada-US 2-year spread, ${asOf}`,
-} = Astro.props;
-
-// ---- Geometry --------------------------------------------------------------
-const VB_W = 720;
-const VB_H = 420;
-const M_T = 24;
-const M_B = 36;
-const M_L = 60;
-const M_R = 80;
-const PLOT_X0 = M_L;
-const PLOT_Y0 = M_T;
-const PLOT_W = VB_W - M_L - M_R;
-const PLOT_H = VB_H - M_T - M_B;
-const PLOT_X1 = PLOT_X0 + PLOT_W;
-const PLOT_Y1 = PLOT_Y0 + PLOT_H;
-
-function decYearOf(d: string): number {
-  const [yy, mm] = d.split("-").map(Number);
-  return yy + (mm - 0.5) / 12;
-}
-const xs = data.map((p) => decYearOf(p.date));
-const xMin = xs[0];
-const xMax = xs[xs.length - 1];
-
-const Y_MIN = -200;
-const Y_MAX = 200;
-const yTicks = [-200, -100, 0, 100, 200];
-
-function xScale(yr: number): number {
-  return PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
-}
-function yScale(v: number): number {
-  return PLOT_Y0 + PLOT_H - ((v - Y_MIN) / (Y_MAX - Y_MIN)) * PLOT_H;
-}
-
-const linePath = data
-  .map((p, i) => {
-    const x = xScale(decYearOf(p.date));
-    const y = yScale(p.spread_bp);
-    return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
-  })
-  .join(" ");
-
-const last = data[data.length - 1];
-const lastX = xScale(decYearOf(last.date));
-const lastY = yScale(last.spread_bp);
-
-const yearStart = Math.ceil(xMin);
-const yearEnd = Math.floor(xMax);
-const xTicks: Array<{ x: number; label: string }> = [];
-for (let yy = yearStart; yy <= yearEnd; yy += 2) {
-  xTicks.push({ x: xScale(yy), label: `'${String(yy).slice(-2)}` });
-}
+const { data = null } = Astro.props;
 ---
-<div class="policy-panel-3" aria-label={ariaLabel}>
-  <svg
-    class="policy-panel-3__svg"
-    viewBox={`0 0 ${VB_W} ${VB_H}`}
-    preserveAspectRatio="xMidYMid meet"
-    role="img"
-    aria-label={ariaLabel}
-  >
-    {/* Gridlines */}
-    {yTicks.map((v) => (
-      <line
-        class:list={["policy-panel-3__gridline", { "policy-panel-3__gridline--zero": v === 0 }]}
-        x1={PLOT_X0.toFixed(2)}
-        y1={yScale(v).toFixed(2)}
-        x2={PLOT_X1.toFixed(2)}
-        y2={yScale(v).toFixed(2)}
-      />
-    ))}
-
-    {/* Percentile hairlines */}
-    {percentiles.map((p) => (
-      <g>
-        <line
-          class="policy-panel-3__pct-line"
-          x1={PLOT_X0.toFixed(2)}
-          y1={yScale(p.value).toFixed(2)}
-          x2={PLOT_X1.toFixed(2)}
-          y2={yScale(p.value).toFixed(2)}
-        />
-        <text
-          class="policy-panel-3__pct-label"
-          x={(PLOT_X1 + 4).toFixed(2)}
-          y={(yScale(p.value) + 3.5).toFixed(2)}
-          text-anchor="start"
-        >{`${p.label}${p.value < 0 ? "-" : ""}`}</text>
-      </g>
-    ))}
-
-    {/* Spread line */}
-    <path class="policy-panel-3__line" d={linePath} fill="none" />
-
-    {/* Latest-point dot */}
-    <circle
-      class="policy-panel-3__marker"
-      cx={lastX.toFixed(2)}
-      cy={lastY.toFixed(2)}
-      r="3"
-    >
-      <title>{`${last.date}: ${last.spread_bp >= 0 ? "+" : ""}${last.spread_bp} bp`}</title>
-    </circle>
-
-    {/* Frame */}
-    <rect
-      class="policy-panel-3__frame"
-      x={PLOT_X0.toFixed(2)}
-      y={PLOT_Y0.toFixed(2)}
-      width={PLOT_W.toFixed(2)}
-      height={PLOT_H.toFixed(2)}
-      fill="none"
-    />
-
-    {/* Y-tick labels */}
-    {yTicks.map((v, i) => (
-      <text
-        class="policy-panel-3__ytick-label"
-        x={(PLOT_X0 - 6).toFixed(2)}
-        y={(yScale(v) + 3.5).toFixed(2)}
-        text-anchor="end"
-      >{i === yTicks.length - 1 ? `+${v} bp` : `${v > 0 ? "+" : ""}${v}`}</text>
-    ))}
-
-    {/* X-tick labels */}
-    {xTicks.map((t) => (
-      <text
-        class="policy-panel-3__xtick-label"
-        x={t.x.toFixed(2)}
-        y={(PLOT_Y1 + 16).toFixed(2)}
-        text-anchor="middle"
-      >{t.label}</text>
-    ))}
-  </svg>
-</div>
-
-<style>
-  .policy-panel-3 {
-    width: 100%;
-    aspect-ratio: 720 / 420;
-    background-color: var(--surface);
-  }
-  .policy-panel-3__svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-    font-family: var(--font-sans);
-  }
-  .policy-panel-3__gridline {
-    stroke: var(--rule);
-    stroke-width: 1;
-    stroke-opacity: 0.18;
-    shape-rendering: crispEdges;
-  }
-  .policy-panel-3__gridline--zero {
-    stroke: var(--ink);
-    stroke-opacity: 1;
-  }
-  .policy-panel-3__pct-line {
-    stroke: var(--ink);
-    stroke-width: 1;
-    stroke-opacity: 0.30;
-    stroke-dasharray: 4 3;
-    shape-rendering: crispEdges;
-  }
-  .policy-panel-3__pct-label {
-    fill: var(--ink);
-    font-size: 9px;
-    font-weight: var(--fw-semibold);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    opacity: 0.65;
-  }
-  .policy-panel-3__frame {
-    stroke: var(--ink);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .policy-panel-3__line {
-    stroke: var(--ink);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-    fill: none;
-  }
-  .policy-panel-3__marker {
-    fill: var(--accent);
-  }
-  .policy-panel-3__ytick-label,
-  .policy-panel-3__xtick-label {
-    fill: var(--ink);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: var(--fw-regular);
-    font-variant-numeric: tabular-nums;
-  }
-</style>
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    primaryLabel="2y Canada"
+    secondaryLabel="2y US"
+    dataPanelAttr="policy-3"
+    ariaLabel="Canada and US 2-year yields."
+  />
+) : (
+  <PanelEmpty reason="Spread derivation not yet emitted." />
+)}

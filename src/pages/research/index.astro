@@ -1,0 +1,443 @@
+---
+/*
+ * /research/ - Research topic index (blog-format).
+ *
+ * Visual lineage: the homepage `DeepDivePanel.astro` ("Research" card) is the
+ * smaller version of this surface. This is the expanded full-page version -
+ * same row anatomy (row number, section badge, title, deck, date stamp,
+ * 1px hairlines between entries) with more vertical breathing room, larger
+ * title typography, and a proper page header band.
+ *
+ * Discipline (per `design/design-system.md` v1.0 - Vignelli register):
+ *   - One sans (Manrope). Weight contrast is hierarchy.
+ *   - IBM Plex Mono only on data / dates / row numbers.
+ *   - One accent (signal red) only on the page-header kicker numeral.
+ *   - 1px pure-black hairlines between entries; no card pillows, no shadows.
+ *   - No pillar codes (A/B/E) or status labels in production rendering.
+ *
+ * Sort: newest first by `publishedAt` (ISO date string descending). Entries
+ * with `publishedAt === "TK"` sort to the bottom (still surfaced; date stamp
+ * renders "TK" in Plex Mono micro-caps).
+ *
+ * Each row links to `/research/<slug>/`.
+ *
+ * Layout: 2-column row anatomy inside the `--col-wide` 1040px track. The
+ * row-number + section badge sit in a left rail; the title + deck stack in
+ * the right rail. Collapses to a single column at `< 720px`.
+ */
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { deepDives, sections, site } from "../../data/sections";
+import type { DeepDive, SectionSlug } from "../../data/sections";
+
+// Resolve a section slug to its display label (e.g. "housing" -> "Housing").
+// Falls back to the slug itself if a deep-dive's section slug ever drifts out
+// of the canon sections array.
+const sectionLabelFor = (slug: SectionSlug): string => {
+  const s = sections.find((x) => x.slug === slug);
+  return s ? s.label : slug;
+};
+
+// Newest first. "TK" sentinel publishedAt values sort to the bottom so the
+// page reads as a blog: dated pieces above, in-flight pieces below.
+const ordered: DeepDive[] = [...deepDives].sort((a, b) => {
+  const aTk = !a.publishedAt || a.publishedAt === "TK";
+  const bTk = !b.publishedAt || b.publishedAt === "TK";
+  if (aTk && bTk) return 0;
+  if (aTk) return 1;
+  if (bTk) return -1;
+  // Both are ISO date strings (YYYY-MM-DD), lexicographic sort = chronological.
+  return (b.publishedAt as string).localeCompare(a.publishedAt as string);
+});
+
+// Pretty date for the row stamp. The publishedAt is YYYY-MM-DD; render as
+// "May 11, 2026" (uppercased on render via CSS). "TK" passes through.
+//
+// Hand-rolled formatter: en-CA's toLocaleDateString shifts the date when
+// the build host's timezone is west of UTC (the build server resolves
+// 2026-05-11 UTC as 2026-05-10 local), which moved the Pillar A stamp by a
+// day in the dist HTML. Parsing the YYYY-MM-DD as plain integers avoids
+// the timezone round-trip entirely.
+const MONTH_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+const displayDate = (raw?: string): string => {
+  if (!raw || raw === "TK") return "TK";
+  const parts = raw.split("-");
+  if (parts.length !== 3) return raw;
+  const [y, m, d] = parts.map((n) => parseInt(n, 10));
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return raw;
+  if (m < 1 || m > 12) return raw;
+  return `${MONTH_SHORT[m - 1]} ${d}, ${y}`;
+};
+
+const pageTitle = "Research";
+const pageDesc =
+  "Sibley Creek deep dives on the Canadian economy. Long-form research on " +
+  "the mortgage renewal wall, BoC / Fed policy divergence, per-capita " +
+  "output, and the load-bearing arguments behind the dashboard. Newest first.";
+
+const ledeText =
+  "Long-form deep dives on the Canadian economy. Each piece takes one " +
+  "argument as far as the data lets it. Newest first.";
+---
+<BaseLayout title={pageTitle} description={pageDesc} pageClass="research-index">
+  <article class="research-index" aria-labelledby="research-h">
+    <header class="research-index__header">
+      <p class="research-index__kicker">
+        <span class="research-index__kicker-tok">{site.name}</span>
+        <span class="research-index__kicker-sep" aria-hidden="true">|</span>
+        <span
+          class="research-index__kicker-tok research-index__kicker-tok--name"
+        >
+          Research
+        </span>
+      </p>
+
+      <div class="research-index__band">
+        <h1 id="research-h" class="research-index__h">Research</h1>
+        <p class="research-index__count">
+          <span class="research-index__count-n">{ordered.length}</span>
+          <span class="research-index__count-label">
+            {ordered.length === 1 ? "piece" : "pieces"}
+          </span>
+        </p>
+      </div>
+
+      <p class="research-index__lede">{ledeText}</p>
+
+      <hr class="research-index__rule" aria-hidden="true" />
+    </header>
+
+    <ol class="research-index__list" role="list">
+      {ordered.map((dd, i) => {
+        const isPublished = Boolean(dd.publishedPath);
+        const RowBody = (
+          <>
+            <div class="research-index__row-left" aria-hidden="true">
+              <span class="research-index__row-num">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <span class="research-index__row-section">
+                {sectionLabelFor(dd.section)}
+              </span>
+            </div>
+            <div class="research-index__row-body">
+              <h2
+                id={`dd-title-${dd.slug}`}
+                class="research-index__row-title"
+              >
+                {dd.title}
+              </h2>
+              <p class="research-index__row-deck">{dd.deck}</p>
+              <p class="research-index__row-stamp">
+                {isPublished ? (
+                  <>
+                    <span class="research-index__row-stamp-label">Published</span>
+                    <span class="research-index__row-stamp-body">
+                      {displayDate(dd.publishedAt)}
+                    </span>
+                  </>
+                ) : (
+                  <span class="research-index__row-stamp-body research-index__row-stamp-body--tk">
+                    Coming soon
+                  </span>
+                )}
+              </p>
+            </div>
+          </>
+        );
+        return (
+          <li class:list={["research-index__row", { "research-index__row--unpublished": !isPublished }]}>
+            {isPublished ? (
+              <a
+                class="research-index__row-link"
+                href={`/research/${dd.slug}/`}
+                aria-labelledby={`dd-title-${dd.slug}`}
+              >
+                {RowBody}
+              </a>
+            ) : (
+              <div class="research-index__row-link research-index__row-link--unpublished">
+                {RowBody}
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  </article>
+
+  <style>
+    /* ============================================================
+     * /research/ index page - Vignelli register, blog-format list.
+     * ============================================================ */
+
+    .research-index {
+      width: 100%;
+      max-width: var(--col-wide);
+      margin: 0 auto;
+      padding-top: 28px;
+      padding-bottom: var(--s-9);
+    }
+
+    /* ---- Header band ---- */
+    .research-index__header {
+      padding-block: 0 0;
+    }
+    .research-index__kicker {
+      margin: 0 0 18px;
+      display: inline-flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0 10px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .research-index__kicker-tok {
+      display: inline-block;
+    }
+    .research-index__kicker-tok--name {
+      font-weight: 800;
+    }
+    .research-index__kicker-sep {
+      color: var(--ink);
+      opacity: 0.32;
+      font-weight: 400;
+    }
+
+    .research-index__band {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 28px;
+      flex-wrap: wrap;
+      border-top: 1px solid var(--ink);
+      padding-top: 18px;
+    }
+    .research-index__h {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: clamp(40px, 6vw, 56px);
+      line-height: 1.05;
+      letter-spacing: -0.018em;
+      color: var(--ink);
+    }
+    .research-index__count {
+      margin: 0;
+      display: inline-flex;
+      align-items: baseline;
+      gap: 6px;
+      flex-shrink: 0;
+      font-family: var(--font-sans);
+      color: var(--ink);
+    }
+    .research-index__count-n {
+      font-family: var(--font-mono);
+      font-weight: 400;
+      font-size: 14px;
+      letter-spacing: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .research-index__count-label {
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    .research-index__lede {
+      margin: 18px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 200;
+      font-size: 19px;
+      line-height: 1.55;
+      color: var(--ink);
+      max-width: 64ch;
+    }
+
+    .research-index__rule {
+      border: 0;
+      border-top: 2px solid var(--ink);
+      margin: 28px 0 0;
+    }
+
+    /* ---- List ---- */
+    .research-index__list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+    }
+    .research-index__row {
+      margin: 0;
+      padding: 0;
+      border-bottom: 1px solid var(--ink);
+    }
+    .research-index__row:last-child {
+      border-bottom: 1px solid var(--ink);
+    }
+
+    /*
+     * Whole-row anchor.
+     *
+     * Made the row a single click target (link) rather than just the title.
+     * The Vignelli rule: a click target lives on a typographic atom; here the
+     * atom is the full row. We use a grid inside the anchor so the visual
+     * row structure (number+section on the left, title+deck+date on the
+     * right) is preserved.
+     *
+     * Hover: subtle ink inversion of the title underline. The row-number
+     * underline does not transition - it stays as a Knoll-catalogue "entry
+     * code" stamp regardless of hover.
+     */
+    .research-index__row-link {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0 28px;
+      padding: 32px 0 36px;
+      text-decoration: none;
+      color: var(--ink);
+      transition: background-color 80ms linear;
+    }
+    @media (min-width: 720px) {
+      .research-index__row-link {
+        grid-template-columns: 144px 1fr;
+      }
+    }
+    .research-index__row-link:hover {
+      background-color: transparent;
+    }
+    .research-index__row-link:hover .research-index__row-title {
+      border-bottom-color: var(--accent);
+      color: var(--accent);
+    }
+    .research-index__row-link:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    /* Left rail - row number + section badge. */
+    .research-index__row-left {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 4px;
+    }
+    .research-index__row-num {
+      font-family: var(--font-mono);
+      font-weight: 400;
+      font-size: 13px;
+      line-height: 1;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 2px;
+      align-self: flex-start;
+    }
+    .research-index__row-section {
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1.1;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    /* Right rail - title, deck, date stamp. */
+    .research-index__row-body {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .research-index__row-title {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: clamp(24px, 3vw, 28px);
+      line-height: 1.20;
+      letter-spacing: -0.012em;
+      color: var(--ink);
+      max-width: 28ch;
+      /* Title is the click affordance - hover transitions its underline to
+       * accent. Border-bottom not text-decoration so we control offset
+       * precisely. */
+      border-bottom: 1px solid transparent;
+      padding-bottom: 2px;
+      align-self: flex-start;
+      transition:
+        border-color 80ms linear,
+        color 80ms linear;
+    }
+    .research-index__row-deck {
+      margin: 14px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 200;
+      font-size: 19px;
+      line-height: 1.45;
+      color: var(--ink);
+      max-width: 56ch;
+    }
+    .research-index__row-stamp {
+      margin: 20px 0 0;
+      display: inline-flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .research-index__row-stamp-label {
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .research-index__row-stamp-body {
+      font-family: var(--font-mono);
+      font-weight: 400;
+      font-size: 11px;
+      line-height: 1;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+    /* "TK" stamp gets the same hard-coded placeholder mid-gray used in
+     * SectionPanel.astro / DeepDivePanel.astro. Per design-system.md sec 3
+     * "Decisions flagged": all --ink-* tokens resolve to pure black, so
+     * placeholder ink is hand-coded at the call site. */
+    .research-index__row-stamp-body--tk {
+      color: #8A8A8A;
+    }
+
+    /* ---- Mobile adjustments ---- */
+    @media (max-width: 720px) {
+      .research-index__band {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+      }
+      .research-index__row-link {
+        padding: 24px 0 28px;
+      }
+      .research-index__row-left {
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+      }
+    }
+  </style>
+</BaseLayout>

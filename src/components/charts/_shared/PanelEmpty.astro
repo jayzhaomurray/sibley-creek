@@ -1,0 +1,84 @@
+---
+/*
+ * PanelEmpty - shared "DATA NOT YET WIRED" treatment for chartbook panels.
+ *
+ * Used by every src/components/charts/<section>/Panel*.astro component when
+ * its `data` prop is null or the pipeline did not produce a primary series.
+ * Mirrors the homepage SectionPanel `.vig-panel__empty` treatment:
+ *   - 1.5px dashed gray border (#9A9A9A)
+ *   - diagonal repeating-linear-gradient hatch at 2.5% black
+ *   - "DATA NOT YET WIRED" mono-caps caption centered
+ *   - optional reason subline
+ *
+ * The dashed border is the load-bearing "this is not real data" tell.
+ * Aspect ratio matches the live chart canvas (16:9) so layout does not
+ * shift when the same panel flips to real data.
+ *
+ * No synthetic numbers, no makePlaceholder() shapes - this component is
+ * the only fallback path.
+ */
+
+interface Props {
+  /** Optional sub-caption explaining why data is missing. */
+  reason?: string;
+  /** ARIA label override; defaults to a generic chart placeholder string. */
+  ariaLabel?: string;
+}
+
+const {
+  reason,
+  ariaLabel = "Chart placeholder: data not yet wired.",
+} = Astro.props;
+---
+<div
+  class="panel-empty"
+  role="img"
+  aria-label={ariaLabel}
+>
+  <p class="panel-empty__cap">DATA NOT YET WIRED</p>
+  {reason && <p class="panel-empty__sub">{reason}</p>}
+</div>
+
+<style>
+  .panel-empty {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border: 1.5px dashed #9A9A9A;
+    background:
+      repeating-linear-gradient(
+        135deg,
+        transparent 0,
+        transparent 10px,
+        rgba(0, 0, 0, 0.025) 10px,
+        rgba(0, 0, 0, 0.025) 11px
+      );
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px;
+    box-sizing: border-box;
+  }
+  .panel-empty__cap {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 1;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: #6B6B6B;
+    text-align: center;
+  }
+  .panel-empty__sub {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 10px;
+    line-height: 1.4;
+    color: #9A9A9A;
+    text-align: center;
+    max-width: 40ch;
+  }
+</style>

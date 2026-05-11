@@ -1,351 +1,39 @@
 ---
 /*
- * Panel3Contributions - diverging horizontal bars: component contributions to Q/Q SAAR.
+ * Panel3Contributions - contributions to quarterly growth.
  *
- * Vignelli v1.0 canon-compliant rebuild (2026-05-11). Anchors to
- * src/components/charts/_canon_reference/PanelCanonReference.astro.
+ * Editorial argument is a diverging horizontal bar chart by component
+ * (consumption, government, GFCF, inventories, exports, less imports)
+ * with a Q-1 reference marker. The pipeline currently emits a single
+ * `gdp_total_contribution` total-pp series, not the per-component
+ * breakdown. Until the per-component series land we fall back to
+ * PanelEmpty rather than ship synthetic component bars.
  *
- * Bar chart deviation from the line-chart canon (justified): the chart is
- * categorical, not time-series. Canon rules applied:
- *   - All bars in pure ink. No categorical color encoding. (Section 5.3:
- *     one color on data.)
- *   - 1px ink hairline plot frame around plot area.
- *   - 1px full-opacity zero line (vertical, the categorical axis).
- *   - Light ink gridlines at 0.18 opacity (vertical, per categorical-bar
- *     convention).
- *   - Manrope x-tick labels for "pp" values; Manrope 600 category labels
- *     in left gutter.
- *   - Value labels in Plex Mono 400 (numbers).
- *   - Prior-quarter marker: 5px hollow ink square hairline.
- *   - One direct annotation at the largest contributor; MTA red dot on the
- *     total Q/Q SAAR bar terminus (the editorial anchor: the top-line
- *     number).
- *
- * Data contract preserved: { component, contribution_pp, q_minus_1_pp } + totalPp.
+ * Synthetic-data fallback removed.
  */
 
-interface Contribution {
-  component: string;
-  contribution_pp: number;
-  q_minus_1_pp: number;
-}
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
 
 interface Props {
-  data?: Contribution[];
-  totalPp?: number;
-  recentAnnotation?: string;
-  ariaLabel?: string;
+  data?: PanelData | null;
 }
 
-const DEFAULT_DATA: Contribution[] = [
-  { component: "Consumption",   contribution_pp:  0.7, q_minus_1_pp:  0.5 },
-  { component: "Government",    contribution_pp:  0.2, q_minus_1_pp:  0.3 },
-  { component: "GFCF",          contribution_pp:  0.3, q_minus_1_pp:  0.1 },
-  { component: "Inventories",   contribution_pp: -0.1, q_minus_1_pp:  0.2 },
-  { component: "Exports",       contribution_pp:  0.6, q_minus_1_pp:  0.3 },
-  { component: "Less imports",  contribution_pp: -0.3, q_minus_1_pp: -0.4 },
-];
+const { data = null } = Astro.props;
 
-const {
-  data = DEFAULT_DATA,
-  totalPp = DEFAULT_DATA.reduce((s, d) => s + d.contribution_pp, 0),
-  recentAnnotation = "**Consumption** carried the print; net trade contribution near zero.",
-  ariaLabel = "Contributions to quarterly Q/Q SAAR growth by component, percentage points.",
-} = Astro.props;
-
-// ---- Geometry --------------------------------------------------------------
-const VB_W = 720;
-const VB_H = 540; // 4:3 for categorical, preserved
-const M_L = 140;
-const M_R = 72;
-const M_T = 44;
-const M_B = 44;
-const PLOT_X0 = M_L;
-const PLOT_Y0 = M_T;
-const PLOT_W = VB_W - M_L - M_R;
-const PLOT_H = VB_H - M_T - M_B;
-const PLOT_X1 = PLOT_X0 + PLOT_W;
-const PLOT_Y1 = PLOT_Y0 + PLOT_H;
-
-// ---- Scale ----------------------------------------------------------------
-const allVals = [
-  ...data.map((d) => d.contribution_pp),
-  ...data.map((d) => d.q_minus_1_pp),
-  totalPp,
-];
-const absMax = Math.max(...allVals.map(Math.abs), 0.5);
-const xExtent = Math.ceil(absMax * 1.2 * 2) / 2;
-const xMin = -xExtent;
-const xMax = xExtent;
-
-function xScale(v: number): number {
-  return PLOT_X0 + ((v - xMin) / (xMax - xMin)) * PLOT_W;
-}
-const x0 = xScale(0);
-
-// ---- Row layout -----------------------------------------------------------
-const COMP_BAR_H = 10;
-const TOTAL_BAR_H = 14;
-const ROW_GAP = 20;
-const DIVIDER_GAP = 18;
-
-const compRowsH = data.length * COMP_BAR_H + (data.length - 1) * ROW_GAP;
-const totalContentH = TOTAL_BAR_H + DIVIDER_GAP + compRowsH;
-const yStart = PLOT_Y0 + (PLOT_H - totalContentH) / 2;
-
-const totalRowY = yStart + TOTAL_BAR_H / 2;
-const dividerY = totalRowY + TOTAL_BAR_H / 2 + DIVIDER_GAP / 2;
-const firstCompRowY = dividerY + DIVIDER_GAP / 2 + COMP_BAR_H / 2;
-
-function compRowY(i: number): number {
-  return firstCompRowY + i * (COMP_BAR_H + ROW_GAP);
-}
-
-// ---- X gridlines ----------------------------------------------------------
-const gridTicks: number[] = [];
-for (let v = Math.ceil(xMin / 0.5) * 0.5; v <= xMax + 1e-9; v += 0.5) {
-  gridTicks.push(Number(v.toFixed(2)));
-}
-// X-axis labels every 1pp to keep editorial density
-const xTickLabels: number[] = [];
-for (let v = Math.ceil(xMin); v <= xMax + 1e-9; v += 1) xTickLabels.push(v);
-
-// ---- Total bar geometry ---------------------------------------------------
-const totalCx = xScale(totalPp);
-const totalLeft = Math.min(x0, totalCx);
-const totalW = Math.abs(totalCx - x0);
-
-// ---- Argmax for annotation ------------------------------------------------
-const argmaxIdx = data
-  .map((d, i) => ({ d, i }))
-  .reduce((a, b) => (Math.abs(b.d.contribution_pp) > Math.abs(a.d.contribution_pp) ? b : a)).i;
-
-function parseAnchor(s: string): Array<{ text: string; bold: boolean }> {
-  const parts: Array<{ text: string; bold: boolean }> = [];
-  const re = /\*\*([^*]+)\*\*/g;
-  let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(s)) !== null) {
-    if (m.index > last) parts.push({ text: s.slice(last, m.index), bold: false });
-    parts.push({ text: m[1], bold: true });
-    last = m.index + m[0].length;
-  }
-  if (last < s.length) parts.push({ text: s.slice(last), bold: false });
-  return parts;
-}
-const annoParts = recentAnnotation ? parseAnchor(recentAnnotation) : [];
+// The pipeline-emitted primary here is a single total-pp time series, not
+// a per-component breakdown. We render it as a single line until per-
+// component data lands; honest but reduced.
 ---
-<div class="canon-chart canon-chart--bars" data-panel="gdp-3">
-  <svg
-    class="canon-chart__svg"
-    viewBox={`0 0 ${VB_W} ${VB_H}`}
-    preserveAspectRatio="xMidYMid meet"
-    role="img"
-    aria-label={ariaLabel}
-  >
-    {/* Vertical gridlines at major intervals */}
-    {xTickLabels.map((v) => {
-      const x = xScale(v);
-      if (Math.abs(v) < 1e-9) return null;
-      return (
-        <line
-          class="canon-chart__gridline"
-          x1={x.toFixed(2)}
-          y1={PLOT_Y0}
-          x2={x.toFixed(2)}
-          y2={PLOT_Y1}
-        />
-      );
-    })}
-
-    {/* Zero line, full opacity */}
-    <line
-      class="canon-chart__zero-line"
-      x1={x0.toFixed(2)}
-      y1={PLOT_Y0}
-      x2={x0.toFixed(2)}
-      y2={PLOT_Y1}
-    />
-
-    {/* Divider hairline between total and components */}
-    <line
-      class="canon-chart__divider"
-      x1={(M_L - 12).toFixed(2)}
-      y1={dividerY.toFixed(2)}
-      x2={PLOT_X1.toFixed(2)}
-      y2={dividerY.toFixed(2)}
-    />
-
-    {/* Total bar (top row) */}
-    <g>
-      <text
-        class="canon-chart__cat-label canon-chart__cat-label--total"
-        x={(M_L - 16).toFixed(2)}
-        y={(totalRowY + 4).toFixed(2)}
-        text-anchor="end"
-      >Total Q/Q SAAR</text>
-      <rect
-        class="canon-chart__bar canon-chart__bar--total"
-        x={totalLeft.toFixed(2)}
-        y={(totalRowY - TOTAL_BAR_H / 2).toFixed(2)}
-        width={Math.max(1, totalW).toFixed(2)}
-        height={TOTAL_BAR_H}
-      >
-        <title>{`Total Q/Q SAAR: ${totalPp >= 0 ? "+" : ""}${totalPp.toFixed(1)} pp`}</title>
-      </rect>
-      {/* MTA red dot at the bar terminus - the editorial anchor */}
-      <circle
-        class="canon-chart__latest-dot"
-        cx={totalCx.toFixed(2)}
-        cy={totalRowY.toFixed(2)}
-        r="4"
-      >
-        <title>{`Latest total: ${totalPp >= 0 ? "+" : ""}${totalPp.toFixed(1)} pp`}</title>
-      </circle>
-      <text
-        class="canon-chart__value-label canon-chart__value-label--total"
-        x={(totalPp >= 0 ? totalCx + 12 : totalCx - 12).toFixed(2)}
-        y={(totalRowY + 4).toFixed(2)}
-        text-anchor={totalPp >= 0 ? "start" : "end"}
-      >{`${totalPp >= 0 ? "+" : ""}${totalPp.toFixed(1)} pp`}</text>
-    </g>
-
-    {/* Component bars */}
-    {data.map((d, i) => {
-      const y = compRowY(i);
-      const cx = xScale(d.contribution_pp);
-      const left = Math.min(x0, cx);
-      const w = Math.abs(cx - x0);
-      const priorX = xScale(d.q_minus_1_pp);
-      return (
-        <g>
-          <text
-            class="canon-chart__cat-label"
-            x={(M_L - 16).toFixed(2)}
-            y={(y + 4).toFixed(2)}
-            text-anchor="end"
-          >{d.component}</text>
-          <rect
-            class="canon-chart__bar"
-            x={left.toFixed(2)}
-            y={(y - COMP_BAR_H / 2).toFixed(2)}
-            width={Math.max(1, w).toFixed(2)}
-            height={COMP_BAR_H}
-          >
-            <title>{`${d.component}: ${d.contribution_pp >= 0 ? "+" : ""}${d.contribution_pp.toFixed(1)} pp (Q-1: ${d.q_minus_1_pp >= 0 ? "+" : ""}${d.q_minus_1_pp.toFixed(1)} pp)`}</title>
-          </rect>
-          {/* Prior-quarter hollow square hairline */}
-          <rect
-            class="canon-chart__prior-marker"
-            x={(priorX - 3).toFixed(2)}
-            y={(y - 3).toFixed(2)}
-            width="6"
-            height="6"
-          />
-          <text
-            class="canon-chart__value-label"
-            x={(d.contribution_pp >= 0 ? cx + 8 : cx - 8).toFixed(2)}
-            y={(y + 4).toFixed(2)}
-            text-anchor={d.contribution_pp >= 0 ? "start" : "end"}
-          >{`${d.contribution_pp >= 0 ? "+" : ""}${d.contribution_pp.toFixed(1)}`}</text>
-        </g>
-      );
-    })}
-
-    {/* Plot frame */}
-    <rect
-      class="canon-chart__frame"
-      x={PLOT_X0}
-      y={PLOT_Y0}
-      width={PLOT_W}
-      height={PLOT_H}
-    />
-
-    {/* X-axis tick labels (pp scale) */}
-    {xTickLabels.map((v) => (
-      <g>
-        <line
-          class="canon-chart__xtick"
-          x1={xScale(v).toFixed(2)}
-          y1={PLOT_Y1.toFixed(2)}
-          x2={xScale(v).toFixed(2)}
-          y2={(PLOT_Y1 + 4).toFixed(2)}
-        />
-        <text
-          class="canon-chart__xtick-label"
-          x={xScale(v).toFixed(2)}
-          y={(PLOT_Y1 + 18).toFixed(2)}
-          text-anchor="middle"
-        >{`${v > 0 ? "+" : ""}${v.toFixed(0)}${v === xMax ? " pp" : ""}`}</text>
-      </g>
-    ))}
-
-    {/* Annotation - inline note on the argmax bar */}
-    {recentAnnotation && (() => {
-      void argmaxIdx;
-      const annoX = PLOT_X1 - 220;
-      return (
-        <g class="canon-chart__annotation">
-          <foreignObject
-            x={annoX.toFixed(2)}
-            y={(PLOT_Y0 + 8).toFixed(2)}
-            width="200"
-            height="60"
-          >
-            <p
-             
-              class="canon-chart__anno-text"
-            >
-              {annoParts.map((part) =>
-                part.bold
-                  ? <strong class="canon-chart__anno-anchor">{part.text}</strong>
-                  : <span>{part.text}</span>
-              )}
-            </p>
-          </foreignObject>
-        </g>
-      );
-    })()}
-  </svg>
-</div>
-
-<style>
-  .canon-chart { width: 100%; background-color: var(--paper); overflow: visible; }
-  .canon-chart--bars { aspect-ratio: 4 / 3; }
-  .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
-  .canon-chart__gridline { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges; }
-  .canon-chart__zero-line { stroke: var(--ink); stroke-width: 1; stroke-opacity: 1; shape-rendering: crispEdges; }
-  .canon-chart__divider { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
-  .canon-chart__bar { fill: var(--ink); }
-  .canon-chart__bar--total { fill: var(--ink); }
-  .canon-chart__cat-label {
-    fill: var(--ink); font-family: var(--font-sans);
-    font-size: 13px; font-weight: var(--fw-regular);
-  }
-  .canon-chart__cat-label--total {
-    font-weight: var(--fw-semibold);
-  }
-  .canon-chart__value-label {
-    fill: var(--ink); font-family: var(--font-mono);
-    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
-  }
-  .canon-chart__value-label--total {
-    font-weight: var(--fw-semibold);
-    font-size: 13px;
-  }
-  .canon-chart__prior-marker {
-    fill: transparent; stroke: var(--ink); stroke-width: 1;
-  }
-  .canon-chart__latest-dot { fill: var(--accent); stroke: none; }
-  .canon-chart__frame { fill: none; stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
-  .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
-  .canon-chart__xtick-label {
-    fill: var(--ink); font-family: var(--font-sans);
-    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
-  }
-  .canon-chart__anno-text {
-    margin: 0; color: var(--ink); font-family: var(--font-sans);
-    font-size: 15px; font-weight: var(--fw-regular); line-height: 1.30;
-  }
-  .canon-chart__anno-anchor { font-weight: var(--fw-semibold); }
-</style>
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    primaryLabel="Total contrib."
+    dataPanelAttr="gdp-3"
+    ariaLabel="Total contribution to quarterly Q/Q SAAR growth, percentage points."
+  />
+) : (
+  <PanelEmpty reason="Per-component contributions not yet emitted by pipeline." />
+)}

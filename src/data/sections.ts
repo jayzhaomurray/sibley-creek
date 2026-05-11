@@ -189,10 +189,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        spark: [
-          1.2, 1.6, 1.7, 2.0, 2.1, 2.2, 2.5, 2.8, 2.3, 2.7, 2.9, 2.2,
-          2.2, 1.7, 1.5, 1.3, 1.7, 1.6, 1.5, 0.8, 1.1, 1.0, 0.6, 1.0,
-        ],
+      spark: [],
       },
       {
         key: "gdp-mm",
@@ -201,10 +198,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        spark: [
-          0.4, 0.3, 0.5, 0.2, 0.1, 0.3, 0.4, 0.2, 0.5, 0.3, 0.1, 0.0,
-          0.2, 0.4, 0.3, 0.1, 0.2, 0.4, 0.5, 0.3, 0.4, 0.3, 0.3, 0.2,
-        ],
+      spark: [],
       },
       {
         key: "gdp-percap-yoy",
@@ -213,9 +207,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        spark: [
-          -1.6, -1.5, -1.5, -1.4, -1.4, -1.3, -1.2, -1.2, -1.1, -1.1, -1.0, -0.9, -0.8, -0.7,
-        ],
+      spark: [],
       },
       {
         key: "output-gap",
@@ -224,10 +216,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        spark: [
-          -1.4, -1.5, -1.4, -1.3, -1.2, -1.1, -1.0, -1.1, -1.0, -0.9, -0.8, -0.9,
-          -0.8, -0.7, -0.8, -0.7, -0.7, -0.6,
-        ],
+      spark: [],
       },
     ],
     blurb: {
@@ -266,11 +255,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        // y/y % — sliding down off a higher plateau toward the 2% target.
-        spark: [
-          3.6, 3.5, 3.4, 3.1, 2.9, 2.8, 2.7, 2.9, 2.7, 2.6, 2.5, 2.6,
-          2.4, 2.3, 2.2, 2.1, 2.0, 2.1, 2.2, 2.1, 2.2, 2.3, 2.2, 2.3,
-        ],
+      spark: [],
       },
       {
         key: "core-trim-yoy",
@@ -279,11 +264,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        // Core measures slower to ease but still trending down.
-        spark: [
-          3.7, 3.6, 3.6, 3.5, 3.4, 3.3, 3.2, 3.2, 3.0, 3.0, 2.9, 2.9,
-          2.8, 2.8, 2.7, 2.7, 2.7, 2.7, 2.7, 2.7, 2.7, 2.7, 2.6, 2.6,
-        ],
+      spark: [],
       },
       {
         key: "core-median-yoy",
@@ -292,10 +273,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        spark: [
-          3.5, 3.4, 3.4, 3.3, 3.2, 3.2, 3.1, 3.0, 3.0, 2.9, 2.9, 2.8,
-          2.7, 2.7, 2.6, 2.6, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
-        ],
+      spark: [],
       },
       {
         key: "cpi-breadth-gt3",
@@ -304,9 +282,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        spark: [
-          52, 50, 48, 46, 44, 42, 40, 38, 37, 36, 35, 34, 33, 32, 31, 30, 30, 29, 29, 29, 28, 29, 29, 28,
-        ],
+      spark: [],
       },
     ],
     blurb: {
@@ -345,11 +321,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        // U-rate rising slowly off the trough, recently flattening.
-        spark: [
-          5.0, 5.1, 5.1, 5.2, 5.3, 5.3, 5.4, 5.5, 5.6, 5.6, 5.7, 5.8,
-          5.8, 5.9, 5.9, 6.0, 6.0, 6.0, 6.1, 6.1, 6.0, 6.1, 6.1, 6.1,
-        ],
+      spark: [],
       },
       {
         key: "emp-percap-yoy",
@@ -358,10 +330,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        spark: [
-          0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.0, -0.1, -0.1, -0.2, -0.2, -0.3,
-          -0.3, -0.3, -0.3, -0.4, -0.4, -0.3, -0.3, -0.4, -0.3, -0.4, -0.4, -0.4,
-        ],
+      spark: [],
       },
       {
         key: "agg-hours-yoy",
@@ -370,10 +339,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        spark: [
-          2.4, 2.3, 2.1, 2.0, 1.9, 1.8, 1.7, 1.7, 1.6, 1.5, 1.4, 1.3,
-          1.3, 1.2, 1.2, 1.2, 1.1, 1.1, 1.1, 1.0, 1.0, 1.1, 1.0, 0.9,
-        ],
+      spark: [],
       },
       {
         key: "wage-lfs-micro",
@@ -382,10 +348,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        spark: [
-          5.0, 4.9, 4.8, 4.8, 4.7, 4.6, 4.5, 4.4, 4.4, 4.3, 4.2, 4.2,
-          4.1, 4.1, 4.0, 4.0, 3.9, 3.9, 3.9, 3.8, 3.8, 3.8, 3.7, 3.6,
-        ],
+      spark: [],
       },
     ],
     blurb: {
@@ -393,77 +356,6 @@ export const sections: Section[] = [
       date: "May 2, 2026",
       body:
         "April's LFS came in soft on employment but the unemployment rate held flat as participation slipped. The per-capita employment story keeps drifting; the IRCC plan vintage matters here more than the headline.",
-    },
-  },
-  {
-    slug: "housing",
-    label: "Housing",
-    accentVar: "--section-accent-housing",
-    kicker: "Starts, sales, prices, and household leverage.",
-    headlineQuestion:
-      "Is the rate-sensitive sector amplifying or dampening policy?",
-    cadence: "Monthly",
-    // CREA April release lands mid-month; placeholder Apr 15, 2026.
-    updatedAt: Date.UTC(2026, 3, 15, 9, 0),
-    chartSeriesKey: "hpi-yoy",
-    heroKicker: "April MLS HPI",
-    tileLine:
-      "Composite HPI slipped further into negative territory, Toronto and Vancouver leading the drift.",
-    prints: [
-      {
-        key: "hpi-yoy",
-        indicator: "MLS HPI, y/y",
-        value: "TK",
-        delta: "TK",
-        deltaDir: "neutral",
-        asOf: "TK",
-        // HPI rolled positive, crossed through zero, now sliding.
-        spark: [
-          3.2, 2.8, 2.4, 1.9, 1.5, 1.1, 0.8, 0.4, 0.1, -0.2, -0.4, -0.5,
-          -0.6, -0.7, -0.8, -0.9, -1.0, -1.0, -1.1, -1.2, -1.2, -1.1, -1.3, -1.4,
-        ],
-      },
-      {
-        key: "housing-starts-3mma",
-        indicator: "Housing starts, 3M MA",
-        value: "TK",
-        delta: "TK",
-        deltaDir: "neutral",
-        asOf: "TK",
-        spark: [
-          262, 268, 270, 265, 258, 262, 255, 250, 248, 252, 246, 250,
-          244, 248, 250, 246, 244, 246, 242, 248, 246, 244, 244, 238,
-        ],
-      },
-      {
-        key: "cmhc-arrears",
-        indicator: "CMHC arrears rate",
-        value: "TK",
-        delta: "TK",
-        deltaDir: "neutral",
-        asOf: "TK",
-        spark: [
-          0.14, 0.14, 0.15, 0.15, 0.16, 0.17, 0.17, 0.18, 0.19, 0.19, 0.20, 0.21,
-        ],
-      },
-      {
-        key: "months-inventory",
-        indicator: "Months of inventory",
-        value: "TK",
-        delta: "TK",
-        deltaDir: "neutral",
-        asOf: "TK",
-        spark: [
-          2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7,
-          3.7, 3.8, 3.9, 3.9, 4.0, 4.0, 4.1, 4.1, 4.2, 4.1, 4.2, 4.3,
-        ],
-      },
-    ],
-    blurb: {
-      kind: "last",
-      date: "Apr 15, 2026",
-      body:
-        "Toronto and Vancouver kept loosening into the spring market; Calgary held firm. The renewal cohort that prints over the summer is the one to watch, and we still expect the residual transmission to land mostly through consumption.",
     },
   },
   {
@@ -492,11 +384,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        // Staircase cuts off the 5.00 peak, with hold periods between.
-        spark: [
-          5.00, 5.00, 5.00, 5.00, 4.75, 4.75, 4.50, 4.50, 4.25, 4.25, 4.00, 4.00,
-          3.75, 3.75, 3.75, 3.50, 3.50, 3.25, 3.25, 3.00, 3.00, 3.00, 2.75, 2.75,
-        ],
+      spark: [],
       },
       {
         key: "goc-2y",
@@ -505,10 +393,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        spark: [
-          4.20, 4.10, 4.00, 3.90, 3.80, 3.70, 3.65, 3.55, 3.50, 3.40, 3.35, 3.30,
-          3.25, 3.20, 3.15, 3.10, 3.10, 3.05, 3.05, 3.00, 3.00, 2.97, 2.95, 2.92,
-        ],
+      spark: [],
       },
       {
         key: "boc-fed-spread",
@@ -517,22 +402,16 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        // Spread widening more negative as BoC cuts faster than Fed.
-        spark: [
-          -25, -32, -45, -58, -64, -72, -85, -91, -98, -108, -115, -120,
-          -125, -130, -132, -134, -138, -141, -143, -145, -148, -149, -150, -152,
-        ],
+      spark: [],
       },
       {
-        key: "neutral-midpoint",
-        indicator: "Estimated neutral midpoint",
+        key: "federal-budget-balance",
+        indicator: "Federal budget balance",
         value: "TK",
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        spark: [
-          3.00, 3.00, 2.95, 2.90, 2.90, 2.85, 2.85, 2.80, 2.80, 2.80, 2.75, 2.75,
-        ],
+      spark: [],
       },
     ],
     blurb: {
@@ -574,11 +453,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        // CAD weakening; FX walk.
-        spark: [
-          1.348, 1.352, 1.351, 1.355, 1.358, 1.354, 1.357, 1.361, 1.360, 1.364, 1.366, 1.362,
-          1.365, 1.368, 1.371, 1.369, 1.372, 1.370, 1.374, 1.373, 1.376, 1.374, 1.377, 1.378,
-        ],
+      spark: [],
       },
       {
         key: "goc-10y",
@@ -587,11 +462,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        // 10y wandering in a 30bp range.
-        spark: [
-          3.55, 3.52, 3.48, 3.45, 3.42, 3.38, 3.35, 3.32, 3.30, 3.33, 3.36, 3.34,
-          3.32, 3.35, 3.38, 3.36, 3.34, 3.36, 3.38, 3.40, 3.37, 3.38, 3.40, 3.41,
-        ],
+      spark: [],
       },
       {
         key: "tsx-composite",
@@ -600,10 +471,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        spark: [
-          21100, 21240, 21380, 21450, 21520, 21610, 21680, 21750, 21810, 21880, 21940, 22020,
-          22080, 22140, 22210, 22280, 22340, 22400, 22480, 22550, 22620, 22700, 22770, 22840,
-        ],
+      spark: [],
       },
       {
         key: "wti",
@@ -612,11 +480,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        // Crude drifting lower.
-        spark: [
-          82.4, 81.2, 80.5, 79.8, 78.6, 79.2, 78.0, 76.9, 77.4, 76.1, 75.3, 74.8,
-          75.5, 74.2, 73.6, 74.0, 73.1, 72.4, 73.0, 72.2, 71.8, 72.9, 72.0, 71.4,
-        ],
+      spark: [],
       },
     ],
     blurb: {
@@ -643,16 +507,12 @@ export const sections: Section[] = [
     prints: [
       {
         key: "trade-balance",
-        indicator: "Merch trade balance",
+        indicator: "Goods trade balance",
         value: "TK",
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        // Swings across zero, lately deeper deficit.
-        spark: [
-          1.4, 0.8, 1.1, 0.2, -0.3, 0.5, 0.1, -0.4, -0.8, 0.2, -0.6, -1.0,
-          -0.5, -1.2, -0.8, -1.5, -1.1, -1.6, -1.2, -1.8, -1.3, -1.6, -1.2, -2.3,
-        ],
+      spark: [],
       },
       {
         key: "current-account",
@@ -661,9 +521,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        spark: [
-          -2.1, -3.0, -4.2, -5.1, -5.8, -6.3, -6.9, -7.4, -7.6, -7.9, -8.1, -8.4,
-        ],
+      spark: [],
       },
       {
         key: "us-partner-share",
@@ -672,11 +530,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        // Slow secular drift down from mid-70s.
-        spark: [
-          75.2, 75.0, 74.9, 74.8, 74.6, 74.5, 74.3, 74.4, 74.2, 74.0, 73.9, 73.8,
-          73.7, 73.8, 73.6, 73.5, 73.4, 73.5, 73.3, 73.2, 73.3, 73.2, 73.2, 73.1,
-        ],
+      spark: [],
       },
       {
         key: "terms-of-trade",
@@ -685,10 +539,7 @@ export const sections: Section[] = [
         delta: "TK",
         deltaDir: "neutral",
         asOf: "TK",
-        // Quarterly index, fewer points.
-        spark: [
-          106.2, 106.8, 107.1, 106.5, 105.9, 105.4, 105.2, 104.6,
-        ],
+      spark: [],
       },
     ],
     blurb: {
@@ -696,6 +547,65 @@ export const sections: Section[] = [
       date: "Apr 3, 2026",
       body:
         "Auto and energy carried the March print on opposite shoulders. The US share keeps drifting, but the Section 232 follow-on actions named in March are the variable that matters into the summer USMCA review window.",
+    },
+  },
+  {
+    slug: "housing",
+    label: "Housing",
+    accentVar: "--section-accent-housing",
+    kicker: "Starts, sales, prices, and household leverage.",
+    headlineQuestion:
+      "Is the rate-sensitive sector amplifying or dampening policy?",
+    cadence: "Monthly",
+    // CREA April release lands mid-month; placeholder Apr 15, 2026.
+    updatedAt: Date.UTC(2026, 3, 15, 9, 0),
+    chartSeriesKey: "hpi-yoy",
+    heroKicker: "April MLS HPI",
+    tileLine:
+      "Composite HPI slipped further into negative territory, Toronto and Vancouver leading the drift.",
+    prints: [
+      {
+        key: "hpi-yoy",
+        indicator: "MLS HPI, y/y",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+      spark: [],
+      },
+      {
+        key: "housing-starts-3mma",
+        indicator: "Housing starts, 3mma",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+      spark: [],
+      },
+      {
+        key: "cmhc-arrears",
+        indicator: "CMHC arrears rate",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+      spark: [],
+      },
+      {
+        key: "months-inventory",
+        indicator: "Months of inventory",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+      spark: [],
+      },
+    ],
+    blurb: {
+      kind: "last",
+      date: "Apr 15, 2026",
+      body:
+        "Toronto and Vancouver kept loosening into the spring market; Calgary held firm. The renewal cohort that prints over the summer is the one to watch, and we still expect the residual transmission to land mostly through consumption.",
     },
   },
 ];
@@ -712,51 +622,89 @@ export const sections: Section[] = [
  * update. Anything beyond three lives on a future /deep-dives/ index.
  */
 
+/**
+ * Legacy enum kept for experiments only. Production does not render status;
+ * the deep-dive lifecycle states are not surfaced to readers.
+ */
 export type DeepDiveStatus = "research" | "drafted" | "shipped";
 
 export interface DeepDive {
-  /** Pillar code from editorial canon: A through H. */
-  pillar: string;
-  /** Home section slug — drives the section badge color. */
+  /** URL slug for /research/<slug>/. Lowercase, hyphenated, no trailing slash. */
+  slug: string;
+  /** Home section slug — used for section badge / grouping. */
   section: SectionSlug;
-  /** Short title, set as serif display-sm. */
+  /** Short title, set as display Manrope 800. */
   title: string;
-  /** One-sentence deck; serif italic. */
+  /** One-sentence deck; sub-display Manrope 200. */
   deck: string;
-  status: DeepDiveStatus;
+  /** ISO date string (YYYY-MM-DD) for sort + display. */
+  publishedAt?: string;
   /** Display string for the "Updated" stamp. */
   lastUpdated: string;
-  /** Eventual destination; v1 may resolve to a section page placeholder. */
+  /**
+   * Writer's working markdown body under `editorial/drafts/`. NOT rendered
+   * on the public site — this is the scratchpad with TKs, voice notes,
+   * and unresolved fact-check items.
+   */
+  draftPath?: string;
+  /**
+   * Publication-ready markdown body under `editorial/published/`. THIS is
+   * what /research/<slug>/ renders. Set only after the piece has cleared
+   * fact-check + style-edit. Entries with no `publishedPath` are filtered
+   * out of getStaticPaths — no slug route is built, no public URL exists.
+   */
+  publishedPath?: string;
+  /** Resolved destination; computed from slug when omitted. */
   href?: string;
+  /**
+   * @deprecated Editorial canon pillar letter (A-H). Not surfaced in
+   * production — letters were judged meaningless to the reader. Kept
+   * optional on the type so legacy /experiments/* renders don't break.
+   */
+  pillar?: string;
+  /**
+   * @deprecated Lifecycle status (research / drafted / shipped). Not
+   * surfaced in production. Kept optional on the type so legacy
+   * /experiments/* renders don't break.
+   */
+  status?: DeepDiveStatus;
 }
 
 export const deepDives: DeepDive[] = [
   {
-    pillar: "A",
+    slug: "mortgage-renewal-wall",
     section: "housing",
     title: "Mortgage renewal wall: has it peaked?",
     deck:
       "The 2026 renewal cohort is the largest single tranche in the stack. We map where the residual transmission lands through 2027.",
-    status: "drafted",
+    publishedAt: "2026-05-11",
     lastUpdated: "TK",
+    draftPath: "editorial/drafts/deepdive_pillar_a_mortgage_renewal_wall_v1.md",
+    // Legacy fields retained so /experiments/* keeps building. Not rendered in production.
+    pillar: "A",
+    status: "drafted",
   },
   {
-    pillar: "B",
+    slug: "boc-fed-divergence",
     section: "policy",
     title: "BoC vs. Fed: how far can the divergence run?",
     deck:
       "TK basis points and counting. We trace the CAD, GoC curve, and credit channels that would force a back-off, and where the breakpoints sit.",
-    status: "shipped",
+    publishedAt: "TK",
     lastUpdated: "TK",
+    pillar: "B",
+    status: "shipped",
   },
   {
-    pillar: "E",
+    slug: "per-capita-output",
     section: "labour",
     title: "Per-capita output: deceleration or weakness?",
     deck:
       "The headline labour print is flattering. The per-capita series is not. We separate the population-deceleration story from the cyclical weakness story.",
-    status: "research",
+    publishedAt: "TK",
     lastUpdated: "TK",
+    pillar: "E",
+    status: "research",
   },
 ];
 

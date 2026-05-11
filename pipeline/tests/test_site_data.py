@@ -23,6 +23,7 @@ from pipeline.io.site_data import (
     SCHEMA_VERSION,
     SECTION_SLUGS,
     SECTION_CONFIGS,
+    SUPPORTING_PRINTS,
     _sample_spark,
     build_site_data,
 )
@@ -153,7 +154,13 @@ def test_build_site_data_writes_all_seven_sections(tmp_path):
 
 def test_inflation_section_has_real_value_and_spark(tmp_path):
     """Inflation tile carries a value derived from the latest CSV row,
-    a reference rule (BoC target 2%), and a 24-point sparkline."""
+    a reference rule (BoC target 2%), and a 24-point sparkline.
+
+    The load-bearing (primary) print is always prints[0]; supporting prints
+    follow when SUPPORTING_PRINTS declares them for the section. When the
+    sandbox doesn't seed supporting series, they render as TK sentinels
+    (available=False) but the primary read still succeeds.
+    """
     data_root = tmp_path / "data"
     _seed_minimal_pipeline(data_root)
     payload = build_site_data(data_root)
@@ -164,8 +171,8 @@ def test_inflation_section_has_real_value_and_spark(tmp_path):
     assert inflation["primarySeries"] == "cpi_all_items_yoy"
     assert "error" not in inflation
 
-    # One canonical print, matching the chart series key.
-    assert len(inflation["prints"]) == 1
+    # Primary print at index 0 always carries the load-bearing series.
+    assert len(inflation["prints"]) >= 1
     p = inflation["prints"][0]
     assert p["key"] == "cpi-yoy"
     assert p["indicator"] == "Headline CPI, y/y"
@@ -246,7 +253,10 @@ def test_missing_series_yields_error_sentinel(tmp_path):
     assert set(payload["sections"].keys()) == set(SECTION_SLUGS)
     inflation = payload["sections"]["inflation"]
     assert "error" not in inflation
-    assert len(inflation["prints"]) == 1
+    # Primary print is the load-bearing one; supporting prints are TK
+    # sentinels in this sandbox (their CSVs aren't seeded).
+    assert len(inflation["prints"]) >= 1
+    assert inflation["prints"][0]["key"] == "cpi-yoy"
 
     for slug in ("gdp", "labour", "housing", "policy", "markets", "trade"):
         section = payload["sections"][slug]
@@ -374,3 +384,558 @@ def test_sample_spark_daily_returns_30_weekly_points():
 def test_sample_spark_handles_empty_input():
     assert _sample_spark(pd.DataFrame(columns=["date", "value"]), "monthly") == []
     assert _sample_spark(pd.DataFrame(columns=["date", "value"]), "daily") == []
+
+
+# --------------------------------------------------------------------------- #
+# Supporting-print tests
+# --------------------------------------------------------------------------- #
+
+def test_supporting_prints_catalog_covers_every_section():
+    """SUPPORTING_PRINTS must have an entry (possibly empty) for every canon
+    section slug so the loader can iterate without slug-mismatch surprises."""
+    for slug in SECTION_SLUGS:
+        assert slug in SUPPORTING_PRINTS, f"{slug} missing from SUPPORTING_PRINTS"
+        # Every spec's key must be unique within the section to keep the
+        # frontend `key`-lookup deterministic.
+        keys = [s.key for s in SUPPORTING_PRINTS[slug]]
+        assert len(keys) == len(set(keys)), f"{slug}: duplicate supporting print key in {keys}"
+
+
+def test_supporting_prints_tk_sentinel_when_source_missing(tmp_path):
+    """If a supporting print's underlying CSV is not on disk, the print is
+    still emitted as a TK sentinel with `available: False`. This keeps the
+    homepage tile layout (one row per canon key) stable across pipeline runs.
+    """
+    data_root = tmp_path / "data"
+    _seed_minimal_pipeline(data_root)
+    payload = build_site_data(data_root)
+
+    # inflation: cpi-yoy primary is real; core-trim/median/breadth supporting
+    # series were not seeded -> TK sentinels expected.
+    inflation = payload["sections"]["inflation"]
+    keys = [p["key"] for p in inflation["prints"]]
+    assert keys[0] == "cpi-yoy"
+    assert "core-trim-yoy" in keys
+    assert "core-median-yoy" in keys
+    assert "cpi-breadth-gt3" in keys
+
+    by_key = {p["key"]: p for p in inflation["prints"]}
+    # Primary is real
+    assert by_key["cpi-yoy"]["value"] != "TK"
+    assert by_key["cpi-yoy"].get("available", True) is True
+    # Supporting (no seed) are TK
+    for k in ("core-trim-yoy", "core-median-yoy", "cpi-breadth-gt3"):
+        assert by_key[k]["value"] == "TK"
+        assert by_key[k]["delta"] == "TK"
+        assert by_key[k]["available"] is False
+        assert by_key[k]["spark"] == []
+
+
+def test_supporting_print_yoy_transform(tmp_path):
+    """A supporting print with `transform='yoy'` computes year-over-year %
+    on a raw monthly level and renders the latest value + delta.
+
+    Uses labour's `agg-hours-yoy` spec which reads `aggregate_hours` raw
+    and applies pct_change(12) * 100.
+    """
+    data_root = tmp_path / "data"
+    _seed_minimal_pipeline(data_root)
+    # Seed 18 months of aggregate_hours starting Nov 2024 (so latest is
+    # Apr 2026, with a Y/Y comparison vs Apr 2025).
+    levels = list(range(100, 118))  # values 100..117 across 18 months
+    _write_pair(
+        data_root, "raw", "aggregate_hours",
+        _monthly_df([float(v) for v in levels], start="2024-11-01"),
+        {
+            "name": "aggregate_hours", "source": "Statistics Canada",
+            "source_url": "https://example.invalid/hours",
+            "source_id": "v4391505",
+            "units": "Thousands of hours", "frequency": "monthly",
+            "fetched_at": "2026-05-11T00:00:00+00:00",
+            "release_date": None,
+        },
+    )
+    payload = build_site_data(data_root)
+    labour = payload["sections"]["labour"]
+    by_key = {p["key"]: p for p in labour["prints"]}
+    assert "agg-hours-yoy" in by_key
+    p = by_key["agg-hours-yoy"]
+    assert p["available"] is True
+    # Apr 2025 = 105, Apr 2026 = 117 -> (117/105 - 1) * 100 = 11.43%
+    assert p["valueRaw"] == pytest.approx(11.428571, rel=1e-3)
+    assert p["value"].endswith("%")
+    assert p["deltaDir"] in {"pos", "neg", "neutral"}
+
+
+def test_supporting_print_3m_ma_transform(tmp_path):
+    """A supporting print with `transform='3m_ma'` smooths the level series."""
+    data_root = tmp_path / "data"
+    _seed_minimal_pipeline(data_root)
+    # Seed housing prices (load-bearing) and housing_starts (raw).
+    _write_pair(
+        data_root, "processed", "crea_hpi_canada_yoy",
+        _monthly_df([-5.0, -4.5, -4.0, -3.5, -3.0, -2.5, -2.0, -1.5, -1.0,
+                     -0.5, 0.0, 0.5, 0.7, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4,
+                     1.5, 1.6, 1.7, 1.8, 1.9],
+                    start="2024-04-01"),
+        {
+            "name": "crea_hpi_canada_yoy", "source": "CREA",
+            "source_url": "https://example.invalid",
+            "source_id": "CREA-HPI-AGGREGATE",
+            "units": "%", "frequency": "monthly",
+            "fetched_at": "2026-05-11T00:00:00+00:00",
+            "release_date": None,
+        },
+    )
+    starts = [240.0, 245.0, 250.0, 248.0, 246.0, 244.0]
+    _write_pair(
+        data_root, "raw", "housing_starts",
+        _monthly_df(starts, start="2025-11-01"),
+        {
+            "name": "housing_starts", "source": "Statistics Canada",
+            "source_url": "https://example.invalid",
+            "source_id": "v52300157",
+            "units": "Units, SAAR", "frequency": "monthly",
+            "fetched_at": "2026-05-11T00:00:00+00:00",
+            "release_date": None,
+        },
+    )
+    payload = build_site_data(data_root)
+    housing = payload["sections"]["housing"]
+    by_key = {p["key"]: p for p in housing["prints"]}
+    p = by_key["housing-starts-3mma"]
+    assert p["available"] is True
+    # 3M MA of last three (Feb, Mar, Apr) = (248+246+244)/3 = 246.0
+    assert p["valueRaw"] == pytest.approx(246.0, rel=1e-6)
+    assert p["value"].endswith("k")
+
+
+def test_supporting_print_spread_bps(tmp_path):
+    """A spread_bps transform yields a basis-point value derived as
+    (primary - secondary) * 100 in the SAME percent->bps direction the
+    delta formatter expects, so no double-conversion happens."""
+    data_root = tmp_path / "data"
+    _seed_minimal_pipeline(data_root)
+    # Land 30 business days of yield_2yr and us_2yr.
+    daily_dates = pd.bdate_range(start="2026-04-01", periods=30)
+    _write_pair(
+        data_root, "raw", "yield_2yr",
+        pd.DataFrame({"date": daily_dates, "value": [3.00 + 0.01 * i for i in range(30)]}),
+        {
+            "name": "yield_2yr", "source": "Bank of Canada",
+            "source_url": "https://example.invalid", "source_id": "BD.CDN.2YR.DQ.YLD",
+            "units": "%", "frequency": "daily",
+            "fetched_at": "2026-05-11T00:00:00+00:00",
+            "release_date": None,
+        },
+    )
+    _write_pair(
+        data_root, "raw", "us_2yr",
+        pd.DataFrame({"date": daily_dates, "value": [4.00 + 0.005 * i for i in range(30)]}),
+        {
+            "name": "us_2yr", "source": "FRED",
+            "source_url": "https://example.invalid", "source_id": "DGS2",
+            "units": "%", "frequency": "daily",
+            "fetched_at": "2026-05-11T00:00:00+00:00",
+            "release_date": None,
+        },
+    )
+    payload = build_site_data(data_root)
+    policy = payload["sections"]["policy"]
+    by_key = {p["key"]: p for p in policy["prints"]}
+    p = by_key["boc-fed-spread"]
+    assert p["available"] is True
+    # day 29 (last): CAD 3.29, US 4.145 -> spread = -0.855% = -85.5 bps
+    assert p["valueRaw"] == pytest.approx(-85.5, rel=1e-2)
+    # Value renders in bps with " bps" label
+    assert p["value"].endswith(" bps")
+    # Delta is the bps step day-over-day: CAD +1bp, US +0.5bp -> spread +0.5bp.
+    # The renderer should print "+1 bps" or "+0 bps" given decimals=0.
+    assert p["delta"].endswith(" bps")
+
+
+def test_supporting_print_partner_share(tmp_path):
+    """A partner_share transform divides the primary series by the secondary
+    and multiplies by 100, yielding a percent share."""
+    data_root = tmp_path / "data"
+    _seed_minimal_pipeline(data_root)
+    # Trade balance (load-bearing) + US exports + total exports.
+    _write_pair(
+        data_root, "processed", "trade_balance_total_3m_ma",
+        _monthly_df([-1000.0, -1100.0, -1200.0, -2000.0, -2100.0, -2200.0],
+                    start="2025-10-01"),
+        {
+            "name": "trade_balance_total_3m_ma", "source": "Statistics Canada",
+            "source_url": "https://example.invalid", "source_id": "v87008984",
+            "units": "CAD millions", "frequency": "monthly",
+            "fetched_at": "2026-05-11T00:00:00+00:00",
+            "release_date": None,
+        },
+    )
+    _write_pair(
+        data_root, "raw", "trade_exports_us",
+        _monthly_df([40000.0, 41000.0, 42000.0], start="2026-01-01"),
+        {
+            "name": "trade_exports_us", "source": "Statistics Canada",
+            "source_url": "https://example.invalid", "source_id": "v87008898",
+            "units": "CAD millions, SA", "frequency": "monthly",
+            "fetched_at": "2026-05-11T00:00:00+00:00",
+            "release_date": None,
+        },
+    )
+    _write_pair(
+        data_root, "raw", "trade_exports_total",
+        _monthly_df([55000.0, 56000.0, 60000.0], start="2026-01-01"),
+        {
+            "name": "trade_exports_total", "source": "Statistics Canada",
+            "source_url": "https://example.invalid", "source_id": "v87008897",
+            "units": "CAD millions, SA", "frequency": "monthly",
+            "fetched_at": "2026-05-11T00:00:00+00:00",
+            "release_date": None,
+        },
+    )
+    payload = build_site_data(data_root)
+    trade = payload["sections"]["trade"]
+    by_key = {p["key"]: p for p in trade["prints"]}
+    p = by_key["us-partner-share"]
+    assert p["available"] is True
+    # Last: 42000 / 60000 = 0.7 = 70%
+    assert p["valueRaw"] == pytest.approx(70.0, rel=1e-3)
+    assert p["value"] == "70.0%"
+
+
+def test_supporting_print_fy_ytd_yoy_vs_prior_fy_at_same_month(tmp_path):
+    """The Policy panel's federal-budget-balance row reads from the FY-YTD
+    cumulative series and compares the latest point to the PRIOR FY's YTD
+    through the SAME month (not the prior calendar month, which would just
+    re-expose the noisy single-month balance the swap was meant to suppress).
+
+    This is the DoF Fiscal Monitor headline framing. Seed two full Canadian
+    fiscal years of cumulative-YTD points and assert the latest's delta is
+    against the 12-month-lag observation.
+    """
+    data_root = tmp_path / "data"
+    _seed_minimal_pipeline(data_root)
+    # Seed the cumulative FY-YTD series: 12 months of prior FY (Apr 2024 to
+    # Mar 2025, FY25, finalizes at -43_154) + 11 months of current FY (Apr
+    # 2025 to Feb 2026, FY26 YTD at -25_550 through Feb).
+    # Using exactly the on-disk values so the test asserts the same
+    # production numbers reported on the tile.
+    fy_ytd_values = [
+        -4994.0, -3822.0, -2883.0, -7295.0, -9841.0, -13010.0, -14503.0,
+        -22716.0, -21714.0, -26848.0, -19274.0, -43154.0,
+        -7711.0, -9905.0, -6276.0, -7788.0, -11068.0, -16091.0, -18369.0,
+        -26386.0, -26141.0, -31209.0, -25550.0,
+    ]
+    _write_pair(
+        data_root, "processed", "federal_budget_ytd",
+        _monthly_df(fy_ytd_values, start="2024-04-01"),
+        {
+            "name": "federal_budget_ytd",
+            "source": "Department of Finance Canada -- Fiscal Monitor (derived)",
+            "source_url": "https://example.invalid/fiscal-monitor",
+            "source_id": "federal_budget_balance:cumsum-by-fy",
+            "units": "CAD millions", "frequency": "monthly",
+            "fetched_at": "2026-05-11T00:00:00+00:00",
+            "release_date": None,
+        },
+    )
+    payload = build_site_data(data_root)
+    policy = payload["sections"]["policy"]
+    by_key = {p["key"]: p for p in policy["prints"]}
+    assert "federal-budget-balance" in by_key
+    p = by_key["federal-budget-balance"]
+    assert p["available"] is True
+    # Latest: FY26 YTD through Feb 2026 = -25,550 CAD millions -> "-$25.6B"
+    assert p["valueRaw"] == pytest.approx(-25550.0, rel=1e-6)
+    assert p["value"] == "-$25.6B"
+    # Prior: FY25 YTD through Feb 2025 = -19,274 (NOT the Jan 2026 point
+    # which is -31,209). This is the load-bearing assertion: comparator is
+    # 12 months back, not iloc[-2].
+    assert p["priorRaw"] == pytest.approx(-19274.0, rel=1e-6)
+    # Delta = -25,550 - (-19,274) = -6,276 millions -> "-$6.3B"
+    assert p["delta"] == "-$6.3B"
+    # Sign of change (deficit widened) -> 'neg'
+    assert p["deltaDir"] == "neg"
+    # as_of_format='fy-ytd-month' renders "FY26 through Feb"
+    assert p["asOf"] == "FY26 through Feb"
+
+
+def test_supporting_print_fy_ytd_falls_back_when_prior_fy_missing(tmp_path):
+    """When the FY-YTD series only carries the current FY (12-month-lag
+    point not on disk), the print should still render -- it falls back to
+    iloc[-2] for the comparator rather than dropping the row.
+
+    Editorial-side requirement: never sink the row layout because of
+    insufficient history; v1 may legitimately ship before the full prior-
+    FY landed on disk.
+    """
+    data_root = tmp_path / "data"
+    _seed_minimal_pipeline(data_root)
+    # Only 3 months of current-FY YTD, no prior-FY history.
+    _write_pair(
+        data_root, "processed", "federal_budget_ytd",
+        _monthly_df([-7711.0, -9905.0, -6276.0], start="2025-04-01"),
+        {
+            "name": "federal_budget_ytd",
+            "source": "Department of Finance Canada -- Fiscal Monitor (derived)",
+            "source_url": "https://example.invalid/fiscal-monitor",
+            "source_id": "federal_budget_balance:cumsum-by-fy",
+            "units": "CAD millions", "frequency": "monthly",
+            "fetched_at": "2026-05-11T00:00:00+00:00",
+            "release_date": None,
+        },
+    )
+    payload = build_site_data(data_root)
+    policy = payload["sections"]["policy"]
+    by_key = {p["key"]: p for p in policy["prints"]}
+    p = by_key["federal-budget-balance"]
+    assert p["available"] is True
+    # No 12-month-lag observation; comparator falls back to iloc[-2] (May).
+    assert p["priorRaw"] == pytest.approx(-9905.0, rel=1e-6)
+    assert p["valueRaw"] == pytest.approx(-6276.0, rel=1e-6)
+
+
+def test_format_as_of_fy_ytd_month_label_boundary(tmp_path):
+    """The 'fy-ytd-month' label assigns the FY-END year as the FY tag.
+
+    Canadian federal FY = April-March. Feb 2026 belongs to FY26 (the FY
+    that ends March 2026). March 2025 belongs to FY25. April 2025 starts
+    FY26. Regression guard for the boundary handling.
+    """
+    from pipeline.io.site_data import _format_as_of
+    assert _format_as_of(pd.Timestamp("2026-02-28"), "fy-ytd-month") == "FY26 through Feb"
+    assert _format_as_of(pd.Timestamp("2025-03-31"), "fy-ytd-month") == "FY25 through Mar"
+    assert _format_as_of(pd.Timestamp("2025-04-30"), "fy-ytd-month") == "FY26 through Apr"
+    assert _format_as_of(pd.Timestamp("2024-12-31"), "fy-ytd-month") == "FY25 through Dec"
+
+
+def test_supporting_print_load_bearing_always_first(tmp_path):
+    """The load-bearing print is always prints[0]; supporting prints follow.
+    Frontend relies on prints[0] being the chartSeriesKey-matching row."""
+    data_root = tmp_path / "data"
+    _seed_minimal_pipeline(data_root)
+    payload = build_site_data(data_root)
+    for slug in SECTION_SLUGS:
+        section = payload["sections"][slug]
+        prints = section.get("prints", [])
+        if not prints:
+            continue
+        cfg = SECTION_CONFIGS[slug]
+        assert prints[0]["key"] == cfg.print_key, \
+            f"{slug}: first print should be the load-bearing {cfg.print_key}"
+
+
+# --------------------------------------------------------------------------- #
+# Canonical formatter tests (pipeline.io.format)
+#
+# Round-trip raw -> formatted for each kind, plus character-cap assertions.
+# Mirrors the rule set chart-builder enforces in src/components/charts/_shared/
+# format.ts -- both implementations must agree on the same outputs.
+# --------------------------------------------------------------------------- #
+
+from pipeline.io.format import (
+    DELTA_CAP,
+    HEADLINE_CAP,
+    TICK_CAP,
+    fmt_delta,
+    fmt_tick,
+    fmt_value,
+)
+
+
+def test_fmt_value_percent():
+    assert fmt_value(2.3241590214, kind="percent") == "2.3%"
+    assert fmt_value(6.9, kind="percent") == "6.9%"
+    assert fmt_value(-4.595336, kind="percent") == "-4.6%"
+    # Zero
+    assert fmt_value(0.0, kind="percent") == "0.0%"
+
+
+def test_fmt_value_rate_level_uses_two_decimals_when_small():
+    assert fmt_value(2.25, kind="rate_level", decimals=2) == "2.25%"
+    # >= 10 collapses to 1 decimal under the default
+    assert fmt_value(12.55, kind="rate_level") == "12.6%"
+
+
+def test_fmt_value_basis_points():
+    # Signed, integer, " bps" suffix.
+    assert fmt_value(25.0, kind="basis_points") == "+25 bps"
+    assert fmt_value(-100.0, kind="basis_points") == "-100 bps"
+    # +0 still signed by canon (caller decides neutrality glyph separately).
+    assert fmt_value(0.0, kind="basis_points") == "+0 bps"
+
+
+def test_fmt_value_currency_cad_scales_to_billions():
+    # Federal budget balance, +5659 CAD millions -> "$5.7B".
+    assert fmt_value(5659.0, kind="currency_cad") == "$5.7B"
+    # Trade balance, -2175.6 millions -> "-$2.2B".
+    assert fmt_value(-2175.6, kind="currency_cad") == "-$2.2B"
+    # Sub-billion stays in millions per canon (e.g. -706 -> "-$706M").
+    assert fmt_value(-706.0, kind="currency_cad") == "-$706M"
+
+
+def test_fmt_value_fx_three_decimals_for_unit_range():
+    assert fmt_value(1.3686, kind="fx") == "1.369"
+    assert fmt_value(1.3613, kind="fx") == "1.361"
+
+
+def test_fmt_value_index_level_scales_at_ten_thousand():
+    # TSX Composite ~34,077.76 -> "34.1k" (the brief's headline offender fix).
+    assert fmt_value(34077.76, kind="index_level") == "34.1k"
+    # Sub-thousand keeps decimals.
+    assert fmt_value(109.76, kind="index_level") == "109.8"
+    # Comma-grouped in the 1000-9999 band.
+    assert fmt_value(5_234.0, kind="index_level") == "5,234"
+
+
+def test_fmt_value_count_scales_persons():
+    # EI beneficiaries 1.16M-style.
+    assert fmt_value(1_160_000.0, kind="count") == "1.2M"
+    assert fmt_value(455_000.0, kind="count") == "455k"
+    # Below 1k stays integer.
+    assert fmt_value(240.0, kind="count") == "240"
+
+
+def test_fmt_value_count_thousands_treats_input_as_thousands():
+    # Housing starts on disk: 241.3 means 241,272 units SAAR -> "241k".
+    assert fmt_value(241.27, kind="count_thousands") == "241k"
+    # When the thousands-scaled value crosses 1000, escalate to M.
+    assert fmt_value(1500.0, kind="count_thousands") == "1.5M"
+
+
+def test_fmt_value_ratio_multiplies_by_one_hundred():
+    # BoC housing affordability decimal 0.43 -> "43.0%".
+    assert fmt_value(0.43, kind="ratio") == "43.0%"
+
+
+def test_fmt_value_returns_tk_for_none_or_nan():
+    assert fmt_value(None, kind="percent") == "TK"
+    assert fmt_value(float("nan"), kind="percent") == "TK"
+
+
+def test_fmt_value_respects_headline_cap_of_eight_chars():
+    """Every kind, for plausible upper-end inputs, must fit within 8 chars."""
+    cases: list[tuple[str, float, str]] = [
+        ("percent", 99.9, ""),
+        ("percent", -99.9, ""),
+        ("percent_pp", 99.9, ""),
+        # Plausible policy-move scale; a single 999 bp move is the editorial
+        # upper bound (a >9.99 percentage-point step is implausible in
+        # practice and would warrant a special break-glass renderer anyway).
+        ("basis_points", -999.0, ""),
+        ("rate_level", 12.45, ""),
+        ("currency_cad", 9876.5, ""),   # -> "$9.9B"
+        ("currency_cad", -9876.5, ""),
+        ("fx", 1.3686, ""),
+        ("index_level", 34_077.76, ""),  # -> "34.1k"
+        ("index_level", 999_999.0, ""),  # -> "1000.0k" -> 7 chars
+        ("count", 1_160_000.0, ""),
+        ("count_thousands", 241.27, ""),
+        ("ratio", 0.43, ""),
+    ]
+    for kind, value, _ in cases:
+        out = fmt_value(value, kind=kind)
+        assert len(out) <= HEADLINE_CAP, f"fmt_value({value!r}, {kind}) -> {out!r} > {HEADLINE_CAP}"
+
+
+def test_fmt_delta_signed_with_unit_suffix():
+    assert fmt_delta(0.5, kind="percent_pp") == "+0.5 pp"
+    assert fmt_delta(-0.2, kind="percent_pp") == "-0.2 pp"
+    assert fmt_delta(25.0, kind="basis_points") == "+25 bps"
+    assert fmt_delta(-100.0, kind="basis_points") == "-100 bps"
+    assert fmt_delta(10727.0, kind="currency_cad") == "+$10.7B"
+    assert fmt_delta(900.0, kind="currency_cad") == "+$900M"
+
+
+def test_fmt_delta_returns_empty_for_none_or_nan():
+    assert fmt_delta(None, kind="percent_pp") == ""
+    assert fmt_delta(float("nan"), kind="percent_pp") == ""
+
+
+def test_fmt_delta_respects_delta_cap_of_eight_chars():
+    """Plausible upper-end deltas must fit within DELTA_CAP."""
+    cases: list[tuple[str, float]] = [
+        ("percent", 99.9),
+        ("percent_pp", -9.9),
+        ("basis_points", 999.0),
+        ("basis_points", -999.0),
+        ("currency_cad", -1234.0),  # -> "-$1.2B" 6 chars
+        ("currency_cad", 10727.0),  # -> "+$10.7B" 7 chars
+        ("count", -1_160_000.0),
+        ("count_thousands", -150.0),
+        ("ratio", 0.05),
+        ("fx", -0.0042),
+    ]
+    for kind, value in cases:
+        out = fmt_delta(value, kind=kind)
+        assert len(out) <= DELTA_CAP, f"fmt_delta({value!r}, {kind}) -> {out!r} > {DELTA_CAP}"
+
+
+def test_fmt_tick_bare_number_unless_top():
+    # Mid-axis tick (no unit).
+    assert fmt_tick(2.3, kind="percent") == "2.3"
+    # Topmost tick carries the unit per canon.
+    assert fmt_tick(2.3, kind="percent", is_top=True) == "2.3%"
+    # bps tick suppresses suffix off-top.
+    assert fmt_tick(25.0, kind="basis_points") == "25"
+    assert fmt_tick(25.0, kind="basis_points", is_top=True) == "25 bps"
+
+
+def test_fmt_tick_respects_tick_cap_of_six_chars():
+    """Tick labels for plausible inputs must fit TICK_CAP."""
+    cases: list[tuple[str, float, bool]] = [
+        ("percent", 12.4, False),
+        ("percent", 12.4, True),
+        ("rate_level", 5.25, False),
+        ("rate_level", 5.25, True),
+        ("currency_cad", 9.8, False),   # "$10M" -> 4 chars after strip
+        ("currency_cad", 5_659.0, True),  # "$5.7B"
+        ("index_level", 34_078.0, False),  # "34.1k"
+        ("fx", 1.3686, False),
+        ("count_thousands", 241.0, False),
+    ]
+    for kind, value, top in cases:
+        out = fmt_tick(value, kind=kind, is_top=top)
+        assert len(out) <= TICK_CAP, \
+            f"fmt_tick({value!r}, {kind}, is_top={top}) -> {out!r} > {TICK_CAP}"
+
+
+def test_formatter_canonical_offender_table_now_fits():
+    """The five long-string offenders in sections.json before this change,
+    expressed as a tabular round-trip:
+
+      raw value              kind             -> new formatted string
+
+    TSX 34,077.76 (was "34,078" 6 chars)  -> "34.1k" 5 chars (index_level)
+    Trade balance -2175.6M millions       -> "-$2.2B" 6 chars (currency_cad)
+    Federal budget +5659.0 millions       -> "$5.7B"  5 chars (currency_cad)
+    BoC-Fed spread -98 bps                -> "-98 bps" 7 chars (basis_points)
+    EI beneficiaries 1,160,000 persons    -> "1.2M"   4 chars (count)
+    """
+    assert fmt_value(34_077.76, kind="index_level") == "34.1k"
+    assert fmt_value(-2175.6, kind="currency_cad") == "-$2.2B"
+    assert fmt_value(5659.0, kind="currency_cad") == "$5.7B"
+    assert fmt_value(-98.0, kind="basis_points") == "-98 bps"
+    assert fmt_value(1_160_000.0, kind="count") == "1.2M"
+    # And the related deltas:
+    assert fmt_delta(10727.0, kind="currency_cad") == "+$10.7B"
+    assert fmt_delta(900.0, kind="currency_cad") == "+$900M"
+
+
+def test_sections_json_strings_now_within_caps(tmp_path):
+    """After regenerating sections.json, every emitted value/delta string
+    fits its respective character cap. Guards against editorial drift."""
+    data_root = tmp_path / "data"
+    _seed_minimal_pipeline(data_root)
+    payload = build_site_data(data_root)
+    for slug, section in payload["sections"].items():
+        for p in section.get("prints", []):
+            value = p.get("value")
+            delta = p.get("delta")
+            if value and value != "TK":
+                assert len(value) <= HEADLINE_CAP, \
+                    f"{slug}/{p.get('key')}: value {value!r} exceeds {HEADLINE_CAP} chars"
+            if delta and delta != "TK":
+                assert len(delta) <= DELTA_CAP, \
+                    f"{slug}/{p.get('key')}: delta {delta!r} exceeds {DELTA_CAP} chars"

@@ -364,6 +364,16 @@ sRGB screens, but it sits within the same family. One accent color, used
   (e.g. the word `INDEPENDENT` in `RESEARCH NOTE | CANADIAN MACRO |
   INDEPENDENT` renders in accent red to surface the publication's
   editorial stance).
+- **The colophon / publication-mark closing rule.** A single 2px MTA red
+  hairline sits directly above the publication mark in the site footer
+  (`VignelliColophon.astro` `.vig-col__rule--signal`). Functions as the
+  brand-signal kicker for the colophon - the last red moment a reader
+  meets on the page, mirroring the plate-number / figure-number stamp at
+  the top. Threads the brand across the full scroll. This is the only
+  rule on the site (other than the latest-point dot, the focus ring, and
+  the selection highlight) that is permitted to be red; ordinary table
+  rules, plot frames, section dividers, and masthead hairlines remain
+  pure ink. See Section 3.6.
 
 **Never used on data direction.** Pos/neg encoding is glyph-driven (see
 Section 4). A chart line is **never** red unless the chart is making a
@@ -457,6 +467,163 @@ chrome** - Vignelli is one accent (signal red) only on the homepage.
 - **Event lines:** 1px solid pure ink, dashed `4 2`, with a `micro`
   label sitting above the plot area. Reserved for editorial moments
   (e.g. a rate decision, a release date).
+
+### 3.5 Placeholder ink treatment
+
+**The canon for any rendered string that is NOT real data: "TK",
+"Coming soon", "[ NOT WIRED ]", "DATA NOT YET WIRED", lorem-ipsum
+stamps, empty editorial slots.**
+
+Before this section existed, five production components each
+hard-coded their own mid-gray (`#8A8A8A` in `SectionPanel.astro`,
+`TitleStatement.astro`, `DeepDivePanel.astro`, `VignelliColophon.astro`,
+and `PanelEmpty.astro`), or composed opacity onto `--ink-faint`. The
+result was that placeholder ink read consistently to a reader but was
+unauditable in code: a grep for `#8A8A8A` found some uses, a grep for
+`opacity` found others, and the QA sweep on 2026-05-11 found a sixth
+component (`DeepDivePanel`'s "Coming soon" stamp) that had silently
+dropped to pure ink because its `--tk` class rule was never written.
+This section closes the gap.
+
+**The token.** Placeholder ink is a real token:
+
+```
+--ink-placeholder: #8A8A8A;
+```
+
+Defined in `src/styles/tokens.css` alongside the other neutrals. The
+hex `#8A8A8A` is the mid-gray that balances against pure ink on a
+paper-white ground without competing with weight contrast for the
+reader's eye - lighter and the placeholder dissolves into the page;
+darker and it reads as real text dimmed. We do NOT compose opacity on
+`--ink-faint` for placeholder copy; opacity-composition is reserved
+for chrome (the masthead nav pipes, the eyebrow separators) where the
+goal is "visible restraint." Placeholder copy is a different
+information class - it says "this is a slot waiting for data" - and
+deserves its own token.
+
+**The application rules.** Any rendered placeholder string uses
+`color: var(--ink-placeholder)`. Two typographic treatments, one per
+slot kind:
+
+- **Date / value / stamp slot** (e.g. an `AS OF` body, a callout
+  value, a latest-release stamp, a deep-dive published date):
+  Plex Mono at the slot's normal size, weight 400, micro-caps
+  treatment if the surrounding stamp uses one (`text-transform:
+  uppercase`, `letter-spacing: 0.14em`). Canonical literal:
+  `[ NOT WIRED ]`. The brackets are part of the stamp; they read as a
+  typeset placeholder, not as a bug.
+- **Sentence slot** (e.g. a homepage abstract lede, a plate
+  interpretation paragraph, a deep-dive teaser dek): Manrope at the
+  slot's normal size, weight 200 (ExtraLight). The ExtraLight weight
+  substitutes for the italic the Vignelli register forbids and signals
+  "this is placeholder prose," matching the existing lorem-ipsum
+  treatment on the homepage abstract.
+
+The mid-gray + weight-200 / mono-400 combination is the only treatment
+permitted for placeholder copy. No opacity stacking, no second gray,
+no near-black-at-50%-opacity. One token, two slot kinds.
+
+**The detection gate.** Placeholder detection happens at the data
+boundary, not at the consuming component. The single gate is
+`enrichPrint` in `src/data/site_data_loader.ts`: any incoming string
+equal to:
+
+- `"TK"` (the journalism convention; the pipeline emits this for
+  not-yet-wired values),
+- any `PLACEHOLDER.*` constant from `site_data_loader.ts` itself
+  (`PLACEHOLDER.value`, `PLACEHOLDER.notWired`,
+  `PLACEHOLDER.nextReleaseNotWired`, `PLACEHOLDER.statusPending`),
+- or an empty string (`""`),
+
+is coerced to `null` at the enrichment step. The component then
+receives `null` for the field and renders the canonical placeholder
+stamp (`[ NOT WIRED ]` or `Coming soon`, per slot kind) in
+`--ink-placeholder`.
+
+**Components MUST NOT pattern-match placeholder strings themselves.**
+The component layer renders `value` as data when it is a string and as
+a placeholder when it is `null`. Period. If a component finds itself
+checking `value === "TK"`, the bug is in the loader, not in the
+component - the gate has leaked. The 2026-05-11 QA found exactly this
+pattern across `ChartbookUnit`, `SectionPanel`, and the seven
+`src/pages/{slug}.astro` plate definitions; the fix is to tighten the
+gate, not to teach more components about "TK."
+
+**Canonical class.** Components consume a single shared class:
+
+```
+.placeholder-tk {
+  color: var(--ink-placeholder);
+  font-family: var(--font-mono);
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.placeholder-prose {
+  color: var(--ink-placeholder);
+  font-weight: 200;
+}
+```
+
+`.placeholder-tk` for date / value / stamp slots; `.placeholder-prose`
+for sentence-length slots. Both live in `src/styles/base.css` (or the
+equivalent global stylesheet) - NOT re-declared per component.
+
+**Migration path.** The five components currently shipping their own
+`#8A8A8A` literal (listed above) migrate to the shared class. The
+`DeepDivePanel` `.vig-dd__stamp-body--tk` rule that was missing
+entirely gets the same shared class. New components use
+`var(--ink-placeholder)` directly or consume `.placeholder-tk` /
+`.placeholder-prose`; they do NOT hard-code `#8A8A8A`.
+
+### 3.6 The ninth permitted MTA red moment - colophon / publication-mark rule
+
+The bulleted list earlier in this Section 3 ("Accent - signal red")
+enumerates the brand-signal moments permitted to render in MTA red.
+The 2026-05-11 QA flagged a ninth use: `VignelliColophon.astro`
+ships a 2px MTA red rule directly above the publication mark
+(`.vig-col__rule--signal`), which is not in the original eight-moment
+list. Decision: **keep, canonize.**
+
+**Rationale.** The colophon rule is functionally a section-close
+brand-signal moment. It mirrors the plate-number stamp at the top of
+a section page (a red numeral against ink) by giving the page a red
+closing gesture against ink - one accent at the start of the page,
+one accent at the end, ink in between. The single red threaded across
+the full scroll is a Vignelli discipline (the NYC Subway Diagram does
+exactly this: one red moment per geographic region of the map). Drop
+the rule and the page ends in pure ink only, which reads as a missing
+gesture once the eye has registered the red stamps at the top.
+
+**Constraints on this use.**
+
+- **One rule per page.** The colophon rule is the page's terminal red
+  moment; no second red rule may appear elsewhere on the page (e.g. a
+  red divider between sections, a red underline on a heading). This
+  is identical to the discipline on every other red moment: one of
+  each kind per surface.
+- **2px stroke, not 1px.** The colophon rule is the only
+  intentionally-heavier-than-hairline ink moment on the site (the
+  closing 2px black rule under a section's plate index is the only
+  other 2px ink moment, per `chartbook-template.md`). The 2px weight
+  reads as "section close" rather than "table divider." The colophon
+  rule consumes the same 2px weight in red.
+- **Position.** Directly above the publication mark in the site
+  footer. Not at the top of the footer, not between footer columns -
+  immediately preceding the publication signature, so the eye reads
+  `[red rule][publication mark]` as one closing kicker pair.
+- **No other footer red.** The footer's nav links, copyright stamp,
+  next-release stamp, and source roll all render in pure ink. The
+  rule is the only red moment in the footer.
+
+**The complete permitted set is therefore nine moments:** latest-print
+dot, figure-number numeral, plate-number numeral, section-number
+kicker, focus ring, link hover, selection highlight, brand-kicker
+tokens (`INDEPENDENT`, `PROUDLY CANADIAN`), and the colophon /
+publication-mark closing rule. Every other red use is a violation
+and should be flagged in QA.
 
 ---
 
@@ -558,13 +725,23 @@ Production component: `src/components/charts/MiniChart.astro`.
 
 Production components: `src/components/charts/inflation/Panel*.astro`,
 `src/components/charts/gdp/Panel*.astro`,
-`src/components/charts/labour/Panel*.astro`.
+`src/components/charts/labour/Panel*.astro`,
+`src/components/charts/housing/Panel*.astro`,
+`src/components/charts/policy/Panel*.astro`,
+`src/components/charts/markets/Panel*.astro`,
+`src/components/charts/trade/Panel*.astro`.
 
 - **Role.** The chart object that carries an editorial argument. Lives
   inside a `ChartbookUnit` (Section 6) on a section page.
-- **Geometry.** ~540 x 295 viewBox typical (plot area ~432 x 243),
-  rendered at 5:3 or 4:3 aspect ratio responsive width. Each panel
-  chart owns its viewBox; the chartbook unit reserves the frame.
+- **Geometry.** viewBox `720 x 405` (16:9). **All non-sparkline charts
+  share these dimensions, with no exceptions** (categorical / snapshot /
+  dumbbell / composite — same canvas). Wrapper element carries
+  `aspect-ratio: 16 / 9`. The 720-unit width is the chartbook column;
+  the 405-unit height locks every section page into a single rhythm.
+  Internal sub-canvas heights (composite charts) and row spacing
+  (categorical / dumbbell) are tightened to fit the canon canvas
+  rather than allowed to grow their own viewBox. See
+  `design/canon_reference_panel.md` Q3 for the override rationale.
 - **Shape rules.** Single series by default; multi-series permitted
   when the editorial point requires it (e.g. CPI headline + 3M
   annualized). Line in pure ink at 1.5px stroke; secondary series in
@@ -607,6 +784,16 @@ Production components: `src/components/charts/inflation/Panel*.astro`,
 - **Hover.** A native SVG `<title>` element on each data point gives
   date + value in the browser's default tooltip. No custom hover
   tooltip, no crosshair, no animated reveal. Zero client JS.
+- **Label placement: no-overlap canon.** A Tier-3 panel can render up
+  to six families of label (primary direct, secondary direct, y-tick,
+  x-tick, recession-band, reference-rule). The legal placements,
+  collision pixel-thresholds, and suppression hierarchy are specified
+  in `design/canon_reference_panel.md` Section "Label placement rules
+  (no-overlap canon)." Implemented in
+  `src/components/charts/_shared/PanelLiveChart.astro`. Headline rule:
+  no two labels overlap; the suppression hierarchy is unit-tick >
+  primary direct > recession label > secondary direct > reference-rule
+  label > non-unit y-tick > annotation callout.
 
 ### Hero chart - deprecated
 
@@ -964,18 +1151,18 @@ labels, direct labels, source line), not at the page's container.
 
 ## 11. Decisions flagged for the user
 
-- **Mid-gray token.** All `--ink-*` tokens currently resolve to pure
-  black. Placeholder ink (e.g. the `[ NOT WIRED ]` stamps and the
-  faint chrome on lorem-ipsum copy in homepage panels) is hard-coded
-  `#8A8A8A` at the call site (e.g. `SectionPanel.astro`
-  `.vig-panel__placeholder`). We have chosen to keep the token surface
-  monochrome rather than reify a mid-gray token. The opacity-
-  composition pattern (token + `opacity` at the call site) handles
-  most chrome cases. Placeholder ink remains a hard-coded escape
-  hatch. **If placeholder ink becomes pervasive across components, we
-  should revisit and either (a) reify `--ink-placeholder: #8A8A8A` as
-  a real token, or (b) standardize on opacity-composition for
-  placeholder copy too.**
+- **Mid-gray token (resolved 2026-05-11).** Placeholder ink is now a
+  real token: `--ink-placeholder: #8A8A8A`, defined in
+  `src/styles/tokens.css`. Five production components were
+  hard-coding `#8A8A8A` literally and one (`DeepDivePanel`) had
+  dropped to pure ink because its `--tk` class rule was missing - the
+  QA sweep made the cost of "hard-coded escape hatch" visible enough
+  to canonize the token. Application rules and detection-gate
+  discipline are in Section 3.5. The other `--ink-*` tokens
+  (`--ink`, `--ink-muted`, `--ink-faint`, `--rule`, `--rule-faint`)
+  remain aliased to pure black; the opacity-composition pattern still
+  carries the rare chrome cases (masthead nav pipes, eyebrow
+  separators).
 - **MTA red rendering.** `#E63946` is the production rendering. It is
   slightly warmer than the canonical 1972 MTA red (closer to a 1960s
   Knoll catalogue red than a transit-signage red). If editorial wants
@@ -1008,14 +1195,15 @@ labels, direct labels, source line), not at the page's container.
 
 ```
 /* Color: neutrals */
---paper:        #FFFFFF;
---surface:      #FFFFFF;
---surface-sunk: #FFFFFF;
---ink:          #000000;
---ink-muted:    #000000;
---ink-faint:    #000000;
---rule:         #000000;
---rule-faint:   #000000;
+--paper:           #FFFFFF;
+--surface:         #FFFFFF;
+--surface-sunk:    #FFFFFF;
+--ink:             #000000;
+--ink-muted:       #000000;
+--ink-faint:       #000000;
+--rule:            #000000;
+--rule-faint:      #000000;
+--ink-placeholder: #8A8A8A;  /* Section 3.5 - placeholder copy only */
 
 /* Color: accent (signal red, MTA / Vignelli) */
 --accent:       #E63946;

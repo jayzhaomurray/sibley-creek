@@ -322,3 +322,534 @@ The reference is not a one-size-fits-all template; it is the
 typographic and chromatic discipline that every chart inherits. The
 chart-specific marks (bars, lines, dumbbells, fan charts, recession-
 state heatmaps) vary by panel and ride on top of the same canon.
+
+---
+
+## Decisions: rebuild redlines (2026-05-11)
+
+After chart-builder's 18-panel rebuild (GDP / Inflation / Labour),
+five open questions surfaced where the canon was either silent or
+contradictory at the implementation level. Each is decided here. The
+canon reference component has been patched where applicable.
+
+### Q1. Inflation Panel 3 (Breadth) band weighting
+
+**Decision: above-3% reads heaviest. Keep the encoding as built**
+(`above-3% = 100% ink`, `target band 1-3% = 35% ink`, `below-1% =
+12% ink`).
+
+**Rationale.** Section 4.2 of `editorial/dashboard_purpose.md`
+frames the inflation section's purpose as: "Is the BoC's 2% target
+being met, and on what measures and what breadth?" The headline
+question is about target *compliance*; the breadth panel is the
+*so-what* on how widely target is being missed. For the Bay Street
+allocator (P1, the dominant persona), the editorial payload of the
+panel is the share of the basket that is *misbehaving* relative to
+target. The target band itself is the comfort zone - by definition
+the part of the chart that does not need attention. Heaviest ink on
+the part of the distribution that demands attention is the correct
+Tufte / Vignelli call: ink density reads as editorial weight.
+
+An alternative argument - "target compliance is the editorial
+positive, so reward the eye that lands on the comfort zone" - is
+the wrong frame for this publication. Sibley Creek does not exist
+to congratulate the BoC; it exists to tell a P1 reader where the
+cycle is misbehaving. The breadth chart's job is to surface
+out-of-target mass.
+
+The encoding is also internally consistent: ink density tracks
+distance-from-target in absolute terms (above-3% and below-1% are
+both deviations, and above-3% in the post-2021 regime dominates as
+the larger deviation). The 12% / 35% / 100% gradient reads as a
+density ramp where the eye correctly weights the largest deviation
+heaviest.
+
+**Action.** None. Panel 3 stays as built. No production-component
+change required.
+
+### Q2. Panel filenames
+
+**Decision: keep the actual on-disk filenames.** The brief's working
+titles in the rebuild brief were drafted before chart-builder named
+the production files; the on-disk names are more descriptive of
+each chart's editorial argument and are the names referenced from
+the section page imports.
+
+Authoritative filenames (locked):
+
+- `src/components/charts/gdp/Panel1HeadlineGDP.astro`
+- `src/components/charts/gdp/Panel2IndustryVsExpenditure.astro`
+- `src/components/charts/gdp/Panel3Contributions.astro`
+- `src/components/charts/gdp/Panel4PerCapita.astro`
+- `src/components/charts/gdp/Panel5OutputGap.astro`
+- `src/components/charts/gdp/Panel6Recession.astro`
+- `src/components/charts/inflation/Panel1Headline.astro`
+- `src/components/charts/inflation/Panel2CoreMeasures.astro`
+- `src/components/charts/inflation/Panel3Breadth.astro`
+- `src/components/charts/inflation/Panel4SubAggregates.astro`
+- `src/components/charts/inflation/Panel5Expectations.astro`
+- `src/components/charts/inflation/Panel6PassThrough.astro`
+- `src/components/charts/labour/Panel1LFSHeadline.astro`
+- `src/components/charts/labour/Panel2PerCapita.astro`
+- `src/components/charts/labour/Panel3WageBand.astro`
+- `src/components/charts/labour/Panel4VacanciesAndSlack.astro`
+- `src/components/charts/labour/Panel5IRCCSupplyTrajectory.astro`
+- `src/components/charts/labour/Panel6RegionalDispersion.astro`
+
+**Convention.** `PanelN<EditorialShortName>.astro`. The short name
+is the chart's editorial argument in PascalCase, not the data
+source or the chart shape. "PerCapita" beats "PerCapitaEmpDecomp."
+"WageBand" beats "HoursWages." "IRCCSupplyTrajectory" beats
+"Demographic."
+
+**Action.** None. No renames required. Future panels follow the same
+naming convention.
+
+### Q3. Aspect ratio: 16:9 for ALL non-sparkline charts (canon override 2026-05-11)
+
+**Decision (2026-05-11 supersedes prior 2026-05-11 ruling):
+ALL non-sparkline charts use viewBox `720 x 405` (16:9). No
+categorical / snapshot / dumbbell exception. No 4:3 (720 x 540)
+fallback.** Every Tier-3 chartbook chart shares the canon Tier-3
+viewBox.
+
+**Why the override.** Chart dimensions are the cleanest editorial
+signal of "this is one publication, set with one discipline." When
+a reader scans a section page and sees seven charts of identical
+proportions, the page reads as a Knoll catalogue (Section 1).
+When chart heights differ - even by a "principled" categorical
+exception - the page reads as a Tableau dashboard. The Vignelli
+register cannot afford that drift.
+
+The original argument for the 4:3 exception ("forcing every chart
+into 16:9 will crush categorical row spacing into illegibility")
+proved overstated in production. Six-row dumbbell, six-bar
+horizontal, six-CMA snapshot - all fit 16:9 cleanly with a modest
+tightening of `ROW_GAP` / `BAR_H` and a small reduction of top/bottom
+margins. The trade is real (a 4:3 dumbbell breathes more) but the
+cohesion gain across the section page is the larger editorial win.
+
+**Updated checklist row 13.** The canon-compliance checklist (Rule
+13) is restated as:
+
+> 13. **All non-sparkline charts:** viewBox `720 x 405` (16:9),
+>     `preserveAspectRatio="xMidYMid meet"`. The wrapper carries
+>     `aspect-ratio: 16 / 9`. No exceptions.
+
+**The prior 4:3 exception is RETIRED.** Charts that previously used
+the 4:3 (or other non-16:9) ratio - GDP Panel 3, Labour Panel 6,
+Inflation Panel 3/4/5/6, Labour Panel 2/4, and several housing /
+policy / markets / trade panels - were refactored to 720 x 405 on
+2026-05-11. Internal sub-canvas heights, row gaps, and bar heights
+were tightened to fit the canon canvas.
+
+**Sparkline carve-out.** Tier-1 sparklines (`src/components/Sparkline.astro`)
+keep their decorative 160 x 40 viewBox; they are not Tier-3 charts.
+This is the only carve-out from the canon.
+
+**Action.** Applied. All production panels are at 720 x 405. The
+formal edit to Section 5.3 of `design/design-system.md` is folded
+into this canon doc; the design-system document will be revised
+in its next pass.
+
+### Q4. BEM scope: panel-scoped, not canon-scoped
+
+**Decision: production panels use panel-scoped class names
+(`.panel-N-<shortname>__*`). `.canon-chart__*` is reserved
+exclusively for the canon reference component.**
+
+Inflation Panel 4's `.panel-4-sub__*` scope stays. No rename.
+
+**Rationale.** Three reasons:
+
+1. **Canon compliance is enforced by what the rules say, not by
+   what the class is named.** The reference component is the
+   typographic and chromatic discipline; production panels inherit
+   that discipline regardless of the class-name namespace. A panel
+   whose `.panel-3-breadth__line` is `stroke: var(--ink);
+   stroke-width: 1.5` is canon-compliant exactly as much as a panel
+   whose `.canon-chart__line` is the same. The styles enforce the
+   canon; the class name is a namespace.
+2. **Production panels need chart-specific extensions that the
+   canon does not anticipate.** The breadth panel has a three-band
+   ladder; the contributions panel has a contribution-bar pair; the
+   dumbbell has provinces-as-rows. Panel-scoped class names keep
+   these extensions safe from collision with the canon reference's
+   classes if a page ever needs to render both (e.g., a methodology
+   note that includes the canon reference inline).
+3. **Single-source-of-truth discipline.** `.canon-chart__*` on a
+   production panel would imply the panel IS the reference, which
+   would then make every chart-specific override feel like a
+   deviation from the canon rather than a chart-specific extension.
+   The namespace separation makes the distinction crisp: the
+   reference is the reference; the panels reference the reference.
+
+**Action.** None. Existing panel-scoped namespaces stay. Future
+panels follow `.panel-N-<shortname>__*` (e.g., `panel-2-percap__*`,
+`panel-5-supply__*`). The shortname should match the filename's
+editorial short name (Q2 convention).
+
+### Q5. foreignObject xmlns: pragmatic, not strict
+
+**Decision: remove `xmlns="http://www.w3.org/1999/xhtml"` from the
+`<p>` element inside `<foreignObject>`. The canon reference is
+patched (2026-05-11); chart-builder's rebuilds were correct.**
+
+**Rationale.**
+
+1. **`astro check` is the toolchain we ship against.** The strict
+   reading (xmlns required) raises a TypeScript error on JSX-style
+   attribute syntax; the lint gate is real production friction.
+2. **Modern browsers infer the XHTML namespace from
+   `foreignObject` context.** Render output is identical whether or
+   not the xmlns attribute is present. Static server-rendered SVG
+   with `foreignObject > p > strong` works in Chromium, WebKit, and
+   Gecko without xmlns. This is empirically tested in the rebuilt
+   panels.
+3. **Spec strictness is a non-goal when the spec compliance breaks
+   the toolchain.** We are not delivering raw SVG to an SVG-renderer
+   that lives outside a browser context; we are delivering inline
+   SVG inside HTML5 documents. The XHTML namespace lineage on
+   foreignObject children is an SVG 1.1 / XHTML 1.0 compatibility
+   pattern, not a contemporary HTML5+SVG2 requirement.
+
+**Action taken.** `_canon_reference/PanelCanonReference.astro` is
+patched: line 426's `<p xmlns="http://www.w3.org/1999/xhtml"
+class="canon-chart__anno-text">` is now `<p
+class="canon-chart__anno-text">`. The file header comment is
+updated to call out the xmlns omission and cross-reference this
+decision (rule 11 of the comment block).
+
+**Follow-up notes for chart-builder.** None required. The 18
+rebuilds already removed `xmlns`; they were ahead of the canon on
+this. If any production panel still carries `xmlns` on a
+foreignObject child paragraph, drop it in the next sweep.
+
+---
+
+## Label placement rules (no-overlap canon)
+
+Status: blessed 2026-05-11. Authority: art-director.
+
+A chartbook panel can render up to six distinct label families on one
+canvas:
+
+1. Direct end-of-line label, primary series (Manrope 600 13px).
+2. Direct end-of-line label, secondary series (Manrope 400 13px).
+3. Y-axis tick labels (Plex Mono 400 12px), left gutter, right-aligned.
+4. X-axis tick labels (Manrope 400 12px), below plot rule.
+5. Recession-band label (Manrope micro-caps 600 11px, 0.18em tracking),
+   above band, only on the most recent recession.
+6. Reference-rule label (Manrope 600 12px), right end of rule.
+7. Optional recent-print annotation callout (Manrope 400 15px, anchor
+   word 600, 1px pure ink leader). Deferred until Phase 2 - see Q3
+   below.
+
+These can collide with each other and with the data line. The rules
+below define the legal placements + the suppression hierarchy when a
+collision cannot be resolved by re-placement.
+
+### Geometry constants (pinned)
+
+These are the numeric guards every rule below cites. Pinned to
+`PanelLiveChart.astro` geometry. Changing one of these requires
+art-director sign-off.
+
+| Constant       | Value | Meaning                                                       |
+|----------------|-------|---------------------------------------------------------------|
+| `LABEL_GAP_X`  | 10px  | Horizontal gap from last-point dot center to direct label.    |
+| `LABEL_PAD_R` | 4px   | Direct label sits at least this many px inside the right margin so it never touches `VB_W`. |
+| `LABEL_LH`     | 14px  | Direct label line-height. Used as the vertical-stack center-to-center gap when primary + secondary stack. |
+| `LABEL_MIN_DY` | 12px  | If primary and secondary direct labels' baselines are closer than this in y, stack them apart instead. |
+| `REF_LABEL_MIN_DY` | 16px | If a direct label is within this y-distance of the reference-rule's y-line, the reference-rule LABEL is suppressed (the rule itself stays). |
+| `RECESSION_LABEL_DY` | 6px | Recession label sits this many px above band's top.        |
+| `RECESSION_LABEL_GUARD` | 12px | A y-tick label whose baseline is within this many px of the recession-label baseline is suppressed for that tick only. |
+| `PLOT_FRAME_PAD` | 2px | Minimum distance any label's nearest stroke must keep from the plot frame edge. |
+
+### Rule L1 - Direct end-of-line label, primary series
+
+**Placement.** Baseline at `lastPrim.y + 4` (vertical-centered on the
+dot center). X anchor at `lastPrim.x + LABEL_GAP_X`, text-anchor
+`start`. If the natural anchor would push the label's right edge past
+`PLOT_X1 + M_R - LABEL_PAD_R` (the rightmost legal column), switch to
+text-anchor `end` and anchor at `PLOT_X1 + M_R - LABEL_PAD_R`. In
+practice the right margin (`M_R=96`) is sized so this fallback rarely
+fires; it is the safety net.
+
+**Collision with secondary direct label.** If `|primaryY - secondaryY|
+< LABEL_MIN_DY`, both labels stack: the higher-y-value series stays at
+its natural y, the lower-y-value series moves to `(higher.y + LABEL_LH)`
+or `(lower.y - LABEL_LH)` whichever keeps both inside the plot+margin
+band. See Rule L6.
+
+**Collision with reference-rule label.** If a reference-rule label
+exists and `|primaryY - refY| < REF_LABEL_MIN_DY`, the **reference-rule
+label is suppressed** (Rule L4). Direct label always wins; the dashed
+rule itself stays drawn.
+
+**Collision with the data line.** Not algorithmically resolved in v1.
+The 10px x-gap to the right of the last-point dot puts the label in the
+right gutter, which is data-free by construction. Edge case: when the
+line is rising steeply at the terminus the label can still feel close
+to the prior data segment. Acceptable in v1; flagged in known edge
+cases below.
+
+### Rule L2 - Direct end-of-line label, secondary series
+
+Identical placement convention to L1 but with Manrope 400 weight (not
+600). All collision rules from L1 apply, with one additional rule:
+
+**Collision with primary direct label.** Handled by Rule L6
+(multi-series stacking). When stacking, the secondary moves preferentially
+(primary stays at its natural anchor, secondary slides). Rationale: the
+primary is the editorial argument; preserving its read position keeps
+the chart's payload anchored.
+
+**Suppression.** If the secondary line was already suppressed by the
+units-don't-match guard, the secondary label is suppressed
+automatically.
+
+### Rule L3 - Y-axis tick labels
+
+**Placement.** Right-aligned at `PLOT_X0 - 8`, baseline at `tickY + 4`.
+Plex Mono 400 12px pure ink. Topmost tick carries the unit suffix
+(`%`, `B`, `pp`, etc).
+
+**Collision with recession-band label.** If a y-tick's baseline is
+within `RECESSION_LABEL_GUARD` (12px) of the recession-band-label's
+baseline, **suppress that y-tick label** (the tick mark itself, if any,
+stays; only the numeric label hides). Recession label wins because it is
+hand-tuned editorial; ticks are regular metric chrome. Other y-tick
+labels render normally.
+
+**Never inside the plot area.** Y-tick labels live in the left gutter
+exclusively. A label that would visually overlap the plot frame is
+suppressed.
+
+### Rule L4 - Reference-rule label
+
+**Placement.** Right-anchored at `PLOT_X1 - 6`, baseline at `refY - 5`
+(5px above the rule). Manrope 600 12px pure ink. Sits inside the plot
+area on its right edge.
+
+**Collision with direct end-of-line label(s).** If any direct label's
+baseline is within `REF_LABEL_MIN_DY` (16px) of the reference-rule's
+y-line, **suppress the reference-rule label only**. The dashed rule
+itself stays drawn. Rationale: a reader scanning the right gutter
+reads "CPI Y/Y 2.3%" as the editorial payload; "2% BoC target" is
+context that the dashed rule itself conveys without redundant text.
+
+**Edge case: reference value outside plot range.** Already handled by
+the existing `showRef` guard.
+
+### Rule L5 - Recession-band label
+
+**Placement.** Centered horizontally on the band's midpoint; baseline
+at `PLOT_Y0 + 12` (so the label's top sits `RECESSION_LABEL_DY` =
+6px below the top of the plot frame, allowing for the 11px cap height).
+Manrope 600 11px micro-caps, 0.18em letter-spacing, pure ink.
+
+**Suppression.** Only render if the recession band itself is visible
+(at least partially inside the current x-window). The 2020Q1-Q2
+recession falls outside the default 60-month window for builds dated
+2025-Q3 or later; in those builds neither the band nor the label
+render. No code change needed.
+
+**Y-tick coexistence.** Y-tick labels obey Rule L3 and suppress
+themselves to defer to this label.
+
+### Rule L6 - Multi-series direct labels (stacking)
+
+When both `L1` and `L2` would render and `|L1.y - L2.y| < LABEL_MIN_DY`
+(12px):
+
+1. The series whose terminal y-value is **higher in plot coordinates**
+   (lower visual y - the upper line) anchors at its natural y.
+2. The other label moves to `anchor.y + LABEL_LH` (14px below the
+   anchor's baseline center).
+3. If the moved label would fall below `PLOT_Y1 + M_B - 4`, flip the
+   move: the lower-anchor stays put and the higher one moves up to
+   `anchor.y - LABEL_LH`.
+
+This is the canon's "stack don't overlap" rule. Vertical stack with
+14px center-to-center reads as deliberate; overlapping reads as a bug.
+
+### Rule L7 - Recent-print annotation callout (Phase 2)
+
+Deferred. The old hand-tuned annotation lived in `PanelCanonReference`;
+it was removed in the PanelLiveChart collapse because per-panel
+positioning cannot be auto-computed without scoring four candidate
+positions and a white-space test. Algorithm sketched below for the
+Phase 2 restoration:
+
+1. Score 4 candidate positions (top-left, top-right, bottom-left,
+   bottom-right of the last-point dot, each at distance 48px).
+2. For each candidate, compute the minimum perpendicular distance from
+   the candidate's bounding box to the data line, sampled at the last
+   24 segments. Higher distance = more whitespace = better score.
+3. Pick the highest-scoring position. If max-score is below 32px
+   (annotation would sit over data), **suppress the annotation** -
+   fall back to native SVG `<title>` for accessibility.
+
+In v1 (current build), PanelLiveChart does not render annotation
+callouts. Charts that need an annotation are authored as bespoke
+components (see GDP Panel 1, Labour Panel 1 redlines above) rather
+than going through PanelLiveChart.
+
+### Suppression hierarchy (when something must hide)
+
+When two labels collide and re-placement is not legal, the loser is
+suppressed entirely. Hierarchy from highest priority (always rendered)
+to lowest priority (first to hide):
+
+1. **Y-axis tick labels carrying the unit** (topmost tick). Never
+   suppressed. The reader must always be able to read the chart's
+   scale.
+2. **Primary direct end-of-line label.** Suppressed only if the last
+   point itself cannot be located (no data). Otherwise always rendered.
+3. **Recession-band label.** Suppresses competing y-ticks but never
+   itself suppresses.
+4. **Secondary direct end-of-line label.** Stacks with primary when
+   close; suppressed if the secondary series itself was suppressed
+   (units mismatch).
+5. **Reference-rule label.** Suppressed when within 16px of any direct
+   label. The dashed rule stays.
+6. **Non-unit y-tick labels.** Suppressed within 12px of recession-band
+   label.
+7. **Annotation callout (Phase 2).** Suppressed when no candidate
+   position has clear whitespace.
+
+X-axis tick labels live in a dedicated row below the plot frame and
+never collide with the above six families. They are not in the
+hierarchy.
+
+### Known edge cases not yet resolved
+
+Documented for follow-up. None blocking v1.
+
+1. **Steep terminus.** When the data line ends with a sharp rise or
+   fall, the direct label sitting 10px to the right of the last point
+   can read visually close to the prior data segment. The right gutter
+   is data-free, so the label and line do not actually overlap, but the
+   apparent crowding can read as collision. Mitigation: the 10px gap is
+   the minimum; chart-builder may bump per-panel to 14px with
+   art-director sign-off if the editorial argument requires.
+2. **Many y-ticks suppressed near recession label.** If the recession
+   label's y-coordinate happens to align with two consecutive y-ticks
+   (rare; gridline density 3-5 vs band-label-line-1 means most builds
+   have at most one collision), both ticks would hide. The current rule
+   suppresses each independently; the editorial cost is at most a
+   missing tick label, which the gridline itself still conveys.
+3. **Three-or-more series.** PanelLiveChart renders at most two
+   series. A three-series panel (e.g. Labour Panel 1 unrate + emprate
+   + participation) lives outside PanelLiveChart and is responsible
+   for its own multi-series stacking using L6 logic generalized.
+4. **Direct label collides with adjacent panel's left-gutter ticks
+   (small-multiples grid).** Not applicable in the v1 chartbook layout
+   (each ChartbookUnit is full-width); flagged for Phase 2 small-
+   multiples.
+5. **Last point near the right plot frame edge.** When the dataset's
+   final point sits less than `LABEL_GAP_X` (10px) inside the plot
+   frame's right edge, the label still anchors at `lastX + 10` and
+   crosses the frame into the right gutter (`M_R` = 96px). The frame
+   stops at `PLOT_X1`; the gutter is data-free; legal placement.
+
+---
+
+## Resolutions: Q6 - Q9 (frontend-designer questions, 2026-05-11)
+
+### Q6. Direct label phrasing per panel
+
+**Decision: defer the case-by-case phrasing pass to a follow-up sweep
+with writer; keep the current short forms in v1.** Direct labels are a
+12-15px stamp at the line terminus; they tell the reader which series
+their eye is on, not what the series means. The current set (`CPI Y/Y`,
+`2y GoC`, `WTI`, `Brent`, `Core-trim`, `Core-median`, `PR inflows`,
+`Net NPR`, `Shelter y/y`, etc.) reads as the publication's stenographic
+register. A round of style-editor review for tone uniformity is a
+Phase 2 polish, not a v1 blocker.
+
+**Action.** None now. Queue a writer pass under "next sweep."
+
+### Q7. Secondary-unit suppression
+
+**Decision: keep the current behavior. Suppress the secondary series
+when its unit disagrees with primary.** A panel that wants a true
+dual-unit overlay (e.g. CPI Y/Y in % alongside USDCAD in price) needs
+a per-panel dual-axis geometry; that is a chart-builder bespoke
+component, not a PanelLiveChart responsibility.
+
+**Rationale.** Section 5.3 already permits dual-axis charts but only
+with art-director-signed per-chart visual specs (and a Plex Mono 12px
+right-gutter tick treatment). Auto-rendering a misleading shared axis
+when units don't match is the worst outcome. Suppression is the right
+default; bespoke is the escape hatch.
+
+**Action.** None. The `unitsMatch` guard stays.
+
+### Q8. Recent-print annotation callout + leader
+
+**Decision: defer to Phase 2 (Rule L7 above).** The collision algorithm
+needed to do this safely - 4 candidate scoring + whitespace test - is
+material code (~80 lines) and would re-introduce per-panel hand-tuning
+that the PanelLiveChart collapse explicitly eliminated. The Vignelli
+canon already prescribes that charts needing a hand-tuned annotation
+become bespoke components (see GDP Panel 1, Labour Panel 1 redlines).
+PanelLiveChart is the workhorse for the editorial-argument-by-line-
+terminus case; an annotated chart should not go through it.
+
+**Rationale.** Rule 11 of the canon-compliance checklist describes the
+annotation. It is canon-required only for charts whose editorial
+argument *needs* an anchored callout (e.g. "Apr print held at 2.1%,
+fourth month at target"). Most PanelLiveChart consumers are surface
+indicators where the latest-print dot + direct label already carry the
+read; the annotation is editorial decoration that doesn't apply.
+
+**Action.** PanelLiveChart does not render annotations in v1. The
+algorithmic placement (Rule L7) is documented for the Phase 2
+bespoke-annotation extraction.
+
+### Q9. Categorical bar charts (GDP panel 3, Inflation panel 4)
+
+**Decision: build a shared `PanelBarChart.astro` companion component
+in Phase 2.** Lines for categorical data are wrong; the visual canon
+calls for bars. PanelLiveChart's geometry (x = continuous time, y =
+continuous value) cannot be patched into a categorical layout
+without compromising the line case.
+
+**Rationale.** The Vignelli register is precise about chart-type
+discipline. A category-by-share chart (e.g. CPI components, Q3 share
+of basket above 3%) reads as bars; rendering it as a line implies a
+continuous trajectory that doesn't exist. Until `PanelBarChart` is
+built, the affected panels (GDP Panel 3 contributions; Inflation Panel
+4 sub-aggregate shares) should either remain as bespoke per-panel
+components or route to `PanelEmpty` with a "data not yet wired"
+reason. They should NOT continue to render through PanelLiveChart-as-
+line.
+
+**Action.**
+- Queue `PanelBarChart.astro` as a Phase 2 deliverable. Same canvas
+  (720x405), same Plex Mono y-ticks, same Manrope x-ticks, same MTA
+  red dot/marker for the most-recent or load-bearing bar.
+- Until then: chart-builder converts each affected panel to either a
+  bespoke component (preferred for editorial-load panels) or
+  `PanelEmpty` (for low-priority panels). Decision per-panel by
+  art-director + chart-builder + editorial-director.
+
+---
+
+## Summary of follow-ups for chart-builder
+
+Queued items (non-blocking; apply in the next maintenance pass):
+
+- **None blocking from this redline pass.** Q1 confirms the existing
+  breadth encoding. Q2 confirms filenames. Q3 confirms Panel 3 GDP
+  aspect ratio. Q4 confirms existing panel-scoped BEM. Q5 confirms
+  the xmlns removal already done.
+- **Sweep check (one-pass):** grep production panels for any
+  remaining `xmlns="http://www.w3.org/1999/xhtml"` on
+  foreignObject children and remove if found.
+- **Going forward:** new panels follow the Q2 naming convention,
+  the Q3 aspect-ratio rule (16:9 for time-series, 4:3 for
+  categorical), the Q4 BEM scope (`.panel-N-<shortname>__*`), and
+  the Q5 xmlns omission.

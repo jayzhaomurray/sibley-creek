@@ -1,0 +1,44 @@
+---
+/*
+ * Panel7EIBeneficiaries - EI Regular Beneficiaries.
+ *
+ * Wave 5 addition. Section 4.3 Labour, Panel 7. The cleanest
+ * demand-side mirror of vacancy decline and a leading cyclical
+ * inflection signal that fires before LFS unemployment turns.
+ * Pairs with Panel 4 VacanciesSlack.
+ *
+ * Pipeline emits `ei_regular_beneficiaries_k` (primary) as a national
+ * monthly series in thousands of persons. The display transform
+ * (raw persons / 1000 -> thousands) is backend-side per Wave 5 brief;
+ * Y/Y and MoM toggle variants are deferred until the toggle pattern
+ * is generalized across the chartbook (not in this wave).
+ *
+ * Annotation overlays (peak-to-trough call-out on the most recent
+ * cycle) are deferred until researcher supplies the trough date.
+ * Render-clean default per Wave 5 brief 1: "ship the chart without
+ * the annotation if the dating is ambiguous at build time."
+ *
+ * No synthetic-data fallback. PanelEmpty when data has not landed.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+---
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    primaryLabel="EI"
+    dataPanelAttr="labour-7"
+    ariaLabel="EI regular beneficiaries, national, thousands of persons."
+  />
+) : (
+  <PanelEmpty reason="Pipeline did not emit panel-7 data." />
+)}

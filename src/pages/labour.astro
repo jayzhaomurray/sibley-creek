@@ -2,13 +2,14 @@
 /*
  * Labour - Vignelli chartbook page.
  *
- * Six plates per editorial canon section 4.3:
+ * Seven plates per editorial canon section 4.3 (Wave 5 added Panel 7):
  *   01 LFS headline
  *   02 Per-capita panel (signature)
  *   03 Wage band
  *   04 Vacancies and slack
  *   05 Population and immigration (supply trajectory)
  *   06 Regional dispersion (four-province dumbbell)
+ *   07 EI Regular Beneficiaries (Wave 5; cyclical inflection signal)
  *
  * Charts dispatched via chartKey to src/components/charts/labour/.
  * v1: interpretation prose is placeholder, in publication voice.
@@ -17,11 +18,21 @@
 import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
+import panelDataFile from "../../data/site/panel_data/labour.json";
+import { pickPanel } from "../components/charts/_shared/panelData";
 
 const section = sections.find((s) => s.slug === "labour");
 if (!section) {
   throw new Error("Labour section not found in src/data/sections.ts");
 }
+
+const panel1Data = pickPanel(panelDataFile, 1);
+const panel2Data = pickPanel(panelDataFile, 2);
+const panel3Data = pickPanel(panelDataFile, 3);
+const panel4Data = pickPanel(panelDataFile, 4);
+const panel5Data = pickPanel(panelDataFile, 5);
+const panel6Data = pickPanel(panelDataFile, 6);
+const panel7Data = pickPanel(panelDataFile, 7);
 
 const plates: Plate[] = [
   {
@@ -43,6 +54,7 @@ const plates: Plate[] = [
     },
     source: "Statistics Canada Table 14-10-0287-01; consensus via Bloomberg.",
     chartKey: "labour-panel-1",
+    data: panel1Data,
   },
   {
     id: "plate-2",
@@ -64,6 +76,7 @@ const plates: Plate[] = [
     source:
       "Statistics Canada Tables 14-10-0287-01 and 17-10-0009-01; per-capita calculation by Sibley Creek.",
     chartKey: "labour-panel-2",
+    data: panel2Data,
   },
   {
     id: "plate-3",
@@ -79,6 +92,7 @@ const plates: Plate[] = [
     source:
       "Statistics Canada Tables 14-10-0064-01 (LFS), 14-10-0220-01 (SEPH); BoC LFS-Micro series.",
     chartKey: "labour-panel-3",
+    data: panel3Data,
   },
   {
     id: "plate-4",
@@ -93,6 +107,7 @@ const plates: Plate[] = [
       "consistent with slack normalizing rather than a structural shift.",
     source: "Statistics Canada Job Vacancy and Wage Survey (JVWS) Table 14-10-0432-01.",
     chartKey: "labour-panel-4",
+    data: panel4Data,
   },
   {
     id: "plate-5",
@@ -107,6 +122,7 @@ const plates: Plate[] = [
       "is materially flatter than the path realized through 2024 - the per-capita arithmetic depends on whether it holds.",
     source: "IRCC Levels Plan; Statistics Canada Table 17-10-0008-01.",
     chartKey: "labour-panel-5",
+    data: panel5Data,
   },
   {
     id: "plate-6",
@@ -121,18 +137,40 @@ const plates: Plate[] = [
       "The national average masks a clear east-west pattern in the dispersion.",
     source: "Statistics Canada Table 14-10-0287-01 (LFS by province).",
     chartKey: "labour-panel-6",
+    data: panel6Data,
+  },
+  {
+    id: "plate-7",
+    number: "07",
+    indicator: "EI Regular Beneficiaries, national",
+    plateIndexLabel: "EI beneficiaries",
+    asOf: "TK",
+    title: "EI uptake at TK; the demand-side mirror of vacancy decline.",
+    interpretationHtml:
+      "EI regular beneficiaries TK to <strong>TK thousand</strong>, the cleanest demand-side read on labour-market softening and " +
+      "a leading cyclical indicator that typically inflects before the LFS unemployment rate. Movement here TK or TK the most recent " +
+      "LFS print; the divergence (or convergence) is the editorial frame.",
+    callout: {
+      value: "TK",
+      unit: "thousand persons, TK",
+      delta: "TK vs prior",
+      direction: "neutral",
+    },
+    source: "Statistics Canada Table 14-10-0011-01 (Employment Insurance regular beneficiaries).",
+    chartKey: "labour-panel-7",
+    data: panel7Data,
   },
 ];
 
 const pageTitle = "Labour";
 const pageDescription =
   "Labour chartbook: LFS headline, per-capita employment and hours, the wage band, vacancies and slack, the IRCC supply trajectory, " +
-  "and regional dispersion across the four largest provinces. Six plates of chart-with-interpretation.";
+  "regional dispersion across the four largest provinces, and EI regular beneficiaries. Seven plates of chart-with-interpretation.";
 
 const lede =
-  "Six plates trace the Canadian labour market: the headline LFS print, the per-capita cut that the aggregate obscures, " +
+  "Seven plates trace the Canadian labour market: the headline LFS print, the per-capita cut that the aggregate obscures, " +
   "the band of wage measures, vacancies and slack, the population supply trajectory implied by the IRCC plan, " +
-  "and the regional pattern under the national rate.";
+  "the regional pattern under the national rate, and the EI uptake that fires before the headline turns.";
 ---
 <SectionLayout
   slug="labour"

@@ -108,6 +108,97 @@ function dirGlyph(d?: "pos" | "neg" | "neutral"): string {
   if (d === "neg") return "▼"; // black down-pointing triangle
   return "—"; // em dash for neutral / unknown
 }
+
+// ---------------------------------------------------------------------------
+// Placeholder / "TK" coercion
+// ---------------------------------------------------------------------------
+//
+// The publication has adopted "TK" as the journalism convention for "to
+// come". The pipeline emits "TK" for not-yet-wired rows, and section pages
+// hand-type "TK" into plate `asOf` / `callout.value` / `callout.unit` /
+// `callout.delta` while the writer's pass is pending. Without coercion,
+// those strings render in pure-ink Plex Mono and read as a typo to a Bay
+// Street eye scanning the chart.
+//
+// Strategy:
+//   1. Recognize a top-level "TK" string and route it through the
+//      placeholder gray class (`--tk` modifier) - mirrors the research
+//      index `--tk` rule.
+//   2. Inside prose (title / interpretation), replace standalone "TK"
+//      tokens with placeholder spans so the surrounding sentence still
+//      reads but the gap is visibly marked.
+//
+// The hard-coded #8A8A8A mid-gray matches DeepDivePanel, SectionPanel,
+// and the research index. Canon Section 3 names this as the placeholder
+// ink escape hatch.
+
+function isTk(v: string | undefined | null): boolean {
+  return typeof v === "string" && v.trim() === "TK";
+}
+
+// Word-boundary aware replacement: substitute any standalone "TK" token
+// in a piece of prose with a placeholder span. Preserves the surrounding
+// sentence (which may legitimately contain words like "TKO" or other
+// non-token uses of those letters - the boundary guards keep them).
+//
+// Operates on HTML strings; the inserted span is the only HTML we add.
+// Plain-text prose is escaped first so any caller-supplied "<" passes
+// through as text.
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+const TK_TOKEN_REGEX = /\bTK\b/g;
+
+function substituteTkInHtml(html: string): string {
+  // Run the substitution across the whole HTML; tag attributes will not
+  // contain a bare "TK" word in our corpus, and the existing
+  // <strong>TK</strong> wrappers in the section-page interpretation
+  // strings get the placeholder span nested inside the strong - that's
+  // exactly the visual we want (mid-gray, weight 600).
+  return html.replace(
+    TK_TOKEN_REGEX,
+    '<span class="chartbook-unit__tk-inline">TK</span>',
+  );
+}
+
+function substituteTkInText(text: string): string {
+  return substituteTkInHtml(escapeHtml(text));
+}
+
+const titleHtml = substituteTkInText(title);
+
+// Interpretation: HTML takes precedence over plain text, as in the
+// original component contract.
+let interpretationRendered: string | null = null;
+if (typeof interpretationHtml === "string") {
+  interpretationRendered = substituteTkInHtml(interpretationHtml);
+} else if (typeof interpretation === "string") {
+  interpretationRendered = substituteTkInText(interpretation);
+}
+
+// The `callout` prop is part of the public interface but not yet rendered
+// by this component's markup; coercion of its TK fields is deferred until
+// the callout strip lands. The prop is intentionally read but unused.
+void callout;
+
+// asOf body. Three cases:
+//   (a) Exactly "TK"           -> render "TK" with the --tk body class
+//                                  (full-mid-gray Plex Mono micro-caps).
+//   (b) Contains a TK token    -> render the string with the TK token
+//      (e.g. "TK (CSCE, BOS)")    wrapped in the inline placeholder span,
+//                                  so the parenthetical context still reads
+//                                  but the unwired part is visibly gray.
+//   (c) No TK                  -> render verbatim.
+const asOfIsTk = isTk(asOf);
+const asOfHasTkToken = !asOfIsTk && typeof asOf === "string" && TK_TOKEN_REGEX.test(asOf);
+// Regex .test mutates lastIndex on a /g regex; reset before re-use.
+TK_TOKEN_REGEX.lastIndex = 0;
+const asOfHtml = asOfHasTkToken ? substituteTkInText(asOf as string) : null;
 ---
 <section
   class="chartbook-unit"
@@ -126,14 +217,27 @@ function dirGlyph(d?: "pos" | "neg" | "neutral"): string {
     </p>
     <p class="chartbook-unit__asof">
       <span class="chartbook-unit__asof-label">As of</span>
-      <span class="chartbook-unit__asof-body">{asOf}</span>
+      {asOfIsTk ? (
+        <span class="chartbook-unit__asof-body chartbook-unit__asof-body--tk">
+          TK
+        </span>
+      ) : asOfHasTkToken ? (
+        <span class="chartbook-unit__asof-body" set:html={asOfHtml ?? ""} />
+      ) : (
+        <span class="chartbook-unit__asof-body">{asOf}</span>
+      )}
     </p>
   </header>
 
-  {/* Title row: declarative headline sentence */}
-  <h2 id={`${anchorId}-title`} class="chartbook-unit__title">
-    {title}
-  </h2>
+  {/* Title row: declarative headline sentence. Inline TK tokens are
+   * substituted server-side to placeholder spans so a "Headline CPI
+   * printed TK y/y" sentence still reads as a sentence but the TK
+   * visibly reads as a gap rather than as a typo. */}
+  <h2
+    id={`${anchorId}-title`}
+    class="chartbook-unit__title"
+    set:html={titleHtml}
+  />
 
   {/* Body: chart left, interpretation right */}
   <div class="chartbook-unit__body">
@@ -165,14 +269,14 @@ function dirGlyph(d?: "pos" | "neg" | "neutral"): string {
 
     <div class="chartbook-unit__prose">
       <slot name="interpretation">
-        {interpretationHtml ? (
+        {interpretationRendered !== null ? (
           <p
             class="chartbook-unit__interpretation"
-            set:html={interpretationHtml}
+            set:html={interpretationRendered}
           />
         ) : (
           <p class="chartbook-unit__interpretation">
-            {interpretation ?? "Placeholder. Writer to populate."}
+            Placeholder. Writer to populate.
           </p>
         )}
       </slot>
@@ -270,6 +374,27 @@ function dirGlyph(d?: "pos" | "neg" | "neutral"): string {
     line-height: 1.3;
     color: var(--ink);
     font-variant-numeric: tabular-nums;
+  }
+  /* Placeholder treatment for an as-of stamp whose value is the
+   * journalism "TK" marker. Mirrors the research index --tk pattern:
+   * hard-coded mid-gray, Plex Mono micro-caps with tight tracking. */
+  .chartbook-unit__asof-body--tk {
+    color: #8A8A8A;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* Inline TK token inside title or interpretation prose. Mid-gray Plex
+   * Mono micro-caps so the reader sees "Headline CPI printed [TK] y/y"
+   * and pattern-matches as an unwired number, not a typo. */
+  .chartbook-unit__tk-inline {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    color: #8A8A8A;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    /* Slight optical balance against surrounding text. */
+    font-size: 0.92em;
   }
 
   /* ---- Title row ---- */

@@ -65,37 +65,54 @@ States, in order:
    on the unit's primary series sidecar (content-hash trigger of
    v1 Section 1; carried forward) and written the new CSV + meta.json.
    Cycle artifact created on disk; owner handoff to researcher.
-3. `context_drafted` -- researcher has produced a release-context note
-   for every unit in the release's fan-out. The note is the editorial
-   steer the writer needs: what was surprising, what the so-what is,
-   what historical comparable matters. Owner handoff to writer.
-4. `writer_drafted` -- writer has produced the Mode 2 blurb body
-   (2-4 sentences) for each unit, scaffolded by the context note plus
-   the raw release data plus a description of the chart visual. Owner
-   handoff to fact-checker.
-5. `fact_checked` -- fact-checker has verified every numeric token,
-   every named institution, every cited release date, and the absence
-   of TK leakage against `data/processed/` and the primary source URLs
-   in `data/site/sections.json`. Owner handoff to style-editor.
-6. `style_polished` -- style-editor has polished voice against
+3. `context_drafted` -- researcher has produced a structured
+   release-context note for every unit in the release's fan-out. The
+   note is the editorial steer the writer needs, expressed as a
+   machine-readable YAML claim-card list (Section 1.2) plus the
+   thin prose-steer fields (so_what, historical_comparable,
+   quiet_release). Owner handoff to **verifier (fact-checker in
+   claims-verification mode)**.
+4. `claims_verified` -- the verifier has re-fetched every
+   `source_url` in the claim-card list, located the
+   `source_text_excerpt` in the fetched content, and confirmed
+   the `value` and `claim` are supported. Every card carries
+   `verifier_status: passed`. This is the structural defense against
+   researcher-side hallucination, source-conflation, and
+   recall-not-fetch errors (Section 1.3). Owner handoff to writer.
+5. `writer_drafted` -- writer has produced the Mode 2 blurb body
+   (2-4 sentences) for each unit, scaffolded by the verified
+   claim-cards plus the raw release data plus a description of the
+   chart visual. Owner handoff to fact-checker (draft-verification
+   mode).
+6. `fact_checked` -- fact-checker has verified that every numeric
+   token, every named institution, and every cited release date in
+   the writer's draft is grounded in a `verifier_status: passed`
+   claim-card, plus the absence of TK leakage and banned-source
+   phrasing. With the upstream `claims_verified` gate already in
+   place, the fact-checker's draft-pass job is lighter: it is
+   confirming the writer used the cards correctly, not that the
+   underlying claims are true (Section 1.4). Owner handoff to
+   style-editor.
+7. `style_polished` -- style-editor has polished voice against
    `editorial/writing-style.md` Section 7 Mode A. Owner handoff to
    user.
-7. `user_review` -- email lands in user inbox; draft file is in
+8. `user_review` -- email lands in user inbox; draft file is in
    `editorial/blurbs/<section>/<unit-slug>/<release-id>.md` with
    `status: ready_for_user`. User opens, reads, rewrites if desired,
    sets `status: approved`. Owner: user.
-8. `approved` -- user-approved. The build picks it up on the next
+9. `approved` -- user-approved. The build picks it up on the next
    render pass.
-9. `published` -- the build has rendered the approved blurb into the
-   live site. Terminal state.
+10. `published` -- the build has rendered the approved blurb into the
+    live site. Terminal state.
 
 Each transition has a gate, an owner, a fail policy, and an escalation.
 
 | From | To | Gate | Owner | Fails on | On fail |
 |---|---|---|---|---|---|
 | `pending_release` | `release_landed` | New `release_date` on primary series sidecar | backend-engineer (scheduler) | Calendar window passes with no fetched change | Stale-alert email after N polls (per release-key cadence rule in `pipeline/calendar/releases.py`); user investigates |
-| `release_landed` | `context_drafted` | Researcher returns a context note (one entry per unit) | researcher | Researcher declares "quiet release" for all units in fan-out | Cycle short-circuits to the "quiet release" flow; see Section 4.1 |
-| `context_drafted` | `writer_drafted` | Writer returns a 2-4 sentence Mode 2 body that passes voice-validator pre-checks (word count 25-95, sentence count 2-4, ASCII-only, no banned constructions in `writing-style.md` Section 6) | writer | Writer flags an unresolved TK or returns prose that fails mechanical pre-checks | Up to two writer re-runs; on third failure escalate to user |
+| `release_landed` | `context_drafted` | Researcher returns a context note (one entry per unit) containing a claim-card YAML list per Section 1.2 schema | researcher | Researcher declares "quiet release" for all units in fan-out, or returns malformed cards (missing URL, missing source_text_excerpt, vague source_kind) | Cycle short-circuits to the "quiet release" flow (Section 4.1) on legitimate quiet; malformed cards route back to researcher with a specific schema-failure list, counts against the 2-round-trip budget |
+| `context_drafted` | `claims_verified` | Verifier (fresh-context fact-checker invocation) re-fetches every `source_url`, locates `source_text_excerpt`, confirms `value` and `claim`. Every card returns `verifier_status: passed` | fact-checker in claims-verification mode | Any card returns `verifier_status: failed:<reason>` per the five-reason taxonomy (Section 1.3) | Route back to researcher with the specific failure list. Researcher revises the failed cards. Budget: 2 researcher round-trips. On the third failure, escalate to user; the blurb does not publish |
+| `claims_verified` | `writer_drafted` | Writer returns a 2-4 sentence Mode 2 body that passes voice-validator pre-checks (word count 25-95, sentence count 2-4, ASCII-only, no banned constructions in `writing-style.md` Section 6) | writer | Writer flags an unresolved TK or returns prose that fails mechanical pre-checks | Up to two writer re-runs; on third failure escalate to user |
 | `writer_drafted` | `fact_checked` | Fact-checker verifies all numeric tokens within rounding tolerance, all dates against the release calendar, no TK leakage, no Big-Six citation, no banned-source phrasing | fact-checker | Numeric mismatch, TK in body, banned-source phrasing, source URL 404 | Up to two re-drafts (return to writer); on third failure escalate to user with the trace |
 | `fact_checked` | `style_polished` | Style-editor returns a polished version (Mode A voice) or asserts the draft already meets the bar | style-editor | Hedging tic, banned cliche, jargon-as-armor, register slip toward Mode B | One re-polish if first pass is rejected by self-check; on second failure escalate to user with diff |
 | `style_polished` | `user_review` | Email to jayzhaomurray@outlook.com sent; file written to disk with `status: ready_for_user` | pipeline orchestrator | SMTP failure | Retry email 3x at exponential backoff (1m, 5m, 30m); after that, fall back to writing only `editorial/blurbs/_inbox.md` and surface a desktop-notification path |
@@ -106,6 +123,204 @@ Two cross-cutting state fields, present on every cycle artifact:
 
 - `last_state` -- where we are now.
 - `state_history` -- append-only list of `(state, timestamp, agent_or_user, note)` tuples. This is the audit trail (Section 6).
+
+### 1.1 Why the `claims_verified` gate exists
+
+The v2 design (the version dated 2026-05-11 before this addendum)
+had six anti-hallucination guards but they all assumed the
+researcher's context note was trustworthy input. They did not defend
+against the researcher themselves hallucinating, conflating two
+sources they looked up in the same session, recalling-not-fetching
+a number from training, or citing a rotted URL.
+
+The Pillar A wave-4 corrections (see
+`research/wave4_pillar_a_mortgage_renewal_wall_anchors.md` "TOP-OF-
+FILE FACTUAL ALERT") proved this failure mode is real. A prior
+fact-check had stamped "BoC overnight rate 2.75% VERIFIED" by walking
+the `sections.ts` placeholder chain rather than re-fetching the BoC
+press release directly. The chain-of-trust was internally consistent
+and false. Wave 5 caught it only because the researcher re-fetched
+the actual primary source
+(https://www.bankofcanada.ca/2026/04/fad-press-release-2026-04-29/)
+and read the verbatim text: "the Bank held its target for the
+overnight rate at 2.25%." The rate had been at 2.25% since the
+October 29, 2025 cut; the "2.75% on April 29, 2026" claim
+propagated through multiple downstream deliverables (homepage
+tile-lines, deepdive draft lede, deepdive Section IV framing)
+before the primary-source re-fetch caught it.
+
+The structural lesson: an LLM asked to verify its own work tends to
+double down on the hallucination it just produced (LLM consistency
+bias). A separate verifier with no memory of the researcher's
+reasoning and a hard requirement to re-fetch the URL is the defense.
+
+### 1.2 Claim-card schema
+
+The researcher's `context_drafted` output is no longer free-form
+prose. For auto-blurb cycles, the researcher emits a structured
+YAML list of atomic claim-cards plus a thin prose-steer block. The
+prose-steer block carries `so_what`, `historical_comparable`,
+`quiet_release`, and `next_print_date` (unchanged from Section 2.1).
+The claim-card list carries every numeric or attributable factual
+input the writer needs.
+
+Schema (one card per atomic claim):
+
+```yaml
+- claim_id: <unit-slug>-<release-id>-<short-slug>
+    # e.g. panel-1-cpi_monthly_2026-04-headline-yoy
+  claim: <one-sentence summary of the factual claim>
+    # e.g. "Headline CPI rose 2.3% Y/Y in April 2026"
+  value: <numeric value if applicable, else null>
+    # e.g. 2.3
+  unit: <unit string if applicable, else null>
+    # e.g. "percent y/y" | "basis points" | "C$ billions" | null
+  source_url: <primary-source URL -- must be specific, dated, fetchable>
+    # e.g. "https://www150.statcan.gc.ca/n1/daily-quotidien/260520/dq260520a-eng.htm"
+    # NOT "https://www.bankofcanada.ca" (root domain is not a valid card)
+    # NOT a wire-service or media-summary URL
+  source_text_excerpt: <verbatim text from the source containing the claim>
+    # 50-300 chars; must appear verbatim in the page body so the
+    # verifier can grep-match (whitespace / HTML normalization OK).
+    # e.g. "The Consumer Price Index (CPI) rose 2.3% on a year-over-
+    #      year basis in April, following a 1.8% increase in March."
+  fetched_at: <ISO 8601 timestamp of when the researcher fetched the URL>
+    # e.g. "2026-05-14T08:32:00Z"
+  source_kind: <enum>
+    # one of: statcan_wds | statcan_daily | boc_valet |
+    # boc_press_release | boc_mpr | boc_fsr | boc_sap | boc_san |
+    # osfi_m4 | osfi_other | cmhc_rmir | cmhc_observer | cba_pdf |
+    # dof_fiscal_monitor | dof_budget | pbo_efo | crea_stats |
+    # trreb_market_watch | bank_earnings_supplement | open_canada |
+    # other
+    # "other" requires a one-line note in verifier_notes on
+    # researcher's side explaining the source type
+  verifier_status: pending
+    # set by verifier on the claims_verified pass: passed | failed:<reason>
+  verifier_notes: null
+    # set by verifier on failure with the specific mismatch
+```
+
+Hard constraints on what counts as a valid claim-card:
+
+- `source_url` must be a specific, dated, fetchable URL. Vague
+   citations like "BoC press release" or "BoC Staff Analytical
+   Paper" without URL+date are NOT valid claim-cards and the
+   verifier returns `failed:source_kind_mismatch` (the URL/source
+   pair is unverifiable, so it cannot pass).
+- `source_text_excerpt` must be verbatim from the source. If the
+   researcher had to compute the value (e.g. Y/Y growth from a
+   level table), the card must include a derivation card alongside
+   the underlying level card -- the writer cannot cite a derived
+   value without both atoms verified.
+- `fetched_at` is the timestamp at which the researcher actually
+   fetched the URL in this cycle. Recall-from-training is not
+   permitted: every URL the researcher cites must be fetched at
+   output time. A `fetched_at` timestamp more than 24 hours older
+   than the cycle's `created_at` is suspect and the verifier may
+   flag for re-fetch.
+- Sell-side notes (Big-Six bank morning notes) are NOT valid
+   sources for claim-cards. Per writing-style.md Section 8, consensus
+   inputs from forecaster surveys are fine; cited bank views are
+   not. The verifier rejects any card where the URL points to a
+   bank research portal as the primary citation.
+
+### 1.3 Verifier behavior
+
+The verifier runs in `claims_verified` mode (see
+`.claude/agents/fact-checker.md` Section "Claim verification
+(auto-blurb cycle)"). It is dispatched as a **separate agent run**
+from the researcher who produced the cards. Fresh context. No
+shared conversation. The verifier sees only the claim-card YAML
+file -- not the researcher's reasoning, not the prior conversation,
+not the so_what prose. This is the structural defense against LLM
+consistency bias.
+
+For each claim-card the verifier:
+
+1. Re-fetches `source_url` via WebFetch.
+2. Locates `source_text_excerpt` in the fetched content. Fuzzy-match
+    acceptable for whitespace / HTML normalization, but the
+    substantive text must be present verbatim.
+3. Confirms `value` is present in the matched span (numeric
+    extraction). For derived values, confirms both the level card
+    and the derivation are verifiable.
+4. Confirms `claim` is a fair summary of the matched span. This
+    is an LLM judgment call; in ambiguous cases, the verifier
+    flags for human review rather than guessing.
+5. Sets `verifier_status: passed` or `failed:<reason>`.
+
+Failure-reason taxonomy (exactly five, exhaustive):
+
+- `url_404` -- the URL is unreachable (HTTP 4xx / 5xx, DNS failure,
+   or returns a "page moved" stub). Researcher must supply a
+   working URL.
+- `text_not_present` -- the `source_text_excerpt` is not found in
+   the fetched content. The page was reached but the excerpt is
+   not on it (researcher may have confabulated the excerpt or
+   linked to the wrong page on the right domain).
+- `value_mismatch` -- the `source_text_excerpt` is present but
+   the `value` field is not in the matched span, or differs from
+   what the source actually shows. This is the 2.75%-vs-2.25%
+   failure mode.
+- `claim_overreach` -- the `claim` field summarizes more than the
+   source actually supports. The excerpt is on the page and the
+   value is right, but the one-sentence claim extrapolates beyond
+   what the source said (e.g. claim says "BoC signalled it will
+   cut again" but the excerpt only contains "the Bank will continue
+   to assess incoming data").
+- `source_kind_mismatch` -- the `source_kind` does not match the
+   URL. E.g. card is tagged as `boc_press_release` but the URL
+   resolves to a Globe and Mail article, or tagged `statcan_daily`
+   but resolves to a CBA PDF. Also returned when `source_url` is
+   too vague to be fetchable (root domain, undated landing page).
+
+Verifier output is the same YAML file with `verifier_status` and
+`verifier_notes` filled in on each card. The orchestrator parses
+the file and decides the transition.
+
+### 1.4 Researcher revision budget and post-writer fact-check
+
+If any card fails verification, the orchestrator routes the file
+back to the researcher with the specific failures listed. The
+researcher revises only the failed cards (passed cards are
+sticky -- the verifier does not re-run on passed cards in the next
+round; this saves WebFetch calls and limits the failure surface).
+
+The researcher revision budget is **2 round-trips before
+escalation**. Cycle paths:
+
+- Round 1: researcher produces N cards; verifier returns K failures.
+- Round 2: researcher revises K cards; verifier returns K' failures
+   (K' should be strictly smaller than K if the researcher is
+   making real progress; the orchestrator flags K' >= K as a
+   research-side hygiene problem).
+- Round 3: if any cards still fail, the orchestrator escalates to
+   user with the full claim-card YAML, the verifier's failure
+   trail, and the cycle does not advance. Subject line:
+   `Auto-blurb escalation: claims_verified failed for <release-id>`.
+
+**Post-writer fact-check distinction.** The downstream fact-checker
+(running in `writer_drafted` -> `fact_checked` mode, Section 2.3)
+still runs as before, but with the upstream `claims_verified` gate
+in place, its job becomes lighter. It is no longer responsible for
+verifying that "BoC rate = 2.25%" against an external source; that
+fact is already in a passed claim-card. The post-writer fact-checker
+is confirming the writer used the cards correctly:
+
+- Every numeric token in the body resolves to a passed claim-card's
+   `value` (within rounding tolerance).
+- No numeric token in the body is missing a backing card (writer
+   did not invent).
+- The writer did not over-stretch a `claim` (writer did not say
+   "core-trim accelerated to a 12-month high" when the backing
+   card only supports "core-trim ticked up 0.1 pp").
+- TK leakage, banned-source phrasing, Big-Six citation in prose
+   are caught as before.
+
+This separation -- "claims true at the source" upstream, "writer
+used the claims correctly" downstream -- is the structural shape
+the v2 design lacked.
 
 ---
 
@@ -136,45 +351,77 @@ depend on this release.
 - The release calendar's `next print` date for this release-key.
 
 **Deliverable.** A structured release-context note per unit, written
-to `research/blurb_context/<release-id>/<unit-slug>.md`. Each note
-contains:
+to `research/blurb_context/<release-id>/<unit-slug>.md`. The note has
+two parts: a thin prose-steer block (the editorial steer) and a
+claim-card YAML list (the verifiable factual inputs, per Section
+1.2 schema). Every numeric or attributable fact in the prose-steer
+block must trace back to a claim-card in the list.
 
 ```
 unit: <section>.<unit-slug>             e.g. inflation_basics.panel-1
 release_id: <release-id>                e.g. cpi_monthly_2026-04
 reference_period: <YYYY-MM or YYYY-Qn>
-print_value: <numeric, native units>
-prior_value: <numeric>
-consensus_value: <numeric or null>
-consensus_source: aggregated_forecaster_median | boc_mpr | none
-surprise_value: <numeric or null, native units>
 historical_comparable: <free text, 1-2 sentences>
    e.g. "First month Y/Y headline has been within the 1-3% BoC
-        control band since January 2023."
+        control band since January 2023." Every factual atom in
+        this sentence must have a backing claim-card.
 so_what: <free text, 1 sentence>
    The single observation the writer should anchor the third
    sentence on. May be "none for this release" if the print is
-   quiet.
+   quiet. Atoms backed by claim-cards.
 revision_to_prior: <bool, plus delta if true>
 next_print_date: <ISO date>
 quiet_release: <bool>
-   Set true only if the print is genuinely uneventful (no
-   meaningful comparator move, no structural observation). Quiet
+   Set true only if the print is genuinely uneventful. Quiet
    releases still produce a 2-sentence blurb; see Section 4.1.
+
+claim_cards:
+   - claim_id: ...
+     claim: ...
+     value: ...
+     unit: ...
+     source_url: ...
+     source_text_excerpt: ...
+     fetched_at: ...
+     source_kind: ...
+     verifier_status: pending
+     verifier_notes: null
+   - <one card per atomic fact the writer needs:
+       print_value, prior_value, consensus_value, surprise_value,
+       and every numeric or attributable fact appearing in
+       historical_comparable or so_what>
 ```
 
+Note: `print_value`, `prior_value`, `consensus_value`, and
+`surprise_value` are no longer top-level scalar fields. They appear
+as individual claim-cards in the `claim_cards` list (this is what
+lets the verifier re-fetch and confirm them). The orchestrator
+extracts them from the cards by `claim_id` convention
+(e.g. `<unit>-<release-id>-print`, `-prior`, `-consensus`,
+`-surprise`) for downstream use.
+
 **Pass criteria.** A context note exists for every unit in the
-release's fan-out. Numeric fields cross-check against
-`data/processed/`. The so-what sentence is a factual claim
-(distinguishable from interpretation; the writer can ground prose on
-it without inventing).
+release's fan-out. Every claim-card is well-formed per Section 1.2
+schema (specific URL, verbatim excerpt, valid source_kind, fresh
+`fetched_at`). Every numeric or attributable atom in the prose-steer
+block (`historical_comparable`, `so_what`) is backed by a card.
+The so-what sentence is a factual claim (distinguishable from
+interpretation; the writer can ground prose on it without inventing).
+
+The researcher's deliverable is the **input** to the
+`claims_verified` gate; passing the researcher's pass-criteria is
+necessary but not sufficient. The cards then face the verifier's
+fresh-context re-fetch pass (Section 1.3). The researcher cannot
+self-stamp `verifier_status: passed`; that field is verifier-only.
 
 **Fail / escalation.** If the researcher cannot produce a context note
 for a unit (e.g. underlying data is contradictory, or the
 historical-comparable claim is uncertain), the researcher returns the
 unit with `quiet_release: true` and `so_what: "no defensible
 editorial steer for this release"`. The cycle continues with a
-shorter blurb; the user sees a flag in the email.
+shorter blurb; the user sees a flag in the email. If verifier-side
+failures exhaust the 2-round-trip revision budget (Section 1.4),
+the cycle escalates to user and the blurb does not publish.
 
 **What researcher does NOT do.** The researcher does not draft the
 blurb prose. The researcher does not stamp the consensus as a fact;
@@ -233,52 +480,102 @@ does not perform the polish pass). The writer does not select which
 comparator (consensus vs MPR) to lean on -- the context note tells
 them which is available.
 
-### 2.3 fact-checker -- numeric and source verification
+### 2.3 fact-checker -- two modes
+
+The fact-checker plays two roles in the cycle. The agent's full
+brief is in `.claude/agents/fact-checker.md`; the two modes are
+distinct invocations.
+
+#### 2.3a Mode: claims verification (upstream, `context_drafted`
+-> `claims_verified`)
+
+**Trigger.** Pipeline transitions to `context_drafted`. Orchestrator
+dispatches the fact-checker as a **separate agent run**, fresh
+context, no shared conversation with the researcher who produced
+the cards.
+
+**Inputs.**
+- The claim-card YAML file at
+  `research/blurb_context/<release-id>/<unit-slug>.md` -- only the
+  cards, not the prose-steer block, not the researcher's reasoning.
+
+**Deliverable.** The same YAML file with `verifier_status` and
+`verifier_notes` filled in on each card, plus a verdict summary
+written to
+`editorial/verifications/blurbs/<section>/<unit-slug>/<release-id>.claims.json`.
+
+**Pass criteria.** Every card returns `verifier_status: passed` per
+the five-reason taxonomy in Section 1.3.
+
+**Fail / escalation.** Any card fails -> route back to researcher
+with the failure list. Budget: 2 round-trips (Section 1.4). On the
+third failure, escalate to user.
+
+#### 2.3b Mode: draft verification (downstream, `writer_drafted`
+-> `fact_checked`)
 
 **Trigger.** Pipeline transitions to `writer_drafted`. Orchestrator
-invokes fact-checker with the cycle artifact.
+invokes fact-checker (this is a separate run from the upstream
+claims-verification invocation; the same agent file, different mode).
 
 **Inputs.**
 - The writer's draft body in the cycle artifact.
-- The cycle artifact's structured front-matter (consensus value,
-  print value, prior value, surprise value).
+- The verified claim-card YAML (every card now carries
+  `verifier_status: passed` from the upstream gate).
 - `data/processed/<series>.csv` and `<series>.meta.json` for every
-  series the unit shows.
-- `data/site/sections.json` for the primary-source URL.
+  series the unit shows (for rounding-tolerance lookups).
 
 **Deliverable.** A verification verdict written to
-`editorial/verifications/blurbs/<section>/<unit-slug>/<release-id>.json`
+`editorial/verifications/blurbs/<section>/<unit-slug>/<release-id>.draft.json`
 plus a state transition on the cycle artifact. The verdict file is
 the mechanical trace per v1 Section 5: a list of
-`(numeric_token, source_field, source_value, match_status)` tuples
-plus the per-claim verdict (verified / unsupported / contradicted /
-uncertain) per the fact-checker agent brief in
-`.claude/agents/fact-checker.md`.
+`(numeric_token, backing_claim_id, source_value, match_status)`
+tuples plus the per-claim verdict.
 
-**Pass criteria.** Every numeric token in the body resolves to a
-source value within rounding tolerance. Every cited date matches the
-release calendar. Every institution name uses the convention in
-writing-style.md Section 4 (BoC not BOC; StatCan not Stats Can). No
-TK leakage. No Big-Six citation in prose. The primary-source URL in
-`data/site/sections.json` for this unit's print returns 200 on a
-HEAD request.
+**Pass criteria** (lighter than v1 because claims-verification has
+moved upstream):
+- Every numeric token in the body resolves to a passed claim-card's
+  `value` (within rounding tolerance). The fact-checker does NOT
+  re-fetch the source URL in this mode -- that has already been
+  done in Section 2.3a.
+- No numeric token in the body lacks a backing card (writer did
+  not invent a value).
+- The writer did not stretch a `claim` past what the card supports
+  (claim_overreach in the writer's prose, mirroring the upstream
+  failure mode).
+- Every cited date matches the release calendar.
+- Every institution name uses the convention in writing-style.md
+  Section 4 (BoC not BOC; StatCan not Stats Can).
+- No TK leakage.
+- No Big-Six citation in prose.
 
-**Fail / escalation.** Any mismatch fails the gate. The fact-checker
-returns the cycle to the writer with the specific numbers /
-phrasings that failed and the source values they should be. After
-two failed re-drafts, escalate to the user with the trace attached
-(the user gets the email, opens the draft, and sees the failed
-verifications inline).
+**Fail / escalation (draft mode).** Any mismatch fails the gate.
+The fact-checker returns the cycle to the writer with the specific
+numbers / phrasings that failed and the backing claim-card value
+they should be. After two failed re-drafts, escalate to the user
+with the trace attached (the user gets the email, opens the draft,
+and sees the failed verifications inline).
+
+**Stale source URL handling.** Source URL freshness was a v1 gate
+on the draft pass; in v2 it has moved upstream. A `url_404` failure
+is now caught at the `claims_verified` gate, where it routes back to
+the researcher to supply a working URL. The draft fact-checker does
+not re-validate URLs because the upstream gate has already done so.
+(Source-URL hygiene for the live site's `sections.json` is a
+separate concern handled at build time per Section 4.5.)
 
 **What fact-checker does NOT do.** The fact-checker does not polish
-voice. The fact-checker does not verify the researcher's so-what
-sentence (that's a researcher-side claim; if the writer used it,
-the writer is responsible for not extending it beyond what the
-researcher wrote, and fact-checker may flag suspected
-extension as `uncertain`). The fact-checker does not run after the
-user rewrites the body -- the user's edit ends the verification
-chain. Soft-warning post-edit verification (per v1 Section 5
-"two-cycle exception") is a v3 add and not in scope for Phase 1.
+voice. The fact-checker does not run after the user rewrites the
+body -- the user's edit ends the verification chain. Soft-warning
+post-edit verification (per v1 Section 5 "two-cycle exception") is a
+v3 add and not in scope for Phase 1.
+
+**Important: the two modes are dispatched as separate agent runs.**
+The upstream claims-verification invocation does not share context
+with the downstream draft-verification invocation, and neither shares
+context with the researcher who produced the cards. This is the
+structural defense against LLM consistency bias (Section 1.1) and
+must be preserved in the orchestrator implementation.
 
 ### 2.4 style-editor -- voice polish
 
@@ -398,12 +695,16 @@ last_state: ready_for_user
 state_history:
   - [release_landed,    2026-05-14T08:30:00Z, scheduler]
   - [context_drafted,   2026-05-14T08:35:00Z, researcher]
-  - [writer_drafted,    2026-05-14T08:38:00Z, writer]
-  - [fact_checked,      2026-05-14T08:40:00Z, fact-checker]
-  - [style_polished,    2026-05-14T08:42:00Z, style-editor]
-  - [ready_for_user,    2026-05-14T08:42:00Z, orchestrator]
+  - [claims_verified,   2026-05-14T08:37:00Z, fact-checker (claims mode)]
+  - [writer_drafted,    2026-05-14T08:39:00Z, writer]
+  - [fact_checked,      2026-05-14T08:41:00Z, fact-checker (draft mode)]
+  - [style_polished,    2026-05-14T08:43:00Z, style-editor]
+  - [ready_for_user,    2026-05-14T08:43:00Z, orchestrator]
 researcher_context_path: research/blurb_context/cpi_monthly_2026-04/panel-1-headline-cpi.md
-fact_check_path: editorial/verifications/blurbs/inflation/panel-1-headline-cpi/cpi_monthly_2026-04.json
+researcher_revision_count: 0    # increments on each claims_verified failure routing back to researcher; max 2 before escalation
+claims_verified_path: editorial/verifications/blurbs/inflation/panel-1-headline-cpi/cpi_monthly_2026-04.claims.json
+claims_verified_status: passed
+fact_check_path: editorial/verifications/blurbs/inflation/panel-1-headline-cpi/cpi_monthly_2026-04.draft.json
 fact_check_status: passed
 voice_validation: passed
 consensus_source: aggregated_forecaster_median
@@ -797,17 +1098,17 @@ The user can override; the override is logged.
 ### 8.1 Per-cycle LLM-call count
 
 v1 was one LLM call per unit (writer-only; the fact-checker and
-style-editor were mechanical validators). v2 is four LLM calls per
-unit on the happy path: researcher (context note), writer (draft),
-fact-checker (verification verdict; the fact-checker is an agent
-not a regex), style-editor (polish).
+style-editor were mechanical validators). v2 is five LLM calls per
+unit on the happy path: researcher (context note + claim-cards),
+fact-checker in claims-verification mode (verifier; fresh context),
+writer (draft), fact-checker in draft-verification mode (separate
+fresh context), style-editor (polish).
 
-On the unhappy path: one or two re-drafts on writer (fact-checker
-re-route), one re-polish on style-editor, plus the researcher being
-re-routed for a TK. Budget multiplier on cycles where any retry
-fires: ~1.4x baseline. Empirical: assume ~1.3x average across the
-fleet given the writer / fact-checker / style-editor agents are all
-calibrated to the same voice canon.
+On the unhappy path: one or two researcher revisions on
+claims_verified failure, one or two writer re-drafts on fact-checker
+re-route, one re-polish on style-editor. Budget multiplier on cycles
+where any retry fires: ~1.5x baseline. Empirical: assume ~1.35x
+average across the fleet.
 
 ### 8.2 Per-month token budget
 
@@ -818,22 +1119,25 @@ Per-call token budget per agent (rough, in input + output tokens):
 
 | Agent | Input tokens | Output tokens | Note |
 |---|---|---|---|
-| researcher | ~4,000 | ~400 | reads context note prior, data sidecars, prior approved blurb, voice canon |
-| writer | ~5,000 | ~150 | reads researcher note, data, chart manifest, voice canon |
-| fact-checker | ~3,500 | ~300 | reads draft, data sidecars, primary URLs, voice canon |
+| researcher | ~4,500 | ~600 | reads context note prior, data sidecars, prior approved blurb, voice canon; emits prose-steer + claim-cards |
+| fact-checker (claims mode) | ~3,000 | ~300 | reads claim-card YAML only; WebFetch round trips per card (the costly piece is the fetch, not the LLM token count) |
+| writer | ~5,000 | ~150 | reads verified cards, data, chart manifest, voice canon |
+| fact-checker (draft mode) | ~3,000 | ~250 | reads draft, verified cards, data sidecars (no URL re-fetch) |
 | style-editor | ~3,000 | ~200 | reads draft, voice canon |
-| **Per-unit total** | **~15,500** | **~1,050** | round trip |
+| **Per-unit total** | **~18,500** | **~1,500** | round trip |
 
-Per-month token cost at full coverage with the ~1.3x retry
-multiplier: ~45 unit-fires/mo * (~15,500 + ~1,050) tokens * 1.3 =
-~970,000 tokens per month.
+Per-month token cost at full coverage with the ~1.35x retry
+multiplier: ~45 unit-fires/mo * (~18,500 + ~1,500) tokens * 1.35 =
+~1,215,000 tokens per month.
 
 At Claude Sonnet pricing of approximately $3 per 1M input tokens and
-$15 per 1M output tokens, with ~94% of tokens being input: monthly
-LLM cost is approximately **$3 to $8 per month at Phase 3 steady
-state**. Slightly higher than v1's $1-3 estimate because the
-multi-agent fan-out is 4x the call count per cycle, but tokens are
-still noise relative to developer time.
+$15 per 1M output tokens, with ~92% of tokens being input: monthly
+LLM cost is approximately **$4 to $10 per month at Phase 3 steady
+state**. Slightly higher than the pre-verifier v2 estimate
+because the claims-verification mode adds a fresh-context call per
+unit, but tokens are still noise relative to developer time. The
+fetch-side cost (WebFetch round trips per card) is bounded by the
+researcher's card count, typically 3-6 per unit.
 
 At Phase 2 (3 sections, ~20 unit-fires/mo): ~$2 to $4 per month. At
 Phase 1 (Inflation only, ~6 unit-fires/mo): under $1 per month.
@@ -850,13 +1154,23 @@ Per-stage latency budget:
 | Stage | Budget | Note |
 |---|---|---|
 | release-land detection | ~5 min | scheduler polls calendar; content-hash check |
-| researcher (context note) | ~5 min | LLM round trip, single unit |
+| researcher (context note + cards) | ~5 min | LLM round trip + WebFetch per card |
+| verifier (claims mode) | ~3 min | fresh-context LLM run + WebFetch per card |
 | writer (draft) | ~3 min | LLM round trip per unit |
-| fact-checker (verify) | ~3 min | LLM round trip per unit |
+| fact-checker (draft mode) | ~2 min | LLM round trip per unit; no URL re-fetch |
 | style-editor (polish) | ~2 min | LLM round trip per unit |
 | email send | ~1 min | SMTP |
-| slack budget | ~11 min | retry on any stage, queuing latency |
+| slack budget | ~9 min | retry on any stage, queuing latency |
 | **End-to-end** | **~30 min** | hard ceiling |
+
+A `claims_verified` failure that round-trips back to researcher
+consumes one researcher + one verifier cycle (~8 min) per round-
+trip. With the 2-round-trip budget, the worst-case verifier path
+adds ~16 min to the baseline -- which would breach the 30-min
+ceiling. The orchestrator may flag any cycle that consumed 2 full
+round-trips for editorial-director review even when it ultimately
+passes, since systematic 2-round-trip cycles indicate the
+researcher prompt or the source-kind enum needs tuning.
 
 For a release that fires multiple units (e.g. CPI fires 6 units),
 the pipeline parallelizes across units after the release-land
@@ -926,12 +1240,29 @@ are out of scope for this build.
    - For each unit, create the cycle artifact at
      `editorial/blurbs/inflation/<unit-slug>/<release-id>.md`
      with `last_state: release_landed`.
-   - Walk the state machine: invoke the four agents in sequence
-     via the Claude Agent SDK dispatch (see existing pattern in
-     repo for agent invocation; if no pattern exists yet, use
-     subprocess to the `claude` CLI with a `/auto-blurb-<role>`
-     skill -- design the skills under
+   - Walk the state machine through the full sequence:
+     `release_landed` -> `context_drafted` (researcher) ->
+     `claims_verified` (verifier, fresh-context fact-checker
+     dispatch via `verify_claims.py`) -> `writer_drafted` (writer)
+     -> `fact_checked` (fact-checker draft mode) ->
+     `style_polished` (style-editor) -> `ready_for_user`.
+   - Invoke each agent via the Claude Agent SDK dispatch (see
+     existing pattern in repo for agent invocation; if no pattern
+     exists yet, use subprocess to the `claude` CLI with a
+     `/auto-blurb-<role>` skill -- design the skills under
      `.claude/commands/auto-blurb-<role>.md`).
+   - **The `claims_verified` transition must dispatch the
+     fact-checker as a fresh agent run, not as a follow-up to the
+     researcher's session.** No shared context. The verifier sees
+     only the claim-card YAML file. Same constraint for the
+     downstream draft-verification invocation: it is a separate
+     run from the upstream claims-verification invocation. This is
+     enforced in `verify_claims.py` and the corresponding draft
+     verification entry point.
+   - On verifier failure, increment the researcher's revision
+     count on the cycle artifact, re-route to researcher, repeat.
+     Budget: 2 round-trips. On round 3 failure, transition to
+     `escalated`.
    - On each agent's return, validate the deliverable, update the
      cycle artifact, write the audit log.
    - On final state `style_polished`, transition to
@@ -939,22 +1270,60 @@ are out of scope for this build.
    - On any failure that exceeds retry budget, transition to
      `escalated` and email the user with the escalation subject.
 
-4. **Per-agent prompt scaffolding.** Four skill files under
+4. **Per-agent prompt scaffolding.** Five skill files under
    `.claude/commands/`:
    - `auto-blurb-researcher.md` -- invokes researcher with the
-     release-id and unit-slug; returns the context note. Template
-     per Section 2.1 deliverable.
-   - `auto-blurb-writer.md` -- invokes writer; returns the body.
+     release-id and unit-slug; returns the context note plus
+     claim-card YAML. Template per Section 2.1 deliverable.
+   - `auto-blurb-verify-claims.md` -- invokes fact-checker in
+     claims-verification mode (fresh context). Input: claim-card
+     YAML path only; no researcher context, no prose-steer.
+     Output: same YAML with `verifier_status` filled in. Template
+     per Section 2.3a.
+   - `auto-blurb-writer.md` -- invokes writer with the verified
+     claim-cards plus prose-steer block; returns the body.
      Template per Section 2.2.
-   - `auto-blurb-fact-checker.md` -- invokes fact-checker; returns
-     the verdict JSON and pass/fail. Template per Section 2.3.
+   - `auto-blurb-fact-checker.md` -- invokes fact-checker in
+     draft-verification mode; returns the verdict JSON and
+     pass/fail against the writer's body. Template per Section 2.3b.
    - `auto-blurb-style-editor.md` -- invokes style-editor; returns
      the polished body. Template per Section 2.4.
 
    Each skill embeds the relevant slice of voice canon (Section 7
    Mode A from writing-style.md, Section 6 banned constructions,
-   Section 8 consensus prose) inline. The skills are versioned;
-   bump on every revision.
+   Section 8 consensus prose) inline. The two fact-checker skill
+   files embed only the slice relevant to their mode (the
+   claims-verification skill embeds the Section 1.2 schema and 1.3
+   taxonomy; the draft-verification skill embeds the writer's body
+   rules). The skills are versioned; bump on every revision.
+
+4b. **Claim-card verification entry point.**
+   `pipeline/blurbs/verify_claims.py` exposing:
+   - `verify_claim_file(path: Path) -> VerifyResult` -- reads the
+     claim-card YAML at `path`, dispatches the fact-checker in
+     claims-verification mode as a **fresh agent run** (separate
+     CLI invocation or fresh SDK session; no shared context with
+     the researcher's session that produced the file), parses the
+     verdict YAML back, writes the updated cards to the same path,
+     returns a `VerifyResult` summarizing pass/fail counts and the
+     per-card status.
+   - `VerifyResult` (pydantic) fields: `total_cards`,
+     `passed_count`, `failed_count`, `failures: list[CardFailure]`
+     where `CardFailure` is
+     `(claim_id, reason, verifier_notes)`.
+   - On dispatch, the entry point MUST NOT pass any context other
+     than the claim-card YAML file path to the verifier. The
+     prose-steer block (`so_what`, `historical_comparable`) is
+     stripped before dispatch.
+   - Audit-trail append: every verify_claims run appends a single
+     line to `<release-id>.log.md` with timestamp, total/passed/
+     failed counts, and the failed `claim_id` list with reasons.
+   - The state-machine driver in `run.py` calls
+     `verify_claim_file()` on the researcher's output, and
+     transitions `context_drafted -> claims_verified` if all
+     pass, otherwise routes back to researcher and increments
+     `researcher_revision_count` on the cycle artifact's
+     front-matter.
 
 5. **Email send.** `pipeline/blurbs/email.py` exposing
    `send_review_email(artifact)`. Phase 1 implementation:
@@ -1011,10 +1380,18 @@ are out of scope for this build.
      happy path + every banned construction.
    - `pipeline/blurbs/test_factcheck.py` -- numeric extraction +
      verification against a fixture CSV.
+   - `pipeline/blurbs/test_verify_claims.py` -- claim-card
+     verification: happy path (all cards pass), each of the five
+     failure reasons (`url_404`, `text_not_present`,
+     `value_mismatch`, `claim_overreach`, `source_kind_mismatch`)
+     against fixture YAML + mocked WebFetch responses.
    - `pipeline/blurbs/test_run.py` -- integration test that mocks
-     the four agent dispatches and walks a cycle from
+     the five agent dispatches (researcher, verifier, writer,
+     draft-fact-checker, style-editor) and walks a cycle from
      `release_landed` to `ready_for_user`, asserts state
-     transitions and audit-log content.
+     transitions and audit-log content. Includes a path where the
+     verifier fails round 1, researcher revises, round 2 passes,
+     and the cycle completes; and a path where round 3 escalates.
 
 10. **Documentation.** `pipeline/blurbs/README.md` -- the
     operator manual: how to run the CLI, where artifacts land,
@@ -1047,14 +1424,25 @@ are out of scope for this build.
   cpi_monthly_2026-04` with stubbed agent dispatches produces
   six cycle artifacts in
   `editorial/blurbs/inflation/<unit-slug>/cpi_monthly_2026-04.md`,
-  each with full state history through `ready_for_user` and an
-  email-sent event in the audit log.
+  each with full state history through `ready_for_user`
+  (including a `claims_verified` event in the state_history) and
+  an email-sent event in the audit log.
 - The voice pre-check rejects a body containing "going forward"
   with a specific failure message naming the banned construction.
 - The fact-checker helper, given a draft body containing `2.3%`
   and a fixture CSV with `2.3` as the latest value, returns a
   verified verdict; given `2.4%` against the same CSV, returns a
   contradicted verdict.
+- `verify_claim_file()` given a fixture YAML with one
+  `text_not_present` card and one passing card returns a
+  `VerifyResult` with `passed_count=1, failed_count=1` and the
+  failed `claim_id` listed.
+- The integration test that exercises the round-1-fail / round-2-
+  pass path advances the cycle to `ready_for_user` with
+  `researcher_revision_count: 1` recorded on the artifact.
+- The integration test that exercises the round-3 escalation path
+  transitions the cycle to `escalated` and emits the escalation
+  email with the failing claim-card YAML attached.
 - The pre-commit hook stamps `approved_by_at` on a
   draft-to-approved status transition.
 
@@ -1112,3 +1500,17 @@ End of document.
 
 - 2026-05-11: Initial v2 version. Multi-agent process design.
   Supersedes researcher's v1 single-LLM design. editorial-director.
+- 2026-05-11 (addendum): Insert `claims_verified` state between
+  `context_drafted` and `writer_drafted`. Add claim-card schema
+  (Section 1.2), verifier behavior and five-reason failure
+  taxonomy (Section 1.3), researcher revision budget and
+  post-writer fact-check distinction (Section 1.4). Fact-checker
+  brief (Section 2.3) split into two modes: claims-verification
+  upstream and draft-verification downstream, both dispatched as
+  fresh agent runs to defend against LLM consistency bias. Phase 1
+  backend brief (Section 9) gains `verify_claims.py` deliverable
+  plus the `auto-blurb-verify-claims` skill file. Motivation: the
+  Pillar A wave-4 "BoC rate 2.75%" failure (corrected in wave 5
+  via primary-source re-fetch) proved chain-of-trust verification
+  is not enough; the verifier must re-fetch and grep-match the
+  source text. editorial-director.

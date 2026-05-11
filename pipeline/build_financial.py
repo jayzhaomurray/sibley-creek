@@ -237,6 +237,71 @@ def derive_goc_ust_spreads() -> None:
         write_series(spread, meta, DATA_PROCESSED)
 
 
+def derive_corra_overnight_spread() -> None:
+    """Daily CORRA-vs-overnight-target spread in basis points.
+
+    Per Wave 5 brief (editorial/wave5_boc_tracker_chart_decisions.md, Section 5,
+    backend item 3): the Balance Sheet panel (Policy panel-4) carries CORRA-target
+    spread as a secondary view, surfacing whether the BoC's floor regime is
+    functioning. Spread = CORRA daily - overnight rate (target) daily.
+
+    Inputs:
+        data/raw/corra_daily.csv          BoC Valet AVG.INTWO (daily, 2009-01-02 onward)
+        data/raw/overnight_rate_daily.csv BoC Valet V39079    (daily, 2009-04-21 onward)
+
+    Mismatch handling: CORRA publishes for every business day; the daily
+    overnight rate is also published daily (it changes only on FAD dates but
+    BoC carries the prevailing target through non-FAD days). We forward-fill
+    the overnight rate onto CORRA's date axis to handle any holiday-day
+    asymmetries cleanly, then join and take the difference.
+
+    Output:
+        data/processed/corra_overnight_spread_bps.csv
+            spread in basis points (CORRA% - target%) * 100. Positive = CORRA
+            trades above target (typical for a tight liquidity regime); zero
+            or slightly negative = floor-maintenance regime working as
+            intended.
+
+    20-day smoothing is applied at the panel layer per editorial brief, NOT
+    here. Backend ships the raw daily spread.
+    """
+    corra = _read_raw("corra_daily")
+    target = _read_raw("overnight_rate_daily")
+    if corra is None or target is None:
+        return
+    c = corra.set_index("date")["value"].sort_index().rename("corra")
+    t = target.set_index("date")["value"].sort_index().rename("target")
+    # Forward-fill the target onto the union date axis so any CORRA-day that
+    # falls on a non-publication day of the target leg still resolves.
+    union_idx = c.index.union(t.index).sort_values()
+    t_ff = t.reindex(union_idx).ffill()
+    aligned = pd.concat([c, t_ff.rename("target")], axis=1).dropna()
+    spread_bps = ((aligned["corra"] - aligned["target"]) * 100.0).round(2)
+    out = spread_bps.reset_index()
+    out.columns = ["date", "value"]
+    # Restrict to dates CORRA actually publishes (drop any ffill-only rows
+    # where CORRA was unavailable).
+    out = out[out["date"].isin(corra["date"])].reset_index(drop=True)
+
+    meta = SeriesMeta(
+        name="corra_overnight_spread_bps",
+        source="Bank of Canada Valet API (derived)",
+        source_url="https://www.bankofcanada.ca/valet/observations/AVG.INTWO/json",
+        source_id="AVG.INTWO-minus-V39079 (in basis points)",
+        units="basis points",
+        frequency="daily",
+        notes=(
+            "Daily CORRA minus daily overnight rate target, in basis points. "
+            "Inputs: AVG.INTWO (CORRA daily) and V39079 (overnight rate, daily). "
+            "Overnight target forward-filled across non-publication days. "
+            "Positive values = CORRA trades above target; near-zero = floor "
+            "regime functioning. 20-day smoothing applied at chart layer, not here."
+        ),
+        transform="(corra_daily - overnight_rate_daily) * 100",
+    )
+    write_series(out, meta, DATA_PROCESSED)
+
+
 # --------------------------------------------------------------------------- #
 # Orchestrator
 # --------------------------------------------------------------------------- #
@@ -262,6 +327,7 @@ def main() -> int:
 
     logger.info("--- Derivations (Financial) ---")
     _safe("derive_goc_ust_spreads", derive_goc_ust_spreads, failed)
+    _safe("derive_corra_overnight_spread", derive_corra_overnight_spread, failed)
 
     if failed:
         logger.error("Financial build completed with %d failure(s): %s",

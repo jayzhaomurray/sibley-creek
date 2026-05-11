@@ -18,11 +18,20 @@
 import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
+import panelDataFile from "../../data/site/panel_data/policy.json";
+import { pickPanel } from "../components/charts/_shared/panelData";
 
 const section = sections.find((s) => s.slug === "policy");
 if (!section) {
   throw new Error("Policy section not found in src/data/sections.ts");
 }
+
+const panel1Data = pickPanel(panelDataFile, 1);
+const panel2Data = pickPanel(panelDataFile, 2);
+const panel3Data = pickPanel(panelDataFile, 3);
+const panel4Data = pickPanel(panelDataFile, 4);
+const panel5Data = pickPanel(panelDataFile, 5);
+const panel6Data = pickPanel(panelDataFile, 6);
 
 const plates: Plate[] = [
   {
@@ -44,6 +53,7 @@ const plates: Plate[] = [
     },
     source: "Bank of Canada rate decision and Monetary Policy Report, latest vintage.",
     chartKey: "policy-panel-1",
+    data: panel1Data,
   },
   {
     id: "plate-2",
@@ -57,6 +67,7 @@ const plates: Plate[] = [
       "The MPR's market-implied curve, refreshed quarterly, remains the primary-source-grade reference for the OIS-implied path; we do not reconstruct OIS forwards in v1 basics.",
     source: "BoC Valet (rates); MPR market-implied curve, latest vintage.",
     chartKey: "policy-panel-2",
+    data: panel2Data,
   },
   {
     id: "plate-3",
@@ -77,6 +88,7 @@ const plates: Plate[] = [
     },
     source: "BoC Valet (Canada 2y); FRED DGS2 (US 2y); distribution constructed.",
     chartKey: "policy-panel-3",
+    data: panel3Data,
   },
   {
     id: "plate-4",
@@ -91,6 +103,7 @@ const plates: Plate[] = [
     source:
       "Bank of Canada weekly statement; Bank operating-framework communications, December 2024.",
     chartKey: "policy-panel-4",
+    data: panel4Data,
   },
   {
     id: "plate-5",
@@ -111,6 +124,7 @@ const plates: Plate[] = [
     source:
       "Department of Finance Fiscal Monitor, latest; PBO Economic and Fiscal Outlook, latest.",
     chartKey: "policy-panel-5",
+    data: panel5Data,
   },
   {
     id: "plate-6",
@@ -125,6 +139,7 @@ const plates: Plate[] = [
     source:
       "IMF Article IV Canada (latest); OECD Economic Survey of Canada (latest).",
     chartKey: "policy-panel-6",
+    data: panel6Data,
   },
 ];
 

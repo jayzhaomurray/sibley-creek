@@ -1,178 +1,22 @@
 ---
 /*
- * Panel4TariffState - Trade plate 4.
+ * Panel4TariffState - tariff state log.
  *
- * NOT A CHART. Per editorial canon 4.7.4 and design-system 6.5, this
- * plate renders as a canonical Vignelli data table: header row 9.5-10px
- * micro-caps 600 in pure ink with 1px black bottom rule, data rows in
- * Manrope 400 for text columns and Plex Mono 400 for numeric / tariff-
- * level columns, 1px black rule between rows, no zebra striping. Sort
- * indicators (when needed) are ASCII glyphs in pure ink.
+ * Pipeline does not emit tariff data (this is an editorially-maintained
+ * log per design-system Section 6.5, not a time series). PanelEmpty
+ * until the tariff log is wired into a renderable form.
  *
- * Each row in the log: action name, scope (HS chapters or product
- * cluster), tariff level, effective date, status. The "status" column
- * uses a pure-ink em dash for "in force" rather than a colored badge -
- * the Vignelli direction-by-glyph discipline.
- *
- * Placeholder rows model the v1 named-actions set (Section 232 follow-
- * ons, Section 301 carve-outs, bilateral countermeasures). Backend
- * supplies the live wiring.
+ * Synthetic-data fallback removed.
  */
 
-interface TariffRow {
-  /** Action / measure name (eg "Section 232 - steel and aluminum"). */
-  action: string;
-  /** Scope description (eg "Steel mill products; aluminum derivatives"). */
-  scope: string;
-  /** Tariff level as a string for typographic flexibility (eg "25%", "10% + 50%"). */
-  level: string;
-  /** Effective date or window (eg "Mar 2018 -", "Mar 12, 2026 -"). */
-  effective: string;
-  /** Status text (eg "In force", "Under review"). */
-  status: string;
-}
+import type { PanelData } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
 
 interface Props {
-  rows?: TariffRow[];
-  ariaLabel?: string;
+  data?: PanelData | null;
 }
 
-function makePlaceholder(): TariffRow[] {
-  return [
-    {
-      action: "Section 232 - steel and aluminum",
-      scope: "Steel mill products; aluminum and derivatives",
-      level: "25% / 10%",
-      effective: "Mar 2018 -",
-      status: "In force",
-    },
-    {
-      action: "Section 232 follow-on - critical inputs",
-      scope: "Named downstream-metals categories",
-      level: "25%",
-      effective: "Mar 12, 2026 -",
-      status: "In force",
-    },
-    {
-      action: "Section 301 - China-origin (carve-outs)",
-      scope: "Selected HS codes with bilateral exemption",
-      level: "Variable",
-      effective: "2018 -",
-      status: "In force",
-    },
-    {
-      action: "Softwood lumber (countervailing + AD)",
-      scope: "Softwood lumber exports",
-      level: "14.4%",
-      effective: "Aug 2024 -",
-      status: "In force",
-    },
-    {
-      action: "Canadian countermeasures (steel)",
-      scope: "US-origin steel and aluminum products",
-      level: "25%",
-      effective: "Apr 2025 -",
-      status: "In force",
-    },
-    {
-      action: "USMCA review window",
-      scope: "Comprehensive agreement review",
-      level: "TBD",
-      effective: "Jul 2026 (window opens)",
-      status: "Pending",
-    },
-  ];
-}
-
-const {
-  rows = makePlaceholder(),
-  ariaLabel = "US trade actions affecting Canada, currently effective log.",
-} = Astro.props;
+const { data: _data = null } = Astro.props;
+void _data;
 ---
-<figure class="trade-panel-4" aria-label={ariaLabel}>
-  <table class="trade-panel-4__table">
-    <thead>
-      <tr>
-        <th class="trade-panel-4__th trade-panel-4__th--text" scope="col">Action</th>
-        <th class="trade-panel-4__th trade-panel-4__th--text" scope="col">Scope</th>
-        <th class="trade-panel-4__th trade-panel-4__th--num" scope="col">Level</th>
-        <th class="trade-panel-4__th trade-panel-4__th--num" scope="col">Effective</th>
-        <th class="trade-panel-4__th trade-panel-4__th--text" scope="col">Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      {rows.map((r) => (
-        <tr>
-          <td class="trade-panel-4__td trade-panel-4__td--text trade-panel-4__td--action">{r.action}</td>
-          <td class="trade-panel-4__td trade-panel-4__td--text">{r.scope}</td>
-          <td class="trade-panel-4__td trade-panel-4__td--num">{r.level}</td>
-          <td class="trade-panel-4__td trade-panel-4__td--num">{r.effective}</td>
-          <td class="trade-panel-4__td trade-panel-4__td--text">{r.status}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</figure>
-
-<style>
-  .trade-panel-4 {
-    width: 100%;
-    margin: 0;
-    background-color: var(--surface);
-  }
-  .trade-panel-4__table {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: var(--font-sans);
-    color: var(--ink);
-  }
-  /* Header row: 9.5px micro-caps 600, 0.18em tracking, 1px black bottom rule. */
-  .trade-panel-4__th {
-    font-size: 9.5px;
-    font-weight: var(--fw-semibold);
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--ink);
-    padding: 8px 12px 6px 0;
-    border-bottom: 1px solid var(--rule);
-    vertical-align: bottom;
-  }
-  .trade-panel-4__th--text { text-align: left; }
-  .trade-panel-4__th--num  { text-align: right; }
-
-  /* Data rows: 1px black rule between rows, no zebra. */
-  .trade-panel-4__td {
-    padding: 10px 12px 10px 0;
-    border-bottom: 1px solid var(--rule);
-    vertical-align: top;
-  }
-  /* Text columns: Manrope 400, 14px. */
-  .trade-panel-4__td--text {
-    font-family: var(--font-sans);
-    font-size: 14px;
-    font-weight: var(--fw-regular);
-    text-align: left;
-  }
-  /* Numeric / tariff-level columns: Plex Mono 400, right-aligned, tabular. */
-  .trade-panel-4__td--num {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    font-weight: var(--fw-regular);
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-    white-space: nowrap;
-  }
-  /* Load-bearing column (action name): name in 600 weight. */
-  .trade-panel-4__td--action {
-    font-weight: var(--fw-semibold);
-  }
-
-  @media (max-width: 720px) {
-    .trade-panel-4__th,
-    .trade-panel-4__td {
-      padding-right: 8px;
-    }
-    .trade-panel-4__td--text { font-size: 13px; }
-    .trade-panel-4__td--num  { font-size: 12px; }
-  }
-</style>
+<PanelEmpty reason="Tariff state log not yet wired (editorial table)." />

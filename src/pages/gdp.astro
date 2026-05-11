@@ -24,11 +24,24 @@
 import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
+import panelDataFile from "../../data/site/panel_data/gdp.json";
+import { pickPanel } from "../components/charts/_shared/panelData";
 
 const section = sections.find((s) => s.slug === "gdp");
 if (!section) {
   throw new Error("GDP section not found in src/data/sections.ts");
 }
+
+// Pull each panel's pipeline-emitted data once at build time. Helper
+// returns null when the entry is missing or has no primary series, which
+// flows through to the Panel*.astro's "DATA NOT YET WIRED" path. No
+// synthetic fallback anywhere.
+const panel1Data = pickPanel(panelDataFile, 1);
+const panel2Data = pickPanel(panelDataFile, 2);
+const panel3Data = pickPanel(panelDataFile, 3);
+const panel4Data = pickPanel(panelDataFile, 4);
+const panel5Data = pickPanel(panelDataFile, 5);
+const panel6Data = pickPanel(panelDataFile, 6);
 
 const plates: Plate[] = [
   {
@@ -50,6 +63,7 @@ const plates: Plate[] = [
     },
     source: "Statistics Canada Table 36-10-0434-01; consensus via Bloomberg.",
     chartKey: "gdp-panel-1",
+    data: panel1Data,
   },
   {
     id: "plate-2",
@@ -64,6 +78,7 @@ const plates: Plate[] = [
     source:
       "Statistics Canada Tables 36-10-0434-01 (industry) and 36-10-0104-01 (expenditure).",
     chartKey: "gdp-panel-2",
+    data: panel2Data,
   },
   {
     id: "plate-3",
@@ -84,6 +99,7 @@ const plates: Plate[] = [
     },
     source: "Statistics Canada Table 36-10-0104-01.",
     chartKey: "gdp-panel-3",
+    data: panel3Data,
   },
   {
     id: "plate-4",
@@ -106,6 +122,7 @@ const plates: Plate[] = [
     source:
       "Statistics Canada Tables 36-10-0104-01 and 17-10-0009-01; per-capita calculation by Sibley Creek.",
     chartKey: "gdp-panel-4",
+    data: panel4Data,
   },
   {
     id: "plate-5",
@@ -127,6 +144,7 @@ const plates: Plate[] = [
     source:
       "BoC Valet INDINF_OUTGAPMPR_Q; Statistics Canada Table 36-10-0104-01.",
     chartKey: "gdp-panel-5",
+    data: panel5Data,
   },
   {
     id: "plate-6",
@@ -140,6 +158,7 @@ const plates: Plate[] = [
       "are all consistent with mature expansion. We do not redate independently.",
     source: "C.D. Howe Business Cycle Council communiques.",
     chartKey: "gdp-panel-6",
+    data: panel6Data,
   },
 ];
 

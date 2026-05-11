@@ -2,16 +2,15 @@
 /*
  * Housing - Vignelli chartbook page.
  *
- * Six plates per editorial canon section 4.4:
+ * Seven plates per editorial canon section 4.4 (Wave 5 added Panel 7):
  *   01 Prices (MLS HPI national + six CMAs)
  *   02 Activity (starts, completions, permits)
  *   03 Inventory and absorption (sales-to-new-listings, months of inventory)
  *   04 Rent (CMHC RMS + CPI rent sub-series)
  *   05 Mortgage stack snapshot (BoC chartpack + OSFI + CMHC arrears)
  *   06 Population-to-housing-stock ratio (by CMA)
+ *   07 Housing Affordability (Wave 5; BoC qualifying payment / income)
  *
- * No chart components for Housing yet; each plate reserves the chart
- * space with a dashed-border placeholder. chart-builder fills later.
  * Interpretation prose is placeholder, in publication voice; writer
  * refines.
  */
@@ -19,11 +18,21 @@
 import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
+import panelDataFile from "../../data/site/panel_data/housing.json";
+import { pickPanel } from "../components/charts/_shared/panelData";
 
 const section = sections.find((s) => s.slug === "housing");
 if (!section) {
   throw new Error("Housing section not found in src/data/sections.ts");
 }
+
+const panel1Data = pickPanel(panelDataFile, 1);
+const panel2Data = pickPanel(panelDataFile, 2);
+const panel3Data = pickPanel(panelDataFile, 3);
+const panel4Data = pickPanel(panelDataFile, 4);
+const panel5Data = pickPanel(panelDataFile, 5);
+const panel6Data = pickPanel(panelDataFile, 6);
+const panel7Data = pickPanel(panelDataFile, 7);
 
 const plates: Plate[] = [
   {
@@ -45,6 +54,7 @@ const plates: Plate[] = [
     },
     source: "CREA MLS HPI national + six-CMA bulk file, latest vintage.",
     chartKey: "housing-panel-1",
+    data: panel1Data,
   },
   {
     id: "plate-2",
@@ -60,6 +70,7 @@ const plates: Plate[] = [
     source:
       "CMHC starts and completions (Table 34-10-0135); Statistics Canada Table 34-10-0066-01 (building permits).",
     chartKey: "housing-panel-2",
+    data: panel2Data,
   },
   {
     id: "plate-3",
@@ -75,6 +86,7 @@ const plates: Plate[] = [
     source:
       "BoC FVI national sales-to-new-listings; CREA XLSX bulk for CMA-level; months-of-inventory constructed.",
     chartKey: "housing-panel-3",
+    data: panel3Data,
   },
   {
     id: "plate-4",
@@ -89,6 +101,7 @@ const plates: Plate[] = [
     source:
       "CMHC Rental Market Survey, latest annual vintage; Statistics Canada Table 18-10-0004-01 (rent sub-series).",
     chartKey: "housing-panel-4",
+    data: panel4Data,
   },
   {
     id: "plate-5",
@@ -104,6 +117,7 @@ const plates: Plate[] = [
     source:
       "BoC Residential Mortgage Market chartpack; OSFI Bank Financial Data; CMHC RMIR; CBA monthly arrears.",
     chartKey: "housing-panel-5",
+    data: panel5Data,
   },
   {
     id: "plate-6",
@@ -119,17 +133,40 @@ const plates: Plate[] = [
     source:
       "Statistics Canada Tables 17-10-0135 (CMA population) and 36-10-0688 (housing stock).",
     chartKey: "housing-panel-6",
+    data: panel6Data,
+  },
+  {
+    id: "plate-7",
+    number: "07",
+    indicator: "Housing affordability: BoC qualifying payment to income",
+    plateIndexLabel: "Affordability",
+    asOf: "TK (quarterly)",
+    title: "Affordability index at TK; rate move TK doing the work on the most recent quarter.",
+    interpretationHtml:
+      "The BoC's qualifying-mortgage-payment-to-income index, the flow-side complement to the stock-side mortgage snapshot, sits at <strong>TK</strong>. " +
+      "Direction is TK over the latest quarter; the dominant driver is TK (rate move / price move / income move). " +
+      "The 1989-1991, 2007-2008, and 2022-2024 episodes mark the historical anchors against which the current level reads.",
+    callout: {
+      value: "TK",
+      unit: "affordability index, TK",
+      delta: "TK vs prior quarter",
+      direction: "neutral",
+    },
+    source: "Bank of Canada Indicators of Capacity and Inflation Pressures (housing affordability index, qualifying payment / income).",
+    chartKey: "housing-panel-7",
+    data: panel7Data,
   },
 ];
 
 const pageTitle = "Housing";
 const pageDescription =
   "Housing chartbook: prices (MLS HPI), starts and permits, sales and inventory, rents, the mortgage stack, " +
-  "and the population-to-housing-stock ratio. Six plates of chart-with-interpretation.";
+  "the population-to-housing-stock ratio, and the BoC affordability index. Seven plates of chart-with-interpretation.";
 
 const lede =
-  "Six plates trace the rate-sensitive sector: prices and activity, inventory and rents, the mortgage stack that carries " +
-  "the household balance sheet, and the supply ratio against the population it has to absorb.";
+  "Seven plates trace the rate-sensitive sector: prices and activity, inventory and rents, the mortgage stack that carries " +
+  "the household balance sheet, the supply ratio against the population it has to absorb, and the affordability index " +
+  "that names what a new borrower would pay against current income.";
 ---
 <SectionLayout
   slug="housing"

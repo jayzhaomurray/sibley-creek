@@ -1,271 +1,32 @@
 ---
 /*
- * Panel2MarketPath - Policy chartbook, plate 02.
+ * Panel2MarketPath - 2y GoC vs overnight.
  *
- * Editorial canon Section 4.5.2: 2-year Government of Canada yield vs the
- * overnight rate. The spread between them is the market's directional
- * read on the next twelve months. Negative 2y-overnight = market pricing
- * cuts; positive = market pricing hikes.
+ * Pipeline emits `yield_2yr` (primary, %) and `overnight_rate_daily`
+ * (secondary, %). Both share % units; render as the overlay pair.
  *
- * Visual: two lines on a single y-axis:
- *   - 2y GoC yield (load-bearing, pure black 1.5px)
- *   - Overnight rate (recessive, 1px ink dashed)
- * MTA red latest-point dot on the 2y series only.
- *
- * The visual story is the GAP between the two lines, which the eye reads
- * directly without legend or shading.
- *
- * Vignelli canon: secondary series is 1px ink dashed (not a second color).
- *
- * Plot vs SVG: hand-rolled SVG.
+ * Synthetic-data fallback removed.
  */
 
-interface RatePoint {
-  date: string;     // YYYY-MM
-  yield2y: number;  // percent
-  overnight: number;
-}
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
 
 interface Props {
-  data?: RatePoint[];
-  asOf?: string;
-  ariaLabel?: string;
+  data?: PanelData | null;
 }
 
-function buildPlaceholder(): RatePoint[] {
-  // 5y monthly window ending Apr 2026 (60 prints).
-  const out: RatePoint[] = [];
-  let y = 2021;
-  let m = 5;
-  for (let i = 0; i < 60; i++) {
-    const t = i / 59;
-    // Overnight: 0.25 -> 5.00 -> 2.75 (mirrors Panel1, shorter window)
-    let on: number;
-    if (t < 0.18) on = 0.25;
-    else if (t < 0.45) on = 0.25 + (5.00 - 0.25) * ((t - 0.18) / 0.27);
-    else if (t < 0.75) on = 5.00;
-    else on = 5.00 + (2.75 - 5.00) * ((t - 0.75) / 0.25);
-    // 2y yield: leads overnight by ~3 months in both directions, runs
-    // ~25 bp above in tightening, ~50 bp below in cutting (market
-    // anticipating cuts).
-    let y2: number;
-    const tLead = Math.min(1, t + 0.05);
-    if (tLead < 0.18) y2 = 0.45;
-    else if (tLead < 0.45) y2 = 0.45 + (5.20 - 0.45) * ((tLead - 0.18) / 0.27);
-    else if (tLead < 0.75) y2 = 5.20 - (5.20 - 3.50) * ((tLead - 0.45) / 0.30);
-    else y2 = 3.50 + (2.40 - 3.50) * ((tLead - 0.75) / 0.25);
-    y2 += 0.10 * Math.sin(i * 0.7);
-    on = Math.round(on * 100) / 100;
-    y2 = Math.round(y2 * 100) / 100;
-    out.push({ date: `${y}-${String(m).padStart(2, "0")}`, yield2y: y2, overnight: on });
-    m += 1;
-    if (m > 12) { m = 1; y += 1; }
-  }
-  return out;
-}
-
-const {
-  data = buildPlaceholder(),
-  asOf = "Apr 2026",
-  ariaLabel = `2-year GoC yield vs Bank of Canada overnight rate, ${asOf}`,
-} = Astro.props;
-
-// ---- Geometry --------------------------------------------------------------
-const VB_W = 720;
-const VB_H = 420;
-const M_T = 24;
-const M_B = 36;
-const M_L = 48;
-const M_R = 92;
-const PLOT_X0 = M_L;
-const PLOT_Y0 = M_T;
-const PLOT_W = VB_W - M_L - M_R;
-const PLOT_H = VB_H - M_T - M_B;
-const PLOT_X1 = PLOT_X0 + PLOT_W;
-const PLOT_Y1 = PLOT_Y0 + PLOT_H;
-
-function decYearOf(d: string): number {
-  const [yy, mm] = d.split("-").map(Number);
-  return yy + (mm - 0.5) / 12;
-}
-const xs = data.map((p) => decYearOf(p.date));
-const xMin = xs[0];
-const xMax = xs[xs.length - 1];
-
-const Y_MIN = 0;
-const Y_MAX = 6;
-const yTicks = [0, 1, 2, 3, 4, 5];
-
-function xScale(yr: number): number {
-  return PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
-}
-function yScale(v: number): number {
-  return PLOT_Y0 + PLOT_H - ((v - Y_MIN) / (Y_MAX - Y_MIN)) * PLOT_H;
-}
-
-function buildLine(pick: (p: RatePoint) => number): string {
-  return data
-    .map((p, i) => {
-      const x = xScale(decYearOf(p.date));
-      const y = yScale(pick(p));
-      return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
-    })
-    .join(" ");
-}
-const y2Path = buildLine((p) => p.yield2y);
-const onPath = buildLine((p) => p.overnight);
-
-const last = data[data.length - 1];
-const lastX = xScale(decYearOf(last.date));
-const lastY2 = yScale(last.yield2y);
-const lastOn = yScale(last.overnight);
-
-const yearStart = Math.ceil(xMin);
-const yearEnd = Math.floor(xMax);
-const xTicks: Array<{ x: number; label: string }> = [];
-for (let yy = yearStart; yy <= yearEnd; yy++) {
-  xTicks.push({ x: xScale(yy), label: `'${String(yy).slice(-2)}` });
-}
+const { data = null } = Astro.props;
 ---
-<div class="policy-panel-2" aria-label={ariaLabel}>
-  <svg
-    class="policy-panel-2__svg"
-    viewBox={`0 0 ${VB_W} ${VB_H}`}
-    preserveAspectRatio="xMidYMid meet"
-    role="img"
-    aria-label={ariaLabel}
-  >
-    {/* Gridlines */}
-    {yTicks.map((v) => (
-      <line
-        class:list={["policy-panel-2__gridline", { "policy-panel-2__gridline--zero": v === 0 }]}
-        x1={PLOT_X0.toFixed(2)}
-        y1={yScale(v).toFixed(2)}
-        x2={PLOT_X1.toFixed(2)}
-        y2={yScale(v).toFixed(2)}
-      />
-    ))}
-
-    {/* Overnight (recessive dashed) */}
-    <path class="policy-panel-2__line policy-panel-2__line--on" d={onPath} fill="none" />
-    {/* 2y GoC (load-bearing) */}
-    <path class="policy-panel-2__line policy-panel-2__line--y2" d={y2Path} fill="none" />
-
-    {/* Latest-point dot on 2y */}
-    <circle
-      class="policy-panel-2__marker"
-      cx={lastX.toFixed(2)}
-      cy={lastY2.toFixed(2)}
-      r="3"
-    >
-      <title>{`${last.date}: 2y GoC ${last.yield2y.toFixed(2)}%`}</title>
-    </circle>
-
-    {/* Frame */}
-    <rect
-      class="policy-panel-2__frame"
-      x={PLOT_X0.toFixed(2)}
-      y={PLOT_Y0.toFixed(2)}
-      width={PLOT_W.toFixed(2)}
-      height={PLOT_H.toFixed(2)}
-      fill="none"
-    />
-
-    {/* Y-tick labels */}
-    {yTicks.map((v, i) => (
-      <text
-        class="policy-panel-2__ytick-label"
-        x={(PLOT_X0 - 6).toFixed(2)}
-        y={(yScale(v) + 3.5).toFixed(2)}
-        text-anchor="end"
-      >{i === yTicks.length - 1 ? `${v}%` : `${v}`}</text>
-    ))}
-
-    {/* X-tick labels */}
-    {xTicks.map((t) => (
-      <text
-        class="policy-panel-2__xtick-label"
-        x={t.x.toFixed(2)}
-        y={(PLOT_Y1 + 16).toFixed(2)}
-        text-anchor="middle"
-      >{t.label}</text>
-    ))}
-
-    {/* Direct labels */}
-    <text
-      class="policy-panel-2__direct policy-panel-2__direct--y2"
-      x={(PLOT_X1 + 6).toFixed(2)}
-      y={(lastY2 + 3.5).toFixed(2)}
-      text-anchor="start"
-    >2y GoC</text>
-    <text
-      class="policy-panel-2__direct policy-panel-2__direct--on"
-      x={(PLOT_X1 + 6).toFixed(2)}
-      y={(lastOn + 3.5).toFixed(2)}
-      text-anchor="start"
-    >Overnight</text>
-  </svg>
-</div>
-
-<style>
-  .policy-panel-2 {
-    width: 100%;
-    aspect-ratio: 720 / 420;
-    background-color: var(--surface);
-  }
-  .policy-panel-2__svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-    font-family: var(--font-sans);
-  }
-  .policy-panel-2__gridline {
-    stroke: var(--rule);
-    stroke-width: 1;
-    stroke-opacity: 0.18;
-    shape-rendering: crispEdges;
-  }
-  .policy-panel-2__gridline--zero {
-    stroke: var(--ink);
-    stroke-opacity: 1;
-  }
-  .policy-panel-2__frame {
-    stroke: var(--ink);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .policy-panel-2__line--y2 {
-    stroke: var(--ink);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-  }
-  .policy-panel-2__line--on {
-    stroke: var(--ink);
-    stroke-width: 1;
-    stroke-dasharray: 3 3;
-    opacity: 0.55;
-    stroke-linejoin: round;
-  }
-  .policy-panel-2__marker {
-    fill: var(--accent);
-  }
-  .policy-panel-2__ytick-label,
-  .policy-panel-2__xtick-label {
-    fill: var(--ink);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: var(--fw-regular);
-    font-variant-numeric: tabular-nums;
-  }
-  .policy-panel-2__direct {
-    fill: var(--ink);
-    font-size: 11px;
-    font-weight: var(--fw-semibold);
-  }
-  .policy-panel-2__direct--on {
-    font-weight: var(--fw-regular);
-    opacity: 0.7;
-  }
-</style>
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    primaryLabel="2y GoC"
+    secondaryLabel="Overnight"
+    dataPanelAttr="policy-2"
+    ariaLabel="2-year GoC yield and BoC overnight rate."
+  />
+) : (
+  <PanelEmpty reason="Pipeline did not emit panel-2 data." />
+)}

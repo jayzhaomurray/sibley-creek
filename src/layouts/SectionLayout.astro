@@ -43,6 +43,7 @@ import BaseLayout from "./BaseLayout.astro";
 import { site } from "../data/sections";
 import SectionPageHeader from "../components/section/SectionPageHeader.astro";
 import ChartbookUnit from "../components/section/ChartbookUnit.astro";
+import type { PanelData } from "../components/charts/_shared/panelData";
 
 // Per-section chart components. The same dispatch pattern as the prior
 // SectionLayout - the chart-builder owns chart internals; we embed.
@@ -66,6 +67,7 @@ import Panel3WageBand from "../components/charts/labour/Panel3WageBand.astro";
 import Panel4VacanciesSlack from "../components/charts/labour/Panel4VacanciesSlack.astro";
 import Panel5IRCCSupplyTrajectory from "../components/charts/labour/Panel5IRCCSupplyTrajectory.astro";
 import Panel6RegionalDumbbell from "../components/charts/labour/Panel6RegionalDumbbell.astro";
+import Panel7EIBeneficiaries from "../components/charts/labour/Panel7EIBeneficiaries.astro";
 
 import MarketsPanel1CAD from "../components/charts/markets/Panel1CAD.astro";
 import MarketsPanel2GoCCurve from "../components/charts/markets/Panel2GoCCurve.astro";
@@ -87,6 +89,7 @@ import HousingPanel3Inventory from "../components/charts/housing/Panel3Inventory
 import HousingPanel4Rent from "../components/charts/housing/Panel4Rent.astro";
 import HousingPanel5MortgageStack from "../components/charts/housing/Panel5MortgageStack.astro";
 import HousingPanel6PopulationStock from "../components/charts/housing/Panel6PopulationStock.astro";
+import HousingPanel7Affordability from "../components/charts/housing/Panel7Affordability.astro";
 
 import PolicyPanel1OvernightRate from "../components/charts/policy/Panel1OvernightRate.astro";
 import PolicyPanel2MarketPath from "../components/charts/policy/Panel2MarketPath.astro";
@@ -95,7 +98,7 @@ import PolicyPanel4BalanceSheet from "../components/charts/policy/Panel4BalanceS
 import PolicyPanel5FederalTrajectory from "../components/charts/policy/Panel5FederalTrajectory.astro";
 import PolicyPanel6FiscalStanceCycle from "../components/charts/policy/Panel6FiscalStanceCycle.astro";
 
-export type ChartKey = "gdp-panel-1" | "gdp-panel-2" | "gdp-panel-3" | "gdp-panel-4" | "gdp-panel-5" | "gdp-panel-6" | "inflation-panel-1" | "inflation-panel-2" | "inflation-panel-3" | "inflation-panel-4" | "inflation-panel-5" | "inflation-panel-6" | "labour-panel-1" | "labour-panel-2" | "labour-panel-3" | "labour-panel-4" | "labour-panel-5" | "labour-panel-6" | "housing-panel-1" | "housing-panel-2" | "housing-panel-3" | "housing-panel-4" | "housing-panel-5" | "housing-panel-6" | "policy-panel-1" | "policy-panel-2" | "policy-panel-3" | "policy-panel-4" | "policy-panel-5" | "policy-panel-6" | "markets-panel-1" | "markets-panel-2" | "markets-panel-3" | "markets-panel-4" | "markets-panel-5" | "markets-panel-6" | "trade-panel-1" | "trade-panel-2" | "trade-panel-3" | "trade-panel-4" | "trade-panel-5" | "trade-panel-6";
+export type ChartKey = "gdp-panel-1" | "gdp-panel-2" | "gdp-panel-3" | "gdp-panel-4" | "gdp-panel-5" | "gdp-panel-6" | "inflation-panel-1" | "inflation-panel-2" | "inflation-panel-3" | "inflation-panel-4" | "inflation-panel-5" | "inflation-panel-6" | "labour-panel-1" | "labour-panel-2" | "labour-panel-3" | "labour-panel-4" | "labour-panel-5" | "labour-panel-6" | "labour-panel-7" | "housing-panel-1" | "housing-panel-2" | "housing-panel-3" | "housing-panel-4" | "housing-panel-5" | "housing-panel-6" | "housing-panel-7" | "policy-panel-1" | "policy-panel-2" | "policy-panel-3" | "policy-panel-4" | "policy-panel-5" | "policy-panel-6" | "markets-panel-1" | "markets-panel-2" | "markets-panel-3" | "markets-panel-4" | "markets-panel-5" | "markets-panel-6" | "trade-panel-1" | "trade-panel-2" | "trade-panel-3" | "trade-panel-4" | "trade-panel-5" | "trade-panel-6";
 
 export interface PlateCallout {
   /** Big number value, eg "+0.2%". */
@@ -131,6 +134,14 @@ export interface Plate {
   source: string;
   /** Optional chart-builder dispatch key. Omitted -> placeholder. */
   chartKey?: ChartKey;
+  /**
+   * Real panel data from the pipeline's
+   * data/site/panel_data/<section>.json, keyed by `panel-N`. When
+   * provided, the dispatched Panel*.astro renders the live chart;
+   * when null/undefined, the panel renders the "DATA NOT YET WIRED"
+   * empty state. There is no synthetic fallback.
+   */
+  data?: PanelData | null;
 }
 
 interface Props {
@@ -139,7 +150,12 @@ interface Props {
   sectionLabel: string;
   headlineQuestion: string;
   lede: string;
-  latestReleaseLabel: string;
+  /**
+   * Latest-release stamp body. Pass `null` (or a string of "TK", or a
+   * string whose tail is "TK") to render the placeholder gray
+   * "[ NOT WIRED ]" treatment in the page header right rail.
+   */
+  latestReleaseLabel: string | null;
   plates: Plate[];
   /** SEO passthroughs. */
   title: string;
@@ -205,48 +221,50 @@ const plateIndex = plates.map((p) => ({
           >
             {hasChart && (
               <Fragment slot="chart">
-                {plate.chartKey === "gdp-panel-1" && <Panel1HeadlineGDP />}
-                {plate.chartKey === "gdp-panel-2" && <Panel2IndustryVsExpenditure />}
-                {plate.chartKey === "gdp-panel-3" && <Panel3Contributions />}
-                {plate.chartKey === "gdp-panel-4" && <Panel4PerCapita />}
-                {plate.chartKey === "gdp-panel-5" && <Panel5OutputGap />}
-                {plate.chartKey === "gdp-panel-6" && <Panel6RecessionState />}
-                {plate.chartKey === "inflation-panel-1" && <Panel1HeadlineCPI />}
-                {plate.chartKey === "inflation-panel-2" && <Panel2CoreTrio />}
-                {plate.chartKey === "inflation-panel-3" && <Panel3Breadth />}
-                {plate.chartKey === "inflation-panel-4" && <Panel4SubAggregates />}
-                {plate.chartKey === "inflation-panel-5" && <Panel5Expectations />}
-                {plate.chartKey === "inflation-panel-6" && <Panel6PassThrough />}
-                {plate.chartKey === "labour-panel-1" && <Panel1LFSHeadline />}
-                {plate.chartKey === "labour-panel-2" && <Panel2PerCapita />}
-                {plate.chartKey === "labour-panel-3" && <Panel3WageBand />}
-                {plate.chartKey === "labour-panel-4" && <Panel4VacanciesSlack />}
-                {plate.chartKey === "labour-panel-5" && <Panel5IRCCSupplyTrajectory />}
-                {plate.chartKey === "labour-panel-6" && <Panel6RegionalDumbbell />}
-                {plate.chartKey === "housing-panel-1" && <HousingPanel1Prices />}
-                {plate.chartKey === "housing-panel-2" && <HousingPanel2Activity />}
-                {plate.chartKey === "housing-panel-3" && <HousingPanel3Inventory />}
-                {plate.chartKey === "housing-panel-4" && <HousingPanel4Rent />}
-                {plate.chartKey === "housing-panel-5" && <HousingPanel5MortgageStack />}
-                {plate.chartKey === "housing-panel-6" && <HousingPanel6PopulationStock />}
-                {plate.chartKey === "policy-panel-1" && <PolicyPanel1OvernightRate />}
-                {plate.chartKey === "policy-panel-2" && <PolicyPanel2MarketPath />}
-                {plate.chartKey === "policy-panel-3" && <PolicyPanel3BoCFedSpread />}
-                {plate.chartKey === "policy-panel-4" && <PolicyPanel4BalanceSheet />}
-                {plate.chartKey === "policy-panel-5" && <PolicyPanel5FederalTrajectory />}
-                {plate.chartKey === "policy-panel-6" && <PolicyPanel6FiscalStanceCycle />}
-                {plate.chartKey === "markets-panel-1" && <MarketsPanel1CAD />}
-                {plate.chartKey === "markets-panel-2" && <MarketsPanel2GoCCurve />}
-                {plate.chartKey === "markets-panel-3" && <MarketsPanel3CreditSpreads />}
-                {plate.chartKey === "markets-panel-4" && <MarketsPanel4Energy />}
-                {plate.chartKey === "markets-panel-5" && <MarketsPanel5BankStability />}
-                {plate.chartKey === "markets-panel-6" && <MarketsPanel6FCI />}
-                {plate.chartKey === "trade-panel-1" && <TradePanel1TradeBalance />}
-                {plate.chartKey === "trade-panel-2" && <TradePanel2CurrentAccount />}
-                {plate.chartKey === "trade-panel-3" && <TradePanel3PartnerShares />}
-                {plate.chartKey === "trade-panel-4" && <TradePanel4TariffState />}
-                {plate.chartKey === "trade-panel-5" && <TradePanel5TermsOfTrade />}
-                {plate.chartKey === "trade-panel-6" && <TradePanel6FDIBySector />}
+                {plate.chartKey === "gdp-panel-1" && <Panel1HeadlineGDP data={plate.data} />}
+                {plate.chartKey === "gdp-panel-2" && <Panel2IndustryVsExpenditure data={plate.data} />}
+                {plate.chartKey === "gdp-panel-3" && <Panel3Contributions data={plate.data} />}
+                {plate.chartKey === "gdp-panel-4" && <Panel4PerCapita data={plate.data} />}
+                {plate.chartKey === "gdp-panel-5" && <Panel5OutputGap data={plate.data} />}
+                {plate.chartKey === "gdp-panel-6" && <Panel6RecessionState data={plate.data} />}
+                {plate.chartKey === "inflation-panel-1" && <Panel1HeadlineCPI data={plate.data} />}
+                {plate.chartKey === "inflation-panel-2" && <Panel2CoreTrio data={plate.data} />}
+                {plate.chartKey === "inflation-panel-3" && <Panel3Breadth data={plate.data} />}
+                {plate.chartKey === "inflation-panel-4" && <Panel4SubAggregates data={plate.data} />}
+                {plate.chartKey === "inflation-panel-5" && <Panel5Expectations data={plate.data} />}
+                {plate.chartKey === "inflation-panel-6" && <Panel6PassThrough data={plate.data} />}
+                {plate.chartKey === "labour-panel-1" && <Panel1LFSHeadline data={plate.data} />}
+                {plate.chartKey === "labour-panel-2" && <Panel2PerCapita data={plate.data} />}
+                {plate.chartKey === "labour-panel-3" && <Panel3WageBand data={plate.data} />}
+                {plate.chartKey === "labour-panel-4" && <Panel4VacanciesSlack data={plate.data} />}
+                {plate.chartKey === "labour-panel-5" && <Panel5IRCCSupplyTrajectory data={plate.data} />}
+                {plate.chartKey === "labour-panel-6" && <Panel6RegionalDumbbell data={plate.data} />}
+                {plate.chartKey === "labour-panel-7" && <Panel7EIBeneficiaries data={plate.data} />}
+                {plate.chartKey === "housing-panel-1" && <HousingPanel1Prices data={plate.data} />}
+                {plate.chartKey === "housing-panel-2" && <HousingPanel2Activity data={plate.data} />}
+                {plate.chartKey === "housing-panel-3" && <HousingPanel3Inventory data={plate.data} />}
+                {plate.chartKey === "housing-panel-4" && <HousingPanel4Rent data={plate.data} />}
+                {plate.chartKey === "housing-panel-5" && <HousingPanel5MortgageStack data={plate.data} />}
+                {plate.chartKey === "housing-panel-6" && <HousingPanel6PopulationStock data={plate.data} />}
+                {plate.chartKey === "housing-panel-7" && <HousingPanel7Affordability data={plate.data} />}
+                {plate.chartKey === "policy-panel-1" && <PolicyPanel1OvernightRate data={plate.data} />}
+                {plate.chartKey === "policy-panel-2" && <PolicyPanel2MarketPath data={plate.data} />}
+                {plate.chartKey === "policy-panel-3" && <PolicyPanel3BoCFedSpread data={plate.data} />}
+                {plate.chartKey === "policy-panel-4" && <PolicyPanel4BalanceSheet data={plate.data} />}
+                {plate.chartKey === "policy-panel-5" && <PolicyPanel5FederalTrajectory data={plate.data} />}
+                {plate.chartKey === "policy-panel-6" && <PolicyPanel6FiscalStanceCycle data={plate.data} />}
+                {plate.chartKey === "markets-panel-1" && <MarketsPanel1CAD data={plate.data} />}
+                {plate.chartKey === "markets-panel-2" && <MarketsPanel2GoCCurve data={plate.data} />}
+                {plate.chartKey === "markets-panel-3" && <MarketsPanel3CreditSpreads data={plate.data} />}
+                {plate.chartKey === "markets-panel-4" && <MarketsPanel4Energy data={plate.data} />}
+                {plate.chartKey === "markets-panel-5" && <MarketsPanel5BankStability data={plate.data} />}
+                {plate.chartKey === "markets-panel-6" && <MarketsPanel6FCI data={plate.data} />}
+                {plate.chartKey === "trade-panel-1" && <TradePanel1TradeBalance data={plate.data} />}
+                {plate.chartKey === "trade-panel-2" && <TradePanel2CurrentAccount data={plate.data} />}
+                {plate.chartKey === "trade-panel-3" && <TradePanel3PartnerShares data={plate.data} />}
+                {plate.chartKey === "trade-panel-4" && <TradePanel4TariffState data={plate.data} />}
+                {plate.chartKey === "trade-panel-5" && <TradePanel5TermsOfTrade data={plate.data} />}
+                {plate.chartKey === "trade-panel-6" && <TradePanel6FDIBySector data={plate.data} />}
               </Fragment>
             )}
           </ChartbookUnit>

@@ -1,0 +1,133 @@
+# ----------------------------------------------------------------------------
+# Visual regression (Playwright + image-snapshot diff)
+# ----------------------------------------------------------------------------
+#
+# Triggers on every pull_request (component changes are the main risk
+# surface) and on workflow_dispatch (manual rerun after baselines update).
+# Does NOT run on the data-refresh cron: visual tests exercise component
+# rendering, not data freshness, and the fixture corpus is deliberately
+# pinned away from live data.
+#
+# Baseline policy
+# ---------------
+# Baselines live under tests/visual/__snapshots__/<spec>/<name>.png and
+# are committed to the repo (binary, gated by .gitattributes). When a
+# diff fires, the job uploads the Playwright HTML report (which contains
+# expected/actual/diff PNGs) as a workflow artifact so triage is one
+# click. Failures DO NOT auto-update baselines; that is always a
+# deliberate human commit on a branch.
+#
+# Fixture corpus
+# --------------
+# data/fixtures/site/ MUST exist in the checked-out tree. tests/visual/
+# overlays it onto data/site/ for the build, then restores. The corpus
+# is regenerated locally with `npm run test:visual:freeze` whenever the
+# panel data shape changes; both the corpus and the matching baselines
+# land in the same commit.
+#
+# Skip pattern
+# ------------
+# Until the first baseline batch lands, this job will report "no
+# baselines yet -- skipping" rather than failing. See `gate-baselines`
+# below.
+
+name: visual-regression
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "data/fixtures/**"
+      - "tests/visual/**"
+      - "playwright.config.ts"
+      - "astro.config.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/visual-regression.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: visual-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Cache the Playwright browser binary keyed on the @playwright/test
+      # version in package-lock.json. Re-install only on version bump.
+      - name: Resolve Playwright version
+        id: pw-version
+        run: |
+          v=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
+
+      - name: Install Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      # Gate: skip the run cleanly when no baselines exist yet. Keeps the
+      # workflow green on PRs that land before the first baseline batch.
+      - name: Check for baselines
+        id: gate-baselines
+        run: |
+          if [ -d tests/visual/__snapshots__ ] && \
+             [ -n "$(find tests/visual/__snapshots__ -name '*.png' -print -quit)" ]; then
+            echo "have_baselines=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have_baselines=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No visual baselines committed yet; skipping comparison run."
+          fi
+
+      - name: Check for fixture corpus
+        id: gate-fixtures
+        if: steps.gate-baselines.outputs.have_baselines == 'true'
+        run: |
+          if [ -f data/fixtures/site/sections.json ]; then
+            echo "have_fixtures=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have_fixtures=false" >> "$GITHUB_OUTPUT"
+            echo "::error::Baselines exist but data/fixtures/site/sections.json is missing. Run \`npm run test:visual:freeze\` locally and commit the corpus alongside the baselines."
+            exit 1
+          fi
+
+      - name: Run visual regression
+        if: steps.gate-baselines.outputs.have_baselines == 'true'
+        run: npm run test:visual
+
+      - name: Upload Playwright HTML report
+        if: failure() && steps.gate-baselines.outputs.have_baselines == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/visual/.playwright-report
+          retention-days: 14
+
+      - name: Upload diff PNGs (raw)
+        if: failure() && steps.gate-baselines.outputs.have_baselines == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: tests/visual/.test-results
+          retention-days: 14

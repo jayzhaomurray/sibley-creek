@@ -31,7 +31,8 @@ function downsample(arr: number[], n: number): number[] {
   return out;
 }
 
-const series = downsample(data, 16);
+const safeData = Array.isArray(data) && data.length > 0 ? data : [0];
+const series = downsample(safeData, 16);
 const min = Math.min(...series);
 const max = Math.max(...series);
 const range = max - min || 1;

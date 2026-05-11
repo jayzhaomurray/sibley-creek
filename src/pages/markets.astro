@@ -17,11 +17,20 @@
 import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
+import panelDataFile from "../../data/site/panel_data/markets.json";
+import { pickPanel } from "../components/charts/_shared/panelData";
 
 const section = sections.find((s) => s.slug === "markets");
 if (!section) {
   throw new Error("Markets section not found in src/data/sections.ts");
 }
+
+const panel1Data = pickPanel(panelDataFile, 1);
+const panel2Data = pickPanel(panelDataFile, 2);
+const panel3Data = pickPanel(panelDataFile, 3);
+const panel4Data = pickPanel(panelDataFile, 4);
+const panel5Data = pickPanel(panelDataFile, 5);
+const panel6Data = pickPanel(panelDataFile, 6);
 
 const plates: Plate[] = [
   {
@@ -44,6 +53,7 @@ const plates: Plate[] = [
     },
     source:
       "BoC Valet FXUSDCAD; BoC CEER; post-1990 distribution constructed from BoC daily history.",
+    data: panel1Data,
   },
   {
     id: "plate-2",
@@ -59,6 +69,7 @@ const plates: Plate[] = [
       "We cite the Bank's published Canadian term-premium series directly; own ACM-style decomposition defers.",
     source:
       "BoC Valet (GoC curve); FRED DGS10 (US 10y); BoC Financial Stability Indicators (term premium).",
+    data: panel2Data,
   },
   {
     id: "plate-3",
@@ -73,6 +84,7 @@ const plates: Plate[] = [
       "Canadian senior-unsecured-vs-GoC and Canadian IG / HY proxies require FSR scraping or own construction and defer to v1.5. " +
       "v1 ships with the US comparator and an explicit Canadian-spread blind-spot caveat.",
     source: "FRED BAMLC0A0CM (IG OAS), BAMLH0A0HYM2 (HY OAS).",
+    data: panel3Data,
   },
   {
     id: "plate-4",
@@ -87,6 +99,7 @@ const plates: Plate[] = [
       "WCS is shown at monthly cadence with the caveat against daily-comparison differential preserved. " +
       "AECO gas is reported on a weekly bid-week summary where the cadence is available; otherwise defers.",
     source: "EIA WTI / Brent; CER WCS monthly; AECO bid-week from NRCan.",
+    data: panel4Data,
   },
   {
     id: "plate-5",
@@ -102,6 +115,7 @@ const plates: Plate[] = [
       "Uninsured residential exposure from OSFI Bank Financial Data is shown on a semi-annual scrape.",
     source:
       "Big-Six earnings releases (latest quarter); OSFI DSB and Bank Financial Data M4.",
+    data: panel5Data,
   },
   {
     id: "plate-6",
@@ -116,6 +130,7 @@ const plates: Plate[] = [
       "plus prose-level Canadian commentary. The signal across either anchor: conditions remain on the easier side of the long-run distribution. " +
       "Own Canadian FCI composite construction defers to v1.5.",
     source: "Bank of Canada FSI page; Chicago Fed NFCI (US comparator).",
+    data: panel6Data,
   },
 ];
 

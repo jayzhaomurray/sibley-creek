@@ -40,9 +40,34 @@
   --rule: #000000;
   --rule-faint: #000000;
 
+  /* ---------- Color: placeholder ink ----------
+   * Mid-gray reserved for rendered placeholder copy: any string equal to
+   * "TK", any PLACEHOLDER.* constant from src/data/site_data_loader.ts, any
+   * "Coming soon" / "[ NOT WIRED ]" stamp. Detection lives in the loader's
+   * enrichPrint gate; consumers MUST NOT pass placeholder strings through
+   * the real-data styling path. See design/design-system.md Section 3.5.
+   *
+   * Until 2026-05-11, five components (SectionPanel, TitleStatement,
+   * DeepDivePanel, VignelliColophon, PanelEmpty) each hard-coded their own
+   * mid-gray (#8A8A8A, opacity stacks on --ink-faint, etc.). This token
+   * canonizes one value so the placeholder treatment is auditable by grep
+   * and durable to future re-tone.
+   */
+  --ink-placeholder: #8A8A8A;
+
   /* ---------- Color: accent (signal red, Vignelli MTA) ---------- */
   --accent: #E63946;
   --accent-soft: #FAD4D7;
+
+  /* ---------- Color: direction tints (narrow exception to glyph-only canon) ----------
+   * Used ONLY on tabular direction triangles in panel readouts + indicators
+   * tables (the 9px ^/v glyphs that sit beside delta values). At that size
+   * the glyph shape alone is too small to scan; a muted color tint accelerates
+   * the read. Muted versions are deliberate so they do not compete with the
+   * MTA brand-signal red. The data-line canon (single ink stroke + MTA red
+   * latest-point dot) is unchanged. */
+  --dir-up:   #1B8F4E; /* muted forest green */
+  --dir-down: #C5443E; /* muted red, distinguishable from MTA --accent */
 
   /* ---------- Color: semantic (data-only) ----------
    * Vignelli rule: direction is encoded by glyph (^/v/-), NEVER by hue.

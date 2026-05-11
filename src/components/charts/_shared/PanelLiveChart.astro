@@ -1,0 +1,527 @@
+---
+/*
+ * PanelLiveChart - canonical rendering of a single panel's real data
+ * from the pipeline shape `{ primary, secondary }`.
+ *
+ * This component preserves the Vignelli v1.0 canon visual identity
+ * (viewBox 720x405, 1px hairline frame, pure-ink lines, MTA red latest
+ * dot, dashed-4-2 secondary, recession band, Plex Mono y-ticks, Manrope
+ * x-ticks, topmost y-tick carries the unit) for any panel whose
+ * editorial argument can be expressed as a primary line (optionally
+ * with a secondary overlay).
+ *
+ * Panel*.astro components delegate here when their pipeline data is
+ * present. When the pipeline emits a series whose semantic does NOT
+ * match the panel's editorial argument (e.g. the panel wants m/m %
+ * but the pipeline emits levels), the Panel*.astro component is
+ * responsible for the transformation OR for routing to PanelEmpty.
+ *
+ * Geometry numbers (VB_W=720, VB_H=405, margins) are pinned to canon;
+ * they match Panel1HeadlineGDP.astro and PanelCanonReference.astro.
+ * Do NOT change geometry here without coordinating with chart-builder.
+ */
+
+import type { PanelSeries, SeriesPoint } from "./panelData";
+import { decYear, tailWindow } from "./panelData";
+import {
+  fmtTick as fmtTickKind,
+  fmtValue,
+  inferKindFromUnit,
+  unitScaleFactor,
+  type ValueKind,
+} from "./format";
+
+interface Props {
+  primary: PanelSeries;
+  secondary?: PanelSeries | null;
+  /** Direct-label for the primary series. Manrope 600 at the line terminus. */
+  primaryLabel?: string;
+  /** Direct-label for the secondary series. Manrope 400 at the line terminus. */
+  secondaryLabel?: string;
+  /** Number of months of history to display. Default 60 (5 years). */
+  windowMonths?: number;
+  /** ARIA label override. */
+  ariaLabel?: string;
+  /** Reference rule value (eg 2 for the BoC target). */
+  referenceValue?: number | null;
+  /** Reference rule label (eg "2% BoC target"). */
+  referenceLabel?: string | null;
+  /** data-panel attribute for QA / theming hooks. */
+  dataPanelAttr?: string;
+}
+
+const {
+  primary,
+  secondary = null,
+  primaryLabel,
+  secondaryLabel,
+  windowMonths = 60,
+  ariaLabel,
+  referenceValue = null,
+  referenceLabel = null,
+  dataPanelAttr,
+} = Astro.props;
+
+// ---- Trim to display window ----------------------------------------------
+const primDataFull: SeriesPoint[] = tailWindow(primary.data, windowMonths, primary.frequency);
+const secDataFull: SeriesPoint[] = secondary
+  ? tailWindow(secondary.data, windowMonths, secondary.frequency)
+  : [];
+
+// ---- Polyline simplification --------------------------------------------
+// Long daily series (520 trading days = 2y) make a polyline with hundreds
+// of vertices that render slowly and produce visually-indistinguishable
+// detail at the chart's display scale (~720px wide, ~330px tall plot).
+// When the trimmed series is longer than POLYLINE_TARGET_VERTICES, decimate
+// by every Nth point while preserving the LAST observation (the latest-dot
+// must remain aligned to the real latest print). For monthly series this
+// is a no-op (< 300 vertices in any realistic window).
+const POLYLINE_TARGET_VERTICES = 300;
+function decimate(series: SeriesPoint[]): SeriesPoint[] {
+  if (series.length <= POLYLINE_TARGET_VERTICES) return series;
+  const stride = Math.ceil(series.length / POLYLINE_TARGET_VERTICES);
+  const out: SeriesPoint[] = [];
+  for (let i = 0; i < series.length; i += stride) out.push(series[i]!);
+  const last = series[series.length - 1]!;
+  if (out[out.length - 1] !== last) out.push(last);
+  return out;
+}
+const primData: SeriesPoint[] = decimate(primDataFull);
+const secData: SeriesPoint[] = decimate(secDataFull);
+
+// ---- Geometry (pinned to canon) ------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 56;
+const M_R = 96;
+const M_T = 44;
+const M_B = 40;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+// ---- x-domain spans both series so they share an axis -------------------
+const primX = primData.map((d) => decYear(d.date)).filter((v) => !Number.isNaN(v));
+const secX = secData.map((d) => decYear(d.date)).filter((v) => !Number.isNaN(v));
+const xs = primX.concat(secX);
+const xMin = xs.length > 0 ? Math.min(...xs) : 0;
+const xMax = xs.length > 0 ? Math.max(...xs) : 1;
+
+// ---- y-domain: span both series, only padded if we can. Two-series
+//      readings only share an axis when the units agree; if the units
+//      disagree (eg primary "%" and secondary "Index"), we suppress the
+//      secondary to avoid a misleading dual-axis overlay.
+const unitsMatch = secondary
+  ? (primary.unit ?? "").toLowerCase() === (secondary.unit ?? "").toLowerCase()
+  : false;
+const sharedSeries: number[] = primData
+  .map((d) => d.value)
+  .filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
+if (unitsMatch) {
+  for (const d of secData) {
+    if (typeof d.value === "number" && !Number.isNaN(d.value)) sharedSeries.push(d.value);
+  }
+}
+// Y-extent strategy: full min/max for short series; 2nd-98th percentile
+// for long daily series. Daily prints carry single-day spikes (news days,
+// settlement-balance reporting glitches) that push raw min/max far past
+// the visible signal range and squash the line to a horizontal stroke at
+// the mean. Percentile clipping at 100+ points (~5 trading months) is the
+// industry-standard fix - we pad 10% past the clipped range so the
+// signal still breathes inside the frame. Threshold of 100 matches the
+// dispatch spec; documented for the next chart-builder reading this.
+const Y_PERCENTILE_THRESHOLD = 100;
+function pickYBounds(values: number[]): [number, number] {
+  if (values.length === 0) return [0, 1];
+  if (values.length < Y_PERCENTILE_THRESHOLD) {
+    return [Math.min(...values), Math.max(...values)];
+  }
+  const sorted = [...values].sort((a, b) => a - b);
+  const loIdx = Math.floor(sorted.length * 0.02);
+  const hiIdx = Math.ceil(sorted.length * 0.98) - 1;
+  return [sorted[loIdx]!, sorted[Math.max(loIdx, hiIdx)]!];
+}
+let yLo = 0;
+let yHi = 1;
+if (sharedSeries.length > 0) {
+  const [rawMin, rawMax] = pickYBounds(sharedSeries);
+  const span = rawMax - rawMin || Math.max(1, Math.abs(rawMax) * 0.1);
+  yLo = rawMin - span * 0.10;
+  yHi = rawMax + span * 0.10;
+  if (referenceValue !== null && referenceValue !== undefined) {
+    if (referenceValue < yLo) yLo = referenceValue - span * 0.05;
+    if (referenceValue > yHi) yHi = referenceValue + span * 0.05;
+  }
+}
+const yRange = yHi - yLo || 1;
+const crossesZero = yLo < 0 && yHi > 0;
+
+function xScale(yr: number): number {
+  if (xMax === xMin) return PLOT_X0 + PLOT_W / 2;
+  return PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
+}
+
+function buildLinePath(series: SeriesPoint[]): string {
+  let d = "";
+  let started = false;
+  for (const pt of series) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    const x = xScale(xv).toFixed(2);
+    const y = yScale(pt.value).toFixed(2);
+    d += `${started ? "L" : "M"}${x} ${y} `;
+    started = true;
+  }
+  return d.trim();
+}
+
+const primPath = buildLinePath(primData);
+const secPath = unitsMatch ? buildLinePath(secData) : "";
+
+// ---- Latest ---------------------------------------------------------------
+function lastReal(series: SeriesPoint[]): { x: number; y: number; v: number; date: string } | null {
+  for (let i = series.length - 1; i >= 0; i--) {
+    const pt = series[i]!;
+    if (typeof pt.value === "number" && !Number.isNaN(pt.value)) {
+      const xv = decYear(pt.date);
+      if (Number.isNaN(xv)) continue;
+      return { x: xScale(xv), y: yScale(pt.value), v: pt.value, date: pt.date };
+    }
+  }
+  return null;
+}
+const lastPrim = lastReal(primData);
+const lastSec = unitsMatch ? lastReal(secData) : null;
+
+// ---- Y-axis ticks --------------------------------------------------------
+function pickStride(lo: number, hi: number): number {
+  const span = hi - lo;
+  const candidates = [0.05, 0.1, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 100, 200, 500, 1000];
+  for (const s of candidates) {
+    const n = Math.round(span / s);
+    if (n >= 3 && n <= 6) return s;
+  }
+  return Math.max(0.01, span / 4);
+}
+const yStride = pickStride(yLo, yHi);
+const yTicks: number[] = [];
+const start = Math.ceil(yLo / yStride) * yStride;
+for (let v = start; v <= yHi + 1e-9; v += yStride) {
+  yTicks.push(Number(v.toFixed(6)));
+}
+if (yTicks.length === 0) yTicks.push(Number(((yLo + yHi) / 2).toFixed(6)));
+
+// ---- X-axis year ticks ---------------------------------------------------
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const allYearTicks: Array<{ x: number; label: string }> = [];
+for (let yr = yearStart; yr <= yearEnd; yr++) {
+  const decY = yr + (1 - 0.5) / 12;
+  if (decY < xMin || decY > xMax) continue;
+  allYearTicks.push({ x: xScale(decY), label: String(yr) });
+}
+const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 5));
+const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
+
+// ---- Recession band (2020Q1-Q2) ------------------------------------------
+const recStart = 2020 + (2 - 0.5) / 12;
+const recEnd = 2020 + (4 - 0.5) / 12;
+const recVisible = recEnd >= xMin && recStart <= xMax;
+const recX0 = recVisible ? xScale(Math.max(recStart, xMin)) : 0;
+const recX1 = recVisible ? xScale(Math.min(recEnd, xMax)) : 0;
+
+// ---- ValueKind + scale-factor resolution ---------------------------------
+// Backend (pipeline/io/format.py, in-flight) will emit `kind` on each
+// PanelSeries. Until it does, infer from the existing `unit` string;
+// see `inferKindFromUnit` in ./format.ts for the unit -> ValueKind table.
+//
+// `unitScaleFactor` rebases values that arrived in a non-baseline unit
+// (e.g. "CAD billions", "Millions of persons") into the formatter's
+// expected baseline (M$ for currency_cad, raw items for count). The
+// CHART geometry stays in the JSON's native units; only the formatted
+// label readout uses the rescaled value. This keeps tick spacing in
+// the same scale the data was emitted in.
+const primaryKind: ValueKind = (primary.kind as ValueKind | null | undefined)
+  ?? inferKindFromUnit(primary.unit);
+const primaryScale = unitScaleFactor(primary.unit);
+
+const computedAria = ariaLabel ?? `${primary.label}${secondary && unitsMatch ? ` and ${secondary.label}` : ""}, last ${windowMonths} months. Latest print marked.`;
+
+// ---- Reference rule -----------------------------------------------------
+const refY = referenceValue !== null && referenceValue !== undefined
+  ? yScale(referenceValue)
+  : null;
+const showRef = refY !== null && referenceValue! >= yLo && referenceValue! <= yHi;
+
+// ---- Direct label fallbacks ---------------------------------------------
+// Cap series-name labels at 14 chars per art-director canon (label-canon
+// rules in design/canon_reference_panel.md). The 96px right gutter on
+// the 720-wide viewBox gives ~14 Manrope chars at 13px before the label
+// risks running past the SVG viewBox right edge. Anything longer is
+// silently truncated with an ellipsis - the wrappers in
+// src/components/charts/<section>/Panel*.astro should pass short forms
+// (see chart-builder report 2026-05-11).
+const LABEL_MAX_CHARS = 14;
+function capLabel(s: string | null | undefined): string {
+  if (!s) return "";
+  if (s.length <= LABEL_MAX_CHARS) return s;
+  return s.slice(0, LABEL_MAX_CHARS - 1).trimEnd() + "…";
+}
+const primDirectLabel = capLabel(primaryLabel ?? primary.label);
+const secDirectLabel = secondary && unitsMatch
+  ? capLabel(secondaryLabel ?? secondary.label)
+  : null;
+
+// ---- Label placement, no-overlap canon -----------------------------------
+// See design/canon_reference_panel.md "Label placement rules (no-overlap
+// canon)" for the full rule set. The constants below are the pinned
+// thresholds from Rule L1-L6. Changing one requires art-director sign-off.
+const LABEL_GAP_X = 10;        // dot-center -> direct label x offset
+const LABEL_LH = 14;           // direct-label vertical stack gap
+const LABEL_MIN_DY = 12;       // direct-label vs direct-label collision guard
+const REF_LABEL_MIN_DY = 16;   // direct-label vs reference-rule-label guard
+const RECESSION_LABEL_GUARD = 12; // y-tick vs recession-label guard
+const RECESSION_LABEL_Y = PLOT_Y0 + 12; // baseline of the recession label
+
+// Rule L6: stack primary + secondary direct labels when their natural
+// baselines are within LABEL_MIN_DY of each other. Primary keeps its
+// natural anchor; secondary moves. If the secondary would fall off the
+// bottom margin, the move flips - secondary stays put and primary moves
+// up.
+let primLabelY = lastPrim ? lastPrim.y + 4 : 0;
+let secLabelY = lastSec ? lastSec.y + 4 : 0;
+if (lastPrim && lastSec && secDirectLabel) {
+  if (Math.abs(primLabelY - secLabelY) < LABEL_MIN_DY) {
+    // Default: secondary slides away from primary. Move direction = away
+    // from primary's natural baseline. If both are at near-identical y,
+    // the secondary slides DOWN (positive y) so the primary keeps its
+    // visually-anchored position on the upper series.
+    const moveDown = secLabelY >= primLabelY;
+    secLabelY = moveDown ? primLabelY + LABEL_LH : primLabelY - LABEL_LH;
+    // Bounds check: if the moved secondary would fall outside [PLOT_Y0+4,
+    // PLOT_Y1 + M_B - 4], flip the move (primary moves instead).
+    if (secLabelY < PLOT_Y0 + 4 || secLabelY > PLOT_Y1 + M_B - 4) {
+      secLabelY = lastSec.y + 4;
+      primLabelY = moveDown ? secLabelY - LABEL_LH : secLabelY + LABEL_LH;
+    }
+  }
+}
+
+// Rule L4: reference-rule label is suppressed when within
+// REF_LABEL_MIN_DY of any direct label.
+let showRefLabel = showRef && !!referenceLabel;
+if (showRefLabel && refY !== null) {
+  if (lastPrim && Math.abs(primLabelY - refY) < REF_LABEL_MIN_DY) showRefLabel = false;
+  if (lastSec && secDirectLabel && Math.abs(secLabelY - refY) < REF_LABEL_MIN_DY) showRefLabel = false;
+}
+
+// Rule L3: y-tick labels are suppressed within RECESSION_LABEL_GUARD of
+// the recession-band label baseline. Topmost tick (carrying the unit) is
+// NEVER suppressed - the unit must always read.
+function ytickSuppressed(tickY: number, isTopTick: boolean): boolean {
+  if (isTopTick) return false;
+  if (!recVisible) return false;
+  return Math.abs(tickY - RECESSION_LABEL_Y) < RECESSION_LABEL_GUARD;
+}
+---
+<div class="canon-chart" data-panel={dataPanelAttr}>
+  <svg
+    class="canon-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={computedAria}
+  >
+    {recVisible && (
+      <g class="canon-chart__recession-group">
+        <rect
+          class="canon-chart__recession"
+          x={recX0.toFixed(2)}
+          y={PLOT_Y0}
+          width={Math.max(1, recX1 - recX0).toFixed(2)}
+          height={PLOT_H}
+        />
+        <text
+          class="canon-chart__recession-label"
+          x={((recX0 + recX1) / 2).toFixed(2)}
+          y={(PLOT_Y0 + 12).toFixed(2)}
+          text-anchor="middle"
+        >RECESSION (2020Q1-Q2)</text>
+      </g>
+    )}
+
+    {yTicks.map((v) => {
+      const yy = yScale(v);
+      if (crossesZero && Math.abs(v) < 1e-9) return null;
+      return (
+        <line
+          class="canon-chart__gridline"
+          x1={PLOT_X0}
+          y1={yy.toFixed(2)}
+          x2={PLOT_X1}
+          y2={yy.toFixed(2)}
+        />
+      );
+    })}
+
+    {crossesZero && (
+      <line
+        class="canon-chart__zero-line"
+        x1={PLOT_X0}
+        y1={yScale(0).toFixed(2)}
+        x2={PLOT_X1}
+        y2={yScale(0).toFixed(2)}
+      />
+    )}
+
+    {showRef && (
+      <g class="canon-chart__reference-group">
+        <line
+          class="canon-chart__reference-rule"
+          x1={PLOT_X0}
+          y1={(refY as number).toFixed(2)}
+          x2={PLOT_X1}
+          y2={(refY as number).toFixed(2)}
+        />
+        {showRefLabel && (
+          <text
+            class="canon-chart__reference-label"
+            x={(PLOT_X1 - 6).toFixed(2)}
+            y={((refY as number) - 5).toFixed(2)}
+            text-anchor="end"
+          >{referenceLabel}</text>
+        )}
+      </g>
+    )}
+
+    {secPath && (
+      <path class="canon-chart__line-secondary" d={secPath} fill="none" />
+    )}
+
+    {primPath && (
+      <path class="canon-chart__line" d={primPath} fill="none" />
+    )}
+
+    {lastPrim && (
+      <circle
+        class="canon-chart__latest-dot"
+        cx={lastPrim.x.toFixed(2)}
+        cy={lastPrim.y.toFixed(2)}
+        r="4"
+      >
+        <title>{`Latest: ${lastPrim.date}: ${fmtValue(lastPrim.v * primaryScale, primaryKind)}`}</title>
+      </circle>
+    )}
+
+    <rect
+      class="canon-chart__frame"
+      x={PLOT_X0}
+      y={PLOT_Y0}
+      width={PLOT_W}
+      height={PLOT_H}
+    />
+
+    {xTicks.map((t) => (
+      <g>
+        <line
+          class="canon-chart__xtick"
+          x1={t.x.toFixed(2)}
+          y1={PLOT_Y1.toFixed(2)}
+          x2={t.x.toFixed(2)}
+          y2={(PLOT_Y1 + 4).toFixed(2)}
+        />
+        <text
+          class="canon-chart__xtick-label"
+          x={t.x.toFixed(2)}
+          y={(PLOT_Y1 + 18).toFixed(2)}
+          text-anchor="middle"
+        >{t.label}</text>
+      </g>
+    ))}
+
+    {yTicks.map((v, i) => {
+      const yy = yScale(v);
+      const isTop = i === yTicks.length - 1;
+      if (ytickSuppressed(yy + 4, isTop)) return null;
+      // Scale the value into the formatter's baseline unit before
+      // formatting; the geometry above used the raw JSON value.
+      const txt = fmtTickKind(v * primaryScale, primaryKind, isTop);
+      return (
+        <text
+          class="canon-chart__ytick-label"
+          x={(PLOT_X0 - 8).toFixed(2)}
+          y={(yy + 4).toFixed(2)}
+          text-anchor="end"
+        >{txt}</text>
+      );
+    })}
+
+    {lastPrim && (
+      <text
+        class="canon-chart__direct-label"
+        x={(lastPrim.x + LABEL_GAP_X).toFixed(2)}
+        y={primLabelY.toFixed(2)}
+        text-anchor="start"
+      >{primDirectLabel}</text>
+    )}
+    {lastSec && secDirectLabel && (
+      <text
+        class="canon-chart__direct-label-secondary"
+        x={(lastSec.x + LABEL_GAP_X).toFixed(2)}
+        y={secLabelY.toFixed(2)}
+        text-anchor="start"
+      >{secDirectLabel}</text>
+    )}
+  </svg>
+</div>
+
+<style>
+  .canon-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
+  .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
+  .canon-chart__recession { fill: rgba(21, 23, 26, 0.06); }
+  .canon-chart__recession-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
+  }
+  .canon-chart__gridline { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges; }
+  .canon-chart__zero-line { stroke: var(--ink); stroke-width: 1; stroke-opacity: 1; shape-rendering: crispEdges; }
+  .canon-chart__reference-rule { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2; shape-rendering: crispEdges; }
+  .canon-chart__reference-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-semibold); letter-spacing: 0.04em;
+  }
+  .canon-chart__line {
+    stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
+    fill: none; vector-effect: non-scaling-stroke;
+  }
+  .canon-chart__line-secondary {
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2;
+    stroke-linejoin: round; stroke-linecap: butt; fill: none; vector-effect: non-scaling-stroke;
+  }
+  .canon-chart__latest-dot { fill: var(--accent); stroke: none; }
+  .canon-chart__frame { fill: none; stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__direct-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px; font-weight: var(--fw-semibold);
+  }
+  .canon-chart__direct-label-secondary {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px; font-weight: var(--fw-regular);
+  }
+</style>

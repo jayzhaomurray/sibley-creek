@@ -24,7 +24,7 @@ This entry point handles the monthly/quarterly/annual cadences:
       `pipeline/catalog/boc_series.py` filtered to non-daily cadence.
     - DoF Fiscal Monitor (monthly, ~2-month lag) per `pipeline/fetch/dof_fiscal.py`.
     - CREA MLS HPI bulk (monthly) per `pipeline/fetch/crea.py`.
-    - Cross-series derivations (per-capita employment, trade balance 3M MA,
+    - Cross-series derivations (per-capita employment, trade balance 3mma,
       partner-share trajectories, terms-of-trade companion, etc.) per
       `pipeline/transform/derivations.py`.
 
@@ -259,6 +259,26 @@ def fetch_dof_fiscal_monitor() -> None:
         ),
     )
     write_series(issue.ytd_balance, ytd_meta, DATA_RAW)
+
+    # Continuous monthly balance series spanning prior FY + current FY.
+    # The Fiscal Monitor monthly-balance table carries both FY columns; we
+    # concatenate them so the Policy supporting-print row has 12-24 months of
+    # history (enough for a sparkline). CAD millions.
+    federal_balance_meta = SeriesMeta(
+        name="federal_budget_balance",
+        source="Department of Finance Canada -- Fiscal Monitor",
+        source_url=issue.url,
+        source_id=f"FM-{issue.reference_year}-{issue.reference_month:02d}",
+        units="CAD millions",
+        frequency="monthly",
+        notes=(
+            f"Federal monthly budgetary balance, continuous series spanning prior FY "
+            f"and current FY {issue.fiscal_year_label}. Prior-FY months are finalized; "
+            f"current-FY months reported through {ref_year}-{ref_month:02d}. "
+            "Source publishes in C$ millions; scale to billions for tile display."
+        ),
+    )
+    write_series(issue.monthly_balance_two_fy, federal_balance_meta, DATA_RAW)
 
     # Issue summary: revenues, expenses, public debt charges YTD scalars.
     # Stored as a one-row CSV keyed by issue reference date so it's append-
@@ -545,6 +565,39 @@ def derive_gdp_views() -> None:
     write_series(yoy, meta, DATA_PROCESSED)
 
 
+def derive_productivity_views() -> None:
+    """Compute Y/Y % change for the quarterly business-sector labour productivity index.
+
+    Source: StatCan Table 36-10-0206-01 v1409153 ("Canada;Business sector;Labour
+    productivity"), quarterly SA index. The raw level lands at
+    data/raw/productivity_business_per_hour.csv via the StatCan catalog run;
+    here we derive Y/Y (periods_per_year=4) for chart consumption.
+
+    Feeds GDP Panel 6 (productivity overlay replacing the recession-state proxy).
+    """
+    raw = _read_raw("productivity_business_per_hour")
+    if raw is None:
+        return
+    yoy = headline_yoy(raw, periods_per_year=4)
+    spec = STATCAN_SERIES["productivity_business_per_hour"]
+    meta = SeriesMeta(
+        name="productivity_business_per_hour_yoy",
+        source="Statistics Canada Web Data Service",
+        source_url=statcan_url(spec),
+        source_id=f"v{spec.vector_id}",
+        units="%",
+        frequency="quarterly",
+        notes=(
+            "Year-over-year % change in business-sector labour productivity index "
+            "(Table 36-10-0206-01, quarterly SA, 2017=100). Derived from the raw "
+            "level series. Per BoC convention, business-sector output per hour is "
+            "the headline competitiveness read."
+        ),
+        transform="yoy_pct(periods_per_year=4)",
+    )
+    write_series(yoy, meta, DATA_PROCESSED)
+
+
 def derive_per_capita_employment() -> None:
     """Per-capita employment Y/Y, the canon 4.3 element-2 signature.
 
@@ -584,8 +637,169 @@ def derive_per_capita_employment() -> None:
     write_series(out, meta, DATA_PROCESSED)
 
 
+def derive_terms_of_trade() -> None:
+    """Quarterly terms-of-trade index = exports IPI / imports IPI x 100.
+
+    Per StatCan national-accounts convention. Inputs land in data/raw/ via the
+    StatCan catalog run (tot_exports_ipi v62307276, tot_imports_ipi v62307279,
+    both from Table 36-10-0106 GDP price indexes). The ratio writes to
+    data/processed/terms_of_trade.csv and feeds the Trade Panel 5 read and
+    the trade supporting-print "terms-of-trade".
+
+    Companion Y/Y view also lands in processed/ for chart consumption.
+    """
+    exports = _read_raw("tot_exports_ipi")
+    imports = _read_raw("tot_imports_ipi")
+    if exports is None or imports is None:
+        return
+    e = exports.set_index("date")["value"].sort_index()
+    i = imports.set_index("date")["value"].sort_index()
+    joined = pd.concat([e.rename("e"), i.rename("i")], axis=1).dropna()
+    tot = (joined["e"] / joined["i"] * 100.0).dropna()
+    tot_df = tot.reset_index()
+    tot_df.columns = ["date", "value"]
+
+    spec_e = STATCAN_SERIES["tot_exports_ipi"]
+    spec_i = STATCAN_SERIES["tot_imports_ipi"]
+    meta = SeriesMeta(
+        name="terms_of_trade",
+        source="Statistics Canada Web Data Service (derived)",
+        source_url=statcan_url(spec_e),
+        source_id=f"v{spec_e.vector_id}-divided-by-v{spec_i.vector_id}-times-100",
+        units="Index, 2017=100",
+        frequency="quarterly",
+        notes=(
+            "Terms-of-trade index = exports IPI / imports IPI x 100. National-"
+            "accounts ToT per StatCan Table 36-10-0106 conventions. Quarterly SA. "
+            "Inputs: tot_exports_ipi (v62307276) and tot_imports_ipi (v62307279)."
+        ),
+        transform="exports_ipi/imports_ipi*100",
+    )
+    write_series(tot_df, meta, DATA_PROCESSED)
+
+    # Y/Y % change companion -- standard chart consumption view.
+    yoy = headline_yoy(tot_df, periods_per_year=4)
+    yoy_meta = SeriesMeta(
+        name="terms_of_trade_yoy",
+        source=meta.source,
+        source_url=meta.source_url,
+        source_id=meta.source_id,
+        units="%",
+        frequency="quarterly",
+        notes="Year-over-year % change in the terms-of-trade index. Derived.",
+        transform="yoy_pct(periods_per_year=4) on terms_of_trade",
+    )
+    write_series(yoy, yoy_meta, DATA_PROCESSED)
+
+
+def derive_federal_fiscal_ytd() -> None:
+    """Within-FY cumulative federal budgetary balance, monthly.
+
+    Inputs:
+        data/raw/federal_budget_balance.csv -- continuous monthly balance
+            spanning prior FY + current FY (CAD millions, prior-FY finalized
+            + current-FY months-to-date).
+
+    Output:
+        data/processed/federal_budget_ytd.csv
+            date,value -- FY-YTD cumulative balance through each calendar
+            month-end, in CAD millions. The cumulative sum RESETS at each
+            Canadian fiscal-year boundary (April-March).
+
+    Rationale: the Policy supporting-print row reads FY-YTD (DoF Fiscal
+    Monitor headline framing), and compares the latest point to the same
+    month one fiscal year prior (so the reader sees "FY26 YTD through Feb
+    vs FY25 YTD through Feb"). Per-tile transform code is kept simple by
+    pre-deriving the cumulative series here; the print's transform just
+    picks the right comparator (latest minus same-month-prior-FY).
+    """
+    monthly = _read_raw("federal_budget_balance")
+    if monthly is None:
+        return
+    df = monthly.copy()
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date").reset_index(drop=True)
+    # Canadian federal FY runs April-March. Group by FY-start year: a row
+    # whose calendar month is >= April belongs to FY-start=calendar year;
+    # Jan-Mar rows belong to FY-start=calendar year - 1.
+    fy_start = df["date"].dt.year.where(df["date"].dt.month >= 4, df["date"].dt.year - 1)
+    df["_fy_start"] = fy_start
+    df["value"] = df.groupby("_fy_start")["value"].cumsum()
+    out = df[["date", "value"]].reset_index(drop=True)
+
+    meta = SeriesMeta(
+        name="federal_budget_ytd",
+        source="Department of Finance Canada -- Fiscal Monitor (derived)",
+        source_url="https://www.canada.ca/en/department-finance/services/publications/fiscal-monitor",
+        source_id="federal_budget_balance:cumsum-by-fy",
+        units="CAD millions",
+        frequency="monthly",
+        notes=(
+            "Federal fiscal-YTD cumulative budgetary balance, monthly. Derived "
+            "from raw/federal_budget_balance.csv by cumulative-summing within "
+            "each Canadian federal fiscal year (April-March reset). Spans prior "
+            "FY (full 12 months, finalized) + current FY (months-to-date), so "
+            "the latest point's same-month-of-prior-FY comparator is reliably "
+            "12 calendar months back. Used by the Policy supporting-print row "
+            "'federal-budget-balance' to render FY-YTD vs prior-FY-YTD-at-same-"
+            "month -- DoF Fiscal Monitor headline framing."
+        ),
+        transform="cumsum_within_fy(start_month=4)",
+    )
+    write_series(out, meta, DATA_PROCESSED)
+
+
+def derive_current_account_views() -> None:
+    """Sanity-check that the quarterly current-account components reconcile to
+    the headline balance, and emit a derived sum for chart-builder convenience.
+
+    The headline `current_account_balance` (v61915304) IS the StatCan-published
+    sum, so we keep that authoritative. This step writes a sibling
+    `current_account_components_sum.csv` (sum of the four sub-component balances)
+    so chart-builder can verify reconciliation visually and reuse the same
+    cadence inputs for stacked-bar panels. Tolerance to discrepancy is built
+    into the chart-side compare, not enforced here.
+    """
+    parts = [
+        ("ca_goods_balance_q", "Goods"),
+        ("ca_services_balance_q", "Services"),
+        ("ca_primary_income_q", "Primary income"),
+        ("ca_secondary_income_q", "Secondary income"),
+    ]
+    loaded: dict[str, pd.DataFrame] = {}
+    for slug, _label in parts:
+        df = _read_raw(slug)
+        if df is None:
+            return
+        loaded[slug] = df
+    aligned = None
+    for slug, df in loaded.items():
+        s = df.set_index("date")["value"].sort_index().rename(slug)
+        aligned = s if aligned is None else pd.concat([aligned, s], axis=1)
+    total = aligned.sum(axis=1, min_count=4).dropna()
+    out = total.reset_index()
+    out.columns = ["date", "value"]
+    spec = STATCAN_SERIES["current_account_balance"]
+    meta = SeriesMeta(
+        name="current_account_components_sum",
+        source="Statistics Canada Web Data Service (derived)",
+        source_url=statcan_url(spec),
+        source_id="ca_goods+services+primary+secondary (quarterly SA balances)",
+        units="C$ millions",
+        frequency="quarterly",
+        notes=(
+            "Sum of the four current-account sub-component balances: goods + "
+            "services + primary income + secondary income. Should reconcile "
+            "to the headline current_account_balance (v61915304) to within "
+            "statistical discrepancy. Useful for chart-side stacked-bar layouts."
+        ),
+        transform="sum_components",
+    )
+    write_series(out, meta, DATA_PROCESSED)
+
+
 def derive_trade_views() -> None:
-    """Trade-balance 3M MA + partner-share trajectories (canon 4.7 elements 1, 3)."""
+    """Trade-balance 3mma + partner-share trajectories (canon 4.7 elements 1, 3)."""
     balance = _read_raw("trade_balance_total")
     if balance is not None:
         ma3 = trade_balance_3m_ma(balance, window=3)
@@ -594,7 +808,7 @@ def derive_trade_views() -> None:
             name="trade_balance_total_3m_ma",
             source="Statistics Canada Web Data Service (derived)",
             source_url=statcan_url(spec),
-            source_id=f"v{spec.vector_id} (3M MA)",
+            source_id=f"v{spec.vector_id} (3mma)",
             units="CAD millions",
             frequency="monthly",
             notes=(
@@ -685,8 +899,12 @@ def main() -> int:
     logger.info("--- Derivations ---")
     _safe("derive_cpi_views", derive_cpi_views, failed)
     _safe("derive_gdp_views", derive_gdp_views, failed)
+    _safe("derive_productivity_views", derive_productivity_views, failed)
     _safe("derive_per_capita_employment", derive_per_capita_employment, failed)
     _safe("derive_trade_views", derive_trade_views, failed)
+    _safe("derive_terms_of_trade", derive_terms_of_trade, failed)
+    _safe("derive_current_account_views", derive_current_account_views, failed)
+    _safe("derive_federal_fiscal_ytd", derive_federal_fiscal_ytd, failed)
 
     # 7) Site data bundle. Final step: read selected CSV + .meta.json files
     #    and emit data/site/sections.json for the Astro side to import at

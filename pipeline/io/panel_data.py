@@ -134,17 +134,45 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         PanelSpec(
             panel_id="panel-5", section="gdp", panel_num=5,
             file="gdp/Panel5OutputGap.astro",
-            primary=SlotSpec("gdp_quarterly", "raw", label="Real GDP level"),
-            secondary=SlotSpec("capacity_util_total", "raw", label="Industrial capacity utilization (proxy)"),
-            expected_status="NEAR",
-            notes="Needs BoC published potential-output series + output-gap level. Not on disk. Chart can render real GDP vs capacity-utilization as a v1 fallback; BoC potential output is MISSING (Valet key INDINF_GDPGAP / similar pending).",
+            primary=SlotSpec("output_gap_mpr", "raw",
+                             label="BoC MPR output gap (%, quarterly)"),
+            secondary=SlotSpec("capacity_util_total", "raw",
+                               label="Industrial capacity utilization (slack toggle)"),
+            tertiary=SlotSpec("capacity_util_mfg", "raw",
+                              label="Manufacturing capacity utilization (slack toggle)"),
+            extras=(
+                SlotSpec("gdp_quarterly", "raw", label="Real GDP level (context)"),
+            ),
+            expected_status="WIRED",
+            notes=(
+                "Wave 5 methodology resolution (Section C.1): BoC MPR "
+                "INDINF_OUTGAPMPR_Q is the canonical output-gap series (NOT an "
+                "HP-filter derivation). Quarterly, runs from 1990. Capacity "
+                "utilization (total + manufacturing) added as secondary "
+                "slack-measure toggles per Section A.5 fold. If a BoC MPR cycle "
+                "does not refresh the output gap, the panel shows a stale-vintage "
+                "badge; we do not substitute an HP-filter."
+            ),
         ),
         PanelSpec(
             panel_id="panel-6", section="gdp", panel_num=6,
-            file="gdp/Panel6RecessionState.astro",
-            primary=SlotSpec("gdp_quarterly", "raw", label="Real GDP (quarterly, level)"),
-            expected_status="NEAR",
-            notes="Cycle dating is editorial / methodological; chart accepts an external `cycles` prop. Quarterly GDP is sufficient input for a C.D. Howe Business Cycle Council reproduction. Cycle JSON itself: MISSING (small editorial fixture).",
+            file="gdp/Panel6Productivity.astro",
+            primary=SlotSpec(
+                "productivity_business_per_hour_yoy", "processed",
+                label="Business-sector labour productivity, Y/Y %",
+            ),
+            secondary=SlotSpec(
+                "productivity_business_per_hour", "raw",
+                label="Business-sector labour productivity index (level)",
+            ),
+            expected_status="WIRED",
+            notes=(
+                "Productivity (output per hour) replaces the BCC recession-state "
+                "overlay on Panel 6 per editorial decision (2026-05-11). Source: "
+                "StatCan Table 36-10-0206-01 v1409153, business-sector labour "
+                "productivity, quarterly SA index (2017=100). Y/Y derives in "
+                "pipeline.build.derive_productivity_views (periods_per_year=4)."
+            ),
         ),
     ],
     "inflation": [
@@ -200,13 +228,38 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         PanelSpec(
             panel_id="panel-6", section="inflation", panel_num=6,
             file="inflation/Panel6PassThrough.astro",
-            primary=SlotSpec("usdcad", "raw", label="USD/CAD spot (daily)"),
-            secondary=SlotSpec("cpi_goods_yoy", "processed", label="Goods CPI Y/Y"),
-            tertiary=SlotSpec("lfs_wages_all", "raw", label="LFS wages (level, monthly)"),
+            # Canon (editorial/dashboard_purpose.md Section 4.2 element 6):
+            # side-by-side strip-chart panel,
+            #   pane A: USDCAD Y/Y vs goods-ex-energy CPI Y/Y
+            #   pane B: LFS-Micro wage Y/Y vs services-ex-shelter CPI Y/Y
+            # Gated per canon: "if they slip, pass-through defers to v1.5."
+            #
+            # Status (2026-05-11): all four pass-through derivations MISSING.
+            # The chart renders PanelEmpty until backend lands them. The
+            # SlotSpecs below are the target wiring once the four processed
+            # CSVs exist; expected_status="MISSING" so _read_slot logs a
+            # warning today instead of silently falling back.
+            primary=SlotSpec("usdcad_yoy", "processed",
+                             label="USDCAD Y/Y"),
+            secondary=SlotSpec("cpi_goods_ex_energy_yoy", "processed",
+                               label="Goods ex-energy CPI Y/Y"),
+            tertiary=SlotSpec("lfs_micro_yoy", "processed",
+                              label="LFS-Micro wage Y/Y"),
             extras=(
-                SlotSpec("cpi_services_yoy", "processed", label="Services CPI Y/Y"),
+                SlotSpec("cpi_services_ex_shelter_yoy", "processed",
+                         label="Services ex-shelter CPI Y/Y"),
             ),
-            notes="FX YoY and wage YoY are derivable from raw levels (no separate processed series yet). Chart-builder can compute YoY at render time, or backend can land processed/usdcad_yoy + processed/lfs_wages_all_yoy.",
+            expected_status="MISSING",
+            notes=(
+                "Pass-through panel gated on four backend derivations - none on "
+                "disk yet. Required: processed/usdcad_yoy (monthly-mean FX, Y/Y), "
+                "processed/lfs_micro_yoy (BoC LFS-Micro Y/Y), "
+                "processed/cpi_goods_ex_energy_yoy and "
+                "processed/cpi_services_ex_shelter_yoy (basket-weighted ex-aggregates "
+                "per canon 4.2 element 4 methodology gate). Chart renders PanelEmpty "
+                "until all four land. See Panel6PassThrough.astro header for the "
+                "paste-ready backend brief."
+            ),
         ),
     ],
     "labour": [
@@ -266,6 +319,24 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             extras=(
                 SlotSpec("lfs_bc_unemployment_rate", "raw", label="BC unemployment rate"),
                 SlotSpec("lfs_ca_unemployment_rate", "raw", label="Canada unemployment rate (national)"),
+            ),
+        ),
+        # Wave 5 add: EI Regular Beneficiaries (Labour Panel 7). Single-series
+        # line chart with level / Y/Y / MoM toggles handled chart-side. The
+        # raw level is in persons; chart-builder divides by 1000 for default
+        # "thousands" display per Wave 5 brief (Section 5 backend item 1).
+        PanelSpec(
+            panel_id="panel-7", section="labour", panel_num=7,
+            file="labour/Panel7EIBeneficiaries.astro",
+            primary=SlotSpec("ei_regular_beneficiaries", "raw",
+                             label="EI regular beneficiaries (persons)"),
+            expected_status="WIRED",
+            notes=(
+                "Wave 5 canon: cyclical-inflection signal (demand-side mirror "
+                "of LFS unemployment). StatCan Table 14-10-0011 v64549350, "
+                "Canada total SA monthly. Chart-side: divide by 1000 for "
+                "default thousands display; Y/Y and MoM toggles applied at "
+                "render time. Peak-to-trough annotation supplied by researcher."
             ),
         ),
     ],
@@ -328,6 +399,26 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             expected_status="NEAR",
             notes="Panel expects persons-per-housing-unit ratios by CMA. Both numerator (population by CMA) and denominator (housing stock by CMA) are MISSING for cross-CMA comparison. pop_cma_toronto.csv exists in raw/ as a Sibley-fetched stub; full set: MISSING (S/M effort).",
         ),
+        # Wave 5 add: Housing Affordability (Housing Panel 7). Single-series
+        # quarterly line, max history (1981 onward). BoC qualifying-mortgage-
+        # payment-to-income ratio. Values are decimal ratios on disk; chart-
+        # builder renders as % (multiply by 100) and adds historical-tightening
+        # shaded bands (researcher supplies band dates).
+        PanelSpec(
+            panel_id="panel-7", section="housing", panel_num=7,
+            file="housing/Panel7Affordability.astro",
+            primary=SlotSpec("housing_affordability", "raw",
+                             label="Housing affordability index (ratio)"),
+            expected_status="WIRED",
+            notes=(
+                "Wave 5 canon: BoC qualifying-mortgage-payment-to-income ratio "
+                "(INDINF_AFFORD_Q), quarterly. Source values are decimals "
+                "(0.43 = 43% of income to qualify for payment); chart-builder "
+                "multiplies by 100 for display. Default window: max range. "
+                "Historical-tightening shaded bands (1989-1991, 2007-2008, "
+                "2022-2024) supplied by researcher as static annotation."
+            ),
+        ),
     ],
     "policy": [
         PanelSpec(
@@ -361,8 +452,22 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
                 SlotSpec("boc_reverse_repos", "raw", label="Reverse repos (liab)"),
                 SlotSpec("boc_banknotes", "raw", label="Banknotes"),
                 SlotSpec("boc_goc_deposits", "raw", label="GoC deposits"),
+                # Wave 5 fold: CORRA-target spread, daily (derived). Surfaces
+                # as the panel's secondary view (toggle) per Section A.3 of
+                # editorial/wave5_boc_tracker_chart_decisions.md. 20-day
+                # smoothing applied chart-side. Spread already in basis points.
+                SlotSpec("corra_overnight_spread_bps", "processed",
+                         label="CORRA-target spread (bps, daily)",
+                         unit_override="basis points"),
             ),
-            notes="QE/QT phase markers are editorial fixture (chart accepts `phases` prop).",
+            notes=(
+                "QE/QT phase markers are editorial fixture (chart accepts "
+                "`phases` prop). Wave 5 fold: panel becomes a two-view tile; "
+                "default is settlement-balances + asset composition, secondary "
+                "(toggle) is the CORRA-target spread (20-day smoothing, last "
+                "2 years) -- diagnostic that confirms or falsifies the floor-"
+                "maintenance call. See data/processed/corra_overnight_spread_bps.csv."
+            ),
         ),
         PanelSpec(
             panel_id="panel-5", section="policy", panel_num=5,
@@ -438,21 +543,27 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             panel_id="panel-1", section="trade", panel_num=1,
             file="trade/Panel1TradeBalance.astro",
             primary=SlotSpec("trade_balance_total", "raw", label="Trade balance, all countries"),
-            secondary=SlotSpec("trade_balance_total_3m_ma", "processed", label="3M MA"),
+            secondary=SlotSpec("trade_balance_total_3m_ma", "processed", label="3mma"),
             tertiary=SlotSpec("trade_balance_us", "raw", label="Trade balance with US"),
         ),
         PanelSpec(
             panel_id="panel-2", section="trade", panel_num=2,
             file="trade/Panel2CurrentAccount.astro",
-            primary=SlotSpec("trade_balance_total", "raw", label="Goods trade balance proxy"),
-            secondary=SlotSpec("ca_goods_income", "raw", label="CA goods income"),
-            tertiary=SlotSpec("ca_services_income", "raw", label="CA services income"),
+            primary=SlotSpec("current_account_balance", "raw", label="Current account balance (headline)"),
+            secondary=SlotSpec("ca_goods_balance_q", "raw", label="Goods balance"),
+            tertiary=SlotSpec("ca_services_balance_q", "raw", label="Services balance"),
             extras=(
-                SlotSpec("ca_primary_income", "raw", label="CA primary income"),
-                SlotSpec("ca_secondary_income", "raw", label="CA secondary income"),
+                SlotSpec("ca_primary_income_q", "raw", label="Primary income balance"),
+                SlotSpec("ca_secondary_income_q", "raw", label="Secondary income balance"),
+                SlotSpec("current_account_components_sum", "processed", label="Components sum (reconciliation)"),
             ),
-            expected_status="NEAR",
-            notes="ca_*_income CSVs exist in data/raw/ (Sibley-fetched). Net current account = goods + services + primary + secondary; chart-builder sums.",
+            expected_status="WIRED",
+            notes=(
+                "Quarterly SA from StatCan Table 36-10-0018. Headline + four "
+                "sub-component balances support the stacked-bar decomposition. "
+                "Annual companions ca_*_income (Table 36-10-0014) remain on disk "
+                "if a longer back-history is needed."
+            ),
         ),
         PanelSpec(
             panel_id="panel-3", section="trade", panel_num=3,
@@ -472,10 +583,20 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         PanelSpec(
             panel_id="panel-5", section="trade", panel_num=5,
             file="trade/Panel5TermsOfTrade.astro",
-            primary=SlotSpec("wti", "raw", label="WTI (export-price proxy)"),
-            secondary=SlotSpec("brent", "raw", label="Brent"),
-            expected_status="NEAR",
-            notes="True terms-of-trade index = export prices / import prices, quarterly. MISSING (StatCan Table 36-10-0107 has it; S effort). Energy commodity prices are a v1 proxy.",
+            primary=SlotSpec("terms_of_trade", "processed", label="Terms of trade (national-accounts ratio)"),
+            secondary=SlotSpec("terms_of_trade_yoy", "processed", label="ToT Y/Y %"),
+            tertiary=SlotSpec("tot_exports_ipi", "raw", label="Exports IPI"),
+            extras=(
+                SlotSpec("tot_imports_ipi", "raw", label="Imports IPI"),
+                SlotSpec("wti", "raw", label="WTI (commodity ToT cross-check)"),
+            ),
+            expected_status="WIRED",
+            notes=(
+                "ToT = exports IPI / imports IPI x 100, derived in "
+                "pipeline.build.derive_terms_of_trade from StatCan Table 36-10-0106 "
+                "(GDP price indexes, quarterly SA). WTI kept as a commodity-ToT "
+                "cross-check overlay."
+            ),
         ),
         PanelSpec(
             panel_id="panel-6", section="trade", panel_num=6,

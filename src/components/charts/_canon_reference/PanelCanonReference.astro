@@ -33,6 +33,11 @@
  *      ink. Replaces a legend.
  *  11. One hand-tuned annotation: 1px pure ink leader (no arrowhead),
  *      Manrope 400 body-sm (15px) anchor word in 600. Sits in white space.
+ *      The annotation uses <foreignObject> wrapping a <p> for inline weight
+ *      contrast. The <p> does NOT carry an xmlns attribute - modern browsers
+ *      infer the XHTML namespace from foreignObject context, and astro check
+ *      rejects xmlns on JSX-y attribute syntax. See companion doc, "Decisions:
+ *      rebuild redlines (2026-05-11)" Q5.
  *  12. Native SVG <title> on every data point. No custom hover, no JS.
  *  13. 720 x 405 viewBox (16:9), preserveAspectRatio xMidYMid meet.
  *  14. aspect-ratio CSS reserves space in the chartbook-unit slot.
@@ -422,10 +427,7 @@ const leaderEndY = latestY;
           width={annoMaxWidth.toFixed(2)}
           height="44"
         >
-          <p
-            xmlns="http://www.w3.org/1999/xhtml"
-            class="canon-chart__anno-text"
-          >
+          <p class="canon-chart__anno-text">
             {annoParts.map((part) =>
               part.bold
                 ? <strong class="canon-chart__anno-anchor">{part.text}</strong>

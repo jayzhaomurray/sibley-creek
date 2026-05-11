@@ -188,7 +188,31 @@ function emptyPlaceholderPrint(
 function enrichPrint(raw: RawPrint): EnrichedPrint {
   // A real print from the pipeline must carry, at minimum, a numeric value
   // and a spark array of length >= 2. Fall back per-field.
-  const hasValue = typeof raw.value === "string" && raw.value.length > 0;
+  //
+  // The pipeline emits the literal string "TK" (PLACEHOLDER.value) for
+  // not-yet-wired rows. Treat those strings as null here so the downstream
+  // `value === null -> render PLACEHOLDER.value in gray` path engages
+  // automatically. Without this coercion, a string of length > 0 was
+  // passing through as a real value and rendering "TK" in pure-ink Plex
+  // Mono, indistinguishable from a real "2.3%" reading.
+  const isLiteralTk = (v: unknown): boolean =>
+    typeof v === "string" && v.trim() === "TK";
+  const hasValue =
+    typeof raw.value === "string"
+    && raw.value.length > 0
+    && !isLiteralTk(raw.value);
+  const hasDelta =
+    typeof raw.delta === "string"
+    && raw.delta.length > 0
+    && !isLiteralTk(raw.delta);
+  const hasAsOf =
+    typeof raw.asOf === "string"
+    && raw.asOf.length > 0
+    && !isLiteralTk(raw.asOf);
+  const hasAsOfISO =
+    typeof raw.asOfISO === "string"
+    && raw.asOfISO.length > 0
+    && !isLiteralTk(raw.asOfISO);
   const hasSpark =
     Array.isArray(raw.spark) && raw.spark.filter((v) => Number.isFinite(v)).length >= 2;
   const isReal = hasValue && hasSpark;
@@ -196,10 +220,10 @@ function enrichPrint(raw: RawPrint): EnrichedPrint {
     key: raw.key,
     indicator: raw.indicator ?? "",
     value: hasValue ? (raw.value as string) : null,
-    delta: typeof raw.delta === "string" && raw.delta.length > 0 ? raw.delta : null,
+    delta: hasDelta ? (raw.delta as string) : null,
     deltaDir: raw.deltaDir ?? null,
-    asOf: typeof raw.asOf === "string" && raw.asOf.length > 0 ? raw.asOf : null,
-    asOfISO: typeof raw.asOfISO === "string" && raw.asOfISO.length > 0 ? raw.asOfISO : null,
+    asOf: hasAsOf ? (raw.asOf as string) : null,
+    asOfISO: hasAsOfISO ? (raw.asOfISO as string) : null,
     spark: hasSpark ? (raw.spark as number[]) : null,
     isReal,
   };

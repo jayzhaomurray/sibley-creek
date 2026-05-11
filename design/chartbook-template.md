@@ -486,7 +486,7 @@ conventions, and the chart shapes consumed in the chart slot.
   released May 6, 2026`.
 - **Chart status:** placeholders.
 - **Plates (production: 6 planned):**
-  - 01 Merchandise trade balance, 3M MA. Chart: single line with a
+  - 01 Merchandise trade balance, 3mma. Chart: single line with a
     pure-ink zero line; line crosses zero in the visible window
     (continuous stroke, no segmenting).
   - 02 Exports vs imports.

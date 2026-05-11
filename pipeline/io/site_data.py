@@ -64,6 +64,12 @@ from typing import Optional
 
 import pandas as pd
 
+from pipeline.io.format import (
+    ValueKind,
+    fmt_delta as _canon_fmt_delta,
+    fmt_value as _canon_fmt_value,
+)
+
 logger = logging.getLogger("pipeline.io.site_data")
 
 SCHEMA_VERSION = 1
@@ -284,10 +290,489 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
         reference_label="Balance neutral",
         chart_series_key="trade-balance",
         print_key="trade-balance",
-        print_indicator="Merch trade balance, 3M MA",
+        print_indicator="Goods trade balance, 3mma",
         as_of_format="month-year",
         delta_kind="level",
         positive_is_good=True,  # surplus widening reads positive
+    ),
+}
+
+
+# --------------------------------------------------------------------------- #
+# Supporting prints (the homepage tile carries the load-bearing print PLUS
+# 2-3 supporting prints per section, per editorial canon in src/data/sections.ts).
+#
+# Each entry is shaped like a stripped-down SectionConfig:
+#   key                  -> matches the canon `key` on SectionPrint in sections.ts
+#   indicator            -> human-readable label rendered above the value
+#   primary_series       -> base CSV slug for the value (no .csv suffix)
+#   primary_dir          -> initial tier to look in ("raw"|"processed"|"derived")
+#   unit_display / value_decimals / delta_decimals / delta_unit / delta_kind
+#                        -> render conventions (same semantics as SectionConfig)
+#   as_of_format         -> "month-year" | "quarter" | "date"
+#   transform            -> optional inline derivation; one of:
+#                             None              (use the raw series value as-is)
+#                             "yoy"             (yoy_pct on the loaded series)
+#                             "mom"             (pct_change(1) * 100)
+#                             "3m_ma"           (3-month moving average)
+#                             "partner_share"   (primary / secondary * 100)
+#                             "spread_bps"      (primary - secondary, label as bp)
+#                             "ratio_pct"       (primary * 100; for decimal ratios)
+#   secondary_series     -> required when transform needs a denominator/other side
+#                             ("partner_share" => denominator; "spread_bps" => other side)
+#
+# Order matters: supporting prints are appended after the primary in the
+# section's prints[] array, in the order declared below.
+# --------------------------------------------------------------------------- #
+
+@dataclass(frozen=True)
+class SupportingPrintSpec:
+    """One supporting print (non-load-bearing) for a homepage section tile."""
+
+    key: str
+    indicator: str
+    primary_series: str
+    primary_dir: str
+    unit_display: str
+    value_decimals: int
+    delta_decimals: int
+    delta_unit: str
+    delta_kind: str  # "pp" | "level" | "bps" | "pct"
+    as_of_format: str  # "month-year" | "quarter" | "date"
+    transform: Optional[str] = None  # None | "yoy" | "mom" | "3m_ma" | "partner_share" | "spread_bps" | "ratio_pct"
+    secondary_series: Optional[str] = None
+    secondary_dir: Optional[str] = None
+    notes: Optional[str] = None  # free-form for the audit trail; not rendered
+
+
+# Per-section supporting prints. Each tuple is ordered; the homepage tile
+# renders them in declaration order, after the section's load-bearing print.
+# An entry whose primary CSV is not on disk yields a sentinel print with TK
+# strings (we still emit the row so the tile layout doesn't shift around).
+SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
+    "gdp": (
+        SupportingPrintSpec(
+            key="gdp-mm",
+            indicator="Real GDP, m/m",
+            primary_series="gdp_monthly",
+            primary_dir="raw",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="month-year",
+            transform="mom",
+            notes="MoM % on the StatCan monthly real-GDP level (Table 36-10-0434-01).",
+        ),
+        # gdp-percap-yoy and output-gap require series not yet in pipeline
+        # (pop_total quarterly, BoC MPR output gap). Declared so the print
+        # row renders TK rather than being silently dropped from the tile.
+        SupportingPrintSpec(
+            key="gdp-percap-yoy",
+            indicator="Per-capita GDP, y/y",
+            primary_series="gdp_per_capita_yoy",  # MISSING (needs pop_total)
+            primary_dir="processed",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="month-year",
+            transform=None,
+            notes="TK: needs Canada-total quarterly population (pop_total). Not in boc-tracker; backend follow-up will add via StatCan Table 17-10-0009-01.",
+        ),
+        SupportingPrintSpec(
+            key="output-gap",
+            indicator="Output gap",
+            primary_series="output_gap_mpr",
+            primary_dir="raw",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="quarter",
+            transform=None,
+            notes=(
+                "BoC MPR output gap (INDINF_OUTGAPMPR_Q), quarterly %. Canonical "
+                "per Wave 5 methodology resolution C.1; not an HP-filter."
+            ),
+        ),
+    ),
+    "inflation": (
+        # BoC publishes the trim/median series as Y/Y % already; the raw
+        # CSV is in percent (no transform needed). cpi_trim.csv first values
+        # are ~3.0, confirming this is the published Y/Y.
+        SupportingPrintSpec(
+            key="core-trim-yoy",
+            indicator="Core-trim, y/y",
+            primary_series="cpi_trim",
+            primary_dir="raw",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="month-year",
+            transform=None,
+        ),
+        SupportingPrintSpec(
+            key="core-median-yoy",
+            indicator="Core-median, y/y",
+            primary_series="cpi_median",
+            primary_dir="raw",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="month-year",
+            transform=None,
+        ),
+        SupportingPrintSpec(
+            key="cpi-breadth-gt3",
+            indicator="CPI breadth >3%",
+            primary_series="cpi_breadth_gt3",  # MISSING (needs basket-weighted aggregation)
+            primary_dir="processed",
+            unit_display="%",
+            value_decimals=0,
+            delta_decimals=0,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="month-year",
+            transform=None,
+            notes="TK: requires basket-weight aggregation across cpi_components.csv. Chart-builder follow-up; basket weights are in data/derived/cpi_basket_weights_canada.csv.",
+        ),
+    ),
+    "labour": (
+        SupportingPrintSpec(
+            key="emp-percap-yoy",
+            indicator="Per-capita employment, y/y",
+            primary_series="employment_per_capita_yoy",  # processed; needs employment_level + pop_total
+            primary_dir="processed",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="month-year",
+            transform=None,
+            notes="Derived in pipeline.build.derive_per_capita_employment. Requires raw/employment_level and raw/pop_total. Falls back to TK if either missing.",
+        ),
+        SupportingPrintSpec(
+            key="agg-hours-yoy",
+            indicator="Aggregate hours, y/y",
+            primary_series="aggregate_hours",
+            primary_dir="raw",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="month-year",
+            transform="yoy",
+            notes="YoY % on raw monthly aggregate hours level (StatCan v4391505).",
+        ),
+        SupportingPrintSpec(
+            key="wage-lfs-micro",
+            indicator="Wage growth (LFS-Micro)",
+            primary_series="lfs_micro",
+            primary_dir="raw",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="month-year",
+            transform=None,
+            notes="BoC publishes LFS-Micro as Y/Y % already; no transform needed.",
+        ),
+        SupportingPrintSpec(
+            key="emp-rate",
+            indicator="Employment rate",
+            primary_series="employment_rate",
+            primary_dir="raw",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="month-year",
+            transform=None,
+            notes=(
+                "Employment-to-population ratio (per-capita employment). Statistics "
+                "Canada LFS Table 14-10-0287, v2062817; Canada total, 15+, SA."
+            ),
+        ),
+        # EI Regular Beneficiaries (Wave 5 brief: Labour Panel 7 home; surfaced
+        # on the homepage tile as a Y/Y supporting print for the cyclical-
+        # inflection signal). StatCan Table 14-10-0011 v64549350; CSV stores
+        # raw counts in persons. Y/Y % is the canonical headline transform on
+        # the tile (Panel 7 default-view is level in thousands; the tile uses
+        # Y/Y because three-digit thousands look noisy in a small row).
+        SupportingPrintSpec(
+            key="ei-regular-beneficiaries-yoy",
+            indicator="EI regular beneficiaries, y/y",
+            primary_series="ei_regular_beneficiaries",
+            primary_dir="raw",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="month-year",
+            transform="yoy",
+            notes=(
+                "Y/Y % change in EI regular benefits recipients (StatCan v64549350, "
+                "Canada total SA). Demand-side cyclical-inflection signal; uptake "
+                "tends to lead LFS unemployment by ~1-2 months. Wave 5 add."
+            ),
+        ),
+    ),
+    "housing": (
+        SupportingPrintSpec(
+            key="housing-starts-3mma",
+            indicator="Housing starts, 3mma",
+            primary_series="housing_starts",
+            primary_dir="raw",
+            unit_display="k",  # render as e.g. "240k" (thousands of SAAR units)
+            value_decimals=0,
+            delta_decimals=0,
+            delta_unit="k",
+            delta_kind="level",
+            as_of_format="month-year",
+            transform="3m_ma",
+            notes="3-month MA of raw monthly housing starts (units SAAR); displayed in thousands.",
+        ),
+        SupportingPrintSpec(
+            key="cmhc-arrears",
+            indicator="CMHC arrears rate",
+            primary_series="cmhc_arrears",  # MISSING (needs CMHC fetch)
+            primary_dir="raw",
+            unit_display="%",
+            value_decimals=2,
+            delta_decimals=2,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="quarter",
+            transform=None,
+            notes="TK: CMHC arrears rate not in boc-tracker; backend follow-up.",
+        ),
+        SupportingPrintSpec(
+            key="months-inventory",
+            indicator="Months of inventory",
+            primary_series="crea_months_of_inventory",  # MISSING
+            primary_dir="raw",
+            unit_display="",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="",
+            delta_kind="level",
+            as_of_format="month-year",
+            transform=None,
+            notes="TK: CREA months-of-inventory is not in boc-tracker. SNLR (crea_snlr.csv) covers tightness; chart-builder may swap to SNLR as a v1 proxy.",
+        ),
+        # Housing affordability (Wave 5 brief: Housing Panel 7 home; surfaced
+        # on the homepage tile as the level of the BoC qualifying-payment-to-
+        # income ratio). BoC INDINF_AFFORD_Q, quarterly. Source value is a
+        # decimal ratio (e.g. 0.43 = 43% of household income required to carry
+        # qualifying mortgage payment); rendered as % on the tile.
+        SupportingPrintSpec(
+            key="housing-affordability",
+            indicator="Housing affordability",
+            primary_series="housing_affordability",
+            primary_dir="raw",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="quarter",
+            transform="ratio_pct",
+            notes=(
+                "BoC qualifying-mortgage-payment-to-income ratio, quarterly. "
+                "Source value is a decimal ratio (0.43 = 43%); transform "
+                "'ratio_pct' multiplies by 100 for tile display. Wave 5 add."
+            ),
+        ),
+    ),
+    "policy": (
+        SupportingPrintSpec(
+            key="goc-2y",
+            indicator="2y GoC yield",
+            primary_series="yield_2yr",
+            primary_dir="raw",
+            unit_display="%",
+            value_decimals=2,
+            delta_decimals=0,
+            delta_unit="bps",
+            delta_kind="bps",
+            as_of_format="date",
+            transform=None,
+        ),
+        SupportingPrintSpec(
+            key="boc-fed-spread",
+            indicator="BoC-Fed spread, 2y",
+            primary_series="yield_2yr",
+            primary_dir="raw",
+            unit_display="bps",  # render as e.g. "-150 bps"
+            value_decimals=0,
+            delta_decimals=0,
+            delta_unit="bps",
+            # "level" delta_kind (not "bps"): the spread_bps transform already
+            # converts to basis points, so delta is a straight difference in
+            # bps. delta_kind='bps' would multiply by 100 again.
+            delta_kind="level",
+            as_of_format="date",
+            transform="spread_bps",
+            secondary_series="us_2yr",
+            secondary_dir="raw",
+            notes="GoC 2y minus UST 2y, in basis points. Inner-joined on date.",
+        ),
+        # Federal budget balance (FY YTD): the DoF Fiscal Monitor headline
+        # framing. Single-month balance is too noisy (one-month seasonality
+        # dominates); FY-to-date cumulative is what Fiscal Monitor commentary
+        # and Big-Six economics desks actually cite. Comparison is the same
+        # FY-YTD figure one fiscal year prior (e.g. "FY26 YTD through Feb
+        # vs FY25 YTD through Feb"), NOT month-over-month (which collapses
+        # to the current month's monthly balance and re-introduces the
+        # noise we're trying to suppress).
+        #
+        # The chart reference rule (dashed line at 2.75% on the policy-rate
+        # sparkline) is preserved separately via SECTION_CONFIGS['policy']
+        # .reference_value=2.75.
+        #
+        # primary_series='federal_budget_ytd' is the cumsum-within-FY view
+        # derived in pipeline.build.derive_federal_fiscal_ytd(). Source CSV
+        # is in CAD millions; renderer rescales to billions via
+        # unit_display='B'.
+        SupportingPrintSpec(
+            key="federal-budget-balance",
+            indicator="Federal budget balance (FYTD)",
+            primary_series="federal_budget_ytd",
+            primary_dir="processed",
+            unit_display="B",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="B",
+            delta_kind="level",
+            as_of_format="month-year",
+            transform="fy_ytd_yoy",
+            notes=(
+                "Cumulative federal budgetary balance, fiscal-year-to-date "
+                "(Canadian FY = April-March reset). Latest value is current-FY "
+                "YTD through the most recent reported month; comparator is the "
+                "prior FY's YTD through the SAME month (not the prior month). "
+                "DoF Fiscal Monitor headline framing. CAD millions on disk -> "
+                "CAD billions on tile. Source: DoF Fiscal Monitor, ~2-month "
+                "lag, derived in pipeline.build.derive_federal_fiscal_ytd."
+            ),
+        ),
+    ),
+    "markets": (
+        SupportingPrintSpec(
+            key="goc-10y",
+            indicator="10y GoC yield",
+            primary_series="yield_10yr",
+            primary_dir="raw",
+            unit_display="%",
+            value_decimals=2,
+            delta_decimals=0,
+            delta_unit="bps",
+            delta_kind="bps",
+            as_of_format="date",
+            transform=None,
+        ),
+        SupportingPrintSpec(
+            key="tsx-composite",
+            indicator="TSX Composite",
+            primary_series="tsx_composite",
+            primary_dir="raw",
+            unit_display="",
+            value_decimals=0,
+            delta_decimals=1,
+            delta_unit="%",
+            delta_kind="pct",
+            as_of_format="date",
+            transform=None,
+            notes=(
+                "S&P/TSX Composite price index (Yahoo ^GSPTSE). Lands daily via "
+                "pipeline.build_financial. NB: Yahoo's range='max' silently switches "
+                "to monthly resolution for index symbols; sp500 and gold_futures have "
+                "the same quirk. For dense daily history use range='5y' or '10y'."
+            ),
+        ),
+        SupportingPrintSpec(
+            key="wti",
+            indicator="WTI",
+            primary_series="wti",
+            primary_dir="raw",
+            unit_display="",  # rendered as e.g. "71.4"
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="%",
+            delta_kind="pct",
+            as_of_format="date",
+            transform=None,
+        ),
+    ),
+    "trade": (
+        SupportingPrintSpec(
+            key="current-account",
+            indicator="Current account",
+            primary_series="current_account_balance",
+            primary_dir="raw",
+            unit_display="B",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="B",
+            delta_kind="level",
+            as_of_format="quarter",
+            transform=None,
+            notes=(
+                "Headline quarterly current-account balance (StatCan Table "
+                "36-10-0018-01 v61915304, SA, C$ millions on disk -> C$ billions "
+                "on tile). Stacked-bar decomposition (goods/services/primary/"
+                "secondary) lives in the trade Panel 2 panel_data slot."
+            ),
+        ),
+        SupportingPrintSpec(
+            key="us-partner-share",
+            indicator="US export share",
+            primary_series="trade_exports_us",
+            primary_dir="raw",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="month-year",
+            transform="partner_share",
+            secondary_series="trade_exports_total",
+            secondary_dir="raw",
+            notes="Share of US in total Canadian merchandise exports (customs basis), monthly SA.",
+        ),
+        SupportingPrintSpec(
+            key="terms-of-trade",
+            indicator="Terms of trade",
+            primary_series="terms_of_trade",
+            primary_dir="processed",
+            unit_display="",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="",
+            delta_kind="level",
+            as_of_format="quarter",
+            transform=None,
+            notes=(
+                "Terms-of-trade index = exports IPI / imports IPI x 100. Derived "
+                "from StatCan Table 36-10-0106 (GDP price indexes, quarterly SA) "
+                "in pipeline.build.derive_terms_of_trade. National-accounts "
+                "convention; covers all merchandise + services (distinct from "
+                "BoC commodity ToT, which is BCPI-derived)."
+            ),
+        ),
     ),
 }
 
@@ -390,43 +875,71 @@ def _is_nan(v: float) -> bool:
         return True
 
 
+def _resolve_value_kind(unit_display: str, value_decimals: int) -> ValueKind:
+    """Map (unit_display, value_decimals) -> canonical formatter kind.
+
+    Heuristics:
+      'B'   -> currency_cad (CAD millions on disk, billions on display)
+      '%'   -> rate_level if value_decimals >= 2 (yields, policy rate)
+               else percent (Y/Y series, 1 decimal)
+      'bps' -> basis_points
+      'k'   -> count (raw values already in thousands on disk)
+      ''    -> fx if value_decimals >= 3 (USDCAD)
+               else index_level (TSX, WTI, terms-of-trade)
+    """
+    if unit_display == "B":
+        return "currency_cad"
+    if unit_display == "%":
+        return "rate_level" if value_decimals >= 2 else "percent"
+    if unit_display == "bps":
+        return "basis_points"
+    if unit_display == "k":
+        # Disk values are already scaled to thousands (e.g. housing_starts).
+        return "count_thousands"
+    if unit_display == "":
+        return "fx" if value_decimals >= 3 else "index_level"
+    return "percent"
+
+
+def _resolve_delta_kind(unit_display: str, delta_kind: str) -> ValueKind:
+    """Map the legacy delta_kind enum -> canonical formatter kind."""
+    if delta_kind == "bps":
+        return "basis_points"
+    if delta_kind == "pct":
+        return "percent"
+    if delta_kind == "level":
+        if unit_display == "B":
+            return "currency_cad"
+        if unit_display == "k":
+            return "count_thousands"
+        if unit_display == "":
+            return "index_level"
+        if unit_display == "bps":
+            # Spread already in bps; delta is a straight bps difference.
+            return "basis_points"
+        return "percent_pp"
+    # "pp" | "yoy"
+    return "percent_pp"
+
+
 def _format_value(v: float, cfg: SectionConfig) -> str:
     """Render the headline value per the section's unit conventions."""
-    if cfg.unit_display == "B":
-        # Trade balance: CAD millions on disk -> CAD billions on tile,
-        # with sign baked into the value.
-        billions = v / 1000.0
-        sign = "-" if billions < 0 else ""
-        return f"{sign}${abs(billions):.{cfg.value_decimals}f}B"
-    if cfg.unit_display == "%":
-        return f"{v:+.{cfg.value_decimals}f}%" if v < 0 else f"{v:.{cfg.value_decimals}f}%"
-    if cfg.unit_display == "":
-        return f"{v:.{cfg.value_decimals}f}"
-    return f"{v:.{cfg.value_decimals}f}{cfg.unit_display}"
+    kind = _resolve_value_kind(cfg.unit_display, cfg.value_decimals)
+    return _canon_fmt_value(v, kind=kind, decimals=cfg.value_decimals)
 
 
 def _format_delta(latest: float, prior: float, cfg: SectionConfig) -> str:
     """Compute and render the delta string in the section's preferred units."""
+    kind = _resolve_delta_kind(cfg.unit_display, cfg.delta_kind)
     if cfg.delta_kind == "bps":
-        bps = (latest - prior) * 100.0
-        sign = "+" if bps >= 0 else ""
-        return f"{sign}{bps:.0f} bps"
-    if cfg.delta_kind == "pct":
-        pct = (latest / prior - 1.0) * 100.0
-        sign = "+" if pct >= 0 else ""
-        return f"{sign}{pct:.{cfg.delta_decimals}f}%"
-    if cfg.delta_kind == "level":
+        diff = (latest - prior) * 100.0
+    elif cfg.delta_kind == "pct":
+        if prior == 0:
+            return _canon_fmt_delta(0.0, kind="percent", decimals=cfg.delta_decimals)
+        diff = (latest / prior - 1.0) * 100.0
+    else:
         diff = latest - prior
-        if cfg.unit_display == "B":
-            diff_b = diff / 1000.0
-            sign = "+" if diff_b >= 0 else ""
-            return f"{sign}${diff_b:.{cfg.delta_decimals}f}B"
-        sign = "+" if diff >= 0 else ""
-        return f"{sign}{diff:.{cfg.delta_decimals}f}{cfg.delta_unit}"
-    # "pp" or "yoy" -> pp delta
-    diff = latest - prior
-    sign = "+" if diff >= 0 else ""
-    return f"{sign}{diff:.{cfg.delta_decimals}f} pp"
+    return _canon_fmt_delta(diff, kind=kind, decimals=cfg.delta_decimals)
 
 
 def _resolve_delta_dir(latest: float, prior: float, cfg: SectionConfig) -> str:
@@ -478,6 +991,18 @@ def _format_as_of(d: pd.Timestamp, kind: str) -> str:
             else d.strftime("%b %d, %Y").replace(" 0", " ")
     if kind == "quarter":
         return f"{d.year}Q{((d.month - 1) // 3) + 1}"
+    if kind == "fy-ytd-month":
+        # Canadian federal fiscal year runs April-March. The FY label takes
+        # the END year of the FY (FY26 = April 2025 through March 2026).
+        # A row dated 2026-02-28 falls in FY26; 2025-05-31 also FY26;
+        # 2025-03-31 falls in FY25. Format: "FYTD Feb 26" (compact;
+        # the FY-end-year short tag disambiguates which FY the YTD covers).
+        if d.month >= 4:
+            fy_end_year = d.year + 1
+        else:
+            fy_end_year = d.year
+        fy_short = fy_end_year % 100
+        return f"FYTD {d.strftime('%b')} {fy_short:02d}"
     # "month-year"
     return d.strftime("%b %Y")
 
@@ -489,6 +1014,224 @@ def _supports_dash(d: pd.Timestamp) -> bool:
         return True
     except (ValueError, AttributeError):
         return False
+
+
+# --------------------------------------------------------------------------- #
+# Supporting print helpers
+# --------------------------------------------------------------------------- #
+
+def _format_value_for_spec(v: float, spec) -> str:
+    """Render a single value per a spec-like object's unit conventions.
+
+    `spec` is either a SectionConfig or a SupportingPrintSpec; both expose
+    `unit_display` and `value_decimals`. Routes through the canonical
+    formatter (pipeline.io.format) so output matches the homepage tile
+    and the chart-builder frontend formatter exactly.
+    """
+    kind = _resolve_value_kind(spec.unit_display, spec.value_decimals)
+    return _canon_fmt_value(v, kind=kind, decimals=spec.value_decimals)
+
+
+def _format_delta_for_spec(latest: float, prior: float, spec) -> str:
+    """Render a delta per the spec's delta_kind / delta_unit.
+
+    Routes through the canonical formatter. Mirrors _format_delta but
+    accepts a SupportingPrintSpec (or SectionConfig).
+    """
+    kind = _resolve_delta_kind(spec.unit_display, spec.delta_kind)
+    if spec.delta_kind == "bps":
+        diff = (latest - prior) * 100.0
+    elif spec.delta_kind == "pct":
+        if prior == 0:
+            return _canon_fmt_delta(0.0, kind="percent", decimals=spec.delta_decimals)
+        diff = (latest / prior - 1.0) * 100.0
+    else:
+        diff = latest - prior
+    return _canon_fmt_delta(diff, kind=kind, decimals=spec.delta_decimals)
+
+
+def _resolve_delta_dir_for_spec(latest: float, prior: float, spec) -> str:
+    """Direction-of-change classification for a supporting-print spec.
+
+    Same canon as _resolve_delta_dir: glyph encodes change direction, with
+    a half-decimal neutrality threshold so 0.0 doesn't sit next to a glyph.
+    """
+    kind = spec.delta_kind
+    if kind == "bps":
+        diff_display = (latest - prior) * 100.0
+    elif kind == "pct":
+        if prior == 0:
+            return "neutral"
+        diff_display = (latest / prior - 1.0) * 100.0
+    elif kind == "level" and spec.unit_display == "B":
+        diff_display = (latest - prior) / 1000.0
+    elif kind == "level" and spec.unit_display == "k":
+        # Already in thousands; no rescale needed.
+        diff_display = latest - prior
+    else:
+        diff_display = latest - prior
+    threshold = 0.5 * (10 ** -spec.delta_decimals)
+    if abs(diff_display) < threshold:
+        return "neutral"
+    return "pos" if diff_display > 0 else "neg"
+
+
+def _apply_supporting_transform(
+    spec: SupportingPrintSpec,
+    primary: _LoadedSeries,
+    secondary: Optional[_LoadedSeries],
+) -> Optional[pd.DataFrame]:
+    """Apply spec.transform to the loaded primary (+optional secondary) and
+    return a DataFrame with columns [date, value] suitable for sparkline /
+    latest-value extraction.
+
+    Returns None on a transform error (logged); the caller emits TK.
+    """
+    df = primary.data.sort_values("date").reset_index(drop=True)
+    if df.empty:
+        return None
+    transform = spec.transform
+    if transform is None:
+        return df
+    s = df.set_index("date")["value"].sort_index()
+    try:
+        if transform == "yoy":
+            out = s.pct_change(12) * 100.0
+        elif transform == "mom":
+            out = s.pct_change(1) * 100.0
+        elif transform == "3m_ma":
+            out = s.rolling(3, min_periods=3).mean()
+        elif transform == "fy_ytd_yoy":
+            # Pass-through on the spark/series shape: the underlying CSV is
+            # already the FY-YTD cumulative balance. The "prior" comparator
+            # for the latest value is resolved date-wise (12 months back =
+            # same FY-YTD-month one fiscal year prior) inside
+            # _build_supporting_print, not here.
+            out = s
+        elif transform == "partner_share":
+            if secondary is None or secondary.data.empty:
+                return None
+            t = secondary.data.set_index("date")["value"].sort_index()
+            joined = pd.concat([s.rename("p"), t.rename("t")], axis=1).dropna()
+            out = (joined["p"] / joined["t"]) * 100.0
+        elif transform == "ratio_pct":
+            # Multiply a decimal ratio by 100 to render as a percent on the
+            # tile (e.g. BoC housing affordability index is 0.43 -> 43.0%).
+            out = s * 100.0
+        elif transform == "spread_bps":
+            # Result remains in PERCENT (not bps yet); formatting layer
+            # multiplies by 100 when delta_kind=='bps'. For consistent
+            # rendering, we return the percent difference and let
+            # _format_value_for_spec/unit_display='bps' multiply.
+            # But our renderer expects raw percent for delta_kind='bps'
+            # (value*100 happens only in delta render, not value render).
+            # So convert to bps here for the displayed value.
+            if secondary is None or secondary.data.empty:
+                return None
+            t = secondary.data.set_index("date")["value"].sort_index()
+            joined = pd.concat([s.rename("p"), t.rename("t")], axis=1).dropna()
+            # Multiply by 100 to convert pp -> bps so the value renders directly.
+            out = (joined["p"] - joined["t"]) * 100.0
+        else:
+            logger.warning("site_data: unknown transform %r on %s", transform, spec.key)
+            return None
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("site_data: transform %r failed on %s: %s: %s",
+                       transform, spec.key, type(exc).__name__, exc)
+        return None
+    out_df = out.dropna().reset_index()
+    out_df.columns = ["date", "value"]
+    return out_df
+
+
+def _build_supporting_print(spec: SupportingPrintSpec, data_root: Path) -> dict:
+    """Build one supporting print entry, or a TK sentinel if data is missing.
+
+    Always returns a dict with the SectionPrint shape; tile layout never
+    shifts. Missing/unavailable data is conveyed via value/delta='TK' and
+    an `available: False` flag so the loader can recognize the sentinel.
+    """
+    primary = _read_series(spec.primary_series, spec.primary_dir, data_root)
+    secondary: Optional[_LoadedSeries] = None
+    if spec.secondary_series is not None:
+        secondary = _read_series(
+            spec.secondary_series,
+            spec.secondary_dir or spec.primary_dir,
+            data_root,
+        )
+        if secondary is None:
+            primary = None  # spread / partner-share needs both sides
+
+    if primary is None or primary.data.empty:
+        return {
+            "key": spec.key,
+            "indicator": spec.indicator,
+            "value": "TK",
+            "delta": "TK",
+            "deltaDir": "neutral",
+            "asOf": "TK",
+            "spark": [],
+            "available": False,
+            "note": spec.notes,
+        }
+
+    df = _apply_supporting_transform(spec, primary, secondary)
+    if df is None or df.empty or len(df) < 2:
+        return {
+            "key": spec.key,
+            "indicator": spec.indicator,
+            "value": "TK",
+            "delta": "TK",
+            "deltaDir": "neutral",
+            "asOf": "TK",
+            "spark": [],
+            "available": False,
+            "note": spec.notes or "transform yielded fewer than 2 observations",
+        }
+
+    latest_row = df.iloc[-1]
+    latest_val = float(latest_row["value"])
+    latest_date = pd.Timestamp(latest_row["date"])
+
+    # Prior-comparator selection. Most transforms use iloc[-2] (the prior
+    # observation in the cadence). The 'fy_ytd_yoy' transform overrides this
+    # to pick the same calendar month one year prior -- i.e. the prior FY's
+    # YTD-through-the-same-month -- which is the DoF Fiscal Monitor headline
+    # framing. Falls back to iloc[-2] if the 12-month-lag point isn't on
+    # disk (insufficient history); in that case the delta is still rendered
+    # but as the standard prior-period diff.
+    if spec.transform == "fy_ytd_yoy":
+        prior_date_target = latest_date - pd.DateOffset(years=1)
+        # Tolerate small calendar-day drift (Feb-28 vs Feb-29) by matching
+        # within +/- 3 days of the target date.
+        date_diff = (df["date"] - prior_date_target).abs()
+        nearest_idx = int(date_diff.idxmin())
+        if date_diff.iloc[nearest_idx] <= pd.Timedelta(days=3):
+            prior_val = float(df.iloc[nearest_idx]["value"])
+        else:
+            prior_val = float(df.iloc[-2]["value"])
+    else:
+        prior_val = float(df.iloc[-2]["value"])
+
+    # Spark sampling: use the primary's frequency (transforms preserve
+    # cadence, except spread_bps + partner_share which fall to the joined
+    # cadence; both inputs share cadence in practice, so primary meta wins).
+    frequency = (primary.meta.get("frequency") or "monthly").lower()
+    spark = _sample_spark(df, frequency)
+
+    return {
+        "key": spec.key,
+        "indicator": spec.indicator,
+        "value": _format_value_for_spec(latest_val, spec),
+        "delta": _format_delta_for_spec(latest_val, prior_val, spec),
+        "deltaDir": _resolve_delta_dir_for_spec(latest_val, prior_val, spec),
+        "asOf": _format_as_of(latest_date, spec.as_of_format),
+        "spark": spark,
+        "valueRaw": latest_val,
+        "priorRaw": prior_val,
+        "asOfISO": latest_date.date().isoformat(),
+        "available": True,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -555,10 +1298,35 @@ def _build_section(cfg: SectionConfig, data_root: Path) -> dict:
     # to the most recent observation's date when release_date is null.
     updated_at_ms = _resolve_updated_at_ms(loaded.meta, latest_date)
 
+    # Append supporting prints declared in SUPPORTING_PRINTS[cfg.slug].
+    # Each supporting print is wrapped in try/except so one missing series
+    # doesn't sink the others. A missing series yields a TK-sentinel print
+    # so the tile layout (one row per canon key) stays stable.
+    prints: list[dict] = [print_entry]
+    for supporting in SUPPORTING_PRINTS.get(cfg.slug, ()):
+        try:
+            prints.append(_build_supporting_print(supporting, data_root))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "site_data: supporting print %s/%s failed: %s: %s",
+                cfg.slug, supporting.key, type(exc).__name__, exc,
+            )
+            prints.append({
+                "key": supporting.key,
+                "indicator": supporting.indicator,
+                "value": "TK",
+                "delta": "TK",
+                "deltaDir": "neutral",
+                "asOf": "TK",
+                "spark": [],
+                "available": False,
+                "note": f"build failed: {type(exc).__name__}: {exc}",
+            })
+
     return {
         "slug": cfg.slug,
         "chartSeriesKey": cfg.chart_series_key,
-        "prints": [print_entry],
+        "prints": prints,
         "reference": reference,
         "updatedAt": updated_at_ms,
         "primarySeries": cfg.primary_series,

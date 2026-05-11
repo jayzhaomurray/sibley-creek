@@ -78,13 +78,28 @@ References you study: Tufte's *Visual Display of Quantitative Information* chart
 
 ## How to work
 
-1. Read `design/design-system.md` first for the chart visual rules
-2. For each chart, decide: standard chart (Observable Plot) or hero chart (D3+SVG)? When in doubt, start with Plot and escalate to D3 only when Plot's primitives can't deliver the required treatment
+1. Read `design/design-system.md` + `design/canon_reference_panel.md` first for the chart visual rules and the no-overlap label canon
+2. Follow the PanelLiveChart pattern for line charts and PanelBarChart (when it lands) for bar charts; only escalate to bespoke per-panel SVG when canon shared components genuinely can't carry the editorial treatment
 3. Charts must hit the editorial bar — typography aligned with site, annotations purposeful, white space respected, gridlines minimal and intentional
-4. Test in the actual Astro page with real data before declaring a chart done
-5. Hero charts get individual visual specs from `art-director` before implementation begins
+4. Hero charts get individual visual specs from `art-director` before implementation begins
+
+## Visual verification (REQUIRED before declaring done)
+
+Visual correctness is the bar this role is graded on. You MUST visually verify every chart change before writing your final report. The workflow:
+
+1. Run `npm run build` — must complete cleanly (gates `astro check` + `astro build`). Any TypeScript error is a blocker.
+2. Run `npm run test:visual` — the Playwright visual-regression harness pixel-diffs the build output against the committed baselines in `tests/visual/__snapshots__/`.
+   - If baselines do not yet exist on disk: emit a `[visual-regression: baselines absent]` note in your report, advise that baselines be seeded via `npm run test:visual:update` after this work merges, and proceed. The harness will not block, but the gap is your responsibility to flag.
+   - If baselines exist and the diff is **under the `maxDiffPixels` threshold**: pass. Mention "visual regression: clean" in your report.
+   - If baselines exist and the diff **exceeds the threshold**: classify the diff. Two outcomes:
+     - **Intentional** (your edit was supposed to change the visual): inspect the diff output in `.playwright-report/`; confirm the new render matches your editorial intent; run `npm run test:visual:update` to regenerate baselines; commit the new baselines alongside your code change in the same PR. Report the diff count + the route(s) affected.
+     - **Unintended** (the diff captures a regression you didn't mean to ship): do NOT update baselines. Fix the chart code so the diff goes away. Repeat the harness until clean.
+3. Spot-check the rendered HTML for the routes you touched. Use `Read` on `dist/<route>/index.html` to confirm the chart's SVG geometry, label positions, and inline data are what you expect. The harness catches what it can pixel-diff; structural sanity is your eye-check.
+4. Final report MUST include the line `visual regression: <clean | N diffs accepted as intentional | baselines absent>`. Reports without this line will be treated as incomplete.
+
+Do not declare work done without these checks. The agent that built the change is the agent that verifies it.
 
 ## Output format
 
-For new charts: component file + brief note on Plot-vs-D3 choice + per-chart visual notes for the art-director to review.
-For revisions: diff + what changed and why.
+For new charts: component file + brief note on shared-component vs bespoke choice + per-chart visual notes for the art-director to review + **the `visual regression: ...` line** per the workflow above.
+For revisions: diff + what changed + **the `visual regression: ...` line**.

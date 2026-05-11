@@ -53,7 +53,13 @@ interface Props {
   sectionLabel: string;
   headlineQuestion: string;
   lede: string;
-  latestReleaseLabel: string;
+  /**
+   * Latest-release stamp body. Pass `null` (or a string equal to "TK")
+   * when the pipeline hasn't wired the latest release date for this
+   * section yet; the stamp renders in placeholder gray micro-caps in
+   * that case so it does not read as a typo.
+   */
+  latestReleaseLabel: string | null;
   plates: PlateIndexEntry[];
 }
 
@@ -67,6 +73,36 @@ const {
   latestReleaseLabel,
   plates,
 } = Astro.props;
+
+// Coerce a hand-typed "TK" or a literal-TK suffix in the label string to
+// the placeholder gray treatment. We accept either `null`, or a string
+// that is exactly "TK", or a string whose comma-separated tail is "TK"
+// (the in-flight pattern in section pages today: "Headline CPI, TK").
+function isLabelLiteralTk(v: string | null): boolean {
+  if (v === null) return true;
+  const trimmed = v.trim();
+  if (trimmed === "TK") return true;
+  return false;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+const labelIsLiteralTk = isLabelLiteralTk(latestReleaseLabel);
+// Substitute any inline ", TK" tail (or standalone TK token) inside a
+// longer label string so the wrapped placeholder span carries the gray
+// treatment but the surrounding label still reads.
+const labelHtml = labelIsLiteralTk
+  ? null
+  : escapeHtml(latestReleaseLabel as string).replace(
+      /\bTK\b/g,
+      '<span class="section-header__stamp-tk">TK</span>',
+    );
 ---
 <header class="section-header" aria-labelledby="section-headline">
   <p class="section-header__kicker">
@@ -88,7 +124,13 @@ const {
     </h1>
     <p class="section-header__stamp">
       <span class="section-header__stamp-label">Latest release</span>
-      <span class="section-header__stamp-body">{latestReleaseLabel}</span>
+      {labelIsLiteralTk ? (
+        <span class="section-header__stamp-body section-header__stamp-body--tk">
+          [ NOT WIRED ]
+        </span>
+      ) : (
+        <span class="section-header__stamp-body" set:html={labelHtml ?? ""} />
+      )}
     </p>
   </div>
 
@@ -201,6 +243,23 @@ const {
     color: var(--ink);
     font-variant-numeric: tabular-nums;
     max-width: 32ch;
+  }
+  /* Placeholder when the latest-release stamp is "TK" or not-wired. The
+   * canonical placeholder mid-gray (see DeepDivePanel, SectionPanel,
+   * research index for the same hard-coded escape hatch). Mirrors the
+   * micro-caps "[ NOT WIRED ]" pattern used on the homepage panel. */
+  .section-header__stamp-body--tk {
+    color: #8A8A8A;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  /* Inline TK token (when a longer label string contains a trailing
+   * ", TK" tail). Mid-gray Plex Mono micro-caps so it visibly reads as
+   * an unwired gap inside a sentence-shaped label. */
+  .section-header__stamp-tk {
+    color: #8A8A8A;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
   /* ---- Lede ---- */

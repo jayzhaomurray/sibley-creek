@@ -67,8 +67,13 @@ class FiscalMonitorIssue:
     url: str
     fiscal_year_label: str
     # Headline series, in CAD millions, parsed from the page tables:
-    monthly_balance: pd.DataFrame      # date, value (monthly budgetary balance per issue)
-    ytd_balance: pd.DataFrame          # date, value (fiscal-YTD balance through this issue)
+    monthly_balance: pd.DataFrame      # date, value (monthly budgetary balance, current FY only)
+    ytd_balance: pd.DataFrame          # date, value (fiscal-YTD balance through this issue, current FY)
+    # Two-FY continuous monthly balance: prior-FY (full 12 months) + current-FY (months
+    # reported so far). Built from the same monthly-balance HTML table as `monthly_balance`,
+    # but pulls BOTH prior- and current-FY columns to give a continuous ~12-24 month
+    # series suitable for a sparkline / supporting print. CAD millions.
+    monthly_balance_two_fy: pd.DataFrame
     revenues_ytd: Optional[float]      # FY-YTD revenues, C$ millions
     expenses_ytd: Optional[float]      # FY-YTD expenses, C$ millions
     public_debt_charges_ytd: Optional[float]  # FY-YTD public debt charges, C$ millions
@@ -167,6 +172,9 @@ def parse_issue(html_bytes: bytes, reference_year: int, reference_month: int) ->
     # Identify by looking at the first column header.
     monthly_balance_df = _extract_monthly_balance(raw_tables[0], fy_start)
     ytd_balance_df = _extract_ytd_balance(raw_tables[1], fy_start)
+    # Two-FY continuous monthly balance (prior FY full 12 months + current FY
+    # months-to-date) for sparkline-friendly history.
+    monthly_balance_two_fy_df = _extract_two_fy_monthly_balance(raw_tables[0], fy_start)
 
     revenues_ytd, expenses_ytd, pdc_ytd = _extract_ytd_summary(
         raw_tables, fy_label, html_text=text
@@ -179,6 +187,7 @@ def parse_issue(html_bytes: bytes, reference_year: int, reference_month: int) ->
         fiscal_year_label=fy_label,
         monthly_balance=monthly_balance_df,
         ytd_balance=ytd_balance_df,
+        monthly_balance_two_fy=monthly_balance_two_fy_df,
         revenues_ytd=revenues_ytd,
         expenses_ytd=expenses_ytd,
         public_debt_charges_ytd=pdc_ytd,
@@ -228,6 +237,57 @@ def _extract_ytd_balance(df: pd.DataFrame, fy_start: int) -> pd.DataFrame:
     month from the start of the FY (April).
     """
     return _extract_monthly_balance(df, fy_start)  # identical column shape
+
+
+def _extract_two_fy_monthly_balance(df: pd.DataFrame, fy_start: int) -> pd.DataFrame:
+    """Build a continuous monthly balance series spanning prior FY + current FY.
+
+    The Fiscal Monitor monthly-balance HTML table emits two FY columns side
+    by side:
+        - First numeric column: prior FY (full 12 months, finalized).
+        - Second numeric column: current FY (months reported so far).
+    This helper concatenates the two into one continuous date-indexed series,
+    yielding 12-24 months depending on where we are in the current FY.
+    Values are in C$ millions; both FYs share the same units.
+
+    Used by the supporting-print spec for the Policy panel's federal-budget
+    balance row, which needs enough history for a sparkline.
+    """
+    month_col = df.columns[0]
+    fy_col_candidates = [c for c in df.columns if str(c) != str(month_col)]
+    if len(fy_col_candidates) < 2:
+        raise ValueError(
+            f"Two-FY monthly-balance table doesn't have expected FY columns: {list(df.columns)}"
+        )
+    prior_fy_col = fy_col_candidates[0]
+    current_fy_col = fy_col_candidates[1]
+    prior_fy_start = fy_start - 1
+
+    records: list[dict] = []
+    for _, row in df.iterrows():
+        month_name = str(row[month_col]).strip()
+        # Prior-FY observation (always populated; finalized year)
+        prior_val = row[prior_fy_col]
+        if not pd.isna(prior_val):
+            d_prior = _month_name_to_date(month_name, prior_fy_start)
+            if d_prior is not None:
+                try:
+                    records.append({"date": d_prior, "value": float(prior_val)})
+                except (TypeError, ValueError):
+                    pass
+        # Current-FY observation (may be NaN for months not yet reported)
+        cur_val = row[current_fy_col]
+        if not pd.isna(cur_val):
+            d_cur = _month_name_to_date(month_name, fy_start)
+            if d_cur is not None:
+                try:
+                    records.append({"date": d_cur, "value": float(cur_val)})
+                except (TypeError, ValueError):
+                    pass
+    out = pd.DataFrame(records, columns=["date", "value"])
+    if out.empty:
+        return out
+    return out.drop_duplicates(subset=["date"], keep="last").sort_values("date").reset_index(drop=True)
 
 
 def _month_name_to_date(month_name: str, fy_start: int) -> Optional[pd.Timestamp]:

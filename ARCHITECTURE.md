@@ -295,3 +295,80 @@ run at a time). Timeouts: 10 min daily, 30 min monthly.
   subscription; canon 4.6 element 4 v1 fallback to monthly cadence.
 - `data/SOURCES.md` -- adds the Alberta Dashboard subsection in full
   (was a TODO stub) and documents the CBA Sucuri-JS-challenge blocker.
+
+---
+
+## ADR-0007: Visual regression via Playwright + fixture-mode overlay
+
+**Date:** 2026-05-11
+**Status:** Accepted (harness landed; first baselines NOT yet committed)
+
+### Context
+
+The site renders 43+ hand-rolled SVG chart panels (7 section pages x 6
+plates each, plus Policy +2, minus Trade Panel 4 which is a hairline
+table). Each panel computes geometry from JSON inputs at build time.
+Once `panel_data/*.json` is wired into the section pages, a regression
+in any panel -- wrong scale, axis-label clip, misplaced dot, missing
+frame -- would ship silently. Live data changing day-to-day would also
+flag false positives unless filtered.
+
+### Decision
+
+Adopt Playwright's `@playwright/test` runner with `toHaveScreenshot`
+full-page snapshot diffing, with an overlay-style "fixture mode" for
+deterministic data.
+
+- **Tool:** `@playwright/test` (^1.49). Vendor-free, single browser
+  binary (Chromium), built-in HTML report with diff PNGs. Considered
+  Percy / Chromatic / Argos -- rejected for vendor lock-in and the
+  fact that none materially beat Playwright for a zero-JS static
+  site where the diffs are entirely server-rendered SVG.
+- **Harness location:** new `tests/visual/` directory at the repo
+  root, distinct from `pipeline/tests/`.
+- **Coverage v1:** 12 routes (home, 7 section pages, research index,
+  3 research deep-dives), desktop only (1240x800), full-page mode so
+  every panel on a section page diffs together.
+- **Fixture mode:** the harness copies `data/fixtures/site/` over
+  `data/site/` before `astro build`, with a backup that always
+  restores (even on Ctrl-C). This avoids modifying `pipeline/build.py`
+  and keeps production builds untouched. Operator runs
+  `npm run test:visual:freeze` once to seed the corpus from the
+  current pipeline output; the corpus is committed alongside the
+  baseline PNGs.
+- **Build-time-date masking:** `new Date()` is called at build time
+  in a few components (VignelliColophon, HeroChart, index.astro hero
+  band). Those regions are masked via Playwright's `mask:` option
+  using CSS selectors. A `data-vt-mask` attribute hook on src/ would
+  tighten this; deferred until art-director / frontend-designer
+  decide whether to add the hook.
+- **Baseline storage:** `tests/visual/__snapshots__/`. PNGs gated
+  binary by `.gitattributes` (already in place).
+- **Baseline gating policy:** the CI workflow detects whether any
+  baselines exist and no-ops cleanly when they do not. This lets the
+  harness land BEFORE chart-builder marks panels visually stable.
+- **CI:** new `visual-regression.yml` workflow, triggered on
+  pull_request to `main` for `src/**`, `tests/visual/**`,
+  `data/fixtures/**`, `playwright.config.ts`, `astro.config.mjs`.
+  Caches the Playwright browser binary by version. Uploads HTML
+  report + raw diff PNGs on failure.
+
+### Consequences
+
+- The harness sits in CI immediately but is a no-op until baselines
+  are seeded. Once chart-builder + editorial-director call panels
+  stable, a single commit (`test(visual): seed initial baselines`)
+  locks them in, the gate flips, and the regression check goes live.
+- Live-data drift never flags the harness because the fixture
+  overlay swaps in a pinned snapshot. The corpus IS pinned data, by
+  definition; if the editorial team wants a more recent fixture,
+  they re-freeze + re-baseline in a single deliberate commit.
+- `pipeline/build.py` is untouched. Fixture mode is a test-time file
+  overlay, not a pipeline branch.
+- The `mask:` approach leaves a small visually-uncovered band around
+  the build-time-date regions (colophon, hero stamp). The trade-off
+  is documented in `tests/visual/README.md`; tightening to
+  `data-vt-mask` is a future src/ change owned by frontend-designer.
+- Tablet + mobile viewports defer to v2. One viewport at a time
+  keeps baseline maintenance tractable while panel visuals are still
+  in flight.

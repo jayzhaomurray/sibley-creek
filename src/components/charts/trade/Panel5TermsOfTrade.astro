@@ -1,259 +1,32 @@
 ---
 /*
- * Panel5TermsOfTrade - Trade plate 5.
+ * Panel5TermsOfTrade - terms of trade.
  *
- * Spec: editorial canon 4.7.5. Quarterly terms-of-trade index (export
- * prices relative to import prices, 2017 = 100). Single load-bearing
- * line in pure ink at 1.5px. A horizontal reference rule at 100 marks
- * the "neutral" boundary. MTA red dot on the latest print.
+ * Pipeline emits `wti` and `brent` as proxies; the ToT index itself is
+ * not on disk. We render the proxies as the closest available series.
  *
- * Vignelli canon: single series, pure ink line, accent dot, 1px black
- * plot frame, gridlines at stroke-opacity 0.20, Plex Mono ticks.
- *
- * Plot vs SVG: hand-rolled SVG. One line, one reference rule, one dot.
- *
- * Placeholder: 40 quarters (10y) ending Q1 2026. Index drifts in the
- * 95-115 range, peaks mid-2022 (commodity windfall) at ~118, eases
- * back to ~104 by Q1 2026.
+ * Synthetic-data fallback removed.
  */
 
-interface TOTRow {
-  date: string;  // "YYYY-Qn"
-  index: number; // 2017 = 100
-}
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
 
 interface Props {
-  data?: TOTRow[];
-  ariaLabel?: string;
+  data?: PanelData | null;
 }
 
-function makePlaceholder(): TOTRow[] {
-  const out: TOTRow[] = [];
-  let y = 2016;
-  let q = 2;
-  for (let i = 0; i < 40; i++) {
-    // Stable around 98-104 through 2016-2020, spike to ~118 by Q3 2022,
-    // ease to ~104 by Q1 2026.
-    let v = 100 + 2 * Math.sin(i * 0.4);
-    if (i >= 20 && i <= 30) {
-      v = 100 + 18 * Math.exp(-Math.pow((i - 25) / 3, 2)) + 1 * Math.sin(i * 0.4);
-    } else if (i > 30) {
-      const t = (i - 30) / 9;
-      v = 112 - 8 * t + 0.8 * Math.sin(i * 0.4);
-    }
-    out.push({
-      date: `${y}-Q${q}`,
-      index: Number(v.toFixed(2)),
-    });
-    q += 1;
-    if (q > 4) { q = 1; y += 1; }
-  }
-  return out;
-}
-
-const {
-  data = makePlaceholder(),
-  ariaLabel = "Terms-of-trade index, last 10 years; 2017 equals 100.",
-} = Astro.props;
-
-// ---- Geometry ----
-const VB_W = 720;
-const VB_H = 432;
-const M_L = 48;
-const M_R = 72;
-const M_T = 30;
-const M_B = 34;
-const PLOT_X0 = M_L;
-const PLOT_Y0 = M_T;
-const PLOT_W = VB_W - M_L - M_R;
-const PLOT_H = VB_H - M_T - M_B;
-const PLOT_X1 = PLOT_X0 + PLOT_W;
-const PLOT_Y1 = PLOT_Y0 + PLOT_H;
-
-const n = data.length;
-const vals = data.map((d) => d.index);
-const rawMin = Math.min(...vals);
-const rawMax = Math.max(...vals);
-const yLo = Math.floor((rawMin - 2) / 5) * 5;
-const yHi = Math.ceil((rawMax + 2) / 5) * 5;
-const yTicks: number[] = [];
-for (let v = yLo; v <= yHi + 1e-9; v += 5) yTicks.push(v);
-
-function xScale(i: number): number {
-  return PLOT_X0 + (i / (n - 1)) * PLOT_W;
-}
-function yScale(v: number): number {
-  return PLOT_Y0 + PLOT_H - ((v - yLo) / (yHi - yLo)) * PLOT_H;
-}
-const refY = yScale(100);
-
-const linePath = data
-  .map((d, i) => `${i === 0 ? "M" : "L"}${xScale(i).toFixed(2)} ${yScale(d.index).toFixed(2)}`)
-  .join(" ");
-
-// X ticks: every Q1.
-const xLabels: Array<{ x: number; label: string }> = [];
-data.forEach((d, i) => {
-  if (d.date.endsWith("Q1")) {
-    const yr = d.date.split("-")[0];
-    xLabels.push({ x: xScale(i), label: `'${yr.slice(-2)}` });
-  }
-});
-
-const last = data[n - 1];
-const lastX = xScale(n - 1);
-const lastY = yScale(last.index);
+const { data = null } = Astro.props;
 ---
-<figure class="trade-panel-5" aria-label={ariaLabel}>
-  <svg
-    class="trade-panel-5__svg"
-    viewBox={`0 0 ${VB_W} ${VB_H}`}
-    preserveAspectRatio="xMidYMid meet"
-    role="img"
-  >
-    {/* Gridlines */}
-    {yTicks.map((v) => {
-      const isHundred = v === 100;
-      if (isHundred) return null;
-      return (
-        <line
-          class="trade-panel-5__gridline"
-          x1={PLOT_X0}
-          y1={yScale(v).toFixed(2)}
-          x2={PLOT_X1}
-          y2={yScale(v).toFixed(2)}
-        />
-      );
-    })}
-
-    {/* 100 reference rule (1px dashed ink) */}
-    <line
-      class="trade-panel-5__reference"
-      x1={PLOT_X0}
-      y1={refY.toFixed(2)}
-      x2={PLOT_X1}
-      y2={refY.toFixed(2)}
-    />
-    <text
-      class="trade-panel-5__reference-label"
-      x={(PLOT_X1 + 4).toFixed(2)}
-      y={(refY + 3.5).toFixed(2)}
-      text-anchor="start"
-    >2017 = 100</text>
-
-    {/* Line */}
-    <path class="trade-panel-5__line" d={linePath} fill="none" />
-
-    {/* Latest dot */}
-    <circle
-      class="trade-panel-5__marker"
-      cx={lastX.toFixed(2)}
-      cy={lastY.toFixed(2)}
-      r="3.5"
-    >
-      <title>{`${last.date}: TOT ${last.index.toFixed(1)}`}</title>
-    </circle>
-
-    {/* Plot frame */}
-    <rect
-      class="trade-panel-5__frame"
-      x={PLOT_X0}
-      y={PLOT_Y0}
-      width={PLOT_W}
-      height={PLOT_H}
-      fill="none"
-    />
-
-    {/* X-axis tick labels */}
-    {xLabels.map((t) => (
-      <text
-        class="trade-panel-5__xtick-label"
-        x={t.x.toFixed(2)}
-        y={(PLOT_Y1 + 16).toFixed(2)}
-        text-anchor="middle"
-      >{t.label}</text>
-    ))}
-
-    {/* Y-axis tick labels */}
-    {yTicks.map((v, i) => (
-      <text
-        class="trade-panel-5__ytick-label"
-        x={(PLOT_X0 - 6).toFixed(2)}
-        y={(yScale(v) + 3.5).toFixed(2)}
-        text-anchor="end"
-      >{i === yTicks.length - 1 ? `${v} idx` : `${v}`}</text>
-    ))}
-
-    {/* Unit annotation top-left */}
-    <text
-      class="trade-panel-5__unit"
-      x={PLOT_X0.toFixed(2)}
-      y={(PLOT_Y0 - 12).toFixed(2)}
-      text-anchor="start"
-    >Terms-of-trade index, 2017 = 100. Above 100 = net favorable.</text>
-  </svg>
-</figure>
-
-<style>
-  .trade-panel-5 {
-    width: 100%;
-    margin: 0;
-    background-color: var(--surface);
-  }
-  .trade-panel-5__svg {
-    display: block;
-    width: 100%;
-    height: auto;
-    font-family: var(--font-sans);
-    overflow: visible;
-  }
-  .trade-panel-5__gridline {
-    stroke: var(--ink);
-    stroke-opacity: 0.15;
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .trade-panel-5__reference {
-    stroke: var(--ink);
-    stroke-width: 1;
-    stroke-dasharray: 4 3;
-    stroke-opacity: 0.55;
-    shape-rendering: crispEdges;
-  }
-  .trade-panel-5__reference-label {
-    fill: var(--ink);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: var(--fw-regular);
-  }
-  .trade-panel-5__line {
-    stroke: #000000;
-    stroke-width: 1.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-  .trade-panel-5__marker {
-    fill: #E63946;
-    stroke: var(--surface);
-    stroke-width: 1.25;
-  }
-  .trade-panel-5__frame {
-    stroke: #000000;
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .trade-panel-5__xtick-label,
-  .trade-panel-5__ytick-label {
-    fill: var(--ink);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: var(--fw-regular);
-    font-variant-numeric: tabular-nums;
-  }
-  .trade-panel-5__unit {
-    fill: var(--ink);
-    font-size: 11px;
-    font-weight: var(--fw-medium);
-    letter-spacing: 0.02em;
-  }
-</style>
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    primaryLabel="WTI"
+    secondaryLabel="Brent"
+    dataPanelAttr="trade-5"
+    ariaLabel="Oil price proxies for terms of trade: WTI and Brent."
+  />
+) : (
+  <PanelEmpty reason="Terms-of-trade index not yet emitted." />
+)}

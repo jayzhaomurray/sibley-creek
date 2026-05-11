@@ -270,7 +270,12 @@ or contracting -- and what is driving it?
 5. Versus BoC potential -- the BoC's latest MPR potential-output
    estimate as the benchmark; current output gap (Valet
    `INDINF_OUTGAPMPR_Q`); potential-growth numbers read off the
-   MPR Appendix on each release.
+   MPR Appendix on each release. Secondary view (toggle):
+   industrial capacity utilization (total + manufacturing,
+   quarterly) as the firm-side slack complement. If a BoC MPR cycle
+   does not refresh the output-gap series, the panel surfaces the
+   last-published estimate with a stale-vintage badge; no HP-filter
+   substitute is constructed.
 6. Recession state -- C.D. Howe Business Cycle Council dating;
    amplitude, duration, scope (BCC's canonical wording, not "depth,
    breadth"; not the two-negatives shorthand). Maintained as a
@@ -286,7 +291,10 @@ measures and what breadth?
    surprise vs. market consensus (Bloomberg / Reuters median, or
    aggregated forecaster median where the paid feed is unavailable).
    BoC's MPR central projection is the fallback anchor when
-   consensus is genuinely unavailable.
+   consensus is genuinely unavailable. CPI ex-indirect-taxes is
+   canonized as a Phase-2 secondary toggle (gated on StatCan vector
+   wiring); the overlay separates price-level signal from tax-policy
+   noise (GST/HST changes, tariff pass-through).
 2. BoC preferred core measures -- core-trim and core-median lead
    as the BoC's current preferred pair; common shown as historical
    anchor in hover/footnote with a one-line note that BoC has
@@ -310,9 +318,11 @@ measures and what breadth?
    place; otherwise v1 shows all-services and all-goods directly
    with prose noting the dominant sub-component. Residual
    stickiness is one-sentence analyst call-out in the blurb.
-5. Inflation expectations -- CSCE consumer 1y and 5y; BOS firms
-   expecting >3% (and the BOS distribution buckets as the
-   secondary view).
+5. Inflation expectations -- CSCE consumer 1y and 5y as the
+   default view; BOS firms expecting >3% as toggle 1; BOS
+   distribution buckets (below 1% / 1-2% / 2-3% / above 3%) as
+   toggle 2. All three views must be wired; the panel's current
+   consumer-only implementation is incomplete against canon.
 6. Pass-through watch -- side-by-side strip-chart panel: (USDCAD
    Y/Y vs goods-ex-energy CPI Y/Y) and (LFS-Micro wage growth vs
    services-ex-shelter CPI Y/Y). No regression in basics; the
@@ -336,21 +346,26 @@ Population surfaces twice -- as the denominator in the per-capita
 panel (unit 2), and as the supply-side trajectory (unit 5).
 Labour first, demographics second; never demographics-as-opener.
 
-**Chartbook units (6, in order):**
+**Chartbook units (7, in order):**
 1. **LFS headline** -- employment, unemployment rate, participation,
    employment rate. Latest print with surprise vs. market consensus
    (Bloomberg / Reuters median, or aggregated forecaster median
    where the paid feed is unavailable); BoC's MPR labour projections
    are the fallback anchor when consensus is genuinely unavailable.
-   First-Friday cadence.
+   First-Friday cadence. Secondary view (toggle): youth and prime-age
+   unemployment rates as separate lines.
 2. **Per-capita panel** (signature) -- side-by-side small multiples:
    employment Y/Y vs employment Y/Y per-capita; aggregate hours Y/Y
    vs per-capita hours Y/Y. This is where the section headline
-   question sits.
+   question sits. Secondary views (toggles): prime-age triplet
+   (participation + employment + unemployment, 25-54) and youth
+   triplet (15-24) as denominator-adjusted slack reads.
 3. **Wage band** -- four measures (LFS all-employee, LFS permanent,
    SEPH, BoC's composition-adjusted LFS-Micro) shown as a band, with
    dispersion called out; CPI services Y/Y as comparator line.
-4. **Vacancies and slack** -- JVWS vacancy rate (3M MA, not 12M);
+   Secondary overlay (toggle): Unit Labour Costs as the
+   productivity-adjusted wage read.
+4. **Vacancies and slack** -- JVWS vacancy rate (3mma, not 12M);
    vacancy-to-unemployment ratio with empirical Canadian-calibrated
    bands as historical anchors (not current-state claims);
    Beveridge-curve scatter with the most recent point highlighted
@@ -367,6 +382,12 @@ Labour first, demographics second; never demographics-as-opener.
    BC) with national rate overlaid; current value and 12-months-ago
    value to surface the "loosening fastest" call-out. Matches
    Housing's six-CMA convention rather than ten-province clutter.
+7. **EI Regular Beneficiaries** -- single-series with level (in
+   thousands) / Y/Y / MoM transforms. The demand-side mirror of
+   vacancy decline and a leading recession indicator: EI uptake
+   inflects before LFS unemployment turns. National only in v1;
+   provincial breakdown defers to deep-dive. Cadence: monthly,
+   ~80-day lag (StatCan Table 14-10-0011-01).
 
 **Boundary with Pillar E (deep-dive).** The Labour blurbs *surface*
 the per-capita-vs-aggregate divergence; Pillar E resolves whether
@@ -378,7 +399,7 @@ chartbook layer must not pre-empt the deep-dive.
 **Headline question.** Is the rate-sensitive sector amplifying or
 dampening policy, and is supply arriving where population is settling?
 
-**Chartbook units (4-6):**
+**Chartbook units (7, in order):**
 1. Prices -- MLS HPI benchmark, national plus six CMAs (Toronto,
    Vancouver, Montreal, Calgary, Ottawa, Edmonton); Y/Y and
    6-month annualized. No national-average headline number. CMA-
@@ -386,6 +407,8 @@ dampening policy, and is supply arriving where population is settling?
 2. Activity -- starts (with 3-month moving average), completions
    (Table 34-10-0135), permits as the leading indicator; rental
    vs. ownership split via CMHC intended-market breakdown.
+   Secondary view (toggle): CMA-level resales (Toronto / Vancouver /
+   Calgary, 12M rolling) as the granular-geography activity cut.
 3. Inventory and absorption -- MLS sales-to-new-listings (national
    via BoC FVI; CMA via CREA XLSX); months of inventory by CMA
    constructed as active listings / monthly sales, methodology
@@ -399,15 +422,24 @@ dampening policy, and is supply arriving where population is settling?
    published Residential Mortgage Market chartpack for the
    vintage / term composition, plus OSFI Bank Financial Data
    residential mortgage line and CMHC arrears (RMIR; with CBA
-   chartered-bank arrears as monthly proxy). Our own full
-   reconstruction of mortgage stack by vintage and term is Pillar
-   A (mortgage renewal wall) deep-dive territory, deferred from
-   v1 basics.
+   chartered-bank arrears as monthly proxy). Secondary element on
+   the panel: 5-year fixed mortgage rate and the 5Y-mortgage-to-5Y-
+   GoC spread as the marginal-borrower cost-of-borrowing read. Our
+   own full reconstruction of mortgage stack by vintage and term is
+   Pillar A (mortgage renewal wall) deep-dive territory, deferred
+   from v1 basics.
 6. Population-to-housing-stock ratio by CMA -- the supply-response
    denominator. Built from StatCan Table 17-10-0135 (annual CMA
    population) and Table 36-10-0688 (housing stock). Annual; v1
    ships with methodology note on base year and intercensal
    interpolation.
+7. Housing Affordability -- BoC qualifying-mortgage-payment-to-
+   income index (quarterly, from 1981). The flow-side complement to
+   Panel 5's stock snapshot: "what would a new borrower pay against
+   current income." Historical tightening episodes (1989-1991,
+   2007-2008, 2022-2024) overlaid as static reference bands, not
+   current-state classifiers. Cadence: quarterly, on the BoC
+   Indicators of Capacity and Inflation Pressures release.
 
 ### 4.5 Policy (Monetary + Fiscal)
 
@@ -419,7 +451,10 @@ monetary and fiscal -- and is it consistent with the cycle?
    neutral band (researcher-curated value extracted from the most
    recent April-MPR refresh, with vintage stamp; not an API
    series), consecutive-meeting action state (on hold / cutting /
-   hiking).
+   hiking). Secondary views (toggles): peer central bank rates
+   (Fed, ECB, BoE, RBA) for cross-DM stance comparison; real
+   policy rate (overnight minus headline CPI Y/Y) as the
+   inflation-deflated stance read.
 2. Market path -- 2-year GoC vs. overnight as the term-structure
    read on expectations; the OIS-implied BoC path is cited from
    the BoC MPR's market-implied curve chart on a quarterly cadence
@@ -432,6 +467,9 @@ monetary and fiscal -- and is it consistent with the cycle?
 4. Balance sheet -- BoC settlement balances and asset composition;
    phase (QE / reinvestment / passive QT / floor maintenance) as
    editorial-curated phase call with cite-to-statement timeline.
+   Secondary view (toggle): CORRA-vs-overnight-target spread (daily,
+   20-day smoothing), the funding-market plumbing diagnostic that
+   confirms or falsifies the floor-maintenance call.
 
 **Chartbook units, fiscal sub-surface (4):**
 5. Federal trajectory -- DoF Fiscal Monitor latest (monthly,
@@ -853,4 +891,5 @@ below.
 - 2026-05-10: User-override on surprise framing. Surprise is now anchored to market consensus (Bloomberg / Reuters median, or aggregated forecaster median where paid feed unavailable) across GDP, Inflation, and Labour element-1. BoC MPR projection is the fallback when consensus is genuinely unavailable. Reasoning: the voice principle on Big-Six sourcing (Section 7) applies to citation as authority, not to aggregating forecaster numbers as derived consensus inputs. Prior 2026-05-10 framing (BoC MPR as primary anchor) was a too-strict reading of the voice principle. main Claude on user instruction.
 - 2026-05-11: Section 4.6 renamed "Financial" -> "Markets" to align with the homepage label rename in flight. Cross-references in Section 5 deep-dive table and Section 6 cadence table updated accordingly. Editorial rationale: "Markets" is the more honest label for what the section actually covers at the basics layer (CAD, GoC curve, credit spreads, commodity prices, bank capital, FCI). Financial-system stability work is deep-dive territory; the basics layer is markets-data-with-Canadian-lens. editorial-director.
 - 2026-05-11 (Wave 4 adjudication): Section 4.5 Policy page panel count locked at eight (four monetary + four fiscal), not six. Frontend's six-panel placeholder must grow. Rationale: the canon enumerates four monetary elements (overnight rate, market path, BoC-Fed spread, balance sheet) and four fiscal elements (federal trajectory, provincial, debt management, fiscal stance vs cycle); collapsing to six would force editorial-arbitrary deletions from the canonical slate, and the monetary-fiscal divider is exactly the visual affordance the basics layer of a one-section-two-stance Policy page needs. Implementation note: page renders as a single eight-panel grid with a visual divider between panel 4 and panel 5. editorial-director.
+- 2026-05-11 (Wave 5 coverage-parity adjudication): boc-tracker chart inventory adjudicated. Two new panels canonized: Labour grows from 6 to 7 panels with Panel 7 EI Regular Beneficiaries (demand-side mirror of vacancy decline, leading recession indicator); Housing grows from 6 to 7 panels with Panel 7 Housing Affordability (BoC qualifying-mortgage-payment-to-income index, flow-side complement to Panel 5's stock snapshot). Eight folds canonized as toggles/overlays on existing panels: GDP Panel 5 gains capacity-utilization secondary toggle; Inflation Panel 1 gains ex-indirect-taxes Phase-2 toggle; Inflation Panel 5 expanded to three views (CSCE consumer / BOS >3% / BOS distribution); Labour Panel 1 gains youth+prime-age unemployment toggle; Labour Panel 2 gains prime+youth triplet toggles; Labour Panel 3 gains ULC overlay; Housing Panel 2 gains CMA-resales toggle; Housing Panel 5 gains 5Y mortgage rate / GoC spread element; Policy Panel 1 gains peer-bank and real-rate toggles; Policy Panel 4 gains CORRA-target spread toggle. Methodology resolutions: GDP output gap canon stays BoC MPR `INDINF_OUTGAPMPR_Q` (no HP-filter substitute); WCS at monthly cadence, daily differential not surfaced; BOS distribution buckets added to Inflation Panel 5; CPI ex-indirect-taxes deferred to Phase 2. Cuts at basics layer: productivity decomposition, LFS R-indicators, Indeed postings, 60-component CPI decomposition, mortgage-renewal-shock stylized reproduction. Full record: `editorial/wave5_boc_tracker_chart_decisions.md`. editorial-director.
 - 2026-05-11: Architecture canonicalized: tri-modal product (dashboard / chartbook / deep-dive), Vignelli visual canon, Sibley Creek name. Prior Layout B / Hero+6 / Path C iterations retired. Publication renamed from "Macro Research Department" placeholder to Sibley Creek (project directory and package.json keep `macro-research-department` for tooling continuity). Section 1 mission rewritten to lead with tri-modal product. Section 3 architecture rewritten as tri-modal product / three reader surfaces (homepage panel grid, topic-page chartbooks, deep dives); two-layer "basics + deep dives" framing absorbed into surfaces. Section 4 reframed: chartbook unit (one chart + one 2-4 sentence interpretation paragraph) named as the editorial atom; "basics layer" / "elements" / "panels" terminology unified to "chartbook units." Section 7 voice: editorial atom defined; Mode A (auto-blurb, eventually automated) and Mode B (deep-dive prose, human-led) postures distinguished; Canadian English principle made explicit. Section 8 out-of-scope: explicit exclusions added for editions / volumes / issues, magazine-style edition framing, and editorial hero on homepage. Section 9 success criteria expanded from 10 to 12 to cover homepage panel grid live (new criterion 2) and Mode 2 operating on at least three sections (new criterion 3); November 2026 horizon preserved. editorial-director.

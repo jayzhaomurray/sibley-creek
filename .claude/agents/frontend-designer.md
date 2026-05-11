@@ -78,8 +78,22 @@ This bar applies when the brief signals "creative exploration," "alternative dir
 5. Run Lighthouse / Axe before declaring a page done; track regressions
 6. Keep components small and composable; avoid one-off styling that bypasses the design tokens
 
+## Visual verification (REQUIRED before declaring done)
+
+Visual correctness is the bar this role is graded on. You MUST visually verify every page-shell, layout, or component change before writing your final report. The workflow:
+
+1. Run `npm run build` — must complete cleanly (gates `astro check` + `astro build`). Any TypeScript error is a blocker.
+2. Run `npm run test:visual` — Playwright pixel-diffs the build output against the committed baselines under `tests/visual/__snapshots__/`.
+   - If baselines do not yet exist on disk: emit a `[visual-regression: baselines absent]` note in your report and proceed.
+   - If baselines exist and the diff is **under the `maxDiffPixels` threshold**: pass. Mention "visual regression: clean."
+   - If baselines exist and the diff **exceeds the threshold**: classify the diff. Intentional change -> inspect `.playwright-report/`, confirm the new render matches your intent, run `npm run test:visual:update`, commit baselines alongside the code change. Unintended regression -> do NOT update baselines; fix the page code until clean.
+3. Spot-check rendered HTML for routes you touched. Use `Read` on `dist/<route>/index.html` to confirm semantic structure, page header bands, layout grid, and component slots are what you expect. The harness catches what it can pixel-diff; structural sanity is your eye-check.
+4. Final report MUST include the line `visual regression: <clean | N diffs accepted as intentional | baselines absent>`. Reports without this line will be treated as incomplete.
+
+Do not declare work done without these checks. The agent that built the change is the agent that verifies it.
+
 ## Output format
 
-For new work: file diffs + a one-paragraph note on key choices.
-For review: list what was implemented and any open questions for art-director.
-For SEO / a11y / perf work: the change + relevant metric / score before and after.
+For new work: file diffs + a one-paragraph note on key choices + **the `visual regression: ...` line** per the workflow above.
+For review: list what was implemented and any open questions for art-director + **the `visual regression: ...` line**.
+For SEO / a11y / perf work: the change + relevant metric / score before and after + **the `visual regression: ...` line**.

@@ -64,6 +64,28 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
     "gdp_contrib_exports":     StatcanSpec("gdp_contrib_exports", 79448573, "36-10-0104-01", "pp", "quarterly", "gdp", sa=True),
     "gdp_contrib_imports":     StatcanSpec("gdp_contrib_imports", 79448576, "36-10-0104-01", "pp", "quarterly", "gdp", sa=True,
                                            scale=-1.0, notes="Stored as 'less imports' (negated) so positive contribution = imports fell."),
+    # Labour productivity (Table 36-10-0206-01). Quarterly SA index. Resolved
+    # 2026-05-11 via WDS getCubeMetadata + getSeriesInfoFromCubePidCoord on
+    # productId=36100206, coordinate 1.1.1.0.0.0.0.0.0.0. Series title:
+    # "Canada;Business sector;Labour productivity". Most-cited variant per BoC
+    # commentary (e.g. Macklem Nov 2022 productivity speech) is business-sector
+    # productivity (output per hour). Companion to ULC (Table 36-10-0206 has
+    # both; ULC vector is 1409159 already wired in boc-tracker if needed later).
+    # The Y/Y derivation lands in data/processed/productivity_business_per_hour_yoy.csv
+    # via derive_productivity_views() in pipeline/build.py.
+    "productivity_business_per_hour": StatcanSpec(
+        name="productivity_business_per_hour",
+        vector_id=1409153, table_id="36-10-0206-01",
+        units="Index, 2017=100 (SA)", frequency="quarterly", section="gdp",
+        sa=True,
+        notes=(
+            "Canada;Business sector;Labour productivity (real GDP per hour worked), "
+            "quarterly SA index. Cube coord 1.1.1.0.0.0.0.0.0.0. Resolved 2026-05-11. "
+            "Feeds GDP Panel 6 (productivity overlay) and the GDP topic-page panel "
+            "data bundle."
+        ),
+    ),
+
     # Per-capita denominator: total population, Table 17-10-0009-01 v1.
     "pop_total": StatcanSpec(
         name="pop_total",
@@ -105,6 +127,40 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
     "cpi_mortgage_interest":    StatcanSpec("cpi_mortgage_interest", 41691093, "18-10-0004-01",
                                             "Index, 2002=100", "monthly", "inflation", sa=False,
                                             notes="Mortgage interest cost component; load-bearing for shelter decomposition."),
+    # ----- Phase 2: CPI all-items excluding indirect taxes ----------------
+    # Wave 5 brief (Section 5 backend item 5, methodology resolution C.4):
+    # Inflation Panel 1 gains a toggle for "CPI excluding indirect taxes" to
+    # separate GST/HST and tariff pass-through from the underlying price-level
+    # signal. Researcher to confirm canonical StatCan vector before Phase 2
+    # build wires it.
+    #
+    # CANDIDATE: v41691000-series in Table 18-10-0004-01. The Wave 5 doc
+    # (Section C.4) cites v41693242 as "the likely candidate" but that vector
+    # is the BoC's CPIX series (CPI ex 8 most volatile + indirect taxes,
+    # ATOM_V41693242 in boc_series.py), NOT the simpler "all-items ex indirect
+    # taxes" the chart toggle calls for. The StatCan-published "CPI all-items
+    # excluding the effect of indirect taxes" lives in 18-10-0004 under a
+    # different vector ID; identification deferred to researcher (Wave 5
+    # researcher follow-up #2).
+    #
+    # ENTRY IS COMMENTED OUT so the catalog runner does not attempt to fetch
+    # a placeholder vector ID. When the researcher confirms the vector, swap
+    # the comment for a live StatcanSpec block and remove the TODO.
+    #
+    # TODO(phase2): Researcher confirms canonical vector for "CPI all-items
+    # excluding indirect taxes" in StatCan Table 18-10-0004. When known:
+    #   "cpi_all_items_ex_indirect_taxes": StatcanSpec(
+    #       "cpi_all_items_ex_indirect_taxes",
+    #       vector_id=<TBD>, table_id="18-10-0004-01",
+    #       units="Index, 2002=100", frequency="monthly", section="inflation",
+    #       sa=False,
+    #       notes=(
+    #           "StatCan-published CPI excluding effect of changes in indirect "
+    #           "taxes. Inflation Panel 1 toggle (Wave 5 fold). Distinct from "
+    #           "BoC's CPIX (cpi_ex_indirect_taxes; ATOM_V41693242) which also "
+    #           "excludes the 8 most volatile components."
+    #       ),
+    #   ),
 
     # ----- CPI basket weights (Table 18-10-0007-01, basket-cycle cadence) ----
     # Per W3-R2 (researcher GO decision, 2026-05-11): inflation pass-through panel
@@ -211,7 +267,7 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
     # Vacancies
     "job_vacancy_rate":       StatcanSpec("job_vacancy_rate", 1212389365, "14-10-0371-01",
                                           "%", "monthly", "labour", sa=False,
-                                          notes="JVWS publishes NSA only; chart-side 3M MA is the editorial convention."),
+                                          notes="JVWS publishes NSA only; chart-side 3mma is the editorial convention."),
     "job_vacancy_level":      StatcanSpec("job_vacancy_level", 1212389364, "14-10-0371-01",
                                           "Millions", "monthly", "labour", scale=1e-6, sa=False),
     # Aggregate hours (Table 14-10-0289). Resolved 2026-05-11 (research/wave2_vector_resolutions.md):
@@ -259,6 +315,25 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
                                                    "British Columbia; Unemployment rate; Total - Gender; 15+; Estimate; SA. "
                                                    "Cube coord 11.7.1.1.1.1.0.0.0.0. Resolved 2026-05-11."
                                                )),
+    # EI Regular Beneficiaries (Wave 5 brief, Section 5 backend item 1).
+    # Source: StatCan Table 14-10-0011-01 ("Employment Insurance Beneficiaries
+    # by Province/Territory; type of income benefits and sex"), Canada-total,
+    # regular benefits, SA, monthly count of persons. v64549350 was lifted
+    # from boc-tracker on 2026-05-11 (ei_regular_beneficiaries.csv on disk
+    # covers 1997-01 through 2026-02; ~80-day lag is typical). Registering
+    # here makes future re-fetches go through the standard pipeline runner
+    # rather than relying on the lift script for refresh cadence.
+    "ei_regular_beneficiaries":    StatcanSpec(
+        "ei_regular_beneficiaries", 64549350, "14-10-0011-01",
+        "Persons", "monthly", "labour", sa=True,
+        notes=(
+            "EI regular benefits recipients, Canada total, SA. "
+            "Demand-side cyclical-inflection signal (Wave 5 Panel 7 Labour). "
+            "StatCan publishes raw counts in persons; chart-side display divides "
+            "by 1000 to render in thousands. ~80-day publication lag from "
+            "reference month. Lifted 2026-05-11 from boc-tracker."
+        ),
+    ),
 
     # ----- Housing (Section 4.4) ------------------------------------------
     "housing_starts": StatcanSpec("housing_starts", 52300157, "34-10-0158-01",
@@ -413,9 +488,69 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
     "trade_imports_machinery":  StatcanSpec("trade_imports_machinery", 1001212204, "12-10-0122-01", "C$ millions", "monthly", "trade", sa=True, notes="Machinery imports HS section (probe-pending)."),
     "trade_imports_consumer":   StatcanSpec("trade_imports_consumer", 1001212205, "12-10-0122-01", "C$ millions", "monthly", "trade", sa=True, notes="Consumer goods imports HS section (probe-pending)."),
     "trade_imports_agri":       StatcanSpec("trade_imports_agri", 1001212206, "12-10-0122-01", "C$ millions", "monthly", "trade", sa=True, notes="Agriculture imports HS section (probe-pending)."),
-    # Terms of trade (Table 36-10-0103-01) — quarterly.
-    "terms_of_trade": StatcanSpec("terms_of_trade", 62305749, "36-10-0103-01", "Index, 2017=100", "quarterly", "trade", sa=True,
-                                  notes="Terms-of-trade index, quarterly (probe-pending)."),
+    # Terms of trade. Resolved 2026-05-11: there is no StatCan-published "ToT"
+    # standalone series; the canonical national-accounts ToT is the ratio of
+    # the export goods-and-services implicit price index to the import
+    # goods-and-services implicit price index, both from Table 36-10-0106
+    # (GDP price indexes, quarterly). The prior catalog entry pointed at
+    # v62305749 in Table 36-10-0103 ("GDP income-based") which was a value
+    # in C$ millions, not an index -- wrong cube entirely. Now we register
+    # the two underlying IPI vectors as raw inputs and derive the ratio in
+    # pipeline.build.derive_terms_of_trade -> data/processed/terms_of_trade.csv.
+    "tot_exports_ipi": StatcanSpec(
+        "tot_exports_ipi", 62307276, "36-10-0106-01",
+        "Index, 2017=100 (SA)", "quarterly", "trade", sa=True,
+        notes=(
+            "Implicit price index, exports of goods and services, quarterly SA. "
+            "Numerator for the national-accounts terms-of-trade ratio. "
+            "Cube coord 1.1.11.0.0.0.0.0.0.0 (Geography=1, Implicit price index, "
+            "Exports of goods and services). Resolved 2026-05-11."
+        ),
+    ),
+    "tot_imports_ipi": StatcanSpec(
+        "tot_imports_ipi", 62307279, "36-10-0106-01",
+        "Index, 2017=100 (SA)", "quarterly", "trade", sa=True,
+        notes=(
+            "Implicit price index, imports of goods and services, quarterly SA. "
+            "Denominator for the national-accounts terms-of-trade ratio. "
+            "Cube coord 1.1.15.0.0.0.0.0.0.0. Resolved 2026-05-11."
+        ),
+    ),
+    # Quarterly current-account components (Table 36-10-0018, SA quarterly).
+    # Resolved 2026-05-11. The four sub-component balances sum to the headline
+    # current_account_balance (Total current account). UOM is C$ millions.
+    # Companion to the annual ca_*_income set (Table 36-10-0014) above; the
+    # quarterly cadence is what the Trade Panel 2 stacked-bar decomposition
+    # needs.
+    "current_account_balance": StatcanSpec(
+        "current_account_balance", 61915304, "36-10-0018-01",
+        "C$ millions", "quarterly", "trade", sa=True,
+        notes=(
+            "Total current account balance (headline), quarterly SA. "
+            "Coord 1.3.1.0.0.0.0.0.0.0. Equals goods + services + primary income + "
+            "secondary income to within statistical-discrepancy. Resolved 2026-05-11."
+        ),
+    ),
+    "ca_goods_balance_q": StatcanSpec(
+        "ca_goods_balance_q", 61915306, "36-10-0018-01",
+        "C$ millions", "quarterly", "trade", sa=True,
+        notes="Current-account goods balance, quarterly SA. Coord 1.3.23.0.0.0.0.0.0.0. Resolved 2026-05-11.",
+    ),
+    "ca_services_balance_q": StatcanSpec(
+        "ca_services_balance_q", 61915308, "36-10-0018-01",
+        "C$ millions", "quarterly", "trade", sa=True,
+        notes="Current-account services balance, quarterly SA. Coord 1.3.35.0.0.0.0.0.0.0. Resolved 2026-05-11.",
+    ),
+    "ca_primary_income_q": StatcanSpec(
+        "ca_primary_income_q", 61915313, "36-10-0018-01",
+        "C$ millions", "quarterly", "trade", sa=True,
+        notes="Current-account primary income balance, quarterly SA. Coord 1.3.2.0.0.0.0.0.0.0. Resolved 2026-05-11.",
+    ),
+    "ca_secondary_income_q": StatcanSpec(
+        "ca_secondary_income_q", 61915327, "36-10-0018-01",
+        "C$ millions", "quarterly", "trade", sa=True,
+        notes="Current-account secondary income balance, quarterly SA. Coord 1.3.17.0.0.0.0.0.0.0. Resolved 2026-05-11.",
+    ),
     # Energy supply and disposition (Table 25-10-0044-01) — monthly.
     "energy_supply_disposition": StatcanSpec("energy_supply_disposition", 5000044, "25-10-0044-01",
                                               "Cubic metres", "monthly", "trade", sa=False,

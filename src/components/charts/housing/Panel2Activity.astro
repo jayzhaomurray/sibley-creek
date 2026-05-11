@@ -1,299 +1,41 @@
 ---
 /*
- * Panel2Activity - Housing chartbook, plate 02.
+ * Panel2Activity - housing activity: starts and units under construction.
  *
- * Editorial canon Section 4.4: housing starts + completions + permits +
- * rental/ownership split. Three-line time series; permits leads, starts is
- * the headline, completions trails. All three series share the y-axis
- * (thousands of units, SAAR).
+ * Pipeline emits `housing_starts` (primary, SAAR units) and
+ * `units_under_construction` (secondary). Both share units in spirit
+ * but the magnitudes differ; PanelLiveChart suppresses the secondary
+ * line when units don't match exactly to avoid a misleading overlay.
  *
- * Vignelli treatment: starts is the load-bearing line (pure black 1.5px);
- * completions and permits are recessive (1px ink, dashed). MTA red dot
- * on the starts latest point only - the brand-signal moment on the
- * headline series.
+ * Wave 5 fold (EDR brief Section 3): CMA-level resales (Toronto /
+ * Vancouver / Calgary, 12M rolling) added as secondary toggle view.
+ * Resales are a flow not a stock and not directly comparable to
+ * starts - the toggle is a view-switch, not a single-axis overlay.
+ * Deferred until the centralized toggle pattern lands; CSV inputs
+ * (`crea_resales_*.csv`) are on disk per EDR brief.
  *
- * Plot vs SVG: hand-rolled SVG. Three thin lines + one frame + one dot.
- * Zero JS, matches Panel1HeadlineCPI precedent.
- *
- * Placeholder data: backend ships {date, starts_saar, completions_saar,
- * permits_saar} once CMHC + StatCan permits wire in. Synthetic values
- * carry plausible 5-year shape: starts cycle from ~270k to ~250k with a
- * 2022 peak around 290k; permits lead by a couple of months; completions
- * lag starts by ~12 months.
+ * Synthetic-data fallback removed.
  */
 
-interface MonthlyPoint {
-  date: string;            // "YYYY-MM"
-  starts_saar: number;     // thousands of units, SAAR
-  completions_saar: number;
-  permits_saar: number;
-}
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
 
 interface Props {
-  data?: MonthlyPoint[];
-  asOf?: string;
-  ariaLabel?: string;
+  data?: PanelData | null;
 }
 
-function buildPlaceholder(): MonthlyPoint[] {
-  const out: MonthlyPoint[] = [];
-  let y = 2021;
-  let m = 5;
-  for (let i = 0; i < 60; i++) {
-    const t = i / 59;
-    // Starts: 260 baseline, 2022 peak at 290, drift to 245 by 2026.
-    let starts: number;
-    if (t < 0.20) starts = 260 + (290 - 260) * (t / 0.20);
-    else if (t < 0.50) starts = 290 - (290 - 240) * ((t - 0.20) / 0.30);
-    else if (t < 0.75) starts = 240 + (260 - 240) * ((t - 0.50) / 0.25);
-    else starts = 260 - (260 - 245) * ((t - 0.75) / 0.25);
-    starts += 8 * Math.sin(i * 0.7);
-    // Permits: leads starts by ~3 months and runs slightly under.
-    let permits: number;
-    const tp = Math.min(1, t + 0.05);
-    if (tp < 0.20) permits = 250 + (280 - 250) * (tp / 0.20);
-    else if (tp < 0.50) permits = 280 - (280 - 230) * ((tp - 0.20) / 0.30);
-    else if (tp < 0.75) permits = 230 + (255 - 230) * ((tp - 0.50) / 0.25);
-    else permits = 255 - (255 - 235) * ((tp - 0.75) / 0.25);
-    permits += 6 * Math.sin(i * 0.65 + 1);
-    // Completions: lag starts by ~12 months -> use t - 0.20.
-    let comps: number;
-    const tc = Math.max(0, t - 0.20);
-    if (tc < 0.20) comps = 220 + (240 - 220) * (tc / 0.20);
-    else if (tc < 0.50) comps = 240 - (240 - 230) * ((tc - 0.20) / 0.30);
-    else if (tc < 0.75) comps = 230 + (250 - 230) * ((tc - 0.50) / 0.25);
-    else comps = 250 - (250 - 235) * ((tc - 0.75) / 0.25);
-    comps += 5 * Math.cos(i * 0.5);
-    out.push({
-      date: `${y}-${String(m).padStart(2, "0")}`,
-      starts_saar: Math.round(starts * 10) / 10,
-      completions_saar: Math.round(comps * 10) / 10,
-      permits_saar: Math.round(permits * 10) / 10,
-    });
-    m += 1;
-    if (m > 12) { m = 1; y += 1; }
-  }
-  return out;
-}
-
-const {
-  data = buildPlaceholder(),
-  asOf = "Apr 2026",
-  ariaLabel = `Housing activity: starts, completions, permits, ${asOf}`,
-} = Astro.props;
-
-// ---- Geometry --------------------------------------------------------------
-const VB_W = 720;
-const VB_H = 420;
-const M_T = 28;
-const M_B = 36;
-const M_L = 48;
-const M_R = 100; // room for direct labels
-const PLOT_X0 = M_L;
-const PLOT_Y0 = M_T;
-const PLOT_W = VB_W - M_L - M_R;
-const PLOT_H = VB_H - M_T - M_B;
-const PLOT_X1 = PLOT_X0 + PLOT_W;
-const PLOT_Y1 = PLOT_Y0 + PLOT_H;
-
-function decYearOf(d: string): number {
-  const [yy, mm] = d.split("-").map(Number);
-  return yy + (mm - 0.5) / 12;
-}
-const xs = data.map((p) => decYearOf(p.date));
-const xMin = xs[0];
-const xMax = xs[xs.length - 1];
-
-// Y range: 180..310 thousand units.
-const Y_MIN = 180;
-const Y_MAX = 310;
-const yTicks = [200, 220, 240, 260, 280, 300];
-
-function xScale(yr: number): number {
-  return PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
-}
-function yScale(v: number): number {
-  return PLOT_Y0 + PLOT_H - ((v - Y_MIN) / (Y_MAX - Y_MIN)) * PLOT_H;
-}
-
-function buildLine(pick: (p: MonthlyPoint) => number): string {
-  return data
-    .map((p, i) => {
-      const x = xScale(decYearOf(p.date));
-      const y = yScale(pick(p));
-      return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
-    })
-    .join(" ");
-}
-
-const startsPath = buildLine((p) => p.starts_saar);
-const compsPath = buildLine((p) => p.completions_saar);
-const permitsPath = buildLine((p) => p.permits_saar);
-
-const last = data[data.length - 1];
-const lastX = xScale(decYearOf(last.date));
-const lastStartsY = yScale(last.starts_saar);
-const lastCompsY = yScale(last.completions_saar);
-const lastPermitsY = yScale(last.permits_saar);
-
-const yearStart = Math.ceil(xMin);
-const yearEnd = Math.floor(xMax);
-const xTicks: Array<{ x: number; label: string }> = [];
-for (let yy = yearStart; yy <= yearEnd; yy++) {
-  xTicks.push({ x: xScale(yy), label: `'${String(yy).slice(-2)}` });
-}
+const { data = null } = Astro.props;
 ---
-<div class="housing-panel-2" aria-label={ariaLabel}>
-  <svg
-    class="housing-panel-2__svg"
-    viewBox={`0 0 ${VB_W} ${VB_H}`}
-    preserveAspectRatio="xMidYMid meet"
-    role="img"
-    aria-label={ariaLabel}
-  >
-    {/* Gridlines */}
-    {yTicks.map((v) => (
-      <line
-        class="housing-panel-2__gridline"
-        x1={PLOT_X0.toFixed(2)}
-        y1={yScale(v).toFixed(2)}
-        x2={PLOT_X1.toFixed(2)}
-        y2={yScale(v).toFixed(2)}
-      />
-    ))}
-
-    {/* Permits - recessive dashed */}
-    <path class="housing-panel-2__line housing-panel-2__line--permits" d={permitsPath} fill="none" />
-    {/* Completions - recessive dashed */}
-    <path class="housing-panel-2__line housing-panel-2__line--completions" d={compsPath} fill="none" />
-    {/* Starts - load-bearing black */}
-    <path class="housing-panel-2__line housing-panel-2__line--starts" d={startsPath} fill="none" />
-
-    {/* Latest-point dot on starts only */}
-    <circle
-      class="housing-panel-2__marker"
-      cx={lastX.toFixed(2)}
-      cy={lastStartsY.toFixed(2)}
-      r="3"
-    >
-      <title>{`${last.date}: ${last.starts_saar.toFixed(0)}k starts SAAR`}</title>
-    </circle>
-
-    {/* Frame */}
-    <rect
-      class="housing-panel-2__frame"
-      x={PLOT_X0.toFixed(2)}
-      y={PLOT_Y0.toFixed(2)}
-      width={PLOT_W.toFixed(2)}
-      height={PLOT_H.toFixed(2)}
-      fill="none"
-    />
-
-    {/* Y-tick labels */}
-    {yTicks.map((v, i) => (
-      <text
-        class="housing-panel-2__ytick-label"
-        x={(PLOT_X0 - 6).toFixed(2)}
-        y={(yScale(v) + 3.5).toFixed(2)}
-        text-anchor="end"
-      >{i === yTicks.length - 1 ? `${v}k` : `${v}`}</text>
-    ))}
-
-    {/* X-tick labels */}
-    {xTicks.map((t) => (
-      <text
-        class="housing-panel-2__xtick-label"
-        x={t.x.toFixed(2)}
-        y={(PLOT_Y1 + 16).toFixed(2)}
-        text-anchor="middle"
-      >{t.label}</text>
-    ))}
-
-    {/* Direct labels at right termini */}
-    <text
-      class="housing-panel-2__direct housing-panel-2__direct--starts"
-      x={(PLOT_X1 + 6).toFixed(2)}
-      y={(lastStartsY + 3.5).toFixed(2)}
-      text-anchor="start"
-    >Starts</text>
-    <text
-      class="housing-panel-2__direct housing-panel-2__direct--completions"
-      x={(PLOT_X1 + 6).toFixed(2)}
-      y={(lastCompsY + 3.5).toFixed(2)}
-      text-anchor="start"
-    >Completions</text>
-    <text
-      class="housing-panel-2__direct housing-panel-2__direct--permits"
-      x={(PLOT_X1 + 6).toFixed(2)}
-      y={(lastPermitsY + 3.5).toFixed(2)}
-      text-anchor="start"
-    >Permits</text>
-  </svg>
-</div>
-
-<style>
-  .housing-panel-2 {
-    width: 100%;
-    aspect-ratio: 720 / 420;
-    background-color: var(--surface);
-  }
-  .housing-panel-2__svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-    font-family: var(--font-sans);
-  }
-  .housing-panel-2__gridline {
-    stroke: var(--rule);
-    stroke-width: 1;
-    stroke-opacity: 0.18;
-    shape-rendering: crispEdges;
-  }
-  .housing-panel-2__frame {
-    stroke: var(--ink);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .housing-panel-2__line--starts {
-    stroke: var(--ink);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-  }
-  .housing-panel-2__line--completions {
-    stroke: var(--ink);
-    stroke-width: 1;
-    stroke-dasharray: 3 3;
-    opacity: 0.55;
-    stroke-linejoin: round;
-  }
-  .housing-panel-2__line--permits {
-    stroke: var(--ink);
-    stroke-width: 1;
-    stroke-dasharray: 1 3;
-    opacity: 0.55;
-    stroke-linejoin: round;
-  }
-  .housing-panel-2__marker {
-    fill: var(--accent);
-  }
-  .housing-panel-2__ytick-label,
-  .housing-panel-2__xtick-label {
-    fill: var(--ink);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: var(--fw-regular);
-    font-variant-numeric: tabular-nums;
-  }
-  .housing-panel-2__direct {
-    fill: var(--ink);
-    font-size: 11px;
-    font-weight: var(--fw-semibold);
-  }
-  .housing-panel-2__direct--completions,
-  .housing-panel-2__direct--permits {
-    font-weight: var(--fw-regular);
-    opacity: 0.7;
-  }
-</style>
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    primaryLabel="Starts, SAAR"
+    secondaryLabel="Under constr."
+    dataPanelAttr="housing-2"
+    ariaLabel="Housing starts SAAR."
+  />
+) : (
+  <PanelEmpty reason="Pipeline did not emit panel-2 data." />
+)}

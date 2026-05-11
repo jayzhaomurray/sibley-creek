@@ -1,349 +1,48 @@
 ---
 /*
- * Panel5OutputGap - real GDP vs BoC potential, indexed, with gap polygon.
+ * Panel5OutputGap - output gap vs BoC potential.
  *
- * Vignelli v1.0 canon-compliant rebuild (2026-05-11). Anchors to
- * src/components/charts/_canon_reference/PanelCanonReference.astro.
+ * Pipeline emits quarterly GDP plus capacity-utilization total; the
+ * BoC potential and the output-gap derivation are not on disk. We
+ * render the raw quarterly GDP plus capacity-util as a stand-in until
+ * the gap-vs-potential series lands.
  *
- * Multi-series treatment: primary = real GDP (pure ink 1.5px solid, MTA
- * red latest dot, Manrope 600 "Real GDP" direct label). Secondary = BoC
- * potential (pure ink 1px dashed `4 2`, no dot, Manrope 400 direct
- * label). Gap polygon fills the area between in `rgba(21,23,26,0.06)`
- * ink wash (same tint as the recession band - earned, because here the
- * shaded area IS the editorial point).
+ * Wave 5 methodology resolution (EDR C.1): the canonical primary
+ * series becomes BoC MPR `INDINF_OUTGAPMPR_Q` once backend wires it
+ * (EDR backend brief item 4). HP-filter is explicitly rejected as
+ * the Sibley methodology. When the BoC series lands, this wrapper
+ * picks it up via the standard `data.primary` route.
  *
- * Reference rule at 2019Q4=100 (Manrope 600 right-side label). Recession
- * bands for 2008-09 and 2020Q1-Q2.
+ * Wave 5 fold (EDR brief Section 3): capacity utilization (total +
+ * manufacturing) becomes the secondary slack-measure toggle view.
+ * Capacity-util shares the "% utilization" frame, distinct from the
+ * output-gap "% of potential" frame; the toggle is a true view-switch
+ * and is deferred until the centralized toggle pattern lands. Both
+ * capacity-util series (`capacity_util_total.csv`,
+ * `capacity_util_mfg.csv`) are on disk per EDR brief.
  *
- * Data contract preserved: { date, gdp_idx, potential_idx, output_gap_pct }.
+ * Synthetic-data fallback removed.
  */
 
-interface QuarterPoint {
-  date: string;
-  gdp_idx: number;
-  potential_idx: number;
-  output_gap_pct: number;
-}
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
 
 interface Props {
-  data?: QuarterPoint[];
-  gapAnnotation?: string;
-  ariaLabel?: string;
+  data?: PanelData | null;
 }
 
-function makePlaceholder(): QuarterPoint[] {
-  const out: QuarterPoint[] = [];
-  for (let i = 0; i < 65; i++) {
-    const y = 2010 + Math.floor(i / 4);
-    const q = (i % 4) + 1;
-    const tFrom2019 = (i - 39) / 4;
-    let gdp: number;
-    const pot = 100 * Math.pow(1.015, tFrom2019);
-    if (i < 4) gdp = 100 * Math.pow(1.015, tFrom2019) - 2.5;
-    else if (i < 40) gdp = 100 * Math.pow(1.018, tFrom2019);
-    else if (i === 40) gdp = pot - 4;
-    else if (i === 41) gdp = pot - 11.5;
-    else if (i === 42) gdp = pot - 5.5;
-    else if (i === 43) gdp = pot - 2.5;
-    else if (i < 50) gdp = pot - 1.0 + Math.sin(i * 0.6) * 0.5;
-    else gdp = pot - 0.6 + Math.sin(i * 0.4) * 0.4;
-    const gap = ((gdp - pot) / pot) * 100;
-    out.push({
-      date: `${y}-Q${q}`,
-      gdp_idx: Number(gdp.toFixed(2)),
-      potential_idx: Number(pot.toFixed(2)),
-      output_gap_pct: Number(gap.toFixed(2)),
-    });
-  }
-  return out;
-}
-
-const {
-  data = makePlaceholder(),
-  gapAnnotation = "Latest gap reads **just below** potential after two clean recoveries.",
-  ariaLabel = "Real GDP vs BoC potential, indexed to 2019Q4=100. Output gap shaded between the two lines.",
-} = Astro.props;
-
-// ---- Geometry --------------------------------------------------------------
-const VB_W = 720;
-const VB_H = 405;
-const M_L = 56;
-const M_R = 112;
-const M_T = 44;
-const M_B = 40;
-const PLOT_X0 = M_L;
-const PLOT_Y0 = M_T;
-const PLOT_W = VB_W - M_L - M_R;
-const PLOT_H = VB_H - M_T - M_B;
-const PLOT_X1 = PLOT_X0 + PLOT_W;
-const PLOT_Y1 = PLOT_Y0 + PLOT_H;
-
-const n = data.length;
-function decYearOf(d: string): number {
-  const [yy, q] = d.split("-Q").map(Number);
-  return yy + (q * 3 - 1.5) / 12;
-}
-const xs = data.map((d) => decYearOf(d.date));
-const xMin = xs[0];
-const xMax = xs[xs.length - 1];
-
-const allVals = data.flatMap((d) => [d.gdp_idx, d.potential_idx]);
-const rawMin = Math.min(...allVals);
-const rawMax = Math.max(...allVals);
-const pad = (rawMax - rawMin) * 0.1;
-let yLo = Math.floor((rawMin - pad) / 2) * 2;
-let yHi = Math.ceil((rawMax + pad) / 2) * 2;
-if (yLo > 100) yLo = 100;
-if (yHi < 100) yHi = 100;
-
-function xScale(decY: number): number {
-  return PLOT_X0 + ((decY - xMin) / (xMax - xMin)) * PLOT_W;
-}
-function yScale(v: number): number {
-  return PLOT_Y0 + PLOT_H - ((v - yLo) / (yHi - yLo)) * PLOT_H;
-}
-
-const coords = data.map((d, i) => ({
-  x: xScale(xs[i]),
-  yGdp: yScale(d.gdp_idx),
-  yPot: yScale(d.potential_idx),
-  gap: d.output_gap_pct,
-}));
-
-const gdpPath = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(2)} ${c.yGdp.toFixed(2)}`).join(" ");
-const potPath = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(2)} ${c.yPot.toFixed(2)}`).join(" ");
-
-const polyForward = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(2)} ${c.yGdp.toFixed(2)}`).join(" ");
-const polyBack = [...coords].reverse().map((c) => `L${c.x.toFixed(2)} ${c.yPot.toFixed(2)}`).join(" ");
-const polyPath = `${polyForward} ${polyBack} Z`;
-
-// ---- Reference at 100 -----------------------------------------------------
-const y100 = yScale(100);
-const showRef = 100 >= yLo && 100 <= yHi;
-
-// ---- Gridlines + ticks ----------------------------------------------------
-const yTicks: number[] = [];
-function pickStride(lo: number, hi: number): number {
-  const span = hi - lo;
-  for (const s of [2, 4, 5, 10, 20]) {
-    const n = Math.round(span / s);
-    if (n >= 3 && n <= 5) return s;
-  }
-  return Math.max(2, Math.round(span / 4));
-}
-const yStride = pickStride(yLo, yHi);
-for (let v = yLo; v <= yHi + 1e-9; v += yStride) yTicks.push(v);
-
-const yearStart = Math.ceil(xMin);
-const yearEnd = Math.floor(xMax);
-const allYearTicks: Array<{ x: number; label: string }> = [];
-for (let yr = yearStart; yr <= yearEnd; yr++) {
-  const decY = yr + (1 - 0.5) / 12;
-  if (decY < xMin || decY > xMax) continue;
-  allYearTicks.push({ x: xScale(decY), label: String(yr) });
-}
-const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 5));
-const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
-
-// ---- Recession bands ------------------------------------------------------
-interface BandSpec { start: number; end: number; label: string | null; }
-const bands: BandSpec[] = [
-  { start: 2008 + (10 - 0.5) / 12, end: 2009 + (5 - 0.5) / 12, label: "2008-09" },
-  { start: 2020 + (2 - 0.5) / 12, end: 2020 + (4 - 0.5) / 12, label: "2020Q1-Q2" },
-];
-const visibleBands = bands
-  .filter((b) => b.end >= xMin && b.start <= xMax)
-  .map((b) => ({
-    x0: xScale(Math.max(b.start, xMin)),
-    x1: xScale(Math.min(b.end, xMax)),
-    label: b.label,
-  }));
-
-// ---- Latest -------------------------------------------------------------
-const latestIdx = n - 1;
-const latest = data[latestIdx];
-const lastGdpX = coords[latestIdx].x;
-const lastGdpY = coords[latestIdx].yGdp;
-const lastPotY = coords[latestIdx].yPot;
-
-// ---- Annotation ----------------------------------------------------------
-function parseAnchor(s: string): Array<{ text: string; bold: boolean }> {
-  const parts: Array<{ text: string; bold: boolean }> = [];
-  const re = /\*\*([^*]+)\*\*/g;
-  let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(s)) !== null) {
-    if (m.index > last) parts.push({ text: s.slice(last, m.index), bold: false });
-    parts.push({ text: m[1], bold: true });
-    last = m.index + m[0].length;
-  }
-  if (last < s.length) parts.push({ text: s.slice(last), bold: false });
-  return parts;
-}
-const annoParts = gapAnnotation ? parseAnchor(gapAnnotation) : [];
-const annoX0 = PLOT_X0 + 18;
-const annoY0 = PLOT_Y0 + 22;
-const annoMaxWidth = PLOT_W * 0.40;
-const leaderStartX = annoX0 + Math.min(annoMaxWidth, 200);
-const leaderStartY = annoY0 - 4;
-const leaderEndX = lastGdpX - 7;
-const leaderEndY = lastGdpY;
+const { data = null } = Astro.props;
 ---
-<div class="canon-chart" data-panel="gdp-5">
-  <svg
-    class="canon-chart__svg"
-    viewBox={`0 0 ${VB_W} ${VB_H}`}
-    preserveAspectRatio="xMidYMid meet"
-    role="img"
-    aria-label={ariaLabel}
-  >
-    {visibleBands.map((b) => (
-      <g>
-        <rect class="canon-chart__recession" x={b.x0.toFixed(2)} y={PLOT_Y0}
-          width={Math.max(1, b.x1 - b.x0).toFixed(2)} height={PLOT_H} />
-        {b.label && (
-          <text class="canon-chart__recession-label"
-            x={((b.x0 + b.x1) / 2).toFixed(2)} y={(PLOT_Y0 + 12).toFixed(2)}
-            text-anchor="middle">{`RECESSION (${b.label})`}</text>
-        )}
-      </g>
-    ))}
-
-    {yTicks.map((v) => (
-      <line class="canon-chart__gridline"
-        x1={PLOT_X0} y1={yScale(v).toFixed(2)} x2={PLOT_X1} y2={yScale(v).toFixed(2)} />
-    ))}
-
-    {showRef && (
-      <g class="canon-chart__reference-group">
-        <line class="canon-chart__reference-rule"
-          x1={PLOT_X0} y1={y100.toFixed(2)} x2={PLOT_X1} y2={y100.toFixed(2)} />
-        <text class="canon-chart__reference-label"
-          x={(PLOT_X1 - 6).toFixed(2)} y={(y100 - 5).toFixed(2)}
-          text-anchor="end">2019Q4 = 100</text>
-      </g>
-    )}
-
-    {/* Gap polygon - ink wash, earned-shaded (the editorial point) */}
-    <path class="canon-chart__gap-poly" d={polyPath} />
-
-    {/* Secondary: potential dashed */}
-    <path class="canon-chart__line-secondary" d={potPath} fill="none" />
-
-    {/* Primary: GDP solid */}
-    <path class="canon-chart__line" d={gdpPath} fill="none" />
-
-    {/* Hit areas */}
-    {coords.map((c, i) => (
-      <g>
-        <circle class="canon-chart__hit" cx={c.x.toFixed(2)} cy={c.yGdp.toFixed(2)} r="4">
-          <title>{`${data[i].date}: GDP ${data[i].gdp_idx.toFixed(1)} (gap ${data[i].output_gap_pct.toFixed(1)}%)`}</title>
-        </circle>
-        <circle class="canon-chart__hit" cx={c.x.toFixed(2)} cy={c.yPot.toFixed(2)} r="4">
-          <title>{`${data[i].date}: potential ${data[i].potential_idx.toFixed(1)}`}</title>
-        </circle>
-      </g>
-    ))}
-
-    {/* MTA red latest dot on the primary */}
-    <circle class="canon-chart__latest-dot" cx={lastGdpX.toFixed(2)} cy={lastGdpY.toFixed(2)} r="4">
-      <title>{`Latest: ${latest.date}: GDP ${latest.gdp_idx.toFixed(1)}, gap ${latest.output_gap_pct.toFixed(1)}%`}</title>
-    </circle>
-
-    <rect class="canon-chart__frame" x={PLOT_X0} y={PLOT_Y0} width={PLOT_W} height={PLOT_H} />
-
-    {xTicks.map((t) => (
-      <g>
-        <line class="canon-chart__xtick" x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
-          x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 4).toFixed(2)} />
-        <text class="canon-chart__xtick-label" x={t.x.toFixed(2)} y={(PLOT_Y1 + 18).toFixed(2)}
-          text-anchor="middle">{t.label}</text>
-      </g>
-    ))}
-
-    {yTicks.map((v, i) => {
-      const y = yScale(v);
-      const isTop = i === yTicks.length - 1;
-      const num = v.toFixed(0);
-      const txt = isTop ? `${num} idx` : num;
-      return (
-        <text class="canon-chart__ytick-label" x={(PLOT_X0 - 8).toFixed(2)} y={(y + 4).toFixed(2)}
-          text-anchor="end">{txt}</text>
-      );
-    })}
-
-    <text class="canon-chart__direct-label" x={(lastGdpX + 10).toFixed(2)} y={(lastGdpY + 4).toFixed(2)}
-      text-anchor="start">Real GDP</text>
-    <text class="canon-chart__direct-label-secondary" x={(lastGdpX + 10).toFixed(2)} y={(lastPotY + 4).toFixed(2)}
-      text-anchor="start">BoC potential</text>
-
-    {gapAnnotation && (
-      <g class="canon-chart__annotation">
-        <line class="canon-chart__anno-leader"
-          x1={leaderStartX.toFixed(2)} y1={leaderStartY.toFixed(2)}
-          x2={leaderEndX.toFixed(2)} y2={leaderEndY.toFixed(2)} />
-        <foreignObject x={annoX0.toFixed(2)} y={(annoY0 - 18).toFixed(2)}
-          width={annoMaxWidth.toFixed(2)} height="44">
-          <p class="canon-chart__anno-text">
-            {annoParts.map((part) =>
-              part.bold
-                ? <strong class="canon-chart__anno-anchor">{part.text}</strong>
-                : <span>{part.text}</span>
-            )}
-          </p>
-        </foreignObject>
-      </g>
-    )}
-  </svg>
-</div>
-
-<style>
-  .canon-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
-  .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
-  .canon-chart__recession { fill: rgba(21, 23, 26, 0.06); }
-  .canon-chart__recession-label {
-    fill: var(--ink); font-family: var(--font-sans);
-    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
-  }
-  .canon-chart__gridline { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges; }
-  .canon-chart__reference-rule { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2; shape-rendering: crispEdges; }
-  .canon-chart__reference-label {
-    fill: var(--ink); font-family: var(--font-sans);
-    font-size: 12px; font-weight: var(--fw-semibold); letter-spacing: 0.04em;
-  }
-  .canon-chart__gap-poly { fill: rgba(21, 23, 26, 0.06); stroke: none; }
-  .canon-chart__line {
-    stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
-    fill: none; vector-effect: non-scaling-stroke;
-  }
-  .canon-chart__line-secondary {
-    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2;
-    stroke-linejoin: round; stroke-linecap: butt; fill: none; vector-effect: non-scaling-stroke;
-  }
-  .canon-chart__hit { fill: transparent; pointer-events: all; }
-  .canon-chart__latest-dot { fill: var(--accent); stroke: none; }
-  .canon-chart__frame { fill: none; stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
-  .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
-  .canon-chart__xtick-label {
-    fill: var(--ink); font-family: var(--font-sans);
-    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
-  }
-  .canon-chart__ytick-label {
-    fill: var(--ink); font-family: var(--font-mono);
-    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
-  }
-  .canon-chart__direct-label {
-    fill: var(--ink); font-family: var(--font-sans);
-    font-size: 13px; font-weight: var(--fw-semibold);
-  }
-  .canon-chart__direct-label-secondary {
-    fill: var(--ink); font-family: var(--font-sans);
-    font-size: 13px; font-weight: var(--fw-regular);
-  }
-  .canon-chart__anno-leader { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; fill: none; }
-  .canon-chart__anno-text {
-    margin: 0; color: var(--ink); font-family: var(--font-sans);
-    font-size: 15px; font-weight: var(--fw-regular); line-height: 1.30;
-  }
-  .canon-chart__anno-anchor { font-weight: var(--fw-semibold); }
-</style>
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    primaryLabel="GDP, quarterly"
+    secondaryLabel="Cap. util."
+    dataPanelAttr="gdp-5"
+    ariaLabel="Quarterly real GDP and total capacity utilization."
+  />
+) : (
+  <PanelEmpty reason="Output-gap-vs-potential series not yet emitted." />
+)}

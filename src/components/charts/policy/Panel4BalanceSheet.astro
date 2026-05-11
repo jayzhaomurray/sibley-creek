@@ -1,290 +1,41 @@
 ---
 /*
- * Panel4BalanceSheet - Policy chartbook, plate 04.
+ * Panel4BalanceSheet - BoC balance sheet (default view).
  *
- * Editorial canon Section 4.5.4: BoC balance sheet - settlement balances
- * time series, with phase annotations (QE expansion, QT contraction,
- * floor-maintenance steady state). The phase the system is currently in
- * is the editorial story.
+ * Pipeline emits `boc_settlement_balances` (primary, CAD billions) and
+ * `boc_total_assets` (secondary). Both CAD billions; rendered together.
  *
- * Visual: single black 1.5px line of settlement balances (C$ billions),
- * weekly frequency, ~6y window covering pre-COVID, QE, QT, and the
- * 2025 transition to floor maintenance. Phase boundaries rendered as
- * 1px ink dashed vertical event lines with micro-cap stamps above.
+ * Wave 5 fold (EDR brief Section 3): CORRA-vs-target spread becomes
+ * the secondary view (toggle) once backend lands the derived
+ * `corra_target_spread` series. Spread units (%) differ from the
+ * balance-sheet level units (CAD billions), so the toggle is a true
+ * view-switch and cannot be a single-axis overlay - it is deferred
+ * until the centralized toggle pattern lands. For now the panel
+ * renders only the balance-sheet pair; backend's CORRA-spread series
+ * will arrive in panel meta and the toggle will plug in then.
  *
- * MTA red latest-point dot. 1px black hairline plot frame.
- *
- * Vignelli canon: single series pure black, accent only on the latest dot.
+ * Synthetic-data fallback removed.
  */
 
-interface BalancePoint {
-  date: string;     // YYYY-MM
-  balances_bn: number;  // C$ billions
-}
-
-interface PhaseMarker {
-  date: string;     // YYYY-MM
-  label: string;    // e.g. "QE begins", "QT begins", "Floor"
-}
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
 
 interface Props {
-  data?: BalancePoint[];
-  phases?: PhaseMarker[];
-  asOf?: string;
-  ariaLabel?: string;
+  data?: PanelData | null;
 }
 
-function buildPlaceholder(): BalancePoint[] {
-  // Monthly proxy ending Apr 2026, 84 months.
-  const out: BalancePoint[] = [];
-  let y = 2019;
-  let m = 5;
-  for (let i = 0; i < 84; i++) {
-    const t = i / 83;
-    // 2019: ~ $0.25b baseline (pre-QE).
-    // 2020 spike: QE ramp to ~$400b by 2021.
-    // 2022 stable ~$400b, 2022 plateau ~$390b.
-    // 2023 QT erosion to $200b by 2024.
-    // 2025 floor maintenance, stabilizes around $50b.
-    let v: number;
-    if (t < 0.10) v = 0.25;
-    else if (t < 0.30) v = 0.25 + (400 - 0.25) * ((t - 0.10) / 0.20);
-    else if (t < 0.50) v = 400;
-    else if (t < 0.80) v = 400 - (400 - 60) * ((t - 0.50) / 0.30);
-    else v = 60 - (60 - 45) * ((t - 0.80) / 0.20);
-    v += 6 * Math.sin(i * 0.4);
-    out.push({ date: `${y}-${String(m).padStart(2, "0")}`, balances_bn: Math.round(v * 10) / 10 });
-    m += 1;
-    if (m > 12) { m = 1; y += 1; }
-  }
-  return out;
-}
-
-function defaultPhases(): PhaseMarker[] {
-  return [
-    { date: "2020-04", label: "QE" },
-    { date: "2022-04", label: "QT" },
-    { date: "2025-03", label: "Floor" },
-  ];
-}
-
-const {
-  data = buildPlaceholder(),
-  phases = defaultPhases(),
-  asOf = "Apr 2026",
-  ariaLabel = `Bank of Canada settlement balances, ${asOf}`,
-} = Astro.props;
-
-// ---- Geometry --------------------------------------------------------------
-const VB_W = 720;
-const VB_H = 420;
-const M_T = 36; // phase labels live here
-const M_B = 36;
-const M_L = 60;
-const M_R = 80;
-const PLOT_X0 = M_L;
-const PLOT_Y0 = M_T;
-const PLOT_W = VB_W - M_L - M_R;
-const PLOT_H = VB_H - M_T - M_B;
-const PLOT_X1 = PLOT_X0 + PLOT_W;
-const PLOT_Y1 = PLOT_Y0 + PLOT_H;
-
-function decYearOf(d: string): number {
-  const [yy, mm] = d.split("-").map(Number);
-  return yy + (mm - 0.5) / 12;
-}
-const xs = data.map((p) => decYearOf(p.date));
-const xMin = xs[0];
-const xMax = xs[xs.length - 1];
-
-const Y_MIN = 0;
-const Y_MAX = 450;
-const yTicks = [0, 100, 200, 300, 400];
-
-function xScale(yr: number): number {
-  return PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
-}
-function yScale(v: number): number {
-  return PLOT_Y0 + PLOT_H - ((v - Y_MIN) / (Y_MAX - Y_MIN)) * PLOT_H;
-}
-
-const linePath = data
-  .map((p, i) => {
-    const x = xScale(decYearOf(p.date));
-    const y = yScale(p.balances_bn);
-    return `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
-  })
-  .join(" ");
-
-const last = data[data.length - 1];
-const lastX = xScale(decYearOf(last.date));
-const lastY = yScale(last.balances_bn);
-
-const yearStart = Math.ceil(xMin);
-const yearEnd = Math.floor(xMax);
-const xTicks: Array<{ x: number; label: string }> = [];
-for (let yy = yearStart; yy <= yearEnd; yy++) {
-  xTicks.push({ x: xScale(yy), label: `'${String(yy).slice(-2)}` });
-}
-
-// Phase markers
-const phaseLines = phases
-  .filter((p) => decYearOf(p.date) >= xMin && decYearOf(p.date) <= xMax)
-  .map((p) => ({ x: xScale(decYearOf(p.date)), label: p.label }));
+const { data = null } = Astro.props;
 ---
-<div class="policy-panel-4" aria-label={ariaLabel}>
-  <svg
-    class="policy-panel-4__svg"
-    viewBox={`0 0 ${VB_W} ${VB_H}`}
-    preserveAspectRatio="xMidYMid meet"
-    role="img"
-    aria-label={ariaLabel}
-  >
-    {/* Gridlines */}
-    {yTicks.map((v) => (
-      <line
-        class:list={["policy-panel-4__gridline", { "policy-panel-4__gridline--zero": v === 0 }]}
-        x1={PLOT_X0.toFixed(2)}
-        y1={yScale(v).toFixed(2)}
-        x2={PLOT_X1.toFixed(2)}
-        y2={yScale(v).toFixed(2)}
-      />
-    ))}
-
-    {/* Phase event lines */}
-    {phaseLines.map((ph) => (
-      <g>
-        <line
-          class="policy-panel-4__phase-line"
-          x1={ph.x.toFixed(2)}
-          y1={PLOT_Y0.toFixed(2)}
-          x2={ph.x.toFixed(2)}
-          y2={PLOT_Y1.toFixed(2)}
-        />
-        <text
-          class="policy-panel-4__phase-label"
-          x={ph.x.toFixed(2)}
-          y={(PLOT_Y0 - 8).toFixed(2)}
-          text-anchor="middle"
-        >{ph.label}</text>
-      </g>
-    ))}
-
-    {/* Balances line */}
-    <path class="policy-panel-4__line" d={linePath} fill="none" />
-
-    {/* Latest-point dot */}
-    <circle
-      class="policy-panel-4__marker"
-      cx={lastX.toFixed(2)}
-      cy={lastY.toFixed(2)}
-      r="3"
-    >
-      <title>{`${last.date}: C$${last.balances_bn.toFixed(1)}b settlement balances`}</title>
-    </circle>
-
-    {/* Frame */}
-    <rect
-      class="policy-panel-4__frame"
-      x={PLOT_X0.toFixed(2)}
-      y={PLOT_Y0.toFixed(2)}
-      width={PLOT_W.toFixed(2)}
-      height={PLOT_H.toFixed(2)}
-      fill="none"
-    />
-
-    {/* Y-tick labels */}
-    {yTicks.map((v, i) => (
-      <text
-        class="policy-panel-4__ytick-label"
-        x={(PLOT_X0 - 6).toFixed(2)}
-        y={(yScale(v) + 3.5).toFixed(2)}
-        text-anchor="end"
-      >{i === yTicks.length - 1 ? `${v}b` : `${v}`}</text>
-    ))}
-
-    {/* X-tick labels */}
-    {xTicks.map((t) => (
-      <text
-        class="policy-panel-4__xtick-label"
-        x={t.x.toFixed(2)}
-        y={(PLOT_Y1 + 16).toFixed(2)}
-        text-anchor="middle"
-      >{t.label}</text>
-    ))}
-
-    {/* Direct label at terminus */}
-    <text
-      class="policy-panel-4__direct"
-      x={(PLOT_X1 + 6).toFixed(2)}
-      y={(lastY + 3.5).toFixed(2)}
-      text-anchor="start"
-    >Balances</text>
-  </svg>
-</div>
-
-<style>
-  .policy-panel-4 {
-    width: 100%;
-    aspect-ratio: 720 / 420;
-    background-color: var(--surface);
-  }
-  .policy-panel-4__svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-    font-family: var(--font-sans);
-  }
-  .policy-panel-4__gridline {
-    stroke: var(--rule);
-    stroke-width: 1;
-    stroke-opacity: 0.18;
-    shape-rendering: crispEdges;
-  }
-  .policy-panel-4__gridline--zero {
-    stroke: var(--ink);
-    stroke-opacity: 1;
-  }
-  .policy-panel-4__phase-line {
-    stroke: var(--ink);
-    stroke-width: 1;
-    stroke-dasharray: 4 2;
-    shape-rendering: crispEdges;
-  }
-  .policy-panel-4__phase-label {
-    fill: var(--ink);
-    font-size: 10px;
-    font-weight: var(--fw-semibold);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-  .policy-panel-4__frame {
-    stroke: var(--ink);
-    stroke-width: 1;
-    shape-rendering: crispEdges;
-  }
-  .policy-panel-4__line {
-    stroke: var(--ink);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-    fill: none;
-  }
-  .policy-panel-4__marker {
-    fill: var(--accent);
-  }
-  .policy-panel-4__ytick-label,
-  .policy-panel-4__xtick-label {
-    fill: var(--ink);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: var(--fw-regular);
-    font-variant-numeric: tabular-nums;
-  }
-  .policy-panel-4__direct {
-    fill: var(--ink);
-    font-size: 11px;
-    font-weight: var(--fw-semibold);
-  }
-</style>
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    primaryLabel="Settl. bal."
+    secondaryLabel="Total assets"
+    dataPanelAttr="policy-4"
+    ariaLabel="BoC settlement balances and total assets, CAD billions."
+  />
+) : (
+  <PanelEmpty reason="Pipeline did not emit panel-4 data." />
+)}

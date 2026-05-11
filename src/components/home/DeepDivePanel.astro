@@ -25,10 +25,39 @@ interface Props {
 
 const { deepDives, figureNum } = Astro.props;
 
-// Deep-dive ordering: titles + pillar codes are canon, but `lastUpdated`
-// stamps are hand-typed so we cannot use them for real recency ordering
-// yet. Preserve the canon array order until a pipeline source exists.
-const ordered = deepDives;
+// Deep-dive ordering: newest first by `publishedAt`. Entries with "TK" or
+// missing publishedAt sort to the bottom (treated as not-yet-dated plans).
+// Take the top 3 — the splash card is a teaser; the full list lives at
+// /research/.
+function publishedAtOrder(a: string | undefined, b: string | undefined): number {
+  const isMissing = (v: string | undefined): boolean =>
+    !v || v === "TK" || !/^\d{4}-\d{2}-\d{2}$/.test(v);
+  const am = isMissing(a);
+  const bm = isMissing(b);
+  if (am && bm) return 0;
+  if (am) return 1;
+  if (bm) return -1;
+  return (b as string).localeCompare(a as string);
+}
+
+const ordered = [...deepDives]
+  .sort((x, y) => publishedAtOrder(x.publishedAt, y.publishedAt))
+  .slice(0, 3);
+
+// Date formatter for "Published <date>" stamp; mirrors the research index.
+const MONTH_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+function displayDate(raw?: string): string {
+  if (!raw || raw === "TK") return "TK";
+  const parts = raw.split("-");
+  if (parts.length !== 3) return raw;
+  const [y, m, d] = parts.map((n) => parseInt(n, 10));
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return raw;
+  if (m < 1 || m > 12) return raw;
+  return `${MONTH_SHORT[m - 1]} ${d}, ${y}`;
+}
 ---
 <article class="vig-dd" aria-labelledby="vig-dd-h">
   <header class="vig-dd__head">
@@ -38,44 +67,53 @@ const ordered = deepDives;
         <span class="vig-dd__fig-n">{figureNum}.</span>
       </p>
       <h2 id="vig-dd-h" class="vig-dd__h">
-        Working papers
+        <a class="vig-dd__h-link" href="/research/">Research</a>
       </h2>
     </div>
-    <p class="vig-dd__count">
-      {ordered.length} active
-    </p>
   </header>
 
-  <p class="vig-dd__lede vig-dd__placeholder">
-    {PLACEHOLDER.loremShort}
-  </p>
-
   <ol class="vig-dd__list" role="list">
-    {ordered.map((dd, i) => (
-      <li class="vig-dd__row">
-        <div class="vig-dd__row-num" aria-hidden="true">
-          <span class="vig-dd__row-num-n">{String(i + 1).padStart(2, "0")}</span>
-        </div>
-        <div class="vig-dd__row-body">
-          <p class="vig-dd__row-meta">
-            <span class="vig-dd__pillar">Pillar {dd.pillar}</span>
-            <span class="vig-dd__row-sep" aria-hidden="true"></span>
-            <span class="vig-dd__section">{dd.section}</span>
-            <span class="vig-dd__row-sep" aria-hidden="true"></span>
-            <span class="vig-dd__status vig-dd__placeholder vig-dd__placeholder--micro">
-              {PLACEHOLDER.statusPending}
-            </span>
-          </p>
-          <h3 class="vig-dd__title">{dd.title}</h3>
-          <p class="vig-dd__deck vig-dd__placeholder">
-            {PLACEHOLDER.loremMid}
-          </p>
-          <p class="vig-dd__stamp vig-dd__placeholder vig-dd__placeholder--micro">
-            Updated {PLACEHOLDER.notWired}
-          </p>
-        </div>
-      </li>
-    ))}
+    {ordered.map((dd, i) => {
+      const isPublished = Boolean(dd.publishedPath);
+      const RowBody = (
+        <>
+          <div class="vig-dd__row-num" aria-hidden="true">
+            <span class="vig-dd__row-num-n">{String(i + 1).padStart(2, "0")}</span>
+          </div>
+          <div class="vig-dd__row-body">
+            <p class="vig-dd__row-meta">
+              <span class="vig-dd__section">{dd.section}</span>
+            </p>
+            <h3 class="vig-dd__title">{dd.title}</h3>
+            <p class="vig-dd__deck">{dd.deck}</p>
+            <p class="vig-dd__stamp">
+              {isPublished ? (
+                <>
+                  <span class="vig-dd__stamp-label">Published</span>
+                  {" "}
+                  <span class="vig-dd__stamp-body">{displayDate(dd.publishedAt)}</span>
+                </>
+              ) : (
+                <span class="vig-dd__stamp-body vig-dd__stamp-body--tk">Coming soon</span>
+              )}
+            </p>
+          </div>
+        </>
+      );
+      return (
+        <li class:list={["vig-dd__row", { "vig-dd__row--unpublished": !isPublished }]}>
+          {/* Until individual pieces are promoted to editorial/published/, every
+            * row links to /research/ (the index). Once a piece publishes, its
+            * row's link target switches to its own slug page automatically. */}
+          <a
+            class="vig-dd__row-link"
+            href={isPublished ? `/research/${dd.slug}/` : "/research/"}
+          >
+            {RowBody}
+          </a>
+        </li>
+      );
+    })}
   </ol>
 </article>
 
@@ -128,6 +166,19 @@ const ordered = deepDives;
     letter-spacing: -0.01em;
     color: var(--ink);
   }
+  .vig-dd__h-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 80ms linear;
+  }
+  .vig-dd__h-link:hover {
+    border-bottom-color: var(--ink);
+  }
+  .vig-dd__h-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
   .vig-dd__count {
     margin: 0;
     font-family: var(--font-sans);
@@ -139,16 +190,6 @@ const ordered = deepDives;
     color: var(--ink);
   }
 
-  .vig-dd__lede {
-    margin: 0;
-    font-family: var(--font-sans);
-    font-weight: 200;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--ink);
-    max-width: 56ch;
-  }
-
   .vig-dd__list {
     margin: 0;
     padding: 0;
@@ -156,17 +197,40 @@ const ordered = deepDives;
     display: flex;
     flex-direction: column;
     gap: 0;
-    border-top: 1px solid var(--ink);
+    /* No border-top: the header's closing rule already separates header
+     * from body. Stacking another hairline created a double-rule + visible
+     * gap between the "Research" heading and the first row. */
   }
   .vig-dd__row {
-    display: grid;
-    grid-template-columns: 36px 1fr;
-    gap: 12px;
-    padding: 12px 0 14px;
     border-bottom: 1px solid var(--ink);
   }
   .vig-dd__row:last-child {
     border-bottom: 0;
+  }
+  /* Row link wraps the whole row; published rows are clickable, unpublished
+   * rows render the same content in a non-interactive div with no hover
+   * affordance (route does not exist until publication). */
+  .vig-dd__row-link {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 12px;
+    padding: 12px 0 14px;
+    color: inherit;
+    text-decoration: none;
+    transition: opacity 120ms ease-out;
+  }
+  a.vig-dd__row-link:hover .vig-dd__title {
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+  a.vig-dd__row-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .vig-dd__row-link--unpublished {
+    cursor: default;
   }
   .vig-dd__row-num {
     font-family: var(--font-mono);
@@ -252,5 +316,14 @@ const ordered = deepDives;
     font-size: 10px;
     letter-spacing: 0.14em;
     text-transform: uppercase;
+  }
+  /* "Coming soon" stamp on unpublished deep dives. Mirrors the research
+   * index's `--tk` rule so the unpublished status reads in placeholder
+   * gray rather than the pure-ink "Published <date>" Plex Mono treatment.
+   * Class is set on the same span as `.vig-dd__stamp-body` so it inherits
+   * the host's font-family (sans micro-caps) but overrides the color. */
+  .vig-dd__stamp-body--tk {
+    font-family: var(--font-mono);
+    color: #8A8A8A;
   }
 </style>

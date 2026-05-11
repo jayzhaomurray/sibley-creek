@@ -8,16 +8,24 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro check && astro build",
+    "build:fast": "astro build",
+    "build:full": "python -m pipeline.build && astro check && astro build",
     "preview": "astro preview",
     "check": "astro check",
-    "astro": "astro"
+    "astro": "astro",
+    "test:visual": "node tests/visual/run-visual.mjs",
+    "test:visual:update": "node tests/visual/run-visual.mjs --update-snapshots",
+    "test:visual:debug": "node tests/visual/run-visual.mjs --ui",
+    "test:visual:freeze": "node tests/visual/fixture-utils.mjs freeze",
+    "test:visual:restore": "node tests/visual/fixture-utils.mjs restore"
   },
   "dependencies": {
     "astro": "^6.3.1"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
+    "@playwright/test": "^1.49.0",
     "typescript": "^6.0.3"
   }
 }

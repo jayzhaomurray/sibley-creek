@@ -1,0 +1,565 @@
+---
+/*
+ * /research/<slug>/ - dynamic deep-dive page.
+ *
+ * v1 scope (per the user brief, tight):
+ *   - getStaticPaths() reads `deepDives` from `src/data/sections.ts`;
+ *     one path per slug.
+ *   - For each path, render the deep-dive page using the markdown body
+ *     at `draftPath` when available; show a "Coming soon" placeholder
+ *     for pieces with `publishedAt === "TK"` and no draftPath.
+ *   - Page header band per `design/deepdive-template.md` Section 1, but
+ *     simpler than the full spec:
+ *       * Kicker: SIBLEY CREEK | RESEARCH | <SECTION>
+ *         (no pillar Roman numeral - per the production "no pillar
+ *         letters" directive in sections.ts).
+ *       * Display title (display-xl, Manrope 800).
+ *       * Deck (Manrope 200, body-lg-ish).
+ *       * Published date stamp in Plex Mono micro-caps.
+ *   - Render the markdown body in a typographically-disciplined layout
+ *     using design tokens: body-lg (19px Manrope 400), display-md
+ *     headings, Plex Mono inline data, 1px hairline rules between
+ *     sections.
+ *
+ * v1 deliberately DEFERS the elaborate deep-dive chrome (per brief):
+ *   - DeepDivePullQuote, DeepDiveSidenote, DeepDiveCitations,
+ *     DeepDiveRelatedRail components.
+ *   - Inline charts breakout (writer's draft contains
+ *     "[INLINE CHART PLACEHOLDER]" tags; v1 renders them inline as the
+ *     markdown source, no chart components reserved).
+ *   - Roman-numeral section break chrome.
+ *   - Reading-time computation.
+ *
+ * v1 IS:
+ *   - Slug routing for all 3 entries.
+ *   - Page header band renders to canon.
+ *   - Markdown body renders with site typography.
+ *   - Pillar A draft renders end-to-end without errors.
+ *   - Build passes.
+ *
+ * Markdown loading approach:
+ *   `import.meta.glob` against `../../../editorial/drafts/*.md` with
+ *   eager loading. Astro's Vite plugin treats `.md` files as Astro
+ *   markdown modules anywhere reachable; the imported module exposes a
+ *   `Content` component that renders the parsed markdown into the page.
+ *   The DeepDive entry's `draftPath` (project-root-relative) is matched
+ *   against the glob keys at build time.
+ */
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { deepDives, sections, site } from "../../data/sections";
+import type { DeepDive, SectionSlug } from "../../data/sections";
+
+/*
+ * Markdown body loader.
+ *
+ * `import.meta.glob` is evaluated at build time. The path is relative to
+ * THIS file (`src/pages/research/[slug].astro`), so we go up three
+ * directories to reach the project root, then descend into
+ * `editorial/drafts/`. The result is a record keyed by the matched path
+ * (relative to this file) where each value is the imported Astro
+ * markdown module.
+ *
+ * The DeepDive's `publishedPath` is stored project-root-relative
+ * ("editorial/published/foo.md"); the lookup converts that to the
+ * `../../../<publishedPath>` form to match the glob keys.
+ *
+ * NOTE: this glob points at `editorial/published/`, NOT `editorial/drafts/`.
+ * The drafts directory is the writer's working copy and is intentionally
+ * NOT rendered on the public site. A piece is promoted to /published/ only
+ * after fact-check + style-edit have cleared.
+ */
+const publishedModules = import.meta.glob<{
+  Content: any;
+  frontmatter?: Record<string, unknown>;
+}>("../../../editorial/published/*.md", { eager: true });
+
+/*
+ * Route-generation safety gate: only generate /research/<slug>/ for entries
+ * with a `publishedPath` set. Drafts intentionally do NOT get a public URL
+ * — even by URL guessing — until the piece has cleared fact-check +
+ * style-edit and a polished version has been promoted to
+ * `editorial/published/`. Until first publication this returns an empty
+ * array and no slug routes are built.
+ */
+export async function getStaticPaths() {
+  return deepDives
+    .filter((dd) => Boolean(dd.publishedPath))
+    .map((dd) => ({
+      params: { slug: dd.slug },
+      props: { deepDive: dd },
+    }));
+}
+
+interface Props {
+  deepDive: DeepDive;
+}
+
+const { deepDive } = Astro.props;
+
+/* Section label lookup - mirrors the index page helper. */
+const sectionLabelFor = (slug: SectionSlug): string => {
+  const s = sections.find((x) => x.slug === slug);
+  return s ? s.label : slug;
+};
+
+/* Date formatter - mirrors the index page helper. Hand-rolled to dodge
+ * the timezone round-trip that toLocaleDateString takes on a YYYY-MM-DD
+ * input (which shifts the day by one when the build host is west of UTC). */
+const MONTH_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+const displayDate = (raw?: string): string => {
+  if (!raw || raw === "TK") return "TK";
+  const parts = raw.split("-");
+  if (parts.length !== 3) return raw;
+  const [y, m, d] = parts.map((n) => parseInt(n, 10));
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return raw;
+  if (m < 1 || m > 12) return raw;
+  return `${MONTH_SHORT[m - 1]} ${d}, ${y}`;
+};
+
+/*
+ * Resolve the loaded markdown module for this entry.
+ *
+ * `deepDive.publishedPath` is project-root-relative (e.g.
+ * "editorial/published/mortgage-renewal-wall.md").
+ * The glob keys are relative to this file (e.g.
+ * "../../../editorial/published/...").
+ *
+ * Entries with no `publishedPath` (i.e., not yet through fact-check +
+ * style-edit) render a "Coming soon" placeholder.
+ */
+const publishedKey = deepDive.publishedPath
+  ? `../../../${deepDive.publishedPath.replace(/\\/g, "/")}`
+  : undefined;
+const draftModule = publishedKey ? publishedModules[publishedKey] : undefined;
+const ContentComponent = draftModule?.Content;
+const hasBody = Boolean(ContentComponent);
+
+/* SEO. */
+const sectionLabel = sectionLabelFor(deepDive.section);
+const pageTitle = deepDive.title;
+const pageDesc =
+  deepDive.deck +
+  (deepDive.deck.endsWith(".") ? "" : ".") +
+  ` A Sibley Creek deep dive on Canadian ${sectionLabel.toLowerCase()}.`;
+const publishedDisplay = displayDate(deepDive.publishedAt);
+---
+<BaseLayout title={pageTitle} description={pageDesc} pageClass="deepdive-page">
+  <article class="deepdive" aria-labelledby="deepdive-h">
+    <header class="deepdive__header">
+      <p class="deepdive__kicker">
+        <span class="deepdive__kicker-tok">{site.name}</span>
+        <span class="deepdive__kicker-sep" aria-hidden="true">|</span>
+        <span class="deepdive__kicker-tok">Research</span>
+        <span class="deepdive__kicker-sep" aria-hidden="true">|</span>
+        <span class="deepdive__kicker-tok deepdive__kicker-tok--name">
+          {sectionLabel}
+        </span>
+      </p>
+
+      <div class="deepdive__band">
+        <h1 id="deepdive-h" class="deepdive__h">{deepDive.title}</h1>
+      </div>
+
+      <p class="deepdive__deck">{deepDive.deck}</p>
+
+      <p class="deepdive__stamp">
+        <span class="deepdive__stamp-label">Published</span>
+        <span
+          class:list={[
+            "deepdive__stamp-body",
+            { "deepdive__stamp-body--tk": publishedDisplay === "TK" },
+          ]}
+        >
+          {publishedDisplay}
+        </span>
+      </p>
+
+      <hr class="deepdive__rule" aria-hidden="true" />
+    </header>
+
+    {hasBody ? (
+      <div class="deepdive__body markdown-body">
+        <ContentComponent />
+      </div>
+    ) : (
+      <div class="deepdive__placeholder" role="status">
+        <p class="deepdive__placeholder-label">Coming soon</p>
+        <p class="deepdive__placeholder-body">
+          The full essay for this deep dive is in the queue. Until then,
+          the dashboard's relevant section page carries the load-bearing
+          chart and the latest prints.
+        </p>
+        <p class="deepdive__placeholder-link">
+          <a href={`/${deepDive.section}/`}>
+            Read the {sectionLabel} chartbook
+          </a>
+        </p>
+      </div>
+    )}
+
+    <hr class="deepdive__foot-rule" aria-hidden="true" />
+    <p class="deepdive__backlink">
+      <a href="/research/">Back to all research</a>
+    </p>
+  </article>
+
+  <style>
+    /* ============================================================
+     * /research/<slug>/ - deep-dive page, v1 surface.
+     * ============================================================ */
+
+    .deepdive {
+      width: 100%;
+      max-width: var(--col-wide);
+      margin: 0 auto;
+      padding-top: 28px;
+      padding-bottom: var(--s-9);
+    }
+
+    /* ---- Header band ---- */
+    .deepdive__kicker {
+      margin: 0 0 18px;
+      display: inline-flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0 10px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .deepdive__kicker-tok { display: inline-block; }
+    .deepdive__kicker-tok--name { font-weight: 800; }
+    .deepdive__kicker-sep {
+      color: var(--ink);
+      opacity: 0.32;
+      font-weight: 400;
+    }
+
+    .deepdive__band {
+      border-top: 1px solid var(--ink);
+      padding-top: 18px;
+    }
+    .deepdive__h {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: clamp(36px, 5.5vw, 56px);
+      line-height: 1.05;
+      letter-spacing: -0.018em;
+      color: var(--ink);
+      max-width: 22ch;
+    }
+
+    .deepdive__deck {
+      margin: 24px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 200;
+      font-size: clamp(20px, 2.4vw, 26px);
+      line-height: 1.40;
+      color: var(--ink);
+      max-width: 36ch;
+    }
+
+    .deepdive__stamp {
+      margin: 28px 0 0;
+      display: inline-flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .deepdive__stamp-label {
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .deepdive__stamp-body {
+      font-family: var(--font-mono);
+      font-weight: 400;
+      font-size: 11px;
+      line-height: 1;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+    .deepdive__stamp-body--tk {
+      color: #8A8A8A;
+    }
+
+    .deepdive__rule {
+      border: 0;
+      border-top: 2px solid var(--ink);
+      margin: 32px 0 0;
+    }
+
+    /* ---- Body (markdown render target) ----
+     *
+     * Body sits in the canonical 680px well (`--col-body`) left-anchored
+     * inside the 1040px outer track, per `design/deepdive-template.md`
+     * Section 5.1 ("body width: 680px ... not narrower than the
+     * chartbook prose column"). v1 does not yet stack a sidenote rail
+     * on the right; the right column is white space.
+     *
+     * The `.markdown-body` rules style elements emitted by Astro's
+     * markdown renderer using the site's design tokens. No external
+     * markdown CSS - every rule below cites the design system.
+     */
+    .deepdive__body {
+      margin-top: var(--s-7);
+      max-width: var(--col-body);
+    }
+
+    .markdown-body :global(h1) {
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: var(--fs-display-lg);
+      line-height: var(--lh-display-lg);
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      margin: 0;
+      max-width: 32ch;
+    }
+    /* The .md draft begins with a top-level # title; we already render
+     * the canonical title in the header band, so suppress the body h1 to
+     * avoid duplication. */
+    .markdown-body :global(h1):first-child {
+      display: none;
+    }
+
+    .markdown-body :global(h2) {
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: var(--fs-display-md);
+      line-height: var(--lh-display-md);
+      letter-spacing: -0.012em;
+      color: var(--ink);
+      margin: var(--s-8) 0 var(--s-3);
+      max-width: 32ch;
+      padding-bottom: var(--s-3);
+      border-bottom: 1px solid var(--ink);
+    }
+
+    .markdown-body :global(h3) {
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: var(--fs-display-sm);
+      line-height: var(--lh-display-sm);
+      letter-spacing: -0.005em;
+      color: var(--ink);
+      margin: var(--s-7) 0 var(--s-3);
+      max-width: 32ch;
+    }
+
+    .markdown-body :global(h4) {
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: 19px;
+      line-height: 1.30;
+      color: var(--ink);
+      margin: var(--s-6) 0 var(--s-2);
+    }
+
+    .markdown-body :global(p) {
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: var(--fs-body-lg);
+      line-height: var(--lh-body-lg);
+      color: var(--ink);
+      margin: 0 0 var(--s-5);
+    }
+
+    /*
+     * The Pillar A v1 draft uses blockquotes (>) to mark the essay's
+     * actual prose vs the surrounding writer's-notes scaffolding (voice
+     * notes, source insights, flagged TKs). Until the draft is
+     * restructured into pure essay markdown, we treat blockquotes as
+     * the load-bearing prose: drop the indentation rail, render at body
+     * weight 400, full-width, with a hairline only when the writer
+     * explicitly uses a sub-quote. This is a deliberate v1 choice; a
+     * later editorial polish pass will rewrite the draft to drop the
+     * blockquote scaffolding.
+     */
+    .markdown-body :global(blockquote) {
+      margin: 0 0 var(--s-5);
+      padding: 0;
+      border: 0;
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: var(--fs-body-lg);
+      line-height: var(--lh-body-lg);
+      color: var(--ink);
+    }
+    .markdown-body :global(blockquote p) {
+      margin: 0 0 var(--s-5);
+    }
+    .markdown-body :global(blockquote p:last-child) {
+      margin-bottom: 0;
+    }
+    .markdown-body :global(blockquote em) {
+      font-style: normal;
+      font-weight: 200;
+      color: var(--ink);
+    }
+
+    .markdown-body :global(strong),
+    .markdown-body :global(b) {
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    /* Italic is retired across the system (design-system.md Section 2,
+     * "Treatment rules"). The .md draft uses italics for chart-caption
+     * callouts; we collapse italic to a weight-200 quiet treatment so
+     * the typographic register stays Vignelli-clean. */
+    .markdown-body :global(em),
+    .markdown-body :global(i) {
+      font-style: normal;
+      font-weight: 200;
+    }
+
+    .markdown-body :global(ul),
+    .markdown-body :global(ol) {
+      margin: 0 0 var(--s-5);
+      padding-left: var(--s-6);
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: var(--fs-body-lg);
+      line-height: var(--lh-body-lg);
+      color: var(--ink);
+    }
+    .markdown-body :global(li) {
+      margin: 0 0 var(--s-3);
+    }
+    .markdown-body :global(li:last-child) {
+      margin-bottom: 0;
+    }
+
+    /* Inline code / numeric data. Plex Mono signals "this is a
+     * measurement," per design-system.md Section 2. */
+    .markdown-body :global(code) {
+      font-family: var(--font-mono);
+      font-weight: 400;
+      font-size: 0.92em;
+      color: var(--ink);
+      background: transparent;
+    }
+    .markdown-body :global(pre) {
+      font-family: var(--font-mono);
+      font-weight: 400;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--ink);
+      background: transparent;
+      border-top: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+      padding: var(--s-4) 0;
+      margin: 0 0 var(--s-5);
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .markdown-body :global(pre code) {
+      font-size: inherit;
+    }
+
+    /* Horizontal rules (markdown ---) render as 1px black hairlines,
+     * matching the canon's section-break vocabulary. */
+    .markdown-body :global(hr) {
+      border: 0;
+      border-top: 1px solid var(--ink);
+      margin: var(--s-7) 0;
+    }
+
+    /* Links inherit the global site link treatment (underline in pure
+     * ink, hover to accent). No per-body override needed. */
+
+    .markdown-body :global(a) {
+      color: var(--ink);
+      text-decoration-color: var(--ink);
+    }
+    .markdown-body :global(a:hover) {
+      color: var(--accent);
+      text-decoration-color: var(--accent);
+    }
+
+    /* ---- "Coming soon" placeholder ---- */
+    .deepdive__placeholder {
+      margin-top: var(--s-7);
+      max-width: var(--col-body);
+      padding: var(--s-6) 0;
+      border-top: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+    }
+    .deepdive__placeholder-label {
+      margin: 0 0 var(--s-3);
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .deepdive__placeholder-body {
+      margin: 0 0 var(--s-4);
+      font-family: var(--font-sans);
+      font-weight: 200;
+      font-size: var(--fs-body-lg);
+      line-height: var(--lh-body-lg);
+      color: var(--ink);
+      max-width: 56ch;
+    }
+    .deepdive__placeholder-link {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: var(--fs-body);
+      line-height: 1.40;
+    }
+
+    /* ---- Foot ---- */
+    .deepdive__foot-rule {
+      border: 0;
+      border-top: 1px solid var(--ink);
+      margin: var(--s-8) 0 var(--s-5);
+      max-width: var(--col-body);
+    }
+    .deepdive__backlink {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+    .deepdive__backlink a {
+      color: var(--ink);
+      text-decoration: none;
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 2px;
+      transition:
+        color 80ms linear,
+        border-color 80ms linear;
+    }
+    .deepdive__backlink a:hover {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .deepdive__backlink a:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+  </style>
+</article>
+</BaseLayout>

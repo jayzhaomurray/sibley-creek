@@ -21,11 +21,20 @@
 import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
+import panelDataFile from "../../data/site/panel_data/inflation.json";
+import { pickPanel } from "../components/charts/_shared/panelData";
 
 const section = sections.find((s) => s.slug === "inflation");
 if (!section) {
   throw new Error("Inflation section not found in src/data/sections.ts");
 }
+
+const panel1Data = pickPanel(panelDataFile, 1);
+const panel2Data = pickPanel(panelDataFile, 2);
+const panel3Data = pickPanel(panelDataFile, 3);
+const panel4Data = pickPanel(panelDataFile, 4);
+const panel5Data = pickPanel(panelDataFile, 5);
+const panel6Data = pickPanel(panelDataFile, 6);
 
 const plates: Plate[] = [
   {
@@ -48,6 +57,7 @@ const plates: Plate[] = [
     source:
       "Statistics Canada Table 18-10-0004-01; consensus via Bloomberg.",
     chartKey: "inflation-panel-1",
+    data: panel1Data,
   },
   {
     id: "plate-2",
@@ -68,6 +78,7 @@ const plates: Plate[] = [
     },
     source: "Statistics Canada Table 18-10-0256-01 (BoC preferred cores).",
     chartKey: "inflation-panel-2",
+    data: panel2Data,
   },
   {
     id: "plate-3",
@@ -81,6 +92,7 @@ const plates: Plate[] = [
       "The remaining cluster is concentrated in shelter sub-components. Goods breadth has effectively normalized; services breadth is the open question.",
     source: "Statistics Canada Table 18-10-0004-01; component shares constructed.",
     chartKey: "inflation-panel-3",
+    data: panel3Data,
   },
   {
     id: "plate-4",
@@ -95,6 +107,7 @@ const plates: Plate[] = [
     source:
       "Statistics Canada Table 18-10-0004-01 (CPI sub-aggregates); ex- aggregates basket-weighted.",
     chartKey: "inflation-panel-4",
+    data: panel4Data,
   },
   {
     id: "plate-5",
@@ -109,6 +122,7 @@ const plates: Plate[] = [
       "still above the long-run baseline, but the direction is unambiguous.",
     source: "Bank of Canada CSCE and Business Outlook Survey, latest quarterly releases.",
     chartKey: "inflation-panel-5",
+    data: panel5Data,
   },
   {
     id: "plate-6",
@@ -124,6 +138,7 @@ const plates: Plate[] = [
     source:
       "Statistics Canada Tables 18-10-0004-01, 14-10-0064-01; BoC Valet FXUSDCAD.",
     chartKey: "inflation-panel-6",
+    data: panel6Data,
   },
 ];
 

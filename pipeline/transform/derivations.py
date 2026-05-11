@@ -1,7 +1,7 @@
 """Reusable analytical derivations that cross multiple series.
 
 These are slightly higher-level than `timeseries.py`: they expect named
-inputs and return interpretable outputs (e.g. trade balance 3M MA from
+inputs and return interpretable outputs (e.g. trade balance 3mma from
 the monthly balance; a partner-share trajectory from per-partner + total).
 
 Editorial interpretation does not live here. A function returns the math;

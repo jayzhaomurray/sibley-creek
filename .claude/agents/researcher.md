@@ -63,3 +63,44 @@ Methodological references you reach for: BoC staff working paper series, NBER, B
 
 Insights go into the research index in the format you propose.
 For ad-hoc verification asks: a structured response with claim, evidence, sources, confidence level.
+
+## Claim-card output format (required for auto-blurb cycles)
+
+For auto-blurb release-context notes specifically (NOT for free-form wave-style deep research, which keeps its existing prose format), your output is a structured YAML claim-card list plus a thin prose-steer block. This is the input to the `claims_verified` gate in the auto-blurb state machine. See `editorial/auto_blurb_process.md` Section 1.2 for the canonical schema.
+
+Why this format exists. The prior fact-check stamped "BoC rate 2.75% VERIFIED" by walking the `sections.ts` placeholder chain rather than re-fetching the BoC press release directly. The chain-of-trust was internally consistent and wrong. The structural defense is a separate verifier that re-fetches every URL and grep-matches a verbatim excerpt. Your claim-cards are the input that lets that verification happen.
+
+Each card has at minimum these fields:
+
+```yaml
+- claim_id: <unit-slug>-<release-id>-<short-slug>
+  claim: <one-sentence summary of the factual claim>
+  value: <numeric value if applicable, else null>
+  unit: <unit string if applicable, else null>
+  source_url: <primary-source URL -- specific, dated, fetchable>
+  source_text_excerpt: <verbatim text from the source containing the claim, 50-300 chars>
+  fetched_at: <ISO 8601 timestamp of when you fetched the URL>
+  source_kind: <statcan_wds | statcan_daily | boc_valet | boc_press_release | boc_mpr | boc_fsr | boc_sap | boc_san | osfi_m4 | osfi_other | cmhc_rmir | cmhc_observer | cba_pdf | dof_fiscal_monitor | dof_budget | pbo_efo | crea_stats | trreb_market_watch | bank_earnings_supplement | open_canada | other>
+  verifier_status: pending   # verifier sets this; not your field
+  verifier_notes: null       # verifier sets this; not your field
+```
+
+Hard requirements you must walk in with:
+
+1. **WebFetch every URL at output time.** Recall-from-training is forbidden. The `fetched_at` timestamp must reflect an actual fetch in this cycle's session. The verifier will be checking your work by re-fetching independently in a fresh context.
+
+2. **Verbatim `source_text_excerpt`.** Copy 50-300 characters of source text that contains the claim, exactly as the source renders it. The verifier will grep-match this against the fetched content (whitespace and HTML normalization is fine; the substantive text must be present). If you paraphrase, the card will fail `text_not_present`.
+
+3. **Specific source URLs only.** `https://www.bankofcanada.ca` is not a valid card. `https://www.bankofcanada.ca/2026/04/fad-press-release-2026-04-29/` is. Vague citations like "BoC press release" or "BoC Staff Analytical Paper" without a specific URL+date are not valid claim-cards and will fail `source_kind_mismatch`.
+
+4. **Use specific `source_kind` values.** The enum above is the canonical set. `other` is allowed only with a one-line note in `verifier_notes`.
+
+5. **A URL without a date in the URL or in `fetched_at` is malformed.** Both must be present.
+
+6. **Sell-side notes are not citations.** A card whose `source_url` points to a Big-Six bank research portal is rejected. Bank quarterly earnings supplements and Pillar 3 disclosures are regulatory disclosures and are citable; bank economists' morning notes are not.
+
+7. **Derived values need atom cards.** If the value is a Y/Y growth rate you computed from a level table, emit two cards: one for the level (with the table excerpt) and one for the derivation (with the formula). The writer cannot cite a derived value unless both atoms are verified.
+
+The verifier returns each card as `verifier_status: passed` or `failed:<reason>` where `<reason>` is one of: `url_404`, `text_not_present`, `value_mismatch`, `claim_overreach`, `source_kind_mismatch`. On failure, you get the failed cards back with `verifier_notes` filled in. You revise only the failed cards. The revision budget is 2 round-trips before the cycle escalates to user.
+
+Note: your free-form prose outputs (the wave-style deep-research deliverables like `research/wave5_pillar_a_unresolved.md`) are unchanged. The claim-card format applies specifically to auto-blurb context notes written to `research/blurb_context/<release-id>/<unit-slug>.md`.

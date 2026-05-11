@@ -90,28 +90,112 @@ function periodStampFor(frequency: string | null): string {
   return "";
 }
 
-function unitSuffixFor(units: string | null): string {
-  if (!units) return "";
+// Axis scale is decided ONCE per chart from the y-extent, so every tick on
+// the axis renders in the same magnitude. The topmost tick carries the unit
+// suffix; other ticks render bare. Auto-scales CAD millions to $B when any
+// tick on the axis crosses $1B (i.e. the LARGEST magnitude across all ticks
+// determines the scale — once we go to $B, every tick is in $B).
+interface AxisScale {
+  factor: number;       // multiplier applied to every tick value
+  suffix: string;       // unit suffix appended to the TOP tick only
+  decimals: number;     // decimals applied to every tick value
+}
+
+// Decimals derive from the SCALED step (the visible distance between
+// consecutive ticks after factor is applied), not from the value magnitude.
+// A step of 0.5 needs 1 decimal ("2.0"); a step of 1 needs 0 decimals
+// ("3"); a step of 0.05 needs 2 decimals ("1.40"). Avoids the dumb case
+// where a 2.5% tick rendered "2.50" because the value happened to be < 10.
+function decimalsForStep(step: number): number {
+  const s = Math.abs(step);
+  if (s >= 1) return 0;
+  if (s >= 0.1) return 1;
+  if (s >= 0.01) return 2;
+  if (s >= 0.001) return 3;
+  return 4;
+}
+
+function computeAxisScale(yMin: number, yMax: number, step: number, units: string | null): AxisScale {
+  if (!units) {
+    return { factor: 1, suffix: "", decimals: decimalsForStep(step) };
+  }
   const u = units.toLowerCase();
-  if (u === "%" || u.startsWith("% ")) return "%";
-  if (u.includes("cad per usd")) return "";
-  if (u.includes("cad millions")) return "M";
-  if (u.includes("cad billions")) return "B";
-  return "";
+  if (u === "%" || u.startsWith("% ")) {
+    return { factor: 1, suffix: "%", decimals: decimalsForStep(step) };
+  }
+  if (u.includes("cad per usd")) {
+    // FX ticks need at least 2 decimals to show meaningful movement
+    return { factor: 1, suffix: "", decimals: Math.max(2, decimalsForStep(step)) };
+  }
+  if (u.includes("cad millions")) {
+    const maxAbs = Math.max(Math.abs(yMin), Math.abs(yMax));
+    if (maxAbs >= 1000) {
+      return { factor: 1 / 1000, suffix: "B", decimals: decimalsForStep(step / 1000) };
+    }
+    return { factor: 1, suffix: "M", decimals: 0 };
+  }
+  if (u.includes("cad billions")) {
+    return { factor: 1, suffix: "B", decimals: decimalsForStep(step) };
+  }
+  return { factor: 1, suffix: "", decimals: decimalsForStep(step) };
 }
 
-function fmtTopTick(v: number, suffix: string): string {
-  const a = Math.abs(v);
-  const body = a >= 100 ? v.toFixed(0) : a >= 10 ? v.toFixed(1) : v.toFixed(2);
-  return suffix ? `${body}${suffix}` : body;
+function fmtTickAt(v: number, scale: AxisScale, isTop: boolean): string {
+  const body = (v * scale.factor).toFixed(scale.decimals);
+  return isTop && scale.suffix ? `${body}${scale.suffix}` : body;
 }
 
+// Nice-tick algorithm: pick a step rounded to (1 | 2 | 2.5 | 5) x power-of-10
+// so ticks land on round numbers ("2.0%", "0", "5,000") rather than
+// data-derived fractions ("2.34%", "-1248"). Targets ~3 ticks; allows 2-4
+// depending on what the data fits.
+function niceStep(range: number, targetTicks: number): number {
+  if (range <= 0) return 1;
+  const rough = range / Math.max(1, targetTicks - 1);
+  const magnitude = Math.pow(10, Math.floor(Math.log10(Math.abs(rough))));
+  const normalized = rough / magnitude;
+  let mult;
+  if (normalized < 1.5) mult = 1;
+  else if (normalized < 3) mult = 2;
+  else if (normalized < 4) mult = 2.5;
+  else if (normalized < 7) mult = 5;
+  else mult = 10;
+  return mult * magnitude;
+}
+
+function niceTicks(dataMin: number, dataMax: number, targetTicks: number = 3): { values: number[]; step: number } {
+  if (!isFinite(dataMin) || !isFinite(dataMax) || dataMin === dataMax) {
+    // Flat data: one tick at the value, plus a small range above + below
+    const v = dataMin;
+    const eps = Math.abs(v) > 0 ? Math.abs(v) * 0.5 : 1;
+    return { values: [v - eps, v, v + eps], step: eps };
+  }
+  const step = niceStep(dataMax - dataMin, targetTicks);
+  const niceMin = Math.floor(dataMin / step) * step;
+  const niceMax = Math.ceil(dataMax / step) * step;
+  const values: number[] = [];
+  // Cap at 6 ticks to avoid clutter at the tile scale.
+  for (let i = 0; i < 12; i++) {
+    const v = niceMin + i * step;
+    if (v > niceMax + step * 1e-6) break;
+    // Round to step boundary to absorb floating-point drift.
+    values.push(Math.round(v / step) * step);
+    if (values.length >= 6) break;
+  }
+  return { values, step };
+}
+
+// Chart geometry — 16:9 viewBox to match canon Tier-3 chartbook charts.
+// Per the "all non-sparkline charts have identical dimensions" rule,
+// homepage tile charts share the 720:405 aspect with section-page panel
+// charts; here scaled to a smaller numeric range that keeps text sizing
+// readable at tile width.
 const W = 320;
-const H = 110;
+const H = 180;
 const PAD_L = 30;
 const PAD_R = 8;
-const PAD_T = 10;
-const PAD_B = 18;
+const PAD_T = 16;
+const PAD_B = 22;
 
 const plotW = W - PAD_L - PAD_R;
 const plotH = H - PAD_T - PAD_B;
@@ -123,9 +207,14 @@ const series: number[] = hasSeries ? (loadBearing.spark as number[]) : [];
 
 const minV = hasSeries ? Math.min(...series) : 0;
 const maxV = hasSeries ? Math.max(...series) : 1;
-const rangeRaw = maxV - minV || 1;
-const yMin = minV - rangeRaw * 0.12;
-const yMax = maxV + rangeRaw * 0.12;
+// Nice-tick axis: pick a step that rounds to (1/2/2.5/5) x power-of-10 so
+// every tick lands on a clean number. The first + last tick set yMin/yMax,
+// so the data line always fits inside the tick range (no clipping).
+const niceAxis = niceTicks(minV, maxV, 3);
+const niceTickValues = niceAxis.values;
+const niceTickStep = niceAxis.step;
+const yMin = niceTickValues[0] as number;
+const yMax = niceTickValues[niceTickValues.length - 1] as number;
 const yRange = yMax - yMin || 1;
 
 function xOf(i: number): number {
@@ -140,17 +229,14 @@ const pts = hasSeries
   : [];
 const linePath = hasSeries ? "M " + pts.join(" L ") : "";
 
-function fmtTick(v: number): string {
-  const a = Math.abs(v);
-  if (a >= 100) return v.toFixed(0);
-  if (a >= 10) return v.toFixed(1);
-  return v.toFixed(2);
-}
+const axisScale = hasSeries
+  ? computeAxisScale(yMin, yMax, niceTickStep, section.units)
+  : { factor: 1, suffix: "", decimals: 2 };
 const ticks = hasSeries
-  ? [yMin, (yMin + yMax) / 2, yMax].map((v) => ({
+  ? niceTickValues.map((v, i, arr) => ({
       v,
       y: yOf(v),
-      label: fmtTick(v),
+      label: fmtTickAt(v, axisScale, i === arr.length - 1),
     }))
   : [];
 
@@ -183,8 +269,9 @@ const earliestDisplay = earliestISO
   ? fmtDateLabel(earliestISO, section.frequency === "daily")
   : "";
 
-// Topmost y-tick gets the unit (canon Section 5.3). Other ticks render bare.
-const unitSuffix = unitSuffixFor(section.units);
+// Topmost y-tick gets the unit (canon Section 5.3); other ticks render bare.
+// Axis scale + decimals are decided ONCE from the y-extent (see
+// computeAxisScale) so every tick on the axis renders in the same magnitude.
 
 // Delta-period stamp ("m/m" / "d/d" / "q/q") so the reader knows what window
 // the delta compares.
@@ -206,7 +293,6 @@ const periodStamp = periodStampFor(section.frequency);
         <a class="vig-panel__h-link" href={`/${section.slug}/`}>{section.label}</a>
       </h2>
     </div>
-    <p class="vig-panel__cadence">{section.cadence}</p>
   </header>
 
   <p class="vig-panel__question">{section.headlineQuestion}</p>
@@ -239,7 +325,7 @@ const periodStamp = periodStampFor(section.frequency);
               font-size="8"
               fill="#000000"
             >
-              {i === ticks.length - 1 ? fmtTopTick(t.v, unitSuffix) : t.label}
+              {t.label}
             </text>
           ))}
           {zeroY !== null && (
@@ -328,16 +414,19 @@ const periodStamp = periodStampFor(section.frequency);
               : "Change not yet wired"
           }
         >
-          <span class="vig-panel__delta-glyph" aria-hidden="true">{dirGlyph(loadBearing.deltaDir)}</span>
+          <span
+            class:list={[
+              "vig-panel__delta-glyph",
+              loadBearing.deltaDir ? `vig-panel__delta-glyph--${loadBearing.deltaDir}` : null,
+            ]}
+            aria-hidden="true"
+          >{dirGlyph(loadBearing.deltaDir)}</span>
           {loadBearing.delta !== null ? (
             <span class="vig-panel__delta-val">{loadBearing.delta}</span>
           ) : (
             <span class="vig-panel__delta-val vig-panel__placeholder vig-panel__placeholder--mono">
               {PLACEHOLDER.value}
             </span>
-          )}
-          {periodStamp && loadBearing.delta !== null && (
-            <span class="vig-panel__delta-period" aria-hidden="true">{periodStamp}</span>
           )}
         </span>
         {loadBearing.asOf !== null ? (
@@ -371,7 +460,13 @@ const periodStamp = periodStampFor(section.frequency);
             {p.value ?? PLACEHOLDER.value}
           </td>
           <td class="vig-panel__td vig-panel__td--delta">
-            <span class="vig-panel__td-glyph" aria-hidden="true">{dirGlyph(p.deltaDir)}</span>
+            <span
+              class:list={[
+                "vig-panel__td-glyph",
+                p.deltaDir ? `vig-panel__td-glyph--${p.deltaDir}` : null,
+              ]}
+              aria-hidden="true"
+            >{dirGlyph(p.deltaDir)}</span>
             {p.delta !== null ? (
               <span class="vig-panel__td-delta-val">{p.delta}</span>
             ) : (
@@ -451,18 +546,6 @@ const periodStamp = periodStampFor(section.frequency);
     outline: 2px solid var(--accent);
     outline-offset: 3px;
   }
-  .vig-panel__cadence {
-    margin: 0;
-    font-family: var(--font-sans);
-    font-weight: 600;
-    font-size: 10px;
-    line-height: 1;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--ink);
-    white-space: nowrap;
-  }
-
   .vig-panel__question {
     margin: 0;
     font-family: var(--font-sans);
@@ -623,21 +706,20 @@ const periodStamp = periodStampFor(section.frequency);
     line-height: 1;
     color: var(--ink);
   }
+  /* Direction tints — narrow exception to the glyph-only direction canon
+   * (Section 4). At 9px the triangle alone is hard to scan; a muted green/red
+   * tint accelerates the read. Tint applies ONLY to the glyph, never to the
+   * value text (which stays pure ink) or the data line. */
+  .vig-panel__delta-glyph--pos {
+    color: var(--dir-up);
+  }
+  .vig-panel__delta-glyph--neg {
+    color: var(--dir-down);
+  }
   .vig-panel__delta-val {
     font-family: var(--font-mono);
     font-weight: 400;
     color: var(--ink);
-  }
-  /* Period stamp ("m/m" / "d/d" / "q/q") — quiet Plex Mono caps tail so the
-   * reader knows what window the delta compares against. */
-  .vig-panel__delta-period {
-    font-family: var(--font-mono);
-    font-weight: 400;
-    font-size: 10px;
-    color: var(--ink);
-    opacity: 0.55;
-    margin-left: 4px;
-    letter-spacing: 0.04em;
   }
   .vig-panel__readout-asof {
     font-family: var(--font-sans);
@@ -740,6 +822,13 @@ const periodStamp = periodStampFor(section.frequency);
     font-size: 9px;
     margin-right: 3px;
     color: var(--ink);
+  }
+  /* Same direction-tint exception applied to the indicators-table glyph. */
+  .vig-panel__td-glyph--pos {
+    color: var(--dir-up);
+  }
+  .vig-panel__td-glyph--neg {
+    color: var(--dir-down);
   }
   .vig-panel__td-delta-val {
     color: var(--ink);

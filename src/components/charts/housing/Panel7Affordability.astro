@@ -1,0 +1,51 @@
+---
+/*
+ * Panel7Affordability - BoC Housing Affordability index.
+ *
+ * Wave 5 addition. Section 4.4 Housing, Panel 7. The flow-side
+ * complement to Panel 5's stock-side mortgage snapshot: Panel 5 says
+ * "what is the existing book paying," Panel 7 says "what would a new
+ * borrower pay against current income." The series is the BoC's
+ * qualifying-mortgage-payment-to-income ratio, quarterly, with long
+ * history (BoC publishes from 1981).
+ *
+ * Pipeline emits `housing_affordability` (primary), quarterly, as an
+ * index. No transform toggle in v1 - the index is already the
+ * transformation per Wave 5 brief 2. Vintage stamp handled in panel
+ * meta (last-refreshed footer); standard pattern.
+ *
+ * Annotation overlays (shaded tightening-episode bands for 1989-1991,
+ * 2007-2008, 2022-2024) are deferred until researcher supplies exact
+ * band start / end dates; until then, render-clean default.
+ *
+ * Default window: max history (1981 onward). PanelLiveChart's
+ * windowMonths default is 60 months (5 years); we widen to 600 (50
+ * years) so the long-history framing the editorial brief calls for
+ * actually surfaces. Quarterly frequency adjusts the tailWindow stride
+ * (~8-tick floor preserves the early years even at long windows).
+ *
+ * No synthetic-data fallback. PanelEmpty when data has not landed.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+---
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    primaryLabel="Affordability"
+    windowMonths={600}
+    dataPanelAttr="housing-7"
+    ariaLabel="BoC housing affordability index, qualifying mortgage payment to income, quarterly."
+  />
+) : (
+  <PanelEmpty reason="Pipeline did not emit panel-7 data." />
+)}
