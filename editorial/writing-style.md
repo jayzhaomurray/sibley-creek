@@ -707,6 +707,14 @@ is gated on having ALL seven current-cycle section blurbs in hand.
 
 ## 9. Working notes for style-editor
 
+**Concision is the load-bearing discipline.** Every word, every
+sentence, every paragraph must earn its place. The style-editor's
+default move when uncertain is to cut. Length without weight is
+flab; flab dilutes voice; voice is the publication's edge. If a
+sentence can be removed without changing the editorial claim, remove
+it. If a paragraph can be reduced to one sentence, reduce it. If a
+word can be cut without loss, cut it.
+
 A short list of edits I make most often, recorded here so the
 writer can pre-empt them.
 

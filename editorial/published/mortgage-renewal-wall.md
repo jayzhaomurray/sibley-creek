@@ -1,52 +1,3 @@
-# Pillar A deep dive -- The mortgage renewal wall: has it peaked? -- v5 draft
-
-Author: writer (macro-research-department / Sibley Creek).
-Style polish: style-editor. Chart inserts: chart-builder.
-Date: 2026-05-11.
-Status: v5 draft. v4 prose with three inline chart illustrations
-inserted at natural break points (Lede, Section III, Section V).
-v4 sits alongside; v5 is the illustrated artifact for promotion to
-`editorial/published/`. ASCII-only.
-
-Anchors:
-- Editorial canon: `editorial/dashboard_purpose.md` Section 5, Pillar A;
-  Section 4.4 unit 5 (mortgage stack snapshot); Section 7 (voice;
-  Mode B register).
-- Voice: `editorial/writing-style.md` Section 1, Section 7 Mode B,
-  Section 2 (numbers and dates), Section 4 (institution names),
-  Section 8 (citation discipline).
-- Chart canon: `design/canon_reference_panel.md` (Tier-3 chartbook
-  canon, 720x405, pure ink line, MTA red latest dot, Plex Mono y-tick,
-  Manrope x-tick, 1px plot frame, 4 gridlines at 0.18 opacity).
-- Verified anchors: `research/wave4_pillar_a_mortgage_renewal_wall_anchors.md`
-  (TK1-TK18) and `research/wave5_pillar_a_unresolved.md` (W5-1 OSFI M4
-  Feb 2026; W5-2 BoC SAP 2026-12 PDF parse; W5-3 CBA February 2026 PDF
-  parse). MIC Y/Y March 2026 = 0.28% per
-  `research/wave3_inflation_basics_insights.md`; Q4 2025 household
-  consumption +0.4% Q/Q and saving rate 4.4% per
-  `research/wave3_gdp_basics_insights.md`; BoC overnight rate 2.25%,
-  held April 29, 2026 per BoC press release and
-  `data/site/sections.json` policy tile.
-
-Three illustrations are wired into this draft:
-1. Mortgage interest cost Y/Y, last 48 months (`/charts/pillar-a/mic_yoy.svg`).
-   Inserted at the close of the Lede.
-2. CBA chartered-bank national arrears, monthly, last 36 months
-   (`/charts/pillar-a/cba_arrears.svg`). Inserted at the close of
-   Section III (the arrears argument).
-3. Canada headline unemployment with prime-age (25-54) overlay, last
-   60 months (`/charts/pillar-a/unemployment.svg`). Inserted at the
-   close of Section V (the labour-channel falsification trigger).
-
-The four legacy chart placeholders from v4 (Sections I, II, III, IV)
-remain in place as instructions to art-director for bespoke chart
-treatments that this v5 illustration round does not author (renewal-
-cohort schedule, payment-shock distribution, provincial arrears
-breakdown, tail-cohort schedule). Those are Phase 2 deliverables; the
-three illustrations above are the v1 illustrated set.
-
----
-
 ## 1. Page header copy
 
 - Title (deep-dive voice; sentence case; declarative):
@@ -691,5 +642,3 @@ numbers appear, the citation is to the bank's own quarterly Pillar 3
 disclosure or earnings supplement, treated as a regulatory filing.
 
 ---
-
-End of v5 draft.

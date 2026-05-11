@@ -408,7 +408,7 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 29, 2026",
       body:
-        "The Bank of Canada cut its overnight rate 25 bps to 2.25% on April 29, taking the policy rate 50 bps below the 2.75% neutral midpoint. The 2y GoC yield closed at 2.94% on May 7, leaving the BoC-Fed 2y spread at -98 bps. The fiscal year-to-date federal budget balance stood at -$25.6B through February, per the Department of Finance Canada fiscal monitor.",
+        "The Bank of Canada held its overnight rate at 2.25% on April 29, the sixth straight hold since October's cut and 50 bps below the 2.75% neutral midpoint. The 2y GoC yield closed at 2.94% on May 7, leaving the BoC-Fed 2y spread at -98 bps. The fiscal year-to-date federal budget balance stood at -$25.6B through February, per the Department of Finance Canada fiscal monitor.",
     },
   },
   {
@@ -661,6 +661,7 @@ export const deepDives: DeepDive[] = [
     publishedAt: "2026-05-11",
     lastUpdated: "TK",
     draftPath: "editorial/drafts/deepdive_pillar_a_mortgage_renewal_wall_v1.md",
+    publishedPath: "editorial/published/mortgage-renewal-wall.md",
     // Legacy fields retained so /experiments/* keeps building. Not rendered in production.
     pillar: "A",
     status: "drafted",

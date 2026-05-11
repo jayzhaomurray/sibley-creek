@@ -1,39 +1,20 @@
 # About
 
-Sibley Creek is a standing, opinionated read of the Canadian macro
-picture, organized as a small set of sections that mirror how a
-Canadian institutional desk frames the economy and refreshed on
-cadences that match how those sections actually move. It exists to
-help a reader who already knows the basics form a sharper view of
-Canada than the median Big-Six economics note.
+[FIGURE: The Sleeping Giant, Sibley Peninsula, Lake Superior.
+Photo by D. Gordon E. Robertson, CC BY-SA 3.0. Placed
+above the fold, immediately after the page title band and
+before the body prose.]
 
-Canada is the subject. The Fed's path, US growth, Chinese demand, and
-global oil enter only as transmission channels -- into the BoC's
-reaction function, into Canadian export demand, into Canadian
-exporter margins. A piece that could run unchanged in a US shop does
-not belong here.
+Sibley Creek is an independent read of the Canadian macro picture,
+written for readers who already know the basics and want a sharper
+view of Canada than the median bank note. The data come from primary
+sources. The prose is opinionated where the data support it, and
+hedged only where they do not.
 
-The publication runs across seven sections -- GDP, Inflation, Labour,
-Housing, Policy, Markets, Trade -- each anchored to a single headline
-question. Is the economy at potential, growing, or contracting? Is
-the 2% target being met, on what measures and what breadth? How tight
-is the labour market, and is per-capita output recovering? Each
-section is a chartbook: a vertical stack of indicators, each paired
-with a two-to-four-sentence interpretation paragraph. The chart is
-the evidence; the paragraph is the read.
-
-Sibley Creek is tri-modal. A live tracker pulls daily-refresh data
-from primary sources. Short interpretation paragraphs are drafted
-against each fresh print and pass human review before publish.
-Slower, human-led deep dives sit inside the section they belong to,
-dated and contestable. The three modes share one set of sections, one
-voice, one canon.
-
-The publication cites Statistics Canada, the Bank of Canada, the
-Department of Finance, the PBO, the provinces, CMHC, OSFI, C.D. Howe,
-the IMF, and the OECD -- not bank morning notes. The Big-Six
-economics desks are competitors to measure against, not voices to
-quote. Constructed series carry a methodology note one click away.
+The publication runs across seven sections: GDP, Inflation, Labour,
+Housing, Policy, Markets, and Trade. Canada is the subject throughout;
+the Fed, US growth, Chinese demand, and global oil enter only as
+transmission channels.
 
 The name comes from Sibley Creek, a small stream on the Sibley
 Peninsula in Sleeping Giant Provincial Park on the north shore of Lake
