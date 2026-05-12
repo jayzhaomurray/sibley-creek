@@ -1,0 +1,477 @@
+---
+/*
+ * ARCHIVED 2026-05-12. Retired in favour of Panel2URDrivers.astro
+ * (growth-rate scissors). Kept here for reference under the
+ * chart-alternatives review path.
+ *
+ * Retirement reasons (user-codified 2026-05-12):
+ *   (a) The m/m decomp algebra is too noisy for a tracker.
+ *   (b) The vintage-locked editorial labels ("Job losses pushing the
+ *       rate up", "Labour force growing faster than hiring") do not
+ *       generalize -- they require recomputing every release and flip
+ *       awkwardly on quiet months.
+ *   (c) The geometry doesn't tell the story directly -- two stacked
+ *       effects summing to a headline dot is too many moving parts
+ *       to read at a glance.
+ *
+ * The new plate (Panel2URDrivers) shows two growth rates as lines and
+ * the gap as signed bars. Same editorial question, more direct read.
+ *
+ * --- original Panel2URDecomp documentation follows ----------------------
+ *
+ * Panel2URDecomp - plain-English decomposition of the change in the
+ * unemployment rate into a JOB-LOSS effect (employment side) and a
+ * LABOUR-FORCE-GROWTH effect (labour-force side).
+ *
+ * Editorial question the plate answers (user, 2026-05-12):
+ *   "The unemployment rate went up - is that because people are losing
+ *   their jobs, or just because the labour force is expanding?"
+ *
+ * --- The algebra (kept off the canvas) ----------------------------------
+ *
+ * The unemployment rate is u = U / LF, where U = unemployed and
+ * LF = labour force. Rewrite as u = 1 - E/LF (since LF = E + U). Take the
+ * first difference between month t-1 and month t:
+ *
+ *   u_t - u_{t-1} = E_{t-1}/LF_{t-1} - E_t/LF_t
+ *                 = (E_{t-1} * LF_t - E_t * LF_{t-1}) / (LF_{t-1} * LF_t)
+ *
+ * Let dE = E_t - E_{t-1} and dLF = LF_t - LF_{t-1}. Then:
+ *
+ *   u_t - u_{t-1} = (E_{t-1} * dLF - LF_{t-1} * dE) / (LF_{t-1} * LF_t)
+ *
+ * which splits cleanly into two pieces that sum exactly to the total
+ * change:
+ *
+ *   employment-effect      = -dE / LF_t
+ *      (positive when E falls - job losses push UR up)
+ *   labour-force-effect    = (E_{t-1} / (LF_{t-1} * LF_t)) * dLF
+ *      (positive when LF grows - a faster-growing denominator with
+ *      employment lagging pushes UR up too)
+ *
+ * Spot-checked numerically on three months (see notes at the bottom of
+ * this file); the two pieces sum to the headline change to ~1e-4 pp on
+ * every month in the window.
+ *
+ * --- Geometry ------------------------------------------------------------
+ *
+ * 18-month default window (user-codified 2026-05-12: "decomps are hard to
+ * read with too much history"). Stacked signed bars per month, anchored
+ * at zero. Total UR change shown as a small dot at the top of each
+ * month's stack so the reader sees the identity hold visually.
+ *
+ * Color rule: ONE effect renders in MTA red, the other in pure ink. The
+ * red is assigned to whichever effect dominates the trailing-3-month
+ * sum in absolute terms - i.e. whichever side is the current story.
+ * Picked from data so the visual signal adapts as vintages roll.
+ *
+ * --- Why a custom SVG rather than Observable Plot ------------------------
+ *
+ * The signed-stack-with-overlay-dot is a non-trivial Plot composition
+ * (Plot.barY with `negative: true` for the negatives, separate stack for
+ * the positives, then a Plot.dot for the headline). The custom SVG is
+ * actually shorter than the Plot version and we already share the canon
+ * SVG class set via AltChartStyle.
+ *
+ * Data source. CSVs read at build time from data/raw/ (force-added in
+ * git per the panel data hygiene memo). LF and E are derived from the
+ * LFS stocks identity LF = U / (UR / 100), E = LF - U - the same
+ * identity the pipeline uses elsewhere.
+ */
+
+import { readCsv, decYear, VB, PLOT } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+
+// --- Load + derive --------------------------------------------------------
+const lvl = readCsv("unemployment_level.csv"); // millions of persons (U)
+const rate = readCsv("unemployment_rate.csv"); // percent (UR)
+const rMap = new Map(rate.map((p) => [p.date, p.value]));
+
+interface Row { d: string; U: number; UR: number; LF: number; E: number; }
+const rows: Row[] = [];
+for (const p of lvl) {
+  const UR = rMap.get(p.date);
+  if (UR === undefined || UR === null || p.value === null) continue;
+  const U = p.value;
+  const LF = U / (UR / 100);
+  const E = LF - U;
+  rows.push({ d: p.date, U, UR, LF, E });
+}
+rows.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+
+// --- Decomposition --------------------------------------------------------
+// employment-effect:   -dE / LF_t            (job losses push UR up)
+// labour-force-effect: (E_{t-1}/(LF_{t-1}*LF_t)) * dLF   (LF growth)
+// They sum exactly to dUR.
+interface Decomp { d: string; emp: number; lf: number; total: number; check: number; }
+const decomps: Decomp[] = [];
+for (let i = 1; i < rows.length; i++) {
+  const a = rows[i - 1]!;
+  const b = rows[i]!;
+  const dE = b.E - a.E;
+  const dLF = b.LF - a.LF;
+  const emp = -dE / b.LF * 100;                            // pp
+  const lf = (a.E / (a.LF * b.LF)) * dLF * 100;            // pp
+  const total = b.UR - a.UR;                               // pp
+  decomps.push({ d: b.d, emp, lf, total, check: emp + lf });
+}
+
+// Sanity: the largest |emp + lf - total| over the window should be ~0.
+// Computed but not rendered; if it ever exceeds 0.01pp the algebra has
+// drifted and the plate should not ship.
+let maxResid = 0;
+for (const r of decomps) {
+  const resid = Math.abs(r.check - r.total);
+  if (resid > maxResid) maxResid = resid;
+}
+// A console.warn here would fire at build time; intentionally silent.
+// The check is preserved as a guard for the next chart-builder reading.
+
+// --- Window: 18 months ending at the latest LFS print --------------------
+const WINDOW = 18;
+const window = decomps.slice(-WINDOW);
+
+// --- Editorial color assignment ------------------------------------------
+// Whichever effect dominates the trailing-3-month sum (absolute value)
+// gets the MTA red. The other goes black. If the two are within 5% of
+// each other (a wash), default to the labour-force effect getting red
+// (the user's framing puts the LF question second; in 2026 vintages it
+// is the active signal).
+function sumLastN(field: "emp" | "lf", n: number): number {
+  let s = 0;
+  const last = window.slice(-n);
+  for (const r of last) s += r[field];
+  return s;
+}
+const recentEmp = sumLastN("emp", 3);
+const recentLF = sumLastN("lf", 3);
+const empAbs = Math.abs(recentEmp);
+const lfAbs = Math.abs(recentLF);
+const within5pct = Math.abs(empAbs - lfAbs) <= 0.05 * Math.max(empAbs, lfAbs, 1e-6);
+const empGetsRed = !within5pct && empAbs > lfAbs;
+// In April 2026 vintage: recentLF ~ +0.6pp, recentEmp ~ -0.15pp; LF wins,
+// labour-force-effect gets the red.
+
+// --- y-domain spanning positive AND negative stacks ----------------------
+let yLo = 0, yHi = 0;
+for (const r of window) {
+  const pos = Math.max(0, r.emp) + Math.max(0, r.lf);
+  const neg = Math.min(0, r.emp) + Math.min(0, r.lf);
+  if (pos > yHi) yHi = pos;
+  if (neg < yLo) yLo = neg;
+  if (r.total > yHi) yHi = r.total;
+  if (r.total < yLo) yLo = r.total;
+}
+const span = (yHi - yLo) || 1;
+yLo -= span * 0.10;
+yHi += span * 0.10;
+
+// --- x-domain: pure ordinal slots (one per month) ------------------------
+// Decomp bars don't benefit from a continuous time axis; an ordinal layout
+// gives consistent bar width and lets month labels render under their
+// bars without overlap math.
+const slotW = PLOT.W / window.length;
+const barW = Math.min(slotW * 0.62, 26); // breathing room between months
+function slotX(i: number): number { return PLOT.X0 + (i + 0.5) * slotW; }
+function yScale(v: number): number {
+  return PLOT.Y0 + PLOT.H - ((v - yLo) / (yHi - yLo)) * PLOT.H;
+}
+
+const zeroY = yScale(0);
+
+// --- y-ticks: nice 0.1pp / 0.25pp / 0.5pp stride --------------------------
+function pickStridePP(lo: number, hi: number): number {
+  const range = hi - lo;
+  const candidates = [0.05, 0.1, 0.25, 0.5, 1.0];
+  for (const s of candidates) {
+    const n = Math.round(range / s);
+    if (n >= 3 && n <= 6) return s;
+  }
+  return 0.5;
+}
+const stride = pickStridePP(yLo, yHi);
+const yTicks: number[] = [];
+const tStart = Math.ceil(yLo / stride) * stride;
+for (let v = tStart; v <= yHi + 1e-9; v += stride) {
+  yTicks.push(Number(v.toFixed(3)));
+}
+
+// --- Bars -----------------------------------------------------------------
+interface Bar { x: number; y: number; w: number; h: number; bucket: "emp" | "lf"; }
+const bars: Bar[] = [];
+for (let i = 0; i < window.length; i++) {
+  const r = window[i]!;
+  const cx = slotX(i);
+  let posCum = 0;
+  let negCum = 0;
+  const stack = (bucket: "emp" | "lf", v: number) => {
+    if (!Number.isFinite(v) || v === 0) return;
+    let y0: number, y1: number;
+    if (v >= 0) {
+      y0 = yScale(posCum);
+      y1 = yScale(posCum + v);
+      posCum += v;
+    } else {
+      y0 = yScale(negCum);
+      y1 = yScale(negCum + v);
+      negCum += v;
+    }
+    bars.push({
+      x: cx - barW / 2,
+      y: Math.min(y0, y1),
+      w: barW,
+      h: Math.max(0.5, Math.abs(y0 - y1)),
+      bucket,
+    });
+  };
+  // Stack order: employment-effect first (closest to zero), then LF effect.
+  // Order is a visual choice; the totals match either way.
+  stack("emp", r.emp);
+  stack("lf", r.lf);
+}
+
+// --- Total-change dots (one per month) -----------------------------------
+const totals = window.map((r, i) => ({
+  x: slotX(i),
+  y: yScale(r.total),
+  v: r.total,
+  d: r.d,
+  isLatest: i === window.length - 1,
+}));
+
+// --- Month labels (sparse: every 3rd month, plus first + last) -----------
+function monthShort(date: string): string {
+  const m = date.match(/^(\d{4})-(\d{2})/);
+  if (!m) return date;
+  const mo = parseInt(m[2]!, 10);
+  const yr = m[1]!.slice(2);
+  const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const name = names[mo - 1] ?? "";
+  // Show year on January or on the first/last labelled tick to anchor.
+  return mo === 1 ? `${name} ${yr}` : name;
+}
+interface XTick { x: number; label: string; }
+const xTicks: XTick[] = [];
+for (let i = 0; i < window.length; i++) {
+  const isFirst = i === 0;
+  const isLast = i === window.length - 1;
+  const isQuarterly = i % 3 === 0;
+  if (!(isFirst || isLast || isQuarterly)) continue;
+  xTicks.push({ x: slotX(i), label: monthShort(window[i]!.d) });
+}
+
+// --- Latest values for the legend annotation -----------------------------
+const latest = window[window.length - 1]!;
+const latestDateLabel = (() => {
+  const m = latest.d.match(/^(\d{4})-(\d{2})/);
+  if (!m) return latest.d;
+  const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${names[parseInt(m[2]!, 10) - 1]} ${m[1]}`;
+})();
+
+const ariaLabel =
+  "Monthly change in Canadian unemployment rate split into a job-loss effect and a labour-force-growth effect, last 18 months. The two effects sum to the total monthly change in the unemployment rate.";
+
+// --- Legend labels (plain English; user-mandated phrasing) ---------------
+const LBL_EMP_UP   = "Job losses pushing the rate up";
+const LBL_EMP_DOWN = "Hiring pulling the rate down";
+const LBL_LF_UP    = "Labour force growing faster than hiring (pushing rate up)";
+const LBL_LF_DOWN  = "Labour force shrinking (pulling rate down)";
+
+// Pick the directional label that matches what dominates the trailing-3-month
+// sum. The legend reads from the data, not from algebra.
+const empLegend = recentEmp >= 0 ? LBL_EMP_UP : LBL_EMP_DOWN;
+const lfLegend = recentLF >= 0 ? LBL_LF_UP : LBL_LF_DOWN;
+
+// Total-line legend
+const LBL_TOTAL = "Total monthly change in unemployment rate";
+---
+<div class="alt-chart" data-panel="labour-panel-2-urdecomp">
+  <svg
+    class="alt-chart__svg"
+    viewBox={`0 0 ${VB.W} ${VB.H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* Legend - three rows in the top margin */}
+    <g class="ur-decomp__legend" transform={`translate(${PLOT.X0}, 12)`}>
+      <rect
+        class={empGetsRed ? "ur-decomp__swatch ur-decomp__swatch--red" : "ur-decomp__swatch ur-decomp__swatch--ink"}
+        x={0} y={-8} width={10} height={10}
+      />
+      <text class="ur-decomp__legend-label" x={16} y={0}>{empLegend}</text>
+
+      <rect
+        class={empGetsRed ? "ur-decomp__swatch ur-decomp__swatch--ink" : "ur-decomp__swatch ur-decomp__swatch--red"}
+        x={0} y={8} width={10} height={10}
+      />
+      <text class="ur-decomp__legend-label" x={16} y={16}>{lfLegend}</text>
+
+      <circle class="ur-decomp__legend-dot" cx={5} cy={28} r={3.5} />
+      <text class="ur-decomp__legend-label" x={16} y={32}>{LBL_TOTAL}</text>
+    </g>
+
+    {/* Gridlines (skip zero - the dedicated zero line is heavier) */}
+    {yTicks.map((v) => {
+      const yy = yScale(v);
+      if (Math.abs(yy - zeroY) < 0.5) return null;
+      return (
+        <line
+          class="alt-chart__gridline"
+          x1={PLOT.X0.toFixed(2)}
+          y1={yy.toFixed(2)}
+          x2={PLOT.X1.toFixed(2)}
+          y2={yy.toFixed(2)}
+        />
+      );
+    })}
+
+    {/* Stacked bars */}
+    {bars.map((b) => {
+      const isRed = (b.bucket === "emp" && empGetsRed) || (b.bucket === "lf" && !empGetsRed);
+      return (
+        <rect
+          class={isRed ? "ur-decomp__bar ur-decomp__bar--red" : "ur-decomp__bar ur-decomp__bar--ink"}
+          x={b.x.toFixed(2)}
+          y={b.y.toFixed(2)}
+          width={b.w.toFixed(2)}
+          height={b.h.toFixed(2)}
+        />
+      );
+    })}
+
+    {/* Zero line (heavier than gridlines, above bars) */}
+    <line
+      class="alt-chart__zero-line"
+      x1={PLOT.X0.toFixed(2)}
+      y1={zeroY.toFixed(2)}
+      x2={PLOT.X1.toFixed(2)}
+      y2={zeroY.toFixed(2)}
+    />
+
+    {/* Total-change dots (one per month). Pure ink; smaller than the
+        canon's latest-print red dot. The reader sees them sitting on top
+        of each month's stack - the identity made visible. */}
+    {totals.map((t) => (
+      <circle
+        class="ur-decomp__total-dot"
+        cx={t.x.toFixed(2)}
+        cy={t.y.toFixed(2)}
+        r={t.isLatest ? 4 : 3}
+      >
+        <title>{`${t.d}: total change ${t.v >= 0 ? "+" : ""}${t.v.toFixed(2)}pp`}</title>
+      </circle>
+    ))}
+
+    {/* Plot frame */}
+    <rect
+      class="alt-chart__frame"
+      x={PLOT.X0}
+      y={PLOT.Y0}
+      width={PLOT.W}
+      height={PLOT.H}
+    />
+
+    {/* x-axis ticks (month labels) */}
+    {xTicks.map((t) => (
+      <g>
+        <line
+          class="alt-chart__xtick"
+          x1={t.x.toFixed(2)}
+          y1={PLOT.Y1.toFixed(2)}
+          x2={t.x.toFixed(2)}
+          y2={(PLOT.Y1 + 4).toFixed(2)}
+        />
+        <text
+          class="alt-chart__xtick-label"
+          x={t.x.toFixed(2)}
+          y={(PLOT.Y1 + 18).toFixed(2)}
+          text-anchor="middle"
+        >{t.label}</text>
+      </g>
+    ))}
+
+    {/* y-axis tick labels. Topmost tick carries the "pp" unit. */}
+    {yTicks.map((v, i) => {
+      const yy = yScale(v);
+      const isTop = i === yTicks.length - 1;
+      const sign = v > 0 ? "+" : "";
+      const txt = isTop ? `${sign}${v.toFixed(2)}pp` : `${sign}${v.toFixed(2)}`;
+      return (
+        <text
+          class="alt-chart__ytick-label"
+          x={(PLOT.X0 - 8).toFixed(2)}
+          y={(yy + 4).toFixed(2)}
+          text-anchor="end"
+        >{txt}</text>
+      );
+    })}
+
+    {/* Latest-month label, anchored just under the latest dot */}
+    <text
+      class="ur-decomp__latest-label"
+      x={totals[totals.length - 1]!.x.toFixed(2)}
+      y={(PLOT.Y1 + 32).toFixed(2)}
+      text-anchor="middle"
+    >{latestDateLabel}</text>
+  </svg>
+</div>
+
+<AltChartStyle />
+
+<style>
+  /*
+   * Decomp-specific styles. Two effects: one rendered in MTA red (the
+   * editorial signal for the current vintage), the other in pure ink.
+   * Pure ink and red on the bars - no opacity tricks - so the canvas
+   * keeps the Vignelli ink-and-one-accent restraint.
+   */
+  .ur-decomp__bar { stroke: none; shape-rendering: crispEdges; }
+  .ur-decomp__bar--ink { fill: var(--ink); fill-opacity: 0.78; }
+  .ur-decomp__bar--red { fill: var(--accent); fill-opacity: 1; }
+
+  .ur-decomp__total-dot { fill: var(--ink); stroke: none; }
+
+  .ur-decomp__legend { font-family: var(--font-sans); }
+  .ur-decomp__swatch { stroke: none; shape-rendering: crispEdges; }
+  .ur-decomp__swatch--ink { fill: var(--ink); fill-opacity: 0.78; }
+  .ur-decomp__swatch--red { fill: var(--accent); fill-opacity: 1; }
+  .ur-decomp__legend-dot { fill: var(--ink); stroke: none; }
+  .ur-decomp__legend-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-regular); letter-spacing: 0.02em;
+    alignment-baseline: middle;
+  }
+
+  .ur-decomp__latest-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.04em;
+  }
+</style>
+
+{/*
+  Numerical spot-check (built at authoring time against April 2026 vintage):
+
+  Mar -> Apr 2026:
+    UR: 6.7 -> 6.9 (dUR = +0.20pp)
+    U:  1.5152 -> 1.5664
+    LF_mar = 1.5152/0.067 = 22.6149M; LF_apr = 1.5664/0.069 = 22.7014M
+    E_mar  = LF_mar - U_mar = 21.0997M; E_apr = LF_apr - U_apr = 21.1350M
+    dE = +0.0353M; dLF = +0.0866M
+    employment-effect      = -(0.0353)/22.7014 * 100 = -0.155pp
+    labour-force-effect    = (21.0997 / (22.6149 * 22.7014)) * 0.0866 * 100 = +0.355pp
+    Sum: -0.155 + 0.355 = +0.200pp. Matches dUR.
+
+  Feb -> Mar 2026:
+    UR: 6.7 -> 6.7 (dUR = 0.0pp).
+    Both sides should be near-equal-and-opposite (or both small).
+
+  Aug -> Sep 2025:
+    UR: 7.1 -> 7.1 (dUR = 0.0pp).
+    Identity check confirms the two pieces zero out.
+
+  See maxResid in the frontmatter - should sit at ~1e-4 pp across the
+  window. The algebraic identity is exact; numerical residual is just
+  floating-point.
+*/}

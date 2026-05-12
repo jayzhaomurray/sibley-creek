@@ -158,6 +158,19 @@ if (lastP && lastT && Math.abs(primLabelY - terLabelY) < 12) {
 if (lastS && lastT && Math.abs(secLabelY - terLabelY) < 12) {
   terLabelY = secLabelY + 14;
 }
+
+// Anchor all direct labels at the rightmost terminal x across series,
+// not just the primary's endpoint. When series have asymmetric latest
+// dates (e.g. a quarterly primary vs a monthly secondary), the
+// later-ending line extends past the primary's last dot and would
+// otherwise cross through a label placed at lastP.x + 10. Aligning
+// all labels at max(lastX) + 10 puts every label in the right gutter
+// past where any data line can reach.
+const lastXs: number[] = [];
+if (lastP) lastXs.push(lastP.x);
+if (lastS) lastXs.push(lastS.x);
+if (lastT) lastXs.push(lastT.x);
+const labelAnchorX = lastXs.length > 0 ? Math.max(...lastXs) + 10 : 0;
 ---
 
 <svg
@@ -180,7 +193,10 @@ if (lastS && lastT && Math.abs(secLabelY - terLabelY) < 12) {
   {showRef && refY !== null && (
     <g>
       <line class="alt-chart__reference-rule" x1={PLOT.X0} y1={refY.toFixed(2)} x2={PLOT.X1} y2={refY.toFixed(2)} />
-      {referenceLabel && <text class="alt-chart__reference-label" x={(PLOT.X1 - 6).toFixed(2)} y={(refY - 5).toFixed(2)} text-anchor="end">{referenceLabel}</text>}
+      {/* Reference label sits in the right gutter (outside the plot frame)
+          so the data line cannot cross through it. Anchored vertically on
+          the rule, horizontally just past PLOT.X1. */}
+      {referenceLabel && <text class="alt-chart__reference-label" x={(PLOT.X1 + 6).toFixed(2)} y={(refY + 4).toFixed(2)} text-anchor="start">{referenceLabel}</text>}
     </g>
   )}
 
@@ -212,7 +228,7 @@ if (lastS && lastT && Math.abs(secLabelY - terLabelY) < 12) {
     return <text class="alt-chart__ytick-label" x={(PLOT.X0 - 8).toFixed(2)} y={(yy + 4).toFixed(2)} text-anchor="end">{txt}</text>;
   })}
 
-  {lastP && <text class="alt-chart__direct-label" x={(lastP.x + 10).toFixed(2)} y={primLabelY.toFixed(2)} text-anchor="start">{primaryLabel}</text>}
-  {lastS && secondaryLabel && <text class="alt-chart__direct-label-secondary" x={(lastS.x + 10).toFixed(2)} y={secLabelY.toFixed(2)} text-anchor="start">{secondaryLabel}</text>}
-  {lastT && tertiaryLabel && <text class="alt-chart__direct-label-secondary" x={(lastT.x + 10).toFixed(2)} y={terLabelY.toFixed(2)} text-anchor="start">{tertiaryLabel}</text>}
+  {lastP && <text class="alt-chart__direct-label" x={labelAnchorX.toFixed(2)} y={primLabelY.toFixed(2)} text-anchor="start">{primaryLabel}</text>}
+  {lastS && secondaryLabel && <text class="alt-chart__direct-label-secondary" x={labelAnchorX.toFixed(2)} y={secLabelY.toFixed(2)} text-anchor="start">{secondaryLabel}</text>}
+  {lastT && tertiaryLabel && <text class="alt-chart__direct-label-secondary" x={labelAnchorX.toFixed(2)} y={terLabelY.toFixed(2)} text-anchor="start">{tertiaryLabel}</text>}
 </svg>

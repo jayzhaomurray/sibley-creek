@@ -25,51 +25,75 @@ const panel4Data = pickPanel(panelDataFile, 4);
 const panel5Data = pickPanel(panelDataFile, 5);
 const panel6Data = pickPanel(panelDataFile, 6);
 const panel7Data = pickPanel(panelDataFile, 7);
+const panel8Data = pickPanel(panelDataFile, 8);
 
 const plates: Plate[] = [
   {
     id: "plate-1",
     number: "01",
-    indicator: "Unemployment, employment, participation",
-    plateIndexLabel: "LFS headline",
-    title: "The headline unemployment rate is steady; the employment rate is doing the softening underneath.",
+    indicator: "Monthly job change and the unemployment rate",
+    plateIndexLabel: "Headline jobs print",
+    title: "Employment shrank in April and the jobless rate ticked up.",
     interpretationHtml:
-      "The unemployment rate ticked up to 6.9% in April from 6.7% in March, matching the cycle level of a year earlier. " +
-      "The employment rate fell to 60.5% &mdash; a third consecutive monthly decline and 0.3pp below April 2025 &mdash; while participation edged back to 65.0%. " +
-      "Each rate sits on its own y-axis so the recent action reads; the headline is flat year-on-year while the employment rate does the work underneath.",
+      "Canada lost roughly 18,000 jobs in April, the first negative monthly print since February, and the unemployment rate rose to 6.9% from 6.7% in March. " +
+      "Bars show the monthly change in employment (left axis, thousands of persons); the line traces the unemployment rate (right axis). " +
+      "Negative months are flagged in red on the bars; the red dot on the line marks the latest print.",
     callout: {
-      value: "6.9%",
-      unitPrefix: "unemployment rate",
-      delta: "+0.2pp vs Mar",
+      value: "−18k",
+      unitPrefix: "jobs, m/m, Apr 2026",
+      delta: "UR 6.9% (+0.2pp)",
       direction: "neg",
     },
-    source: "Statistics Canada Table 14-10-0287-01. Dashed reference lines mark each rate's 2010–2019 pre-pandemic average, computed in the chart wrapper.",
+    source:
+      "Statistics Canada Table 14-10-0287-01 (employed persons 15+, SA monthly; unemployment rate, SA).",
     chartKey: "labour-panel-1",
     data: panel1Data,
   },
   {
     id: "plate-2",
     number: "02",
-    indicator: "Wage growth, Y/Y, four measures",
-    plateIndexLabel: "Wage band",
-    asOf: "Mar 2026 (LFS-Micro, CPI) / Apr 2026 (LFS-all) / Feb 2026 (SEPH)",
-    title: "Composition-adjusted wage growth runs below headline measures and clears services-ex-shelter inflation.",
+    indicator: "Labour force vs employment, indexed to Jan 2024 = 100",
+    plateIndexLabel: "What's moving the rate",
+    asOf: "Apr 2026",
+    title: "The labour force has outgrown employment for two years — the wedge is the unemployment-rate rise.",
     interpretationHtml:
-      "LFS-all hourly wages run 4.5% Y/Y in April; SEPH average weekly earnings sit at 3.4% in February; the Bank's composition-adjusted LFS-Micro series prints 3.1% in March. " +
-      "The gap between the headline and the composition-adjusted read is the story &mdash; the front-line LFS print overstates the underlying pressure once who-is-working composition is stripped out. " +
-      "Services CPI ex-shelter at 3.6% in March is the real-wage anchor; only LFS-all clears it comfortably, while LFS-Micro sits just below.",
+      "Placeholder &mdash; writer to draft. Both series indexed to January 2024 = 100. The shaded wedge between the two lines is the cumulative gap labour force has opened over employment since the base period; in index points it approximately equals the unemployment-rate change in percentage points over the same window. As of April, the wedge sits at roughly 1.3 index points, matching a 1.2pp rise in the unemployment rate from 5.7% to 6.9%.",
+    callout: {
+      value: "+1.2pp",
+      unitPrefix: "wedge, LF minus emp., Jan 2024 base, Apr 2026",
+      delta: "UR up 1.2pp over same window",
+      direction: "neg",
+    },
+    source:
+      "Statistics Canada Table 14-10-0287-01 (employed persons 15+, SA monthly; unemployment rate, SA).",
+    chartKey: "labour-panel-2",
+    data: panel2Data,
+  },
+  {
+    id: "plate-3",
+    number: "03",
+    indicator: "Composition-adjusted vs headline wage growth, Y/Y",
+    plateIndexLabel: "Wage band",
+    asOf: "Mar 2026 (LFS-Micro) / Apr 2026 (LFS-all)",
+    title: "Composition-adjusted wages are running a full point below the headline.",
+    interpretationHtml:
+      "The Bank's composition-adjusted LFS-Micro series prints 3.1% Y/Y in March &mdash; the wage read the BoC actually watches, with the labour-force compositional mix held constant. " +
+      "LFS all-hourly-wages run 4.5% in April: the headline that overstates underlying pressure once who-is-working changes are stripped out. " +
+      "The roughly one-point gap has held since early 2024, and it is the labour-market signal the BoC's actually watching for further easing.",
     callout: {
       value: "3.1%",
       unitPrefix: "LFS-Micro, Y/Y, Mar 2026",
+      delta: "Headline +4.5%",
+      direction: "neutral",
     },
     source:
-      "Statistics Canada Tables 14-10-0064-01 (LFS hourly wages), 14-10-0220-01 (SEPH); BoC LFS-Micro composition-adjusted wage series; Statistics Canada CPI sub-aggregates (services ex-shelter Y/Y derived in pipeline/processed).",
+      "Statistics Canada Table 14-10-0064-01 (LFS hourly wages); BoC LFS-Micro composition-adjusted wage series. LFS-Micro holds the labour-force compositional mix (industry, occupation, age, tenure) constant; LFS-all is the standard 12-month % change in average hourly wages.",
     chartKey: "labour-panel-3",
     data: panel3Data,
   },
   {
-    id: "plate-3a",
-    number: "03a",
+    id: "plate-4a",
+    number: "04a",
     indicator: "Vacancy and unemployment rate over time, plus the spread",
     plateIndexLabel: "Vacancies and slack",
     asOf: "Feb 2026",
@@ -83,8 +107,8 @@ const plates: Plate[] = [
     data: panel4Data,
   },
   {
-    id: "plate-3b",
-    number: "03b",
+    id: "plate-4b",
+    number: "04b",
     indicator: "Beveridge curve, vacancy rate vs unemployment rate",
     plateIndexLabel: "Beveridge",
     asOf: "Feb 2026",
@@ -99,8 +123,8 @@ const plates: Plate[] = [
     data: panel4Data,
   },
   {
-    id: "plate-3c",
-    number: "03c",
+    id: "plate-4c",
+    number: "04c",
     indicator: "Job finding and separation rates, monthly transition probabilities",
     plateIndexLabel: "Flow rates",
     asOf: "Mar 2026",
@@ -115,7 +139,7 @@ const plates: Plate[] = [
   },
   {
     id: "plate-5",
-    number: "04",
+    number: "05",
     indicator: "PR landings and net NPR vs IRCC plan",
     plateIndexLabel: "Supply trajectory",
     asOf: "Q4 2025; current IRCC levels plan",
@@ -129,7 +153,7 @@ const plates: Plate[] = [
   },
   {
     id: "plate-6",
-    number: "05",
+    number: "06",
     indicator: "Spread of provincial unemployment rates vs the national rate",
     plateIndexLabel: "Regional",
     title: "Each big province has its own gap to the national rate.",
@@ -143,7 +167,7 @@ const plates: Plate[] = [
   },
   {
     id: "plate-7",
-    number: "06",
+    number: "07",
     indicator: "EI claimants per 1,000 labour-force-ex-NPRs",
     plateIndexLabel: "EI beneficiaries",
     asOf: "Feb 2026",
@@ -162,6 +186,22 @@ const plates: Plate[] = [
       "Statistics Canada Table 14-10-0011-01 (EI regular beneficiaries); labour-force-ex-NPR denominator derived from LFS (Table 14-10-0287-01) and Statistics Canada NPR estimates (Table 17-10-0040-01), per the methodology documented at /methodology.",
     chartKey: "labour-panel-7",
     data: panel7Data,
+  },
+  {
+    id: "plate-8",
+    number: "08",
+    indicator: "Aggregate hours worked vs employment, Y/Y",
+    plateIndexLabel: "Hours vs headcount",
+    asOf: "Apr 2026",
+    title: "Hours are falling while headcount still grows.",
+    interpretationHtml:
+      "Aggregate hours worked turned year-over-year negative in April (-0.5%), while employment is still running modestly positive (+0.3%). " +
+      "The 0.8pp negative spread is the labour market loosening on the intensive margin before it shows up in headcount &mdash; shifts get cut before bodies. " +
+      "The right panel shows the signed spread each month; the recent cluster of red bars is the cyclical signal.",
+    source:
+      "Statistics Canada Tables 14-10-0289-01 (aggregate hours worked, main-job basis, SA) and 14-10-0287-01 (employed persons 15+, SA). Y/Y % change and the hours-minus-employment spread are computed in the chart wrapper.",
+    chartKey: "labour-panel-8",
+    data: panel8Data,
   },
 ];
 

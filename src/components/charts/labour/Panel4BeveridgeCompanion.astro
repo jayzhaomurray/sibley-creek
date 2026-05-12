@@ -1,0 +1,515 @@
+---
+/*
+ * Panel4BeveridgeCompanion - levels + spread reading of the Beveridge
+ * curve story, designed for readers who do not parse the scatter idiom.
+ *
+ * Diagnosis (editorial/chart-diagnosis/labour.md P3): the Beveridge
+ * curve is fine for readers who know the concept, but the average
+ * reader needs a more direct geometric read. The companion shows:
+ *   - LEFT panel: vacancy rate and unemployment rate as two lines on
+ *     a shared % axis. UR is the primary (solid 1.5px ink, MTA red
+ *     latest dot). Vacancy rate is the secondary (1px dashed ink).
+ *   - RIGHT panel: vacancy rate MINUS unemployment rate as bars per
+ *     month. Positive bars: vacancies > unemployment (tight). Negative
+ *     bars: unemployment > vacancies (slack). The bar geometry carries
+ *     the cycle: 2022 peak positive, 2026 current deeply negative.
+ *     Latest bar in MTA red.
+ *
+ * Together the two panels do the work of the Beveridge curve without
+ * requiring the reader to track a path through 2D space.
+ *
+ * Pipeline shape: panel-4 emits job_vacancy_rate (primary),
+ * job_vacancy_level (secondary, ignored here), unemployment_rate
+ * (tertiary). Both rates are % series, joinable on monthly date.
+ *
+ * Custom SVG. Pattern: lines on the left (PanelLiveChart-style geometry),
+ * bars on the right (Panel1HeadlineGDPV3 bars idiom).
+ */
+
+import type { PanelData, SeriesPoint } from "../_shared/panelData";
+import { decYear, tailWindow } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+const { data = null } = Astro.props;
+
+const WINDOW_MONTHS = 72;
+
+function lastReal(series: SeriesPoint[]): { date: string; value: number } | null {
+  for (let i = series.length - 1; i >= 0; i--) {
+    const pt = series[i]!;
+    if (typeof pt.value === "number" && !Number.isNaN(pt.value)) {
+      return { date: pt.date, value: pt.value };
+    }
+  }
+  return null;
+}
+
+function pickStride(lo: number, hi: number, targetTicks = 4): number {
+  const span = hi - lo;
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  const rough = span / targetTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let nice: number;
+  if (norm < 1.5) nice = 1;
+  else if (norm < 3) nice = 2;
+  else if (norm < 4) nice = 2.5;
+  else if (norm < 7) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+
+const vrRaw = data?.primary?.data ?? [];
+const urRaw = data?.tertiary?.data ?? [];
+
+const vr = tailWindow(vrRaw, WINDOW_MONTHS, "monthly");
+const ur = tailWindow(urRaw, WINDOW_MONTHS, "monthly");
+
+// Spread = vacancy_rate - unemployment_rate per matching month. Only
+// emit a bar where both values are real for the same date.
+const urMap = new Map(ur.map((p) => [p.date, p.value]));
+const spread: SeriesPoint[] = [];
+for (const pt of vr) {
+  const u = urMap.get(pt.date);
+  if (typeof pt.value === "number" && !Number.isNaN(pt.value)
+      && typeof u === "number" && !Number.isNaN(u)) {
+    spread.push({ date: pt.date, value: pt.value - u });
+  } else {
+    spread.push({ date: pt.date, value: null });
+  }
+}
+
+const hasData = vr.length > 0 && ur.length > 0;
+
+// Shared x-domain across left and right panels.
+const allDates = hasData ? [...vr, ...ur] : [];
+const allX = allDates.map((d) => decYear(d.date)).filter((v) => !Number.isNaN(v));
+let xMinShared = allX.length > 0 ? Math.min(...allX) : 0;
+let xMaxShared = allX.length > 0 ? Math.max(...allX) : 1;
+
+// ---- Geometry -----------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_OUT = 8;
+const GAP_X = 56;
+const M_T = 52;
+const M_B = 36;
+const SUB_M_L = 40;
+const SUB_M_R = 14;
+
+const SUB_W = (VB_W - 2 * M_OUT - GAP_X) / 2;
+const LEFT_X0 = M_OUT;
+const LEFT_X1 = LEFT_X0 + SUB_W;
+const RIGHT_X0 = LEFT_X1 + GAP_X;
+const RIGHT_X1 = RIGHT_X0 + SUB_W;
+
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_H = PLOT_Y1 - PLOT_Y0;
+
+// ---- LEFT PANEL: levels (two lines) -------------------------------------
+function buildLines() {
+  const plotX0 = LEFT_X0 + SUB_M_L;
+  const plotX1 = LEFT_X1 - SUB_M_R;
+  const plotW = plotX1 - plotX0;
+
+  const vals: number[] = [];
+  for (const d of vr) if (typeof d.value === "number" && !Number.isNaN(d.value)) vals.push(d.value);
+  for (const d of ur) if (typeof d.value === "number" && !Number.isNaN(d.value)) vals.push(d.value);
+
+  let yLo = 0, yHi = 1;
+  if (vals.length > 0) {
+    const rawMin = Math.min(...vals);
+    const rawMax = Math.max(...vals);
+    const span = (rawMax - rawMin) || Math.max(0.5, Math.abs(rawMax) * 0.05);
+    yLo = Math.max(0, rawMin - span * 0.12);
+    yHi = rawMax + span * 0.12;
+  }
+  const yRange = yHi - yLo || 1;
+
+  const xScale = (yr: number) => {
+    if (xMaxShared === xMinShared) return plotX0 + plotW / 2;
+    return plotX0 + ((yr - xMinShared) / (xMaxShared - xMinShared)) * plotW;
+  };
+  const yScale = (v: number) => PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
+
+  const stride = pickStride(yLo, yHi);
+  const yTicks: number[] = [];
+  const start = Math.ceil(yLo / stride) * stride;
+  for (let v = start; v <= yHi + 1e-9; v += stride) yTicks.push(Number(v.toFixed(6)));
+  if (yTicks.length === 0) yTicks.push(Number(((yLo + yHi) / 2).toFixed(6)));
+
+  const yearStart = Math.ceil(xMinShared);
+  const yearEnd = Math.floor(xMaxShared);
+  const allYearTicks: Array<{ x: number; label: string }> = [];
+  for (let yr = yearStart; yr <= yearEnd; yr++) {
+    const decY = yr + (1 - 0.5) / 12;
+    if (decY < xMinShared || decY > xMaxShared) continue;
+    allYearTicks.push({ x: xScale(decY), label: String(yr) });
+  }
+  const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 5));
+  const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
+
+  function buildPath(s: SeriesPoint[]): string {
+    let p = "";
+    let started = false;
+    for (const pt of s) {
+      if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
+      const xv = decYear(pt.date);
+      if (Number.isNaN(xv)) continue;
+      p += (started ? "L" : "M") + xScale(xv).toFixed(2) + " " + yScale(pt.value).toFixed(2) + " ";
+      started = true;
+    }
+    return p.trim();
+  }
+
+  const urPath = buildPath(ur);
+  const vrPath = buildPath(vr);
+
+  const lastUR = lastReal(ur);
+  const lastUR_xy = lastUR ? {
+    x: xScale(decYear(lastUR.date)),
+    y: yScale(lastUR.value),
+    value: lastUR.value,
+    date: lastUR.date,
+  } : null;
+  const lastVR = lastReal(vr);
+  const lastVR_xy = lastVR ? {
+    x: xScale(decYear(lastVR.date)),
+    y: yScale(lastVR.value),
+    value: lastVR.value,
+    date: lastVR.date,
+  } : null;
+
+  return {
+    plotX0, plotX1, plotW,
+    yLo, yHi, yRange, yTicks, xTicks,
+    urPath, vrPath, lastUR_xy, lastVR_xy,
+  };
+}
+
+// ---- RIGHT PANEL: spread bars -------------------------------------------
+function buildBars() {
+  const plotX0 = RIGHT_X0 + SUB_M_L;
+  const plotX1 = RIGHT_X1 - SUB_M_R;
+  const plotW = plotX1 - plotX0;
+
+  // x-domain shared with left panel for visual alignment; widen slightly
+  // for bar padding so the first / last bars do not clip the frame.
+  const realPts = spread.filter((d) => typeof d.value === "number" && !Number.isNaN(d.value));
+  const xs = realPts.map((d) => decYear(d.date)).filter((v) => !Number.isNaN(v));
+  let xMinB = xs.length > 0 ? Math.min(...xs) : xMinShared;
+  let xMaxB = xs.length > 0 ? Math.max(...xs) : xMaxShared;
+  if (realPts.length > 0) {
+    const slot = (xMaxB - xMinB) / Math.max(1, realPts.length - 1);
+    xMinB -= slot * 0.6;
+    xMaxB += slot * 0.6;
+  }
+
+  const vals = realPts.map((d) => d.value as number);
+  let yLo = 0, yHi = 1;
+  if (vals.length > 0) {
+    const rawMin = Math.min(...vals);
+    const rawMax = Math.max(...vals);
+    const span = (rawMax - rawMin) || Math.max(0.5, Math.abs(rawMax) * 0.1);
+    yLo = rawMin - span * 0.12;
+    yHi = rawMax + span * 0.12;
+    if (yLo > 0) yLo = -Math.max(0.1, (yHi - yLo) * 0.05);
+    if (yHi < 0) yHi = Math.max(0.1, (yHi - yLo) * 0.05);
+  }
+  const yRange = yHi - yLo || 1;
+
+  const xScale = (yr: number) => {
+    if (xMaxB === xMinB) return plotX0 + plotW / 2;
+    return plotX0 + ((yr - xMinB) / (xMaxB - xMinB)) * plotW;
+  };
+  const yScale = (v: number) => PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
+
+  const stride = pickStride(yLo, yHi);
+  const yTicks: number[] = [];
+  const start = Math.ceil(yLo / stride) * stride;
+  for (let v = start; v <= yHi + 1e-9; v += stride) yTicks.push(Number(v.toFixed(6)));
+  if (yTicks.length === 0) yTicks.push(Number(((yLo + yHi) / 2).toFixed(6)));
+
+  const yearStart = Math.ceil(xMinB);
+  const yearEnd = Math.floor(xMaxB);
+  const allYearTicks: Array<{ x: number; label: string }> = [];
+  for (let yr = yearStart; yr <= yearEnd; yr++) {
+    const decY = yr + (1 - 0.5) / 12;
+    if (decY < xMinB || decY > xMaxB) continue;
+    allYearTicks.push({ x: xScale(decY), label: String(yr) });
+  }
+  const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 5));
+  const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
+
+  const zeroY = yLo <= 0 && yHi >= 0 ? yScale(0) : null;
+  const zY = zeroY ?? yScale(0);
+
+  // Identify latest real index for accent.
+  let lastIdx = -1;
+  for (let i = spread.length - 1; i >= 0; i--) {
+    const v = spread[i]!.value;
+    if (typeof v === "number" && !Number.isNaN(v)) { lastIdx = i; break; }
+  }
+
+  const slotWidth = realPts.length > 0 ? plotW / Math.max(realPts.length, 1) : plotW;
+  const barWidth = Math.max(1.5, slotWidth * 0.75);
+
+  interface Bar { x: number; y: number; w: number; h: number; isLatest: boolean; }
+  const bars: Bar[] = [];
+  for (let i = 0; i < spread.length; i++) {
+    const pt = spread[i]!;
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    const cx = xScale(xv);
+    const vy = yScale(pt.value);
+    const topY = Math.min(vy, zY);
+    const botY = Math.max(vy, zY);
+    bars.push({
+      x: cx - barWidth / 2,
+      y: topY,
+      w: barWidth,
+      h: Math.max(0.5, botY - topY),
+      isLatest: i === lastIdx,
+    });
+  }
+
+  return {
+    plotX0, plotX1, plotW,
+    yLo, yHi, yRange, yTicks, xTicks,
+    bars, zeroY,
+  };
+}
+
+const L = hasData ? buildLines() : null;
+const R = hasData ? buildBars() : null;
+
+const ariaLabel = "Left panel: vacancy rate and unemployment rate as two lines, last six years. Right panel: vacancy rate minus unemployment rate as monthly bars. Latest print in red on both panels.";
+---
+{hasData && L && R ? (
+  <div class="canon-chart canon-chart--dual" data-panel="labour-4-levels-companion">
+    <svg
+      class="canon-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {/* ---- LEFT SUB-PANEL: levels ------------------------------------ */}
+      <text
+        class="canon-chart__subpanel-title"
+        x={((LEFT_X0 + LEFT_X1) / 2).toFixed(2)}
+        y={(M_T - 18).toFixed(2)}
+        text-anchor="middle"
+      >VACANCY RATE AND UNEMPLOYMENT RATE, %</text>
+
+      {L.yTicks.map((v) => {
+        const yy = PLOT_Y0 + PLOT_H - ((v - L.yLo) / L.yRange) * PLOT_H;
+        return (
+          <line
+            class="canon-chart__gridline"
+            x1={L.plotX0.toFixed(2)}
+            y1={yy.toFixed(2)}
+            x2={L.plotX1.toFixed(2)}
+            y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      <path class="canon-chart__line canon-chart__line--secondary" d={L.vrPath} fill="none" />
+      <path class="canon-chart__line" d={L.urPath} fill="none" />
+
+      <rect
+        class="canon-chart__frame"
+        x={L.plotX0}
+        y={PLOT_Y0}
+        width={L.plotW}
+        height={PLOT_H}
+      />
+
+      {L.xTicks.map((t) => (
+        <g>
+          <line
+            class="canon-chart__xtick"
+            x1={t.x.toFixed(2)}
+            y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="canon-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {L.yTicks.map((v, i) => {
+        const yy = PLOT_Y0 + PLOT_H - ((v - L.yLo) / L.yRange) * PLOT_H;
+        const isTop = i === L.yTicks.length - 1;
+        const txt = `${v.toFixed(1)}${isTop ? "%" : ""}`;
+        return (
+          <text
+            class="canon-chart__ytick-label"
+            x={(L.plotX0 - 6).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{txt}</text>
+        );
+      })}
+
+      {L.lastUR_xy && (
+        <g>
+          <circle
+            class="canon-chart__latest-dot"
+            cx={L.lastUR_xy.x.toFixed(2)}
+            cy={L.lastUR_xy.y.toFixed(2)}
+            r="4"
+          >
+            <title>{`Unrate ${L.lastUR_xy.date}: ${L.lastUR_xy.value.toFixed(2)}%`}</title>
+          </circle>
+          <text
+            class="canon-chart__inline-label"
+            x={(L.lastUR_xy.x + 8).toFixed(2)}
+            y={(L.lastUR_xy.y + 4).toFixed(2)}
+          >Unrate</text>
+        </g>
+      )}
+      {L.lastVR_xy && (
+        <text
+          class="canon-chart__inline-label canon-chart__inline-label--secondary"
+          x={(L.lastVR_xy.x + 8).toFixed(2)}
+          y={(L.lastVR_xy.y + 4).toFixed(2)}
+        >Vac.</text>
+      )}
+
+      {/* ---- RIGHT SUB-PANEL: spread bars ------------------------------ */}
+      <text
+        class="canon-chart__subpanel-title"
+        x={((RIGHT_X0 + RIGHT_X1) / 2).toFixed(2)}
+        y={(M_T - 18).toFixed(2)}
+        text-anchor="middle"
+      >SPREAD (VACANCY − UNRATE), PP</text>
+
+      {R.yTicks.map((v) => {
+        const yy = PLOT_Y0 + PLOT_H - ((v - R.yLo) / R.yRange) * PLOT_H;
+        if (R.zeroY !== null && Math.abs(yy - R.zeroY) < 0.5) return null;
+        return (
+          <line
+            class="canon-chart__gridline"
+            x1={R.plotX0.toFixed(2)}
+            y1={yy.toFixed(2)}
+            x2={R.plotX1.toFixed(2)}
+            y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      {R.bars.map((b) => (
+        <rect
+          class={b.isLatest ? "canon-chart__bar canon-chart__bar--latest" : "canon-chart__bar"}
+          x={b.x.toFixed(2)}
+          y={b.y.toFixed(2)}
+          width={b.w.toFixed(2)}
+          height={b.h.toFixed(2)}
+        />
+      ))}
+
+      {R.zeroY !== null && (
+        <line
+          class="canon-chart__zero-line"
+          x1={R.plotX0.toFixed(2)}
+          y1={R.zeroY.toFixed(2)}
+          x2={R.plotX1.toFixed(2)}
+          y2={R.zeroY.toFixed(2)}
+        />
+      )}
+
+      <rect
+        class="canon-chart__frame"
+        x={R.plotX0}
+        y={PLOT_Y0}
+        width={R.plotW}
+        height={PLOT_H}
+      />
+
+      {R.xTicks.map((t) => (
+        <g>
+          <line
+            class="canon-chart__xtick"
+            x1={t.x.toFixed(2)}
+            y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="canon-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {R.yTicks.map((v, i) => {
+        const yy = PLOT_Y0 + PLOT_H - ((v - R.yLo) / R.yRange) * PLOT_H;
+        const isTop = i === R.yTicks.length - 1;
+        const txt = `${v.toFixed(1)}${isTop ? "pp" : ""}`;
+        return (
+          <text
+            class="canon-chart__ytick-label"
+            x={(R.plotX0 - 6).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{txt}</text>
+        );
+      })}
+    </svg>
+  </div>
+) : (
+  <PanelEmpty reason="Vacancy rate and unemployment rate series both required for levels companion." />
+)}
+
+<style>
+  .canon-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
+  .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
+  .canon-chart__subpanel-title {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
+  }
+  .canon-chart__gridline { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges; }
+  .canon-chart__zero-line { stroke: var(--ink); stroke-width: 1; stroke-opacity: 1; shape-rendering: crispEdges; }
+  .canon-chart__line {
+    stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
+    fill: none; vector-effect: non-scaling-stroke;
+  }
+  .canon-chart__line--secondary {
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.7;
+    stroke-dasharray: 4 2;
+  }
+  .canon-chart__bar { fill: var(--ink); }
+  .canon-chart__bar--latest { fill: var(--accent); }
+  .canon-chart__latest-dot { fill: var(--accent); stroke: none; }
+  .canon-chart__frame { fill: none; stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__inline-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold);
+  }
+  .canon-chart__inline-label--secondary {
+    font-weight: var(--fw-regular); opacity: 0.75;
+  }
+</style>

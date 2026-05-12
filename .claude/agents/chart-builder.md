@@ -103,7 +103,27 @@ Visual correctness is the bar this role is graded on. You MUST visually verify e
 
 Do not declare work done without these checks. The agent that built the change is the agent that verifies it.
 
+## Methodology verification (REQUIRED for derived-rate / decomposition / indexed charts)
+
+If the chart computes anything beyond a direct pull of a published series — a derived rate (Y/Y, m/m, ratio of two series), a decomposition (UR identity, contributions to growth, separation/finding rates), an indexed series, a smoothed measure, anything where the chart's value is a FUNCTION of multiple raw inputs — the methodology has to be verified at AUTHORING time, not at user review.
+
+The verification produces a methodology note attached to the plate. The note must include:
+
+1. **The conceptual definition** in one plain-English sentence. Example: "Probability that an unemployed person exits unemployment within the month." Not "U_short / U" or any symbolic formulation. The reader's first encounter with the chart should be the concept, not the algebra.
+
+2. **The formula in plain variable names**, not math symbols. Example: "1 minus (long-duration unemployed next month ÷ unemployed this month)." Not "1 − u^l_{t+1} / u_t". User-codified 2026-05-13: math symbols slow the user's conceptual check; plain names accelerate it.
+
+3. **The source** — the paper, table, methodology page, or canonical reference the formula is derived from. Cite it directly. If the formula is the chart-builder's synthesis from multiple sources, name them.
+
+4. **Any simplification vs the source's canonical method**, named explicitly. If the source uses a numerical solve and you use a closed-form approximation, say so. If the source uses continuous-time hazards and you use discrete probabilities, say so. If the assumption introduces a bias, name the direction of the bias.
+
+This note becomes the chart's source line + an internal-research footnote at minimum. For methodology-heavy plates (Shimer-style flow rates, deflated ratios, contribution decompositions), the note also belongs on a public methodology page that the source line links to.
+
+**Verification step itself**: BEFORE declaring the chart done, walk the formula in plain English against the cited source. Read the source's equation; restate it in plain names; confirm the chart's wrapper computes exactly that quantity. If the source isn't directly readable (paywalled, no clean text version), name a substitute defensible source. If no defensible source exists, escalate to researcher rather than ship a methodology you can't verify.
+
+The recurring failure mode this guards against: chart-builder cites a paper's formula from memory or a gloss, ships the chart, and the user later finds that either (a) the formula doesn't match the cited source, or (b) the formula is right but doesn't match the labelled quantity. Both happen in the wild and both make readers (the audience's sophisticated tier especially) lose trust. Verification at authoring time costs minutes; verification at user-review time costs trust.
+
 ## Output format
 
-For new charts: component file + brief note on shared-component vs bespoke choice + per-chart visual notes for the art-director to review + **the `visual regression: ...` line** per the workflow above.
-For revisions: diff + what changed + **the `visual regression: ...` line**.
+For new charts: component file + brief note on shared-component vs bespoke choice + per-chart visual notes for the art-director to review + **the `visual regression: ...` line** per the workflow above + **the methodology note** per the section above when the chart is derived-rate / decomposition / indexed.
+For revisions: diff + what changed + **the `visual regression: ...` line** + **methodology-note update** if the math changed.

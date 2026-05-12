@@ -832,8 +832,18 @@ Production components: `src/components/charts/inflation/Panel*.astro`,
   - **Placement.** Hand-tuned. Annotations sit in white space, never
     over data. If white space is unavailable, the chart needs more
     margin.
-  - **Length.** 1-2 short clauses, ~12 words max. Longer thoughts
-    belong in the interpretation prose alongside the chart.
+  - **Length: words, not sentences.** Canvas annotations are limited
+    to a word or two — labels for periods, marks, or thresholds.
+    "Pandemic", "Pre-pandemic average", "Forecast", "BoC target",
+    "Latest". **NEVER full sentences, never sub-clauses, never
+    narrated implications.** If an annotation has a verb, it's a
+    sentence — cut it. Explanations of what the geometry shows belong
+    in the chart blurb, not on the canvas. The picture tells the
+    story; the canvas does not narrate it. (User-codified 2026-05-12
+    after Plate 2 wage chart shipped a two-line sentence annotation
+    duplicating the headline.) Exception: deep-dive hero charts that
+    anchor a piece can carry one editorial callout — even there,
+    prefer phrases over sentences.
   - **Wording.** Owned by `writer`. Visual treatment owned here.
 - **Hover.** A native SVG `<title>` element on each data point gives
   date + value in the browser's default tooltip. No custom hover
@@ -890,6 +900,103 @@ median), the chartbook unit renders a 2-up or 3-up grid. Each panel:
 - A 1px ink hairline separates the panels.
 - Each panel's title in `label` size, pure ink, 600 weight, sits above.
 - One source line at the bottom of the whole grid, not per panel.
+
+### Aggregate-vs-component overlay
+
+When a chart shows BOTH a big-picture aggregate AND the components
+that add up to it — Canada's unemployment rate alongside each
+province; the national MLS HPI alongside individual CMAs; total GDP
+alongside its industry breakdown; total CPI alongside sub-aggregates
+— the question is which line is the star and which is the supporting
+cast.
+
+**Convention: the component is the protagonist, the aggregate is the
+reference.** Reasoning: when someone is looking at the BC panel, they
+are not there to find out what Canada's number is — they are there to
+see where BC sits relative to it. The aggregate's role is context,
+not signal.
+
+Treatment within each panel:
+
+- **Component** (province, CMA, industry, sub-aggregate): 1.5px solid
+  ink line. Latest data point in MTA red — the protagonist's terminal
+  accent.
+- **Aggregate** (Canada, national, total): 1px dashed ink line at
+  55-60% opacity. **No red dot at the terminus.** The faint dashed
+  treatment immediately tells the eye "this is just context; pay
+  attention to the solid line."
+
+Opacity at 55-60% rather than 50% because at quarter-panel size in a
+4-up grid (the recurring small-multiples case), 50% fades into the
+gridlines and the reference disappears.
+
+This rule applies inside small multiples (where it composes cleanly
+with the small-multiples grid) AND inside single-panel aggregate-vs-
+component charts (e.g. a national rate with its largest two CMAs
+overlaid).
+
+Live exemplars where this rule applies:
+- Labour P5 — provincial unemployment small multiples, Canada as
+  dashed reference (the convention's anchor case).
+- Housing P1 — MLS HPI national + six CMAs, when reworked.
+- Output P3 — services vs goods Y/Y (each side is its own
+  component; no separate aggregate, so the rule doesn't apply here).
+
+The rule does NOT apply when both series are peers of equal editorial
+weight (e.g. core-trim and core-median — both are core measures, no
+hierarchy). In that case use the canonical primary / secondary
+treatment from `PanelLiveChart`.
+
+### Methodology discipline (derived-rate / decomposition / indexed charts)
+
+Charts that compute anything beyond a direct pull of a published series
+— a derived rate, a decomposition, an indexed series, a smoothed
+measure — carry methodology risk. The chart-builder citing a formula
+from memory and shipping is the failure mode the user has caught
+repeatedly: the formula may not match the cited source, or it may
+match the source but not the labelled quantity. Either way the
+sophisticated reader checks and loses trust.
+
+Hard rule: every such chart ships with a methodology note that
+includes, in this order:
+
+1. **The conceptual definition** — one plain-English sentence
+   naming what the chart computes. "Probability that an unemployed
+   person exits unemployment within the month." Not symbols. Not
+   formulas. The concept first.
+
+2. **The formula in plain variable names** — never math symbols in
+   the reader-facing note. "1 minus (long-duration unemployed next
+   month ÷ unemployed this month)." Not "1 − u^l_{t+1} / u_t". The
+   user reads the formula to check that the chart computes what they
+   think it does; symbols slow that check.
+
+3. **The source** — the paper, table, methodology page, or canonical
+   reference the formula derives from. Cite it directly. If the
+   chart-builder synthesised from multiple sources, name them.
+
+4. **Any simplification vs the source's canonical method**, named
+   explicitly. Closed-form approximation vs numerical solve.
+   Discrete probabilities vs continuous-time hazards. Stocks-only
+   vs microdata-derived flows. If the simplification biases the
+   result, name the direction of the bias.
+
+The methodology note belongs at minimum in the chart's source line.
+For methodology-heavy plates (flow decompositions, deflated ratios,
+contribution decompositions), the note also belongs on a public
+methodology page that the source line links to.
+
+The verification step that produces the note is part of authoring,
+not part of post-review. Chart-builder agent file (`.claude/agents/
+chart-builder.md`) carries the operational discipline under
+"Methodology verification."
+
+User-codified 2026-05-13 after a Shimer-style separation/finding
+rate decomposition shipped with formulas the chart-builder cited
+from memory; the user independently replicated the math in Excel
+from raw StatCan data and the numbers matched, but the round trip
+took multiple turns because verification happened at review rather
+than at authoring.
 
 ### Hand-tuning approach
 

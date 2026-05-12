@@ -308,18 +308,51 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
     "labour": [
         PanelSpec(
             panel_id="panel-1", section="labour", panel_num=1,
-            file="labour/Panel1LFSHeadline.astro",
-            primary=SlotSpec("unemployment_rate", "raw", label="Unemployment rate"),
-            secondary=SlotSpec("employment_rate", "raw", label="Employment rate"),
-            tertiary=SlotSpec("participation_rate", "raw", label="Participation rate"),
+            file="labour/Panel1HeadlinePrint.astro",
+            primary=SlotSpec("employment_level", "raw",
+                             label="Employment level (SA, monthly, millions)"),
+            secondary=SlotSpec("unemployment_rate", "raw",
+                               label="Unemployment rate (SA, monthly, %)"),
+            tertiary=SlotSpec("employment_rate", "raw",
+                              label="Employment rate (archival, retired triptych)"),
+            extras=(
+                SlotSpec("participation_rate", "raw",
+                         label="Participation rate (archival, retired triptych)"),
+            ),
+            expected_status="WIRED",
+            notes=(
+                "Headline-print plate (2026-05-12). Primary = employment_level "
+                "(StatCan Table 14-10-0287-01 v2062811, employed persons 15+ SA "
+                "monthly in millions); the chart wrapper derives m/m delta in "
+                "thousands of persons for the bar geometry. Secondary = "
+                "unemployment_rate (same table, SA %) for the right-axis line. "
+                "Tertiary + participation_rate retained as archival slots from "
+                "the retired Panel1LFSHeadlineSmallMultiples triptych (now at "
+                "_alternatives/labour/Alt_Panel1LFSHeadlineSmallMultiples.astro); "
+                "the live plate does not consume them."
+            ),
         ),
         PanelSpec(
             panel_id="panel-2", section="labour", panel_num=2,
-            file="labour/Panel2PerCapita.astro",
-            primary=SlotSpec("unemployment_level", "raw", label="Employment level (proxy)"),
-            secondary=SlotSpec("aggregate_hours", "raw", label="Aggregate hours worked"),
+            file="labour/Panel2URDrivers.astro",
+            primary=SlotSpec("employment_level", "raw",
+                             label="Employment level (SA, monthly, millions)"),
+            secondary=SlotSpec("unemployment_rate", "raw",
+                               label="Unemployment rate (SA, monthly, %)"),
             expected_status="WIRED",
-            notes="employment_level (StatCan v2062811) is on disk as of 2026-05-12; chart wrapper can compute per-capita Y/Y. pop_total quarterly level is WIRED (v1, Table 17-10-0009-01). aggregate_hours.csv on disk (v4391505).",
+            notes=(
+                "UR-drivers plate (2026-05-12). Replaces the retired m/m "
+                "identity decomp (Alt_Panel2URDecompIdentity.astro). Same "
+                "shape as panel-1: primary = employment_level (StatCan "
+                "v2062811, SA monthly, millions), secondary = unemployment_"
+                "rate (StatCan v2062815, SA monthly, %). Chart wrapper "
+                "derives labour-force level via the LFS identity "
+                "(LF = E / (1 - UR/100)), then computes 3-month annualized "
+                "growth for both employment and labour force "
+                "(((level[t]/level[t-3])^4 - 1) * 100), and renders the "
+                "signed gap (LF_growth - emp_growth) as bars. No pipeline "
+                "transforms; everything chart-side."
+            ),
         ),
         PanelSpec(
             panel_id="panel-3", section="labour", panel_num=3,

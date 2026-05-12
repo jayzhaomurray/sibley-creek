@@ -25,16 +25,16 @@ three rates share a single axis. Multi-year history.
 
 
 **Diagnosis — why the current chart isn't getting them there:**
-
+you nailed why the chart doesn't work. it looks like two horizontal lines far apart. we're also missing participation on the chart currently. a tryptich small multiple could work. another idea i have is to decompose the unemployment rate. this would be a single panel. unemployment rate alone is the line. but then in stacked bars there are the inflows and outflows that explain it. entering/exiting the labour force. getting hired or losing job. so right now, i think we need to scrap the chart we have and replace it with three charts. the two you suggested (i'll probably just keep one but we'll see). and the decomp.
 
 **Cuttable?** (yes / no / maybe)
 
 
 _Optional starter hypotheses:_
-- [ ] Three lines on different absolute levels (UR ~7%, employment rate ~60%, participation ~65%) — y-axis range has to span all three, so the recent action (0.1pp moves) compresses visually
+- [X] Three lines on different absolute levels (UR ~7%, employment rate ~60%, participation ~65%) — y-axis range has to span all three, so the recent action (0.1pp moves) compresses visually
 - [ ] The "steady on top, softening underneath" thesis isn't visible in the line geometry — needs annotation or split-view
-- [ ] Should be small multiples — one panel per rate, each with its own y-range, so the action in each reads
-- [ ] Or: index all three to a common base (e.g. Feb 2020 = 100) so they share a scale and the divergence is the geometry
+- [X] Should be small multiples — one panel per rate, each with its own y-range, so the action in each reads
+- [X] Or: index all three to a common base (e.g. Feb 2020 = 100) so they share a scale and the divergence is the geometry
 - [ ] Participation rate may not be carrying weight — could be cut to two lines for clarity
 - [ ] Time window — the disinflation cycle reads cleanest from 2022 onwards
 - [ ] Something else:
@@ -51,13 +51,13 @@ CPI line as a real-wage anchor. Likely four-line spaghetti. Y-axis in
 % Y/Y.
 
 **What you want the reader to retain (so what?):**
-
+is wage growth picking up or slowing down? do different measures agree or disagree?
 
 **Diagnosis — why the current chart isn't getting them there:**
-
+we only have lfs permanent and lfs all on the chart. they're in dollars it looks like. so it's just two parallel diagonal lines. what it says is that wages have gone up 8 bucks over the last few years. that's not really the question we're asking. we don't have any of the other wage indicators. we don't even have lfs micro which should be our main indicator now.
 
 **Cuttable?** (yes / no / maybe)
-
+entirely replaceable
 
 _Optional starter hypotheses:_
 - [ ] Four-line chart is too many for the eye to track
@@ -95,7 +95,7 @@ _Optional starter hypotheses:_
 - [ ] Time-path is hard to read on a scatter — could add year-month labels along the path at key inflections
 - [ ] Imputed segment (dashed) reads fine but the methodology note belongs in the source line, not on the chart
 - [ ] Already perfect, don't touch
-- [ ] Something else:
+- [X] Something else: Beveridge curve is fine as far as a beveridge curve goes. it's a fairly standard presentation for people who are familiar with the concept. Maybe we add an additional chart that's just vacancies and unemployment (levels) on one left panel and then a bar chart of the spread on the right panel. this does a lot of the same work as this chart but together they might read better; the new chart would be much easier for the average person to understand.
 
 ---
 
@@ -123,7 +123,7 @@ _Optional starter hypotheses:_
 - [ ] The "five consecutive negative NPR quarters" claim is countable and should be visible
 - [ ] The October 2024 plan pivot is a dated event — could be annotated with a vertical line
 - [ ] Time window
-- [ ] Something else:
+- [X] Something else: fundamentally we want to know how the population is changing so this could be a stacked bar (natural growth from births/deaths bucketed together, net temporary, net permanent immigrants. so three buckets compositionally and one line for the population.) let's make this chart separately, not as a replacement just yet. and if we like it we'll swap it in.
 
 ---
 
@@ -147,11 +147,11 @@ panel.
 
 _Optional starter hypotheses:_
 - [ ] Five-line chart — classic spaghetti problem; eye can't track each province
-- [ ] Should be small multiples (one panel per province with Canada as a faint reference line in each)
+- [X] Should be small multiples (one panel per province with Canada as a faint reference line in each)
 - [ ] Or: a dumbbell / forest plot showing the 12-month delta per province — kills the time dimension but shows the "four-way split" clearly
 - [ ] Endpoint labels at each line terminus would help reduce the legend burden
 - [ ] Time window
-- [ ] Something else:
+- [X] Something else: four small multiples, one per major province. each small multiple has the canada comparator. wondering if we should potentially use colour to distinguish province from country or not; ask art director for opinions.
 
 ---
 
@@ -179,7 +179,7 @@ _Optional starter hypotheses:_
 - [ ] The "leading" relationship to LFS is the editorial point — could be visualized via a two-panel small multiple (level on top, with LFS unemployment rate overlaid; deltas / Y/Y below)
 - [ ] Latest peak (Nov 2025) and current (Feb 2026) need to be clearly marked
 - [ ] Time window
-- [ ] Something else:
+- [X] Something else: maybe this should be population deflated. need to see which population makes sense as comparator (has to be eligible for ei, don't know if temporary residents are eligible and they are now significant proportion). and then we should also have comparators on the chart. not necessarily another line, but perhaps thresholds that make sense "this is about normal, this is high, this is crisis" type of takeaway
 
 ---
 

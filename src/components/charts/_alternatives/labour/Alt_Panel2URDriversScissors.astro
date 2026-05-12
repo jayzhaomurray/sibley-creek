@@ -1,0 +1,535 @@
+---
+/*
+ * Alt_Panel2URDriversScissors - ARCHIVED V2 (2026-05-12)
+ *
+ * This was the live Panel2URDrivers.astro between 2026-05-12 morning and
+ * 2026-05-12 afternoon. Replaced by V3 (indexed-levels wedge) which
+ * carries a stronger reader signal in ordinary months. V2 used 3-month
+ * annualized growth rates - both lines hovered near zero most months, so
+ * the editorial wedge only opened in dramatic prints.
+ *
+ * V3's geometry: cumulative indexed levels (Jan 2024 = 100) for both
+ * employment and labour force. The wedge between them widens monotonically
+ * as the UR drifts up, and the wedge in index points approximately equals
+ * the UR change in pp over the same window. Same indicator family, same
+ * data wiring, much more visible signal.
+ *
+ * V1 archived at _alternatives/labour/Alt_Panel2URDriversDualPanel.astro
+ * (the dual-panel scissors that V2 collapsed).
+ *
+ * --- original V2 header below ---
+ *
+ * Panel2URDrivers (V2, single-panel scissors) - growth-rate scissors plate
+ * for the unemployment-rate driver question.
+ *
+ * Editorial question this plate answers (user-codified 2026-05-12):
+ *   "Is the unemployment rate rising because people are losing jobs, or
+ *   because the labour force is growing faster than hiring?"
+ *
+ * Editorial logic. The unemployment rate moves with the gap between
+ * labour-force growth and employment growth. When LF grows faster than
+ * employment, UR rises; when employment grows faster than LF, UR falls.
+ * The gap between the two lines IS the editorial argument.
+ *
+ * V2 cut: the V1 dual-panel layout paired the two-line scissors with a
+ * signed-bar sub-panel of (LF - employment) growth in pp. User concluded
+ * the signed-bar panel was redundant with Plate 1 (which already shows
+ * UR direction and speed via the UR line) -- the growth-rate gap is a
+ * derivative of a ratio, two steps from anything physical, and lacked
+ * the standalone observable-state reading that Plate 4a's
+ * vacancy-minus-UR spread carries. V2 keeps only the two-line scissors
+ * on a single full-width canvas. V1 archived at
+ * _alternatives/labour/Alt_Panel2URDriversDualPanel.astro.
+ *
+ * Geometry mirrors Panel3WageBandV3 - single full-width plot area on the
+ * 720x405 canon, 60-month-style margins adjusted for a 36-month window.
+ * The shaded gap-band between the two lines (same 6% ink token as the
+ * recession band) carries the comparison visually; no annotations name
+ * which line is "winning" -- the chart's argument is the gap itself.
+ *
+ * Growth basis. 3-month annualized m/m percent change per series:
+ *   ((level[t] / level[t-3]) ^ (12/3) - 1) * 100
+ * Smooth enough to read as a trend, recent enough to map to current UR
+ * moves. Y/Y is too slow; m/m flips sign too often to be a tracker signal.
+ *
+ * Series:
+ *   Employment:   1.5px solid pure ink, MTA-red terminal dot. (main)
+ *   Labour force: 1px dashed (4-2) pure ink, no terminal dot. (comparator)
+ * Visual weights stay fixed across vintages -- the chart is about the
+ * gap, not which line is "winning" in the current vintage. When the
+ * story flips (employment outgrowing LF, UR falling), the same chart
+ * renders the opposite signal naturally without code changes.
+ *
+ * Plain word labels ("Labour force" / "Employment") at line termini only.
+ * NO sub-panel titles (single panel; plate title in labour.astro carries
+ * the role). NO duplicate direct labels. NO methodology micro-note on
+ * canvas. NO sentence annotations.
+ *
+ * Data wiring. Pipeline panel-2 spec emits:
+ *   primary   = employment_level   (StatCan v2062811, SA monthly, millions)
+ *   secondary = unemployment_rate  (StatCan v2062815, SA monthly, %)
+ * The chart derives the labour-force level at render time via the LFS
+ * identity:
+ *   LF[t] = employment_level[t] / (1 - unemployment_rate[t] / 100)
+ * Then derives both 3-month annualized growth rates. No pipeline
+ * transforms; everything chart-side.
+ *
+ * Verified spot-check (April 2026 vintage):
+ *   April:    LF +0.05% (3-mo annualized), E -1.65%
+ *   March:    LF -2.20%,                   E -1.78%
+ *   February: LF -1.43%,                   E -1.85%
+ * Values match the dual-panel V1 exactly (same formula).
+ */
+
+import type { PanelData, SeriesPoint } from "../../_shared/panelData";
+import { decYear } from "../../_shared/panelData";
+import PanelEmpty from "../../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+const { data = null } = Astro.props;
+
+// 36 months of 3-mo annualized growth readings; need ~39 months of raw
+// levels to compute (3-month lag at the leftmost visible point).
+const WINDOW_MONTHS = 36;
+
+function pickStride(lo: number, hi: number, targetTicks = 5): number {
+  const span = hi - lo;
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  const rough = span / targetTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let nice: number;
+  if (norm < 1.5) nice = 1;
+  else if (norm < 3) nice = 2;
+  else if (norm < 4) nice = 2.5;
+  else if (norm < 7) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+
+function lastReal(series: SeriesPoint[]): { date: string; value: number } | null {
+  for (let i = series.length - 1; i >= 0; i--) {
+    const pt = series[i]!;
+    if (typeof pt.value === "number" && !Number.isNaN(pt.value)) {
+      return { date: pt.date, value: pt.value };
+    }
+  }
+  return null;
+}
+
+// 3-month annualized percent change: ((level[t] / level[t-3]) ^ 4 - 1) * 100
+function ann3pct(series: SeriesPoint[]): SeriesPoint[] {
+  const out: SeriesPoint[] = [];
+  for (let i = 0; i < series.length; i++) {
+    const here = series[i]!;
+    const prev = i >= 3 ? series[i - 3] : null;
+    if (
+      !prev ||
+      typeof here.value !== "number" || Number.isNaN(here.value) ||
+      typeof prev.value !== "number" || Number.isNaN(prev.value) ||
+      prev.value === 0
+    ) {
+      out.push({ date: here.date, value: null });
+      continue;
+    }
+    const ratio = here.value / prev.value;
+    if (ratio <= 0) {
+      out.push({ date: here.date, value: null });
+      continue;
+    }
+    out.push({ date: here.date, value: (Math.pow(ratio, 4) - 1) * 100 });
+  }
+  return out;
+}
+
+// Trim to the editorial window after derivation, so the first row in the
+// window is itself a real 3-mo annualized reading (not a null).
+function tailRealOnly(s: SeriesPoint[], n: number): SeriesPoint[] {
+  const real = s.filter((p) => typeof p.value === "number" && !Number.isNaN(p.value));
+  return real.slice(-n);
+}
+
+// ---- Source series + derivation -----------------------------------------
+const empLevels = data?.primary?.data ?? [];
+const urSeries = data?.secondary?.data ?? [];
+
+// Derive labour-force level (millions) at every matched date using the
+// LFS identity LF = E / (1 - UR/100). UR is in percent.
+const urMap = new Map<string, number | null>(urSeries.map((p) => [p.date, p.value]));
+const lfLevels: SeriesPoint[] = [];
+for (const pt of empLevels) {
+  const ur = urMap.get(pt.date);
+  if (
+    typeof pt.value === "number" && !Number.isNaN(pt.value) &&
+    typeof ur === "number" && !Number.isNaN(ur)
+  ) {
+    const denom = 1 - ur / 100;
+    if (denom > 0) {
+      lfLevels.push({ date: pt.date, value: pt.value / denom });
+      continue;
+    }
+  }
+  lfLevels.push({ date: pt.date, value: null });
+}
+
+const empGrowthAll = ann3pct(empLevels);
+const lfGrowthAll = ann3pct(lfLevels);
+
+const empGrowth = tailRealOnly(empGrowthAll, WINDOW_MONTHS);
+const lfGrowth = tailRealOnly(lfGrowthAll, WINDOW_MONTHS);
+
+const hasData = empGrowth.length > 0 && lfGrowth.length > 0;
+
+// ---- Geometry (single panel; mirrors Panel3WageBandV3) ------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 56;
+const M_R = 120;   // right gutter seats "Labour force" / "Employment" direct labels
+const M_T = 32;
+const M_B = 40;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+// ---- x-domain spans both series ----------------------------------------
+const xs = [...empGrowth, ...lfGrowth]
+  .map((d) => decYear(d.date))
+  .filter((v) => !Number.isNaN(v));
+const xMin = xs.length > 0 ? Math.min(...xs) : 0;
+const xMax = xs.length > 0 ? Math.max(...xs) : 1;
+
+// ---- y-domain spans both series; force zero visibility -----------------
+const allY: number[] = [];
+for (const d of empGrowth) if (typeof d.value === "number") allY.push(d.value);
+for (const d of lfGrowth) if (typeof d.value === "number") allY.push(d.value);
+
+let yLo = -1, yHi = 1;
+if (allY.length > 0) {
+  const rawMin = Math.min(...allY);
+  const rawMax = Math.max(...allY);
+  const span = (rawMax - rawMin) || Math.max(0.5, Math.abs(rawMax) * 0.1);
+  yLo = rawMin - span * 0.12;
+  yHi = rawMax + span * 0.12;
+  // Force zero visibility -- the zero crossing is the editorial argument.
+  if (yLo > 0) yLo = -span * 0.05;
+  if (yHi < 0) yHi = span * 0.05;
+}
+const yRange = yHi - yLo || 1;
+const crossesZero = yLo < 0 && yHi > 0;
+
+function xScale(yr: number): number {
+  if (xMax === xMin) return PLOT_X0 + PLOT_W / 2;
+  return PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
+}
+
+// ---- Gap-band polygon (drawn behind both lines) -------------------------
+//
+// The polygon traces the upper of the two series along its forward sweep,
+// then the lower in reverse. Joined on a shared date grid so vertical
+// bands between paired points read cleanly. Mirrors Panel3WageBandV3's
+// gap-band logic.
+type Paired = { x: number; yHi: number; yLo: number };
+
+function buildPairedGrid(a: SeriesPoint[], b: SeriesPoint[]): Paired[] {
+  const bMap = new Map<string, number>();
+  for (const p of b) {
+    if (typeof p.value === "number" && !Number.isNaN(p.value)) {
+      bMap.set(p.date, p.value);
+    }
+  }
+  const out: Paired[] = [];
+  for (const p of a) {
+    if (typeof p.value !== "number" || Number.isNaN(p.value)) continue;
+    const bv = bMap.get(p.date);
+    if (bv === undefined) continue;
+    const xv = decYear(p.date);
+    if (Number.isNaN(xv)) continue;
+    const x = xScale(xv);
+    const aY = yScale(p.value);
+    const bY = yScale(bv);
+    out.push({
+      x,
+      yHi: Math.min(aY, bY),  // smaller screen y = visually upper
+      yLo: Math.max(aY, bY),
+    });
+  }
+  return out;
+}
+
+function buildGapBandPath(paired: Paired[]): string {
+  if (paired.length < 2) return "";
+  let d = `M${paired[0]!.x.toFixed(2)} ${paired[0]!.yHi.toFixed(2)} `;
+  for (let i = 1; i < paired.length; i++) {
+    d += `L${paired[i]!.x.toFixed(2)} ${paired[i]!.yHi.toFixed(2)} `;
+  }
+  for (let i = paired.length - 1; i >= 0; i--) {
+    d += `L${paired[i]!.x.toFixed(2)} ${paired[i]!.yLo.toFixed(2)} `;
+  }
+  d += "Z";
+  return d.trim();
+}
+
+const pairedGrid = buildPairedGrid(lfGrowth, empGrowth);
+const gapBandPath = buildGapBandPath(pairedGrid);
+
+// ---- Line paths --------------------------------------------------------
+function buildLinePath(series: SeriesPoint[]): string {
+  let p = "";
+  let started = false;
+  for (const pt of series) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) { started = false; continue; }
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    p += (started ? "L" : "M") + xScale(xv).toFixed(2) + " " + yScale(pt.value).toFixed(2) + " ";
+    started = true;
+  }
+  return p.trim();
+}
+
+const lfPath = buildLinePath(lfGrowth);
+const empPath = buildLinePath(empGrowth);
+
+const lastLF = lastReal(lfGrowth);
+const lastLFxy = lastLF ? {
+  x: xScale(decYear(lastLF.date)),
+  y: yScale(lastLF.value),
+  value: lastLF.value,
+  date: lastLF.date,
+} : null;
+const lastEmp = lastReal(empGrowth);
+const lastEmpXY = lastEmp ? {
+  x: xScale(decYear(lastEmp.date)),
+  y: yScale(lastEmp.value),
+  value: lastEmp.value,
+  date: lastEmp.date,
+} : null;
+
+// ---- Y-axis ticks ------------------------------------------------------
+const yStride = pickStride(yLo, yHi);
+const yTicks: number[] = [];
+const yStart = Math.ceil(yLo / yStride) * yStride;
+for (let v = yStart; v <= yHi + 1e-9; v += yStride) yTicks.push(Number(v.toFixed(6)));
+if (yTicks.length === 0) yTicks.push(Number(((yLo + yHi) / 2).toFixed(6)));
+
+// ---- X-axis year ticks -------------------------------------------------
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const allYearTicks: Array<{ x: number; label: string }> = [];
+for (let yr = yearStart; yr <= yearEnd; yr++) {
+  const decY = yr + (1 - 0.5) / 12;
+  if (decY < xMin || decY > xMax) continue;
+  allYearTicks.push({ x: xScale(decY), label: String(yr) });
+}
+const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 5));
+const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
+
+// ---- Direct-label placement (line termini, right gutter) ---------------
+//
+// LF label anchors to the labour-force terminus; Employment label anchors
+// to the employment terminus. If the two would collide vertically, push
+// employment away from LF (LF carries the editorial weight, gets the
+// natural position).
+const LABEL_GAP_X = 10;
+const LABEL_MIN_DY = 14;
+
+let lfLabelY = lastLFxy ? lastLFxy.y + 4 : 0;
+let empLabelY = lastEmpXY ? lastEmpXY.y + 4 : 0;
+if (lastLFxy && lastEmpXY) {
+  if (Math.abs(lfLabelY - empLabelY) < LABEL_MIN_DY) {
+    if (empLabelY >= lfLabelY) empLabelY = lfLabelY + LABEL_MIN_DY;
+    else empLabelY = lfLabelY - LABEL_MIN_DY;
+  }
+}
+
+const ariaLabel =
+  "Two lines on a single panel: employment growth and labour-force growth, 3-month annualized percent change, last 36 months. Labour-force line solid; employment line dashed. The shaded band between the two lines is the gap (labour force minus employment growth); when the band sits with labour force above employment the unemployment rate rises, when the band sits with employment above labour force the unemployment rate falls. Labour force at each date is derived from the LFS identity (employment level divided by one minus the unemployment rate). Source: Statistics Canada Table 14-10-0287-01.";
+---
+{hasData ? (
+  <div class="canon-chart" data-panel="labour-panel-2-ur-drivers-scissors">
+    <svg
+      class="canon-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {/* Gap-band ink wash drawn BEHIND the lines. Same 6% ink token as
+         the recession band and Panel3WageBandV3. The band IS the
+         editorial argument; no callout names which side is up. */}
+      {gapBandPath && (
+        <path
+          class="ur-drivers__gap-band"
+          d={gapBandPath}
+          fill="rgba(21, 23, 26, 0.06)"
+          stroke="none"
+        />
+      )}
+
+      {yTicks.map((v) => {
+        const yy = yScale(v);
+        if (crossesZero && Math.abs(v) < 1e-9) return null;
+        return (
+          <line
+            class="canon-chart__gridline"
+            x1={PLOT_X0}
+            y1={yy.toFixed(2)}
+            x2={PLOT_X1}
+            y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      {crossesZero && (
+        <line
+          class="canon-chart__zero-line"
+          x1={PLOT_X0}
+          y1={yScale(0).toFixed(2)}
+          x2={PLOT_X1}
+          y2={yScale(0).toFixed(2)}
+        />
+      )}
+
+      <defs>
+        <clipPath id="ur-drivers-scissors-clip">
+          <rect x={PLOT_X0} y={PLOT_Y0} width={PLOT_W} height={PLOT_H} />
+        </clipPath>
+      </defs>
+      <g clip-path="url(#ur-drivers-scissors-clip)">
+        {/* Labour force (comparator, dashed) drawn first so employment sits on top. */}
+        {lfPath && (
+          <path class="canon-chart__line canon-chart__line--secondary" d={lfPath} fill="none" />
+        )}
+        {empPath && (
+          <path class="canon-chart__line" d={empPath} fill="none" />
+        )}
+      </g>
+
+      <rect
+        class="canon-chart__frame"
+        x={PLOT_X0}
+        y={PLOT_Y0}
+        width={PLOT_W}
+        height={PLOT_H}
+      />
+
+      {xTicks.map((t) => (
+        <g>
+          <line
+            class="canon-chart__xtick"
+            x1={t.x.toFixed(2)}
+            y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="canon-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {yTicks.map((v, i) => {
+        const yy = yScale(v);
+        const isTop = i === yTicks.length - 1;
+        const txt = `${v.toFixed(1)}${isTop ? "%" : ""}`;
+        return (
+          <text
+            class="canon-chart__ytick-label"
+            x={(PLOT_X0 - 8).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{txt}</text>
+        );
+      })}
+
+      {/* MTA-red terminal dot on the employment line (main). */}
+      {lastEmpXY && (
+        <circle
+          class="canon-chart__latest-dot"
+          cx={lastEmpXY.x.toFixed(2)}
+          cy={lastEmpXY.y.toFixed(2)}
+          r="4"
+        >
+          <title>{`Employment, 3-mo ann., ${lastEmpXY.date}: ${lastEmpXY.value >= 0 ? "+" : ""}${lastEmpXY.value.toFixed(2)}%`}</title>
+        </circle>
+      )}
+
+      {/* Direct labels at line termini, right gutter. Word-only per canon. */}
+      {lastEmpXY && (
+        <text
+          class="ur-drivers__label-primary"
+          x={(lastEmpXY.x + LABEL_GAP_X).toFixed(2)}
+          y={empLabelY.toFixed(2)}
+          text-anchor="start"
+        >Employment</text>
+      )}
+      {lastLFxy && (
+        <text
+          class="ur-drivers__label-secondary"
+          x={(lastLFxy.x + LABEL_GAP_X).toFixed(2)}
+          y={lfLabelY.toFixed(2)}
+          text-anchor="start"
+        >
+          <title>{`Labour force, 3-mo ann., ${lastLFxy.date}: ${lastLFxy.value >= 0 ? "+" : ""}${lastLFxy.value.toFixed(2)}%`}</title>
+          Labour force
+        </text>
+      )}
+    </svg>
+  </div>
+) : (
+  <PanelEmpty reason="Employment level and unemployment rate series both required for the UR-drivers plate." />
+)}
+
+<style>
+  .canon-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
+  .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
+
+  /* Canon hairlines (shared) */
+  .canon-chart__gridline { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges; }
+  .canon-chart__zero-line { stroke: var(--ink); stroke-width: 1; stroke-opacity: 1; shape-rendering: crispEdges; }
+  .canon-chart__frame { fill: none; stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__latest-dot { fill: var(--accent); stroke: none; }
+
+  /* Lines: labour force is primary (solid 1.5px ink), employment is
+     secondary (1px dashed ink). Weights fixed across vintages -- the
+     chart is about the gap, not which line wins. */
+  .canon-chart__line {
+    stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round;
+    stroke-linecap: round; fill: none; vector-effect: non-scaling-stroke;
+  }
+  .canon-chart__line--secondary {
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.85;
+    stroke-dasharray: 4 2;
+  }
+
+  .ur-drivers__gap-band { pointer-events: none; }
+
+  /* Direct labels at line termini. */
+  .ur-drivers__label-primary {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px; font-weight: var(--fw-semibold);
+  }
+  .ur-drivers__label-secondary {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px; font-weight: var(--fw-regular);
+  }
+</style>

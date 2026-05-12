@@ -1,0 +1,88 @@
+---
+/*
+ * Panel1LFSHeadlineIndexed - LFS headline rates indexed to Feb 2020 = 100.
+ *
+ * Alternative companion to Panel1LFSHeadlineSmallMultiples. Diagnosis
+ * (editorial/chart-diagnosis/labour.md P1): three rates at different
+ * absolute levels (UR ~7%, employment ~60%, participation ~65%)
+ * compress the recent action on a shared axis. The fix: index all
+ * three to the pre-pandemic baseline (Feb 2020 = 100). Now they share a
+ * common scale and the geometry of divergence IS the editorial point.
+ *
+ * Reads as cumulative % change since Feb 2020. The employment rate
+ * sagged most through the pandemic and has barely recovered; the
+ * unemployment rate spiked, fell, and is climbing back; participation
+ * has its own trajectory. The gap between the three lines carries the
+ * story.
+ *
+ * Pattern cribbed from Panel6IndustryCyclical (Dec 2019 anchor for GDP
+ * industry indices). The reference rule at 0 marks the Feb 2020 base.
+ */
+
+import type { PanelData, PanelSeries, SeriesPoint } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+const { data = null } = Astro.props;
+
+const ANCHOR_DATE = "2020-02-01";
+
+function indexedPctChange(series: SeriesPoint[]): SeriesPoint[] {
+  const baseIdx = series.findIndex((p) => p.date === ANCHOR_DATE);
+  if (baseIdx < 0) return series.map((p) => ({ date: p.date, value: null }));
+  const base = series[baseIdx]?.value;
+  if (typeof base !== "number" || base === 0) {
+    return series.map((p) => ({ date: p.date, value: null }));
+  }
+  return series.slice(baseIdx).map((p) => {
+    if (typeof p.value !== "number" || Number.isNaN(p.value)) {
+      return { date: p.date, value: null };
+    }
+    return { date: p.date, value: (p.value / base - 1) * 100 };
+  });
+}
+
+function rebase(s: PanelSeries | null | undefined, key: string, label: string): PanelSeries | null {
+  if (!s) return null;
+  return {
+    key,
+    label,
+    data: indexedPctChange(s.data),
+    unit: "%",
+    kind: "percent",
+    frequency: s.frequency ?? "monthly",
+    asOfISO: s.asOfISO ?? null,
+    source: s.source ?? null,
+    sourceUrl: s.sourceUrl ?? null,
+    sourceId: s.sourceId ?? null,
+  };
+}
+
+const ur = rebase(data?.primary, "ur_indexed", "Unemployment");
+const er = rebase(data?.secondary, "er_indexed", "Employment");
+const pr = rebase(data?.tertiary, "pr_indexed", "Participation");
+
+const hasData = ur !== null && er !== null && pr !== null;
+// Months from Feb 2020 to latest: cycle is ~72 months and counting.
+const WINDOW_MONTHS = 84;
+---
+{hasData && ur ? (
+  <PanelLiveChart
+    primary={ur}
+    secondary={er}
+    tertiary={pr}
+    primaryLabel="Unrate"
+    secondaryLabel="Emp. rate"
+    tertiaryLabel="Particip."
+    windowMonths={WINDOW_MONTHS}
+    referenceValue={0}
+    referenceLabel="Feb 2020"
+    dataPanelAttr="labour-1-indexed"
+    ariaLabel="Unemployment rate, employment rate and participation rate, cumulative percent change since February 2020."
+  />
+) : (
+  <PanelEmpty reason="LFS triplet not available for Feb 2020 indexing." />
+)}

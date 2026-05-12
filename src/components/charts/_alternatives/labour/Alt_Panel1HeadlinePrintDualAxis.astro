@@ -1,0 +1,634 @@
+---
+/*
+ * Panel1HeadlinePrint - the labour print-day chart.
+ *
+ * Editorial premise (user-codified 2026-05-12, verbatim): "When I get
+ * fresh data, the first thing I want to know is what was the monthly
+ * change in jobs, and what's the unemployment rate. The first chart
+ * will be a panel showing exactly that. Monthly job change in bars and
+ * unemployment rate as a line."
+ *
+ * Geometry: single 720x405 canvas, dual encoding on one plot.
+ *   - LEFT y-axis: monthly change in employment, thousands of persons.
+ *     Derived m/m delta from employment_level (StatCan v2062811, in
+ *     millions). Bars: 1px stroke, black fill for positive, MTA red
+ *     for negative; latest bar carries no separate accent (the line's
+ *     terminal dot is the latest-print marker).
+ *   - RIGHT y-axis: unemployment rate, %. Standard 1.5px ink line with
+ *     MTA red terminal dot.
+ *   - Window: trailing 36 months from the latest LFS print.
+ *
+ * Wiring: panel-1 emits primary=employment_level (millions), secondary=
+ * unemployment_rate (%). Tertiary/extras are archival from the retired
+ * triptych and are not read here.
+ *
+ * Methodology (called out on-canvas): m/m delta =
+ * employment_level[t] - employment_level[t-1], converted from millions
+ * of persons to thousands of persons.
+ *
+ * Direct labels at the terminals: "+/-XXk jobs" tagged to the rightmost
+ * bar's value, "UR X.X%" tagged to the line's red dot. Per canon
+ * (design/design-system.md Section ~8) canvas annotations are words
+ * only - no sentences; full prose lives in the blurb. The legend pair
+ * "Monthly job change" / "Unrate" sit in the top margin, each tied to
+ * its encoding by its own micro-symbol (a small ink rect / a short
+ * line segment with red dot).
+ */
+
+import type { PanelData, SeriesPoint } from "../../_shared/panelData";
+import { decYear, tailWindow } from "../../_shared/panelData";
+import PanelEmpty from "../../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+const { data = null } = Astro.props;
+
+const WINDOW_MONTHS = 36;
+
+function pickStride(lo: number, hi: number, targetTicks = 4): number {
+  const span = hi - lo;
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  const rough = span / targetTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let nice: number;
+  if (norm < 1.5) nice = 1;
+  else if (norm < 3) nice = 2;
+  else if (norm < 4) nice = 2.5;
+  else if (norm < 7) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+
+function lastReal(series: SeriesPoint[]): { date: string; value: number } | null {
+  for (let i = series.length - 1; i >= 0; i--) {
+    const pt = series[i]!;
+    if (typeof pt.value === "number" && !Number.isNaN(pt.value)) {
+      return { date: pt.date, value: pt.value };
+    }
+  }
+  return null;
+}
+
+// ---- Source series ------------------------------------------------------
+//
+// We pull a bit more history than the visible window so the m/m delta for
+// the leftmost visible month uses the actual prior observation (not the
+// first window point against null). Then trim deltas to the 36-month tail.
+
+const empFull = data?.primary?.data ?? [];
+const urFull = data?.secondary?.data ?? [];
+
+// Compute m/m delta in THOUSANDS of persons from the full level series
+// (millions -> thousands via the * 1000 conversion). The first point has
+// no prior, so its delta is null.
+const empDeltaFull: SeriesPoint[] = [];
+for (let i = 0; i < empFull.length; i++) {
+  const curr = empFull[i]!;
+  const prev = i > 0 ? empFull[i - 1] : null;
+  if (
+    prev &&
+    typeof curr.value === "number" && !Number.isNaN(curr.value) &&
+    typeof prev.value === "number" && !Number.isNaN(prev.value)
+  ) {
+    empDeltaFull.push({
+      date: curr.date,
+      value: (curr.value - prev.value) * 1000,
+    });
+  } else {
+    empDeltaFull.push({ date: curr.date, value: null });
+  }
+}
+
+const empDelta = tailWindow(empDeltaFull, WINDOW_MONTHS, "monthly");
+const ur = tailWindow(urFull, WINDOW_MONTHS, "monthly");
+
+const hasData = empDelta.length > 0 && ur.length > 0;
+
+// Shared x-domain across bars + line. Use the union; both series are
+// monthly LFS prints so they should align perfectly, but use the union
+// for safety against print-day partial vintages.
+const allDates = hasData ? [...empDelta, ...ur] : [];
+const allX = allDates.map((d) => decYear(d.date)).filter((v) => !Number.isNaN(v));
+let xMin = allX.length > 0 ? Math.min(...allX) : 0;
+let xMax = allX.length > 0 ? Math.max(...allX) : 1;
+// Pad x-domain by half a monthly slot so the first and last bars don't
+// clip the plot frame.
+const realDeltaPts = empDelta.filter(
+  (d) => typeof d.value === "number" && !Number.isNaN(d.value),
+);
+if (realDeltaPts.length > 1) {
+  const slot = (xMax - xMin) / Math.max(1, realDeltaPts.length - 1);
+  xMin -= slot * 0.6;
+  xMax += slot * 0.6;
+}
+
+// ---- Geometry -----------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 56;          // left axis (thousands of persons, signed)
+const M_R = 56;          // right axis (unemployment rate, %)
+const M_T = 56;          // header band: legend + scale stamps
+const M_B = 36;          // x-tick row
+
+const PLOT_X0 = M_L;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_W = PLOT_X1 - PLOT_X0;
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_H = PLOT_Y1 - PLOT_Y0;
+
+// ---- LEFT axis: bars (thousands of persons) -----------------------------
+function buildBars() {
+  const vals: number[] = [];
+  for (const d of empDelta) {
+    if (typeof d.value === "number" && !Number.isNaN(d.value)) vals.push(d.value);
+  }
+
+  let yLo = -100, yHi = 100;
+  if (vals.length > 0) {
+    const rawMin = Math.min(...vals);
+    const rawMax = Math.max(...vals);
+    const span = (rawMax - rawMin) || Math.max(20, Math.abs(rawMax) * 0.1);
+    yLo = rawMin - span * 0.12;
+    yHi = rawMax + span * 0.12;
+    // Force inclusion of zero, both ways - zero is meaningful here.
+    if (yLo > 0) yLo = -Math.max(10, (yHi - yLo) * 0.05);
+    if (yHi < 0) yHi = Math.max(10, (yHi - yLo) * 0.05);
+  }
+  const yRange = yHi - yLo || 1;
+
+  const xScale = (yr: number) =>
+    xMax === xMin
+      ? PLOT_X0 + PLOT_W / 2
+      : PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
+  const yScale = (v: number) =>
+    PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
+
+  const stride = pickStride(yLo, yHi);
+  const yTicks: number[] = [];
+  const start = Math.ceil(yLo / stride) * stride;
+  for (let v = start; v <= yHi + 1e-9; v += stride) yTicks.push(Number(v.toFixed(6)));
+  if (yTicks.length === 0) yTicks.push(0);
+
+  const zeroY = yScale(0);
+
+  // Bar slot width derived from the number of real data points so adjacent
+  // monthly bars almost-touch but not quite (Vignelli air rule).
+  const slotWidth = realDeltaPts.length > 0
+    ? PLOT_W / Math.max(1, realDeltaPts.length)
+    : PLOT_W;
+  const barWidth = Math.max(2, slotWidth * 0.72);
+
+  interface Bar {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    value: number;
+    date: string;
+    negative: boolean;
+  }
+  const bars: Bar[] = [];
+  for (const pt of empDelta) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    const cx = xScale(xv);
+    const vy = yScale(pt.value);
+    const topY = Math.min(vy, zeroY);
+    const botY = Math.max(vy, zeroY);
+    bars.push({
+      x: cx - barWidth / 2,
+      y: topY,
+      w: barWidth,
+      h: Math.max(0.6, botY - topY),
+      value: pt.value,
+      date: pt.date,
+      negative: pt.value < 0,
+    });
+  }
+
+  const lastBar = bars.length > 0 ? bars[bars.length - 1]! : null;
+
+  return {
+    yLo, yHi, yRange, yTicks,
+    bars, zeroY, lastBar,
+  };
+}
+
+// ---- RIGHT axis: line (unemployment rate, %) ----------------------------
+function buildLine() {
+  const vals: number[] = [];
+  for (const d of ur) {
+    if (typeof d.value === "number" && !Number.isNaN(d.value)) vals.push(d.value);
+  }
+
+  let yLo = 5, yHi = 8;
+  if (vals.length > 0) {
+    const rawMin = Math.min(...vals);
+    const rawMax = Math.max(...vals);
+    const span = (rawMax - rawMin) || Math.max(0.5, Math.abs(rawMax) * 0.05);
+    yLo = rawMin - span * 0.20;
+    yHi = rawMax + span * 0.20;
+    // Pin floor at zero; UR is non-negative and a baseline of zero would
+    // crush the visual variance. The 20% pad above is enough.
+  }
+  const yRange = yHi - yLo || 1;
+
+  const xScale = (yr: number) =>
+    xMax === xMin
+      ? PLOT_X0 + PLOT_W / 2
+      : PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
+  const yScale = (v: number) =>
+    PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
+
+  const stride = pickStride(yLo, yHi);
+  const yTicks: number[] = [];
+  const start = Math.ceil(yLo / stride) * stride;
+  for (let v = start; v <= yHi + 1e-9; v += stride) yTicks.push(Number(v.toFixed(6)));
+  if (yTicks.length === 0) yTicks.push(Number(((yLo + yHi) / 2).toFixed(6)));
+
+  let path = "";
+  let started = false;
+  for (const pt of ur) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    path += (started ? "L" : "M") +
+      xScale(xv).toFixed(2) + " " + yScale(pt.value).toFixed(2) + " ";
+    started = true;
+  }
+  path = path.trim();
+
+  const last = lastReal(ur);
+  const lastXY = last ? {
+    x: xScale(decYear(last.date)),
+    y: yScale(last.value),
+    value: last.value,
+    date: last.date,
+  } : null;
+
+  return {
+    yLo, yHi, yRange, yTicks,
+    path, lastXY,
+  };
+}
+
+// ---- Shared x-axis (decimal-year ticks) ---------------------------------
+function buildXTicks() {
+  const xScale = (yr: number) =>
+    xMax === xMin
+      ? PLOT_X0 + PLOT_W / 2
+      : PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
+  const yearStart = Math.ceil(xMin);
+  const yearEnd = Math.floor(xMax);
+  const allYearTicks: Array<{ x: number; label: string }> = [];
+  for (let yr = yearStart; yr <= yearEnd; yr++) {
+    const decY = yr + (1 - 0.5) / 12;
+    if (decY < xMin || decY > xMax) continue;
+    allYearTicks.push({ x: xScale(decY), label: String(yr) });
+  }
+  const stride = Math.max(1, Math.ceil(allYearTicks.length / 4));
+  return allYearTicks.filter((_, i) => i % stride === 0);
+}
+
+const B = hasData ? buildBars() : null;
+const L = hasData ? buildLine() : null;
+const xTicks = hasData ? buildXTicks() : [];
+
+// ---- Direct labels at the terminals ------------------------------------
+//
+// Word-only labels (canon: no sentence annotations on canvas).
+//   - Rightmost bar: "+/-XXk jobs"
+//   - Line terminus: "UR X.X%"
+// Tag placement is hand-tuned to sit clear of the data; for the bar tag,
+// we place it just outside the bar's top/bottom edge depending on sign;
+// for the line tag, we place to the right of the red dot.
+
+const barTag = (B && B.lastBar) ? (() => {
+  const v = B.lastBar.value;
+  const sign = v >= 0 ? "+" : "−"; // U+2212 minus
+  const abs = Math.abs(v);
+  // Choose decimal precision: <10 -> one decimal, else integer.
+  const num = abs < 10 ? abs.toFixed(1) : Math.round(abs).toString();
+  const text = `${sign}${num}k jobs`;
+  // Anchor: above the bar for positive, below for negative.
+  const cx = B.lastBar.x + B.lastBar.w / 2;
+  const y = v >= 0 ? B.lastBar.y - 6 : B.lastBar.y + B.lastBar.h + 14;
+  return { text, x: cx, y };
+})() : null;
+
+const urTag = (L && L.lastXY) ? (() => {
+  const v = L.lastXY.value;
+  const text = `UR ${v.toFixed(1)}%`;
+  // Place to the right of the dot, vertically centered on it.
+  // The right plot edge is at PLOT_X1; we want the label to sit just
+  // outside, in the right margin.
+  const x = Math.min(L.lastXY.x + 8, PLOT_X1 + M_R - 4);
+  const y = L.lastXY.y + 4;
+  return { text, x, y, anchor: "start" as const };
+})() : null;
+
+// ---- Methodology micro-note (anchored to the bottom-left margin) -------
+//
+// Plain English, sits below the x-tick row in the bottom margin alongside
+// the y-axis label so the reader knows what the bars encode. Short
+// enough to read as a label, not a sentence.
+
+const methodologyNote =
+  "Bars: m/m change in employment, thousands. Line: unemployment rate, %.";
+
+const ariaLabel =
+  "Monthly change in employment as bars, thousands of persons, with negative months in red, last 36 months. Unemployment rate as a line on the right axis, with the latest print marked in red.";
+
+// Legend symbol coordinates - we build a small two-item legend in the
+// top margin, left-aligned to the plot's left edge.
+const LEGEND_Y = M_T - 26;
+const LEGEND_X0 = PLOT_X0;
+const LEGEND_GAP = 16;
+// Item 1: black square + label "Monthly job change"
+const LEG1_SWATCH_W = 10;
+const LEG1_SWATCH_H = 10;
+// Item 2: short ink rule + red dot + label "Unrate"
+const LEG2_RULE_W = 22;
+---
+{hasData && B && L ? (
+  <div class="canon-chart canon-chart--headline-print" data-panel="labour-1-headline-print">
+    <svg
+      class="canon-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {/* ---- Header band: legend (top-left of plot) ---------------- */}
+      <g class="canon-chart__legend">
+        {/* Item 1: bars */}
+        <rect
+          class="canon-chart__legend-swatch"
+          x={LEGEND_X0.toFixed(2)}
+          y={(LEGEND_Y - LEG1_SWATCH_H + 1).toFixed(2)}
+          width={LEG1_SWATCH_W}
+          height={LEG1_SWATCH_H}
+        />
+        <text
+          class="canon-chart__legend-label"
+          x={(LEGEND_X0 + LEG1_SWATCH_W + 6).toFixed(2)}
+          y={(LEGEND_Y - 1).toFixed(2)}
+        >Monthly job change</text>
+      </g>
+
+      {/* Item 2: line legend - placed at hand-tuned offset */}
+      <g class="canon-chart__legend">
+        <line
+          class="canon-chart__legend-rule"
+          x1={(LEGEND_X0 + 178).toFixed(2)}
+          y1={(LEGEND_Y - 4).toFixed(2)}
+          x2={(LEGEND_X0 + 178 + LEG2_RULE_W).toFixed(2)}
+          y2={(LEGEND_Y - 4).toFixed(2)}
+        />
+        <circle
+          class="canon-chart__legend-dot"
+          cx={(LEGEND_X0 + 178 + LEG2_RULE_W).toFixed(2)}
+          cy={(LEGEND_Y - 4).toFixed(2)}
+          r="3"
+        />
+        <text
+          class="canon-chart__legend-label"
+          x={(LEGEND_X0 + 178 + LEG2_RULE_W + 8).toFixed(2)}
+          y={(LEGEND_Y - 1).toFixed(2)}
+        >Unrate</text>
+      </g>
+
+      {/* ---- Gridlines (right-axis ticks) ----------------------------
+          We draw one set of gridlines tied to the LINE (UR) axis only,
+          because dual-axis gridlines would over-ink the plot. The line
+          axis carries the gridlines because UR is the smoother series
+          and its ticks divide the plot cleanly. */}
+      {L.yTicks.map((v) => {
+        const yy = PLOT_Y0 + PLOT_H - ((v - L.yLo) / L.yRange) * PLOT_H;
+        return (
+          <line
+            class="canon-chart__gridline"
+            x1={PLOT_X0.toFixed(2)}
+            y1={yy.toFixed(2)}
+            x2={PLOT_X1.toFixed(2)}
+            y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      {/* ---- Bars (left axis: thousands of persons) ------------------ */}
+      {B.bars.map((b) => (
+        <rect
+          class={b.negative ? "canon-chart__bar canon-chart__bar--neg" : "canon-chart__bar"}
+          x={b.x.toFixed(2)}
+          y={b.y.toFixed(2)}
+          width={b.w.toFixed(2)}
+          height={b.h.toFixed(2)}
+        >
+          <title>{`${b.date}: ${b.value >= 0 ? "+" : ""}${b.value.toFixed(1)}k`}</title>
+        </rect>
+      ))}
+
+      {/* ---- Zero rule (bar axis) - sits on top of bars but below line */}
+      <line
+        class="canon-chart__zero-line"
+        x1={PLOT_X0.toFixed(2)}
+        y1={B.zeroY.toFixed(2)}
+        x2={PLOT_X1.toFixed(2)}
+        y2={B.zeroY.toFixed(2)}
+      />
+
+      {/* ---- Line (right axis: unemployment rate, %) ----------------- */}
+      <path class="canon-chart__line" d={L.path} fill="none" />
+
+      {/* ---- Plot frame ---------------------------------------------- */}
+      <rect
+        class="canon-chart__frame"
+        x={PLOT_X0}
+        y={PLOT_Y0}
+        width={PLOT_W}
+        height={PLOT_H}
+      />
+
+      {/* ---- X-ticks (year row) -------------------------------------- */}
+      {xTicks.map((t) => (
+        <g>
+          <line
+            class="canon-chart__xtick"
+            x1={t.x.toFixed(2)}
+            y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="canon-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* ---- Y-tick labels: LEFT axis (thousands, signed) ------------ */}
+      {B.yTicks.map((v, i) => {
+        const yy = PLOT_Y0 + PLOT_H - ((v - B.yLo) / B.yRange) * PLOT_H;
+        const isTop = i === B.yTicks.length - 1;
+        const sign = v > 0 ? "+" : v < 0 ? "−" : "";
+        const abs = Math.abs(v);
+        const num = abs >= 100 ? abs.toFixed(0) : abs.toFixed(0);
+        const txt = `${sign}${num}${isTop ? "k" : ""}`;
+        return (
+          <text
+            class="canon-chart__ytick-label canon-chart__ytick-label--left"
+            x={(PLOT_X0 - 6).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{txt}</text>
+        );
+      })}
+
+      {/* ---- Y-tick labels: RIGHT axis (%) --------------------------- */}
+      {L.yTicks.map((v, i) => {
+        const yy = PLOT_Y0 + PLOT_H - ((v - L.yLo) / L.yRange) * PLOT_H;
+        const isTop = i === L.yTicks.length - 1;
+        const txt = `${v.toFixed(1)}${isTop ? "%" : ""}`;
+        return (
+          <text
+            class="canon-chart__ytick-label canon-chart__ytick-label--right"
+            x={(PLOT_X1 + 6).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="start"
+          >{txt}</text>
+        );
+      })}
+
+      {/* ---- Line terminus: red dot + direct UR label ---------------- */}
+      {L.lastXY && (
+        <g>
+          <circle
+            class="canon-chart__latest-dot"
+            cx={L.lastXY.x.toFixed(2)}
+            cy={L.lastXY.y.toFixed(2)}
+            r="4"
+          >
+            <title>{`Unrate ${L.lastXY.date}: ${L.lastXY.value.toFixed(2)}%`}</title>
+          </circle>
+        </g>
+      )}
+      {urTag && (
+        <text
+          class="canon-chart__terminal-label canon-chart__terminal-label--ur"
+          x={urTag.x.toFixed(2)}
+          y={urTag.y.toFixed(2)}
+          text-anchor={urTag.anchor}
+        >{urTag.text}</text>
+      )}
+
+      {/* ---- Rightmost bar: direct "+/-XXk jobs" tag ----------------- */}
+      {barTag && (
+        <text
+          class="canon-chart__terminal-label canon-chart__terminal-label--bar"
+          x={barTag.x.toFixed(2)}
+          y={barTag.y.toFixed(2)}
+          text-anchor="middle"
+        >{barTag.text}</text>
+      )}
+
+      {/* ---- Methodology note (bottom-left, below x-ticks) ----------- */}
+      <text
+        class="canon-chart__methodology"
+        x={PLOT_X0.toFixed(2)}
+        y={(VB_H - 4).toFixed(2)}
+        text-anchor="start"
+      >{methodologyNote}</text>
+    </svg>
+  </div>
+) : (
+  <PanelEmpty reason="Employment level and unemployment rate series both required for headline-print plate." />
+)}
+
+<style>
+  .canon-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
+  .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
+
+  /* Legend ------------------------------------------------------------- */
+  .canon-chart__legend-swatch { fill: var(--ink); stroke: none; }
+  .canon-chart__legend-rule { stroke: var(--ink); stroke-width: 1.5; }
+  .canon-chart__legend-dot { fill: var(--accent); stroke: none; }
+  .canon-chart__legend-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold);
+    letter-spacing: 0.02em;
+  }
+
+  /* Gridlines + frame -------------------------------------------------- */
+  .canon-chart__gridline {
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.14;
+    shape-rendering: crispEdges;
+  }
+  .canon-chart__frame {
+    fill: none; stroke: var(--ink); stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .canon-chart__zero-line {
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Bars: positive black, negative MTA red ----------------------------- */
+  .canon-chart__bar {
+    fill: var(--ink);
+    stroke: var(--paper);
+    stroke-width: 0.75;
+    shape-rendering: crispEdges;
+  }
+  .canon-chart__bar--neg {
+    fill: var(--accent);
+  }
+
+  /* Line: unemployment rate ------------------------------------------- */
+  .canon-chart__line {
+    stroke: var(--ink); stroke-width: 1.5;
+    stroke-linejoin: round; stroke-linecap: round;
+    fill: none; vector-effect: non-scaling-stroke;
+  }
+  .canon-chart__latest-dot { fill: var(--accent); stroke: none; }
+
+  /* Axis ticks --------------------------------------------------------- */
+  .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+
+  /* Terminal direct-labels (words only, per canon) -------------------- */
+  .canon-chart__terminal-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold);
+    paint-order: stroke fill;
+    stroke: var(--paper);
+    stroke-width: 3px;
+  }
+  .canon-chart__terminal-label--bar {
+    /* same as base */
+  }
+  .canon-chart__terminal-label--ur {
+    /* same as base */
+  }
+
+  /* Methodology note --------------------------------------------------- */
+  .canon-chart__methodology {
+    fill: var(--ink); fill-opacity: 0.55;
+    font-family: var(--font-sans);
+    font-size: 10px; font-weight: var(--fw-regular);
+    letter-spacing: 0.02em;
+  }
+</style>

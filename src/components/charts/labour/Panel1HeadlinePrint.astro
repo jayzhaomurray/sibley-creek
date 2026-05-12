@@ -1,0 +1,562 @@
+---
+/*
+ * Panel1HeadlinePrint - the labour print-day chart, 2-panel layout.
+ *
+ * Editorial premise (user-codified 2026-05-12, verbatim): "When I get
+ * fresh data, the first thing I want to know is what was the monthly
+ * change in jobs, and what's the unemployment rate. The first chart
+ * will be a panel showing exactly that. Monthly job change in bars and
+ * unemployment rate as a line."
+ *
+ * Geometry mirrors Panel4BeveridgeCompanion and Panel8HoursVsHeadcount —
+ * two equal-width sub-panels side by side, narrow gutter between, shared
+ * 36-month x-window with shared year-tick layout.
+ *   - LEFT panel: monthly change in employment, thousands of persons,
+ *     as bars. Positive bars in pure ink; negative bars in MTA red
+ *     (--accent). Zero baseline drawn.
+ *   - RIGHT panel: unemployment rate as a 1.5px ink line. Latest-print
+ *     dot in MTA red. No second series in this panel.
+ *
+ * Direct labels at terminus on each panel are word-only per
+ * design-system.md Sec ~8 ("Length: words, not sentences"). LEFT panel:
+ * "Monthly job change" / RIGHT panel: "Unemployment rate". No sentence
+ * annotations on either panel.
+ *
+ * Methodology (called out on-canvas):
+ *   m/m delta = employment_level[t] - employment_level[t-1], converted
+ *   from millions to thousands of persons.
+ *   Source: StatCan Table 14-10-0287-01 (v2062811 employment level,
+ *   v2062815 unemployment rate).
+ *   The UR series is the published level, no derivation.
+ *
+ * Wiring: panel-1 emits primary = employment_level (millions),
+ * secondary = unemployment_rate (%). Identical to the prior dual-axis
+ * version archived at _alternatives/labour/Alt_Panel1HeadlinePrintDualAxis.astro.
+ */
+
+import type { PanelData, SeriesPoint } from "../_shared/panelData";
+import { decYear, tailWindow } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+const { data = null } = Astro.props;
+
+const WINDOW_MONTHS = 36;
+
+function pickStride(lo: number, hi: number, targetTicks = 4): number {
+  const span = hi - lo;
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  const rough = span / targetTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let nice: number;
+  if (norm < 1.5) nice = 1;
+  else if (norm < 3) nice = 2;
+  else if (norm < 4) nice = 2.5;
+  else if (norm < 7) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+
+function lastReal(series: SeriesPoint[]): { date: string; value: number } | null {
+  for (let i = series.length - 1; i >= 0; i--) {
+    const pt = series[i]!;
+    if (typeof pt.value === "number" && !Number.isNaN(pt.value)) {
+      return { date: pt.date, value: pt.value };
+    }
+  }
+  return null;
+}
+
+// ---- Source series ------------------------------------------------------
+//
+// Pull a bit more history than the visible window so the m/m delta for the
+// leftmost visible month uses the actual prior observation (not a null
+// against the first window point). Then trim deltas to the 36-month tail.
+
+const empFull = data?.primary?.data ?? [];
+const urFull = data?.secondary?.data ?? [];
+
+// Compute m/m delta in THOUSANDS of persons from the full level series
+// (millions -> thousands via the * 1000 conversion). The first point has
+// no prior, so its delta is null.
+const empDeltaFull: SeriesPoint[] = [];
+for (let i = 0; i < empFull.length; i++) {
+  const curr = empFull[i]!;
+  const prev = i > 0 ? empFull[i - 1] : null;
+  if (
+    prev &&
+    typeof curr.value === "number" && !Number.isNaN(curr.value) &&
+    typeof prev.value === "number" && !Number.isNaN(prev.value)
+  ) {
+    empDeltaFull.push({
+      date: curr.date,
+      value: (curr.value - prev.value) * 1000,
+    });
+  } else {
+    empDeltaFull.push({ date: curr.date, value: null });
+  }
+}
+
+const empDelta = tailWindow(empDeltaFull, WINDOW_MONTHS, "monthly");
+const ur = tailWindow(urFull, WINDOW_MONTHS, "monthly");
+
+const hasData = empDelta.length > 0 && ur.length > 0;
+
+// Shared x-domain across BOTH sub-panels (year tick alignment).
+const allDates = hasData ? [...empDelta, ...ur] : [];
+const allX = allDates.map((d) => decYear(d.date)).filter((v) => !Number.isNaN(v));
+const xMinShared = allX.length > 0 ? Math.min(...allX) : 0;
+const xMaxShared = allX.length > 0 ? Math.max(...allX) : 1;
+
+// ---- Geometry (mirrors Panel4 / Panel8) ---------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_OUT = 8;       // outer left/right margin
+const GAP_X = 56;      // gutter between sub-panels
+const M_T = 52;        // header band (sub-panel title)
+const M_B = 36;        // x-tick row
+const SUB_M_L = 40;    // left gutter inside each sub-panel (y-tick labels)
+const SUB_M_R = 14;    // right gutter inside each sub-panel
+
+const SUB_W = (VB_W - 2 * M_OUT - GAP_X) / 2;
+const LEFT_X0 = M_OUT;
+const LEFT_X1 = LEFT_X0 + SUB_W;
+const RIGHT_X0 = LEFT_X1 + GAP_X;
+const RIGHT_X1 = RIGHT_X0 + SUB_W;
+
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_H = PLOT_Y1 - PLOT_Y0;
+
+// ---- LEFT PANEL: m/m delta bars (thousands of persons, signed) ----------
+function buildBars() {
+  const plotX0 = LEFT_X0 + SUB_M_L;
+  const plotX1 = LEFT_X1 - SUB_M_R;
+  const plotW = plotX1 - plotX0;
+
+  const realPts = empDelta.filter(
+    (d) => typeof d.value === "number" && !Number.isNaN(d.value),
+  );
+
+  // x-domain: use the shared domain (so year ticks line up with the right
+  // panel) but widen by half a monthly slot so the first/last bars do not
+  // clip the plot frame.
+  let xMinB = xMinShared;
+  let xMaxB = xMaxShared;
+  if (realPts.length > 1) {
+    const slot = (xMaxB - xMinB) / Math.max(1, realPts.length - 1);
+    xMinB -= slot * 0.6;
+    xMaxB += slot * 0.6;
+  }
+
+  const vals = realPts.map((d) => d.value as number);
+  let yLo = -100, yHi = 100;
+  if (vals.length > 0) {
+    const rawMin = Math.min(...vals);
+    const rawMax = Math.max(...vals);
+    const span = (rawMax - rawMin) || Math.max(20, Math.abs(rawMax) * 0.1);
+    yLo = rawMin - span * 0.12;
+    yHi = rawMax + span * 0.12;
+    // Force inclusion of zero — zero is the editorial baseline.
+    if (yLo > 0) yLo = -Math.max(10, (yHi - yLo) * 0.05);
+    if (yHi < 0) yHi = Math.max(10, (yHi - yLo) * 0.05);
+  }
+  const yRange = yHi - yLo || 1;
+
+  const xScale = (yr: number) => {
+    if (xMaxB === xMinB) return plotX0 + plotW / 2;
+    return plotX0 + ((yr - xMinB) / (xMaxB - xMinB)) * plotW;
+  };
+  const yScale = (v: number) => PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
+
+  const stride = pickStride(yLo, yHi);
+  const yTicks: number[] = [];
+  const start = Math.ceil(yLo / stride) * stride;
+  for (let v = start; v <= yHi + 1e-9; v += stride) yTicks.push(Number(v.toFixed(6)));
+  if (yTicks.length === 0) yTicks.push(0);
+
+  // X-ticks: year markers, computed against the SHARED x-domain so this
+  // panel and the right panel show the same year labels.
+  const xScaleShared = (yr: number) => {
+    if (xMaxShared === xMinShared) return plotX0 + plotW / 2;
+    return plotX0 + ((yr - xMinShared) / (xMaxShared - xMinShared)) * plotW;
+  };
+  const yearStart = Math.ceil(xMinShared);
+  const yearEnd = Math.floor(xMaxShared);
+  const allYearTicks: Array<{ x: number; label: string }> = [];
+  for (let yr = yearStart; yr <= yearEnd; yr++) {
+    const decY = yr + (1 - 0.5) / 12;
+    if (decY < xMinShared || decY > xMaxShared) continue;
+    allYearTicks.push({ x: xScaleShared(decY), label: String(yr) });
+  }
+  const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 4));
+  const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
+
+  const zeroY = yScale(0);
+
+  const slotWidth = realPts.length > 0 ? plotW / Math.max(1, realPts.length) : plotW;
+  const barWidth = Math.max(2, slotWidth * 0.72);
+
+  interface Bar {
+    x: number; y: number; w: number; h: number;
+    value: number; date: string; negative: boolean;
+  }
+  const bars: Bar[] = [];
+  for (const pt of empDelta) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    const cx = xScale(xv);
+    const vy = yScale(pt.value);
+    const topY = Math.min(vy, zeroY);
+    const botY = Math.max(vy, zeroY);
+    bars.push({
+      x: cx - barWidth / 2,
+      y: topY,
+      w: barWidth,
+      h: Math.max(0.6, botY - topY),
+      value: pt.value,
+      date: pt.date,
+      negative: pt.value < 0,
+    });
+  }
+
+  const lastBar = bars.length > 0 ? bars[bars.length - 1]! : null;
+
+  return {
+    plotX0, plotX1, plotW,
+    yLo, yHi, yRange, yTicks, xTicks,
+    bars, zeroY, lastBar,
+  };
+}
+
+// ---- RIGHT PANEL: unemployment rate line (%, single series) -------------
+function buildLine() {
+  const plotX0 = RIGHT_X0 + SUB_M_L;
+  const plotX1 = RIGHT_X1 - SUB_M_R;
+  const plotW = plotX1 - plotX0;
+
+  const vals: number[] = [];
+  for (const d of ur) {
+    if (typeof d.value === "number" && !Number.isNaN(d.value)) vals.push(d.value);
+  }
+
+  let yLo = 5, yHi = 8;
+  if (vals.length > 0) {
+    const rawMin = Math.min(...vals);
+    const rawMax = Math.max(...vals);
+    const span = (rawMax - rawMin) || Math.max(0.5, Math.abs(rawMax) * 0.05);
+    yLo = rawMin - span * 0.20;
+    yHi = rawMax + span * 0.20;
+    // UR is non-negative; pin floor at zero if the auto-range goes below.
+    if (yLo < 0) yLo = 0;
+  }
+  const yRange = yHi - yLo || 1;
+
+  const xScale = (yr: number) => {
+    if (xMaxShared === xMinShared) return plotX0 + plotW / 2;
+    return plotX0 + ((yr - xMinShared) / (xMaxShared - xMinShared)) * plotW;
+  };
+  const yScale = (v: number) => PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
+
+  const stride = pickStride(yLo, yHi);
+  const yTicks: number[] = [];
+  const start = Math.ceil(yLo / stride) * stride;
+  for (let v = start; v <= yHi + 1e-9; v += stride) yTicks.push(Number(v.toFixed(6)));
+  if (yTicks.length === 0) yTicks.push(Number(((yLo + yHi) / 2).toFixed(6)));
+
+  const yearStart = Math.ceil(xMinShared);
+  const yearEnd = Math.floor(xMaxShared);
+  const allYearTicks: Array<{ x: number; label: string }> = [];
+  for (let yr = yearStart; yr <= yearEnd; yr++) {
+    const decY = yr + (1 - 0.5) / 12;
+    if (decY < xMinShared || decY > xMaxShared) continue;
+    allYearTicks.push({ x: xScale(decY), label: String(yr) });
+  }
+  const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 4));
+  const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
+
+  let path = "";
+  let started = false;
+  for (const pt of ur) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) {
+      started = false;
+      continue;
+    }
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    path += (started ? "L" : "M") +
+      xScale(xv).toFixed(2) + " " + yScale(pt.value).toFixed(2) + " ";
+    started = true;
+  }
+  path = path.trim();
+
+  const last = lastReal(ur);
+  const lastXY = last ? {
+    x: xScale(decYear(last.date)),
+    y: yScale(last.value),
+    value: last.value,
+    date: last.date,
+  } : null;
+
+  return {
+    plotX0, plotX1, plotW,
+    yLo, yHi, yRange, yTicks, xTicks,
+    path, lastXY,
+  };
+}
+
+const B = hasData ? buildBars() : null;
+const L = hasData ? buildLine() : null;
+
+const ariaLabel =
+  "Two-panel chart. Left panel: monthly change in employment as bars, " +
+  "thousands of persons, with negative months in red, last 36 months. " +
+  "Right panel: unemployment rate as a line over the same 36 months, " +
+  "with the latest print marked in red.";
+---
+{hasData && B && L ? (
+  <div class="canon-chart canon-chart--dual" data-panel="labour-1-headline-print">
+    <svg
+      class="canon-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {/* ---- LEFT SUB-PANEL: m/m delta bars ---------------------------- */}
+      <text
+        class="canon-chart__subpanel-title"
+        x={((LEFT_X0 + LEFT_X1) / 2).toFixed(2)}
+        y={(M_T - 30).toFixed(2)}
+        text-anchor="middle"
+      >MONTHLY JOB CHANGE, THOUSANDS</text>
+
+      {B.yTicks.map((v) => {
+        const yy = PLOT_Y0 + PLOT_H - ((v - B.yLo) / B.yRange) * PLOT_H;
+        // Don't draw a gridline directly on the zero line; the zero line is
+        // its own (heavier) stroke.
+        if (Math.abs(yy - B.zeroY) < 0.5) return null;
+        return (
+          <line
+            class="canon-chart__gridline"
+            x1={B.plotX0.toFixed(2)}
+            y1={yy.toFixed(2)}
+            x2={B.plotX1.toFixed(2)}
+            y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      {B.bars.map((b) => (
+        <rect
+          class={b.negative ? "canon-chart__bar canon-chart__bar--neg" : "canon-chart__bar"}
+          x={b.x.toFixed(2)}
+          y={b.y.toFixed(2)}
+          width={b.w.toFixed(2)}
+          height={b.h.toFixed(2)}
+        >
+          <title>{`${b.date}: ${b.value >= 0 ? "+" : ""}${b.value.toFixed(1)}k`}</title>
+        </rect>
+      ))}
+
+      <line
+        class="canon-chart__zero-line"
+        x1={B.plotX0.toFixed(2)}
+        y1={B.zeroY.toFixed(2)}
+        x2={B.plotX1.toFixed(2)}
+        y2={B.zeroY.toFixed(2)}
+      />
+
+      <rect
+        class="canon-chart__frame"
+        x={B.plotX0}
+        y={PLOT_Y0}
+        width={B.plotW}
+        height={PLOT_H}
+      />
+
+      {B.xTicks.map((t) => (
+        <g>
+          <line
+            class="canon-chart__xtick"
+            x1={t.x.toFixed(2)}
+            y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="canon-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {B.yTicks.map((v, i) => {
+        const yy = PLOT_Y0 + PLOT_H - ((v - B.yLo) / B.yRange) * PLOT_H;
+        const isTop = i === B.yTicks.length - 1;
+        const sign = v > 0 ? "+" : v < 0 ? "−" : "";
+        const abs = Math.abs(v);
+        const num = abs.toFixed(0);
+        const txt = `${sign}${num}${isTop ? "k" : ""}`;
+        return (
+          <text
+            class="canon-chart__ytick-label"
+            x={(B.plotX0 - 6).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{txt}</text>
+        );
+      })}
+
+
+      {/* ---- RIGHT SUB-PANEL: UR line ---------------------------------- */}
+      <text
+        class="canon-chart__subpanel-title"
+        x={((RIGHT_X0 + RIGHT_X1) / 2).toFixed(2)}
+        y={(M_T - 30).toFixed(2)}
+        text-anchor="middle"
+      >UNEMPLOYMENT RATE, %</text>
+
+      {L.yTicks.map((v) => {
+        const yy = PLOT_Y0 + PLOT_H - ((v - L.yLo) / L.yRange) * PLOT_H;
+        return (
+          <line
+            class="canon-chart__gridline"
+            x1={L.plotX0.toFixed(2)}
+            y1={yy.toFixed(2)}
+            x2={L.plotX1.toFixed(2)}
+            y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      <path class="canon-chart__line" d={L.path} fill="none" />
+
+      <rect
+        class="canon-chart__frame"
+        x={L.plotX0}
+        y={PLOT_Y0}
+        width={L.plotW}
+        height={PLOT_H}
+      />
+
+      {L.xTicks.map((t) => (
+        <g>
+          <line
+            class="canon-chart__xtick"
+            x1={t.x.toFixed(2)}
+            y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="canon-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {L.yTicks.map((v, i) => {
+        const yy = PLOT_Y0 + PLOT_H - ((v - L.yLo) / L.yRange) * PLOT_H;
+        const isTop = i === L.yTicks.length - 1;
+        const txt = `${v.toFixed(1)}${isTop ? "%" : ""}`;
+        return (
+          <text
+            class="canon-chart__ytick-label"
+            x={(L.plotX0 - 6).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{txt}</text>
+        );
+      })}
+
+      {L.lastXY && (
+        <circle
+          class="canon-chart__latest-dot"
+          cx={L.lastXY.x.toFixed(2)}
+          cy={L.lastXY.y.toFixed(2)}
+          r="4"
+        >
+          <title>{`Unrate ${L.lastXY.date}: ${L.lastXY.value.toFixed(2)}%`}</title>
+        </circle>
+      )}
+
+    </svg>
+  </div>
+) : (
+  <PanelEmpty reason="Employment level and unemployment rate series both required for headline-print plate." />
+)}
+
+<style>
+  .canon-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
+  .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
+
+  .canon-chart__subpanel-title {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
+  }
+
+  .canon-chart__gridline {
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  .canon-chart__zero-line {
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 1;
+    shape-rendering: crispEdges;
+  }
+  .canon-chart__frame {
+    fill: none; stroke: var(--ink); stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Bars: positive ink, negative MTA red ------------------------------- */
+  .canon-chart__bar {
+    fill: var(--ink);
+    stroke: var(--paper);
+    stroke-width: 0.75;
+    shape-rendering: crispEdges;
+  }
+  .canon-chart__bar--neg { fill: var(--accent); }
+
+  /* Line: unemployment rate -------------------------------------------- */
+  .canon-chart__line {
+    stroke: var(--ink); stroke-width: 1.5;
+    stroke-linejoin: round; stroke-linecap: round;
+    fill: none; vector-effect: non-scaling-stroke;
+  }
+  .canon-chart__latest-dot { fill: var(--accent); stroke: none; }
+
+  /* Axis ticks --------------------------------------------------------- */
+  .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+
+  /* Direct labels at terminus (words only, per canon) ------------------ */
+  .canon-chart__direct-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold);
+    letter-spacing: 0.02em;
+  }
+
+  /* Methodology note --------------------------------------------------- */
+  .canon-chart__methodology {
+    fill: var(--ink); fill-opacity: 0.55;
+    font-family: var(--font-sans);
+    font-size: 10px; font-weight: var(--fw-regular);
+    letter-spacing: 0.02em;
+  }
+</style>
