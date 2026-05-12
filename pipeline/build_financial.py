@@ -54,7 +54,7 @@ from pipeline.catalog.fred_series import FredSpec
 from pipeline.catalog.indeed_series import IndeedSpec
 from pipeline.catalog.yahoo_series import YahooSpec
 from pipeline.fetch import boc, fred, indeed_hiring_lab, yahoo
-from pipeline.io import SeriesMeta, write_series
+from pipeline.io import SeriesMeta, write_series, write_series_merge
 from pipeline.transform.derivations import goc_ust_spread
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -175,6 +175,17 @@ def run_fred_catalog(failed: list[str]) -> None:
 # --------------------------------------------------------------------------- #
 
 def _yahoo_fetch_one(spec: YahooSpec) -> None:
+    """Fetch one Yahoo symbol and merge-write the result.
+
+    Uses `write_series_merge` rather than `write_series` because Yahoo's
+    `range=max` response has been observed to occasionally return a
+    mixed-cadence frame (monthly aggregations for older periods, daily
+    for the most recent weeks) -- notably on the CL=F / BZ=F oil futures
+    symbols. A direct overwrite in that case truncates the on-disk daily
+    history. The merge preserves any prior daily rows whose dates Yahoo
+    no longer returns, while still picking up new daily rows and any
+    upstream-revised values for dates that do appear in the new response.
+    """
     result = yahoo.fetch_daily_close(spec.symbol, range_="max")
     df = result.data
     meta = SeriesMeta(
@@ -186,7 +197,7 @@ def _yahoo_fetch_one(spec: YahooSpec) -> None:
         frequency="daily",
         notes=(spec.notes or "") + " Adjusted close where Yahoo exposes it, else raw close.",
     )
-    write_series(df, meta, DATA_RAW)
+    write_series_merge(df, meta, DATA_RAW)
 
 
 def run_yahoo_catalog(failed: list[str]) -> None:

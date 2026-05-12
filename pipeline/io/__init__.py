@@ -16,7 +16,14 @@ from pipeline.io.meta import (
     SCHEMA_VERSION,
     SeriesMeta,
     write_series,
+    write_series_merge,
 )
 from pipeline.io.site_data import build_site_data
 
-__all__ = ["SCHEMA_VERSION", "SeriesMeta", "write_series", "build_site_data"]
+__all__ = [
+    "SCHEMA_VERSION",
+    "SeriesMeta",
+    "write_series",
+    "write_series_merge",
+    "build_site_data",
+]
