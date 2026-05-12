@@ -305,15 +305,6 @@ const periodStamp = periodStampFor(section.frequency);
           role="img"
           aria-label={`${loadBearing.indicator}. Latest: ${valueDisplay} (${asOfDisplay}). Change: ${deltaDisplay}.`}
         >
-          <rect
-            x={PAD_L}
-            y={PAD_T}
-            width={plotW}
-            height={plotH}
-            fill="#FFFFFF"
-            stroke="#000000"
-            stroke-width="1"
-          />
           {ticks.map((t) => (
             <text
               x={PAD_L - 5}
@@ -615,7 +606,6 @@ const periodStamp = periodStampFor(section.frequency);
   }
   @media (min-width: 600px) {
     .vig-panel__readout {
-      border-left: 1px solid var(--ink);
       padding-left: 16px;
     }
   }
@@ -724,11 +714,17 @@ const periodStamp = periodStampFor(section.frequency);
     width: 100%;
     border-collapse: collapse;
     margin: 0;
+    /* Chart -> table structural break. Single hairline at the top of
+     * the table separates the picture from the readings inside each
+     * card. The plot rectangle (which previously did this work as one
+     * of its four edges) was cut for being redundant chrome on three
+     * of its sides; this one edge is the one that earned its place. */
+    border-top: 1px solid var(--ink);
+    margin-top: 10px;
     font-family: var(--font-sans);
     font-size: 11px;
     line-height: 1.4;
     color: var(--ink);
-    border-top: 1px solid var(--ink);
   }
   .vig-panel__th {
     text-align: left;
@@ -749,11 +745,7 @@ const periodStamp = periodStampFor(section.frequency);
   }
   .vig-panel__td {
     padding: 7px 8px 7px 0;
-    border-bottom: 1px solid var(--ink);
     font-variant-numeric: tabular-nums;
-  }
-  .vig-panel__tr:last-child .vig-panel__td {
-    border-bottom: 0;
   }
   .vig-panel__td--ind {
     font-family: var(--font-sans);

@@ -14,11 +14,13 @@ IDs as arguments.
 from pipeline.catalog.statcan_series import STATCAN_SERIES
 from pipeline.catalog.boc_series import BOC_VALET_SERIES
 from pipeline.catalog.fred_series import FRED_SERIES
+from pipeline.catalog.indeed_series import INDEED_SERIES
 from pipeline.catalog.yahoo_series import YAHOO_SERIES
 
 __all__ = [
     "STATCAN_SERIES",
     "BOC_VALET_SERIES",
     "FRED_SERIES",
+    "INDEED_SERIES",
     "YAHOO_SERIES",
 ]

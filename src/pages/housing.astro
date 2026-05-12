@@ -16,12 +16,20 @@ import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
 import panelDataFile from "../../data/site/panel_data/housing.json";
+import sectionsJson from "../../data/site/sections.json";
 import { pickPanel } from "../components/charts/_shared/panelData";
+import { deriveLatestReleaseLabel } from "../components/section/_shared/derivedLabels";
 
 const section = sections.find((s) => s.slug === "housing");
 if (!section) {
   throw new Error("Housing section not found in src/data/sections.ts");
 }
+
+const latestReleaseLabel = deriveLatestReleaseLabel(
+  section.latestReleasePrefix ?? "",
+  sectionsJson,
+  "housing",
+);
 
 const panel1Data = pickPanel(panelDataFile, 1);
 const panel2Data = pickPanel(panelDataFile, 2);
@@ -37,15 +45,14 @@ const plates: Plate[] = [
     number: "01",
     indicator: "MLS HPI, national + six CMAs, Y/Y",
     plateIndexLabel: "Prices",
-    asOf: "Mar 2026",
     title: "The national price decline masks a widening split between Toronto-Vancouver and Montreal.",
     interpretationHtml:
-      "National home prices sat at <strong>-4.6% Y/Y</strong> on the MLS HPI in March 2026, the eighth consecutive month in negative territory. " +
+      "National home prices sat at -4.6% Y/Y on the MLS HPI in March 2026, the eighth consecutive month in negative territory. " +
       "Toronto (-7.2%) and Vancouver (-6.8%) lead the decline; Calgary, Ottawa, and Edmonton sit between -1.9 and -2.9%; " +
       "Montreal alone runs positive at +4.9%. The composite read masks a widening CMA dispersion.",
     callout: {
       value: "-4.6%",
-      unit: "Composite home prices, Y/Y, Mar 2026",
+      unitPrefix: "Composite home prices, Y/Y",
       delta: "0.1pp firmer vs Feb",
       direction: "neutral",
     },
@@ -61,7 +68,7 @@ const plates: Plate[] = [
     asOf: "Mar 2026 (starts) / Feb 2026 (permits)",
     title: "The completions pipeline, not new starts, is now carrying supply.",
     interpretation:
-      "Housing starts came in at <strong>235.9K annualized</strong> in March 2026, down from 251.0K in February and below the 2021-2023 average. " +
+      "Housing starts came in at 235.9K annualized in March 2026, down from 251.0K in February and below the 2021-2023 average. " +
       "Units under construction held near 246K annualized (January), keeping the completions pipeline elevated relative to the pre-2020 norm. " +
       "Residential permits ran at $8.13 billion in February, modestly above January and consistent with starts stabilizing rather than rolling over further.",
     source:
@@ -74,10 +81,9 @@ const plates: Plate[] = [
     number: "03",
     indicator: "Sales-to-new-listings ratio, Canada",
     plateIndexLabel: "Inventory",
-    asOf: "Feb 2026",
     title: "Absorption is soft but has not tipped into a buyers' market.",
     interpretationHtml:
-      "The national sales-to-new-listings ratio sits at <strong>47.6</strong> in February 2026, up from 46.4 in January but below the 50-to-70 band CREA describes as balanced. " +
+      "The national sales-to-new-listings ratio sits at 47.6 in February 2026, up from 46.4 in January but below the 50-to-70 band CREA describes as balanced. " +
       "The resale index has eased to 85.6, leaving Canada in a soft absorption regime rather than an outright buyers' market. " +
       "CMA-level 12-month resale counts to October 2025 point in the same direction: Toronto and Vancouver are absorbing the most volume relative to their listings overhang.",
     source:
@@ -90,11 +96,10 @@ const plates: Plate[] = [
     number: "04",
     indicator: "CPI rent and rented accommodation, Y/Y",
     plateIndexLabel: "Rent",
-    asOf: "Mar 2026",
     title: "Rents are no longer rising; the level is now adjusting downward.",
     interpretation:
-      "CPI rent decelerated to <strong>0.9% Y/Y</strong> in March 2026, the slowest reading since the 2020-2021 demand vacuum. " +
-      "The rented-accommodation sub-series fell <strong>-2.5% Y/Y</strong>, an outright price decline driven by the unwind of the 2023-2024 newcomer-flow surge. " +
+      "CPI rent decelerated to 0.9% Y/Y in March 2026, the slowest reading since the 2020-2021 demand vacuum. " +
+      "The rented-accommodation sub-series fell -2.5% Y/Y, an outright price decline driven by the unwind of the 2023-2024 newcomer-flow surge. " +
       "The CMHC Rental Market Survey vacancy print remains the levels anchor; the CPI velocity says the level is now adjusting downward.",
     source:
       "Statistics Canada Table 18-10-0004-01, CPI rent (v41691074) and rented accommodation (v41691073).",
@@ -106,10 +111,9 @@ const plates: Plate[] = [
     number: "05",
     indicator: "5-year conventional mortgage rate",
     plateIndexLabel: "Mortgage stack",
-    asOf: "May 6, 2026",
     title: "The renewal wall has peaked, with the residual risk rotating to the labour channel.",
     interpretation:
-      "The 5-year conventional mortgage rate has held at <strong>6.09%</strong> for three months, anchored by the BoC's four consecutive holds at 2.25%. " +
+      "The 5-year conventional mortgage rate has held at 6.09% for three months, anchored by the BoC's four consecutive holds at 2.25%. " +
       "The 2020-2021 fixed-rate cohort has now mostly rolled, and the mechanical pulse on household cash flows is fading. " +
       "The forward arrears risk has rotated to the labour channel; see the deep dive at <a href=\"/research/mortgage-renewal-wall/\">research/mortgage-renewal-wall</a> for the full decomposition.",
     source:
@@ -122,10 +126,9 @@ const plates: Plate[] = [
     number: "06",
     indicator: "Immigrant flow proxy and housing starts",
     plateIndexLabel: "Supply ratio",
-    asOf: "Q4 2025 (immigrants) / Mar 2026 (starts)",
     title: "Supply is finally running ahead of incremental population-driven demand.",
     interpretation:
-      "Quarterly immigrant arrivals fell to <strong>83,168</strong> in Q4 2025, down from 102,867 in Q3 and well below the 2022-2024 average that drove the rental squeeze. " +
+      "Quarterly immigrant arrivals fell to 83,168 in Q4 2025, down from 102,867 in Q3 and well below the 2022-2024 average that drove the rental squeeze. " +
       "Housing starts running near 236K annualized in March now sit above the pace at which the incremental population is forming households. " +
       "The full population-per-housing-unit ratio by CMA is not yet wired; the flow-vs-flow comparison here is the v1 read.",
     source:
@@ -138,15 +141,14 @@ const plates: Plate[] = [
     number: "07",
     indicator: "BoC qualifying mortgage payment to income",
     plateIndexLabel: "Affordability",
-    asOf: "Q4 2025",
     title: "Affordability is improving from peak but remains worse than prior stress episodes.",
     interpretationHtml:
-      "The BoC's qualifying-mortgage-payment-to-income ratio sits at <strong>42.7%</strong> in Q4 2025, down from 43.2% in Q3 and 50.4% at the Q2 2024 peak. " +
+      "The BoC's qualifying-mortgage-payment-to-income ratio sits at 42.7% in Q4 2025, down from 43.2% in Q3 and 50.4% at the Q2 2024 peak. " +
       "The improvement traces to lower qualifying rates &mdash; the 5-year conventional has settled at 6.09% &mdash; partly offset by softer wage growth in the denominator. " +
       "The index remains well above the 1989-1991 and 2007-2008 stress episodes; the 2022-2024 tightening cycle is still the binding historical anchor.",
     callout: {
       value: "42.7%",
-      unit: "qualifying payment / income, Q4 2025",
+      unitPrefix: "qualifying payment / income",
       delta: "-0.5pp Q/Q",
       direction: "neg",
     },
@@ -172,7 +174,7 @@ const lede = section.blurb?.body ?? "";
   sectionLabel="Housing"
   headlineQuestion={section.headlineQuestion}
   lede={lede}
-  latestReleaseLabel="Home prices, Mar 2026"
+  latestReleaseLabel={latestReleaseLabel}
   plates={plates}
   title={pageTitle}
   description={pageDescription}

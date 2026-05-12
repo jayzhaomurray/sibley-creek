@@ -3,12 +3,26 @@ import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
 import panelDataFile from "../../data/site/panel_data/policy.json";
+import sectionsJson from "../../data/site/sections.json";
 import { pickPanel } from "../components/charts/_shared/panelData";
+import { deriveLatestReleaseLabel } from "../components/section/_shared/derivedLabels";
 
 const section = sections.find((s) => s.slug === "policy");
 if (!section) {
   throw new Error("Policy section not found in src/data/sections.ts");
 }
+
+// Policy uses an override for the page-level "Latest release" stamp because
+// the load-bearing event is the rate decision (not one of the pipeline's
+// monthly prints). When the override is set, compose the stamp directly;
+// otherwise fall through to the standard derivation.
+const latestReleaseLabel = section.latestReleaseDateOverride
+  ? `${section.latestReleasePrefix ?? ""}, ${section.latestReleaseDateOverride}`
+  : deriveLatestReleaseLabel(
+      section.latestReleasePrefix ?? "",
+      sectionsJson,
+      "policy",
+    );
 
 const panel1Data = pickPanel(panelDataFile, 1);
 const panel2Data = pickPanel(panelDataFile, 2);
@@ -26,7 +40,7 @@ const plates: Plate[] = [
     asOf: "April 29, 2026 (rate decision)",
     title: "The Bank has settled the overnight rate inside its neutral range.",
     interpretationHtml:
-      "The Bank held the overnight rate target at <strong>2.25%</strong> on April 29, the fourth consecutive hold since the 25 bps cut to 2.25% on October 29, 2025. " +
+      "The Bank held the overnight rate target at 2.25% on April 29, the fourth consecutive hold since the 25 bps cut to 2.25% on October 29, 2025. " +
       "The setting sits inside the BoC's stated 2.25 to 3.25% nominal neutral range; further easing would push policy into accommodative territory. " +
       "The April Monetary Policy Report describes the current stance as appropriately positioned while the inflation moderation works through.",
     callout: {
@@ -44,10 +58,9 @@ const plates: Plate[] = [
     number: "02",
     indicator: "2y GoC vs overnight",
     plateIndexLabel: "Market path",
-    asOf: "May 7, 2026",
     title: "The market has stopped pricing further near-term easing.",
     interpretationHtml:
-      "The 2-year Government of Canada yield closed at <strong>2.94%</strong> on May 7, roughly <strong>69 bps</strong> above the 2.25% overnight target. " +
+      "The 2-year Government of Canada yield closed at 2.94% on May 7, roughly 69 bps above the 2.25% overnight target. " +
       "The curve is no longer pricing further near-term easing; the gap reflects term premium and a market that has converged toward the Bank's hold. " +
       "The April MPR's market-implied curve remains the primary-source reference for the full OIS-implied path.",
     source: "BoC Valet (rates); MPR market-implied curve, latest vintage.",
@@ -59,10 +72,9 @@ const plates: Plate[] = [
     number: "03",
     indicator: "Canada 2y minus US 2y",
     plateIndexLabel: "BoC-Fed spread",
-    asOf: "May 7, 2026",
     title: "The cross-border spread is deep but no longer the binding constraint on the BoC.",
     interpretationHtml:
-      "GoC 2y at 2.94% against UST 2y at 3.92% leaves the Canada-US 2y spread at <strong>minus 98 bps</strong>. " +
+      "GoC 2y at 2.94% against UST 2y at 3.92% leaves the Canada-US 2y spread at minus 98 bps. " +
       "On daily data since 2001, that reading sits at the 5th percentile of the distribution -- deep, but roughly 70 bps off the all-time minus 170 bps trough reached on February 3, 2025. " +
       "USDCAD has held below 1.36 through the spring, which is why the FX channel is not currently the binding constraint on the Bank's hold.",
     callout: {
@@ -83,7 +95,7 @@ const plates: Plate[] = [
     asOf: "May 6, 2026 (weekly statement)",
     title: "The Bank's balance-sheet runoff is done.",
     interpretationHtml:
-      "Settlement balances stood at <strong>$63.9 billion</strong> on May 6, with total Bank assets at $219.0 billion. " +
+      "Settlement balances stood at $63.9 billion on May 6, with total Bank assets at $219.0 billion. " +
       "The Bank exited passive quantitative tightening in 2025 and the system is now in floor-maintenance phase, with balances oscillating in the operating range communicated in the Bank's December 2024 framework statement. " +
       "Asset composition continues to reflect the amortization of legacy Government Bond Purchase Programme holdings.",
     source:
@@ -99,8 +111,8 @@ const plates: Plate[] = [
     asOf: "February 28, 2026 (Fiscal Monitor)",
     title: "Debt service is now the binding line in the federal expense profile.",
     interpretationHtml:
-      "The federal balance ran a deficit of <strong>$25.5 billion</strong> over the first 11 months of fiscal 2025-26, on revenues of $453.2 billion and program-plus-debt expenses of $478.8 billion. " +
-      "Public debt charges totalled <strong>$49.3 billion</strong> over the same period, the largest single line outside major transfers. " +
+      "The federal balance ran a deficit of $25.5 billion over the first 11 months of fiscal 2025-26, on revenues of $453.2 billion and program-plus-debt expenses of $478.8 billion. " +
+      "Public debt charges totalled $49.3 billion over the same period, the largest single line outside major transfers. " +
       "The PBO's most recent Economic and Fiscal Outlook continues to project a wider full-year balance than the Fall Economic Statement baseline.",
     callout: {
       value: "-$25.5 bn",
@@ -121,7 +133,7 @@ const plates: Plate[] = [
     asOf: "Q4 2025 (capacity utilization)",
     title: "Capacity utilization remains consistent with a negative output gap.",
     interpretationHtml:
-      "Total-economy capacity utilization stood at <strong>78.5%</strong> in Q4 2025, several points below its post-1996 average and consistent with an output gap that remains negative. " +
+      "Total-economy capacity utilization stood at 78.5% in Q4 2025, several points below its post-1996 average and consistent with an output gap that remains negative. " +
       "Canada's Department of Finance does not publish a cyclically-adjusted primary balance; the IMF Article IV and OECD Economic Survey are the standing references for the stance read. " +
       "Against a soft real-side cycle, the running federal deficit reads as mildly expansionary at the margin.",
     source:
@@ -137,7 +149,7 @@ const plates: Plate[] = [
     asOf: "April 2026 (BoC monthly)",
     title: "The BoC-Fed policy gap has reached a generational depth.",
     interpretationHtml:
-      "BoC overnight at <strong>2.25%</strong> against Fed funds at <strong>3.63%</strong> leaves the policy-rate spread at <strong>-138 bps</strong> in monthly data through April 2026 -- a deeper gap than at any point in the prior two decades outside the 2002-2004 episode. " +
+      "BoC overnight at 2.25% against the Fed's 3.75% target upper bound leaves the policy-rate spread at -150 bps in monthly data through April 2026 -- a deeper gap than at any point in the prior two decades outside the 2002-2004 episode. " +
       "The bottom panel tracks the BoC-Fed spread directly: a near-zero line through most of the 1996-2019 window, a sharp positive spike during the 2022-23 BoC-leads-hiking phase, and a clean monotone descent into the current negative regime as the Bank cut ahead of the Fed through 2024-25. " +
       "The market-rate read of the same divergence -- the 2y GoC minus 2y UST spread, which reached -170 bps on February 3, 2025 -- is the deep-dive's editorial anchor; see " +
       "<a href=\"/research/boc-fed-divergence/\">the BoC-Fed divergence research note</a> for the full case.",
@@ -165,7 +177,7 @@ const lede = section.blurb?.body ?? "";
   sectionLabel="Policy"
   headlineQuestion={section.headlineQuestion}
   lede={lede}
-  latestReleaseLabel="BoC rate decision, Apr 29, 2026"
+  latestReleaseLabel={latestReleaseLabel}
   plates={plates}
   title={pageTitle}
   description={pageDescription}

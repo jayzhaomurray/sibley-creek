@@ -1,10 +1,10 @@
 The Bank of Canada's overnight rate target sits at 2.25%, where it
 has held for four consecutive meetings since October 29, 2025. The
-Federal Reserve's effective funds rate sits at 3.625%, the midpoint
-of a 3.50 to 3.75% target range last reset by a 25 bps cut in
-December 2025. The BoC-Fed policy-rate spread is therefore negative
-137.5 bps. In the post-1996 monthly distribution of that spread,
-today's reading sits at the 8th percentile. At the 2y point, GoC
+Federal Reserve's policy rate sits at 3.75%, the upper bound of its
+3.50 to 3.75% target range last reset by a 25 bps cut in December
+2025. The BoC-Fed policy-rate spread is therefore negative 150 bps.
+In the post-1996 monthly distribution of that spread, today's
+reading sits near the post-1996 floor. At the 2y point, GoC
 yields 2.94% against UST at 3.92%; the 98 bps gap sits at the 5th
 percentile of the post-2001 daily distribution. This is a deep-
 divergence episode by any sensible measure.
@@ -16,8 +16,8 @@ the post-1990 daily distribution; the loonie has strengthened
 through spring 2026, from above 1.40 earlier in the cycle down to
 roughly 1.36. The BoC's April 29 statement noted, in characteristic
 understatement, that "the Canada-US exchange rate has been
-relatively stable." That the spread can sit at the 8th percentile
-while the currency sits at the 67th is the most interesting datum
+relatively stable." That the spread can sit near the post-1996 floor
+while the currency sits at the 67th percentile of its post-1990 distribution is the most interesting datum
 in the Canadian macro picture today: broad USD weakness against
 the major DM crosses and resilient commodity terms of trade have
 pulled against the rate differential with at least as much force.
@@ -33,7 +33,7 @@ Third, the 2024-25 episode is the operating precedent, not 1997-98;
 the resolution then came from Fed convergence, not BoC capitulation,
 and the structural setup for a repeat is already in place.
 
-![BoC overnight rate target and Fed funds effective rate, monthly, 1996 through April 2026. Spread (BoC minus Fed) plotted as bottom panel; current spread minus 137.5 bps sits at the 8th percentile of the post-1996 monthly distribution.](/charts/pillar-b/policy-rate-divergence.svg)
+![BoC overnight rate target and Fed funds target upper bound, monthly, 1996 through April 2026. Spread (BoC minus Fed) plotted as bottom panel; current spread minus 150 bps sits near the post-1996 floor.](/charts/pillar-b/policy-rate-divergence.svg)
 
 *BoC overnight rate target (Valet V39079) and Fed funds effective
 rate (FRED FEDFUNDS), monthly. Bottom panel: BoC minus Fed, in

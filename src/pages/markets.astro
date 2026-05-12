@@ -3,12 +3,20 @@ import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
 import panelDataFile from "../../data/site/panel_data/markets.json";
+import sectionsJson from "../../data/site/sections.json";
 import { pickPanel } from "../components/charts/_shared/panelData";
+import { deriveLatestReleaseLabel } from "../components/section/_shared/derivedLabels";
 
 const section = sections.find((s) => s.slug === "markets");
 if (!section) {
   throw new Error("Markets section not found in src/data/sections.ts");
 }
+
+const latestReleaseLabel = deriveLatestReleaseLabel(
+  section.latestReleasePrefix ?? "",
+  sectionsJson,
+  "markets",
+);
 
 const panel1Data = pickPanel(panelDataFile, 1);
 const panel2Data = pickPanel(panelDataFile, 2);
@@ -24,15 +32,14 @@ const plates: Plate[] = [
     chartKey: "markets-panel-1",
     indicator: "USDCAD spot",
     plateIndexLabel: "CAD",
-    asOf: "May 8, 2026",
     title: "The loonie has settled into a range well below last fall's stress reach.",
     interpretationHtml:
-      "USDCAD closed the week at <strong>1.3686</strong>, weaker by about a cent from 1.3576 on May 1 as the early-May CAD rally reversed. " +
+      "USDCAD closed the week at 1.3686, weaker by about a cent from 1.3576 on May 1 as the early-May CAD rally reversed. " +
       "The pair has spent the past month inside a 1.36 to 1.38 band, well below the 1.42 stress reach of late 2025. " +
       "The BoC effective exchange rate (CEER) overlay is not yet wired in the data pipeline.",
     callout: {
       value: "1.3686",
-      unit: "USDCAD spot, May 8",
+      unitPrefix: "USDCAD spot",
       delta: "+0.0110 w/w",
       direction: "neutral",
     },
@@ -46,15 +53,14 @@ const plates: Plate[] = [
     chartKey: "markets-panel-2",
     indicator: "GoC yield curve",
     plateIndexLabel: "GoC curve",
-    asOf: "May 7, 2026",
     title: "The front end has repriced on firmer inflation while the long end stayed anchored.",
     interpretationHtml:
-      "The GoC 10y sits at <strong>3.53%</strong>, with the 2y at 2.94%, the 5y at 3.18%, and the 30y at 3.90%. " +
+      "The GoC 10y sits at 3.53%, with the 2y at 2.94%, the 5y at 3.18%, and the 30y at 3.90%. " +
       "The 2s10s spread of 59 bps marks the steepest reading in months, driven by a 12 bps lift at the 2y over the past two weeks as front-end repricing absorbed firmer near-term inflation prints. " +
       "The long end held steady through the same window, consistent with anchored term premium.",
     callout: {
       value: "3.53%",
-      unit: "GoC 10y, May 7",
+      unitPrefix: "GoC 10y",
       delta: "+0.07pp w/w",
       direction: "neutral",
     },
@@ -71,7 +77,7 @@ const plates: Plate[] = [
     asOf: "May 7, 2026",
     title: "Canadian investment-grade and high-yield spread series pending, with GoC 10y shown as the rate benchmark.",
     interpretationHtml:
-      "Canadian investment-grade and high-yield option-adjusted spread series are not yet wired; the GoC 10y benchmark anchors the chart at <strong>3.53%</strong>. " +
+      "Canadian investment-grade and high-yield option-adjusted spread series are not yet wired; the GoC 10y benchmark anchors the chart at 3.53%. " +
       "Spread data is the load-bearing read for this plate and will be added once the corporate-index feed is in place.",
     source: "Bank of Canada Valet (BD.CDN.10YR.DQ.YLD).",
     data: panel3Data,
@@ -85,12 +91,12 @@ const plates: Plate[] = [
     asOf: "May 4, 2026 (WTI, Brent); March 2026 (WCS)",
     title: "Crude has broken higher and the Canadian heavy differential has compressed sharply.",
     interpretationHtml:
-      "WTI closed at <strong>US$109.76</strong> on May 4, up nearly US$10 from US$99.89 a week earlier, with Brent at US$118.26 (May 1) tracking the same move higher. " +
+      "WTI closed at US$109.76 on May 4, up nearly US$10 from US$99.89 a week earlier, with Brent at US$118.26 (May 1) tracking the same move higher. " +
       "WCS averaged US$75.85 in March, well above the US$50 range that held through late 2025 and a sharply narrower differential to WTI than the typical post-2018 discount. " +
       "AECO gas is not in the current data feed.",
     callout: {
       value: "US$109.76",
-      unit: "WTI spot, May 4",
+      unitPrefix: "WTI spot",
       delta: "+US$9.87 w/w",
       direction: "neutral",
     },
@@ -107,7 +113,7 @@ const plates: Plate[] = [
     asOf: "May 6, 2026",
     title: "Big-Six PCL and common-equity tier-1 ratio series pending, with settlement balances at $63.9 billion.",
     interpretationHtml:
-      "Bank-level provisions for credit losses and common-equity tier-1 ratios from the latest earnings round are not yet wired; settlement balances at the Bank of Canada anchor the chart at <strong>$63.9 billion</strong> on May 6, inside the $60 to $80 billion band that has held since late 2025. " +
+      "Bank-level provisions for credit losses and common-equity tier-1 ratios from the latest earnings round are not yet wired; settlement balances at the Bank of Canada anchor the chart at $63.9 billion on May 6, inside the $60 to $80 billion band that has held since late 2025. " +
       "PCL builds and CET1 versus the OSFI Domestic Stability Buffer are the load-bearing reads and will be added once the bank-disclosure feed is in place.",
     callout: {
       value: "$63.9 billion",
@@ -127,7 +133,7 @@ const plates: Plate[] = [
     asOf: "May 7, 2026",
     title: "Standardized financial conditions series pending, with GoC 10y and USDCAD shown as rate and FX inputs.",
     interpretationHtml:
-      "A standardized financial conditions index for Canada is not yet wired; the GoC 10y at <strong>3.53%</strong> and USDCAD at 1.3686 are shown as the rate and FX components that any composite would draw on. " +
+      "A standardized financial conditions index for Canada is not yet wired; the GoC 10y at 3.53% and USDCAD at 1.3686 are shown as the rate and FX components that any composite would draw on. " +
       "A financial conditions composite is the load-bearing read for this plate and will be added once the index feed is in place.",
     source:
       "Bank of Canada Valet (BD.CDN.10YR.DQ.YLD, FXUSDCAD).",
@@ -151,7 +157,7 @@ const lede = section.blurb?.body ?? "";
   sectionLabel="Markets"
   headlineQuestion={section.headlineQuestion}
   lede={lede}
-  latestReleaseLabel="Daily close, May 8, 2026"
+  latestReleaseLabel={latestReleaseLabel}
   plates={plates}
   title={pageTitle}
   description={pageDescription}

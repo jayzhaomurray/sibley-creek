@@ -88,3 +88,16 @@ def post_json(client: httpx.Client, url: str, *, json_body: Any) -> Any:
     r = client.post(url, json=json_body)
     r.raise_for_status()
     return r.json()
+
+
+@_retry_policy
+def get_text(client: httpx.Client, url: str, *, params: Optional[dict] = None) -> str:
+    """GET <url> -> response body as text. Raises for status before returning.
+
+    Used for CSV / TSV bulk-download sources (Indeed Hiring Lab, future BIS
+    bulk CSVs, etc.) where the response is plain text rather than JSON. Honors
+    the same retry policy as get_json.
+    """
+    r = client.get(url, params=params)
+    r.raise_for_status()
+    return r.text

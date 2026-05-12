@@ -26,12 +26,24 @@ import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
 import panelDataFile from "../../data/site/panel_data/gdp.json";
+import sectionsJson from "../../data/site/sections.json";
 import { pickPanel } from "../components/charts/_shared/panelData";
+import { deriveLatestReleaseLabel } from "../components/section/_shared/derivedLabels";
 
 const section = sections.find((s) => s.slug === "gdp");
 if (!section) {
   throw new Error("GDP section not found in src/data/sections.ts");
 }
+
+// Page-level "Latest release" stamp: editorial prefix + auto-derived date
+// from the section's load-bearing print (sections.json). When the pipeline
+// payload is unavailable the helper returns null and the SectionPageHeader
+// flows the placeholder treatment.
+const latestReleaseLabel = deriveLatestReleaseLabel(
+  section.latestReleasePrefix ?? "",
+  sectionsJson,
+  "gdp",
+);
 
 // Pull each panel's pipeline-emitted data once at build time. Helper
 // returns null when the entry is missing or has no primary series, which
@@ -57,7 +69,7 @@ const panel6Data = pickPanel(panelDataFile, 6);
 //     asOf: "2025Q4",
 //     title: "Per-capita output is back in positive territory, barely.",
 //     interpretationHtml:
-//       "Per-capita real GDP rose <strong>0.5% y/y</strong> in Q4 2025, down 0.1pp from the prior quarter. " +
+//       "Per-capita real GDP rose 0.5% y/y in Q4 2025, down 0.1pp from the prior quarter. " +
 //       "Aggregate GDP grew 0.7% over the same window; with population growth slowing as immigration moderates, the per-capita gap to the headline is narrower than it was through 2023 and 2024. " +
 //       "Positive does not yet mean recovered: the level still trails the pre-2022 path.",
 //     callout: { value: "+0.5%", unit: "Y/Y, 2025Q4", delta: "-0.1pp vs prior quarter", direction: "pos" },
@@ -75,12 +87,12 @@ const plates: Plate[] = [
     asOf: "Feb 2026 (released Apr 30, 2026)",
     title: "Monthly GDP rose 0.2% in February, a second consecutive gain.",
     interpretationHtml:
-      "Monthly real GDP advanced <strong>0.2%</strong> in February, the second consecutive monthly gain after January's 0.1%. " +
-      "The year-over-year pace sits at <strong>1.0%</strong> &mdash; positive but still running below the Bank's estimate of trend, " +
+      "Monthly real GDP advanced 0.2% in February, the second consecutive monthly gain after January's 0.1%. " +
+      "The year-over-year pace sits at 1.0% &mdash; positive but still running below the Bank's estimate of trend, " +
       "consistent with an economy expanding without closing the slack opened earlier in the cycle.",
     callout: {
       value: "+0.2%",
-      unit: "month-over-month, Feb 2026",
+      unitPrefix: "month-over-month",
       delta: "Y/Y +1.0%",
       direction: "pos",
     },
@@ -93,10 +105,9 @@ const plates: Plate[] = [
     number: "02",
     indicator: "Total vs per-capita real GDP, indexed to 2019Q4",
     plateIndexLabel: "Population-padded",
-    asOf: "2025Q4",
     title: "Aggregate growth has run well ahead of per-capita output since 2019.",
     interpretationHtml:
-      "Indexed to the eve of the pandemic, total real GDP sits roughly <strong>+11%</strong> above its 2019Q4 level; per-capita real GDP sits at <strong>+1%</strong>. " +
+      "Indexed to the eve of the pandemic, total real GDP sits roughly +11% above its 2019Q4 level; per-capita real GDP sits at +1%. " +
       "The gap between the two lines is the population contribution &mdash; the share of headline growth that has gone into adding people rather than into output per person. " +
       "Per-capita output has barely cleared the pre-pandemic level six years on, which is the central fact behind the deep dive on <a href=\"/research/per-capita-output/\">population-padded GDP</a>.",
     callout: {
@@ -118,11 +129,11 @@ const plates: Plate[] = [
     asOf: "Feb 2026 (m/m) / 2025Q4 (Q/Q SAAR)",
     title: "Monthly industry growth firmed in early 2026 even as the Q4 annualized read turned slightly negative.",
     interpretationHtml:
-      "Industry-side GDP rose <strong>0.2% m/m</strong> in February, the second consecutive monthly gain. The quarterly expenditure cut, on a Q/Q annualized basis, ran <strong>&minus;0.6%</strong> in Q4 2025 &mdash; the first negative quarter since 2023. " +
+      "Industry-side GDP rose 0.2% m/m in February, the second consecutive monthly gain. The quarterly expenditure cut, on a Q/Q annualized basis, ran &minus;0.6% in Q4 2025 &mdash; the first negative quarter since 2023. " +
       "The cross-check is not a contradiction: monthly industry captures the early-2026 firming, while quarterly expenditure captures the softer close to 2025. Read them as adjacent windows on the same cycle, not competing signals.",
     callout: {
       value: "+0.2%",
-      unit: "m/m industry, Feb 2026",
+      unitPrefix: "m/m industry",
       delta: "Q4 Q/Q SAAR -0.6%",
       direction: "pos",
     },
@@ -136,15 +147,14 @@ const plates: Plate[] = [
     number: "04",
     indicator: "Contributions to quarterly growth",
     plateIndexLabel: "Contributions",
-    asOf: "2025Q4",
     title: "An inventory drawdown swamped a positive domestic profile in Q4.",
     interpretationHtml:
-      "Real GDP contracted <strong>0.6% q/q annualized</strong> in Q4 2025, but the composition is more constructive than the headline. " +
-      "Consumption added 0.9pp, exports 1.8pp, government 0.7pp, and business investment 0.7pp &mdash; the entire shortfall came from inventories, which subtracted <strong>4.2pp</strong>. " +
+      "Real GDP contracted 0.6% q/q annualized in Q4 2025, but the composition is more constructive than the headline. " +
+      "Consumption added 0.9pp, exports 1.8pp, government 0.7pp, and business investment 0.7pp &mdash; the entire shortfall came from inventories, which subtracted 4.2pp. " +
       "Stripping the inventory swing, final domestic demand and trade were both expansionary.",
     callout: {
       value: "-0.6%",
-      unit: "q/q SAAR, 2025Q4",
+      unitPrefix: "q/q SAAR",
       delta: "Inventories -4.2pp",
       direction: "neg",
     },
@@ -160,12 +170,12 @@ const plates: Plate[] = [
     asOf: "2025Q4; April 2026 MPR vintage",
     title: "Output gap widened to -1.0% in Q4 2025, doubling the Q3 shortfall.",
     interpretationHtml:
-      "The BoC's measure of the output gap fell to <strong>-1.0%</strong> in Q4 2025 from -0.5% in Q3, the deepest reading since early 2021. " +
+      "The BoC's measure of the output gap fell to -1.0% in Q4 2025 from -0.5% in Q3, the deepest reading since early 2021. " +
       "Measured output dipped on the quarter while potential continued to expand, so the shortfall reflects a demand-side slowdown rather than a supply-side hit. " +
       "Slack is opening, not closing &mdash; the disinflation case from the demand side is intact.",
     callout: {
       value: "-1.0%",
-      unit: "% of potential, 2025Q4",
+      unitPrefix: "% of potential",
       delta: "-0.5pp vs prior quarter",
       direction: "neg",
     },
@@ -179,10 +189,9 @@ const plates: Plate[] = [
     number: "06",
     indicator: "Labour productivity, business sector",
     plateIndexLabel: "Productivity",
-    asOf: "2025Q4",
     title: "Productivity growth decelerated sharply into year-end.",
     interpretationHtml:
-      "Business-sector labour productivity per hour rose <strong>0.3% y/y</strong> in Q4 2025, down from 1.2% in Q3 and 2.1% at the end of 2024. " +
+      "Business-sector labour productivity per hour rose 0.3% y/y in Q4 2025, down from 1.2% in Q3 and 2.1% at the end of 2024. " +
       "The recent run of positive prints had hinted at a turn; Q4 puts that back in question. " +
       "Canada's productivity level still trails the United States by a wide margin &mdash; the structural gap the Bank's speeches return to.",
     callout: {
@@ -214,7 +223,7 @@ const lede = section.blurb?.body ?? "";
   sectionLabel="GDP"
   headlineQuestion={section.headlineQuestion}
   lede={lede}
-  latestReleaseLabel="Monthly GDP by industry, Feb 2026"
+  latestReleaseLabel={latestReleaseLabel}
   plates={plates}
   title={pageTitle}
   description={pageDescription}

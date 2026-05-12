@@ -13,6 +13,9 @@ Run post-close, 18:00 ET, to capture:
     - FRED daily updates (typically late afternoon ET): US Treasuries, VIX,
       DTWEXBGS, IG/HY OAS, WTI, Brent.
     - Yahoo daily closes: TSX (^GSPTSE), S&P 500 (^GSPC), gold futures (GC=F).
+    - Indeed Hiring Lab Canada postings (refreshed weekly; the daily pull is
+      a no-op on most days, and the labour panel-4 monthly companion derives
+      in-place after the daily lands).
 
 Failure isolation
 -----------------
@@ -45,11 +48,12 @@ from typing import Callable, Optional
 
 import pandas as pd
 
-from pipeline.catalog import BOC_VALET_SERIES, FRED_SERIES, YAHOO_SERIES
+from pipeline.catalog import BOC_VALET_SERIES, FRED_SERIES, INDEED_SERIES, YAHOO_SERIES
 from pipeline.catalog.boc_series import BocSpec
 from pipeline.catalog.fred_series import FredSpec
+from pipeline.catalog.indeed_series import IndeedSpec
 from pipeline.catalog.yahoo_series import YahooSpec
-from pipeline.fetch import boc, fred, yahoo
+from pipeline.fetch import boc, fred, indeed_hiring_lab, yahoo
 from pipeline.io import SeriesMeta, write_series
 from pipeline.transform.derivations import goc_ust_spread
 
@@ -191,6 +195,75 @@ def run_yahoo_catalog(failed: list[str]) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Indeed Hiring Lab daily-cadence fetch
+# --------------------------------------------------------------------------- #
+#
+# Indeed publishes weekly; running daily is fine -- most days the upstream
+# bytes are unchanged and the git commit step is a no-op. The aggregate
+# fetch lives under build_financial (rather than the monthly orchestrator)
+# so it refreshes on the same post-close schedule that already runs FRED,
+# Yahoo, and BoC dailies. The downstream monthly mean (consumed by labour
+# panel-4) is derived in-place after the daily pull lands.
+
+def _indeed_fetch_one(spec: IndeedSpec) -> None:
+    """Fetch one Indeed Hiring Lab catalog entry + write the monthly companion.
+
+    For the aggregate Canada SA total-postings series we additionally write
+    a monthly-mean companion (`indeed_postings_ca_monthly`) because the
+    labour panel-4 consumes the monthly cadence directly (to align with
+    JVWS's monthly cadence). Other variable / measure combinations would
+    skip the monthly companion -- panel-4 is the only consumer today.
+    """
+    result = indeed_hiring_lab.fetch_aggregate_postings(
+        variable=spec.variable, measure=spec.measure
+    )
+    df = result.data
+
+    notes = (
+        f"{spec.notes} Source column: {result.source_column}; "
+        f"variable={result.variable!r}."
+    ).strip()
+
+    meta = SeriesMeta(
+        name=spec.name,
+        source="Indeed Hiring Lab - Canada job postings",
+        source_url=indeed_hiring_lab.aggregate_html_url(),
+        source_id=f"hiring-lab/job_postings_tracker/CA/{spec.filename}",
+        units=spec.units,
+        frequency=spec.cadence,
+        notes=notes,
+    )
+    write_series(df, meta, DATA_RAW)
+
+    # Monthly companion: panel-4 reads `indeed_postings_ca_monthly` directly.
+    # Only wire for the canonical SA total-postings spec; skip for any
+    # future NSA / new-postings additions.
+    if spec.name == "indeed_postings_ca" and spec.measure == "SA" and spec.variable == "total postings":
+        monthly = indeed_hiring_lab.aggregate_monthly_mean(df)
+        monthly_meta = SeriesMeta(
+            name=f"{spec.name}_monthly",
+            source="Indeed Hiring Lab - Canada job postings",
+            source_url=indeed_hiring_lab.aggregate_html_url(),
+            source_id=f"hiring-lab/job_postings_tracker/CA/{spec.filename}",
+            units=spec.units,
+            frequency="monthly",
+            notes=(
+                "Indeed Canada postings index, monthly mean of daily SA "
+                "values (month-start convention). Derived from "
+                f"{spec.name}.csv. Aligns cadence with StatCan JVWS for "
+                "labour panel-4 overlay."
+            ),
+            transform="monthly_mean(daily)",
+        )
+        write_series(monthly, monthly_meta, DATA_RAW)
+
+
+def run_indeed_catalog(failed: list[str]) -> None:
+    for name, spec in INDEED_SERIES.items():
+        _safe(f"indeed:{name}", lambda s=spec: _indeed_fetch_one(s), failed)
+
+
+# --------------------------------------------------------------------------- #
 # Cross-series derivations (Financial-section only)
 # --------------------------------------------------------------------------- #
 
@@ -324,6 +397,9 @@ def main() -> int:
 
     logger.info("--- Yahoo Finance ---")
     run_yahoo_catalog(failed)
+
+    logger.info("--- Indeed Hiring Lab ---")
+    run_indeed_catalog(failed)
 
     logger.info("--- Derivations (Financial) ---")
     _safe("derive_goc_ust_spreads", derive_goc_ust_spreads, failed)

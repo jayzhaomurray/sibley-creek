@@ -125,10 +125,19 @@ def _alberta(table: str, type_label: str, units: str, frequency: str, notes: Opt
 
 
 def _indeed(units: str, frequency: str, notes: Optional[str] = None) -> Provenance:
+    # The boc-tracker lift originally hard-coded `hiring-lab/data` (404s).
+    # The correct repo is `hiring-lab/job_postings_tracker`, default branch
+    # `master`. The native pipeline fetcher at pipeline.fetch.indeed_hiring_lab
+    # is the source of truth; this lift only fires for legacy boc-tracker
+    # CSVs that pre-date the native fetcher, and overwrite is disabled, so
+    # in normal operation this provenance only stamps the very first run.
     return Provenance(
         source="Indeed Hiring Lab - Canada job postings",
-        source_id="hiring-lab/data/CA/aggregate_job_postings_CA.csv",
-        source_url="https://raw.githubusercontent.com/hiring-lab/data/master/CA/aggregate_job_postings_CA.csv",
+        source_id="hiring-lab/job_postings_tracker/CA/aggregate_job_postings_CA.csv",
+        source_url=(
+            "https://raw.githubusercontent.com/hiring-lab/job_postings_tracker/"
+            "master/CA/aggregate_job_postings_CA.csv"
+        ),
         units=units,
         frequency=frequency,
         notes=notes,

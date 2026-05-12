@@ -464,6 +464,82 @@ disclosures.
 
 ---
 
+## Indeed Hiring Lab -- Canada job postings
+
+**Bulk URL:** `https://raw.githubusercontent.com/hiring-lab/job_postings_tracker/master/CA/aggregate_job_postings_CA.csv`
+**Pipeline module:** `pipeline/fetch/indeed_hiring_lab.py`
+**Catalog:** `pipeline/catalog/indeed_series.py`
+**Authentication:** none; GitHub raw, unauthenticated.
+
+### Why Indeed
+
+Indeed Hiring Lab publishes a daily seasonally-adjusted index of Canadian
+job postings (Feb 1 2020 = 100). The series is the complement to StatCan
+JVWS (Job Vacancy and Wage Survey, monthly) in labour panel-4:
+
+- JVWS is the official measure but monthly, with a roughly 60-day lag.
+- JVWS was suspended April-September 2020 during COVID.
+- Indeed is daily, weekly-refreshed, and bridges the JVWS suspension
+  gap. It is a postings-volume proxy (not vacancies-by-definition), so
+  it complements JVWS rather than replacing it.
+
+### Addressing
+
+- **Aggregate Canada:** `aggregate_job_postings_CA.csv` (~188 KB).
+- **Provincial breakdown:** `provincial_postings_ca.csv` (~471 KB).
+- Repo: `hiring-lab/job_postings_tracker`, default branch **`master`**
+  (not `main`). A prior internal reference to `hiring-lab/data` is a
+  legacy alias that 404s; pin to `job_postings_tracker`.
+
+### Release schedule
+
+Refreshed weekly, typically Thursdays. We run the aggregate fetch on
+the daily-cadence post-close orchestrator (`build_financial.py`); on
+the days Indeed has not pushed, the upstream bytes are unchanged and
+the orchestrator's commit step in CI is a no-op. No publication
+calendar is published; the cadence has been weekly-Thursday for years
+but is not contractual.
+
+### Methodology / vintage
+
+- Seasonal adjustment: Deutsche Bundesbank method per the repo's data
+  dictionary.
+- Two variables per row: `total postings` (canonical index) and
+  `new postings` (new posts within the trailing 7 days, leading-
+  indicator companion). We extract the SA `total postings` slice as
+  the default canonical series; NSA and `new postings` are reachable
+  through fetcher kwargs but not registered in the v1 catalog.
+- The provincial CSV publishes a single index column (no SA / NSA
+  split) and is in long form: `date, province, indeed_job_postings_index`.
+
+### Gotchas
+
+- **Schema validation.** The fetcher asserts the expected upstream
+  columns are present and raises ValueError on drift, so a silent
+  rename surfaces with a precise diagnostic. Required columns for the
+  aggregate: `date, jobcountry, indeed_job_postings_index_SA,
+  indeed_job_postings_index_NSA, variable`.
+- **CC BY 4.0 attribution.** Cite as `Source: Indeed Hiring Lab`.
+- **Monthly companion.** Labour panel-4 reads the monthly cadence
+  directly so the chart can overlay JVWS without resampling at the
+  chart layer. The orchestrator writes `indeed_postings_ca_monthly.csv`
+  as the month-start mean of the daily series alongside the daily file.
+- **Rate limit.** GitHub raw enforces a generous unauthenticated quota
+  on `raw.githubusercontent.com` (independent of the 60 req/hour
+  `api.github.com` cap). At two fetches per daily build we are nowhere
+  near the limit; the shared `_http` retry policy handles a transient
+  429 if it ever happens.
+
+### What we record in .meta.json
+
+`source_url` resolves to the GitHub blob page
+`https://github.com/hiring-lab/job_postings_tracker/blob/master/CA/<file>`.
+`source_id` records the repo path. `units` is `"Index, Feb 1 2020 = 100"`.
+`reference_period_start` / `reference_period_end` are auto-derived from
+the CSV's date column.
+
+---
+
 ## (To add as scoped)
 
 ### Alberta Economic Dashboard -- Western Canada Select (WCS)

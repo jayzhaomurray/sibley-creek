@@ -44,6 +44,7 @@ import { site } from "../data/sections";
 import SectionPageHeader from "../components/section/SectionPageHeader.astro";
 import ChartbookUnit from "../components/section/ChartbookUnit.astro";
 import type { PanelData } from "../components/charts/_shared/panelData";
+import { derivePlateAsOf } from "../components/section/_shared/derivedLabels";
 
 // Per-section chart components. The same dispatch pattern as the prior
 // SectionLayout - the chart-builder owns chart internals; we embed.
@@ -64,7 +65,7 @@ import Panel6PassThrough from "../components/charts/inflation/Panel6PassThrough.
 import Panel1LFSHeadline from "../components/charts/labour/Panel1LFSHeadline.astro";
 import Panel2PerCapita from "../components/charts/labour/Panel2PerCapita.astro";
 import Panel3WageBand from "../components/charts/labour/Panel3WageBand.astro";
-import Panel4VacanciesSlack from "../components/charts/labour/Panel4VacanciesSlack.astro";
+import Panel4VacanciesSlack from "../components/charts/labour/PanelBeveridgeCurve.astro";
 import Panel5IRCCSupplyTrajectory from "../components/charts/labour/Panel5IRCCSupplyTrajectory.astro";
 import Panel6RegionalDumbbell from "../components/charts/labour/Panel6RegionalDumbbell.astro";
 import Panel7EIBeneficiaries from "../components/charts/labour/Panel7EIBeneficiaries.astro";
@@ -104,8 +105,26 @@ export type ChartKey = "gdp-panel-1" | "gdp-panel-2" | "gdp-panel-3" | "gdp-pane
 export interface PlateCallout {
   /** Big number value, eg "+0.2%". */
   value: string;
-  /** Unit / period qualifier, eg "month-over-month, March 2026". */
+  /**
+   * Unit / period qualifier, eg "month-over-month, March 2026".
+   *
+   * Hand-set unit text — overrides `unitPrefix + derivedDate`. Use this
+   * when the editorial frame for the callout is hard-coupled to a phrase
+   * the pipeline can't produce (e.g. "Canada 2y minus US 2y", "vs 2% BoC
+   * target", "% of potential, 2025Q4"). When omitted, the layout
+   * composes `unitPrefix + ", " + derivedDate` from the plate's
+   * panel_data.
+   */
   unit?: string;
+  /**
+   * Editorial prefix for the unit string when the date should auto-derive.
+   * Combined with the plate's panel_data latest observation as
+   * `"{unitPrefix}, {derivedDate}"`. Ignored if `unit` is set.
+   *
+   * Examples: "month-over-month", "Y/Y", "USDCAD spot", "share >3% Y/Y",
+   * "settlement balances".
+   */
+  unitPrefix?: string;
   /** Pre-formatted delta vs prior, eg "+0.1 pp vs Feb". */
   delta?: string;
   /** Direction glyph selector. Never colors the number. */
@@ -121,8 +140,16 @@ export interface Plate {
   indicator: string;
   /** Short label for the plate-index nav chip. */
   plateIndexLabel: string;
-  /** As-of stamp body, eg "Mar 2026; released May 1, 2026". */
-  asOf: string;
+  /**
+   * As-of stamp body, eg "Mar 2026; released May 1, 2026".
+   *
+   * Optional — when omitted, SectionLayout derives the stamp from the
+   * plate's `data` via derivePlateAsOf(). Set explicitly when the plate
+   * carries editorial context inside the date stamp (e.g.
+   * "April 29, 2026 (rate decision)", "Pending wiring") OR when the
+   * plate has no `data` to derive from.
+   */
+  asOf?: string;
   /** Declarative headline title sentence. */
   title: string;
   /** Interpretation paragraph (plain text). Placeholder OK. */
@@ -207,16 +234,41 @@ const plateIndex = plates.map((p) => ({
     <div class="chartbook-stack">
       {plates.map((plate) => {
         const hasChart = Boolean(plate.chartKey);
+        // Auto-derived asOf falls through when the plate doesn't hand-set
+        // one. The helper returns null when no panel_data is available
+        // (data-pending plates), in which case we drop the stamp entirely
+        // — ChartbookUnit accepts an empty string for the right-rail
+        // dateline and renders it muted. Editorial overrides (the hand-
+        // set `plate.asOf`) win over derivation.
+        const derivedAsOf =
+          plate.asOf !== undefined
+            ? plate.asOf
+            : (derivePlateAsOf(plate.data) ?? "");
+        // Callout-unit composition: if `unit` is hand-set, use it as-is.
+        // Else if `unitPrefix` is set, append the derived date so the
+        // callout refreshes alongside the chart.
+        let composedCallout = plate.callout;
+        if (composedCallout) {
+          const hasUnit = typeof composedCallout.unit === "string"
+            && composedCallout.unit.length > 0;
+          if (!hasUnit && composedCallout.unitPrefix) {
+            const calloutDate = derivePlateAsOf(plate.data);
+            const composedUnit = calloutDate
+              ? `${composedCallout.unitPrefix}, ${calloutDate}`
+              : composedCallout.unitPrefix;
+            composedCallout = { ...composedCallout, unit: composedUnit };
+          }
+        }
         return (
           <ChartbookUnit
             plateNumber={plate.number}
             indicator={plate.indicator}
             anchorId={plate.id}
-            asOf={plate.asOf}
+            asOf={derivedAsOf}
             title={plate.title}
             interpretation={plate.interpretation}
             interpretationHtml={plate.interpretationHtml}
-            callout={plate.callout}
+            callout={composedCallout}
             source={plate.source}
             hasChart={hasChart}
           >

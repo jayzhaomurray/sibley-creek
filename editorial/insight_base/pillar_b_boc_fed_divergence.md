@@ -32,11 +32,13 @@ since October 2025." Source: `data/raw/overnight_rate_target.csv`
 - **BoC overnight rate target: 2.25%** as of close 2026-05-10. Held
   at this level since 2025-10-29 decision. Bank Rate 2.50%; deposit
   rate 2.20%. (BoC Apr 29 2026 press release; V39079.)
-- **Fed funds effective rate: 3.625% (mid of 3.50-3.75% target
+- **Fed funds target: 3.75% (upper bound of 3.50-3.75% target
   range)** as of 2026-05-10. Last move was a 25 bp cut on 2025-12.
-  (FRED series FEDFUNDS, DFEDTARU / DFEDTARL midpoint;
-  `data/raw/fed_funds.csv`.)
-- **Policy-rate spread BoC minus Fed = -1.375 percentage points.**
+  (FRED series DFEDTARU; `data/raw/fed_funds.csv`. Switched from
+  midpoint to upper bound 2026-05-11 -- upper bound is the
+  headline policy reference the Fed publishes; midpoint is a
+  derived synthesis.)
+- **Policy-rate spread BoC minus Fed = -1.50 percentage points.**
   (`data/raw/overnight_rate_target.csv` minus
   `data/raw/fed_funds.csv`, latest values.)
 
@@ -113,8 +115,9 @@ strictly we would need:
   about 3%" before declining back toward 2% early 2027 -- a hawkish
   tilt that points to **hold-and-watch**, not further cuts. (BoC Apr
   29 2026 press release.)
-- The Fed has cut 175 bp from its 2024 peak (5.375% -> 3.625%) and
-  the FOMC has not signalled further cuts in recent communication.
+- The Fed has cut 175 bp from its 2024 peak (5.50% -> 3.75%, upper
+  bound) and the FOMC has not signalled further cuts in recent
+  communication.
   **OPEN:** verify against latest FOMC minutes before writer drafts.
 
 **Writer guidance:** Treat the path divergence section as a known gap

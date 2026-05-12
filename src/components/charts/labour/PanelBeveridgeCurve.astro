@@ -1,0 +1,687 @@
+---
+/*
+ * PanelBeveridgeCurve - Canadian Beveridge curve (vacancy rate on X,
+ * unemployment rate on Y) rendered as a continuous time-path line from
+ * 2015-04 (first JVWS vacancy print) through the latest joinable month.
+ *
+ * Editorial argument. The chart shows where the Canadian labour market
+ * sits in tightness/slack space. The latest print (Feb 2026: V=2.6%,
+ * U=6.7%) sits well below the 2019 pre-pandemic equilibrium and far
+ * from the 2022 ultra-tight regime - we are back through the pre-
+ * pandemic floor on tightness.
+ *
+ * Editorial register (BoC MPR / FT / Fed publications model). One
+ * continuous 1px pure-ink path traces the trajectory. Solid for
+ * observed-to-observed segments; dashed (stroke-dasharray: 4 2) for the
+ * seven segments that touch an Apr-Sep 2020 imputed point (Mar->Apr
+ * 2020 bridge, six imputed-to-imputed steps Apr->Sep, Sep->Oct 2020
+ * bridge). The dashed treatment conveys the imputed window through the
+ * path itself - no second hue, no per-month scatter required.
+ *
+ * Three filled pure-ink inflection markers (2.5px) anchor the
+ * trajectory: pre-pandemic (Sep 2019), pandemic trough (May 2020, drawn
+ * HOLLOW to preserve the imputation-honesty signal at the labeled
+ * point), and peak tightness (Apr 2022). The latest observation is the
+ * canonical 4px MTA-red latest dot.
+ *
+ * Why bespoke (not PanelLiveChart). Beveridge curves are a trajectory
+ * on two real-number axes; PanelLiveChart assumes x = continuous time.
+ * We hand-roll the SVG and apply Tier-3 chartbook canon (4px MTA red
+ * latest-point dot, Plex Mono y-ticks, Manrope x-ticks, 1px hairline
+ * plot frame, Plex Mono 10px pure-ink annotation labels).
+ *
+ * Data. Two git-tracked CSVs:
+ *   - data/derived/jvws_vacancy_rate_imputed.csv  (JVWS + author imputation)
+ *   - data/raw/unemployment_rate.csv              (StatCan v2062815, monthly SA, %)
+ * The vacancy file carries five columns: date, jvws, indeed, jvws_imputed,
+ * imputation_source. We read `jvws_imputed` for the vacancy axis. For
+ * observed months this equals the published JVWS print; for Apr-Sep 2020
+ * (the six months StatCan paused the Job Vacancy and Wage Survey early-
+ * pandemic) it is an OLS prediction trained on Indeed Hiring Lab postings.
+ * The `imputation_source` column carries "observed" for published months
+ * and a non-"observed" sentinel for imputed months; the flag drives the
+ * dashed-segment treatment for path edges touching the Apr-Sep 2020 six.
+ *
+ * The `data: PanelData | null` prop is accepted for SectionLayout
+ * dispatch compatibility but intentionally ignored - the component
+ * owns its own CSV load (same pattern as Panel7PolicyRateDivergence).
+ */
+
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import type { PanelData } from "../_shared/panelData";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+// Prop accepted but unused; data loaded from raw CSVs below.
+const _unused = Astro.props;
+void _unused;
+
+// ---- CSV utilities -------------------------------------------------------
+interface Point {
+  date: string; // "YYYY-MM-01"
+  value: number;
+}
+
+function parseCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = "";
+  let inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuote) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else { inQuote = false; }
+      } else cur += ch;
+    } else {
+      if (ch === '"') inQuote = true;
+      else if (ch === ",") { out.push(cur); cur = ""; }
+      else cur += ch;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
+function loadSingleSeries(p: string): Point[] {
+  const txt = readFileSync(p, "utf8");
+  const lines = txt.split(/\r?\n/).filter((l) => l.length > 0);
+  const out: Point[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = parseCsvLine(lines[i]);
+    const date = cells[0];
+    const raw = cells[1];
+    if (!date) continue;
+    if (raw === undefined || raw === "") continue; // skip blank cells
+    const v = parseFloat(raw);
+    if (!Number.isFinite(v)) continue;
+    out.push({ date, value: v });
+  }
+  return out;
+}
+
+interface VacancyPoint {
+  date: string;
+  value: number;       // jvws_imputed column
+  isImputed: boolean;  // false = published JVWS, true = OLS prediction
+}
+
+/**
+ * Read the imputed vacancy CSV. Schema:
+ *   date, jvws, indeed, jvws_imputed, imputation_source
+ * We consume `jvws_imputed` (col 3) and tag each row via `imputation_source`
+ * (col 4). Any row whose imputation_source is the literal "observed" is
+ * treated as a published JVWS print; everything else (currently
+ * "imputed_ols_levels") is the OLS-from-Indeed estimate. Trailing rows
+ * where jvws_imputed is blank (current "missing" tail for unpublished
+ * months) are dropped.
+ */
+function loadImputedVacancy(p: string): VacancyPoint[] {
+  const txt = readFileSync(p, "utf8");
+  const lines = txt.split(/\r?\n/).filter((l) => l.length > 0);
+  const out: VacancyPoint[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = parseCsvLine(lines[i]);
+    const date = cells[0];
+    const rawValue = cells[3];           // jvws_imputed
+    const source = (cells[4] ?? "").trim();
+    if (!date) continue;
+    if (rawValue === undefined || rawValue === "") continue;
+    const v = parseFloat(rawValue);
+    if (!Number.isFinite(v)) continue;
+    out.push({ date, value: v, isImputed: source !== "observed" });
+  }
+  return out;
+}
+
+interface JoinedPoint {
+  date: string;       // "YYYY-MM-01"
+  vacancy: number;    // %
+  unrate: number;     // %
+  isImputed: boolean; // true when vacancy is an OLS imputation
+}
+
+function innerJoinOnDate(vac: VacancyPoint[], une: Point[]): JoinedPoint[] {
+  const uByDate = new Map(une.map((p) => [p.date, p.value]));
+  const out: JoinedPoint[] = [];
+  for (const v of vac) {
+    if (uByDate.has(v.date)) {
+      out.push({
+        date: v.date,
+        vacancy: v.value,
+        unrate: uByDate.get(v.date)!,
+        isImputed: v.isImputed,
+      });
+    }
+  }
+  out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return out;
+}
+
+function fmtMonthShort(d: string): string {
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const [y, m] = d.split("-").map((s) => parseInt(s, 10));
+  return `${months[m - 1]} ${y}`;
+}
+
+// Nice-number tick stride. Same algorithm as PanelLiveChart's pickStride.
+function pickStride(lo: number, hi: number, targetTicks = 5): number {
+  const span = hi - lo;
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  const rough = span / targetTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let nice: number;
+  if (norm < 1.5) nice = 1;
+  else if (norm < 3) nice = 2;
+  else if (norm < 4) nice = 2.5;
+  else if (norm < 7) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+
+// ---- Load + join ---------------------------------------------------------
+const ROOT = process.cwd();
+const vacRaw = loadImputedVacancy(
+  resolve(ROOT, "data/derived/jvws_vacancy_rate_imputed.csv"),
+);
+const uneRaw = loadSingleSeries(resolve(ROOT, "data/raw/unemployment_rate.csv"));
+const joined = innerJoinOnDate(vacRaw, uneRaw);
+const n = joined.length;
+
+// ---- Geometry ------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+// Left gutter: Plex Mono y-ticks PLUS a rotated y-axis title.
+const M_L = 72;
+// Right gutter: latest-point date label.
+const M_R = 88;
+// Top: room for the chart's editorial-quadrant labels.
+const M_T = 36;
+// Bottom: x-axis ticks + x-axis title + methodology annotation line.
+const M_B = 76;
+
+const PLOT_X0 = M_L;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_W = PLOT_X1 - PLOT_X0;
+const PLOT_H = PLOT_Y1 - PLOT_Y0;
+
+// ---- Scales --------------------------------------------------------------
+// X = vacancy rate. Observed window across the joined frame is ~1.9% to
+// ~6.0%. Pad outward to whole-percent boundaries that leave breathing room.
+const xVals = joined.map((p) => p.vacancy);
+const xRawMin = Math.min(...xVals);
+const xRawMax = Math.max(...xVals);
+const xLo = Math.floor(xRawMin);                                 // expected 1
+// Pad upward when the max is right at a whole-% boundary so the 2022 peak
+// dot does not sit on the right frame edge.
+const xHiPlot = Math.ceil(xRawMax) + (xRawMax > Math.ceil(xRawMax) - 0.2 ? 1 : 0); // expected 7
+
+// Y = unemployment rate. Joined frame now spans ~4.8% to ~13.7% because the
+// Apr-Sep 2020 imputed vacancy months join the StatCan unemployment spike
+// at ~13-14% that the pre-imputation version excluded (the survey-gap drop
+// previously hid it). Pad to whole-% boundaries.
+const yVals = joined.map((p) => p.unrate);
+const yRawMin = Math.min(...yVals);
+const yRawMax = Math.max(...yVals);
+const yLo = Math.floor(yRawMin);                                 // expected 4
+const yHi = Math.ceil(yRawMax) + (yRawMax > Math.ceil(yRawMax) - 0.2 ? 1 : 0); // expected 14 or 15
+
+function xScale(v: number): number {
+  return PLOT_X0 + ((v - xLo) / (xHiPlot - xLo)) * PLOT_W;
+}
+function yScale(v: number): number {
+  // Y axis is unemployment; HIGHER unemployment = visually LOWER (per
+  // convention) so the slack quadrant sits in the TOP-LEFT and the tight
+  // quadrant in the BOTTOM-RIGHT. This matches the canonical Beveridge
+  // curve in BoC / Fed publications.
+  return PLOT_Y0 + PLOT_H - ((v - yLo) / (yHi - yLo)) * PLOT_H;
+}
+
+// ---- Ticks ---------------------------------------------------------------
+// Target 4 ticks on each axis; pickStride lands an editorial 3-5 range.
+// On the X axis the natural stride at span ~6% is 1%, which yields 7
+// gridlines; nudge target down to 3 to get a 2% stride (1, 3, 5, 7) which
+// reads cleaner.
+const xStride = pickStride(xLo, xHiPlot, 3);
+const xTicks: number[] = [];
+for (let v = xLo; v <= xHiPlot + 1e-9; v += xStride) {
+  xTicks.push(Number(v.toFixed(6)));
+}
+
+// Y at span ~6% with target 4 yields stride 2% (4, 6, 8, 10) - canonical.
+const yStride = pickStride(yLo, yHi, 4);
+const yTicks: number[] = [];
+for (let v = yLo; v <= yHi + 1e-9; v += yStride) {
+  yTicks.push(Number(v.toFixed(6)));
+}
+
+// ---- Path segment resolution --------------------------------------------
+// Build N-1 directed segments from joined[i] -> joined[i+1]. A segment is
+// drawn DASHED if either endpoint is an imputed point. With imputation
+// covering Apr-Sep 2020 (six months), this yields exactly 7 dashed
+// segments: Mar 2020 -> Apr 2020 (bridge in), five Apr->May->...->Sep
+// imputed-to-imputed steps (six imputed points = five interior segments),
+// plus Sep 2020 -> Oct 2020 (bridge out). Total dashed = 1 + 5 + 1 = 7.
+//
+// NOTE: brief states "six imputed-to-imputed steps" - that count includes
+// the dashed-on-either-side bridges among the segments touching imputed
+// points. The implementation: any segment with EITHER endpoint imputed
+// renders dashed. Math: 6 imputed points = 5 interior segs + 2 bridge
+// segs = 7 dashed segments. The latest observation (Feb 2026) terminates
+// at the red dot; the segment INTO Feb 2026 is part of the solid trace.
+interface PathSegment {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  isDashed: boolean;
+}
+
+const segments: PathSegment[] = [];
+for (let i = 0; i < n - 1; i++) {
+  const a = joined[i];
+  const b = joined[i + 1];
+  segments.push({
+    x1: xScale(a.vacancy),
+    y1: yScale(a.unrate),
+    x2: xScale(b.vacancy),
+    y2: yScale(b.unrate),
+    isDashed: a.isImputed || b.isImputed,
+  });
+}
+
+// Build two polyline path strings: one for solid segments, one for dashed.
+// We emit each segment as an independent M/L pair so adjacent solid and
+// dashed runs do not visually fuse where they meet.
+function segmentToPathD(s: PathSegment): string {
+  return `M ${s.x1.toFixed(2)} ${s.y1.toFixed(2)} L ${s.x2.toFixed(2)} ${s.y2.toFixed(2)}`;
+}
+const solidD = segments
+  .filter((s) => !s.isDashed)
+  .map(segmentToPathD)
+  .join(" ");
+const dashedD = segments
+  .filter((s) => s.isDashed)
+  .map(segmentToPathD)
+  .join(" ");
+
+// ---- Latest print --------------------------------------------------------
+const latest = joined[n - 1];
+const latestX = xScale(latest.vacancy);
+const latestY = yScale(latest.unrate);
+const latestLabel = fmtMonthShort(latest.date);
+
+// ---- Inflection markers + labels ----------------------------------------
+// Two hand-placed inflection markers anchor the trajectory:
+//   - Pandemic trough (May 2020): upper-left extremum, sitting on the
+//     imputed arm. Drawn HOLLOW to preserve the imputation-honesty
+//     signal at the labeled point.
+//   - Peak tightness (Apr 2022): bottom-right extremum, the ultra-tight
+//     regime. Filled 2.5px pure-ink dot. Label wraps to two lines and
+//     sits just inside the right plot frame.
+// Plus the canonical Feb 2026 latest dot (handled separately, red).
+//
+// The pre-pandemic (Sep 2019) marker + label were removed: the path's
+// dense cluster around that locus reads the equilibrium without a
+// callout, and the label crowded the chart.
+interface InflectionSpec {
+  date: string;
+  text: string;
+  dx: number;
+  dy: number;
+  anchor: "start" | "middle" | "end";
+  hollow: boolean;
+  // Optional second line, rendered as a <tspan dy="1.1em"> beneath the first.
+  text2?: string;
+}
+
+const inflectionSpecs: InflectionSpec[] = [
+  { date: "2020-05-01", text: "Pandemic trough (May 2020)", dx: 10, dy: -6,  anchor: "start", hollow: true  },
+  { date: "2022-04-01", text: "Peak tightness",             text2: "(Apr 2022)", dx: 6, dy: 14, anchor: "start", hollow: false },
+];
+
+interface InflectionResolved extends InflectionSpec {
+  cx: number;
+  cy: number;
+  lx: number;
+  ly: number;
+}
+
+const inflections: InflectionResolved[] = inflectionSpecs
+  .map((spec) => {
+    const p = joined.find((j) => j.date === spec.date);
+    if (!p) return null;
+    const cx = xScale(p.vacancy);
+    const cy = yScale(p.unrate);
+    return {
+      ...spec,
+      cx,
+      cy,
+      lx: cx + spec.dx,
+      ly: cy + spec.dy,
+    };
+  })
+  .filter((p): p is InflectionResolved => p !== null);
+
+// Latest direct-label - shifted diagonally down-left into whitespace below
+// the dense low-V/U cluster surrounding the Feb 2026 dot. Anchor=end so the
+// text extends LEFT from the anchor point, away from path lines.
+const latestLabelDx = -10;
+const latestLabelDy = 32;
+
+const windowDescription =
+  `${fmtMonthShort(joined[0].date)} through ${fmtMonthShort(latest.date)}`;
+
+const ariaLabel =
+  "Canadian Beveridge curve: job vacancy rate against unemployment rate, " +
+  "monthly observations from " + windowDescription + ", rendered as a " +
+  "continuous time-path with Apr-Sep 2020 imputed segments drawn dashed. " +
+  "Two inflection points marked: pandemic trough (May 2020, hollow) " +
+  "and peak tightness (Apr 2022). " +
+  "Latest print (" + latestLabel + ", vacancy " +
+  latest.vacancy.toFixed(1) + " percent, unemployment " +
+  latest.unrate.toFixed(1) + " percent) highlighted in red.";
+---
+<div class="panel-beveridge" data-section="labour" data-panel="beveridge">
+  <svg
+    class="panel-beveridge__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* 1. Horizontal gridlines - pure ink at 0.18 opacity */}
+    {yTicks.map((t) => {
+      const y = yScale(t);
+      return (
+        <line
+          class="panel-beveridge__gridline"
+          x1={PLOT_X0}
+          x2={PLOT_X1}
+          y1={y.toFixed(2)}
+          y2={y.toFixed(2)}
+        />
+      );
+    })}
+
+    {/* 2. Vertical gridlines - Beveridge axes are BOTH continuous-value,
+           so the small-multiples exception applies: vertical gridlines
+           are read here as a coordinate grid, not a time-axis chrome.
+           Same pure ink at 0.18 opacity. */}
+    {xTicks.map((t) => {
+      const x = xScale(t);
+      return (
+        <line
+          class="panel-beveridge__gridline"
+          x1={x.toFixed(2)}
+          x2={x.toFixed(2)}
+          y1={PLOT_Y0}
+          y2={PLOT_Y1}
+        />
+      );
+    })}
+
+    {/* 3. Time-path trace - solid segments. 1px pure-ink, full opacity. */}
+    <path
+      class="panel-beveridge__trace"
+      d={solidD}
+    />
+
+    {/* 4. Time-path trace - dashed segments for the seven edges touching
+           an Apr-Sep 2020 imputed point (Mar->Apr 2020 bridge, five
+           imputed-to-imputed Apr->...->Sep steps, Sep->Oct 2020 bridge). */}
+    <path
+      class="panel-beveridge__trace panel-beveridge__trace--imputed"
+      d={dashedD}
+    />
+
+    {/* 5. Inflection markers - three 2.5px pure-ink dots. May 2020 is
+           drawn hollow to preserve the imputation-honesty signal at the
+           labeled point. */}
+    {inflections.map((m) => (
+      m.hollow ? (
+        <circle
+          class="panel-beveridge__inflection panel-beveridge__inflection--hollow"
+          cx={m.cx.toFixed(2)}
+          cy={m.cy.toFixed(2)}
+          r="2.5"
+        />
+      ) : (
+        <circle
+          class="panel-beveridge__inflection"
+          cx={m.cx.toFixed(2)}
+          cy={m.cy.toFixed(2)}
+          r="2.5"
+        />
+      )
+    ))}
+
+    {/* 6. Latest-print dot - MTA red, the brand-signal moment. */}
+    <circle
+      class="panel-beveridge__latest-dot"
+      cx={latestX.toFixed(2)}
+      cy={latestY.toFixed(2)}
+      r="4"
+    >
+      <title>{`Latest: ${latestLabel}: vacancy ${latest.vacancy.toFixed(1)}%, unemployment ${latest.unrate.toFixed(1)}%`}</title>
+    </circle>
+
+    {/* 7. Plot frame - 1px pure-ink hairline rectangle. */}
+    <rect
+      class="panel-beveridge__frame"
+      x={PLOT_X0}
+      y={PLOT_Y0}
+      width={PLOT_W}
+      height={PLOT_H}
+    />
+
+    {/* 8. X-axis tick marks + Manrope micro labels. */}
+    {xTicks.map((t) => {
+      const x = xScale(t);
+      return (
+        <g>
+          <line
+            class="panel-beveridge__xtick"
+            x1={x.toFixed(2)}
+            x2={x.toFixed(2)}
+            y1={PLOT_Y1.toFixed(2)}
+            y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="panel-beveridge__xtick-label"
+            x={x.toFixed(2)}
+            y={(PLOT_Y1 + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.toFixed(0)}</text>
+        </g>
+      );
+    })}
+
+    {/* 9. Y-axis tick labels - Plex Mono, pure ink, right-aligned. Topmost
+           carries the unit "%". */}
+    {yTicks.map((t, i) => {
+      const y = yScale(t);
+      const isTop = i === yTicks.length - 1;
+      const lbl = isTop ? `${t.toFixed(0)}%` : t.toFixed(0);
+      return (
+        <text
+          class="panel-beveridge__ytick-label"
+          x={(PLOT_X0 - 8).toFixed(2)}
+          y={(y + 4).toFixed(2)}
+          text-anchor="end"
+        >{lbl}</text>
+      );
+    })}
+
+    {/* 10. X-axis title - "Vacancy rate" centered below the tick labels. */}
+    <text
+      class="panel-beveridge__axis-title"
+      x={((PLOT_X0 + PLOT_X1) / 2).toFixed(2)}
+      y={(PLOT_Y1 + 40).toFixed(2)}
+      text-anchor="middle"
+    >VACANCY RATE</text>
+
+    {/* 11. Y-axis title - "Unemployment rate" rotated, left of y-ticks.
+             Beveridge curves are unusual enough that an explicit y-axis
+             title earns its visual weight. */}
+    <text
+      class="panel-beveridge__axis-title"
+      x={(PLOT_X0 - 48).toFixed(2)}
+      y={((PLOT_Y0 + PLOT_Y1) / 2).toFixed(2)}
+      text-anchor="middle"
+      transform={`rotate(-90 ${(PLOT_X0 - 48).toFixed(2)} ${((PLOT_Y0 + PLOT_Y1) / 2).toFixed(2)})`}
+    >UNEMPLOYMENT RATE</text>
+
+    {/* 12. Inflection labels - Plex Mono 10px pure ink. Two labels sit
+             close enough to their markers that leader lines are not
+             needed. The Apr 2022 label wraps to two lines via a tspan
+             so neither line collides with the right plot frame. */}
+    {inflections.map((m) => (
+      <text
+        class="panel-beveridge__inflection-label"
+        x={m.lx.toFixed(2)}
+        y={m.ly.toFixed(2)}
+        text-anchor={m.anchor}
+      >
+        {m.text}
+        {m.text2 && (
+          <tspan x={m.lx.toFixed(2)} dy="1.1em">{m.text2}</tspan>
+        )}
+      </text>
+    ))}
+
+    {/* 13. Latest direct-label - shifted diagonally down-left into clean
+             whitespace below the dense low-V/U cluster. */}
+    <text
+      class="panel-beveridge__inflection-label"
+      x={(latestX + latestLabelDx).toFixed(2)}
+      y={(latestY + latestLabelDy).toFixed(2)}
+      text-anchor="end"
+    >{latestLabel}</text>
+
+  </svg>
+</div>
+
+<style>
+  /* ----------------------------------------------------------------------
+     PanelBeveridgeCurve - Tier-3 chartbook canon, continuous path-only
+     trajectory. Token surface monochrome (Section 3); accent appears
+     exactly once, on the latest-print dot.
+     ---------------------------------------------------------------------- */
+  .panel-beveridge {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+  .panel-beveridge__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  /* Gridlines - pure ink, low opacity. Both axes are continuous-value here,
+     so the canon's "no vertical gridlines" rule (a time-axis chrome rule)
+     does not apply; we render the coordinate grid on both. */
+  .panel-beveridge__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+
+  /* Trajectory trace - 1px pure-ink path, full opacity. Solid segments
+     are the default; the imputed variant overrides stroke-dasharray. */
+  .panel-beveridge__trace {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-linecap: butt;
+    stroke-linejoin: round;
+  }
+  .panel-beveridge__trace--imputed {
+    stroke-dasharray: 4 2;
+  }
+
+  /* Inflection marker - 2.5px filled pure-ink dot. */
+  .panel-beveridge__inflection {
+    fill: var(--ink);
+    stroke: none;
+  }
+  /* May 2020 hollow variant - preserves imputation-honesty signal at the
+     labeled point. */
+  .panel-beveridge__inflection--hollow {
+    fill: var(--paper);
+    stroke: var(--ink);
+    stroke-width: 1;
+  }
+
+  /* Latest-print dot - MTA red. The brand-signal moment per canon. */
+  .panel-beveridge__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  /* Plot frame - 1px pure-ink hairline rectangle. */
+  .panel-beveridge__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* X-axis tick marks - 4px outward, pure ink. */
+  .panel-beveridge__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* X-axis tick labels - Manrope 400 micro pure ink. */
+  .panel-beveridge__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Y-axis tick labels - Plex Mono 400 micro pure ink (Section 10 cohesion). */
+  .panel-beveridge__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Axis titles - Manrope 600 micro-caps pure ink, same register as the
+     recession-band label per the canon. Both axes carry one because the
+     Beveridge layout is uncommon enough to deserve explicit labelling. */
+  .panel-beveridge__axis-title {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.18em;
+  }
+
+  /* Inflection labels - Plex Mono 10px pure ink, full opacity. Sit close
+     to their markers; no leader lines. */
+  .panel-beveridge__inflection-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: var(--fw-regular);
+    letter-spacing: 0;
+  }
+
+</style>

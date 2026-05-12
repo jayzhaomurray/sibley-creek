@@ -3,12 +3,20 @@ import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
 import panelDataFile from "../../data/site/panel_data/inflation.json";
+import sectionsJson from "../../data/site/sections.json";
 import { pickPanel } from "../components/charts/_shared/panelData";
+import { deriveLatestReleaseLabel } from "../components/section/_shared/derivedLabels";
 
 const section = sections.find((s) => s.slug === "inflation");
 if (!section) {
   throw new Error("Inflation section not found in src/data/sections.ts");
 }
+
+const latestReleaseLabel = deriveLatestReleaseLabel(
+  section.latestReleasePrefix ?? "",
+  sectionsJson,
+  "inflation",
+);
 
 const panel1Data = pickPanel(panelDataFile, 1);
 const panel2Data = pickPanel(panelDataFile, 2);
@@ -23,15 +31,14 @@ const plates: Plate[] = [
     number: "01",
     indicator: "Headline CPI, Y/Y",
     plateIndexLabel: "Headline CPI",
-    asOf: "Mar 2026",
     title: "Headline disinflation has stalled, with three-month momentum now running above the year-over-year read.",
     interpretationHtml:
-      "Headline CPI rose <strong>2.3% Y/Y</strong> in March, up 0.5pp from February's 1.8% and back above the BoC's 2% target. " +
+      "Headline CPI rose 2.3% Y/Y in March, up 0.5pp from February's 1.8% and back above the BoC's 2% target. " +
       "The three-month annualized print, near 2.9%, is running above the Y/Y &mdash; the bounce in February's index has carried through. " +
       "Food and energy contributed most of the reacceleration; shelter no longer leads.",
     callout: {
       value: "2.3%",
-      unit: "Y/Y, Mar 2026",
+      unitPrefix: "Y/Y",
       delta: "+0.5pp vs prior",
       direction: "pos",
     },
@@ -45,15 +52,14 @@ const plates: Plate[] = [
     number: "02",
     indicator: "Core-trim and core-median, Y/Y",
     plateIndexLabel: "Preferred cores",
-    asOf: "Mar 2026",
     title: "Both preferred cores have settled near 2% even as headline turned.",
     interpretationHtml:
-      "Core-trim eased to <strong>2.2% Y/Y</strong> in March, down 0.1pp from February. Core-median held at <strong>2.3%</strong>. " +
+      "Core-trim eased to 2.2% Y/Y in March, down 0.1pp from February. Core-median held at 2.3%. " +
       "Both preferred measures now sit inside the BoC's 1-3% control band and within 0.3pp of the 2% midpoint &mdash; the underlying disinflation has held even as headline turned. " +
       "Core-common, shown as historical anchor, prints 2.6%; the BoC has deprioritized it since late 2022.",
     callout: {
       value: "2.2%",
-      unit: "core-trim, Y/Y, Mar 2026",
+      unitPrefix: "core-trim, Y/Y",
       delta: "-0.1pp vs prior",
       direction: "neg",
     },
@@ -66,15 +72,14 @@ const plates: Plate[] = [
     number: "03",
     indicator: "Share of CPI basket above 3% Y/Y",
     plateIndexLabel: "Breadth",
-    asOf: "Mar 2026",
     title: "Breadth has turned higher for the first time in months, matching the headline reacceleration.",
     interpretationHtml:
-      "The share of CPI components rising more than 3% Y/Y jumped to <strong>27.2%</strong> in March from 22.3% in February &mdash; a 4.9pp widening and the first meaningful breadth expansion since late 2025. " +
+      "The share of CPI components rising more than 3% Y/Y jumped to 27.2% in March from 22.3% in February &mdash; a 4.9pp widening and the first meaningful breadth expansion since late 2025. " +
       "The level is still well below the 2022 peak above two thirds, but the direction matches the headline reacceleration. " +
       "Whether March marks a one-month spike or the start of a broader re-firming is the read to track in April.",
     callout: {
       value: "27.2%",
-      unit: "share >3% Y/Y, Mar 2026",
+      unitPrefix: "share >3% Y/Y",
       delta: "+4.9pp vs prior",
       direction: "pos",
     },
@@ -87,15 +92,14 @@ const plates: Plate[] = [
     number: "04",
     indicator: "Shelter, services, goods, food, energy, Y/Y",
     plateIndexLabel: "Sub-aggregates",
-    asOf: "Mar 2026",
     title: "The composition of inflation has flipped from shelter to food and energy.",
     interpretationHtml:
-      "Food rose <strong>4.0% Y/Y</strong> and energy <strong>3.9%</strong> in March &mdash; the two above-target lines and the bulk of the headline reacceleration. " +
+      "Food rose 4.0% Y/Y and energy 3.9% in March &mdash; the two above-target lines and the bulk of the headline reacceleration. " +
       "Shelter has cooled to 1.7% as mortgage-interest cost faded to 0.7% and rent slowed to 0.9%; the line that drove the 2023-24 overshoot is no longer a source of pressure. " +
       "Services held at 2.5%, goods at 2.1%. The composition has flipped: the stickiness that remains is in food and energy, not housing.",
     callout: {
       value: "1.7%",
-      unit: "shelter, Y/Y, Mar 2026",
+      unitPrefix: "shelter, Y/Y",
       delta: "+0.2pp vs prior",
       direction: "pos",
     },
@@ -112,7 +116,7 @@ const plates: Plate[] = [
     asOf: "Q1 2026 (CSCE / BOS)",
     title: "Both groups still see inflation pulling back toward target.",
     interpretationHtml:
-      "Consumers' five-year-ahead inflation expectations slipped to <strong>3.0%</strong> in Q1, down from a 3.67% peak in mid-2025 and the closest reading to the 2% target since 2021. On the firm side, the share of businesses expecting inflation above 3% fell to <strong>11%</strong> &mdash; a quarter of the level that prevailed in early 2024, with the modal firm now expecting inflation between 1% and 2%. The anchoring chain is moderating on both sides of the survey, which is the condition the Bank of Canada has named as binding for further easing.",
+      "Consumers' five-year-ahead inflation expectations slipped to 3.0% in Q1, down from a 3.67% peak in mid-2025 and the closest reading to the 2% target since 2021. On the firm side, the share of businesses expecting inflation above 3% fell to 11% &mdash; a quarter of the level that prevailed in early 2024, with the modal firm now expecting inflation between 1% and 2%. The anchoring chain is moderating on both sides of the survey, which is the condition the Bank of Canada has named as binding for further easing.",
     callout: {
       value: "3.0%",
       unit: "CSCE 5y consumer expectations, Q1 2026",
@@ -155,7 +159,7 @@ const lede = section.blurb?.body ?? "";
   sectionLabel="Inflation"
   headlineQuestion={section.headlineQuestion}
   lede={lede}
-  latestReleaseLabel="Headline CPI, Mar 2026"
+  latestReleaseLabel={latestReleaseLabel}
   plates={plates}
   title={pageTitle}
   description={pageDescription}

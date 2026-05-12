@@ -147,6 +147,45 @@ export interface Section {
    */
   heroKicker?: string;
   /**
+   * Editorial prefix for the auto-derived hero kicker. When set, downstream
+   * components compose `"{heroKickerPrefix} {derivedDate}"` using the
+   * section's load-bearing print date from the pipeline payload (e.g.
+   * `"CPI"` + `"Mar 2026"` -> `"CPI Mar 2026"`). The static `heroKicker`
+   * remains as the fallback when the pipeline payload is unavailable or
+   * the prefix is unset.
+   *
+   * Backend pipeline keeps the derived date in sync as new prints land;
+   * `heroKickerPrefix` is editorial-canon-stable (the noun is the print
+   * name, e.g. "CPI", "LFS", "Weekly close").
+   */
+  heroKickerPrefix?: string;
+  /**
+   * Editorial prefix for the section page's top-level "Latest release"
+   * stamp. Composed as `"{latestReleasePrefix}, {derivedDate}"` at build
+   * time, where `derivedDate` comes from sections.json's `prints[0]`
+   * (or the print matching `chartSeriesKey`).
+   *
+   * Examples: "Headline CPI", "LFS", "BoC rate decision", "Daily close",
+   * "Merchandise trade", "Home prices", "Monthly GDP by industry".
+   *
+   * Set per section in the canon block below. The Policy section is a
+   * special case: the load-bearing event (the rate decision) doesn't sit
+   * in `prints[]` — see `latestReleaseDateOverride` for that path.
+   */
+  latestReleasePrefix?: string;
+  /**
+   * Optional hand-set "Latest release" date for sections whose load-
+   * bearing event is NOT one of the standard pipeline prints (e.g. Policy
+   * — the BoC rate decision is the event, but `prints[0]` is the
+   * overnight rate, dated to the latest monthly observation, not the
+   * decision day). Combined with `latestReleasePrefix` directly:
+   *   "{latestReleasePrefix}, {latestReleaseDateOverride}"
+   *
+   * Keep this updated alongside the canonical event. The default flow
+   * uses the auto-derived date from sections.json.
+   */
+  latestReleaseDateOverride?: string;
+  /**
    * Homepage section panel's one-liner. Renders as `<p class="vig-panel__note">`
    * below the readout block on each splash panel.
    *
@@ -176,6 +215,8 @@ export const sections: Section[] = [
     updatedAt: Date.UTC(2026, 3, 30, 8, 30),
     chartSeriesKey: "gdp-yoy",
     heroKicker: "February GDP",
+    heroKickerPrefix: "GDP",
+    latestReleasePrefix: "Monthly GDP by industry",
     tileLine:
       "February GDP came in soft on goods-producing industries; services held up.",
     prints: [
@@ -238,6 +279,8 @@ export const sections: Section[] = [
     updatedAt: Date.UTC(2026, 3, 20, 8, 30),
     chartSeriesKey: "cpi-yoy",
     heroKicker: "March CPI",
+    heroKickerPrefix: "CPI",
+    latestReleasePrefix: "Headline CPI",
     tileLine:
       "Headline CPI at 2.3% in March; food and energy carry the above-target weight.",
     prints: [
@@ -275,7 +318,7 @@ export const sections: Section[] = [
       },
       {
         key: "cpi-breadth-gt3",
-        indicator: "CPI breadth >3%",
+        indicator: "CPI share >3%, y/y",
         value: "TK",
         delta: "TK",
         deltaDir: "neutral",
@@ -306,6 +349,8 @@ export const sections: Section[] = [
     updatedAt: Date.UTC(2026, 4, 2, 8, 30),
     chartSeriesKey: "unrate",
     heroKicker: "April Labour Force Survey",
+    heroKickerPrefix: "LFS",
+    latestReleasePrefix: "LFS",
     tileLine:
       "Unemployment climbed to 6.9% in April; aggregate hours turned negative Y/Y.",
     prints: [
@@ -360,6 +405,14 @@ export const sections: Section[] = [
     updatedAt: Date.UTC(2026, 3, 29, 14, 0),
     chartSeriesKey: "policy-rate",
     heroKicker: "April rate decision",
+    // Policy's load-bearing event is the rate decision, not the pipeline's
+    // monthly `policy-rate` print. heroKickerPrefix is hand-set to the
+    // event-month phrasing; the page-level "Latest release" date is
+    // hand-overridden via latestReleaseDateOverride since the rate
+    // decision doesn't sit in `prints[]` directly.
+    heroKickerPrefix: "Rate decision",
+    latestReleasePrefix: "BoC rate decision",
+    latestReleaseDateOverride: "Apr 29, 2026",
     tileLine:
       "BoC held at 2.25% on April 29, the fourth straight hold since October's cut.",
     prints: [
@@ -422,6 +475,8 @@ export const sections: Section[] = [
     updatedAt: Date.UTC(2026, 3, 15, 9, 0),
     chartSeriesKey: "hpi-yoy",
     heroKicker: "March home prices",
+    heroKickerPrefix: "Home prices",
+    latestReleasePrefix: "Home prices",
     tileLine:
       "Composite home prices down 4.6% Y/Y, the eighth straight down month.",
     prints: [
@@ -472,6 +527,8 @@ export const sections: Section[] = [
     updatedAt: Date.UTC(2026, 4, 5, 8, 30),
     chartSeriesKey: "trade-balance",
     heroKicker: "March balance",
+    heroKickerPrefix: "Trade balance",
+    latestReleasePrefix: "Merchandise trade",
     tileLine:
       "Goods balance narrowed to -$2.2B; US export share fell to 66.1%.",
     prints: [
@@ -538,6 +595,11 @@ export const sections: Section[] = [
     updatedAt: Date.UTC(2026, 4, 8, 21, 0),
     chartSeriesKey: "usdcad",
     heroKicker: "Weekly close",
+    // Markets refreshes daily; the kicker phrase "Daily close" + the
+    // pipeline's daily-cadence date reads as the current convention
+    // ("Daily close May 8, 2026").
+    heroKickerPrefix: "Daily close",
+    latestReleasePrefix: "Daily close",
     tileLine:
       "USDCAD closed the week at 1.369 as the BoC-Fed 2y spread held near -98 bps.",
     prints: [

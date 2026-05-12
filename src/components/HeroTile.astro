@@ -59,6 +59,8 @@
 
 import type { Section, SectionPrint } from "../data/sections";
 import HeroChart from "./charts/HeroChart.astro";
+import sectionsJson from "../../data/site/sections.json";
+import { deriveHeroKicker } from "./section/_shared/derivedLabels";
 
 interface Props {
   section: Section;
@@ -81,11 +83,18 @@ const isFresh = blurb.kind === "fresh";
 
 // Art-director re-eval (2026-05-11) item 3: hero eyebrow now reads
 // "SECTION | KICKER" where the kicker names a specific release / event,
-// not refresh-light metadata. Falls back to the section's cadence string
-// if a section has no heroKicker (defensive; v1 sets it on every section).
-// CSS uppercases on render so the source string can be sentence-case for
-// future bilingual variants.
-const heroKicker = section.heroKicker ?? section.cadence;
+// not refresh-light metadata. CSS uppercases on render so the source
+// string can be sentence-case for future bilingual variants.
+//
+// Auto-derivation (2026-05-11 backend pass): when `heroKickerPrefix` is
+// set on the section canon, we compose `prefix + " " + derivedDate` from
+// the pipeline payload so the kicker re-stamps as new prints land. Falls
+// back to the static `heroKicker` field, then to `cadence`, when the
+// payload is unavailable.
+const derivedHeroKicker = section.heroKickerPrefix
+  ? deriveHeroKicker(section.heroKickerPrefix, sectionsJson, section.slug)
+  : null;
+const heroKicker = derivedHeroKicker ?? section.heroKicker ?? section.cadence;
 ---
 <a
   class="hero"

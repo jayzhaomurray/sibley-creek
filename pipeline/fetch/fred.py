@@ -123,29 +123,29 @@ def fetch_series(
 
 
 def fetch_fed_funds_target() -> pd.DataFrame:
-    """Composite Fed funds target rate: FEDFUNDS monthly pre-2008 + DFEDTARU/L midpoint post-2008.
+    """Composite Fed funds target rate: FEDFUNDS monthly pre-2008 + DFEDTARU (upper bound) post-2008.
 
     Carried over from boc-tracker; the pre-2008 effective rate is an acceptable
     proxy for the target before the Fed adopted a target range in Dec 2008.
+
+    Switched from midpoint (upper+lower)/2 to upper bound on 2026-05-11. The
+    upper bound is the rate the Fed PUBLISHES as the headline policy
+    reference and is the value financial press cites. "Midpoint" is a
+    derived synthesis that no Fed statement uses and that conflates the
+    target range with the effective rate. Reader prose now says "Fed funds
+    at 3.75%, the upper bound of its 3.50 to 3.75% target range" rather
+    than "Fed funds at 3.625%, the midpoint."
     """
     monthly = fetch_series("FEDFUNDS", start_date="1990-01-01").data
     upper = fetch_series("DFEDTARU", start_date="2008-01-01").data
-    lower = fetch_series("DFEDTARL", start_date="2008-01-01").data
 
-    if upper.empty or lower.empty:
-        raise ValueError("Fed funds target post-2008 range fetch returned empty data.")
+    if upper.empty:
+        raise ValueError("Fed funds upper-bound post-2008 fetch returned empty data.")
 
-    mid = (
-        upper.set_index("date")["value"]
-        .add(lower.set_index("date")["value"])
-        .div(2)
-        .dropna()
-        .reset_index()
-    )
-    mid.columns = ["date", "value"]
-    cutoff = mid["date"].min()
+    post = upper.copy()
+    cutoff = post["date"].min()
     pre = monthly[monthly["date"] < cutoff]
-    combined = pd.concat([pre, mid], ignore_index=True).sort_values("date").reset_index(drop=True)
+    combined = pd.concat([pre, post], ignore_index=True).sort_values("date").reset_index(drop=True)
     return combined
 
 
