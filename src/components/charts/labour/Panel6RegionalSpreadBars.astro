@@ -1,0 +1,432 @@
+---
+/*
+ * Panel6RegionalSpreadBars - provincial unemployment as the SPREAD vs the
+ * Canadian national rate, rendered as monthly signed bars per province in
+ * a 2x2 small-multiples grid.
+ *
+ * Diagnosis (editorial/chart-diagnosis/labour.md P5) + 2026-05-12 follow-up:
+ * the prior level-comparison treatment (province line + Canada reference)
+ * shipped as Panel6RegionalSmallMultiples but the user moved it to chart-
+ * alternatives. This is the production replacement: each quadrant shows
+ * the signed spread (provincial UR minus national UR) as monthly bars.
+ *
+ *   Positive bar  -> province above the national rate (worse on UR).
+ *   Negative bar  -> province below the national rate (better on UR).
+ *   Zero line      -> the national rate, by construction.
+ *
+ * Latest month's bar in MTA red on each panel. 60-month window. Each panel
+ * carries the two-letter province code in the top-left corner.
+ *
+ * Reading order: Ontario (top-left), Quebec (top-right), BC (bottom-left),
+ * Alberta (bottom-right). User-specified layout in dispatch.
+ *
+ * Data wiring: panel-6 emits ON (primary), QC (secondary), AB (tertiary)
+ * with BC + CA in extras. CA is the subtractor; the four big-province
+ * series each become a "province minus CA" derived series in this wrapper.
+ *
+ * Custom SVG. Pattern cribbed from Panel1HeadlineGDPV3 (bars geometry +
+ * zero-anchored y-domain) and Panel6RegionalSmallMultiples (2x2 grid +
+ * shared x-domain across quadrants).
+ */
+
+import type { PanelData, SeriesPoint } from "../_shared/panelData";
+import { decYear, tailWindow } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+const { data = null } = Astro.props;
+
+const WINDOW_MONTHS = 60;
+
+function findExtra(key: string): SeriesPoint[] {
+  if (!data || !Array.isArray((data as any).extras)) return [];
+  const extras = (data as any).extras as Array<{ key: string; data: SeriesPoint[] }>;
+  return extras.find((e) => e.key === key)?.data ?? [];
+}
+
+function pickStride(lo: number, hi: number, targetTicks = 3): number {
+  const span = hi - lo;
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  const rough = span / targetTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let nice: number;
+  if (norm < 1.5) nice = 1;
+  else if (norm < 3) nice = 2;
+  else if (norm < 4) nice = 2.5;
+  else if (norm < 7) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+
+// Compute province-minus-Canada signed spread aligned on shared dates.
+// Returns one SeriesPoint per CA observation; null when either side
+// is missing for the date.
+function spread(prov: SeriesPoint[], ca: SeriesPoint[]): SeriesPoint[] {
+  const provMap = new Map<string, number>();
+  for (const p of prov) {
+    if (typeof p.value === "number" && !Number.isNaN(p.value)) provMap.set(p.date, p.value);
+  }
+  const out: SeriesPoint[] = [];
+  for (const c of ca) {
+    if (typeof c.value !== "number" || Number.isNaN(c.value)) {
+      out.push({ date: c.date, value: null });
+      continue;
+    }
+    const pv = provMap.get(c.date);
+    out.push({
+      date: c.date,
+      value: typeof pv === "number" ? pv - c.value : null,
+    });
+  }
+  return out;
+}
+
+// Pull raw series.
+const onRaw = data?.primary?.data ?? [];
+const qcRaw = data?.secondary?.data ?? [];
+const abRaw = data?.tertiary?.data ?? [];
+const bcRaw = findExtra("lfs_bc_unemployment_rate");
+const caRaw = findExtra("lfs_ca_unemployment_rate");
+
+// Derive spreads against the full CA series first; window AFTER derivation
+// so subtraction has the full overlap to work with.
+const onSpread = spread(onRaw, caRaw);
+const qcSpread = spread(qcRaw, caRaw);
+const abSpread = spread(abRaw, caRaw);
+const bcSpread = spread(bcRaw, caRaw);
+
+const onTail = tailWindow(onSpread, WINDOW_MONTHS, "monthly");
+const qcTail = tailWindow(qcSpread, WINDOW_MONTHS, "monthly");
+const abTail = tailWindow(abSpread, WINDOW_MONTHS, "monthly");
+const bcTail = tailWindow(bcSpread, WINDOW_MONTHS, "monthly");
+
+const hasData =
+  onTail.length > 0 && qcTail.length > 0 &&
+  abTail.length > 0 && bcTail.length > 0;
+
+// User-specified order: top-left ON, top-right QC, bottom-left BC, bottom-right AB.
+const provinces = hasData ? [
+  { code: "ON", title: "ONTARIO",         data: onTail },
+  { code: "QC", title: "QUEBEC",          data: qcTail },
+  { code: "BC", title: "BRITISH COLUMBIA", data: bcTail },
+  { code: "AB", title: "ALBERTA",         data: abTail },
+] : [];
+
+// Shared x-domain across all four panels so the months line up vertically.
+const allDates = hasData ? [...onTail, ...qcTail, ...abTail, ...bcTail] : [];
+const allX = allDates.map((d) => decYear(d.date)).filter((v) => !Number.isNaN(v));
+let xMin = allX.length > 0 ? Math.min(...allX) : 0;
+let xMax = allX.length > 0 ? Math.max(...allX) : 1;
+
+// Shared y-domain across all four so the quadrants are visually comparable
+// (the editorial point is which province has the biggest gap to the national
+// rate; that comparison only works when 1pp = 1pp in every quadrant).
+const allVals: number[] = [];
+for (const p of provinces) {
+  for (const d of p.data) {
+    if (typeof d.value === "number" && !Number.isNaN(d.value)) allVals.push(d.value);
+  }
+}
+let yLo = -1, yHi = 1;
+if (allVals.length > 0) {
+  const rawMin = Math.min(...allVals);
+  const rawMax = Math.max(...allVals);
+  // Symmetric around zero — the chart's whole frame is "above vs below the
+  // national rate." Asymmetric padding would visually privilege one side.
+  const absMax = Math.max(Math.abs(rawMin), Math.abs(rawMax));
+  const padded = absMax * 1.15;
+  yLo = -padded;
+  yHi = padded;
+}
+const yRange = yHi - yLo || 1;
+
+// Pad x-domain by half a bar slot so the first/last bars sit inside the frame.
+if (hasData && allX.length > 1) {
+  // Slot width inferred from the densest panel (all four are monthly with
+  // identical cadence, so any is fine).
+  const slotYears = (xMax - xMin) / Math.max(1, onTail.length - 1);
+  xMin -= slotYears * 0.6;
+  xMax += slotYears * 0.6;
+}
+
+// ---- Geometry: 2x2 grid -------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_OUT = 8;
+const GAP_X = 36;
+const GAP_Y = 36;
+const M_T = 28;
+const M_B = 28;
+const SUB_M_L = 36;
+const SUB_M_R = 10;
+const SUB_M_T = 22;
+const SUB_M_B = 22;
+
+const COL_W = (VB_W - 2 * M_OUT - GAP_X) / 2;
+const ROW_H = (VB_H - M_T - M_B - GAP_Y) / 2;
+
+function cellX0(col: number): number { return M_OUT + col * (COL_W + GAP_X); }
+function cellY0(row: number): number { return M_T + row * (ROW_H + GAP_Y); }
+
+interface BarRect {
+  x: number; y: number; w: number; h: number;
+  isLatest: boolean;
+  value: number;
+  date: string;
+}
+
+interface SubGeom {
+  plotX0: number; plotX1: number; plotW: number;
+  plotY0: number; plotY1: number; plotH: number;
+  yTicks: number[];
+  xTicks: Array<{ x: number; label: string }>;
+  bars: BarRect[];
+  zeroY: number;
+  cellX0: number; cellY0: number;
+  cellW: number;
+}
+
+function buildSubPanel(
+  col: number,
+  row: number,
+  series: SeriesPoint[],
+): SubGeom {
+  const cx0 = cellX0(col);
+  const cy0 = cellY0(row);
+  const plotX0 = cx0 + SUB_M_L;
+  const plotX1 = cx0 + COL_W - SUB_M_R;
+  const plotY0 = cy0 + SUB_M_T;
+  const plotY1 = cy0 + ROW_H - SUB_M_B;
+  const plotW = plotX1 - plotX0;
+  const plotH = plotY1 - plotY0;
+
+  const xScale = (yr: number) => {
+    if (xMax === xMin) return plotX0 + plotW / 2;
+    return plotX0 + ((yr - xMin) / (xMax - xMin)) * plotW;
+  };
+  const yScale = (v: number) => plotY0 + plotH - ((v - yLo) / yRange) * plotH;
+
+  const stride = pickStride(yLo, yHi);
+  const yTicks: number[] = [];
+  const start = Math.ceil(yLo / stride) * stride;
+  for (let v = start; v <= yHi + 1e-9; v += stride) {
+    yTicks.push(Number(v.toFixed(6)));
+  }
+  if (yTicks.length === 0) yTicks.push(0);
+
+  const yearStart = Math.ceil(xMin);
+  const yearEnd = Math.floor(xMax);
+  const allYearTicks: Array<{ x: number; label: string }> = [];
+  for (let yr = yearStart; yr <= yearEnd; yr++) {
+    const decY = yr + (1 - 0.5) / 12;
+    if (decY < xMin || decY > xMax) continue;
+    allYearTicks.push({ x: xScale(decY), label: String(yr) });
+  }
+  const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 3));
+  const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
+
+  const zeroY = yScale(0);
+
+  // Find index of last real point — gets the MTA-red accent.
+  let lastIdx = -1;
+  for (let i = series.length - 1; i >= 0; i--) {
+    const v = series[i]!.value;
+    if (typeof v === "number" && !Number.isNaN(v)) { lastIdx = i; break; }
+  }
+
+  // Bar width: 75% of an x-slot, mirrors Panel1HeadlineGDPV3 bar density.
+  let validCount = 0;
+  for (const p of series) {
+    if (typeof p.value === "number" && !Number.isNaN(p.value)) validCount++;
+  }
+  const slotWidth = validCount > 0 ? plotW / Math.max(validCount, 1) : plotW;
+  const barWidth = Math.max(1.5, slotWidth * 0.75);
+
+  const bars: BarRect[] = [];
+  for (let i = 0; i < series.length; i++) {
+    const pt = series[i]!;
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    const cx = xScale(xv);
+    const valY = yScale(pt.value);
+    const topY = Math.min(valY, zeroY);
+    const botY = Math.max(valY, zeroY);
+    bars.push({
+      x: cx - barWidth / 2,
+      y: topY,
+      w: barWidth,
+      h: Math.max(0.5, botY - topY),
+      isLatest: i === lastIdx,
+      value: pt.value,
+      date: pt.date,
+    });
+  }
+
+  return {
+    plotX0, plotX1, plotW,
+    plotY0, plotY1, plotH,
+    yTicks, xTicks, bars,
+    zeroY,
+    cellX0: cx0, cellY0: cy0, cellW: COL_W,
+  };
+}
+
+const cells = hasData ? provinces.map((p, i) => {
+  const col = i % 2;
+  const row = Math.floor(i / 2);
+  return {
+    title: p.title,
+    code: p.code,
+    geom: buildSubPanel(col, row, p.data),
+  };
+}) : [];
+
+const ariaLabel = "Provincial unemployment-rate spread vs the Canadian national rate, last 60 months. Four-panel small multiples: Ontario, Quebec, British Columbia, Alberta. Positive bar = province above national rate; negative bar = province below. Latest month in red.";
+---
+{hasData ? (
+  <div class="canon-chart canon-chart--quad" data-panel="labour-6-spread-bars">
+    <svg
+      class="canon-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {cells.map((c) => {
+        const g = c.geom;
+        return (
+          <g>
+            {/* Province code, top-left of the cell */}
+            <text
+              class="canon-chart__province-code"
+              x={(g.cellX0 + SUB_M_L).toFixed(2)}
+              y={(g.cellY0 + 14).toFixed(2)}
+              text-anchor="start"
+            >{c.code}</text>
+
+            {/* Gridlines, suppressed at zero (the zero line is bolder) */}
+            {g.yTicks.map((v) => {
+              const yy = g.plotY0 + g.plotH - ((v - yLo) / yRange) * g.plotH;
+              if (Math.abs(yy - g.zeroY) < 0.5) return null;
+              return (
+                <line
+                  class="canon-chart__gridline"
+                  x1={g.plotX0.toFixed(2)}
+                  y1={yy.toFixed(2)}
+                  x2={g.plotX1.toFixed(2)}
+                  y2={yy.toFixed(2)}
+                />
+              );
+            })}
+
+            {/* Bars */}
+            {g.bars.map((b) => (
+              <rect
+                class={b.isLatest
+                  ? "canon-chart__bar canon-chart__bar--latest"
+                  : "canon-chart__bar"}
+                x={b.x.toFixed(2)}
+                y={b.y.toFixed(2)}
+                width={b.w.toFixed(2)}
+                height={b.h.toFixed(2)}
+              >
+                <title>{`${c.code} ${b.date}: ${b.value >= 0 ? "+" : ""}${b.value.toFixed(2)}pp vs Canada`}</title>
+              </rect>
+            ))}
+
+            {/* Zero line — the bold reference for the national rate */}
+            <line
+              class="canon-chart__zero-line"
+              x1={g.plotX0.toFixed(2)}
+              y1={g.zeroY.toFixed(2)}
+              x2={g.plotX1.toFixed(2)}
+              y2={g.zeroY.toFixed(2)}
+            />
+
+            <rect
+              class="canon-chart__frame"
+              x={g.plotX0}
+              y={g.plotY0}
+              width={g.plotW}
+              height={g.plotH}
+            />
+
+            {/* x-ticks */}
+            {g.xTicks.map((t) => (
+              <g>
+                <line
+                  class="canon-chart__xtick"
+                  x1={t.x.toFixed(2)}
+                  y1={g.plotY1.toFixed(2)}
+                  x2={t.x.toFixed(2)}
+                  y2={(g.plotY1 + 3).toFixed(2)}
+                />
+                <text
+                  class="canon-chart__xtick-label"
+                  x={t.x.toFixed(2)}
+                  y={(g.plotY1 + 14).toFixed(2)}
+                  text-anchor="middle"
+                >{t.label}</text>
+              </g>
+            ))}
+
+            {/* y-ticks; top tick carries the "pp" unit */}
+            {g.yTicks.map((v, i) => {
+              const yy = g.plotY0 + g.plotH - ((v - yLo) / yRange) * g.plotH;
+              const isTop = i === g.yTicks.length - 1;
+              const sign = v > 0 ? "+" : "";
+              const txt = `${sign}${v.toFixed(1)}${isTop ? "pp" : ""}`;
+              return (
+                <text
+                  class="canon-chart__ytick-label"
+                  x={(g.plotX0 - 5).toFixed(2)}
+                  y={(yy + 4).toFixed(2)}
+                  text-anchor="end"
+                >{txt}</text>
+              );
+            })}
+          </g>
+        );
+      })}
+    </svg>
+    <p class="canon-chart__legend">
+      Bars: provincial unemployment rate minus the Canadian national rate, monthly. Positive = above the national rate. Zero line: the national rate.
+    </p>
+  </div>
+) : (
+  <PanelEmpty reason="Provincial unemployment series not all present (need ON, QC, BC, AB, and CA in panel-6)." />
+)}
+
+<style>
+  .canon-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
+  .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
+  .canon-chart__province-code {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
+  }
+  .canon-chart__gridline { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges; }
+  .canon-chart__zero-line { stroke: var(--ink); stroke-width: 1; stroke-opacity: 1; shape-rendering: crispEdges; }
+  .canon-chart__bar { fill: var(--ink); }
+  .canon-chart__bar--latest { fill: var(--accent); }
+  .canon-chart__frame { fill: none; stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 11px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__legend {
+    margin: 4px 0 0;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    color: var(--ink);
+    opacity: 0.7;
+  }
+</style>

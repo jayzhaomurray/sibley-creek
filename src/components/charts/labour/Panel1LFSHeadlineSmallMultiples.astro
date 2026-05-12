@@ -1,0 +1,390 @@
+---
+/*
+ * Panel1LFSHeadlineSmallMultiples - LFS headline as 3-up small multiples.
+ *
+ * Diagnosis (editorial/chart-diagnosis/labour.md P1): three rates on one
+ * shared y-axis compresses the recent action because UR (~7%), employment
+ * rate (~60%) and participation (~65%) sit at very different absolute
+ * levels. Geometry: three columns side-by-side, each with its own y-axis
+ * tuned to the rate's range. Shared 36-month x-window so the cyclical
+ * action reads. Latest point on each panel in MTA red.
+ *
+ * Reads left-to-right in the order a Canadian macro reader naturally
+ * walks: unemployment rate (the headline cyclical signal, eye lands
+ * here first), employment rate (the slack proxy doing the softening
+ * underneath), participation rate (the supply-side check).
+ *
+ * Pipeline shape: panel-1 emits unemployment_rate (primary),
+ * employment_rate (secondary), participation_rate (tertiary). All three
+ * are percent series; the y-domain auto-tunes per panel.
+ *
+ * Custom SVG (not PanelLiveChart) because the three-panel small-multiples
+ * idiom is outside PanelLiveChart's single-panel scope. Pattern cribbed
+ * from Panel1HeadlineGDPV3's two-panel small-multiples + custom y-scales.
+ */
+
+import type { PanelData, SeriesPoint } from "../_shared/panelData";
+import { decYear, tailWindow } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+const { data = null } = Astro.props;
+
+const WINDOW_MONTHS = 36;
+
+function lastReal(series: SeriesPoint[]): { date: string; value: number } | null {
+  for (let i = series.length - 1; i >= 0; i--) {
+    const pt = series[i]!;
+    if (typeof pt.value === "number" && !Number.isNaN(pt.value)) {
+      return { date: pt.date, value: pt.value };
+    }
+  }
+  return null;
+}
+
+function pickStride(lo: number, hi: number, targetTicks = 4): number {
+  const span = hi - lo;
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  const rough = span / targetTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let nice: number;
+  if (norm < 1.5) nice = 1;
+  else if (norm < 3) nice = 2;
+  else if (norm < 4) nice = 2.5;
+  else if (norm < 7) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+
+// Historical mean is computed from the FULL series (every observation the
+// pipeline emits) BEFORE windowing. The dashed reference line gives readers
+// an instant "above or below the historical norm" anchor that wouldn't
+// survive a 36-month window restriction (the 36-month sample IS the cycle).
+function historicalMean(series: SeriesPoint[] | undefined): number | null {
+  if (!series) return null;
+  let sum = 0;
+  let n = 0;
+  for (const pt of series) {
+    if (typeof pt.value === "number" && !Number.isNaN(pt.value)) {
+      sum += pt.value;
+      n++;
+    }
+  }
+  return n > 0 ? sum / n : null;
+}
+
+const urFull = data?.primary?.data ?? [];
+const erFull = data?.secondary?.data ?? [];
+const prFull = data?.tertiary?.data ?? [];
+
+const urMean = historicalMean(urFull);
+const erMean = historicalMean(erFull);
+const prMean = historicalMean(prFull);
+
+const ur = urFull.length > 0 ? tailWindow(urFull, WINDOW_MONTHS, "monthly") : [];
+const er = erFull.length > 0 ? tailWindow(erFull, WINDOW_MONTHS, "monthly") : [];
+const pr = prFull.length > 0 ? tailWindow(prFull, WINDOW_MONTHS, "monthly") : [];
+
+const hasData = ur.length > 0 && er.length > 0 && pr.length > 0;
+
+// Shared x-domain across all three panels: union over all dates.
+const allX = [...ur, ...er, ...pr]
+  .map((d) => decYear(d.date))
+  .filter((v) => !Number.isNaN(v));
+const xMin = allX.length > 0 ? Math.min(...allX) : 0;
+const xMax = allX.length > 0 ? Math.max(...allX) : 1;
+
+// ---- Geometry -----------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_OUT = 8;
+const GAP_X = 36;
+const M_T = 52;
+const M_B = 36;
+const SUB_M_L = 36;
+const SUB_M_R = 8;
+
+const SUB_W = (VB_W - 2 * M_OUT - 2 * GAP_X) / 3;
+const COL_X0 = (i: number) => M_OUT + i * (SUB_W + GAP_X);
+const COL_X1 = (i: number) => COL_X0(i) + SUB_W;
+
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_H = PLOT_Y1 - PLOT_Y0;
+
+interface SubPanelGeom {
+  plotX0: number;
+  plotX1: number;
+  plotW: number;
+  yLo: number;
+  yHi: number;
+  yRange: number;
+  yTicks: number[];
+  xTicks: Array<{ x: number; label: string }>;
+  path: string;
+  lastX: number | null;
+  lastY: number | null;
+  lastValue: number | null;
+  lastDate: string | null;
+  meanY: number | null;
+  meanValue: number | null;
+}
+
+function buildSubPanel(
+  colIdx: number,
+  series: SeriesPoint[],
+  meanValue: number | null,
+): SubPanelGeom {
+  const plotX0 = COL_X0(colIdx) + SUB_M_L;
+  const plotX1 = COL_X1(colIdx) - SUB_M_R;
+  const plotW = plotX1 - plotX0;
+
+  const ys = series
+    .map((d) => d.value)
+    .filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
+  let yLo = 0;
+  let yHi = 1;
+  if (ys.length > 0) {
+    const rawMin = Math.min(...ys);
+    const rawMax = Math.max(...ys);
+    const span = (rawMax - rawMin) || Math.max(0.5, Math.abs(rawMax) * 0.05);
+    yLo = rawMin - span * 0.18;
+    yHi = rawMax + span * 0.18;
+  }
+  // Expand y-domain so the historical mean falls inside the visible plot.
+  // Without this, a low-volatility cycle window (e.g. participation rate
+  // hovering at 65.x while the full-history mean is closer to 65.5) clips
+  // the dashed line outside the frame.
+  if (meanValue !== null) {
+    const span = (yHi - yLo) || 1;
+    if (meanValue < yLo) yLo = meanValue - span * 0.08;
+    if (meanValue > yHi) yHi = meanValue + span * 0.08;
+  }
+  const yRange = yHi - yLo || 1;
+
+  const xScale = (yr: number) => {
+    if (xMax === xMin) return plotX0 + plotW / 2;
+    return plotX0 + ((yr - xMin) / (xMax - xMin)) * plotW;
+  };
+  const yScale = (v: number) =>
+    PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
+
+  const stride = pickStride(yLo, yHi);
+  const yTicks: number[] = [];
+  const start = Math.ceil(yLo / stride) * stride;
+  for (let v = start; v <= yHi + 1e-9; v += stride) {
+    yTicks.push(Number(v.toFixed(6)));
+  }
+  if (yTicks.length === 0) yTicks.push(Number(((yLo + yHi) / 2).toFixed(6)));
+
+  const yearStart = Math.ceil(xMin);
+  const yearEnd = Math.floor(xMax);
+  const allYearTicks: Array<{ x: number; label: string }> = [];
+  for (let yr = yearStart; yr <= yearEnd; yr++) {
+    const decY = yr + (1 - 0.5) / 12;
+    if (decY < xMin || decY > xMax) continue;
+    allYearTicks.push({ x: xScale(decY), label: String(yr) });
+  }
+  const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 3));
+  const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
+
+  let path = "";
+  let started = false;
+  for (const pt of series) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    const xp = xScale(xv).toFixed(2);
+    const yp = yScale(pt.value).toFixed(2);
+    path += (started ? "L" : "M") + xp + " " + yp + " ";
+    started = true;
+  }
+  path = path.trim();
+
+  let lastX: number | null = null;
+  let lastY: number | null = null;
+  let lastValue: number | null = null;
+  let lastDate: string | null = null;
+  const last = lastReal(series);
+  if (last) {
+    const xv = decYear(last.date);
+    if (!Number.isNaN(xv)) {
+      lastX = xScale(xv);
+      lastY = yScale(last.value);
+      lastValue = last.value;
+      lastDate = last.date;
+    }
+  }
+
+  const meanY = meanValue !== null && meanValue >= yLo && meanValue <= yHi
+    ? yScale(meanValue)
+    : null;
+
+  return {
+    plotX0, plotX1, plotW,
+    yLo, yHi, yRange,
+    yTicks, xTicks,
+    path, lastX, lastY, lastValue, lastDate,
+    meanY, meanValue,
+  };
+}
+
+const panels = hasData ? [
+  { idx: 0, title: "UNEMPLOYMENT RATE, %", geom: buildSubPanel(0, ur, urMean) },
+  { idx: 1, title: "EMPLOYMENT RATE, %", geom: buildSubPanel(1, er, erMean) },
+  { idx: 2, title: "PARTICIPATION RATE, %", geom: buildSubPanel(2, pr, prMean) },
+] : [];
+
+const ariaLabel = "Three-panel small multiples of LFS headline rates, last 36 months. Unemployment, employment and participation rates each on own y-axis. Latest print marked in red.";
+---
+{hasData ? (
+  <div class="canon-chart canon-chart--triptych" data-panel="labour-1-small-multiples">
+    <svg
+      class="canon-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {panels.map((p) => {
+        const g = p.geom;
+        return (
+          <g>
+            <text
+              class="canon-chart__subpanel-title"
+              x={((COL_X0(p.idx) + COL_X1(p.idx)) / 2).toFixed(2)}
+              y={(M_T - 18).toFixed(2)}
+              text-anchor="middle"
+            >{p.title}</text>
+
+            {g.yTicks.map((v) => {
+              const yy = (PLOT_Y0 + PLOT_H) - ((v - g.yLo) / g.yRange) * PLOT_H;
+              return (
+                <line
+                  class="canon-chart__gridline"
+                  x1={g.plotX0.toFixed(2)}
+                  y1={yy.toFixed(2)}
+                  x2={g.plotX1.toFixed(2)}
+                  y2={yy.toFixed(2)}
+                />
+              );
+            })}
+
+            {/* Historical-average dashed reference per the aggregate-vs-
+                component canon: 1px ink, dashed, 55% opacity, no red dot.
+                Drawn before the protagonist line so the data sits on top. */}
+            {g.meanY !== null && g.meanValue !== null && (
+              <g class="canon-chart__mean-group">
+                <line
+                  class="canon-chart__mean-rule"
+                  x1={g.plotX0.toFixed(2)}
+                  y1={g.meanY.toFixed(2)}
+                  x2={g.plotX1.toFixed(2)}
+                  y2={g.meanY.toFixed(2)}
+                />
+                <text
+                  class="canon-chart__mean-label"
+                  x={(g.plotX1 - 4).toFixed(2)}
+                  y={(g.meanY - 4).toFixed(2)}
+                  text-anchor="end"
+                >{`Avg ${g.meanValue.toFixed(1)}%`}</text>
+              </g>
+            )}
+
+            <path class="canon-chart__line" d={g.path} fill="none" />
+
+            <rect
+              class="canon-chart__frame"
+              x={g.plotX0}
+              y={PLOT_Y0}
+              width={g.plotW}
+              height={PLOT_H}
+            />
+
+            {g.xTicks.map((t) => (
+              <g>
+                <line
+                  class="canon-chart__xtick"
+                  x1={t.x.toFixed(2)}
+                  y1={PLOT_Y1.toFixed(2)}
+                  x2={t.x.toFixed(2)}
+                  y2={(PLOT_Y1 + 4).toFixed(2)}
+                />
+                <text
+                  class="canon-chart__xtick-label"
+                  x={t.x.toFixed(2)}
+                  y={(PLOT_Y1 + 18).toFixed(2)}
+                  text-anchor="middle"
+                >{t.label}</text>
+              </g>
+            ))}
+
+            {g.yTicks.map((v, i) => {
+              const yy = (PLOT_Y0 + PLOT_H) - ((v - g.yLo) / g.yRange) * PLOT_H;
+              const isTop = i === g.yTicks.length - 1;
+              const txt = `${v.toFixed(1)}${isTop ? "%" : ""}`;
+              return (
+                <text
+                  class="canon-chart__ytick-label"
+                  x={(g.plotX0 - 6).toFixed(2)}
+                  y={(yy + 4).toFixed(2)}
+                  text-anchor="end"
+                >{txt}</text>
+              );
+            })}
+
+            {g.lastX !== null && g.lastY !== null && (
+              <circle
+                class="canon-chart__latest-dot"
+                cx={g.lastX.toFixed(2)}
+                cy={g.lastY.toFixed(2)}
+                r="4"
+              >
+                <title>{`Latest: ${g.lastDate}: ${g.lastValue!.toFixed(2)}%`}</title>
+              </circle>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  </div>
+) : (
+  <PanelEmpty reason="Pipeline did not emit unemployment / employment / participation rate triplet for panel-1." />
+)}
+
+<style>
+  .canon-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
+  .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
+  .canon-chart__subpanel-title {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
+  }
+  .canon-chart__gridline { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges; }
+  .canon-chart__mean-rule {
+    stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.55;
+    stroke-dasharray: 4 2; shape-rendering: crispEdges;
+  }
+  .canon-chart__mean-label {
+    fill: var(--ink); fill-opacity: 0.7;
+    font-family: var(--font-sans); font-size: 10px;
+    font-weight: var(--fw-semibold); letter-spacing: 0.06em;
+  }
+  .canon-chart__line {
+    stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
+    fill: none; vector-effect: non-scaling-stroke;
+  }
+  .canon-chart__latest-dot { fill: var(--accent); stroke: none; }
+  .canon-chart__frame { fill: none; stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+</style>
