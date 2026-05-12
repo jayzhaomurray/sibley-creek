@@ -42,7 +42,8 @@ export type ValueKind =
   | "fx"             // USDCAD -> "1.369"
   | "index_level"    // TSX, productivity index -> "34.1k" or "34,078"
   | "count"          // EI beneficiaries -> "1.16M" or "455k"
-  | "ratio";         // DSR, affordability -> "18.0%"
+  | "ratio"          // DSR, affordability -> "18.0%"
+  | "per_mille";     // per-thousand rate (EI claimants / labour-force-ex-NPRs) -> "25.5/k", top tick "25 /1k"
 
 const VALUE_CAP = 8;
 const TICK_CAP = 6;
@@ -172,6 +173,22 @@ function fmtFX(v: number, cap: number): string {
   return trimLen(body, cap);
 }
 
+// --- per_mille ------------------------------------------------------------
+// Per-thousand rate (e.g. EI claimants per 1k labour-force-ex-NPRs).
+// Treat numerically like index_level, but carry an explicit "/k" glyph
+// so the unit reads (a bare "25.5" on a y-axis is ambiguous between
+// percent, count, and rate-per-thousand).
+function fmtPerMille(v: number, cap: number, opts: { decimals?: number } = {}): string {
+  const dec = opts.decimals ?? 1;
+  const a = Math.abs(v);
+  const sgn = v < 0 ? "-" : "";
+  let num: string;
+  if (a >= 100) num = a.toFixed(0);
+  else if (a >= 10) num = a.toFixed(dec);
+  else num = a.toFixed(dec);
+  return trimLen(`${sgn}${num}/k`, cap);
+}
+
 // --- index_level ----------------------------------------------------------
 // 0-1000 -> integer or 1 decimal; 1000-10000 -> integer (no separator);
 // 10k-100k -> "34.1k"; 100k+ -> "N.NM"
@@ -220,6 +237,8 @@ export function fmtValue(value: number, kind: ValueKind): string {
       return fmtIndex(value, VALUE_CAP);
     case "count":
       return fmtCount(value, VALUE_CAP);
+    case "per_mille":
+      return fmtPerMille(value, VALUE_CAP);
     default:
       return fmtIndex(value, VALUE_CAP);
   }
@@ -251,6 +270,13 @@ export function fmtDelta(delta: number, kind: ValueKind): string {
       return fmtIndex(delta, DELTA_CAP);
     case "count":
       return fmtCount(delta, DELTA_CAP);
+    case "per_mille": {
+      // Deltas in per-1k are typically sub-unit (0.6/k). Always signed,
+      // one decimal, glyph attached so the delta reads as "+/-x /k".
+      const sgn = signOf(delta) || "+";
+      const dec = Math.abs(delta) >= 10 ? 0 : 1;
+      return trimLen(`${sgn}${Math.abs(delta).toFixed(dec)} /k`, DELTA_CAP);
+    }
     default:
       return fmtIndex(delta, DELTA_CAP);
   }
@@ -292,6 +318,16 @@ export function fmtTick(value: number, kind: ValueKind, isTop: boolean): string 
       return fmtIndex(value, TICK_CAP);
     case "count":
       return fmtCount(value, TICK_CAP);
+    case "per_mille": {
+      // Topmost tick carries the unit glyph ("25 /1k"); mid-ticks render
+      // as bare numbers (the top tick already established the scale).
+      const a = Math.abs(value);
+      const dec = a >= 100 ? 0 : a >= 10 ? 0 : 1;
+      const sgn = value < 0 ? "-" : "";
+      const num = `${sgn}${a.toFixed(dec)}`;
+      if (isTop) return trimLen(`${num} /1k`, TICK_CAP);
+      return trimLen(num, TICK_CAP);
+    }
     default:
       return fmtIndex(value, TICK_CAP);
   }
@@ -350,6 +386,7 @@ export function inferKindFromUnit(unit: string | null | undefined): ValueKind {
   if (u.includes("bps") || u.includes("basis point")) return "basis_points";
   if (u.includes("cad per usd")) return "fx";
   if (u.includes("usd/barrel")) return "index_level";
+  if (u.includes("per 1k") || u.includes("per 1,000") || u.includes("per thousand") || u.includes("/1k")) return "per_mille";
   // CAD/hour and CAD/week are wage rates (price-of-labour, not an
   // aggregate). They read as plain dollar amounts (~$30, $40) without
   // the "M" / "B" scale suffix - so route through index_level rather

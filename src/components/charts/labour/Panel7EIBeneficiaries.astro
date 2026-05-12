@@ -1,27 +1,54 @@
 ---
 /*
- * Panel7EIBeneficiaries - EI Regular Beneficiaries.
+ * Panel7EIBeneficiaries - EI claimants per 1,000 labour-force-ex-NPRs.
  *
- * Wave 5 addition. Section 4.3 Labour, Panel 7. The cleanest
- * demand-side mirror of vacancy decline and a leading cyclical
- * inflection signal that fires before LFS unemployment turns.
- * Pairs with Panel 4 VacanciesSlack.
+ * Wave 5 cyclical-inflection signal, deflated. v1 of this panel rendered
+ * the absolute EI regular-beneficiaries count; that geometry confounded
+ * caseload with denominator (the labour force itself swelled with the
+ * 2022-24 NPR inflow, mechanically lifting any "raw EI" series). v2
+ * deflates the caseload by a labour-force aggregate that EXCLUDES non-
+ * permanent residents -- so the ratio reads as a cyclical indicator
+ * without an immigration-cycle confound baked in.
  *
- * Pipeline emits `ei_regular_beneficiaries_k` (primary) as a national
- * monthly series in thousands of persons. The display transform
- * (raw persons / 1000 -> thousands) is backend-side per Wave 5 brief;
- * Y/Y and MoM toggle variants are deferred until the toggle pattern
- * is generalized across the chartbook (not in this wave).
+ * Math (wrapper-side, here):
  *
- * Annotation overlays (peak-to-trough call-out on the most recent
- * cycle) are deferred until researcher supplies the trough date.
- * Render-clean default per Wave 5 brief 1: "ship the chart without
- * the annotation if the dating is ambiguous at build time."
+ *   ratio[t] = ei_regular_beneficiaries[t] / (labour_force_ex_npr[t] in M) / 1000 * 1000
+ *            = ei_regular_beneficiaries[t] / labour_force_ex_npr[t] / 1000
+ *
+ *   Wait -- denominator arrives in MILLIONS of persons. EI claimants
+ *   arrive in raw persons. So:
+ *
+ *   ratio[t] = ei_regular_beneficiaries[t] / (labour_force_ex_npr[t] * 1e6) * 1000
+ *            = ei_regular_beneficiaries[t] / labour_force_ex_npr[t] / 1000
+ *
+ *   Units: claimants per 1,000 labour-force-ex-NPRs (per-mille rate).
+ *
+ * Series alignment: both inputs are monthly. The denominator was
+ * forward-filled from quarterly NPR vintages by the pipeline (see
+ * data/processed/labour_force_ex_npr.meta.json). When either input is
+ * missing for a date, the ratio for that date is dropped.
+ *
+ * Reference lines:
+ *
+ *  - "About normal": pre-covid median of the ratio (2006-03 -> 2020-02).
+ *    Pre-covid only, because the 2020-21 CERB-era spike (peaking at
+ *    ~84 per 1k in May 2021) was a measurement regime change, not a
+ *    cyclical signal, and pulls the all-history median up.
+ *
+ *  - "GFC peak": the June 2009 ratio peak (~45 per 1k), as a "crisis"
+ *    upper anchor under a comparable EI eligibility regime. CERB peak
+ *    is intentionally NOT used as the crisis reference for the same
+ *    reason it is excluded from the median computation.
+ *
+ * Window: 240 months (20 years), so both the GFC peak and the CERB
+ * spike sit on the chart with the recent cyclical drift -- the
+ * reference lines have visual context, not just a number floating in
+ * the gutter.
  *
  * No synthetic-data fallback. PanelEmpty when data has not landed.
  */
 
-import type { PanelData } from "../_shared/panelData";
+import type { PanelData, PanelSeries, SeriesPoint } from "../_shared/panelData";
 import PanelLiveChart from "../_shared/PanelLiveChart.astro";
 import PanelEmpty from "../_shared/PanelEmpty.astro";
 
@@ -30,15 +57,97 @@ interface Props {
 }
 
 const { data = null } = Astro.props;
+
+// ---- Derive the ratio series ----------------------------------------------
+// Returns null when we can't compute (missing primary or secondary).
+function deriveRatio(panel: PanelData | null): {
+  ratioSeries: PanelSeries;
+  preCovidMedian: number;
+  gfcPeak: number;
+} | null {
+  if (!panel || !panel.primary || !panel.secondary) return null;
+  const ei = panel.primary;
+  const lf = panel.secondary;
+  if (!ei.data?.length || !lf.data?.length) return null;
+
+  // Build a date-keyed map for the denominator for O(1) lookup.
+  const lfByDate = new Map<string, number>();
+  for (const pt of lf.data) {
+    if (typeof pt.value === "number" && Number.isFinite(pt.value) && pt.value > 0) {
+      lfByDate.set(pt.date, pt.value);
+    }
+  }
+
+  // Compute ratio aligned on EI dates (primary cadence).
+  const ratioData: SeriesPoint[] = [];
+  for (const pt of ei.data) {
+    const lfV = lfByDate.get(pt.date);
+    if (typeof pt.value === "number" && Number.isFinite(pt.value) && lfV !== undefined) {
+      // lfV is millions of persons; result is per-mille (per 1,000).
+      const r = pt.value / (lfV * 1e6) * 1000;
+      ratioData.push({ date: pt.date, value: r });
+    } else {
+      ratioData.push({ date: pt.date, value: null });
+    }
+  }
+
+  if (ratioData.every((p) => p.value === null)) return null;
+
+  // Compute pre-covid median (2006 -> end of 2020-02) and GFC peak.
+  // "Pre-covid" cutoff at 2020-03-01 excludes the CERB-era regime
+  // change. GFC peak constrained to 2009-01-01 -> 2010-12-31 picks up
+  // the true cyclical crisis high under the pre-covid EI regime.
+  const preCovidVals: number[] = [];
+  let gfcPeak = -Infinity;
+  for (const pt of ratioData) {
+    if (typeof pt.value !== "number" || !Number.isFinite(pt.value)) continue;
+    if (pt.date < "2020-03-01") preCovidVals.push(pt.value);
+    if (pt.date >= "2009-01-01" && pt.date < "2011-01-01" && pt.value > gfcPeak) {
+      gfcPeak = pt.value;
+    }
+  }
+  preCovidVals.sort((a, b) => a - b);
+  const midIdx = Math.floor(preCovidVals.length / 2);
+  const preCovidMedian = preCovidVals.length % 2 === 0
+    ? (preCovidVals[midIdx - 1]! + preCovidVals[midIdx]!) / 2
+    : preCovidVals[midIdx]!;
+
+  const ratioSeries: PanelSeries = {
+    key: "ei_per_1k_lf_ex_npr",
+    // Full editorial phrasing -- used as the chart's series label everywhere
+    // PanelLiveChart falls back to series.label (aria-label, latest-dot
+    // tooltip). The direct-label on the chart itself uses a shorter form
+    // passed via `primaryLabel` so the reference-rule labels survive Rule L4.
+    label: "EI claimants / labour force ex-NPRs",
+    tier: "processed",
+    data: ratioData,
+    unit: "per 1k persons",
+    kind: "per_mille",
+    frequency: "monthly",
+    asOfISO: ei.asOfISO ?? null,
+    source: ei.source ?? null,
+    sourceUrl: ei.sourceUrl ?? null,
+    sourceId: ei.sourceId ?? null,
+    releaseDate: ei.releaseDate ?? null,
+  };
+
+  return { ratioSeries, preCovidMedian, gfcPeak: Number.isFinite(gfcPeak) ? gfcPeak : NaN };
+}
+
+const derived = deriveRatio(data);
 ---
-{data && data.primary ? (
+{derived ? (
   <PanelLiveChart
-    primary={data.primary}
-    secondary={data.secondary}
-    primaryLabel="EI"
+    primary={derived.ratioSeries}
+    primaryLabel="EI per 1k LF"
+    windowMonths={240}
+    referenceValue={derived.preCovidMedian}
+    referenceLabel={`Pre-covid median`}
+    referenceValueSecondary={Number.isFinite(derived.gfcPeak) ? derived.gfcPeak : null}
+    referenceLabelSecondary={Number.isFinite(derived.gfcPeak) ? `GFC peak (Jun 2009)` : null}
     dataPanelAttr="labour-7"
-    ariaLabel="EI regular beneficiaries, national, thousands of persons."
+    ariaLabel="EI claimants / labour force ex-NPRs, Canada, monthly per-1,000 rate, last 20 years."
   />
 ) : (
-  <PanelEmpty reason="Pipeline did not emit panel-7 data." />
+  <PanelEmpty reason="Pipeline did not emit panel-7 data (primary or denominator missing)." />
 )}
