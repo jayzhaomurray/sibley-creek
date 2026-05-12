@@ -209,7 +209,19 @@ function pickYBounds(values: number[]): [number, number] {
 }
 let yLo = 0;
 let yHi = 1;
+// Track the TRUE raw min/max (no percentile clipping) so downstream logic
+// can decide whether the data line will overflow the visible plot frame.
+// A spike-clipped series (covid-era LFS rates, indexed-to-baseline charts
+// where one observation dwarfs the rest) still RENDERS its full path with
+// `overflow: visible` — the path coordinates land above PLOT_Y0 or below
+// PLOT_Y1 — so any label placed in the top or bottom margin would sit in
+// the stroke's path. Used by `recVisible` below to suppress the recession
+// label on charts where the line punches out of the plot box.
+let yTrueMin = 0;
+let yTrueMax = 1;
 if (sharedSeries.length > 0) {
+  yTrueMin = Math.min(...sharedSeries);
+  yTrueMax = Math.max(...sharedSeries);
   const [rawMin, rawMax] = pickYBounds(sharedSeries);
   const span = rawMax - rawMin || Math.max(1, Math.abs(rawMax) * 0.1);
   yLo = rawMin - span * 0.10;
@@ -336,6 +348,19 @@ const recVisible = recEnd >= xMin && recStart <= xMax;
 const recX0 = recVisible ? xScale(Math.max(recStart, xMin)) : 0;
 const recX1 = recVisible ? xScale(Math.min(recEnd, xMax)) : 0;
 
+// Suppress the RECESSION label (not the band itself) when the data line
+// overflows the clipped y-domain. On covid-spike charts (indexed-to-Feb-
+// 2020 LFS rates, housing affordability index, etc.) the rawMin/rawMax of
+// the series sit well outside the percentile-clipped [yLo, yHi] window —
+// the line renders its full path with `overflow: visible`, punching above
+// PLOT_Y0 or below PLOT_Y1 — so any margin-anchored label is a guaranteed
+// stroke collision. The shaded band itself remains visible; readers know
+// the covid recession by sight. See text-vs-line overlap audit.
+const yOverflowMargin = (yHi - yLo) * 0.005; // tiny tolerance for FP slop
+const recLabelSuppressed = recVisible && (
+  yTrueMin < yLo - yOverflowMargin || yTrueMax > yHi + yOverflowMargin
+);
+
 // ---- ValueKind + scale-factor resolution ---------------------------------
 // Backend (pipeline/io/format.py, in-flight) will emit `kind` on each
 // PanelSeries. Until it does, infer from the existing `unit` string;
@@ -372,7 +397,17 @@ const bandTopY = referenceBand ? yScale(Math.max(referenceBand.upper, referenceB
 const bandBotY = referenceBand ? yScale(Math.min(referenceBand.upper, referenceBand.lower)) : null;
 const showBand = referenceBand !== null && bandTopY !== null && bandBotY !== null
   && bandBotY > bandTopY;
-const BAND_LABEL_Y = bandTopY !== null ? bandTopY - 4 : 0;
+// Band label sits in the top margin ABOVE the plot frame, top-left
+// anchored. The band itself is shaded behind the data line, so the label
+// can't live INSIDE the band without conflicting with the line wherever
+// the line happens to be inside-band at the leftmost x (true of every
+// inflation regime where the chart's left edge lands during a return to
+// the 1-3% range). The recession label, also placed at PLOT_Y0 - 6, only
+// appears on long-window charts (240-mo) and the three reference-band
+// charts (Panel1HeadlineCPI, Panel2CoreTrio, Panel1OvernightRate) all
+// run a 60-mo window — no horizontal collision in practice. See the
+// text-vs-line overlap audit.
+const BAND_LABEL_Y = bandTopY !== null ? PLOT_Y0 - 6 : 0;
 // (Band-label collision suppression resolves after showRefLabel /
 // showRefLabel2 / RECESSION_LABEL_Y are defined below.)
 
@@ -424,7 +459,12 @@ const LABEL_LH = 14;           // direct-label vertical stack gap
 const LABEL_MIN_DY = 12;       // direct-label vs direct-label collision guard
 const REF_LABEL_MIN_DY = 16;   // direct-label vs reference-rule-label guard
 const RECESSION_LABEL_GUARD = 12; // y-tick vs recession-label guard
-const RECESSION_LABEL_Y = PLOT_Y0 + 12; // baseline of the recession label
+const RECESSION_LABEL_Y = PLOT_Y0 - 6; // baseline of the recession label
+                                         // (sits in the top margin above the
+                                         // plot frame so the data line —
+                                         // which in covid-spike charts
+                                         // reaches the plot's top edge —
+                                         // can't graze the label rect).
 
 // Rule L6: stack primary + secondary direct labels when their natural
 // baselines are within LABEL_MIN_DY of each other. Primary keeps its
@@ -512,7 +552,7 @@ if (showRefLabel && showRefLabel2 && refY !== null && refY2 !== null
 // NEVER suppressed - the unit must always read.
 function ytickSuppressed(tickY: number, isTopTick: boolean): boolean {
   if (isTopTick) return false;
-  if (!recVisible) return false;
+  if (!recVisible || recLabelSuppressed) return false;
   return Math.abs(tickY - RECESSION_LABEL_Y) < RECESSION_LABEL_GUARD;
 }
 
@@ -530,7 +570,8 @@ if (showBandLabel) {
   if (showRefLabel2 && refY2 !== null && Math.abs((refY2 - 5) - BAND_LABEL_Y) < BAND_LABEL_GUARD) {
     showBandLabel = false;
   }
-  if (recVisible && Math.abs(BAND_LABEL_Y - RECESSION_LABEL_Y) < BAND_LABEL_GUARD) {
+  if (recVisible && !recLabelSuppressed
+      && Math.abs(BAND_LABEL_Y - RECESSION_LABEL_Y) < BAND_LABEL_GUARD) {
     showBandLabel = false;
   }
 }
@@ -552,12 +593,14 @@ if (showBandLabel) {
           width={Math.max(1, recX1 - recX0).toFixed(2)}
           height={PLOT_H}
         />
-        <text
-          class="canon-chart__recession-label"
-          x={(Math.max(recX1 + 4, PLOT_X0 + 4)).toFixed(2)}
-          y={(PLOT_Y0 + 12).toFixed(2)}
-          text-anchor="start"
-        >RECESSION (2020Q1-Q2)</text>
+        {!recLabelSuppressed && (
+          <text
+            class="canon-chart__recession-label"
+            x={(Math.max(recX1 + 4, PLOT_X0 + 4)).toFixed(2)}
+            y={(PLOT_Y0 - 6).toFixed(2)}
+            text-anchor="start"
+          >RECESSION (2020Q1-Q2)</text>
+        )}
       </g>
     )}
 

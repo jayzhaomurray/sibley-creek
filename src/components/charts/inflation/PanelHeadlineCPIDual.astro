@@ -438,10 +438,18 @@ const ariaLabel = "Headline CPI. Left panel: month-over-month percent change as 
             width={right.plotW.toFixed(2)}
             height={(right.bandLowY - right.bandHighY).toFixed(2)}
           />
+          {/* Band label sits ABOVE the plot frame in the top margin. The
+              Y/Y CPI line in the 36-month window touches every part of
+              the band (1.65% trough to 4.4% / 8% peak), so placing the
+              label inside-band or just outside the band's upper edge
+              guarantees a stroke crossing somewhere in the label rect's
+              x-span. The subpanel title sits at y = M_T - 18 = 34; the
+              plot frame starts at PLOT_Y0 = M_T = 52; placing the label
+              at PLOT_Y0 - 6 = 46 keeps it cleanly between the two. */}
           <text
             class="canon-chart__reference-band-label"
             x={(right.plotX0 + 6).toFixed(2)}
-            y={(right.bandLowY + 12).toFixed(2)}
+            y={(PLOT_Y0 - 6).toFixed(2)}
             text-anchor="start"
           >CONTROL RANGE</text>
         </g>

@@ -30,15 +30,22 @@
  *
  * Reference lines:
  *
- *  - "About normal": pre-covid median of the ratio (2006-03 -> 2020-02).
- *    Pre-covid only, because the 2020-21 CERB-era spike (peaking at
- *    ~84 per 1k in May 2021) was a measurement regime change, not a
- *    cyclical signal, and pulls the all-history median up.
+ *  - "Pre-covid" (label) / pre-covid median (value): pre-covid median of
+ *    the ratio (2006-03 -> 2020-02). Pre-covid only, because the 2020-21
+ *    CERB-era spike (peaking at ~84 per 1k in May 2021) was a measurement
+ *    regime change, not a cyclical signal, and pulls the all-history
+ *    median up.
  *
- *  - "GFC peak": the June 2009 ratio peak (~45 per 1k), as a "crisis"
- *    upper anchor under a comparable EI eligibility regime. CERB peak
- *    is intentionally NOT used as the crisis reference for the same
- *    reason it is excluded from the median computation.
+ *  - "GFC peak" (label) / June 2009 ratio peak (~45 per 1k) as a "crisis"
+ *    upper anchor under a comparable EI eligibility regime. CERB peak is
+ *    intentionally NOT used as the crisis reference for the same reason
+ *    it is excluded from the median computation. Label is trimmed from
+ *    the longer editorial form ("Pre-covid median" / "GFC peak (Jun 2009)")
+ *    so the reference-rule label rect, right-anchored at the plot's right
+ *    edge, lands wholly within the recent-stable region of the data line
+ *    (last ~20 months) instead of spanning back into the CERB descent
+ *    where the line crosses both reference values. See text-vs-line
+ *    overlap audit.
  *
  * Window: 240 months (20 years), so both the GFC peak and the CERB
  * spike sit on the chart with the recent cyclical drift -- the
@@ -142,9 +149,9 @@ const derived = deriveRatio(data);
     primaryLabel="EI per 1k LF"
     windowMonths={240}
     referenceValue={derived.preCovidMedian}
-    referenceLabel={`Pre-covid median`}
+    referenceLabel={`Pre-covid`}
     referenceValueSecondary={Number.isFinite(derived.gfcPeak) ? derived.gfcPeak : null}
-    referenceLabelSecondary={Number.isFinite(derived.gfcPeak) ? `GFC peak (Jun 2009)` : null}
+    referenceLabelSecondary={Number.isFinite(derived.gfcPeak) ? `GFC peak` : null}
     dataPanelAttr="labour-7"
     ariaLabel="EI claimants / labour force ex-NPRs, Canada, monthly per-1,000 rate, last 20 years."
   />
