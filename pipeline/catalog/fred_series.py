@@ -47,8 +47,11 @@ FRED_SERIES: dict[str, FredSpec] = {
                             notes="ICE BofA US Corporate Index OAS. Canadian IG OAS blind spot (no free source); use as global risk-appetite proxy per canon 4.6 element 3."),
     "us_hy_oas":  FredSpec("us_hy_oas",  "BAMLH0A0HYM2", "1996-12-01", "bp", "daily", "financial", "daily",
                             notes="ICE BofA US High Yield Index OAS."),
-    "wti":      FredSpec("wti",      "DCOILWTICO",   "1990-01-01", "USD/barrel", "daily", "financial", "daily"),
-    "brent":    FredSpec("brent",    "DCOILBRENTEU", "1990-01-01", "USD/barrel", "daily", "financial", "daily"),
+    # WTI and Brent migrated to Yahoo (CL=F / BZ=F) on 2026-05-11. FRED's
+    # DCOILWTICO and DCOILBRENTEU publish weekly with a ~7-day lag, which
+    # left the Markets section showing oil prints 5-7 days stale relative
+    # to USDCAD / GoC daily yields. Yahoo futures close daily with no lag.
+    # See pipeline.catalog.yahoo_series for the replacement specs.
     "ecb_rate": FredSpec("ecb_rate", "ECBDFR", "1999-01-01", "%", "daily", "policy", "daily",
                           notes="ECB deposit facility rate; daily."),
     # Fed funds target is composite — handled by pipeline.fetch.fred.fetch_fed_funds_target.

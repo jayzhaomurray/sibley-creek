@@ -45,4 +45,22 @@ YAHOO_SERIES: dict[str, YahooSpec] = {
             "Acceptable proxy for the LBMA AM fix at the basics-layer cadence."
         ),
     ),
+    "wti": YahooSpec(
+        name="wti", symbol="CL=F",
+        units="USD/barrel", section="financial", cadence="daily",
+        notes=(
+            "NYMEX WTI crude front-month futures. Daily close, no publish "
+            "lag. Replaces FRED DCOILWTICO (Cushing spot) which publishes "
+            "weekly with a ~7-day lag; the dashboard needs same-day prints."
+        ),
+    ),
+    "brent": YahooSpec(
+        name="brent", symbol="BZ=F",
+        units="USD/barrel", section="financial", cadence="daily",
+        notes=(
+            "ICE Brent crude front-month futures. Daily close, no publish "
+            "lag. Replaces FRED DCOILBRENTEU (Europe spot) which publishes "
+            "with the same ~7-day weekly lag as DCOILWTICO."
+        ),
+    ),
 }
