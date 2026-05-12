@@ -25,17 +25,26 @@
  *   Match is case-sensitive on `page` (URL path with trailing slash) and
  *   on `text` (the literal text content of the <text> element).
  *
- * v1 limitations (documented for the v2 dispatch):
- *   - Bounding-box-vs-bounding-box intersection only. A text-bbox can
- *     overlap a path-bbox even when the visible glyph never touches the
- *     visible stroke (paths have large bounding boxes; thin lines have
- *     near-zero geometry). False-positive rate on charts with sloped
- *     lines is the known weakness. If it bites, v2 parses each path's
- *     `d` attribute and tests segment-vs-rect geometry.
+ * v2 (current): sample-based stroke-vs-rect geometry.
+ *   Each data-line element is sampled via SVGGeometryElement.getPointAtLength
+ *   along its actual stroke. A text-rect "hits" a line only when the
+ *   stroke crosses the rect (or comes within a small pad matching the
+ *   stroke width). This eliminates the bbox-pessimism that flagged
+ *   labels sitting in the empty corner of a sloped-line's bbox.
+ *
+ *   Bars (rect primitives) remain bbox-tested -- they ARE rectangles,
+ *   so bbox-vs-bbox is exact.
+ *
+ *   The text-overlap fixer (scripts/fix_text_overlaps.mjs) uses the same
+ *   sample-based geometry. The two scripts must stay in sync: if the
+ *   fixer places a label and the detector then says "overlap", the
+ *   build fails despite the fix.
+ *
+ * v1 limitations that remain:
  *   - SVG-rendered standalone chart assets loaded via <img src=".svg">
  *     (deep-dive pillar charts) are NOT inspected -- the browser DOM
  *     treats them as opaque images. Those are authored separately and
- *     reviewed visually; if a v2 check is wanted for them, do it from
+ *     reviewed visually; if a check is wanted for them, do it from
  *     the source SVG, not the embedded <img>.
  *
  * Related infra: tests/visual/ (Playwright visual regression), and
@@ -283,12 +292,19 @@ async function extractFromPage(page, dataLineSources, dataBarSources, nonLineSou
           `svg[${i}]`;
 
         const texts = [];
+        // Tick labels (xtick-label / ytick-label) sit OUTSIDE the plot
+        // area by canon — below the x-axis or left of the y-axis. Their
+        // bboxes can touch the line's bbox at the axis edge without
+        // any visual overlap. Skip them at extraction.
+        const TICK_LABEL_CLASSES = /(^|\s)(?:canon-chart__|vig-panel__|alt-chart__)?(?:xtick-label|ytick-label|tick-label|axis-label)(\s|$)/;
         for (const t of svg.querySelectorAll("text")) {
+          const cls = t.getAttribute("class") || "";
+          if (TICK_LABEL_CLASSES.test(cls)) continue;
           const r = rectFor(t);
           if (!nonZero(r)) continue;
           texts.push({
             text: (t.textContent || "").trim(),
-            cls: t.getAttribute("class") || "",
+            cls,
             rect: r,
           });
         }
@@ -302,7 +318,35 @@ async function extractFromPage(page, dataLineSources, dataBarSources, nonLineSou
           if (classMatchesAnyNot(cls, nonLineRegexes)) continue;
           const r = rectFor(el);
           if (!nonZero(r)) continue;
-          lines.push({ kind: el.tagName.toLowerCase(), cls, rect: r });
+          // Sample stroke points for precise hit-testing. See v2 note in
+          // the file header: bbox-vs-bbox is pessimistic on sloped lines,
+          // and the fixer (scripts/fix_text_overlaps.mjs) uses sample
+          // geometry, so the detector must too -- otherwise the
+          // detector flags the fixer's clean placements as residual
+          // overlaps and the build fails after a successful fix.
+          const samples = [];
+          try {
+            if (typeof el.getTotalLength === "function") {
+              const L = el.getTotalLength();
+              if (isFinite(L) && L > 0) {
+                const ctm = el.getScreenCTM();
+                const N = Math.min(600, Math.max(40, Math.round(L)));
+                for (let k = 0; k <= N; k++) {
+                  const p = el.getPointAtLength((k / N) * L);
+                  if (ctm) {
+                    const px = ctm.a * p.x + ctm.c * p.y + ctm.e;
+                    const py = ctm.b * p.x + ctm.d * p.y + ctm.f;
+                    samples.push({ x: px, y: py });
+                  } else {
+                    samples.push({ x: p.x, y: p.y });
+                  }
+                }
+              }
+            }
+          } catch {
+            // Sampling failed; fall back to bbox-only.
+          }
+          lines.push({ kind: el.tagName.toLowerCase(), cls, rect: r, samples });
         }
 
         const bars = [];
@@ -337,7 +381,33 @@ function rectsOverlap(a, b) {
   );
 }
 
+function rectContainsPoint(r, p) {
+  return p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height;
+}
+
+// Sample-aware line-vs-rect hit test (mirrors fix_text_overlaps.mjs).
+// When the line has stroke samples, hit only when a sample falls inside
+// the (slightly padded) text rect. Otherwise fall back to bbox.
+function rectHitsLine(rect, line, lineHalfStroke = 1.5) {
+  if (line.samples && line.samples.length > 0) {
+    const pad = lineHalfStroke;
+    const r2 = {
+      x: rect.x - pad,
+      y: rect.y - pad,
+      width: rect.width + 2 * pad,
+      height: rect.height + 2 * pad,
+    };
+    for (const p of line.samples) {
+      if (rectContainsPoint(r2, p)) return true;
+    }
+    return false;
+  }
+  return rectsOverlap(rect, line.rect);
+}
+
 // Quick intersection-area (in px^2) for ranking violations by severity.
+// For sample-based hits we approximate with the bbox-intersection area
+// just for sort/report purposes (the violation itself is sample-detected).
 function overlapArea(a, b) {
   const x = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
   const y = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
@@ -444,7 +514,7 @@ async function main() {
         for (const t of svg.texts) {
           const conflicting = [];
           for (const ln of svg.lines) {
-            if (rectsOverlap(t.rect, ln.rect)) {
+            if (rectHitsLine(t.rect, ln)) {
               conflicting.push({
                 kind: "line",
                 cls: ln.cls,
