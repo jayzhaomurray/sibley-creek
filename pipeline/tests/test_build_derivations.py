@@ -592,6 +592,127 @@ def test_derive_cpi_breadth_band_is_noop_when_inputs_missing(tmp_path, monkeypat
     assert not (data_root / "processed" / "cpi_breadth_below1.csv").exists()
 
 
+def test_derive_labour_force_ex_npr_math(tmp_path, monkeypatch):
+    """`derive_labour_force_ex_npr()` reads quarterly NPR flows + quarterly
+    pop_total + monthly unemployment_level + monthly unemployment_rate and
+    writes data/processed/labour_force_ex_npr.csv = LF * (1 - npr_share).
+
+    Construction:
+      - 8 quarters of NPR net flows, each +100,000. Cumulative stock at
+        quarter 8 = 800,000.
+      - 8 quarters of pop_total flat at 40,000,000. So npr_share at every
+        quarter = 800,000 / 40,000,000 = 0.02 (well, only at quarter 8;
+        earlier quarters are 100k/40M = 0.0025 etc.).
+      - 24 months of unemployment_level flat at 1.5 (M). u_rate flat at 6.0%.
+        -> LF = 1.5 / 0.06 = 25.0 (M).
+      - At the latest month aligned with quarter 8, npr_share = 0.02 ->
+        LF ex-NPR = 25.0 * (1 - 0.02) = 24.5 (M).
+    """
+    data_root = tmp_path / "data"
+    raw_dir = data_root / "raw"
+    processed_dir = data_root / "processed"
+    raw_dir.mkdir(parents=True)
+    processed_dir.mkdir(parents=True)
+
+    # Seed quarterly NPR flows (8 quarters, each +100k).
+    q_dates = pd.date_range(start="2024-01-01", periods=8, freq="QS")
+    pd.DataFrame({"date": q_dates, "value": [100_000.0] * 8}).to_csv(
+        raw_dir / "pop_net_npr.csv", index=False,
+    )
+    (raw_dir / "pop_net_npr.meta.json").write_text(json.dumps({
+        "name": "pop_net_npr", "source": "Statistics Canada",
+        "source_url": "https://example.invalid", "source_id": "v29850346",
+        "units": "Persons", "frequency": "quarterly",
+        "fetched_at": "2026-05-12T00:00:00+00:00", "release_date": None,
+    }), encoding="utf-8")
+
+    # Seed quarterly pop_total (flat 40M).
+    pd.DataFrame({"date": q_dates, "value": [40_000_000.0] * 8}).to_csv(
+        raw_dir / "pop_total.csv", index=False,
+    )
+    (raw_dir / "pop_total.meta.json").write_text(json.dumps({
+        "name": "pop_total", "source": "Statistics Canada",
+        "source_url": "https://example.invalid", "source_id": "v1",
+        "units": "Persons", "frequency": "quarterly",
+        "fetched_at": "2026-05-12T00:00:00+00:00", "release_date": None,
+    }), encoding="utf-8")
+
+    # Seed monthly unemployment_level (24 months, flat 1.5 M).
+    m_dates = pd.date_range(start="2024-01-01", periods=24, freq="MS")
+    pd.DataFrame({"date": m_dates, "value": [1.5] * 24}).to_csv(
+        raw_dir / "unemployment_level.csv", index=False,
+    )
+    (raw_dir / "unemployment_level.meta.json").write_text(json.dumps({
+        "name": "unemployment_level", "source": "Statistics Canada",
+        "source_url": "https://example.invalid", "source_id": "v2062814",
+        "units": "Millions of persons", "frequency": "monthly",
+        "fetched_at": "2026-05-12T00:00:00+00:00", "release_date": None,
+    }), encoding="utf-8")
+
+    # Seed monthly unemployment_rate (24 months, flat 6.0%).
+    pd.DataFrame({"date": m_dates, "value": [6.0] * 24}).to_csv(
+        raw_dir / "unemployment_rate.csv", index=False,
+    )
+    (raw_dir / "unemployment_rate.meta.json").write_text(json.dumps({
+        "name": "unemployment_rate", "source": "Statistics Canada",
+        "source_url": "https://example.invalid", "source_id": "v2062815",
+        "units": "%", "frequency": "monthly",
+        "fetched_at": "2026-05-12T00:00:00+00:00", "release_date": None,
+    }), encoding="utf-8")
+
+    from pipeline import build as build_mod
+
+    monkeypatch.setattr(build_mod, "DATA_RAW", raw_dir)
+    monkeypatch.setattr(build_mod, "DATA_PROCESSED", processed_dir)
+
+    build_mod.derive_labour_force_ex_npr()
+
+    out_csv = processed_dir / "labour_force_ex_npr.csv"
+    out_meta = processed_dir / "labour_force_ex_npr.meta.json"
+    assert out_csv.exists()
+    assert out_meta.exists()
+
+    out_df = pd.read_csv(out_csv, parse_dates=["date"])
+    # Latest month is 2025-12-01 (24 months from 2024-01). Latest quarter is
+    # 2025-10-01 with cumulative NPR stock = 800,000 / 40M = 0.02 -> LF * 0.98.
+    latest = out_df.iloc[-1]
+    assert latest["date"] == pd.Timestamp("2025-12-01")
+    assert latest["value"] == pytest.approx(25.0 * (1.0 - 0.02), rel=1e-9)
+    # Sanity: every value is below the unfiltered LF of 25.0.
+    assert (out_df["value"] < 25.0).all()
+    # Sanity: monotonically decreasing over time as cumulative NPR stock grows.
+    diffs = out_df["value"].diff().dropna()
+    assert (diffs <= 0).all()
+
+    out_meta_dict = json.loads(out_meta.read_text(encoding="utf-8"))
+    assert out_meta_dict["name"] == "labour_force_ex_npr"
+    assert out_meta_dict["units"] == "Millions of persons"
+    assert out_meta_dict["frequency"] == "monthly"
+    assert "uniform-participation" in out_meta_dict["transform"]
+    # Provenance string carries vector ids for all four inputs.
+    assert "v2062814" in out_meta_dict["source_id"]
+    assert "v2062815" in out_meta_dict["source_id"]
+    assert "v1" in out_meta_dict["source_id"]
+    assert "v29850346" in out_meta_dict["source_id"]
+
+
+def test_derive_labour_force_ex_npr_is_noop_when_inputs_missing(tmp_path, monkeypatch, caplog):
+    """Missing any of the four inputs -> warn + return, no output written."""
+    data_root = tmp_path / "data"
+    (data_root / "raw").mkdir(parents=True)
+    (data_root / "processed").mkdir(parents=True)
+
+    from pipeline import build as build_mod
+
+    monkeypatch.setattr(build_mod, "DATA_RAW", data_root / "raw")
+    monkeypatch.setattr(build_mod, "DATA_PROCESSED", data_root / "processed")
+
+    with caplog.at_level("WARNING"):
+        build_mod.derive_labour_force_ex_npr()  # should NOT raise
+
+    assert not (data_root / "processed" / "labour_force_ex_npr.csv").exists()
+
+
 def test_derive_gdp_views_is_noop_when_raw_missing(tmp_path, monkeypatch, caplog):
     """If `data/raw/gdp_monthly.csv` is absent, derive_gdp_views() emits a
     warning and returns cleanly without writing anything (mirrors the

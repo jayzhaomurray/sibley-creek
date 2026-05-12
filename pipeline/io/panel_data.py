@@ -368,18 +368,31 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         # line chart with level / Y/Y / MoM toggles handled chart-side. The
         # raw level is in persons; chart-builder divides by 1000 for default
         # "thousands" display per Wave 5 brief (Section 5 backend item 1).
+        #
+        # Secondary slot wires the derived labour-force-ex-NPR denominator
+        # (data/processed/labour_force_ex_npr.csv -- millions of persons,
+        # monthly) so the chart wrapper can compute the EI-claimants-to-
+        # labour-force ratio with the NPR-driven denominator growth filtered
+        # out. See derive_labour_force_ex_npr() in pipeline/build.py for the
+        # v1 derivation method and its documented biases.
         PanelSpec(
             panel_id="panel-7", section="labour", panel_num=7,
             file="labour/Panel7EIBeneficiaries.astro",
             primary=SlotSpec("ei_regular_beneficiaries", "raw",
                              label="EI regular beneficiaries (persons)"),
+            secondary=SlotSpec("labour_force_ex_npr", "processed",
+                               label="Labour force ex-NPRs (millions, monthly)"),
             expected_status="WIRED",
             notes=(
                 "Wave 5 canon: cyclical-inflection signal (demand-side mirror "
                 "of LFS unemployment). StatCan Table 14-10-0011 v64549350, "
                 "Canada total SA monthly. Chart-side: divide by 1000 for "
                 "default thousands display; Y/Y and MoM toggles applied at "
-                "render time. Peak-to-trough annotation supplied by researcher."
+                "render time. Peak-to-trough annotation supplied by researcher. "
+                "Ratio toggle: claimants / (labour_force_ex_npr * 1e6) -- "
+                "denominator deflates NPR-driven labour-force growth so the "
+                "ratio reads as a cyclical indicator. See derive_labour_force_ex_npr "
+                "in pipeline/build.py for method + documented bias direction."
             ),
         ),
     ],

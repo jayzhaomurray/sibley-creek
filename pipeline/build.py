@@ -1365,6 +1365,157 @@ def derive_trade_views() -> None:
             write_series(share, meta, DATA_PROCESSED)
 
 
+def derive_labour_force_ex_npr() -> None:
+    """Monthly Canadian labour force, excluding non-permanent residents.
+
+    Powers the Labour Panel 7 EI-claimants ratio chart: claimants /
+    labour-force-ex-NPRs. The NPR-driven 2022-2024 population surge
+    inflated every population-scaled labour denominator; deflating it
+    isolates the cyclical signal in the EI series.
+
+    Method (v1 -- simplest defensible path):
+        1. NPR stock is approximated as the cumulative sum of quarterly
+           net-NPR flows from 1946 forward (StatCan v29850346, Table
+           17-10-0040-01). Pre-1970 NPR programs were near-zero so the
+           1946=0 anchor is a low-cost approximation. Cumulative sum to
+           Q4 2025 reads ~2.5M, which matches StatCan's published NPR
+           stock (~3M peak mid-2024, ~2.5-2.7M after the federal cap)
+           to within ~0.3M -- the residual reflects emigration of former
+           NPRs and definitional drift across the 80-year window. Good
+           enough for a denominator adjustment whose purpose is to remove
+           the FIRST-ORDER NPR effect from labour-force growth.
+        2. Labour force is computed as unemployment_level /
+           (unemployment_rate / 100). That is the LFS identity LF = U / u
+           and lets us derive monthly LF without a separate fetch of
+           employment_level (which is in the catalog but adds nothing
+           the rate+level pair don't already encode).
+        3. NPR share of total population is computed quarterly
+           (npr_stock_q / pop_total_q) and forward-filled to monthly to
+           align with the monthly LFS frame. Within-quarter constancy is
+           a reasonable approximation -- the population denominator
+           moves slowly and the NPR stock estimate is itself quarterly.
+        4. labour_force_ex_npr = LF x (1 - npr_share_of_pop).
+
+    The KEY APPROXIMATION is step 4: we assume NPRs participate in the
+    labour force at the SAME rate as the non-NPR population. Empirically
+    NPR participation runs higher than the headline (skewed toward
+    prime-age working entrants), so this method slightly OVER-DEFLATES
+    the labour force and the EI ratio it powers will be slightly
+    OVER-stated vs the truth. That is acceptable for the v1 chart frame
+    (the cyclical inflection signal dominates the level error) and the
+    direction of the bias is documented here and in the meta.notes.
+
+    A future v2 could (a) fetch StatCan Table 14-10-0083 for monthly LF
+    by immigrant status and read NPR labour force directly, or (b)
+    apply a fixed 75% NPR participation rate to the NPR stock. Both
+    add complexity for a second-order correction; deferred per the
+    user's "without boiling the ocean" framing.
+
+    Inputs:
+        data/raw/pop_net_npr.csv          quarterly net NPR flows (persons).
+        data/raw/pop_total.csv            quarterly total population (persons).
+        data/raw/unemployment_level.csv   monthly U level (millions of persons).
+        data/raw/unemployment_rate.csv    monthly u rate (%, 15+).
+
+    Output:
+        data/processed/labour_force_ex_npr.csv
+            date,value -- monthly labour force ex-NPRs, MILLIONS of persons.
+    """
+    npr_flow = _read_raw("pop_net_npr")
+    pop = _read_raw("pop_total")
+    u_level = _read_raw("unemployment_level")
+    u_rate = _read_raw("unemployment_rate")
+    if any(x is None for x in (npr_flow, pop, u_level, u_rate)):
+        logger.warning(
+            "derive_labour_force_ex_npr skipped: missing inputs (npr_flow=%s pop=%s u_level=%s u_rate=%s)",
+            npr_flow is not None, pop is not None,
+            u_level is not None, u_rate is not None,
+        )
+        return
+
+    # Step 1: NPR stock = cumulative net-NPR flows from 1946 forward (quarterly).
+    nf = npr_flow.set_index("date")["value"].sort_index().dropna()
+    npr_stock_q = nf.cumsum().rename("npr_stock")
+
+    # Step 2: monthly LF from the LFS identity LF = U / u. unemployment_level
+    # is on disk in MILLIONS; unemployment_rate is in PERCENT.
+    ul = u_level.set_index("date")["value"].sort_index().dropna()
+    ur = u_rate.set_index("date")["value"].sort_index().dropna()
+    lfs = pd.concat([ul.rename("u_level"), ur.rename("u_rate")], axis=1).dropna()
+    if lfs.empty:
+        logger.warning("derive_labour_force_ex_npr: no overlap between u_level and u_rate")
+        return
+    # Guard against zero rate (would never happen in practice but be defensive).
+    lf = (lfs["u_level"] / (lfs["u_rate"] / 100.0)).replace([float("inf"), float("-inf")], pd.NA).dropna()
+    lf = lf.rename("labour_force_millions")
+
+    # Step 3: NPR share of total population, quarterly, then ffill to monthly.
+    pt = pop.set_index("date")["value"].sort_index().dropna()
+    pt_persons = pt.rename("pop_total_persons")
+    q_joined = pd.concat([npr_stock_q, pt_persons], axis=1).dropna()
+    if q_joined.empty:
+        logger.warning("derive_labour_force_ex_npr: no overlap between npr_stock and pop_total")
+        return
+    npr_share_q = (q_joined["npr_stock"] / q_joined["pop_total_persons"]).rename("npr_share")
+    # Forward-fill the quarterly share onto the monthly LFS index.
+    npr_share_m = npr_share_q.reindex(
+        npr_share_q.index.union(lf.index)
+    ).sort_index().ffill().reindex(lf.index)
+
+    # Step 4: deflate. Drop any leading rows where ffill could not yet supply
+    # a share (LFS history pre-dates the first quarterly NPR observation).
+    aligned = pd.concat([lf, npr_share_m.rename("npr_share")], axis=1).dropna()
+    if aligned.empty:
+        logger.warning("derive_labour_force_ex_npr: no overlap after monthly alignment")
+        return
+    lf_ex = (aligned["labour_force_millions"] * (1.0 - aligned["npr_share"])).dropna()
+
+    out = lf_ex.reset_index()
+    out.columns = ["date", "value"]
+
+    # Provenance: pop_net_npr / pop_npr_inflows were lifted from boc-tracker
+    # and are NOT in STATCAN_SERIES, so we read source_id directly from their
+    # on-disk .meta.json sidecars rather than the catalog.
+    spec_pop = STATCAN_SERIES["pop_total"]
+    spec_ul = STATCAN_SERIES["unemployment_level"]
+    spec_ur = STATCAN_SERIES["unemployment_rate"]
+    try:
+        import json as _json
+        npr_meta = _json.loads((DATA_RAW / "pop_net_npr.meta.json").read_text(encoding="utf-8"))
+        npr_vector = npr_meta.get("source_id", "v?")
+    except Exception:
+        npr_vector = "v29850346"  # documented fallback per pop_net_npr.meta.json
+    meta = SeriesMeta(
+        name="labour_force_ex_npr",
+        source="Statistics Canada Web Data Service (derived)",
+        source_url=statcan_url(spec_ul),
+        source_id=(
+            f"derived: LF=v{spec_ul.vector_id}/v{spec_ur.vector_id}; "
+            f"npr_share=cumsum({npr_vector})/v{spec_pop.vector_id}"
+        ),
+        units="Millions of persons",
+        frequency="monthly",
+        notes=(
+            "Monthly Canadian labour force, ex non-permanent residents. "
+            "Derivation: LF = unemployment_level / (unemployment_rate / 100); "
+            "npr_share = cumulative_sum(pop_net_npr from 1946 forward) / "
+            "pop_total (quarterly, ffilled to monthly); "
+            "labour_force_ex_npr = LF * (1 - npr_share). "
+            "KEY APPROXIMATION: assumes NPR labour-force participation equals "
+            "the headline participation rate. Empirically NPR participation is "
+            "higher (prime-age skew), so this slightly OVER-deflates LF and any "
+            "ratio using it as a denominator (e.g. EI claimants / LF-ex-NPR) "
+            "will be slightly OVER-stated. The 1946=0 NPR-stock anchor is also "
+            "approximate; cumulative net flows to Q4 2025 read ~2.5M vs StatCan "
+            "published NPR stock ~2.5-2.7M post-cap (~3M peak mid-2024). For "
+            "the v1 cyclical-inflection chart these biases are second-order. "
+            "A v2 could pull Table 14-10-0083 LFS-by-immigrant-status directly."
+        ),
+        transform="labour_force_ex_npr_v1 (uniform-participation approximation)",
+    )
+    write_series(out, meta, DATA_PROCESSED)
+
+
 # --------------------------------------------------------------------------- #
 # Orchestrator
 # --------------------------------------------------------------------------- #
@@ -1460,6 +1611,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     _safe("derive_terms_of_trade", derive_terms_of_trade, failed)
     _safe("derive_current_account_views", derive_current_account_views, failed)
     _safe("derive_federal_fiscal_ytd", derive_federal_fiscal_ytd, failed)
+    _safe("derive_labour_force_ex_npr", derive_labour_force_ex_npr, failed)
 
     # 6b) Snapshot the PRIOR vintage of data/site/* before step 7
     #     overwrites it. This feeds the diff-aware writer brief (see
