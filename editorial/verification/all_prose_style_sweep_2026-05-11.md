@@ -66,7 +66,7 @@ Hard rule applied: when uncertain, cut.
   "written from primary sources in declarative prose" (cut the
   "and read" that didn't earn its place). "in May 2026 is loosening"
   -> "is loosening" (the date stamp above the abstract carries May 2026;
-  repeating it inside the prose is redundant per Section 8b: load-bearing
+  repeating it inside the prose is redundant per Section 8b: central
   facts only). Restructured the three-clause cycle list with em-dashes
   around "half a percentage point below neutral" so the four moves read
   in parallel (unemployment / output gap / rate / CPI) rather than three

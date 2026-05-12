@@ -126,7 +126,7 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
                                             "Index, 2002=100", "monthly", "inflation", sa=False),
     "cpi_mortgage_interest":    StatcanSpec("cpi_mortgage_interest", 41691093, "18-10-0004-01",
                                             "Index, 2002=100", "monthly", "inflation", sa=False,
-                                            notes="Mortgage interest cost component; load-bearing for shelter decomposition."),
+                                            notes="Mortgage interest cost component; central to shelter decomposition."),
     # ----- Phase 2: CPI all-items excluding indirect taxes ----------------
     # Wave 5 brief (Section 5 backend item 5, methodology resolution C.4):
     # Inflation Panel 1 gains a toggle for "CPI excluding indirect taxes" to

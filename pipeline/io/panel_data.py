@@ -23,7 +23,7 @@ Shape (one file per section):
 Per-slot `data` is the raw on-disk series body (list of {date, value} points,
 truncated to a recent window). Panel-specific reshape (bucketing, dumbbell
 deltas, force-layout positioning, etc.) is chart-builder's responsibility;
-this module exposes the load-bearing time series + provenance only.
+this module exposes the primary time series + provenance only.
 
 Failure policy
 --------------
@@ -115,10 +115,22 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         ),
         PanelSpec(
             panel_id="panel-2", section="gdp", panel_num=2,
-            file="gdp/Panel2IndustryVsExpenditure.astro",
-            primary=SlotSpec("gdp_monthly", "raw", label="Industry-side GDP (monthly)"),
-            secondary=SlotSpec("gdp_quarterly", "raw", label="Expenditure-side GDP (quarterly)"),
-            notes="Chart-builder rebases both to 2019Q4=100. Industry-side proxy = total monthly real GDP; finer industry overlays (gdp_industry_goods/services/manufacturing/mining_oil) also on disk.",
+            file="gdp/Panel2IndustryAggregate.astro",
+            primary=SlotSpec(
+                "gdp_industry_services", "raw",
+                label="Services (level, monthly)",
+            ),
+            secondary=SlotSpec(
+                "gdp_industry_goods", "raw",
+                label="Goods (level, monthly)",
+            ),
+            notes=(
+                "Industry split: services vs goods, both monthly real GDP "
+                "levels (StatCan 36-10-0434-01). Chart wrapper derives Y/Y "
+                "from levels and renders two lines on a 36-month window. "
+                "The two-series gap carries the cyclical split between the "
+                "structural and cyclical halves of the Canadian economy."
+            ),
         ),
         PanelSpec(
             panel_id="panel-3", section="gdp", panel_num=3,
@@ -166,22 +178,25 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         ),
         PanelSpec(
             panel_id="panel-6", section="gdp", panel_num=6,
-            file="gdp/Panel6Productivity.astro",
+            file="gdp/Panel6IndustryCyclical.astro",
             primary=SlotSpec(
-                "productivity_business_per_hour_yoy", "processed",
-                label="Business-sector labour productivity, Y/Y %",
+                "gdp_industry_manufacturing", "raw",
+                label="Manufacturing (level, monthly)",
             ),
             secondary=SlotSpec(
-                "productivity_business_per_hour", "raw",
-                label="Business-sector labour productivity index (level)",
+                "gdp_industry_mining_oil", "raw",
+                label="Mining and oil & gas (level, monthly)",
             ),
             expected_status="WIRED",
             notes=(
-                "Productivity (output per hour) replaces the BCC recession-state "
-                "overlay on Panel 6 per editorial decision (2026-05-11). Source: "
-                "StatCan Table 36-10-0206-01 v1409153, business-sector labour "
-                "productivity, quarterly SA index (2017=100). Y/Y derives in "
-                "pipeline.build.derive_productivity_views (periods_per_year=4)."
+                "Cyclical subsectors inside goods: manufacturing vs mining "
+                "and oil & gas, both monthly real GDP levels (StatCan "
+                "36-10-0434-01). The two are moving in opposite directions "
+                "in 2025-26 - manufacturing in a sustained slump (~-3% Y/Y), "
+                "mining/oil in clean expansion (~+3.5% Y/Y) - and the "
+                "regional shadow of this is Ontario/Quebec vs Alberta/SK. "
+                "Chart wrapper derives Y/Y from levels and renders two "
+                "lines on a 36-month window."
             ),
         ),
     ],

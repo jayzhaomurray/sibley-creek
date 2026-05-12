@@ -145,7 +145,7 @@ F4. Fiscal stance vs cycle: structural balance estimate; cyclically-adjusted pri
 3. **DoF FES + Budget projections** — annual + mid-year; PDF + Annex tables. Curate by-release.
 4. **Provincial budgets (ON, QC, AB, BC)** — annual + quarterly. Each ministry's site. Curate by-release; build templated extraction notes per province.
 5. **DoF Debt Management Strategy** — annual, with budget. Curate by-release; the ATM and redemption profile tables are the high-value lifts.
-6. **BoC auction results** — `https://www.bankofcanada.ca/markets/government-securities-auctions/` — per-auction; available as structured pages or downloads. Optional v1; if researcher cites DMS annex for the structural read this is not load-bearing for basics.
+6. **BoC auction results** — `https://www.bankofcanada.ca/markets/government-securities-auctions/` — per-auction; available as structured pages or downloads. Optional v1; if researcher cites DMS annex for the structural read this is not essential for basics.
 7. **Rating-agency action log** — research-curated, not a feed.
 8. **IMF Article IV CAPB and / or OECD CAPB** — for F4; researcher-curated, cite the latest IMF/OECD report.
 

@@ -35,7 +35,7 @@ data. Page background `paper`; cards on `surface` with 1px `rule` border,
   asymmetric tilt-ladder require enough custom SVG that it ships as a
   React island with D3 scales and hand-tuned annotation positions. This
   is the panel that earns its keep -- the May 2026 retire-the-four-state
-  resolution is editorially load-bearing, and the visual must read as
+  resolution is editorially central, and the visual must read as
   "composition with edge-case affordance," not "stacked area."
 
 - **Panels 1, 2, 4, 5, 6** all sit inside Plot's sweet spot

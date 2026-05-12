@@ -230,6 +230,35 @@ const pts = hasSeries
   : [];
 const linePath = hasSeries ? "M " + pts.join(" L ") : "";
 
+// Chart kind: default sparkline (line) unless the section's canon flags it
+// as bars. Used for signed series where direction is the visual story
+// (trade balance, contributions to growth, etc.).
+const chartKind: "line" | "bars" = section.canon.tileChartKind ?? "line";
+
+// Bar geometry — only used when chartKind === "bars". Each value renders
+// as a rect from the zero baseline (or yMin when zero is outside the
+// domain) to its yScale position. The latest bar gets the MTA red
+// accent — same protagonist signal the line chart uses on its end-dot.
+const barWidth = hasSeries
+  ? Math.max(2, (plotW / series.length) * 0.65)
+  : 0;
+const barBaselineY = hasSeries
+  ? ((yMin < 0 && yMax > 0) ? yOf(0) : yOf(yMin))
+  : 0;
+const bars = hasSeries && chartKind === "bars"
+  ? series.map((v, i) => {
+      const cx = xOf(i);
+      const valY = yOf(v);
+      return {
+        x: cx - barWidth / 2,
+        y: Math.min(valY, barBaselineY),
+        w: barWidth,
+        h: Math.max(0.5, Math.abs(valY - barBaselineY)),
+        isLatest: i === series.length - 1,
+      };
+    })
+  : [];
+
 const axisScale = hasSeries
   ? computeAxisScale(yMin, yMax, niceTickStep, section.units)
   : { factor: 1, suffix: "", decimals: 2 };
@@ -329,15 +358,29 @@ const periodStamp = periodStampFor(section.frequency);
               stroke-dasharray="2 2"
             />
           )}
-          <path
-            d={linePath}
-            fill="none"
-            stroke="#000000"
-            stroke-width="1.5"
-            stroke-linejoin="round"
-            stroke-linecap="round"
-          />
-          <circle cx={lastX} cy={lastY} r="3" fill="#E63946" stroke="#FFFFFF" stroke-width="1" />
+          {chartKind === "bars" ? (
+            bars.map((b) => (
+              <rect
+                x={b.x.toFixed(2)}
+                y={b.y.toFixed(2)}
+                width={b.w.toFixed(2)}
+                height={b.h.toFixed(2)}
+                fill={b.isLatest ? "#E63946" : "#000000"}
+              />
+            ))
+          ) : (
+            <>
+              <path
+                d={linePath}
+                fill="none"
+                stroke="#000000"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+                stroke-linecap="round"
+              />
+              <circle cx={lastX} cy={lastY} r="3" fill="#E63946" stroke="#FFFFFF" stroke-width="1" />
+            </>
+          )}
           <text
             x={PAD_L}
             y={H - 4}
@@ -557,7 +600,7 @@ const periodStamp = periodStampFor(section.frequency);
    * - Aspect ratio chosen to match the real SVG (320 x 110) so layout
    *   does not shift when the same section flips to real data.
    * - Dashed-border + light gray ink so it is OBVIOUSLY a stub at any
-   *   size. The "DATA NOT YET WIRED" caption is the load-bearing tell. */
+   *   size. The "DATA NOT YET WIRED" caption is the primary tell. */
   .vig-panel__empty {
     width: 100%;
     aspect-ratio: 320 / 110;

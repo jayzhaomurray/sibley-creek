@@ -125,6 +125,6 @@ SHIP-READY.
 
 - Six numeric discrepancies fixed in-place.
 - No TKs in user-visible prose.
-- Load-bearing claims verified against primary source (StatCan Daily WebFetch + project CSVs).
+- Central claims verified against primary source (StatCan Daily WebFetch + project CSVs).
 - Published file copied to editorial/published/per-capita-output.md.
 - sections.ts updated: publishedAt 2026-05-11, publishedPath set, status drafted, draftPath set.

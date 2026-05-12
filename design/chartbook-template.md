@@ -400,7 +400,7 @@ conventions, and the chart shapes consumed in the chart slot.
 - **Section accent:** Inflation's `--section-accent-inflation` resolves
   to `--accent` (signal red). This is the one section where the
   section accent and the brand accent are the same; Inflation is the
-  publication's load-bearing section, and the convergence is
+  publication's anchor section, and the convergence is
   deliberate.
 
 ### 4.3 Labour

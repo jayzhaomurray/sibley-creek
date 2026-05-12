@@ -99,7 +99,7 @@ Two annotations:
    point of trim or median (whichever peaked higher) in the window,
    with date and value. `body-sm` weight 400 `ink-muted`. This is a
    historical anchor for the reader who is scanning the panel; it is
-   not load-bearing on the latest print.
+   not central to the latest print.
 
 ### Recession bands
 

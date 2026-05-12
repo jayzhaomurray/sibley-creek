@@ -505,7 +505,7 @@ have not: CSCE 1y mean is stuck just below 4%, still well above the
 survey's historical average and roughly 1.5pp above where firms see
 the next 12 months running. The 5y consumer mean at 3.02% has come
 down but is still 1pp above target. The BoC's April 2026 MPR reads
-the firm anchoring as the load-bearing signal -- it's the channel
+the firm anchoring as the central signal -- it's the channel
 through which the central bank judges whether the energy supply shock
 risks second-round pricing behaviour. The consumer numbers are
 qualified by the survey's well-documented upward bias relative to

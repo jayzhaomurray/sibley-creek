@@ -124,13 +124,13 @@ function jerseyFor(section: Section): Jersey {
 
 /**
  * Assign a per-panel "period" label based on the section's cadence and
- * load-bearing print recency. Hockey: 1ST / 2ND / 3RD / FINAL / OT.
+ * primary print recency. Hockey: 1ST / 2ND / 3RD / FINAL / OT.
  * We mostly say PERIOD N for current-month landings and FINAL for older
  * prints; the spotlight section (most-recently-updated) gets "LIVE".
  */
 function periodFor(section: Section, isSpotlight: boolean): string {
   if (isSpotlight) return "LIVE";
-  // Days since the load-bearing print's updatedAt.
+  // Days since the primary print's updatedAt.
   const ageDays =
     (now.getTime() - (section.updatedAt ?? now.getTime())) / 86_400_000;
   if (ageDays < 7) return "1ST";

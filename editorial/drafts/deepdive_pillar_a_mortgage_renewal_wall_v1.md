@@ -192,7 +192,7 @@ Payment shock math.
 > renewal rates have fallen meaningfully from the late-2023 peak as
 > the BoC has cut.
 >
-> The distribution is the load-bearing read. The bulk of the
+> The distribution is the read that matters. The bulk of the
 > renewal-payment-shock mass that dominated 2024 commentary --
 > step-ups in the 30 to 40 percent range -- has cleared. What
 > remains is a smaller tail with three characteristics: original
@@ -385,7 +385,7 @@ Voice notes:
   the formal note if fact-checker asks.
 - The "regional dispersion widens through the tail" thesis is
   the sharper view this piece takes against the consensus
-  framing of "the wall has cleared." It is the load-bearing
+  framing of "the wall has cleared." It is the central
   divergence call; Section 7 names the falsification trigger.
 
 ---
@@ -583,8 +583,8 @@ research-desk view.
 
 Every TK is a specific data anchor the writer needs from a
 verified primary source before this draft can pass fact-checker
-and ship. Prioritized by load-bearing weight within the
-argument.
+and ship. Prioritized by argument weight within the
+piece.
 
 **SECTION I -- The stock.**
 

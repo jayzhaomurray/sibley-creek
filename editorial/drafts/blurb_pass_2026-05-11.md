@@ -4,7 +4,7 @@ Author: writer (acting in lieu of auto-blurb pipeline; API key blocker).
 Voice: Section blurbs in Mode A (auto-blurb register). Hero abstract in publication-frontmatter register.
 Vintage cited throughout: data/site/sections.json (generatedAt 2026-05-11T10:41:10Z).
 
-Fact-checker: every numeric claim below points to the load-bearing field in
+Fact-checker: every numeric claim below points to the source field in
 data/site/sections.json. Verify each against that file before clearing.
 
 ---

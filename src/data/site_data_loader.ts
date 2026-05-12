@@ -129,7 +129,7 @@ export interface EnrichedSection {
   canon: Section;
 
   // ---- pipeline-derived ----
-  /** Load-bearing print for the panel chart + readout. Always present
+  /** Primary print for the panel chart + readout. Always present
    * (placeholder shape when the pipeline produced no real data). */
   loadBearing: EnrichedPrint;
   /** All prints on this section. Empty array means the pipeline produced
@@ -237,7 +237,7 @@ function enrichSection(canon: Section): EnrichedSection {
   const raw = payload.sections?.[canon.slug];
   const rawPrints = raw?.prints ?? [];
 
-  // Resolve the load-bearing print indicator label. Pipeline carries
+  // Resolve the primary print indicator label. Pipeline carries
   // `print_indicator` per series; if no real prints, fall back to canon's
   // first print indicator so the placeholder readout still has a key
   // ("Headline CPI, y/y" etc.) — we are placeholdering values, not labels.
@@ -260,7 +260,7 @@ function enrichSection(canon: Section): EnrichedSection {
   // Build the indicator-row scaffold from canon. Every canon print becomes
   // either (a) the enriched pipeline print if the keys match, or (b) a
   // placeholder row carrying just the indicator label so the table still
-  // shows the structure. This is the load-bearing change in this pass:
+  // shows the structure. This is the central change in this pass:
   // canon owns the row list, pipeline data fills it in.
   const matched = new Set<RawPrint>();
   const prints: EnrichedPrint[] = canon.prints.map((cp) => {
@@ -291,7 +291,7 @@ function enrichSection(canon: Section): EnrichedSection {
     }
   }
 
-  // Resolve the load-bearing print for the chart + readout. Prefer a real,
+  // Resolve the primary print for the chart + readout. Prefer a real,
   // chart-series-keyed print; fall back to the first real print; finally to
   // the canon-scaffolded first row (which will read as a TK placeholder).
   const realPrints = prints.filter((p) => p.isReal);
@@ -388,7 +388,7 @@ export const PLACEHOLDER = {
   /** Chart-slot caption when a section has no real series. Kept distinct
    * from cell-level TK because the empty chart slot also carries a
    * dashed-border treatment + diagonal hatch; the long caption is the
-   * load-bearing tell at the chart scale. */
+   * primary tell at the chart scale. */
   chartEmpty: "DATA NOT YET WIRED",
   /** Visible lorem ipsum prose so editorial blanks are unmistakable. */
   loremShort:

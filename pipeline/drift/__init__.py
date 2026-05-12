@@ -1,6 +1,6 @@
 """Drift watcher for published deep dives.
 
-Compares the load-bearing numeric claims as cited in published deep dives
+Compares the tracked numeric claims as cited in published deep dives
 against the current pipeline data. Surfaces drift so the editorial team
 can decide whether a pillar needs a re-review.
 

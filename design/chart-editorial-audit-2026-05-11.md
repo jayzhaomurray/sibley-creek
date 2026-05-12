@@ -157,7 +157,7 @@ rule.
 bar chart of sub-aggregate Y/Y* (shelter / services-ex-shelter / goods
 ex-energy / food / energy). A single shelter line obscures the cross-
 sectional read on which components are running hot vs target. This is
-the second-most-load-bearing chart in inflation after headline -- a
+the second-most-important chart in inflation after headline -- a
 P1 allocator wants to see at a glance "where in the basket is the
 heat." Field to drive: per-aggregate Y/Y series (`cpi_shelter_yoy`
 exists; need `cpi_services_yoy`, `cpi_goods_yoy`, `cpi_food_yoy`,
@@ -611,7 +611,7 @@ and ALL SIX CMAs are on disk in panel-1 extras
 ..._ottawa, ..._edmonton). The dispersion is the story (T/V negative,
 Calgary positive). **Brief:** render national line as solid pure-ink
 primary + 6 CMA lines as 1px pure-ink at 30% opacity, with two named
-direct labels (Toronto + Vancouver -- the load-bearing pair on the
+direct labels (Toronto + Vancouver -- the anchor pair on the
 downside). MTA red dot on the latest national print. Zero-line
 reference rule.
 
@@ -638,7 +638,7 @@ question directly.
 
 ### 7. Inflation Panel 4 -- shelter only, should be ranked sub-aggregate bar
 Filename: `src/components/charts/inflation/Panel4SubAggregates.astro`.
-**Editorial impact:** the second-most-load-bearing chart in inflation
+**Editorial impact:** the second-most-important chart in inflation
 (after headline). Reader wants "where in the basket is the heat" at a
 glance. **Brief:** requires `PanelBarChart` companion (per canon Q9).
 For tonight, the cheaper fix is to broaden the line render: keep

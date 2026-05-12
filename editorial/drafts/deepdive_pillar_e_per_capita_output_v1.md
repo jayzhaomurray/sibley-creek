@@ -138,7 +138,7 @@ estimates, January 2019 through April 2026 (LFS) / Q1 2026
 14-10-0287-01; Quarterly Population Estimates Table 17-10-0009-01.*
 
 Voice notes:
-- Lede holds the load-bearing claim: per-capita weakness is
+- Lede holds the central claim: per-capita weakness is
   primarily a denominator story (insight base claim ladder #1, #2,
   #4). Productivity-as-structural-fight framing acknowledges the
   ongoing question while distinguishing it from what drove
@@ -257,7 +257,7 @@ supplementary information," November 2025.*
 > baseline. None of that requires a hiring boom, an investment
 > renaissance, or a productivity inflection. It requires the
 > population denominator to behave the way the IRCC plan says it
-> will. The plan vintage is the load-bearing forward variable.
+> will. The plan vintage is the forward variable this turns on.
 
 ---
 
@@ -494,9 +494,9 @@ Contingent payoff. If X, then Y.
 > permanent-resident or the temporary-resident sub-cap before the
 > next plan vintage (2027-2029, conventionally announced in
 > November 2026), *then* the denominator-closes-the-gap mechanic
-> weakens proportionally. The plan vintage is the load-bearing
-> forward variable in this piece; if the plan changes, the
-> arithmetic in Section II changes with it.
+> weakens proportionally. The plan vintage is the forward variable
+> this piece turns on; if the plan changes, the arithmetic in
+> Section II changes with it.
 >
 > *If* labour productivity prints two consecutive negative quarterly
 > Q/Q readings in the business-sector series after the 2025 annual
@@ -523,8 +523,8 @@ Contingent payoff. If X, then Y.
 
 Primary citations. Big-Six bank economics notes are not cited as
 views; the Bank of Canada, Statistics Canada, and Immigration,
-Refugees and Citizenship Canada are the load-bearing institutions
-on this question.
+Refugees and Citizenship Canada are the institutions this question
+turns on.
 
 1. **Statistics Canada, Labour Force Survey, Table 14-10-0287-01.**
    Monthly. Employment, unemployment, participation, and
@@ -595,7 +595,7 @@ on this question.
 
 Note on citation discipline (per `editorial/writing-style.md`
 Section 8 and `editorial/dashboard_purpose.md` Section 1): the Bank
-of Canada, Statistics Canada, and IRCC are the load-bearing
+of Canada, Statistics Canada, and IRCC are the anchor
 institutions. Where consensus-forecaster numbers appear in
 scenario framing, they are aggregated and unattributed by bank
 name; no Big-Six economics note is cited as an authoritative view.

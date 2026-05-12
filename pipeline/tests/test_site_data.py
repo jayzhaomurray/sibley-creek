@@ -156,8 +156,8 @@ def test_inflation_section_has_real_value_and_spark(tmp_path):
     """Inflation tile carries a value derived from the latest CSV row,
     a reference rule (BoC target 2%), and a 24-point sparkline.
 
-    The load-bearing (primary) print is always prints[0]; supporting prints
-    follow when SUPPORTING_PRINTS declares them for the section. When the
+    The primary print is always prints[0]; supporting prints follow
+    when SUPPORTING_PRINTS declares them for the section. When the
     sandbox doesn't seed supporting series, they render as TK sentinels
     (available=False) but the primary read still succeeds.
     """
@@ -171,7 +171,7 @@ def test_inflation_section_has_real_value_and_spark(tmp_path):
     assert inflation["primarySeries"] == "cpi_all_items_yoy"
     assert "error" not in inflation
 
-    # Primary print at index 0 always carries the load-bearing series.
+    # Primary print at index 0 always carries the section's anchor series.
     assert len(inflation["prints"]) >= 1
     p = inflation["prints"][0]
     assert p["key"] == "cpi-yoy"
@@ -253,7 +253,7 @@ def test_missing_series_yields_error_sentinel(tmp_path):
     assert set(payload["sections"].keys()) == set(SECTION_SLUGS)
     inflation = payload["sections"]["inflation"]
     assert "error" not in inflation
-    # Primary print is the load-bearing one; supporting prints are TK
+    # Primary print is the anchor; supporting prints are TK
     # sentinels in this sandbox (their CSVs aren't seeded).
     assert len(inflation["prints"]) >= 1
     assert inflation["prints"][0]["key"] == "cpi-yoy"
@@ -471,7 +471,7 @@ def test_supporting_print_3m_ma_transform(tmp_path):
     """A supporting print with `transform='3m_ma'` smooths the level series."""
     data_root = tmp_path / "data"
     _seed_minimal_pipeline(data_root)
-    # Seed housing prices (load-bearing) and housing_starts (raw).
+    # Seed housing prices (primary) and housing_starts (raw).
     _write_pair(
         data_root, "processed", "crea_hpi_canada_yoy",
         _monthly_df([-5.0, -4.5, -4.0, -3.5, -3.0, -2.5, -2.0, -1.5, -1.0,
@@ -559,7 +559,7 @@ def test_supporting_print_partner_share(tmp_path):
     and multiplies by 100, yielding a percent share."""
     data_root = tmp_path / "data"
     _seed_minimal_pipeline(data_root)
-    # Trade balance (load-bearing) + US exports + total exports.
+    # Trade balance (primary) + US exports + total exports.
     _write_pair(
         data_root, "processed", "trade_balance_total_3m_ma",
         _monthly_df([-1000.0, -1100.0, -1200.0, -2000.0, -2100.0, -2200.0],
@@ -650,7 +650,7 @@ def test_supporting_print_fy_ytd_yoy_vs_prior_fy_at_same_month(tmp_path):
     assert p["valueRaw"] == pytest.approx(-25550.0, rel=1e-6)
     assert p["value"] == "-$25.6B"
     # Prior: FY25 YTD through Feb 2025 = -19,274 (NOT the Jan 2026 point
-    # which is -31,209). This is the load-bearing assertion: comparator is
+    # which is -31,209). This is the central assertion: comparator is
     # 12 months back, not iloc[-2].
     assert p["priorRaw"] == pytest.approx(-19274.0, rel=1e-6)
     # Delta = -25,550 - (-19,274) = -6,276 millions -> "-$6.3B"
@@ -710,8 +710,8 @@ def test_format_as_of_fy_ytd_month_label_boundary(tmp_path):
     assert _format_as_of(pd.Timestamp("2024-12-31"), "fy-ytd-month") == "FYTD Dec 25"
 
 
-def test_supporting_print_load_bearing_always_first(tmp_path):
-    """The load-bearing print is always prints[0]; supporting prints follow.
+def test_supporting_print_primary_always_first(tmp_path):
+    """The primary print is always prints[0]; supporting prints follow.
     Frontend relies on prints[0] being the chartSeriesKey-matching row."""
     data_root = tmp_path / "data"
     _seed_minimal_pipeline(data_root)
@@ -723,7 +723,7 @@ def test_supporting_print_load_bearing_always_first(tmp_path):
             continue
         cfg = SECTION_CONFIGS[slug]
         assert prints[0]["key"] == cfg.print_key, \
-            f"{slug}: first print should be the load-bearing {cfg.print_key}"
+            f"{slug}: first print should be the primary {cfg.print_key}"
 
 
 # --------------------------------------------------------------------------- #

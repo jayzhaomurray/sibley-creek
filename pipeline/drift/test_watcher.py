@@ -56,7 +56,7 @@ def _scaffold_repo(tmp_path: Path) -> Path:
     (tmp_path / "data" / "raw").mkdir(parents=True)
     (tmp_path / "data" / "site" / "panel_data").mkdir(parents=True)
 
-    (tmp_path / "editorial" / "drift" / "load_bearing_claims.yml").write_text(
+    (tmp_path / "editorial" / "drift" / "tracked_claims.yml").write_text(
         REGISTRY_YAML, encoding="utf-8"
     )
 
@@ -101,7 +101,7 @@ def _scaffold_repo(tmp_path: Path) -> Path:
 def test_load_registry(tmp_path: Path) -> None:
     repo = _scaffold_repo(tmp_path)
     claims = load_claims_registry(
-        repo / "editorial" / "drift" / "load_bearing_claims.yml"
+        repo / "editorial" / "drift" / "tracked_claims.yml"
     )
     assert [c.id for c in claims] == ["S1", "S2", "S3"]
     assert all(c.pillar_slug == "smoke-pillar" for c in claims)
@@ -111,7 +111,7 @@ def test_load_registry(tmp_path: Path) -> None:
 def test_check_drift_within_threshold(tmp_path: Path) -> None:
     repo = _scaffold_repo(tmp_path)
     claims = load_claims_registry(
-        repo / "editorial" / "drift" / "load_bearing_claims.yml"
+        repo / "editorial" / "drift" / "tracked_claims.yml"
     )
     s1 = next(c for c in claims if c.id == "S1")
     result = check_drift(s1, repo)
@@ -124,7 +124,7 @@ def test_check_drift_within_threshold(tmp_path: Path) -> None:
 def test_check_drift_beyond_threshold_json_panel(tmp_path: Path) -> None:
     repo = _scaffold_repo(tmp_path)
     claims = load_claims_registry(
-        repo / "editorial" / "drift" / "load_bearing_claims.yml"
+        repo / "editorial" / "drift" / "tracked_claims.yml"
     )
     s2 = next(c for c in claims if c.id == "S2")
     result = check_drift(s2, repo)
@@ -137,7 +137,7 @@ def test_check_drift_beyond_threshold_json_panel(tmp_path: Path) -> None:
 def test_check_drift_data_missing(tmp_path: Path) -> None:
     repo = _scaffold_repo(tmp_path)
     claims = load_claims_registry(
-        repo / "editorial" / "drift" / "load_bearing_claims.yml"
+        repo / "editorial" / "drift" / "tracked_claims.yml"
     )
     s3 = next(c for c in claims if c.id == "S3")
     result = check_drift(s3, repo)
@@ -150,7 +150,7 @@ def test_check_drift_data_missing(tmp_path: Path) -> None:
 def test_run_watcher_writes_alert(tmp_path: Path) -> None:
     repo = _scaffold_repo(tmp_path)
     alert_path, results = run_watcher(
-        registry_path="editorial/drift/load_bearing_claims.yml",
+        registry_path="editorial/drift/tracked_claims.yml",
         repo_root=repo,
         alerts_dir="editorial/drift/alerts",
         run_date=date(2026, 5, 11),

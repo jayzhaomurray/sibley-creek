@@ -50,7 +50,7 @@ LinkedIn equivalent of a magazine cover, not a magazine illustration.
 | Dimensions | 1200 x 630 px (1.91:1, LinkedIn/Twitter/Facebook canonical) |
 | Background | Pure white `#FFFFFF` (`var(--paper)`) |
 | Color space | sRGB; PNG output |
-| Safe area | Nothing load-bearing within 40px of any edge. LinkedIn crops a small bezel on some surfaces (a few px on each side); the wordmark, mark, and tagline must clear that crop. |
+| Safe area | Nothing essential within 40px of any edge. LinkedIn crops a small bezel on some surfaces (a few px on each side); the wordmark, mark, and tagline must clear that crop. |
 | Outer rule | NO rounded corners, NO drop shadow, NO outer border. LinkedIn/Twitter draw their own card frame; we ship a clean rectangle. |
 
 ---

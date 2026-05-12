@@ -1,0 +1,406 @@
+---
+/*
+ * Panel3ContributionsV2 - streamlined quarterly contributions to GDP
+ * growth, 4-bucket version.
+ *
+ * V1 (Panel3Contributions): rendered the total-contribution line only;
+ *   chart title claimed component decomposition the chart could not show.
+ * Alt1 (_alternatives/gdp/Alt1_ContributionsStacked): stacked all 6
+ *   components by opacity gradient. Too many components to distinguish
+ *   without color; the protagonist (inventories) didn't visually pop.
+ *
+ * V2 (THIS): collapse 6 components into 3 editorial buckets plus a
+ * total overlay:
+ *
+ *   - Final domestic demand = consumption + government + investment
+ *   - Trade net             = exports + imports (StatCan signs imports
+ *                              negative; sum is the net contribution)
+ *   - Inventories           = standalone (the swing factor)
+ *   - Total                 = pipeline's gdp_total_contribution series,
+ *                              overlaid as a thin dashed ink line
+ *
+ * Visual treatment per the chart canon: inventories in MTA red (the
+ * protagonist this Q4 - and historically the recurring swing factor);
+ * final-domestic-demand and trade-net in restrained ink at differing
+ * opacities. The geometry tells the reader where growth came from and
+ * how often inventories have swamped the underlying signal.
+ *
+ * Stacked-bar convention: positive contributions stack upward from
+ * zero, negative downward, in the order FDD → trade net → inventories.
+ * The total dashed line marks the headline read.
+ */
+
+import type { PanelData, SeriesPoint } from "../_shared/panelData";
+import { decYear } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+const { data = null } = Astro.props;
+
+// ---- Pull series from primary + extras ----------------------------------
+function findExtra(key: string): SeriesPoint[] {
+  if (!data || !Array.isArray((data as any).extras)) return [];
+  const extras = (data as any).extras as Array<{ key: string; data: SeriesPoint[] }>;
+  return extras.find((e) => e.key === key)?.data ?? [];
+}
+
+const totalSeries = data?.primary?.data ?? [];
+const cons = findExtra("gdp_contrib_consumption");
+const govt = findExtra("gdp_contrib_govt");
+const inv  = findExtra("gdp_contrib_investment");
+const exp  = findExtra("gdp_contrib_exports");
+const imp  = findExtra("gdp_contrib_imports");
+const inty = findExtra("gdp_contrib_inventories");
+
+const hasData =
+  totalSeries.length > 0 && cons.length > 0 && govt.length > 0 &&
+  inv.length > 0 && exp.length > 0 && imp.length > 0 && inty.length > 0;
+
+// ---- Build a per-quarter bucket record over the last N quarters --------
+const WINDOW_QUARTERS = 16;
+
+function asMap(series: SeriesPoint[]): Map<string, number | null> {
+  return new Map(series.map((p) => [p.date, p.value]));
+}
+
+const totalMap = asMap(totalSeries);
+const consMap = asMap(cons);
+const govtMap = asMap(govt);
+const invMap = asMap(inv);
+const expMap = asMap(exp);
+const impMap = asMap(imp);
+const intyMap = asMap(inty);
+
+interface Q {
+  date: string;
+  fdd: number | null;        // consumption + government + investment
+  tradeNet: number | null;   // exports + imports
+  inty: number | null;       // inventories (standalone)
+  total: number | null;      // pipeline total
+}
+
+const tail = totalSeries.slice(-WINDOW_QUARTERS);
+const quarters: Q[] = tail.map((p) => {
+  const d = p.date;
+  const c = consMap.get(d);
+  const g = govtMap.get(d);
+  const i = invMap.get(d);
+  const x = expMap.get(d);
+  const m = impMap.get(d);
+  const v = intyMap.get(d);
+  const total = totalMap.get(d) ?? null;
+  const fdd = (typeof c === "number" && typeof g === "number" && typeof i === "number")
+    ? c + g + i : null;
+  const tradeNet = (typeof x === "number" && typeof m === "number")
+    ? x + m : null;
+  const intyVal = typeof v === "number" ? v : null;
+  return { date: d, fdd, tradeNet, inty: intyVal, total };
+});
+
+// ---- Geometry -----------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 56;
+const M_R = 80;
+const M_T = 60;   // top room for legend
+const M_B = 40;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;     // = 584
+const PLOT_H = VB_H - M_T - M_B;     // = 305
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+// ---- y-domain: span positive and negative stacks per quarter ------------
+let yLo = 0;
+let yHi = 0;
+for (const q of quarters) {
+  let pos = 0;
+  let neg = 0;
+  for (const v of [q.fdd, q.tradeNet, q.inty]) {
+    if (typeof v !== "number" || Number.isNaN(v)) continue;
+    if (v >= 0) pos += v;
+    else neg += v;
+  }
+  if (pos > yHi) yHi = pos;
+  if (neg < yLo) yLo = neg;
+  if (typeof q.total === "number") {
+    if (q.total > yHi) yHi = q.total;
+    if (q.total < yLo) yLo = q.total;
+  }
+}
+const span = (yHi - yLo) || 1;
+yLo -= span * 0.08;
+yHi += span * 0.08;
+const yRange = yHi - yLo;
+
+// ---- x-domain anchored to quarter dates ---------------------------------
+const xs = quarters.map((q) => decYear(q.date)).filter((v) => !Number.isNaN(v));
+const xMin = xs.length > 0 ? Math.min(...xs) - 0.08 : 0;
+const xMax = xs.length > 0 ? Math.max(...xs) + 0.08 : 1;
+
+function xScale(yr: number): number {
+  if (xMax === xMin) return PLOT_X0 + PLOT_W / 2;
+  return PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
+}
+
+const zeroY = yLo <= 0 && yHi >= 0 ? yScale(0) : null;
+
+// ---- y-ticks ------------------------------------------------------------
+function pickStride(lo: number, hi: number, target = 5): number {
+  const sp = hi - lo;
+  if (sp <= 0) return 1;
+  const rough = sp / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let nice = 1;
+  if (norm < 1.5) nice = 1;
+  else if (norm < 3) nice = 2;
+  else if (norm < 4) nice = 2.5;
+  else if (norm < 7) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+const yStride = pickStride(yLo, yHi);
+const yTicks: number[] = [];
+const yStart = Math.ceil(yLo / yStride) * yStride;
+for (let v = yStart; v <= yHi + 1e-9; v += yStride) yTicks.push(Number(v.toFixed(3)));
+if (yTicks.length === 0) yTicks.push(Number(((yLo + yHi) / 2).toFixed(3)));
+
+// ---- x-ticks (year labels, not all quarters) ----------------------------
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const xTicks: Array<{ x: number; label: string }> = [];
+for (let yr = yearStart; yr <= yearEnd; yr++) {
+  const decY = yr + (1 - 0.5) / 12;
+  if (decY < xMin || decY > xMax) continue;
+  xTicks.push({ x: xScale(decY), label: String(yr) });
+}
+
+// ---- Build stacked bars + total path -----------------------------------
+const slotWidth = PLOT_W / WINDOW_QUARTERS;
+const barWidth = slotWidth * 0.62;
+
+type BarRect = { x: number; y: number; w: number; h: number; bucket: "fdd" | "trade" | "inty" };
+const bars: BarRect[] = [];
+
+for (const q of quarters) {
+  const xv = decYear(q.date);
+  if (Number.isNaN(xv)) continue;
+  const cx = xScale(xv);
+  let posCum = 0;
+  let negCum = 0;
+
+  const stack = (key: "fdd" | "trade" | "inty", v: number | null) => {
+    if (typeof v !== "number" || Number.isNaN(v) || v === 0) return;
+    let y0: number, y1: number;
+    if (v >= 0) { y0 = yScale(posCum); y1 = yScale(posCum + v); posCum += v; }
+    else { y0 = yScale(negCum); y1 = yScale(negCum + v); negCum += v; }
+    bars.push({
+      x: cx - barWidth / 2,
+      y: Math.min(y0, y1),
+      w: barWidth,
+      h: Math.max(0.5, Math.abs(y0 - y1)),
+      bucket: key,
+    });
+  };
+
+  stack("fdd", q.fdd);
+  stack("trade", q.tradeNet);
+  stack("inty", q.inty);
+}
+
+// Total contribution line path
+let totalPath = "";
+let started = false;
+for (const q of quarters) {
+  if (typeof q.total !== "number") continue;
+  const xv = decYear(q.date);
+  if (Number.isNaN(xv)) continue;
+  const xp = xScale(xv).toFixed(2);
+  const yp = yScale(q.total).toFixed(2);
+  totalPath += (started ? "L" : "M") + xp + " " + yp + " ";
+  started = true;
+}
+totalPath = totalPath.trim();
+
+// Latest total dot
+const latestQ = [...quarters].reverse().find((q) => typeof q.total === "number");
+const latestX = latestQ ? xScale(decYear(latestQ.date)) : 0;
+const latestY = latestQ ? yScale(latestQ.total as number) : 0;
+
+const ariaLabel = "Quarterly contributions to real GDP growth, last 16 quarters, stacked by bucket: final domestic demand, trade net, inventories, with total contribution overlay.";
+---
+{hasData ? (
+  <div class="canon-chart" data-panel="gdp-3-contrib-v2">
+    <svg
+      class="canon-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {/* ---- Legend at top of chart ----------------------------------- */}
+      <g class="contrib-legend" transform={`translate(${PLOT_X0}, 28)`}>
+        <rect class="contrib-swatch contrib-swatch--fdd" x={0} y={-9} width={10} height={10} />
+        <text class="contrib-legend__label" x={14} y={0}>Final domestic demand</text>
+        <rect class="contrib-swatch contrib-swatch--trade" x={155} y={-9} width={10} height={10} />
+        <text class="contrib-legend__label" x={169} y={0}>Trade net</text>
+        <rect class="contrib-swatch contrib-swatch--inty" x={241} y={-9} width={10} height={10} />
+        <text class="contrib-legend__label" x={255} y={0}>Inventories</text>
+        <line class="contrib-legend__line" x1={335} y1={-4} x2={355} y2={-4} />
+        <text class="contrib-legend__label" x={359} y={0}>Total</text>
+      </g>
+
+      {/* ---- Gridlines (excluding zero, drawn separately) -------------- */}
+      {yTicks.map((v) => {
+        const yy = yScale(v);
+        if (zeroY !== null && Math.abs(yy - zeroY) < 0.5) return null;
+        return (
+          <line
+            class="canon-chart__gridline"
+            x1={PLOT_X0.toFixed(2)}
+            y1={yy.toFixed(2)}
+            x2={PLOT_X1.toFixed(2)}
+            y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      {/* ---- Stacked bars --------------------------------------------- */}
+      {bars.map((b) => (
+        <rect
+          class={`contrib-bar contrib-bar--${b.bucket}`}
+          x={b.x.toFixed(2)}
+          y={b.y.toFixed(2)}
+          width={b.w.toFixed(2)}
+          height={b.h.toFixed(2)}
+        />
+      ))}
+
+      {/* ---- Zero line (solid, above bars) ---------------------------- */}
+      {zeroY !== null && (
+        <line
+          class="canon-chart__zero-line"
+          x1={PLOT_X0.toFixed(2)}
+          y1={zeroY.toFixed(2)}
+          x2={PLOT_X1.toFixed(2)}
+          y2={zeroY.toFixed(2)}
+        />
+      )}
+
+      {/* ---- Total contribution line overlay -------------------------- */}
+      {totalPath && (
+        <path class="contrib-total-line" d={totalPath} fill="none" />
+      )}
+
+      {/* ---- Latest total dot ----------------------------------------- */}
+      {latestQ && (
+        <circle
+          class="canon-chart__latest-dot"
+          cx={latestX.toFixed(2)}
+          cy={latestY.toFixed(2)}
+          r="4"
+        >
+          <title>{`Latest total: ${latestQ.date}: ${(latestQ.total as number).toFixed(2)} pp`}</title>
+        </circle>
+      )}
+
+      {/* ---- Plot frame ---------------------------------------------- */}
+      <rect
+        class="canon-chart__frame"
+        x={PLOT_X0}
+        y={PLOT_Y0}
+        width={PLOT_W}
+        height={PLOT_H}
+      />
+
+      {/* ---- x-axis ticks --------------------------------------------- */}
+      {xTicks.map((t) => (
+        <g>
+          <line
+            class="canon-chart__xtick"
+            x1={t.x.toFixed(2)}
+            y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="canon-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* ---- y-axis tick labels --------------------------------------- */}
+      {yTicks.map((v, i) => {
+        const yy = yScale(v);
+        const isTop = i === yTicks.length - 1;
+        const sign = v > 0 ? "+" : "";
+        const txt = isTop ? `${sign}${v.toFixed(1)}pp` : `${sign}${v.toFixed(1)}`;
+        return (
+          <text
+            class="canon-chart__ytick-label"
+            x={(PLOT_X0 - 8).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{txt}</text>
+        );
+      })}
+    </svg>
+  </div>
+) : (
+  <PanelEmpty reason="Quarterly contributions extras not yet wired in panel_data." />
+)}
+
+<style>
+  .canon-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
+  .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
+
+  /* Bars: ink for non-protagonist buckets, accent for inventories */
+  .contrib-bar { stroke: none; shape-rendering: crispEdges; }
+  .contrib-bar--fdd { fill: var(--ink); fill-opacity: 0.62; }
+  .contrib-bar--trade { fill: var(--ink); fill-opacity: 0.35; }
+  .contrib-bar--inty { fill: var(--accent); fill-opacity: 1; }
+
+  /* Total contribution overlay */
+  .contrib-total-line {
+    stroke: var(--ink); stroke-width: 1.25; stroke-dasharray: 4 2;
+    stroke-linejoin: round; stroke-linecap: butt; fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Legend */
+  .contrib-swatch { stroke: none; shape-rendering: crispEdges; }
+  .contrib-swatch--fdd { fill: var(--ink); fill-opacity: 0.62; }
+  .contrib-swatch--trade { fill: var(--ink); fill-opacity: 0.35; }
+  .contrib-swatch--inty { fill: var(--accent); }
+  .contrib-legend__line { stroke: var(--ink); stroke-width: 1.25; stroke-dasharray: 4 2; }
+  .contrib-legend__label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-regular); letter-spacing: 0.04em;
+    alignment-baseline: middle;
+  }
+
+  /* Canon hairlines / labels (shared with PanelLiveChart) */
+  .canon-chart__gridline { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges; }
+  .canon-chart__zero-line { stroke: var(--ink); stroke-width: 1; stroke-opacity: 1; shape-rendering: crispEdges; }
+  .canon-chart__latest-dot { fill: var(--accent); stroke: none; }
+  .canon-chart__frame { fill: none; stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+</style>

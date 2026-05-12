@@ -294,7 +294,7 @@ for major band transitions in the system.
 
 ## 5. Essay body
 
-The deep-dive body is the publication's load-bearing prose surface.
+The deep-dive body is the publication's primary prose surface.
 It sits in the `--col-body` 680px well, left-anchored in the page's
 1240px container with the right margin reserved (on `lg+` viewports)
 for sidenote rendering.
@@ -487,7 +487,7 @@ FIGURE 1. | Headline CPI vs 2% target, 2020-2026                 <- eyebrow row 
 +--------------------------------------------------------+
 
 Figure 1. Headline CPI year-over-year change vs the BoC's 2%       <- caption
-target. The 2022 break in the anchor is the load-bearing
+target. The 2022 break in the anchor is the central
 observation in this piece.
 
 SOURCE:  Statistics Canada Table 18-10-0004-01.                    <- source line
@@ -535,10 +535,9 @@ SOURCE:  Statistics Canada Table 18-10-0004-01.                    <- source lin
   16px below the caption.
 - **Surrounding prose:** 2-3 paragraphs before the chart introduce
   what the figure will show; 2-3 paragraphs after the chart unpack
-  what the figure showed. The chart is **load-bearing on the
-  argument**, not decorative. If a reader could remove the chart
-  and the argument still flows, the chart is decoration and should
-  be cut.
+  what the figure showed. The chart **carries the argument**, not
+  decoration. If a reader could remove the chart and the argument
+  still flows, the chart is decoration and should be cut.
 
 #### 5.5.3 What this differs from the chartbook chart
 
@@ -672,7 +671,7 @@ INTERNATIONAL MONETARY FUND  World Economic Outlook, April 2026 update,
 ## 6. Related rail
 
 At the foot of the piece, above the page footer. Cross-references to
-other deep dives and to the load-bearing topic page that grounds this
+other deep dives and to the anchor topic page that grounds this
 piece.
 
 ```
@@ -731,9 +730,9 @@ RELATED                                                       <- micro-caps head
   -2px`), no transition.
 - **Editorial discipline:** the related rail surfaces **at most 3
   items**: 2 deep dives + 1 topic page, or 3 deep dives if the
-  piece is genuinely standalone from any topic page. The
-  load-bearing topic page (the one most relevant to this deep-dive's
-  argument) is always included unless explicitly suppressed.
+  piece is genuinely standalone from any topic page. The anchor
+  topic page (the one most relevant to this deep-dive's argument)
+  is always included unless explicitly suppressed.
 
 ---
 
@@ -874,7 +873,7 @@ the surprise was a surprise.
 +--------------------------------------------------------------------+
 
 Figure 1.  Headline CPI year-over-year change vs the BoC's 2% target.
-           The 2022 break in the anchor is the load-bearing observation
+           The 2022 break in the anchor is the central observation
            in this piece.
 
 SOURCE:    Statistics Canada Table 18-10-0004-01.

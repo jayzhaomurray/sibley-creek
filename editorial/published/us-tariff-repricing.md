@@ -17,7 +17,7 @@ as if it were the decisive event. The decisive event is already
 behind us. The question now is whether the reorientation
 consolidates or partially unwinds.
 
-This piece argues that the reorientation is the load-bearing fact
+This piece argues that the reorientation is the central fact
 of Canadian macro for 2026, and that the durable policy threat
 running underneath it is not the IEEPA tariff regime imposed in
 February 2025 -- it is the Section 232 stack on steel, aluminum,
@@ -236,7 +236,7 @@ still be in force on July 2.
 
 ## What would change our mind
 
-The argument rests on three load-bearing facts: a ten-point US
+The argument rests on three facts: a ten-point US
 share drop in fourteen months, a Section 232 stack operating on
 five sectors today, and a USMCA review whose default is extension.
 Three things would falsify the reading.

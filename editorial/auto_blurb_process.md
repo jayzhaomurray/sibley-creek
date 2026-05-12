@@ -1067,7 +1067,7 @@ dispatch.
   CLI trigger to email-in-inbox. Target latency carries forward
   from this memo's headline requirement.
 - The user has reviewed 12 drafts (six units x two cycles) and can
-  articulate which agent in the pipeline is doing the load-bearing
+  articulate which agent in the pipeline is doing the central
   work for the user's review step. (If the user's rewrites are
   mostly fact corrections, the fact-checker pass is weak; if mostly
   voice corrections, the style-editor pass is weak; if mostly

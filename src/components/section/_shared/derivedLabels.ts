@@ -298,7 +298,7 @@ interface SectionsJsonPayload {
 
 /**
  * Compose the page-level "Latest release" stamp from a static editorial
- * prefix + the auto-derived date of the section's load-bearing print.
+ * prefix + the auto-derived date of the section's primary print.
  *
  * - `prefix`     - editorial, e.g. "Headline CPI", "LFS", "Daily close".
  * - `payload`    - the imported sections.json file (RawPayload-equivalent).
@@ -343,7 +343,7 @@ export function deriveLatestReleaseLabel(
 
 /**
  * Compose a hero kicker string from a static prefix + the auto-derived
- * load-bearing print date. Same date-formatting logic as
+ * primary print date. Same date-formatting logic as
  * deriveLatestReleaseLabel but renders as "Mar 2026 CPI" style (date first,
  * prefix after) since the eyebrow rail reads as "{SECTION} | {KICKER}".
  *

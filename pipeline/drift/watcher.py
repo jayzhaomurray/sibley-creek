@@ -1,6 +1,6 @@
 """Drift watcher main entry.
 
-Reads the load-bearing claims registry, resolves each claim's data source
+Reads the tracked claims registry, resolves each claim's data source
 to a current value, classifies drift, and writes a dated markdown alert
 to ``editorial/drift/alerts/<date>.md``.
 
@@ -202,7 +202,7 @@ def render_alert(results: list[DriftResult], run_date: date_type) -> str:
     lines.append(f"# Drift watcher report -- {run_date.isoformat()}")
     lines.append("")
     lines.append(
-        f"Checked {len(results)} load-bearing claims across "
+        f"Checked {len(results)} tracked claims across "
         f"{len(iter_claims_by_pillar([r.claim for r in results]))} pillars."
     )
     lines.append("")

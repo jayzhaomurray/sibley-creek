@@ -140,8 +140,8 @@ What is outstanding, what is renewing when, and the size of the
 >
 > The renewal schedule from here is the variable that matters. Per
 > BoC Staff Analytical Note 2025-21 (July 2025), 60% of all
-> outstanding mortgages renew during 2025 or 2026 -- the load-bearing
-> share. CMHC's Residential Mortgage Industry Report Fall 2025 puts
+> outstanding mortgages renew during 2025 or 2026 -- the share
+> that matters. CMHC's Residential Mortgage Industry Report Fall 2025 puts
 > roughly 1.15 million households renewing in 2026 specifically;
 > CMHC's broader January 2026 framing places about 3.1 million
 > mortgages (52% of total) renewing during the 2026 calendar year.
@@ -203,7 +203,7 @@ Payment shock math.
 > fixed and some variable-rate cohorts -- median MDS falls 1.1
 > percentage points (from 19.7% to 18.6%).
 >
-> The distribution is the load-bearing read. The top 10% of 2026
+> The distribution is the read that matters. The top 10% of 2026
 > renewers face a payment increase of more than 40%; the bottom 25%
 > see at least a 7% decrease. Five-year fixed mortgages account for
 > roughly 40% of all outstanding mortgages, but about 75% of those

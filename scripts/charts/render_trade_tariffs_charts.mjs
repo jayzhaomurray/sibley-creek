@@ -737,7 +737,7 @@ function chartBocScenarioVsRealized() {
  *   - 2032: Sunset trajectory year if any party objects (annual reviews
  *                 from 2026-07-01).
  *   - 2042: Extended term if all three parties confirm.
- * Red accent: the 2026-07-01 trigger date (the deep-dive's load-bearing
+ * Red accent: the 2026-07-01 trigger date (the deep-dive's central
  * date).
  */
 function chartUsmcaTimeline() {

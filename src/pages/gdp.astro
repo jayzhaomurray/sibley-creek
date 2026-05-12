@@ -2,24 +2,30 @@
 /*
  * GDP - Vignelli chartbook page.
  *
- * Six plates per editorial canon section 4.1, in EDR-fixed order:
- *   01 Headline real GDP
- *   02 Total vs per-capita GDP, indexed to 2019Q4 (population-padded read)
- *   03 Growth-rate cross-check (monthly m/m + quarterly Q/Q SAAR)
- *   04 Contributions to quarterly growth
- *   05 Output gap vs BoC potential
- *   06 Labour productivity, business sector
+ * Six plates per chart-diagnosis 2026-05-12 rework + editorial-director
+ * chart-order recommendation. The editorial arc is cyclical-first,
+ * surface-to-under-the-hood industry, then output gap, then closes on
+ * the per-capita deep-dive exit.
  *
- * NOTE 2026-05-11: Old P4 (per-capita Y/Y single line) replaced by the
- * total-vs-per-capita side-by-side chart, and promoted to slot 02. The
- * side-by-side is the thesis visual for /research/per-capita-output/ and
- * earns its placement immediately after headline GDP. Original P4 block
- * preserved below as a comment for user review.
+ *   01 Headline real GDP - small-multiples m/m + Y/Y vs potential growth
+ *   02 Contributions to quarterly growth - 4-bucket streamlined
+ *      (final domestic demand, trade net, inventories, total overlay)
+ *   03 Services vs goods Y/Y - surface industry split
+ *   04 Manufacturing vs mining and oil, indexed to Dec 2019 - the
+ *      under-the-hood split, 84-month compounded divergence; the
+ *      regional shadow is ON/QC vs AB/SK
+ *   05 BoC MPR output gap - cyclical synthesis, slack
+ *      (methodology discussion pending; future Sibley nowcast extension
+ *      to land here)
+ *   06 Total vs per-capita real GDP, indexed to 2019Q4 - closes on the
+ *      deepest structural arc; deep-dive exit ramp to
+ *      /research/per-capita-output
  *
- * Each plate is a chart on the left, 2-4 sentence interpretation on the
- * right (vertical stack on mobile), callout strip below, source line.
- * Charts are dispatched via chartKey to a per-plate component from
- * src/components/charts/gdp/Panel*.astro.
+ * Cut from this page in the 2026-05-12 rework:
+ *   - Growth-rate cross-check (was 03 pre-rework): redundant once 01
+ *     carries m/m + Y/Y with proper geometry.
+ *   - Productivity (was 06 pre-rework): structural story, not cyclical;
+ *     idea parked in editorial/chart-diagnosis/ideas.md.
  */
 
 import SectionLayout from "../layouts/SectionLayout.astro";
@@ -35,20 +41,12 @@ if (!section) {
   throw new Error("GDP section not found in src/data/sections.ts");
 }
 
-// Page-level "Latest release" stamp: editorial prefix + auto-derived date
-// from the section's load-bearing print (sections.json). When the pipeline
-// payload is unavailable the helper returns null and the SectionPageHeader
-// flows the placeholder treatment.
 const latestReleaseLabel = deriveLatestReleaseLabel(
   section.latestReleasePrefix ?? "",
   sectionsJson,
   "gdp",
 );
 
-// Pull each panel's pipeline-emitted data once at build time. Helper
-// returns null when the entry is missing or has no primary series, which
-// flows through to the Panel*.astro's "DATA NOT YET WIRED" path. No
-// synthetic fallback anywhere.
 const panel1Data = pickPanel(panelDataFile, 1);
 const panel2Data = pickPanel(panelDataFile, 2);
 const panel3Data = pickPanel(panelDataFile, 3);
@@ -56,39 +54,17 @@ const panel4Data = pickPanel(panelDataFile, 4);
 const panel5Data = pickPanel(panelDataFile, 5);
 const panel6Data = pickPanel(panelDataFile, 6);
 
-// ORIGINAL Plate 04 (per-capita Y/Y single line) — preserved 2026-05-11
-// for user review. Replaced by the total-vs-per-capita side-by-side chart,
-// which has been promoted into slot 02. Delete this comment block once
-// the user confirms the swap.
-//
-//   {
-//     id: "plate-4",
-//     number: "04",
-//     indicator: "Per-capita real GDP, year-over-year",
-//     plateIndexLabel: "Per-capita",
-//     asOf: "2025Q4",
-//     title: "Per-capita output is back in positive territory, barely.",
-//     interpretationHtml:
-//       "Per-capita real GDP rose 0.5% y/y in Q4 2025, down 0.1pp from the prior quarter. " +
-//       "Aggregate GDP grew 0.7% over the same window; with population growth slowing as immigration moderates, the per-capita gap to the headline is narrower than it was through 2023 and 2024. " +
-//       "Positive does not yet mean recovered: the level still trails the pre-2022 path.",
-//     callout: { value: "+0.5%", unit: "Y/Y, 2025Q4", delta: "-0.1pp vs prior quarter", direction: "pos" },
-//     source: "Statistics Canada Tables 36-10-0104-01 and 17-10-0009-01; per-capita calculation by Sibley Creek.",
-//     chartKey: "gdp-panel-4",
-//     data: panel4Data,
-//   },
-
 const plates: Plate[] = [
   {
     id: "plate-1",
     number: "01",
-    indicator: "Headline real GDP, month-over-month",
+    indicator: "Headline real GDP, m/m and Y/Y",
     plateIndexLabel: "Headline GDP",
     asOf: "Feb 2026 (released Apr 30, 2026)",
-    title: "Monthly GDP rose 0.2% in February, a second consecutive gain.",
+    title: "Canada's economy is growing, albeit weakly.",
     interpretationHtml:
-      "Monthly real GDP advanced 0.2% in February, the second consecutive monthly gain after January's 0.1%. " +
-      "The year-over-year pace sits at 1.0% &mdash; positive but still running below the Bank's estimate of trend, " +
+      "Monthly real GDP advanced 0.2% in February, the fourth consecutive monthly gain since October's 0.3% decline. " +
+      "The year-over-year pace sits at 1.0% &mdash; positive but still running below the Bank's near-term estimate of potential growth around 1.7%, " +
       "consistent with an economy expanding without closing the slack opened earlier in the cycle.",
     callout: {
       value: "+0.2%",
@@ -96,71 +72,68 @@ const plates: Plate[] = [
       delta: "Y/Y +1.0%",
       direction: "pos",
     },
-    source: "Statistics Canada Table 36-10-0434-01; consensus via Bloomberg.",
+    source: "Statistics Canada Table 36-10-0434-01; potential growth reference from BoC April 2026 Monetary Policy Report.",
     chartKey: "gdp-panel-1",
     data: panel1Data,
   },
   {
     id: "plate-2",
     number: "02",
-    indicator: "Total vs per-capita real GDP, indexed to 2019Q4",
-    plateIndexLabel: "Population-padded",
-    title: "Aggregate growth has run well ahead of per-capita output since 2019.",
-    interpretationHtml:
-      "Indexed to the eve of the pandemic, total real GDP sits roughly +11% above its 2019Q4 level; per-capita real GDP sits at +1%. " +
-      "The gap between the two lines is the population contribution &mdash; the share of headline growth that has gone into adding people rather than into output per person. " +
-      "Per-capita output has barely cleared the pre-pandemic level six years on, which is the central fact behind the deep dive on <a href=\"/research/per-capita-output/\">population-padded GDP</a>.",
-    callout: {
-      value: "+1%",
-      unit: "per-capita real GDP, cumulative since 2019Q4",
-      delta: "Total +11%",
-      direction: "neutral",
-    },
-    source:
-      "Statistics Canada Tables 36-10-0104-01 and 17-10-0009-01; per-capita and indexation by Sibley Creek.",
-    chartKey: "gdp-panel-4",
-    data: panel4Data,
-  },
-  {
-    id: "plate-3",
-    number: "03",
-    indicator: "Growth-rate cross-check: monthly m/m and quarterly Q/Q SAAR",
-    plateIndexLabel: "Growth rates",
-    asOf: "Feb 2026 (m/m) / 2025Q4 (Q/Q SAAR)",
-    title: "Monthly industry growth firmed in early 2026 even as the Q4 annualized read turned slightly negative.",
-    interpretationHtml:
-      "Industry-side GDP rose 0.2% m/m in February, the second consecutive monthly gain. The quarterly expenditure cut, on a Q/Q annualized basis, ran &minus;0.6% in Q4 2025 &mdash; the first negative quarter since 2023. " +
-      "The cross-check is not a contradiction: monthly industry captures the early-2026 firming, while quarterly expenditure captures the softer close to 2025. Read them as adjacent windows on the same cycle, not competing signals.",
-    callout: {
-      value: "+0.2%",
-      unitPrefix: "m/m industry",
-      delta: "Q4 Q/Q SAAR -0.6%",
-      direction: "pos",
-    },
-    source:
-      "Statistics Canada Tables 36-10-0434-01 (monthly industry) and 36-10-0104-01 (quarterly expenditure). Growth rates derived in the chart wrapper.",
-    chartKey: "gdp-panel-2",
-    data: panel1Data,
-  },
-  {
-    id: "plate-4",
-    number: "04",
-    indicator: "Contributions to quarterly growth",
+    indicator: "Contributions to quarterly growth, by bucket",
     plateIndexLabel: "Contributions",
     title: "An inventory drawdown swamped a positive domestic profile in Q4.",
     interpretationHtml:
       "Real GDP contracted 0.6% q/q annualized in Q4 2025, but the composition is more constructive than the headline. " +
-      "Consumption added 0.9pp, exports 1.8pp, government 0.7pp, and business investment 0.7pp &mdash; the entire shortfall came from inventories, which subtracted 4.2pp. " +
-      "Stripping the inventory swing, final domestic demand and trade were both expansionary.",
+      "Final domestic demand &mdash; consumption, government, and business investment combined &mdash; contributed +2.3pp; trade net contributed +1.5pp. " +
+      "The entire shortfall came from inventories, which subtracted 4.2pp. " +
+      "Because inventory swings tend to mean-revert within a few quarters and reflect production timing rather than demand, stripping them out leaves the rest of the economy expanding at roughly 3.8pp annualized.",
     callout: {
       value: "-0.6%",
       unitPrefix: "q/q SAAR",
       delta: "Inventories -4.2pp",
       direction: "neg",
     },
-    source: "Statistics Canada Table 36-10-0104-01.",
+    source: "Statistics Canada Table 36-10-0104-01 (quarterly expenditure-side contributions to growth).",
     chartKey: "gdp-panel-3",
     data: panel3Data,
+  },
+  {
+    id: "plate-3",
+    number: "03",
+    indicator: "Real GDP by industry, services vs goods, Y/Y",
+    plateIndexLabel: "Industry split",
+    title: "On the surface, goods and services tell the same growth story.",
+    interpretationHtml:
+      "Services real GDP rose 1.0% Y/Y in February &mdash; the steady ~1% pace the sector has held all cycle. Goods real GDP rose 0.8% over the same window, putting the two halves of the economy in essentially the same range at the aggregate level. " +
+      "The composition story is one level deeper. The next plate splits goods into manufacturing and mining and oil &mdash; the two are pulling in opposite directions, and the goods aggregate cancels them out.",
+    callout: {
+      value: "+1.0%",
+      unitPrefix: "services, Y/Y",
+      delta: "Goods +0.8%",
+      direction: "pos",
+    },
+    source: "Statistics Canada Table 36-10-0434-01 (monthly real GDP by industry).",
+    chartKey: "gdp-panel-2",
+    data: panel2Data,
+  },
+  {
+    id: "plate-4",
+    number: "04",
+    indicator: "Real GDP by industry, manufacturing vs mining and oil, indexed to Dec 2019",
+    plateIndexLabel: "Cyclical drivers",
+    title: "Under the hood, Canada's physical economy is on two tracks.",
+    interpretationHtml:
+      "Indexed to the eve of the pandemic, manufacturing real GDP sits at 94 &mdash; six percent below its December 2019 level &mdash; while mining and oil and gas extraction sits at 113, an expansion of 13% over the same window. The compounded gap is 19 index points and it traces an uninterrupted post-2022 divergence: each year mining and oil has grown, each year manufacturing has flattened or contracted. " +
+      "The regional shadow of this split is the manufacturing belt of Ontario and Quebec versus the resource-heavy economies of Alberta and Saskatchewan. Provincial GDP is not yet wired into the dashboard; the next step is to show the regional dimension geometrically rather than editorially.",
+    callout: {
+      value: "-6%",
+      unitPrefix: "manufacturing, since Dec 2019",
+      delta: "Mining and oil +13%",
+      direction: "neg",
+    },
+    source: "Statistics Canada Table 36-10-0434-01 (monthly real GDP by industry).",
+    chartKey: "gdp-panel-6",
+    data: panel6Data,
   },
   {
     id: "plate-5",
@@ -187,33 +160,30 @@ const plates: Plate[] = [
   {
     id: "plate-6",
     number: "06",
-    indicator: "Labour productivity, business sector",
-    plateIndexLabel: "Productivity",
-    title: "Productivity growth decelerated sharply into year-end.",
+    indicator: "Total vs per-capita real GDP, indexed to 2019Q4",
+    plateIndexLabel: "Population-padded",
+    title: "Output per head has fallen well short of overall growth.",
     interpretationHtml:
-      "Business-sector labour productivity per hour rose 0.3% y/y in Q4 2025, down from 1.2% in Q3 and 2.1% at the end of 2024. " +
-      "The recent run of positive prints had hinted at a turn; Q4 puts that back in question. " +
-      "Canada's productivity level still trails the United States by a wide margin &mdash; the structural gap the Bank's speeches return to.",
+      "Indexed to the eve of the pandemic, total real GDP sits roughly +11% above its 2019Q4 level; per-capita real GDP sits at +1%. " +
+      "The gap between the two lines is the population contribution &mdash; the share of headline growth that has gone into adding people rather than into output per person. " +
+      "Per-capita output has barely cleared the pre-pandemic level six years on, which is the central fact behind the deep dive on <a href=\"/research/per-capita-output/\">population-padded GDP</a>.",
     callout: {
-      value: "+0.3%",
-      unit: "Y/Y, business sector",
-      delta: "-0.9pp vs Q3 2025",
-      direction: "neg",
+      value: "+1%",
+      unit: "per-capita real GDP, cumulative since 2019Q4",
+      delta: "Total +11%",
+      direction: "neutral",
     },
     source:
-      "Statistics Canada Table 36-10-0206-01 (vector v1409153); Y/Y derived in pipeline.build.derive_productivity_views.",
-    chartKey: "gdp-panel-6",
-    data: panel6Data,
+      "Statistics Canada Tables 36-10-0104-01 and 17-10-0009-01; per-capita and indexation by Sibley Creek.",
+    chartKey: "gdp-panel-4",
+    data: panel4Data,
   },
 ];
 
 const pageTitle = "GDP";
 const pageDescription =
-  "Monthly and quarterly real GDP, contributions to growth, per-capita output, output gap, productivity.";
+  "Monthly and quarterly real GDP, contributions to growth, industry splits, output gap, per-capita output.";
 
-// Lede reads the same editorial blurb the auto-blurb pipeline writes for the
-// splash tile (sections.ts -> section.blurb.body). Single source of truth: a
-// release-day fan-out updates one field and both surfaces refresh.
 const lede = section.blurb?.body ?? "";
 ---
 <SectionLayout

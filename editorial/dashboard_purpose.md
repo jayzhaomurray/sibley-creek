@@ -71,7 +71,7 @@ C.D. Howe, IRPP, IMF Article IV, OECD) are the citations of record.
   the homepage. The dashboard is indicator-first.
 
 **Editorial posture in one line.** Cover the basics of Canadian macro
-cleanly. Inside each section, ask a small number of load-bearing
+cleanly. Inside each section, ask a small number of central
 questions harder than anyone else does, and update them when they
 actually change.
 
@@ -136,16 +136,16 @@ happens to include charts; it is a publication built around data, with
 prose narrating it. The discipline applies at every surface:
 
 - The dashboard is almost all data — seven section panels each
-  surfacing a current print + a sparkline, plus a hero stamp of
-  load-bearing headline numbers. The chrome around the data is
-  deliberately spare.
+  surfacing a current print + a sparkline, plus a hero stamp of the
+  headline numbers that anchor the cycle. The chrome around the data
+  is deliberately spare.
 - The topic pages are narrated chart packs — a vertical stack of
   charts, each paired with a 2-4 sentence read. The chart is the
   evidence; the paragraph is the read.
 - The deep dives are research built around a heart of data analysis —
   long-form essays in which the charts are not decoration but the
-  load-bearing scaffolding the argument hangs from. **A deep dive
-  without charts is not a Sibley Creek deep dive.**
+  scaffolding the argument hangs from. **A deep dive without charts
+  is not a Sibley Creek deep dive.**
 
 Every editorial output ladders to data. If a claim cannot be plotted
 or cited to a primary source, it does not belong in a Sibley Creek
@@ -607,7 +607,7 @@ live in Pillar H (US trade relationship) deep-dive.
 
 ## 5. Current deep dives
 
-Deep dives are the load-bearing questions inside each section. They
+Deep dives are the central questions inside each section. They
 are opinionated, dated, and contestable; they ship at the cadence the
 underlying question actually moves on; they rotate as the Canadian
 regime rotates. The current slate is eight, inherited and unchanged.
@@ -624,8 +624,8 @@ Each is homed in exactly one section.
 | G | LNG / TMX / external position -- are the structural lifts being absorbed by oil-sands discipline and the WCS differential | Trade | Markets (commodity prices, CAD) |
 | H | US trade relationship -- how is USMCA review and Section 232/301 repricing Canadian exporters | Trade | GDP (export contribution); Markets (CAD) |
 
-**Why these eight, now.** Each is load-bearing for the Canadian cycle
-as of May 2026, supported by data we can get, and a question where a
+**Why these eight, now.** Each anchors the Canadian cycle as of May
+2026, is supported by data we can get, and is a question where a
 sharper view than the Big-Six consensus is achievable. The full
 rationale, what-we-track, scope-discipline, and falsification triggers
 for each deep dive were established in the prior pass and are
@@ -857,9 +857,9 @@ the editorial-director can be held to them.
    debt-service ratio, and the US-trade-relationship transmission.
 
 6. **Citations are habitual and traceable.** A reader auditing any
-   piece can trace every load-bearing number to a primary Canadian
-   source within one click. Zero pieces in the November 2026 archive
-   cite a bank morning note as a primary source.
+   piece can trace every central number to a primary Canadian source
+   within one click. Zero pieces in the November 2026 archive cite a
+   bank morning note as a primary source.
 
 7. **Methodology pages exist and are non-trivial.** For every
    constructed chart, a methodology note explains the construction,
@@ -872,8 +872,8 @@ the editorial-director can be held to them.
    the Summary of Deliberations is reflected within 5 business days.
 
 9. **The deep-dive slate has rotated at least once.** Either we have
-   added a deep dive (something became load-bearing that was not in
-   May 2026) or retired or merged one (a deep dive resolved or
+   added a deep dive (something became central that was not in May
+   2026) or retired or merged one (a deep dive resolved or
    stopped moving against its named falsification triggers). If the
    November deep-dive list is identical to the May list, we are not
    paying attention.

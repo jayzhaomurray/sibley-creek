@@ -644,17 +644,30 @@ if (showBandLabel) {
       </g>
     )}
 
-    {terPath && (
-      <path class="canon-chart__line-tertiary" d={terPath} fill="none" />
-    )}
+    {/* Clip-path constrains data lines to the plot rect. When the y-domain
+       uses percentile clipping (long daily series, or short series where
+       a covid-era outlier sits outside the visible range), the polyline
+       paths would otherwise extend past the bottom or top of the plot.
+       Reference rules, ticks, recession bands, and the latest dot stay
+       OUTSIDE the clip group — they should remain visible at the edges. */}
+    <defs>
+      <clipPath id={`pcclip-${dataPanelAttr ?? 'plot'}`}>
+        <rect x={PLOT_X0} y={PLOT_Y0} width={PLOT_W} height={PLOT_H} />
+      </clipPath>
+    </defs>
+    <g clip-path={`url(#pcclip-${dataPanelAttr ?? 'plot'})`}>
+      {terPath && (
+        <path class="canon-chart__line-tertiary" d={terPath} fill="none" />
+      )}
 
-    {secPath && (
-      <path class="canon-chart__line-secondary" d={secPath} fill="none" />
-    )}
+      {secPath && (
+        <path class="canon-chart__line-secondary" d={secPath} fill="none" />
+      )}
 
-    {primPath && (
-      <path class="canon-chart__line" d={primPath} fill="none" />
-    )}
+      {primPath && (
+        <path class="canon-chart__line" d={primPath} fill="none" />
+      )}
+    </g>
 
     {/* When the chart is a three-line panel, the secondary and tertiary
        termini carry small pure-ink dots so each line's latest print

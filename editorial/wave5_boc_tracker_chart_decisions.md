@@ -24,7 +24,7 @@ component library and Vignelli canon already cover what these need).
 
 The discipline: section structure stays at six to eight panels; we add
 two genuinely new panels (Labour: 6 -> 7; Housing: 6 -> 7) and absorb
-everything else into existing canon. The two adds are both load-bearing
+everything else into existing canon. The two adds are both central
 for cycle calls a P1 reader makes: EI for the cyclical inflection in
 labour, affordability for the mortgage-cost transmission in housing.
 

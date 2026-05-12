@@ -54,7 +54,7 @@ from BoC Valet for GoC, FRED DGS2 / DGS10 for UST):
   `us_2yr.csv` is wired). Writer should treat the 10y-vs-10y leg as
   a research gap; ask backend-engineer to wire FRED DGS10 before
   publish. The Pillar can still run on 2y spreads + policy spread +
-  FX; the 10y leg is desirable but not load-bearing for the
+  FX; the 10y leg is desirable but not central to the
   "transmission channels that bind" argument.
 
 ### 1.3 Historical context (percentile of post-2001 daily
@@ -268,7 +268,7 @@ broke 1.45+ decisively, which it has not.
 5. **Credit conditions tightening.** Cannot quantify with current
    project data. **OPEN.**
 
-**Writer's load-bearing claim opportunity:** the binding constraint
+**Writer's central claim opportunity:** the binding constraint
 right now is **NOT** the policy-rate spread or USDCAD level
 mechanically -- it is the inflation-expectations chain. As long as
 1y and 5y consumer expectations are moving toward 2%, BoC can hold
@@ -307,7 +307,7 @@ at 2.25% indefinitely.
 
 ## 7. Claim ladder
 
-Five candidate load-bearing claims, ordered by (data support) x
+Five candidate central claims, ordered by (data support) x
 (editorial weight):
 
 1. **"The 2y GoC-UST spread sits at the 5th percentile of recorded

@@ -6,7 +6,7 @@
  *   2. Run `playwright test` (passing any extra CLI args through, e.g.
  *      `--update-snapshots` for baseline regen).
  *   3. Restore data/site/ from backup, ALWAYS -- even on test failure or
- *      Ctrl-C. This is the load-bearing reason we wrap Playwright in a
+ *      Ctrl-C. This is the main reason we wrap Playwright in a
  *      Node script rather than chaining shell commands.
  *
  * The Playwright config's `webServer` step handles `astro build` and
@@ -82,7 +82,7 @@ async function main() {
     process.exit(overlayCode);
   }
 
-  // 2. Hand off to Playwright. Restore-on-exit is the load-bearing piece.
+  // 2. Hand off to Playwright. Restore-on-exit is the central piece.
   let testCode = 1;
   try {
     testCode = await runNpx(["playwright", "test", ...passthrough]);

@@ -5,7 +5,7 @@
  * Layout (desktop, 12 cols within the card):
  *   col 1-2:  big section number "01" (Black, tabular)
  *   col 3-7:  label, kicker, headline question, blurb
- *   col 8-12: load-bearing prints stacked
+ *   col 8-12: primary prints stacked
  *
  * Mobile collapses to a single-column stack.
  *
@@ -19,7 +19,7 @@ interface Props {
   section: Section;
   num: string;
   total: string;
-  /** Which print is the load-bearing one. Falls back to prints[0]. */
+  /** Which print is the primary one. Falls back to prints[0]. */
 }
 
 const { section, num, total } = Astro.props;
@@ -28,7 +28,7 @@ const loadBearing = section.chartSeriesKey
   ? section.prints.find((p) => p.key === section.chartSeriesKey) ?? section.prints[0]
   : section.prints[0];
 
-// All three prints rendered; load-bearing gets prominence.
+// All three prints rendered; the primary print gets prominence.
 const allPrints = section.prints;
 ---
 <article

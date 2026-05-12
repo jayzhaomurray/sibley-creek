@@ -67,7 +67,7 @@ Consultation-Press Release; and Staff Report.
 concluded 12-20 November 2025; concluding statement dated 5 December 2025.
 
 **The actual number(s) we'd cite**:
-- The IMF Country Report contains the load-bearing CAPB figure for general
+- The IMF Country Report contains the central CAPB figure for general
   government in Table 2 ("Selected Economic Indicators") and the fiscal
   appendix. **The specific numeric CAPB / structural primary balance value
   remains tool-blocked**: all IMF endpoints (Country Report PDF, landing
@@ -399,7 +399,7 @@ researcher-verified from PBO press-release language and PBO-published
 search-result excerpts.** The full Summary Table figures in the EFO Annex
 have been cross-checked against the PBO news-release narrative and are
 internally consistent. Human spot-check of the PDF recommended for any
-load-bearing decimal-place call-out.
+central decimal-place call-out.
 
 ---
 
@@ -418,7 +418,7 @@ load-bearing decimal-place call-out.
 These are the two DoF projection vintages that bracket the PBO September
 2025 EFO. PBO vs Budget 2025: Budget tabled six weeks after the PBO EFO;
 PBO vs SEU 2026: SEU is the freshest DoF vintage. For the canon's "PBO vs
-FES/Budget baseline delta" element, the load-bearing pairing is **PBO
+FES/Budget baseline delta" element, the central pairing is **PBO
 September 2025 EFO vs Spring Economic Update 2026 Annex 1** (most-recent
 PBO vs most-recent DoF projection set).
 
@@ -499,7 +499,7 @@ measures; (c) Adjustment for risk in the DoF projection.
   delta-to-FES/Budget is partly a measure-incorporation difference rather
   than a true forecast disagreement).
 - Vintage-rotation: next FES expected November-December 2026; next Budget
-  February-March 2027. SEU 2026 is the load-bearing DoF vintage until
+  February-March 2027. SEU 2026 is the primary DoF vintage until
   late November 2026.
 - Revision pattern: each DoF vintage revises prior-year actuals in line
   with the Fiscal Monitor and Public Accounts.
@@ -596,7 +596,7 @@ Plan PDF):
   in 2025-26, 9.0% in 2026-27, 9.3% in 2027-28.
 - Budget-vs-plan: Budget 2025 strayed from the prior commitment to keep
   net-debt-to-GDP on a downward trajectory; the increase from 7.6% to 9.3%
-  over the plan horizon is the load-bearing call-out.
+  over the plan horizon is the central call-out.
 - Actuals: $5.8B surprise surplus in FY 2024-25 against the prior plan;
   $5.2B deficit projected for FY 2025-26 in Budget 2025.
 - Relative ranking: Alberta's debt-to-GDP remains the lowest among
@@ -656,7 +656,7 @@ WebFetch (FAO is a primary-source-grade analog for Ontario fiscal data,
 publishing under Ontario's Financial Accountability Officer Act). Quebec,
 Alberta, BC verified via publisher search-result excerpts and
 publisher-press releases; **per-province budget PDFs should be
-human-pulled to confirm the load-bearing decimal-place figures before a
+human-pulled to confirm the central decimal-place figures before a
 blurb quotes them**.
 
 **Wave 3 W3-R3 update (2026-05-11)**: Per-decimal verifications for
@@ -746,7 +746,7 @@ action.
 | Agency | Rating | Outlook | Confirmed | Notable change in 12-month window |
 |---|---|---|---|---|
 | Moody's | Aa3 | Stable | 26 May 2025 | Outlook revised from "positive" to "stable" in May 2025; cited slower growth from US tariff uncertainty as raising deficit pressure. |
-| S&P | AA- | Stable | 19 June 2025 | Upgraded from A+ to AA- in December 2024 (just outside the 12-month window but contextually load-bearing); confirmed at AA- stable in June 2025. |
+| S&P | AA- | Stable | 19 June 2025 | Upgraded from A+ to AA- in December 2024 (just outside the 12-month window but contextually central); confirmed at AA- stable in June 2025. |
 | Fitch | AA- | Stable | 20 June 2025 | No change. |
 | DBRS Morningstar | AA | Stable | 5 December 2025 | No change. |
 
@@ -769,7 +769,7 @@ Source: Quebec's Credit Ratings page
 (`https://www.quebec.ca/en/gouvernement/finances-publiques/portrait-economique-du-quebec/quebecs-credit-ratings`),
 WebFetched and verified.
 
-**Active flag**: S&P downgrade in April 2025 is the load-bearing event
+**Active flag**: S&P downgrade in April 2025 is the central event
 in the 12-month window for Quebec.
 
 ### 6d — Province of Alberta
@@ -782,7 +782,7 @@ in the 12-month window for Quebec.
 | DBRS Morningstar | AA | Stable | Confirmation | Morningstar DBRS confirms Alberta at AA, Stable (DBRS research 462483). |
 
 **Active flag**: Moody's outlook trim from positive to stable in May 2025
-is the load-bearing event for Alberta in the window.
+is the central event for Alberta in the window.
 
 ### 6e — Province of British Columbia
 
@@ -793,7 +793,7 @@ is the load-bearing event for Alberta in the window.
 | Fitch | AA- | Negative | **Downgrade from AA+ to AA-** on 24 April 2026 (Fitch Rating Report posted at gov.bc.ca debt-management directory; cross-confirmed via search-result extracts citing the Fitch report). Prior action: outlook revised to Negative from Stable at AA+ on 27 May 2025 (Fitch Rating Report May 27, 2025 + cbonds 3382151). | 27 May 2025 (outlook to Negative) + 24 April 2026 (downgrade to AA-) |
 | DBRS Morningstar | AA | Stable | Outlook moved from Stable to Negative on 1 May 2025 (cited fiscal deterioration). **2026 refresh: DBRS commentary on BC Budget 2026 published at gov.bc.ca debt-management directory; rating maintained at AA / Stable per BC IR page WebFetch on 1 May 2026.** Note: the AA / Stable on 1 May 2026 represents a **downgrade in implicit notation from AA (high) at the prior cycle** — BC IR page WebFetch reads "Morningstar DBRS (May 1, 2026) Long Term: AA, Short Term: R-1 (high), Outlook: Stable." | 1 May 2025 (Negative) + 1 May 2026 (downgrade implied) |
 
-**Active flag, Wave 3 W3-R3 (2026-05-11)**: BC is the load-bearing
+**Active flag, Wave 3 W3-R3 (2026-05-11)**: BC is the central
 credit-watch story across the **24-month window**. **Five named
 rating actions within the window**:
 1. Moody's Aa1 to Aa2 downgrade (April 2025).
@@ -1209,7 +1209,7 @@ log appended below the original status lines.
    excerpts indicate confirmation at AA stable
    (Morningstar DBRS research 462483); the specific date of action and
    any narrative on triggers should be confirmed from the DBRS press
-   release if Alberta becomes a blurb-load-bearing call-out.
+   release if Alberta becomes a blurb-central call-out.
 
 8. **Fitch's rating action on Quebec, BC, Ontario in 2025** — the FAO
    Ontario summary captures Fitch's Ontario action 20 June 2025; Quebec
@@ -1256,7 +1256,7 @@ queue.
   April 2026 Table A4 (Advanced Economies: General Government
   Cyclically Adjusted Primary Balance, 2017-31).
 - **Recommended user-pull priority**: **HIGH** — this remains the
-  load-bearing F4 cite for the canon. Country Report 26/12 PDF at
+  central F4 cite for the canon. Country Report 26/12 PDF at
   imf.org/-/media/files/publications/cr/2026/english/1canea2026001.pdf
   is the recommended single-document target.
 

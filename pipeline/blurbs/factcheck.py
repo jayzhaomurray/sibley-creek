@@ -124,8 +124,8 @@ def extract_numeric_tokens(text: str) -> list[Token]:
 class ClaimCardLike(BaseModel):
     """Pydantic projection of a verified claim-card.
 
-    We accept the YAML loaded shape directly; only the load-bearing fields
-    are required for Mode B.
+    We accept the YAML loaded shape directly; only the required fields
+    are enforced for Mode B.
     """
     claim_id: str
     claim: Optional[str] = None

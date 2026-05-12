@@ -1,7 +1,7 @@
 # About page: insight base
 
 Owner: researcher. For writer use only -- this file is fact scaffold, not
-prose. Every load-bearing claim a writer puts on /about/ should trace
+prose. Every central claim a writer puts on /about/ should trace
 back to a row in this file. Hedging cues (CANON vs INFERRED vs OPEN)
 tell the writer what is safe to state directly vs what needs softening
 or omission.

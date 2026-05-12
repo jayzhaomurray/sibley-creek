@@ -120,7 +120,7 @@ framing that has dominated Canadian macro commentary since 2023 has
 done useful work and has been overplayed; v3 marks both.
 
 > What we got right. The mechanical renewal channel was real and
-> meaningfully load-bearing in 2024-2025. The 5-year fixed cohort
+> meaningfully binding in 2024-2025. The 5-year fixed cohort
 > originated in 2020-2021 did face a step-up in contract rates of
 > 250 to 400 bps at renewal, and the BoC's own modelling work in
 > 2024 put the median 5-year fixed renewer in a 30 to 40% payment-
@@ -148,8 +148,8 @@ done useful work and has been overplayed; v3 marks both.
 > 2023 tightening on a per-pp basis. The forward risk to Canadian
 > mortgage arrears is now mostly a labour-market story. The
 > renewal-wall mechanic -- still useful as a description of the
-> backward-looking 2024-2025 stress -- is no longer the load-bearing
-> frame for forward credit risk.
+> backward-looking 2024-2025 stress -- is no longer the frame that
+> anchors forward credit risk.
 
 This is the reframe; the sections that follow respect it. The
 renewal wall mechanic is described in Sections I, II, and IV in its
@@ -256,7 +256,7 @@ Payment shock math.
 > fixed and some variable-rate cohorts -- median MDS falls 1.1
 > percentage points (from 19.7% to 18.6%).
 >
-> The distribution is the load-bearing read. The top 10% of 2026
+> The distribution is the read that matters. The top 10% of 2026
 > renewers face a payment increase of more than 40%; the bottom
 > 25% see at least a 7% decrease. Five-year fixed mortgages account
 > for roughly 40% of all outstanding mortgages but about 75% of
@@ -430,7 +430,7 @@ Voice notes:
 - SAN -> SAP rename for 2026 vintage applied. The 2025 vintage
   citations stay as SAN.
 - The thesis-shift integration sits in paragraphs 3-5 of this
-  section. The labour channel is now the load-bearing forward
+  section. The labour channel is now the primary forward
   driver; the renewal-wall mechanic is described in its proper
   backward-looking weight.
 - CBA February 2026 provincial table replaces v2's January 2026
@@ -557,7 +557,7 @@ Voice notes:
 > **The wall extends past 2027 if**: Canadian unemployment moves
 > above 7.5% on a sustained basis (two consecutive quarters), or
 > the LFS prints back-to-back monthly increases of 0.2 pp or more
-> in the unemployment rate. This is the load-bearing trigger after
+> in the unemployment rate. This is the central trigger after
 > the SAP 2026-12 reframe: per the paper's SVAR estimates, a +1 pp
 > rise in unemployment adds roughly 10 bps to the arrears rate
 > within a year -- comparable in magnitude to the entirety of the
@@ -595,7 +595,7 @@ Voice notes:
 > readings.
 
 Voice notes:
-- The unemployment-above-7.5% trigger is now the load-bearing
+- The unemployment-above-7.5% trigger is now the central
   watchpoint, per the SAP 2026-12 reframe. The Alberta-arrears
   trigger that anchored v2 is retained but de-weighted.
 - Mode B closing discipline: the closing paragraph is the call

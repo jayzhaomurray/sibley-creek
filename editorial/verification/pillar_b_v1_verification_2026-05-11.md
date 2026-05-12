@@ -144,7 +144,7 @@ numbers.
 - MPR canonical CAD-to-CPI rule of thumb: HEDGED PROPERLY (Section
   IV calls it "structural ballpark ... not a citable coefficient").
 
-No TKs visible to reader. All numeric load-bearing claims sourced.
+No TKs visible to reader. All central numeric claims sourced.
 
 ## Verdict
 

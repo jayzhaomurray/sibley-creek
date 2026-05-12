@@ -41,9 +41,9 @@ back to them.
 **Plain English, technical where it must be.** "Term premium" stays.
 "Core-trim," "core-median," "neutral band," "shelter ex-mortgage
 interest" stay. "Optionality," "constructive," "wait-and-see," "the
-setup," "the tape" do not. If a term is load-bearing and not in the
-reader's working vocabulary, define it once on first use; do not
-patronize.
+setup," "the tape" do not. If a term carries weight in the argument
+and is not in the reader's working vocabulary, define it once on first
+use; do not patronize.
 
 **Confident without breathlessness.** Cycles are long. Most days
 nothing changes. Say so. A print that comes in 0.1pp off consensus is
@@ -78,7 +78,7 @@ See Section 7 below for the full distinction. In one line:
 - Decimals: as many as the source publishes, no more. CPI to one
   decimal (`2.4%`); the unemployment rate to one decimal (`6.8%`);
   GDP growth to one decimal in headline prose (`Q/Q SAAR 1.4%`),
-  two only when the second decimal is load-bearing.
+  two only when the second decimal carries the call.
 - Spell out zero through nine in non-statistical prose ("three
   provinces," "five deep dives"); use numerals for ten and up, and
   always for statistical or economic quantities ("4 of the 10
@@ -227,8 +227,8 @@ itself? If no, the title needs to be rewritten until yes.
 
 - Short paragraphs. Two to five sentences is the target. A paragraph
   that runs eight sentences should split.
-- Lead with the load-bearing sentence. Subordinate clauses last, not
-  first.
+- Lead with the sentence that carries the claim. Subordinate clauses
+  last, not first.
 - One idea per paragraph. If the paragraph has a "but" in the middle
   that pivots to a different idea, break the paragraph at the "but."
 - Vary sentence length. A paragraph of seven 22-word sentences reads
@@ -517,6 +517,22 @@ as shorthand inside a single piece):**
 - "Goldilocks"
 - "Soft data" vs. "hard data" (sometimes useful; if used, define
   what falls in each)
+- **The L-B compound** (the word *load* joined by hyphen to the word
+  *bearing*). Banned across the project — reader copy, internal
+  canon, agent files, code comments. The phrase became a tic and lost
+  its meaning through overuse. Substitute the plain phrase
+  that fits the sentence: **the central claim** / **the claim that
+  carries the argument** / **the anchor claim** for a claim; **the
+  central fact** / **the key fact** / **the fact this turns on** for
+  a fact; **the read** / **the signal** / **the actual story** for a
+  read; **the variable that matters** / **the binding variable** for
+  a variable; **the primary chart** / **the chart this section turns
+  on** / **the anchor chart** for a chart; **the central question** /
+  **the question that anchors** for a question; **the central print**
+  / **the anchor print** / **the print that matters** for a print.
+  If a sentence reads poorly after substitution, rewrite the
+  surrounding clause; do not preserve the phrase by quoting or
+  italicizing it.
 
 ### Constructions to rewrite
 
@@ -652,11 +668,11 @@ disagreement, and name the falsification trigger.
   sources (see Section 8). The MPR, StatCan tables, OSFI bulletins,
   CMHC reports, IMF Article IV, OECD Economic Survey, C.D. Howe BCC
   communiques, BIS quarterly review -- these are.
-- Name what would change our mind. Every load-bearing call has a
+- Name what would change our mind. Every central call has a
   falsification trigger.
 - Sentence length varies. Paragraph length stays short (Section 2).
-- Numerate. Every load-bearing number has a citation one click
-  away. Constructed series have a methodology note.
+- Numerate. Every number that carries the argument has a citation one
+  click away. Constructed series have a methodology note.
 - The closing paragraph is the call and the watchpoint. Not a
   summary of the piece. Not "in conclusion." The call and the
   watchpoint.
@@ -850,16 +866,16 @@ the hero abstract is then synthesized from them.
 names the state of the Canadian cycle. The cycle reads as the
 aggregate of what each section is saying that day. Writing the hero
 first means guessing at the cycle-level read before the section reads
-are pinned. Writing it last means the hero can pull the most
-load-bearing fact from each section blurb and stitch a single coherent
-cycle paragraph from real, vetted section-level reads.
+are pinned. Writing it last means the hero can pull the central fact
+from each section blurb and stitch a single coherent cycle paragraph
+from real, vetted section-level reads.
 
 **Practical sequence for a writer / pipeline dispatch:**
 
 1. Author all seven section blurbs against pipeline data. Vet each.
 2. Once the seven are stable, read them as a set and identify the
-   load-bearing cycle theme (loosening? tightening? mixed? where is
-   the headline tension?).
+   anchoring cycle theme (loosening? tightening? mixed? where is the
+   headline tension?).
 3. Author the hero abstract drawing from the section blurbs' actual
    facts. Do not introduce a new claim in the hero that isn't
    surfaced or implied by at least one section blurb beneath it.
@@ -877,8 +893,8 @@ is gated on having ALL seven current-cycle section blurbs in hand.
 
 ## 9. Working notes for style-editor
 
-**Concision is the load-bearing discipline.** Every word, every
-sentence, every paragraph must earn its place. The style-editor's
+**Concision is the core discipline.** Every word, every sentence,
+every paragraph must earn its place. The style-editor's
 default move when uncertain is to cut. Length without weight is
 flab; flab dilutes voice; voice is the publication's edge. If a
 sentence can be removed without changing the editorial claim, remove
@@ -896,7 +912,7 @@ writer can pre-empt them.
 5. Split paragraphs at the "but" or "however."
 6. Hyphenate compound modifiers before nouns; do not hyphenate
    after.
-7. Push the load-bearing clause to the front of the sentence.
+7. Push the clause that carries the claim to the front of the sentence.
 8. Replace "Bay Street consensus" used as a citation with the
    aggregated forecaster median used as a number.
 9. Replace `BOC` with `BoC` and `Stats Can` with `StatCan` on

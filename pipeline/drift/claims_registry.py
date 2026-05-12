@@ -1,6 +1,6 @@
-"""Load + validate the load-bearing claims registry.
+"""Load + validate the tracked claims registry.
 
-The registry lives at ``editorial/drift/load_bearing_claims.yml``. This
+The registry lives at ``editorial/drift/tracked_claims.yml``. This
 module reads it, validates the shape with pydantic, and yields a flat
 list of ``Claim`` records ready for the watcher to process.
 
@@ -26,7 +26,7 @@ from ruamel.yaml import YAML
 
 # Canonical registry location relative to repo root. The watcher resolves
 # it relative to the project root so callers can invoke from anywhere.
-DEFAULT_REGISTRY_PATH = Path("editorial/drift/load_bearing_claims.yml")
+DEFAULT_REGISTRY_PATH = Path("editorial/drift/tracked_claims.yml")
 
 _CSV_SOURCE_RE = re.compile(r"^(?P<path>data/raw/[\w./-]+\.csv)\s*->\s*last row$")
 _JSON_SOURCE_RE = re.compile(
@@ -84,7 +84,7 @@ class _RegistryModel(BaseModel):
 
 @dataclass(frozen=True)
 class Claim:
-    """A single load-bearing claim resolved out of the registry."""
+    """A single tracked claim resolved out of the registry."""
 
     pillar_slug: str
     pillar_title: str

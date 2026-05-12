@@ -19,12 +19,12 @@
  *                       lives in tokens.css. Stored as the unwrapped name so
  *                       components can wrap it as `var(--...)` once.
  *   kicker            - One-line description for nav menus, sitemap, etc.
- *   headlineQuestion  - The section's load-bearing question, per
+ *   headlineQuestion  - The section's anchor question, per
  *                       editorial/dashboard_purpose.md sec 4. Rendered as
  *                       the tile deck (serif italic, one line on desktop).
  *   cadence           - Short string for the "As of [date] . [cadence]" tile
  *                       footer line (per editorial/dashboard_purpose.md sec 6).
- *   prints            - 2-3 most load-bearing prints surfaced on the tile.
+ *   prints            - 2-3 most important prints surfaced on the tile.
  *                       Placeholder values for v1; backend pipeline replaces
  *                       these at build time once the data layer lands.
  *   blurb             - The event note slot at the bottom of the tile.
@@ -53,7 +53,7 @@ export type SectionSlug =
 
 export interface SectionPrint {
   /**
-   * Optional stable key for this print, used to identify the load-bearing
+   * Optional stable key for this print, used to identify the primary
    * series when a downstream consumer (e.g. the homepage hero chart) needs
    * to pick one print from `prints[]` without depending on array order.
    * Conventional values: "cpi-yoy", "gdp-mm", "unrate", "policy-rate", etc.
@@ -115,7 +115,7 @@ export interface Section {
    */
   updatedAt: number;
   /**
-   * Key into this section's `prints[]` identifying the load-bearing time
+   * Key into this section's `prints[]` identifying the primary time
    * series for the homepage hero chart. The hero only renders ONE chart;
    * this tells it which series to use. Examples per section:
    *   inflation: "cpi-yoy"        (headline CPI YoY)
@@ -149,7 +149,7 @@ export interface Section {
   /**
    * Editorial prefix for the auto-derived hero kicker. When set, downstream
    * components compose `"{heroKickerPrefix} {derivedDate}"` using the
-   * section's load-bearing print date from the pipeline payload (e.g.
+   * section's primary print date from the pipeline payload (e.g.
    * `"CPI"` + `"Mar 2026"` -> `"CPI Mar 2026"`). The static `heroKicker`
    * remains as the fallback when the pipeline payload is unavailable or
    * the prefix is unset.
@@ -169,7 +169,7 @@ export interface Section {
    * "Merchandise trade", "Home prices", "Monthly GDP by industry".
    *
    * Set per section in the canon block below. The Policy section is a
-   * special case: the load-bearing event (the rate decision) doesn't sit
+   * special case: the primary event (the rate decision) doesn't sit
    * in `prints[]` — see `latestReleaseDateOverride` for that path.
    */
   latestReleasePrefix?: string;
@@ -195,11 +195,18 @@ export interface Section {
    * chars truncates mid-word without visible ellipsis (the labour
    * tile at 112 chars showed this failure on 2026-05-11).
    *
-   * Voice: one sentence, declarative, names the load-bearing print +
+   * Voice: one sentence, declarative, names the primary print +
    * the editorial so-what. Sibling-compare to the other 6 sections
    * before committing — outliers in length truncate.
    */
   tileLine?: string;
+  /**
+   * Splash tile chart treatment. Defaults to "line" (canonical sparkline).
+   * Set "bars" for signed series where direction is the visual story —
+   * e.g. trade balance (deficit / surplus alternation), contributions
+   * to growth (mixed-sign components).
+   */
+  tileChartKind?: "line" | "bars";
 }
 
 export const sections: Section[] = [
@@ -221,7 +228,7 @@ export const sections: Section[] = [
       "February GDP came in soft on goods-producing industries; services held up.",
     prints: [
       {
-        // Real GDP y/y is the load-bearing print — first row, matches the
+        // Real GDP y/y is the primary print — first row, matches the
         // pipeline output (key gdp-yoy) so the loader enriches it in place.
         key: "gdp-yoy",
         indicator: "Real GDP, y/y",
@@ -400,12 +407,12 @@ export const sections: Section[] = [
     headlineQuestion:
       "What is the policy stance, and is it consistent with the cycle?",
     cadence: "Event-driven + monthly",
-    // Apr 29 rate decision is the load-bearing event; daily yields refresh
+    // Apr 29 rate decision is the primary event; daily yields refresh
     // continuously but the policy stance is anchored to the rate decision.
     updatedAt: Date.UTC(2026, 3, 29, 14, 0),
     chartSeriesKey: "policy-rate",
     heroKicker: "April rate decision",
-    // Policy's load-bearing event is the rate decision, not the pipeline's
+    // Policy's primary event is the rate decision, not the pipeline's
     // monthly `policy-rate` print. heroKickerPrefix is hand-set to the
     // event-month phrasing; the page-level "Latest release" date is
     // hand-overridden via latestReleaseDateOverride since the rate
@@ -531,6 +538,7 @@ export const sections: Section[] = [
     latestReleasePrefix: "Merchandise trade",
     tileLine:
       "Goods balance narrowed to -$2.2B; US export share fell to 66.1%.",
+    tileChartKind: "bars",
     prints: [
       {
         key: "trade-balance",

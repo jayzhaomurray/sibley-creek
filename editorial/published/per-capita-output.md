@@ -254,9 +254,8 @@ imply.
 *If* the IRCC 2026-2028 plan is revised upward in either sub-cap
 before the next plan vintage (2027-2029, conventionally announced
 November 2026), *then* the denominator-closes-the-gap mechanic
-weakens proportionally. The plan vintage is the load-bearing
-forward variable; if the plan changes, the arithmetic changes with
-it.
+weakens proportionally. The plan vintage is the forward variable
+this turns on; if the plan changes, the arithmetic changes with it.
 
 *If* labour productivity prints two consecutive negative quarterly
 Q/Q readings after the 2025 annual recovery, *then* the composition-

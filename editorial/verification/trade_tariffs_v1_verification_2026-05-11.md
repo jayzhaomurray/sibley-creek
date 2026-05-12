@@ -103,5 +103,5 @@ explicitly notes the post-SCOTUS state is deferred. COMPLIANT.
 ## Verdict
 
 SHIP-READY. No discrepancies require edits to v1 prose. IEEPA post-SCOTUS
-hard rule respected. All load-bearing numerics independently confirmed
+hard rule respected. All central numerics independently confirmed
 either via project raw data or primary-source fetch (BoC MPR 2025-01-29).

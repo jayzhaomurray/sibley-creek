@@ -55,7 +55,7 @@ observed +8 bps move from the mid-2022 trough (0.14%) to the Q2
 marginal lever from the labour channel is comparable to the entire
 2022-2023 tightening on a per-pp basis. Canadian mortgage arrears
 are now mostly a labour-market story on the forward path; the
-renewal-wall mechanic is no longer the load-bearing frame for
+renewal-wall mechanic is no longer the frame that anchors
 forward credit risk.
 
 ---
@@ -117,7 +117,7 @@ Across payment increasers, median MDS rises 2.7 pp (15.3% to
 some variable-rate cohorts -- median MDS falls 1.1 pp (19.7% to
 18.6%).
 
-The distribution is the load-bearing read. The top 10% of 2026
+The distribution is the read that matters. The top 10% of 2026
 renewers face a payment increase of more than 40%; the bottom 25%
 see at least a 7% decrease. Five-year fixed mortgages account for
 roughly 40% of all outstanding mortgages but about 75% of those
@@ -218,7 +218,7 @@ begun to dissipate faster than the cohort-mechanics model predicts.
 **The wall extends past 2027 if**: Canadian unemployment moves
 above 7.5% on a sustained basis (two consecutive quarters), or the
 Labour Force Survey prints back-to-back monthly increases of 0.2 pp or more. This
-is the load-bearing trigger after the SAP 2026-12 reframe: a +1 pp
+is the central trigger after the SAP 2026-12 reframe: a +1 pp
 rise in unemployment adds roughly 10 bps to the arrears rate within
 a year, comparable in magnitude to the entirety of the 2022-2023
 rate-channel pass-through. The April 2026 LFS print has unemployment

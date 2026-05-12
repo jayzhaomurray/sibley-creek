@@ -42,15 +42,15 @@ Voice scratch:
   to say where the data ends. No Big-Six citation in running prose
   -- the Devereux et al. 2015 BoC working paper is the citation of
   record for pass-through.
-- The load-bearing thesis: the divergence can run further than the
+- The central thesis: the divergence can run further than the
   FX channel currently suggests, because the binding constraint is
   the inflation-expectations chain, not the loonie. The 2024-25
   episode is the operating precedent; 1997-98 is the contingent
   precedent that would only re-activate if CAD broke 1.45+
   decisively. Today's CAD has done the opposite.
 - Gaps the researcher flagged and the writer must hedge or work
-  around: 10y UST not in pipeline (work around -- the 2y is
-  load-bearing for the transmission argument); credit spreads not
+  around: 10y UST not in pipeline (work around -- the 2y carries
+  the transmission argument); credit spreads not
   visible in `data/raw/` (treat the credit channel as a structural
   box, not a quantified channel); OIS path and Fed dot plot not
   wired (argue structurally around the 4-meeting forward, not

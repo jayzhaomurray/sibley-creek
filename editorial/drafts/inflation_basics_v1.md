@@ -59,7 +59,7 @@ Voice notes:
   position vs target (headline + core), composition rotation (shelter
   out, energy/food in), and breadth (the 44/29/27 split). Panels then
   expand each.
-- "Re-anchored" is the load-bearing word. It is grounded in the trim and
+- "Re-anchored" is the anchor word. It is grounded in the trim and
   median trajectory (3.0-3.1% mid-2025 to 2.2-2.3% March 2026, per
   research-pack Panel 2) and the BOS firms-expecting->3% trajectory
   (84% Q4 2022 to 11% Q1 2026, per Panel 5). Not a forecast.
@@ -200,7 +200,7 @@ On pipeline delivery, the writer plugs in the verified numbers.]
 ### Panel 5 -- Inflation expectations
 
 No surprise field (survey reads are not forecastable in the same way as
-print data; the trajectory is the load-bearing read).
+print data; the trajectory is the central read).
 
 Callout copy:
 
@@ -260,7 +260,7 @@ Voice notes:
 Two-sentence stubs only; researcher fleshes out the full methodology
 drawer content per `basics-layer-template.md` Section 7. The voice is
 plain methodology, not editorial; the stubs name the construction and
-the load-bearing assumption.
+the central assumption.
 
 ### Breadth -- continuous |tilt| percentile ladder (Panel 3)
 

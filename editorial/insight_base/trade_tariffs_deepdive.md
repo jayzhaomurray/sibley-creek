@@ -122,11 +122,11 @@ Provisional sector picture from public/secondary sources:
 
 ---
 
-## CLAIM LADDER — candidate load-bearing theses for the writer
+## CLAIM LADDER — candidate central theses for the writer
 
 Ranked by contestable-ness × defensibility from this source base:
 
-1. **The 10-point US export share drop in 14 months is the largest peacetime reorientation of Canadian trade since the late-1980s FTA negotiations.** Defensible from project data (verified above); contestable because it could be reversed by 2026-H2 if tariffs de-escalate. Load-bearing because it reframes the deep dive from "tariff cost" to "structural reorientation."
+1. **The 10-point US export share drop in 14 months is the largest peacetime reorientation of Canadian trade since the late-1980s FTA negotiations.** Defensible from project data (verified above); contestable because it could be reversed by 2026-H2 if tariffs de-escalate. Central because it reframes the deep dive from "tariff cost" to "structural reorientation."
 
 2. **BoC's reaction function has shifted: it has widened its tolerance band for tariff-driven inflation in a way it has not formally announced.** Defensible from comparing 2025-04 FAD language to pre-2025 policy framework; contestable because BoC would dispute the framing. High payoff if defended carefully.
 

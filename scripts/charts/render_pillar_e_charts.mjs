@@ -428,7 +428,7 @@ function chartNprWave() {
 function chartYouthParticipation() {
   // Two series: prime-age participation and youth participation, both indexed to Dec 2019 = 0
   // in percentage points. Monthly, Jan 2019 - Apr 2026. Primary = youth (the editorial
-  // load-bearing series); secondary = prime-age (the negative-space counterpoint).
+  // anchor series); secondary = prime-age (the negative-space counterpoint).
   const prime = loadSingleSeries(resolve(ROOT, "data/raw/lf_participation_prime.csv"));
   const youth = loadSingleSeries(resolve(ROOT, "data/raw/lf_participation_youth.csv"));
 

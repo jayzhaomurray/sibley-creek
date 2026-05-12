@@ -85,8 +85,8 @@ Project data referenced: `data/raw/employment_rate.csv`,
 
 - The Q4-25 pop_total absolute decline (41.65M -> 41.47M, Q3-25 to
   Q1-26) is the first multi-quarter population *contraction* in the
-  series back to 1946 outside emigration anomalies. Treat as
-  load-bearing only if cross-checked against StatCan's quarterly
+  series back to 1946 outside emigration anomalies. Treat as central
+  only if cross-checked against StatCan's quarterly
   demographic estimates release (Table 17-10-0009 official; check for
   revisions).
 
@@ -230,7 +230,7 @@ Identity: GDP/pop = (GDP/hours) x (hours/emp) x (emp/pop).
 
 ---
 
-## Claim ladder -- load-bearing candidates
+## Claim ladder -- central candidates
 
 Ranked by confidence:
 

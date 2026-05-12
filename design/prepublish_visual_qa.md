@@ -84,7 +84,7 @@ in the first 10 seconds):
 - **HIGH.** The `vig-title__abs` lorem ipsum on the homepage abstract is a
   prominent paragraph (15px Manrope 200, 64ch). It renders correctly in
   placeholder gray, but its sheer length next to a "Canadian Macro Overview"
-  hero headline is visually load-bearing. A Bay Street reader reads ~3 lines
+  hero headline carries visual weight. A Bay Street reader reads ~3 lines
   of "Lorem ipsum dolor sit amet" right under the hero - the placeholder is
   correctly marked, but the editorial vacuum is the first thing the reader
   sees after the hero. Decision needed: writer dispatch for a 2-3 sentence
@@ -567,7 +567,7 @@ the canon to include "publication-mark / section-close rule" as the ninth
 permitted MTA red moment, OR drop the rule to 2px pure black. My
 recommendation: keep, document. The single red rule in the footer
 threads the brand signal across the entire scroll of the page and is
-visually load-bearing for the Vignelli register's "single accent moment
+visually essential for the Vignelli register's "single accent moment
 on every screen" discipline. Canon amendment, not a code fix.
 Implementation owner: art-director.
 

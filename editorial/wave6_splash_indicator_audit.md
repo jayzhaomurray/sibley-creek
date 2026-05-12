@@ -9,8 +9,8 @@ it earn 5-10 seconds of glanceable attention, or is it filler?
 
 Anchor: `editorial/dashboard_purpose.md` -- P1 reader is the CPP/OTPP-
 type allocator, P2 is policy-adjacent, P3 is the serious independent.
-Each supporting print must be load-bearing for its section's headline
-question, measurable + dated, distinct from the chart, and glanceable.
+Each supporting print must anchor its section's headline question,
+measurable + dated, distinct from the chart, and glanceable.
 
 Cap per section: 4-5 prints (including the chart's primary). Six is
 crowding. Recent locked changes (housing arrears CBA proxy in flight,
@@ -53,7 +53,7 @@ absorbed into the "Before" counts above.)
 The audit is conservative on subtraction. Labour was the only section
 clearly over-capped at six supporting-print rows; one cut brings it
 into line. Inflation gains a +1 for shelter, which is the single most
-load-bearing CPI sub-aggregate and currently hidden inside the chart.
+central CPI sub-aggregate and currently hidden inside the chart.
 
 ---
 
@@ -70,7 +70,7 @@ Current supporting prints:
 
 | key | indicator | decision | rationale |
 |---|---|---|---|
-| `gdp-mm` | Real GDP, m/m | KEEP | The print Bay Street actually trades on the day. y/y is smooth; m/m is the surprise vector. Load-bearing. |
+| `gdp-mm` | Real GDP, m/m | KEEP | The print Bay Street actually trades on the day. y/y is smooth; m/m is the surprise vector. Central. |
 | `gdp-percap-yoy` | Per-capita GDP, y/y | KEEP (TK; data pending) | This IS the Sibley editorial differentiator -- the cut the headline obscures. Backend follow-up underway via StatCan 17-10-0009; preserve the slot. |
 | `output-gap` | Output gap | KEEP | The "vs potential" read; the only structural cyclical anchor on the tile. Pairs the cyclical (m/m) with the gap (level). |
 
@@ -128,13 +128,13 @@ Current supporting prints (6 rows total -- over cap):
 | key | indicator | decision | rationale |
 |---|---|---|---|
 | `emp-percap-yoy` | Per-capita employment, y/y | (already dropped per locked changes) | Recent context says it was dropped from labour as redundant with emp-rate. Confirmed: not present in canon, no action. |
-| `agg-hours-yoy` | Aggregate hours, y/y | KEEP | The intensive-margin read; jobs say one thing, hours often say another. Load-bearing for the per-capita question (output = hours * productivity). |
+| `agg-hours-yoy` | Aggregate hours, y/y | KEEP | The intensive-margin read; jobs say one thing, hours often say another. Central to the per-capita question (output = hours * productivity). |
 | `wage-lfs-micro` | Wage growth (LFS-Micro) | KEEP | The BoC's preferred composition-adjusted wage measure. Inflation-relevant. |
 | `emp-rate` | Employment rate | KEEP | Per-capita employment cleanly stated. The denominator-adjusted read; complements the unemployment rate (numerator-side). |
 | `ei-regular-beneficiaries-yoy` | EI regular beneficiaries, y/y | KEEP | Wave-5 add. Demand-side leading recession indicator; uptake leads LFS by 1-2 months. Earns its slot. |
 
 Cut decision: the table at six rows (primary + 5 supporting) crowds. The least
-load-bearing of the four supporting prints is **`agg-hours-yoy`** -- and that
+essential of the four supporting prints is **`agg-hours-yoy`** -- and that
 will surprise the reader, so the rationale needs to be clear.
 
 Reasoning for cutting aggregate hours:
@@ -142,7 +142,7 @@ Reasoning for cutting aggregate hours:
 - `agg-hours-yoy` is what you cite when you're trying to back out a productivity
   call. That belongs on the topic-page chartbook (Labour Panel 2's per-capita
   panel companion), not on the homepage tile.
-- The homepage tile is for the load-bearing question. The load-bearing question
+- The homepage tile is for the central question. The central question
   is the cyclical inflection -- "is the labour market tightening or loosening
   right now?" -- and that is best answered by the four-print quartet:
   unemployment rate (slack from the numerator), employment rate (denominator-
@@ -194,7 +194,7 @@ Current supporting prints:
 | `housing-starts-3mma` | Housing starts, 3mma | KEEP | Activity-side primary. The supply-flow indicator Bay Street actually quotes. |
 | `cmhc-arrears` | CMHC arrears rate | KEEP (TK; CBA proxy in flight) | Credit-stress read; the "is the renewal wall biting" indicator. Backend follow-up underway via CBA chartered-bank arrears as monthly proxy. Preserve slot. |
 | `months-inventory` | Months of inventory | KEEP (TK; backend in flight) | Inventory absorption is the leading indicator on prices. Backend dispatch in flight to resolve via SNLR proxy or build from CREA. Preserve slot. |
-| `housing-affordability` | Housing affordability | KEEP | BoC qualifying-mortgage-payment-to-income index. The "what would a new borrower pay" read; complements arrears (existing borrowers) and starts (supply) with the cost-of-borrowing read. Load-bearing. |
+| `housing-affordability` | Housing affordability | KEEP | BoC qualifying-mortgage-payment-to-income index. The "what would a new borrower pay" read; complements arrears (existing borrowers) and starts (supply) with the cost-of-borrowing read. Central. |
 
 Proposed final list (5 prints):
 
@@ -221,7 +221,7 @@ Current supporting prints:
 
 | key | indicator | decision | rationale |
 |---|---|---|---|
-| `goc-2y` | 2y GoC yield | REWORD: "2y GoC" | The label is fine as-is. Minor: "2y GoC" without "yield" is the conventional Bay Street shorthand and saves visual space. Soft REWORD; not load-bearing on the audit. KEEP-as-is is also defensible. |
+| `goc-2y` | 2y GoC yield | REWORD: "2y GoC" | The label is fine as-is. Minor: "2y GoC" without "yield" is the conventional Bay Street shorthand and saves visual space. Soft REWORD; not central to the audit. KEEP-as-is is also defensible. |
 | `boc-fed-spread` | BoC-Fed spread, 2y | KEEP | The cross-DM stance read; the publication's stated Pillar B deep-dive question is whether the divergence can continue. Mandatory on the tile. |
 | `federal-budget-balance` | Federal budget balance (FYTD) | KEEP | Recently swapped to FYTD framing (locked). The only fiscal-stance print on the policy tile; without it, policy reads as monetary-only. Mandatory. |
 
@@ -258,7 +258,7 @@ Current supporting prints:
 | key | indicator | decision | rationale |
 |---|---|---|---|
 | `goc-10y` | 10y GoC yield | KEEP | The long-end Canadian rate; the term-premium/duration read. Mandatory. |
-| `tsx-composite` | TSX Composite | CUT | This is the audit's hardest call. TSX is what a retail-investor publication leads with; for the CPP/OTPP audience, TSX level is not a macro signal -- it's a derivative of bank/energy/materials sector returns, none of which a P1 allocator reads off a tile. The Markets section's load-bearing signals are FX, the GoC curve, energy (the Canadian terms-of-trade), and (via deep-dive) credit spreads / bank stability. TSX competes for the slot without earning it. |
+| `tsx-composite` | TSX Composite | CUT | This is the audit's hardest call. TSX is what a retail-investor publication leads with; for the CPP/OTPP audience, TSX level is not a macro signal -- it's a derivative of bank/energy/materials sector returns, none of which a P1 allocator reads off a tile. The Markets section's central signals are FX, the GoC curve, energy (the Canadian terms-of-trade), and (via deep-dive) credit spreads / bank stability. TSX competes for the slot without earning it. |
 | `wti` | WTI | KEEP | The Canadian terms-of-trade input; WCS realizations and energy CPI pass-through both anchor here. Mandatory for a Canadian macro tile. |
 
 Proposed replacement for `tsx-composite`:
@@ -270,7 +270,7 @@ Proposed replacement for `tsx-composite`:
 If the FRED DGS10 fetch is not in scope this wave: alternative replacement
 is **`wcs-wti-diff` (WTI-WCS differential, monthly)**. WCS is on disk
 (`data/raw/wcs.csv`), so a monthly differential is constructable in
-the spec. Editorial preference: GoC-UST 10y spread is more load-bearing
+the spec. Editorial preference: GoC-UST 10y spread is more central
 for Bay Street; WCS differential is the v1.5 fallback.
 
 Proposed final list (4 prints):
@@ -296,7 +296,7 @@ Current supporting prints:
 | key | indicator | decision | rationale |
 |---|---|---|---|
 | `current-account` | Current account | KEEP | The broader external-position read (goods + services + income). Quarterly, but the canonical "is the country running a deficit" indicator. Mandatory. |
-| `us-partner-share` | US export share | KEEP | Already reworded from "US partner share" (locked). The structural-shift narrative -- is Canada decoupling from the US trade dependency or not. Load-bearing for the Trade headline question. |
+| `us-partner-share` | US export share | KEEP | Already reworded from "US partner share" (locked). The structural-shift narrative -- is Canada decoupling from the US trade dependency or not. Central to the Trade headline question. |
 | `terms-of-trade` | Terms of trade | KEEP | The price-side trade indicator. Complements the volume-side (balance) and structural-side (US share). |
 
 Proposed final list (4 prints):
@@ -321,7 +321,7 @@ No changes.
    to "lean up" the tiles -- the cleanness will come from filling, not
    from absence. The audit preserves all four.
 
-2. **The homepage tile is for the load-bearing four, not the
+2. **The homepage tile is for the central four, not the
    comprehensive seven.** Several sections (Labour at 6 rows pre-audit,
    notably) were treating the homepage tile as a mini-chartbook.
    That's the topic page's job. The tile's job is to answer "where
@@ -436,7 +436,7 @@ SupportingPrintSpec(
     notes=(
         "StatCan CPI shelter sub-index Y/Y (Table 18-10-0004-01). Largest "
         "single contributor to headline CPI through the 2024-2026 cycle; "
-        "tile carries it as the load-bearing sub-aggregate. Wave 6 add."
+        "tile carries it as the primary sub-aggregate. Wave 6 add."
     ),
 ),
 ```

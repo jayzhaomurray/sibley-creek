@@ -1,0 +1,102 @@
+---
+/*
+ * Panel6IndustryCyclical - cyclical drivers inside goods, indexed view.
+ *
+ * Editorial argument: inside the goods sector, manufacturing has been
+ * structurally weaker than mining and oil since the pandemic. Y/Y
+ * growth rates show the recent direction but understate the COMPOUNDED
+ * divergence. Indexed levels (Dec 2019 = 100, displayed as cumulative
+ * percent change since the eve of the pandemic) make the gap stark:
+ * manufacturing sits roughly 6% below its Dec 2019 level while mining
+ * and oil sits roughly 13% above. The 19-point gap is the story.
+ *
+ * The regional shadow of this split is Ontario / Quebec manufacturing
+ * vs Alberta / Saskatchewan resources. Provincial GDP wiring is parked
+ * in editorial/chart-diagnosis/ideas.md as the next step that would
+ * show the regional dimension geometrically rather than editorially.
+ *
+ * Pipeline pulls both monthly real GDP industry levels (StatCan
+ * 36-10-0434-01) into panel-6's primary/secondary slots; this wrapper
+ * indexes each to Dec 2019, expresses as cumulative % change, and
+ * passes to PanelLiveChart.
+ */
+
+import type { PanelData, PanelSeries, SeriesPoint } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+const ANCHOR_DATE = "2019-12-01";
+
+// Index a level series to ANCHOR_DATE = 100 and return cumulative
+// percent change (idx - 100). Points BEFORE the anchor are dropped to
+// null. Points AFTER the anchor with missing input remain null.
+function indexedPctChange(series: SeriesPoint[]): SeriesPoint[] {
+  const baseIdx = series.findIndex((p) => p.date === ANCHOR_DATE);
+  if (baseIdx < 0) {
+    return series.map((p) => ({ date: p.date, value: null }));
+  }
+  const base = series[baseIdx]?.value;
+  if (typeof base !== "number" || base === 0) {
+    return series.map((p) => ({ date: p.date, value: null }));
+  }
+  return series.map((p, i) => {
+    if (i < baseIdx) return { date: p.date, value: null };
+    if (typeof p.value !== "number" || Number.isNaN(p.value)) {
+      return { date: p.date, value: null };
+    }
+    return { date: p.date, value: (p.value / base - 1) * 100 };
+  });
+}
+
+let primDerived: PanelSeries | null = null;
+let secDerived: PanelSeries | null = null;
+if (data && data.primary) {
+  primDerived = {
+    key: "gdp_industry_manufacturing_indexed",
+    label: "Manufacturing",
+    data: indexedPctChange(data.primary.data),
+    unit: "%",
+    kind: "percent",
+    frequency: "monthly",
+    asOfISO: data.primary.asOfISO ?? null,
+    source: data.primary.source ?? null,
+    sourceUrl: data.primary.sourceUrl ?? null,
+    sourceId: data.primary.sourceId ?? null,
+  };
+}
+if (data && data.secondary) {
+  secDerived = {
+    key: "gdp_industry_mining_oil_indexed",
+    label: "Mining and oil",
+    data: indexedPctChange(data.secondary.data),
+    unit: "%",
+    kind: "percent",
+    frequency: "monthly",
+    asOfISO: data.secondary.asOfISO ?? null,
+    source: data.secondary.source ?? null,
+    sourceUrl: data.secondary.sourceUrl ?? null,
+    sourceId: data.secondary.sourceId ?? null,
+  };
+}
+---
+{primDerived ? (
+  <PanelLiveChart
+    primary={primDerived}
+    secondary={secDerived}
+    primaryLabel="Manufacturing"
+    secondaryLabel="Mining and oil"
+    windowMonths={84}
+    referenceValue={0}
+    referenceLabel="Dec 2019"
+    dataPanelAttr="gdp-6-industry-cyclical"
+    ariaLabel="Cumulative percent change in real GDP since December 2019, manufacturing versus mining and oil and gas, monthly."
+  />
+) : (
+  <PanelEmpty reason="Industry GDP level series not available for indexed derivation." />
+)}

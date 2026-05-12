@@ -830,7 +830,7 @@ line.
 **Action.**
 - Queue `PanelBarChart.astro` as a Phase 2 deliverable. Same canvas
   (720x405), same Plex Mono y-ticks, same Manrope x-ticks, same MTA
-  red dot/marker for the most-recent or load-bearing bar.
+  red dot/marker for the most-recent or anchor bar.
 - Until then: chart-builder converts each affected panel to either a
   bespoke component (preferred for editorial-load panels) or
   `PanelEmpty` (for low-priority panels). Decision per-panel by

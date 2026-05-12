@@ -346,7 +346,7 @@ def detect_affected_surfaces(
         live_path=f"src/data/sections.ts#tileLine[{section}]",
         description=(
             "Homepage section panel one-liner. HARD <=85 chars. One "
-            "declarative sentence naming the load-bearing print + the "
+            "declarative sentence naming the primary print + the "
             "so-what. Truncates mid-word past 85 chars."
         ),
     ))

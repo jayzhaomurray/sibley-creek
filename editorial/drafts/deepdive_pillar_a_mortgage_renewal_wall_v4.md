@@ -113,7 +113,7 @@ that has dominated Canadian macro commentary since 2023 has done useful
 work and has been overplayed; v3 marks both.
 
 > **What we got right.** The mechanical renewal channel was real and
-> meaningfully load-bearing in 2024-2025. The 5-year fixed cohort
+> meaningfully binding in 2024-2025. The 5-year fixed cohort
 > originated in 2020-2021 faced a step-up in contract rates of 250 to
 > 400 bps at renewal, and the BoC's own modelling work in 2024 put the
 > median 5-year fixed renewer in a 30 to 40% payment-increase band on
@@ -141,7 +141,7 @@ work and has been overplayed; v3 marks both.
 > tightening on a per-pp basis. Canadian mortgage arrears are now
 > mostly a labour-market story on the forward path. The renewal-wall
 > mechanic -- still useful as a description of the backward-looking
-> 2024-2025 stress -- is no longer the load-bearing frame for forward
+> 2024-2025 stress -- is no longer the frame that anchors forward
 > credit risk.
 
 This is the reframe; the sections that follow respect it. The
@@ -185,7 +185,7 @@ cohort.
 >
 > The renewal schedule from here is the variable that matters. Per BoC
 > Staff Analytical Note 2025-21 (July 2025), 60% of all outstanding
-> mortgages renew during 2025 or 2026 -- the load-bearing share. CMHC
+> mortgages renew during 2025 or 2026 -- the share that matters. CMHC
 > Residential Mortgage Industry Report Fall 2025 puts roughly 1.15
 > million households renewing in 2026 specifically; CMHC's broader
 > January 2026 framing places about 3.1 million mortgages (52% of
@@ -238,7 +238,7 @@ Payment-shock math.
 > primarily short-term fixed and some variable-rate cohorts -- median
 > MDS falls 1.1 pp (from 19.7% to 18.6%).
 >
-> The distribution is the load-bearing read. The top 10% of 2026
+> The distribution is the read that matters. The top 10% of 2026
 > renewers face a payment increase of more than 40%; the bottom 25%
 > see at least a 7% decrease. Five-year fixed mortgages account for
 > roughly 40% of all outstanding mortgages but about 75% of those
@@ -505,7 +505,7 @@ What is still to come: 2026H2 and 2027 cohorts.
 > **The wall extends past 2027 if**: Canadian unemployment moves above
 > 7.5% on a sustained basis (two consecutive quarters), or the LFS
 > prints back-to-back monthly increases of 0.2 pp or more in the
-> unemployment rate. This is the load-bearing trigger after the SAP
+> unemployment rate. This is the central trigger after the SAP
 > 2026-12 reframe: per the paper's SVAR estimates, a +1 pp rise in
 > unemployment adds roughly 10 bps to the arrears rate within a year
 > -- comparable in magnitude to the entirety of the 2022-2023

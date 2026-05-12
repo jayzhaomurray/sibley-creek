@@ -168,7 +168,7 @@ class SectionConfig:
 
 
 # Editorial mapping. Editorial-director audits this block when scoping each
-# section's load-bearing tile value. Adjustments here propagate to the JSON
+# section's primary tile value. Adjustments here propagate to the JSON
 # output without code changes elsewhere.
 SECTION_CONFIGS: dict[str, SectionConfig] = {
     "gdp": SectionConfig(
@@ -307,7 +307,7 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
 
 
 # --------------------------------------------------------------------------- #
-# Supporting prints (the homepage tile carries the load-bearing print PLUS
+# Supporting prints (the homepage tile carries the primary print PLUS
 # 2-3 supporting prints per section, per editorial canon in src/data/sections.ts).
 #
 # Each entry is shaped like a stripped-down SectionConfig:
@@ -335,7 +335,7 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
 
 @dataclass(frozen=True)
 class SupportingPrintSpec:
-    """One supporting print (non-load-bearing) for a homepage section tile."""
+    """One supporting (non-primary) print for a homepage section tile."""
 
     key: str
     indicator: str
@@ -360,7 +360,7 @@ class SupportingPrintSpec:
 
 
 # Per-section supporting prints. Each tuple is ordered; the homepage tile
-# renders them in declaration order, after the section's load-bearing print.
+# renders them in declaration order, after the section's primary print.
 # An entry whose primary CSV is not on disk yields a sentinel print with TK
 # strings (we still emit the row so the tile layout doesn't shift around).
 SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {

@@ -82,7 +82,7 @@ You run in two modes in the auto-blurb cycle. The orchestrator dispatches you in
 
 **What you do, per claim-card:**
 
-1. WebFetch the `source_url`. WebFetch is the load-bearing tool for this mode.
+1. WebFetch the `source_url`. WebFetch is the primary tool for this mode.
 2. Locate `source_text_excerpt` in the fetched content. Fuzzy-match acceptable for whitespace and HTML normalization, but the substantive text must be present verbatim.
 3. Confirm `value` is present in the matched span. For derived values, both the level card and the derivation card must verify.
 4. Confirm `claim` is a fair summary of the matched span. If ambiguous, flag for human review rather than guessing.

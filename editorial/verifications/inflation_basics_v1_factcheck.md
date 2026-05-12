@@ -282,7 +282,7 @@ correction), Panels 4-6 callouts and decks, methodology stubs (Lines
 266-333). All structural data verified against primary sources.
 
 Do not change:
-- "Re-anchored" -- writer flagged on Line 64 as load-bearing word
+- "Re-anchored" -- writer flagged on Line 64 as anchor word
   grounded in the trim/median trajectory and the BOS firms->3%
   trajectory.
 - "Essentially extinguished" -- W3-R2 cross-cutting note 4 mandated

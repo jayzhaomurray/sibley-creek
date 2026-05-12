@@ -15,12 +15,12 @@ research built around a heart of data analysis.
 Canonical sources of truth (read on demand):
 - `editorial/dashboard_purpose.md` — what the publication exists to be
 - `editorial/writing-style.md` — voice + style canon
-- `editorial/review_protocol.md` — the three-gate review process (load-bearing; see below)
+- `editorial/review_protocol.md` — the three-gate review process (the core ship gate; see below)
 - `design/design-system.md` — Vignelli visual canon
 - `design/canon_reference_panel.md` — Tier-3 chart canon
 - `design/sparkline-canon.md` — Tier-1 sparkline canon + splash composition restraint
 
-## The three-gate review protocol (LOAD-BEARING)
+## The three-gate review protocol (mandatory before ship)
 
 **Every piece of reader-facing prose must pass three review gates before
 shipping live:**

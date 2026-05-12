@@ -5,7 +5,7 @@
  * `kind` on each panel_data series; until it does, PanelLiveChart infers
  * `kind` from the existing `unit` string (see `inferKindFromUnit` below).
  *
- * Character caps (load-bearing - tied to the 96px right gutter on the
+ * Character caps (hard constraint - tied to the 96px right gutter on the
  * 720-wide canon viewBox; Plex Mono 12px gives ~6-7 chars before clip):
  *
  *   - value (headline / direct):  max 8

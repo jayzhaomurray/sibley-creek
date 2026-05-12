@@ -37,7 +37,7 @@ data (`data/site/sections.json`, `data/site/panel_data/*.json`,
 `data/raw/*.csv`, BoC press releases, StatCan tables, IRCC announcements,
 etc.). Numbers that don't match: fixed. Claims that can't be verified:
 either re-anchored to a verifiable claim, or cut. A piece with one
-unverified load-bearing number does not pass this gate.
+unverified central number does not pass this gate.
 
 ### Gate 2 — Style polish (style-editor)
 
@@ -47,7 +47,7 @@ publication's voice + length discipline?
 Applies the voice canon (`editorial/writing-style.md` Section 1 + Section
 9 working notes proactively). Cuts hedging, kills "going forward" /
 "interestingly," splits paragraphs at "but" / "however," push
-load-bearing clauses to the front, prefer verbs over nominalizations.
+argument-bearing clauses to the front, prefer verbs over nominalizations.
 Concision: every word, sentence, paragraph must earn its place. When
 uncertain, cut.
 

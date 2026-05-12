@@ -97,7 +97,7 @@ Big-Six citation discipline honored (institutional filings only).
 
 ## Verdict
 
-SHIP-READY. No unverified load-bearing numbers remain after the two
+SHIP-READY. No unverified central numbers remain after the two
 discrepancies above were corrected in v5. The three illustrations
 (MIC 0.28% lede; CBA arrears 0.28% Section III; unemployment 6.9% /
 prime-age 6.0% Section V) match the corrected prose.

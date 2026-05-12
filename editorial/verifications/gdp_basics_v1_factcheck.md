@@ -11,7 +11,7 @@ ASCII-only.
 
 ## Summary verdict
 
-PASS-WITH-FLAGS. Every load-bearing numerical claim verifies cleanly against
+PASS-WITH-FLAGS. Every central numerical claim verifies cleanly against
 W3-R1 and primary sources. One methodology-pin flag noted (F1). The W3-R1
 corrections are fully honored: prior "Expansion since 2020Q3" placeholder is
 gone, Q1 2026 forecast correctly removed from the lede, output gap sourced
@@ -146,7 +146,7 @@ pattern without resolving the deep-dive questions. PASS.
 |---|---|---|
 | Consensus as derived input, never citing Big-Six in prose | PASS | "consensus" used as aggregate; no bank name in prose; RBC/TD/Scotia/BMO appear only in source-notes. |
 | BCC canonical wording "amplitude, duration, scope" (EDR 4.1 element 6) | PASS | Verbatim in Panel 6 deck (Line 115) and status line (Lines 213-214). "Depth, breadth" does not appear; two-negatives shorthand does not appear. |
-| No "soft landing", "Goldilocks", "the consumer", "we think" | PASS | Voice notes Lines 60-61 self-enforce. "Soft handoff" is chosen wording, flagged Lines 67-69 as load-bearing -- distinct from banned "soft landing". |
+| No "soft landing", "Goldilocks", "the consumer", "we think" | PASS | Voice notes Lines 60-61 self-enforce. "Soft handoff" is chosen wording, flagged Lines 67-69 as the central framing -- distinct from banned "soft landing". |
 | Numbers earn their place (EDR Section 7) | PASS | Lede carries three numbers; decks do not recite chart numbers. |
 | Calendar-as-subject closer in event blurb | PASS | Sentence 4 names May 29 quarterly and May 30 monthly. |
 | Surface, do not adjudicate, Pillar D / Pillar E | PASS | See F3. |
@@ -162,7 +162,7 @@ Safe to polish: lede (Lines 53-57), panel decks (Lines 84-115), callouts
 Do not change:
 - "Amplitude, duration, and scope" -- exact BCC canonical wording. Do not
   rephrase to "depth, breadth" or "size, length, and reach".
-- "Soft handoff" -- writer flagged as load-bearing (Lines 67-69). Do not
+- "Soft handoff" -- writer flagged as the central framing (Lines 67-69). Do not
   collapse to "soft landing".
 - "Consensus" -- never substitute "Big-Six", "the Street", "RBC",
   "the banks". Voice rule.

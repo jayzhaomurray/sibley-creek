@@ -193,7 +193,7 @@ disciplined system. The ladder, in order of editorial promotion:
 | 200    | `--fw-extralight`                | Lede paragraphs, deck under headlines, lorem placeholders. The "quiet" weight that signals "this is context, not the lead." |
 | 400    | `--fw-regular`                   | Body prose, table data, axis tick labels, direct chart labels.        |
 | 600    | `--fw-medium` / `--fw-semibold`  | Micro-caps eyebrows (with letter-spacing), chart prose interpretation `<strong>`, kicker tokens, table headers, button labels, source-line "Source:" prefix. |
-| 800    | `--fw-extrabold`                 | Headlines (display-xl through display-sm), section headline question, the plate number numeral after the word "PLATE", emphasized indicator names in the load-bearing print row of a table.   |
+| 800    | `--fw-extrabold`                 | Headlines (display-xl through display-sm), section headline question, the plate number numeral after the word "PLATE", emphasized indicator names in the primary print row of a table.   |
 | 900    | (not tokenized; inline)          | The site wordmark (`SIBLEY CREEK`) only. Reserved.     |
 
 **Promotion rule.** To draw a reader's eye to a phrase, **first try weight
@@ -761,7 +761,7 @@ Production component: `src/components/charts/MiniChart.astro`.
   - `ambient` -> `--ink-muted` (pure ink). Used when the latest number
     leads and the line is context.
   - **Production note:** on the current homepage panel grid
-    (`SectionPanel.astro`), the load-bearing chart renders in pure
+    (`SectionPanel.astro`), the primary chart renders in pure
     black with an `--accent` (signal red) latest-point dot, overriding
     the abstract MiniChart color tiers. The Vignelli register prefers
     black-line / red-dot on the homepage; the MiniChart's blue and
@@ -960,7 +960,7 @@ readout, and a 4-row indicators table.
     on the right. Glyph in pure ink, regardless of direction.
 - **Indicators table:** 4 rows, 1px black hairlines between rows.
   Header row in 9.5px micro-caps 600. Data rows in Plex Mono regular
-  for values and deltas. Load-bearing row's indicator name gets 800
+  for values and deltas. The primary row's indicator name gets 800
   weight; its value stays Plex Mono regular (weight contrast is at the
   name, not the value).
 
@@ -999,7 +999,7 @@ Production component: `src/components/home/VignelliMasthead.astro`.
 - **No zebra striping.** Period.
 - **Numeric columns right-aligned, tabular nums** (`font-variant-
   numeric: tabular-nums`).
-- **Load-bearing row** (the indicator that drives the panel's headline)
+- **Primary row** (the indicator that drives the panel's headline)
   gets its indicator-name cell in 800 weight; its value cell stays
   Plex Mono 400. Hierarchy through weight at the name, not at the data.
 - **Sort indicator (when needed):** ASCII glyph (`U+25B2` / `U+25BC`)

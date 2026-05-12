@@ -147,7 +147,7 @@ contribution value, ~6px tall, centered vertically on the bar. The
 prior-quarter hollow square is a separate visual (the marker shows
 Q-1's current vintage; the dashed tick shows the current quarter's
 prior vintage). If both are within 0.3pp of the same x-coordinate,
-the dashed tick wins (it is the load-bearing revision marker).
+the dashed tick wins (it is the primary revision marker).
 
 The callout below the chart carries the verbal revision tag
 (`Revised up` / `Revised down`).

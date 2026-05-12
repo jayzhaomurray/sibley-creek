@@ -12,7 +12,7 @@
  *      interpretation paragraph on the right (vertical stack on mobile).
  *   3. A hairline rule between consecutive units carries the boundary.
  *
- * The interpretation paragraph is the load-bearing value-add; the chart
+ * The interpretation paragraph is the primary value-add; the chart
  * by itself does not speak. v1 accepts placeholder text for the
  * interpretation - backend / editorial workflow fills it via release-day
  * auto-draft + human rewrite.
@@ -48,12 +48,12 @@ import { derivePlateAsOf } from "../components/section/_shared/derivedLabels";
 
 // Per-section chart components. The same dispatch pattern as the prior
 // SectionLayout - the chart-builder owns chart internals; we embed.
-import Panel1HeadlineGDP from "../components/charts/gdp/Panel1HeadlineGDP.astro";
-import Panel2GrowthCrossCheck from "../components/charts/gdp/Panel1HeadlineGDPV2.astro";
-import Panel3Contributions from "../components/charts/gdp/Panel3Contributions.astro";
+import Panel1HeadlineGDP from "../components/charts/gdp/Panel1HeadlineGDPV3.astro";
+import Panel2IndustryAggregate from "../components/charts/gdp/Panel2IndustryAggregate.astro";
+import Panel3Contributions from "../components/charts/gdp/Panel3ContributionsV2.astro";
 import Panel4PerCapita from "../components/charts/gdp/PanelTotalVsPerCapita.astro";
 import Panel5OutputGap from "../components/charts/gdp/Panel5OutputGap.astro";
-import Panel6RecessionState from "../components/charts/gdp/Panel6RecessionState.astro";
+import Panel6IndustryCyclical from "../components/charts/gdp/Panel6IndustryCyclical.astro";
 
 import Panel1HeadlineCPI from "../components/charts/inflation/Panel1HeadlineCPI.astro";
 import Panel2CoreTrio from "../components/charts/inflation/Panel2CoreTrio.astro";
@@ -275,11 +275,11 @@ const plateIndex = plates.map((p) => ({
             {hasChart && (
               <Fragment slot="chart">
                 {plate.chartKey === "gdp-panel-1" && <Panel1HeadlineGDP data={plate.data} />}
-                {plate.chartKey === "gdp-panel-2" && <Panel2GrowthCrossCheck data={plate.data} />}
+                {plate.chartKey === "gdp-panel-2" && <Panel2IndustryAggregate data={plate.data} />}
                 {plate.chartKey === "gdp-panel-3" && <Panel3Contributions data={plate.data} />}
                 {plate.chartKey === "gdp-panel-4" && <Panel4PerCapita data={plate.data} />}
                 {plate.chartKey === "gdp-panel-5" && <Panel5OutputGap data={plate.data} />}
-                {plate.chartKey === "gdp-panel-6" && <Panel6RecessionState data={plate.data} />}
+                {plate.chartKey === "gdp-panel-6" && <Panel6IndustryCyclical data={plate.data} />}
                 {plate.chartKey === "inflation-panel-1" && <Panel1HeadlineCPI data={plate.data} />}
                 {plate.chartKey === "inflation-panel-2" && <Panel2CoreTrio data={plate.data} />}
                 {plate.chartKey === "inflation-panel-3" && <Panel3Breadth data={plate.data} />}

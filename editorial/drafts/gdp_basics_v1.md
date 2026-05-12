@@ -63,7 +63,7 @@ Voice notes:
   (monthly turn, quarterly contraction, output-gap widening) and then
   hands off to the panels. It does not pre-empt panel 5 (output gap) or
   panel 4 (per-capita); it surfaces the headline reads.
-- "Soft handoff" is the load-bearing description -- the monthly path is
+- "Soft handoff" is the central description -- the monthly path is
   modestly positive while the quarterly aggregate posted a small
   contraction, and the BoC's central output-gap estimate widened from
   -0.5% in Q3 to -1.0% in Q4. Not a forecast.
@@ -250,7 +250,7 @@ Voice notes:
 Two-sentence stubs only; researcher fleshes out the full methodology
 drawer content per `basics-layer-template.md` Section 7. The voice is
 plain methodology, not editorial; the stubs name the construction and
-the load-bearing assumption.
+the central assumption.
 
 ### Per-capita real GDP (Panel 4)
 
@@ -259,7 +259,7 @@ the load-bearing assumption.
 > estimate (Table 17-10-0009-01), indexed to a common base period. The
 > denominator is total population, not working-age population; this is
 > the convention used in Bank of Canada MPR per-capita tables, and the
-> denominator choice is load-bearing whenever participation is moving.
+> denominator choice matters whenever participation is moving.
 
 ### Output gap vs BoC potential (Panel 5)
 
