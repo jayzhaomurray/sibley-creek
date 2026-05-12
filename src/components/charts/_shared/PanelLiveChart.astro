@@ -79,6 +79,15 @@ interface Props {
   referenceValueSecondary?: number | null;
   /** Optional secondary reference rule label. */
   referenceLabelSecondary?: string | null;
+  /**
+   * Optional reference BAND (horizontal range shaded across the full plot
+   * width). Used to show editorially-meaningful zones rather than a single
+   * line - e.g. the BoC's 2.25-3.25% nominal neutral range on the policy
+   * panel. Drawn behind the data line, in front of the recession band.
+   * The y-domain auto-expands to keep both bounds in the visible plot.
+   * Defaults to null so existing panels see zero visual change.
+   */
+  referenceBand?: { lower: number; upper: number; label?: string } | null;
   /** data-panel attribute for QA / theming hooks. */
   dataPanelAttr?: string;
 }
@@ -99,6 +108,7 @@ const {
   referenceLabel = null,
   referenceValueSecondary = null,
   referenceLabelSecondary = null,
+  referenceBand = null,
   dataPanelAttr,
 } = Astro.props;
 
@@ -211,6 +221,10 @@ if (sharedSeries.length > 0) {
   if (referenceValueSecondary !== null && referenceValueSecondary !== undefined) {
     if (referenceValueSecondary < yLo) yLo = referenceValueSecondary - span * 0.05;
     if (referenceValueSecondary > yHi) yHi = referenceValueSecondary + span * 0.05;
+  }
+  if (referenceBand) {
+    if (referenceBand.lower < yLo) yLo = referenceBand.lower - span * 0.05;
+    if (referenceBand.upper > yHi) yHi = referenceBand.upper + span * 0.05;
   }
 }
 const yRange = yHi - yLo || 1;
@@ -348,6 +362,19 @@ const refY2 = referenceValueSecondary !== null && referenceValueSecondary !== un
   ? yScale(referenceValueSecondary)
   : null;
 const showRef2 = refY2 !== null && referenceValueSecondary! >= yLo && referenceValueSecondary! <= yHi;
+
+// ---- Reference band geometry --------------------------------------------
+// The band spans [lower, upper] in data space; in pixel space, the rect's
+// top edge is yScale(upper) (smaller y = higher value) and its bottom edge
+// is yScale(lower). Both bounds were already folded into the y-domain
+// expansion above, so the band is guaranteed to fall inside the plot.
+const bandTopY = referenceBand ? yScale(Math.max(referenceBand.upper, referenceBand.lower)) : null;
+const bandBotY = referenceBand ? yScale(Math.min(referenceBand.upper, referenceBand.lower)) : null;
+const showBand = referenceBand !== null && bandTopY !== null && bandBotY !== null
+  && bandBotY > bandTopY;
+const BAND_LABEL_Y = bandTopY !== null ? bandTopY - 4 : 0;
+// (Band-label collision suppression resolves after showRefLabel /
+// showRefLabel2 / RECESSION_LABEL_Y are defined below.)
 
 // ---- Direct label fallbacks ---------------------------------------------
 // Series-name labels wrap to two lines when they exceed the 14-char budget
@@ -488,6 +515,25 @@ function ytickSuppressed(tickY: number, isTopTick: boolean): boolean {
   if (!recVisible) return false;
   return Math.abs(tickY - RECESSION_LABEL_Y) < RECESSION_LABEL_GUARD;
 }
+
+// Reference-band label: micro-cap, anchored top-left of the band (inside
+// the plot). Suppressed when it would collide with a reference-rule
+// label (refY - 5 baseline) or with the recession-band label baseline.
+// Direct labels live in the right gutter (x > PLOT_X1) so no horizontal
+// overlap on the left.
+const BAND_LABEL_GUARD = 12;
+let showBandLabel = showBand && !!(referenceBand && referenceBand.label);
+if (showBandLabel) {
+  if (showRefLabel && refY !== null && Math.abs((refY - 5) - BAND_LABEL_Y) < BAND_LABEL_GUARD) {
+    showBandLabel = false;
+  }
+  if (showRefLabel2 && refY2 !== null && Math.abs((refY2 - 5) - BAND_LABEL_Y) < BAND_LABEL_GUARD) {
+    showBandLabel = false;
+  }
+  if (recVisible && Math.abs(BAND_LABEL_Y - RECESSION_LABEL_Y) < BAND_LABEL_GUARD) {
+    showBandLabel = false;
+  }
+}
 ---
 <div class="canon-chart" data-panel={dataPanelAttr}>
   <svg
@@ -513,6 +559,25 @@ function ytickSuppressed(tickY: number, isTopTick: boolean): boolean {
           text-anchor="middle"
         >RECESSION (2020Q1-Q2)</text>
       </g>
+    )}
+
+    {showBand && (
+      <rect
+        class="canon-chart__reference-band"
+        x={PLOT_X0}
+        y={(bandTopY as number).toFixed(2)}
+        width={PLOT_W}
+        height={((bandBotY as number) - (bandTopY as number)).toFixed(2)}
+      />
+    )}
+
+    {showBandLabel && (
+      <text
+        class="canon-chart__reference-band-label"
+        x={(PLOT_X0 + 6).toFixed(2)}
+        y={BAND_LABEL_Y.toFixed(2)}
+        text-anchor="start"
+      >{(referenceBand as { label: string }).label.toUpperCase()}</text>
     )}
 
     {yTicks.map((v) => {
@@ -718,6 +783,14 @@ function ytickSuppressed(tickY: number, isTopTick: boolean): boolean {
   .canon-chart__recession-label {
     fill: var(--ink); font-family: var(--font-sans);
     font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
+  }
+  .canon-chart__reference-band {
+    fill: rgba(21, 23, 26, 0.07); stroke: none; shape-rendering: crispEdges;
+  }
+  .canon-chart__reference-band-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 10px; font-weight: var(--fw-semibold); letter-spacing: 0.16em;
+    fill-opacity: 0.7;
   }
   .canon-chart__gridline { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges; }
   .canon-chart__zero-line { stroke: var(--ink); stroke-width: 1; stroke-opacity: 1; shape-rendering: crispEdges; }

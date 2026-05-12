@@ -3,8 +3,15 @@
  * Panel1OvernightRate - BoC overnight rate.
  *
  * Pipeline emits `overnight_rate` (primary, %) and
- * `overnight_rate_daily` (secondary). Both are policy-rate %; rendered
- * directly as a single step-like line.
+ * `overnight_rate_daily` (secondary). Both are the same policy-rate %
+ * metric at different cadences; we render the primary (monthly) only
+ * as a single step-like line. The daily series is suppressed - it
+ * traces the same path and adds visual clutter without information gain.
+ *
+ * The 2.25-3.25% nominal neutral range is rendered as a faint reference
+ * band behind the line; this is the editorial frame the plate is built
+ * around ("The setting sits inside the BoC's stated 2.25 to 3.25%
+ * nominal neutral range").
  *
  * Wave 5 fold (EDR brief Section 3): two toggles added.
  *   - Peer central bank rates (ECB / BoE / RBA) as a multi-line
@@ -30,12 +37,11 @@ const { data = null } = Astro.props;
 {data && data.primary ? (
   <PanelLiveChart
     primary={data.primary}
-    secondary={data.secondary}
     primaryLabel="Overnight rate"
-    secondaryLabel="Daily O/N"
     primaryStep={true}
+    referenceBand={{ lower: 2.25, upper: 3.25, label: "Neutral range" }}
     dataPanelAttr="policy-1"
-    ariaLabel="BoC overnight rate, percent."
+    ariaLabel="BoC overnight rate, percent. Neutral range 2.25 to 3.25 percent shown as shaded band."
   />
 ) : (
   <PanelEmpty reason="Pipeline did not emit panel-1 data." />

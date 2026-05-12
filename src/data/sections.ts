@@ -348,7 +348,7 @@ export const sections: Section[] = [
     // Most recent LFS landed May 2, 2026 (April 2026 reference period).
     updatedAt: Date.UTC(2026, 4, 2, 8, 30),
     chartSeriesKey: "unrate",
-    heroKicker: "April Labour Force Survey",
+    heroKicker: "April LFS",
     heroKickerPrefix: "LFS",
     latestReleasePrefix: "LFS",
     tileLine:

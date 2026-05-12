@@ -45,6 +45,13 @@ jobs:
       - name: Check build-time file references
         run: node scripts/check_buildtime_file_refs.mjs
 
+      - name: Check reader-facing label budgets
+        # Fails the build if any known-constrained slot (tileLine,
+        # heroKicker, pageDescription) carries copy over its character
+        # budget. The point is to catch silent mid-word truncation
+        # BEFORE deploy rather than ship it to the live site.
+        run: node scripts/check_label_budgets.mjs
+
       - name: Build Astro site
         # Uses package.json `build` script: `astro check && astro build`.
         run: npm run build

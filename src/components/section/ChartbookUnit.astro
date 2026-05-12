@@ -424,12 +424,19 @@ const asOfHtml = asOfHasTkToken ? substituteTkInText(asOf as string) : null;
   .chartbook-unit__chart {
     /* The live chart fills its container; the chart component owns
      * its own aspect ratio. The wrap preserves a target 5:3 by
-     * default when the chart is a placeholder. */
+     * default when the chart is a placeholder.
+     *
+     * overflow: visible lets chart-internal labels that sit slightly
+     * past the SVG viewBox edge render through (e.g. inflection labels
+     * on the Beveridge curve, latest-print direct labels on
+     * PanelLiveChart). The chart's own 1px frame anchors the plot
+     * area visually; this container's border is for the chart-card
+     * boundary, not for clipping the chart's labels. */
     width: 100%;
     background: var(--paper);
     border: 1px solid var(--ink);
     padding: 0;
-    overflow: hidden;
+    overflow: visible;
   }
   .chartbook-unit__chart > :global(svg),
   .chartbook-unit__chart > :global(.gdp-panel-chart),

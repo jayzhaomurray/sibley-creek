@@ -685,10 +685,11 @@ const periodStamp = periodStampFor(section.frequency);
     font-size: 12.5px;
     line-height: 1.5;
     color: var(--ink);
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    /* Tile blurb wraps to as many lines as the prose needs. Silent
+     * mid-word truncation via line-clamp + overflow:hidden was removing
+     * editorial content without warning; build-time budget check at
+     * scripts/check_label_budgets.mjs catches over-length lines before
+     * deploy. The 44ch max-width keeps lines comfortably readable. */
     max-width: 44ch;
   }
 

@@ -195,27 +195,20 @@ const xTickIdx = [0, Math.floor(n / 3), Math.floor((2 * n) / 3), n - 1];
 const xTickDates = xTickIdx.map((i) => bocAligned[i].date);
 
 // ---- Paths ---------------------------------------------------------------
-// All three series are POLICY RATES (or a difference of two policy rates).
-// Central banks set the target at discrete decision dates and hold it
-// constant between meetings. Render step-after: hold the previous y
-// horizontally to the new x, then jump vertically to the new y. A smooth
-// linear interpolation between meetings would imply a gradual move that
-// did not happen. The spread is BoC minus Fed, so it inherits the step
-// shape at every BoC OR Fed decision.
+// Linear interpolation between monthly observations. Reverted from
+// step-after on 2026-05-11: at this cadence (monthly, 30-year horizon)
+// the stepped path reads as visually heavy and ugly. The monthly
+// resampling already captures discrete moves within each month, so
+// straight-line interpolation between months doesn't materially
+// misrepresent the data. Other policy panels (P1, P2 overlay, Alt1
+// spread) keep stepwise rendering at their finer cadences -- the
+// revert is scoped to this divergence chart only.
 function pathFor(arr: Point[], yFn: (v: number) => number): string {
   let d = "";
-  let prevY: number | null = null;
   for (let i = 0; i < arr.length; i++) {
     const x = xByIndex(i).toFixed(2);
-    const y = yFn(arr[i].value);
-    const ys = y.toFixed(2);
-    if (i === 0) {
-      d += "M" + x + " " + ys + " ";
-    } else {
-      // Step-after.
-      d += "L" + x + " " + (prevY as number).toFixed(2) + " L" + x + " " + ys + " ";
-    }
-    prevY = y;
+    const ys = yFn(arr[i].value).toFixed(2);
+    d += (i === 0 ? "M" : "L") + x + " " + ys + " ";
   }
   return d.trim();
 }
