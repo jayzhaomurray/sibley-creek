@@ -34,13 +34,20 @@ import { enrichedSections, type EnrichedSection } from "../data/site_data_loader
 // the masthead nav AND the splash card grid simultaneously.
 const ordered: EnrichedSection[] = enrichedSections;
 
-// Title-statement date line. Always reflects today.
+// Title-statement date line. Always reflects today in Canadian editorial
+// time (America/Toronto), NOT the build host's UTC. The deploy runner is
+// Ubuntu in UTC; a build kicked off after 8pm ET sees a UTC clock that
+// has already rolled to "tomorrow" while the Canadian editorial calendar
+// has not. Without the explicit timeZone the splash showed May 12 when
+// Toronto said May 11. Same gotcha the [slug].astro displayDate helper
+// guards against.
 const today = new Date();
-const longDate = today.toLocaleDateString("en-CA", {
+const longDate = new Intl.DateTimeFormat("en-CA", {
   month: "long",
   day: "numeric",
   year: "numeric",
-});
+  timeZone: "America/Toronto",
+}).format(today);
 
 // SEO description is brand boilerplate (not a print) - keep it real.
 const pageDesc =
