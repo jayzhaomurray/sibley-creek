@@ -56,6 +56,20 @@ jobs:
         # Uses package.json `build` script: `astro check && astro build`.
         run: npm run build
 
+      - name: Install Playwright Chromium
+        # Required by check_text_overlaps.mjs (next step). `npm ci`
+        # installs the @playwright/test package but NOT the browser
+        # binary; this command pulls only Chromium and skips Firefox /
+        # WebKit so the install stays small (~150 MB vs ~500 MB).
+        run: npx playwright install --with-deps chromium
+
+      - name: Check chart text-vs-line overlaps
+        # Drives Playwright over `astro preview` and fails if any
+        # <text> element's bounding box intersects a data-line / bar
+        # rect. Exceptions live in scripts/text_overlap_allowlist.json.
+        # See script header for v1 limitations and the v2 path.
+        run: node scripts/check_text_overlaps.mjs
+
       # NOTE: visual regression gate temporarily disabled.
       # Playwright snapshot filenames are platform-suffixed by default
       # (`*-win32.png` for Windows local, `*-linux.png` for CI Ubuntu).
