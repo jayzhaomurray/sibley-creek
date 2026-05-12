@@ -292,7 +292,14 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
                                           notes="Unemployed persons, scaled thousands -> millions."),
     "employment_level":       StatcanSpec("employment_level", 2062811, "14-10-0287-01",
                                           "Millions", "monthly", "labour", scale=0.001, sa=True,
-                                          notes="Employed persons, scaled thousands -> millions. Numerator for per-capita employment growth (Pillar E)."),
+                                          notes=(
+                                              "Employed persons, Canada 15+, SA monthly. Scaled thousands -> millions. "
+                                              "Numerator for per-capita employment growth (Pillar E). Also the headcount "
+                                              "comparator in the hours-vs-headcount Labour plate (panel-2c): the Y/Y of "
+                                              "employment_level vs Y/Y of aggregate_hours isolates the per-worker-hours "
+                                              "channel -- when hours Y/Y slows below employment Y/Y, employers are cutting "
+                                              "shifts before they cut bodies (leading-softening signal)."
+                                          )),
     # Wages
     "lfs_wages_all":          StatcanSpec("lfs_wages_all", 105812645, "14-10-0320-02",
                                           "C$/hour", "monthly", "labour", sa=True),
@@ -313,7 +320,14 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
                                           notes=(
                                               "Canada; total actual hours worked, all industries; Estimate; SA monthly. "
                                               "Cube coord 1.1.1.0.0.0.0.0.0.0; UOM 152 (thousands of hours), decimals 1. "
-                                              "Resolved 2026-05-11 via getCubeMetadata on 14-10-0289."
+                                              "Resolved 2026-05-11 via getCubeMetadata on 14-10-0289. "
+                                              "METHODOLOGY: this is the labour-input measure proper -- counts every hour "
+                                              "worked across the economy in a reference week, scaled to monthly. The SA "
+                                              "'all industries' headline is published on a main-job basis (multi-job-holders' "
+                                              "second-job hours are not included in the published SA aggregate); there is no "
+                                              "SA all-jobs companion cube. Editorial use: Y/Y growth in hours vs Y/Y growth "
+                                              "in employment_level (the headcount measure) isolates the per-worker-hours "
+                                              "channel. Powers the hours-vs-headcount Labour plate (panel-2c)."
                                           )),
     # Provincial LFS unemployment rates (Table 14-10-0287). Resolved 2026-05-11 via WDS
     # getCubeMetadata + getSeriesInfoFromCubePidCoord. Coordinate template: {GEO}.7.1.1.1.1.0.0.0.0

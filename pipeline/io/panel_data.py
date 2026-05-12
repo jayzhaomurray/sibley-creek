@@ -318,30 +318,27 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             file="labour/Panel2PerCapita.astro",
             primary=SlotSpec("unemployment_level", "raw", label="Employment level (proxy)"),
             secondary=SlotSpec("aggregate_hours", "raw", label="Aggregate hours worked"),
-            expected_status="NEAR",
-            notes="Needs employment_level (StatCan v2062811) to compute per-capita YoY. employment_level is MISSING (StatCan catalog has it but boc-tracker did not lift; can fetch via existing pipeline.fetch.statcan). pop_total quarterly level is WIRED (v1, Table 17-10-0009-01) in data/raw/. aggregate_hours.csv exists in data/raw/ (Sibley-fetched).",
+            expected_status="WIRED",
+            notes="employment_level (StatCan v2062811) is on disk as of 2026-05-12; chart wrapper can compute per-capita Y/Y. pop_total quarterly level is WIRED (v1, Table 17-10-0009-01). aggregate_hours.csv on disk (v4391505).",
         ),
         PanelSpec(
             panel_id="panel-3", section="labour", panel_num=3,
-            file="labour/Panel3WageBandV2.astro",
-            # V2 wage-band canon (chart-builder, 2026-05-12): primary is the
-            # BoC LFS-Micro composition-adjusted Y/Y measure, the canon BoC
-            # read. LFS-all hourly wages (CAD/hr) and SEPH average weekly
-            # earnings ($) sit as the headline comparators in secondary and
-            # tertiary; both are emitted in levels and the component derives
-            # Y/Y at render time. The services-ex-shelter Y/Y CPI line is the
-            # real-wage anchor (a separate y-extra). lfs_wages_permanent is
-            # kept as an optional extra; the V2 default omits it to avoid
-            # crowding.
+            file="labour/Panel3WageBandV3.astro",
+            # V3 wage chart (chart-builder, 2026-05-12, art-director ratified):
+            # two-series treatment, BoC LFS-Micro vs LFS-all. SEPH and the
+            # services-ex-shelter CPI reference have been pulled from the
+            # consumed slots; the editorial payload is the ~1pp gap between
+            # the headline and the composition-adjusted read. SEPH +
+            # lfs_wages_permanent stay listed under extras for archival only
+            # and are not rendered. Services-CPI-ex-shelter reference moves
+            # off this plate (lives on a future inflation/household plate).
             primary=SlotSpec("lfs_micro", "raw", label="LFS-Micro Y/Y (BoC)"),
             secondary=SlotSpec("lfs_wages_all", "raw", label="LFS, all employees"),
-            tertiary=SlotSpec("seph_earnings", "raw", label="SEPH avg weekly earnings"),
             extras=(
-                SlotSpec("cpi_services_ex_shelter_yoy", "processed",
-                         label="Services CPI ex-shelter Y/Y (real-wage anchor)"),
-                SlotSpec("lfs_wages_permanent", "raw", label="LFS, permanent employees"),
+                SlotSpec("seph_earnings", "raw", label="SEPH avg weekly earnings (archival)"),
+                SlotSpec("lfs_wages_permanent", "raw", label="LFS, permanent employees (archival)"),
             ),
-            notes="V2 chart: chart-builder derives Y/Y on lfs_wages_all and seph_earnings at render time; lfs_micro and cpi_services_ex_shelter_yoy arrive already in Y/Y %.",
+            notes="V3 chart: two-series only. lfs_micro arrives already in Y/Y %; chart-builder derives Y/Y on lfs_wages_all at render time. Extras are archival; not consumed.",
         ),
         PanelSpec(
             panel_id="panel-4", section="labour", panel_num=4,
@@ -403,6 +400,34 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
                 "denominator deflates NPR-driven labour-force growth so the "
                 "ratio reads as a cyclical indicator. See derive_labour_force_ex_npr "
                 "in pipeline/build.py for method + documented bias direction."
+            ),
+        ),
+        # New plate (2026-05-12): hours-vs-headcount dual-panel. Lines left
+        # (hours Y/Y, employment Y/Y), signed-spread bars right (hours Y/Y
+        # minus employment Y/Y). Editorial payload: per-worker-hours channel.
+        # When hours Y/Y slows below employment Y/Y, employers are cutting
+        # shifts before they cut bodies -- the leading-softening signal that
+        # precedes a headcount rollover. At the April 2026 print the spread
+        # is -0.83pp (hours Y/Y -0.51%, employment Y/Y +0.32%); the story
+        # has landed and is visible on the chart.
+        PanelSpec(
+            panel_id="panel-8", section="labour", panel_num=8,
+            file="labour/Panel8HoursVsHeadcount.astro",
+            primary=SlotSpec("aggregate_hours", "raw",
+                             label="Total actual hours worked (SA, monthly)"),
+            secondary=SlotSpec("employment_level", "raw",
+                               label="Employment level (SA, monthly, millions)"),
+            expected_status="WIRED",
+            notes=(
+                "Hours-vs-headcount dual-panel plate. Primary: aggregate_hours "
+                "(StatCan Table 14-10-0289-01 v4391505, total actual hours worked "
+                "all industries, SA monthly, thousands of hours; main-job basis -- "
+                "no SA all-jobs cube exists). Secondary: employment_level (StatCan "
+                "Table 14-10-0287-01 v2062811, employed persons 15+, SA monthly, "
+                "millions). Chart wrapper derives Y/Y of both at render time and "
+                "computes the signed spread (hours_yoy - emp_yoy) for the right-"
+                "panel bars. Both series taken directly from source; no "
+                "transforms applied at pipeline tier."
             ),
         ),
     ],
