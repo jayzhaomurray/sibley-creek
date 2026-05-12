@@ -212,7 +212,7 @@ export interface Section {
 export const sections: Section[] = [
   {
     slug: "gdp",
-    label: "GDP",
+    label: "Output",
     accentVar: "--section-accent-gdp",
     kicker: "Output, expenditure, and the quarterly arithmetic of growth.",
     headlineQuestion:

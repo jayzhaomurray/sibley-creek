@@ -1,0 +1,290 @@
+---
+/*
+ * Panel5OutputGapV2 - BoC MPR output gap as bars.
+ *
+ * V1 rendered the output gap as a single line. Bars carry direction
+ * better for a signed series that crosses zero — positive bars above
+ * the zero line are "above potential," negative bars below are "slack."
+ * The latest quarter in MTA red carries the protagonist signal.
+ *
+ * Data: panel-5 primary is `output_gap_mpr` (BoC MPR vintage, quarterly,
+ * % of potential). Window: last 60 quarters (15 years) — long enough to
+ * see multiple cycles, short enough that the bar slots stay readable.
+ *
+ * Recession band convention: the 2020Q1-Q2 covid recession is shaded.
+ * Pre-2020 recessions are out of the v1 window.
+ */
+
+import type { PanelData, SeriesPoint } from "../_shared/panelData";
+import { decYear } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+const WINDOW_QUARTERS = 60;
+
+const fullSeries: SeriesPoint[] = data?.primary?.data ?? [];
+const series = fullSeries.slice(-WINDOW_QUARTERS);
+const hasData = series.length > 0;
+
+// ---- Geometry (canon Tier-3 viewBox) ------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 56;
+const M_R = 64;
+const M_T = 36;
+const M_B = 36;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+// ---- Domains -----------------------------------------------------------
+const xsAll = series
+  .map((d) => decYear(d.date))
+  .filter((v) => !Number.isNaN(v));
+let xMin = xsAll.length > 0 ? Math.min(...xsAll) : 0;
+let xMax = xsAll.length > 0 ? Math.max(...xsAll) : 1;
+// Pad x-domain by half a slot so the first and last bars sit inside the frame.
+if (series.length > 0) {
+  const slotYears = (xMax - xMin) / Math.max(1, series.length - 1);
+  xMin -= slotYears * 0.6;
+  xMax += slotYears * 0.6;
+}
+
+const ys = series
+  .map((d) => d.value)
+  .filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
+let yLo = ys.length > 0 ? Math.min(...ys) : -1;
+let yHi = ys.length > 0 ? Math.max(...ys) : 1;
+const span = (yHi - yLo) || 1;
+yLo -= span * 0.12;
+yHi += span * 0.12;
+// Always include zero — it's the editorial anchor (the potential line).
+if (yLo > 0) yLo = -span * 0.05;
+if (yHi < 0) yHi = span * 0.05;
+const yRange = yHi - yLo || 1;
+
+function xScale(yr: number): number {
+  if (xMax === xMin) return PLOT_X0 + PLOT_W / 2;
+  return PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
+}
+
+const zeroY = yLo <= 0 && yHi >= 0 ? yScale(0) : null;
+
+// ---- Tick generation ---------------------------------------------------
+function pickStride(lo: number, hi: number, target = 5): number {
+  const sp = hi - lo;
+  if (sp <= 0) return 1;
+  const rough = sp / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let nice = 1;
+  if (norm < 1.5) nice = 1;
+  else if (norm < 3) nice = 2;
+  else if (norm < 4) nice = 2.5;
+  else if (norm < 7) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+const yStride = pickStride(yLo, yHi);
+const yTicks: number[] = [];
+const yStart = Math.ceil(yLo / yStride) * yStride;
+for (let v = yStart; v <= yHi + 1e-9; v += yStride) yTicks.push(Number(v.toFixed(3)));
+if (yTicks.length === 0) yTicks.push(Number(((yLo + yHi) / 2).toFixed(3)));
+
+// X-ticks at year boundaries; trim to ~5 visible.
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const allYearTicks: Array<{ x: number; label: string }> = [];
+for (let yr = yearStart; yr <= yearEnd; yr++) {
+  const decY = yr + (1 - 0.5) / 12;
+  if (decY < xMin || decY > xMax) continue;
+  allYearTicks.push({ x: xScale(decY), label: String(yr) });
+}
+const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 6));
+const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
+
+// ---- Bar geometry ------------------------------------------------------
+const slotWidth = PLOT_W / series.length;
+const barWidth = Math.max(2, slotWidth * 0.7);
+
+let lastIdx = -1;
+for (let i = series.length - 1; i >= 0; i--) {
+  const v = series[i]!.value;
+  if (typeof v === "number" && !Number.isNaN(v)) { lastIdx = i; break; }
+}
+
+type BarRect = { x: number; y: number; w: number; h: number; isLatest: boolean; date: string; value: number };
+const bars: BarRect[] = [];
+const zY = zeroY ?? yScale(0);
+for (let i = 0; i < series.length; i++) {
+  const pt = series[i]!;
+  if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
+  const xv = decYear(pt.date);
+  if (Number.isNaN(xv)) continue;
+  const cx = xScale(xv);
+  const valueY = yScale(pt.value);
+  const topY = Math.min(valueY, zY);
+  const botY = Math.max(valueY, zY);
+  bars.push({
+    x: cx - barWidth / 2,
+    y: topY,
+    w: barWidth,
+    h: Math.max(0.5, botY - topY),
+    isLatest: i === lastIdx,
+    date: pt.date,
+    value: pt.value,
+  });
+}
+
+// ---- Recession band (2020Q1-Q2) ----------------------------------------
+const recStart = 2020 + (2 - 0.5) / 12;
+const recEnd = 2020 + (4 - 0.5) / 12;
+const recVisible = recEnd >= xMin && recStart <= xMax;
+const recX0 = recVisible ? xScale(Math.max(recStart, xMin)) : 0;
+const recX1 = recVisible ? xScale(Math.min(recEnd, xMax)) : 0;
+
+const ariaLabel = "BoC MPR output gap as bars, last 15 years. Bars above zero represent output above potential; bars below represent slack. Latest quarter marked in red.";
+---
+{hasData ? (
+  <div class="canon-chart" data-panel="gdp-5-v2">
+    <svg
+      class="canon-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {recVisible && (
+        <g class="canon-chart__recession-group">
+          <rect
+            class="canon-chart__recession"
+            x={recX0.toFixed(2)}
+            y={PLOT_Y0}
+            width={Math.max(1, recX1 - recX0).toFixed(2)}
+            height={PLOT_H}
+          />
+          <text
+            class="canon-chart__recession-label"
+            x={((recX0 + recX1) / 2).toFixed(2)}
+            y={(PLOT_Y0 + 12).toFixed(2)}
+            text-anchor="middle"
+          >RECESSION (2020Q1-Q2)</text>
+        </g>
+      )}
+
+      {yTicks.map((v) => {
+        const yy = yScale(v);
+        if (zeroY !== null && Math.abs(yy - zeroY) < 0.5) return null;
+        return (
+          <line
+            class="canon-chart__gridline"
+            x1={PLOT_X0.toFixed(2)}
+            y1={yy.toFixed(2)}
+            x2={PLOT_X1.toFixed(2)}
+            y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      {bars.map((b) => (
+        <rect
+          class={b.isLatest ? "canon-chart__bar canon-chart__bar--latest" : "canon-chart__bar"}
+          x={b.x.toFixed(2)}
+          y={b.y.toFixed(2)}
+          width={b.w.toFixed(2)}
+          height={b.h.toFixed(2)}
+        >
+          <title>{`${b.date}: ${b.value.toFixed(2)}%`}</title>
+        </rect>
+      ))}
+
+      {zeroY !== null && (
+        <line
+          class="canon-chart__zero-line"
+          x1={PLOT_X0.toFixed(2)}
+          y1={zeroY.toFixed(2)}
+          x2={PLOT_X1.toFixed(2)}
+          y2={zeroY.toFixed(2)}
+        />
+      )}
+
+      <rect
+        class="canon-chart__frame"
+        x={PLOT_X0}
+        y={PLOT_Y0}
+        width={PLOT_W}
+        height={PLOT_H}
+      />
+
+      {xTicks.map((t) => (
+        <g>
+          <line
+            class="canon-chart__xtick"
+            x1={t.x.toFixed(2)}
+            y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="canon-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {yTicks.map((v, i) => {
+        const yy = yScale(v);
+        const isTop = i === yTicks.length - 1;
+        const sign = v > 0 ? "+" : "";
+        const txt = isTop ? `${sign}${v.toFixed(1)}%` : `${sign}${v.toFixed(1)}`;
+        return (
+          <text
+            class="canon-chart__ytick-label"
+            x={(PLOT_X0 - 8).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{txt}</text>
+        );
+      })}
+    </svg>
+  </div>
+) : (
+  <PanelEmpty reason="Output gap series not yet emitted." />
+)}
+
+<style>
+  .canon-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
+  .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
+  .canon-chart__recession { fill: rgba(21, 23, 26, 0.06); }
+  .canon-chart__recession-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
+  }
+  .canon-chart__gridline { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges; }
+  .canon-chart__zero-line { stroke: var(--ink); stroke-width: 1; stroke-opacity: 1; shape-rendering: crispEdges; }
+  .canon-chart__bar { fill: var(--ink); }
+  .canon-chart__bar--latest { fill: var(--accent); }
+  .canon-chart__frame { fill: none; stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+</style>
