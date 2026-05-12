@@ -1,0 +1,289 @@
+---
+/*
+ * Alt5_URDecompIdentity - monthly decomposition of the change in the
+ * unemployment rate into a numerator (U) contribution and a denominator
+ * (E) contribution.
+ *
+ * The exact algebraic identity for the change in u = U / (U + E):
+ *
+ *   ΔUR_t = (ΔU_t * E_{t-1} - U_{t-1} * ΔE_t) / (LF_{t-1} * LF_t)
+ *
+ * which sums (in percentage points) to:
+ *
+ *   ΔU contribution: ΔU_t * E_{t-1} / (LF_{t-1} * LF_t) * 100
+ *   ΔE contribution: -U_{t-1} * ΔE_t / (LF_{t-1} * LF_t) * 100
+ *
+ * The two contributions sum exactly to ΔUR every month. Editorial read:
+ * which months' UR moves came from "more people unemployed" (numerator)
+ * vs "shifting employment denominator" (i.e., participation shocks,
+ * labour-force entry, etc).
+ *
+ * What's different. Production Panel 1 plots the UR level. This panel
+ * decomposes the change in the level into two well-defined components
+ * whose values add up to ΔUR. The geometry tells the reader where each
+ * monthly move came from.
+ *
+ * Why it might be better. ΔUR is the only signal the labour-print
+ * morning desk actually trades. The identity decomposition surfaces the
+ * mechanism behind each print and disciplines hot takes that confuse a
+ * denominator effect (population grew faster than jobs) with a labour-
+ * market deterioration (jobs were lost).
+ *
+ * Data. unemployment_rate.csv (% level), unemployment_level.csv (millions
+ * of persons). Labor force LF and employment E are derived from the LFS
+ * identity LF = U / (UR / 100), E = LF - U — the same identity used to
+ * derive labour_force_ex_npr elsewhere in the pipeline.
+ */
+
+import { readCsv, decYear, VB, PLOT, yearTicksFromX } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+
+const lvl = readCsv("unemployment_level.csv"); // millions
+const rate = readCsv("unemployment_rate.csv"); // percent
+const rMap = new Map(rate.map((p) => [p.date, p.value]));
+
+interface Row { d: string; U: number; UR: number; LF: number; E: number; }
+const rows: Row[] = [];
+for (const p of lvl) {
+  const UR = rMap.get(p.date);
+  if (UR === undefined || UR === null || p.value === null) continue;
+  const U = p.value;
+  const LF = U / (UR / 100);
+  const E = LF - U;
+  rows.push({ d: p.date, U, UR, LF, E });
+}
+
+interface Contrib { d: string; cu: number; ce: number; dUR: number; }
+const contribs: Contrib[] = [];
+for (let i = 1; i < rows.length; i++) {
+  const t = rows[i]!;
+  const tm = rows[i - 1]!;
+  const dU = t.U - tm.U;
+  const dE = t.E - tm.E;
+  const denom = tm.LF * t.LF;
+  contribs.push({
+    d: t.d,
+    cu: (dU * tm.E) / denom * 100,
+    ce: (-tm.U * dE) / denom * 100,
+    dUR: t.UR - tm.UR,
+  });
+}
+
+const WINDOW = 60;
+const last = contribs.slice(-WINDOW);
+
+// y-domain spanning positive and negative stacks
+let yLo = 0, yHi = 0;
+for (const r of last) {
+  const pos = Math.max(0, r.cu) + Math.max(0, r.ce);
+  const neg = Math.min(0, r.cu) + Math.min(0, r.ce);
+  if (pos > yHi) yHi = pos;
+  if (neg < yLo) yLo = neg;
+  if (r.dUR > yHi) yHi = r.dUR;
+  if (r.dUR < yLo) yLo = r.dUR;
+}
+const span = (yHi - yLo) || 1;
+yLo -= span * 0.10;
+yHi += span * 0.10;
+
+// x-domain
+const xs = last.map((r) => decYear(r.d));
+const xMin = Math.min(...xs) - 0.05;
+const xMax = Math.max(...xs) + 0.05;
+const xScale = (yr: number) => PLOT.X0 + ((yr - xMin) / (xMax - xMin)) * PLOT.W;
+const yScale = (v: number) => PLOT.Y0 + PLOT.H - ((v - yLo) / (yHi - yLo)) * PLOT.H;
+
+// nice y ticks at 0.25pp stride (typical span ~1.8pp peak-to-trough)
+const yTicks: number[] = [];
+const niceStride = 0.25;
+const tStart = Math.ceil(yLo / niceStride) * niceStride;
+for (let v = tStart; v <= yHi + 1e-9; v += niceStride) yTicks.push(Number(v.toFixed(2)));
+
+const zeroY = yScale(0);
+const xTicks = yearTicksFromX(xMin, xMax, xScale);
+
+const slotW = PLOT.W / WINDOW;
+const barW = slotW * 0.66;
+
+interface Bar { x: number; y: number; w: number; h: number; bucket: "u" | "e"; isLatest: boolean; }
+const bars: Bar[] = [];
+const latestIdx = last.length - 1;
+for (let i = 0; i < last.length; i++) {
+  const r = last[i]!;
+  const cx = xScale(decYear(r.d));
+  let posCum = 0, negCum = 0;
+  const isLatest = i === latestIdx;
+
+  const stack = (key: "u" | "e", v: number) => {
+    if (!Number.isFinite(v) || v === 0) return;
+    let y0: number, y1: number;
+    if (v >= 0) { y0 = yScale(posCum); y1 = yScale(posCum + v); posCum += v; }
+    else { y0 = yScale(negCum); y1 = yScale(negCum + v); negCum += v; }
+    bars.push({
+      x: cx - barW / 2,
+      y: Math.min(y0, y1),
+      w: barW,
+      h: Math.max(0.5, Math.abs(y0 - y1)),
+      bucket: key,
+      isLatest,
+    });
+  };
+  // Stack order: numerator (ΔU) first (heavier ink), then denominator (ΔE)
+  stack("u", r.cu);
+  stack("e", r.ce);
+}
+
+// ΔUR overlay path (thin dashed)
+let urPath = "";
+let started = false;
+for (const r of last) {
+  if (!Number.isFinite(r.dUR)) continue;
+  const xp = xScale(decYear(r.d)).toFixed(2);
+  const yp = yScale(r.dUR).toFixed(2);
+  urPath += (started ? "L" : "M") + xp + " " + yp + " ";
+  started = true;
+}
+urPath = urPath.trim();
+
+const latest = last[last.length - 1]!;
+const latestX = xScale(decYear(latest.d));
+const latestY = yScale(latest.dUR);
+const latestDate = latest.d;
+
+const ariaLabel = "Monthly change in Canadian unemployment rate decomposed into ΔU (numerator) and ΔE (denominator) contributions, last 60 months, stacked bars with total ΔUR overlay.";
+---
+<div class="alt-chart" data-panel="alt-labour-5-urdecomp">
+  <svg
+    class="alt-chart__svg"
+    viewBox={`0 0 ${VB.W} ${VB.H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* Legend */}
+    <g class="alt-decomp__legend" transform={`translate(${PLOT.X0}, 22)`}>
+      <rect class="alt-decomp__swatch alt-decomp__swatch--u" x={0} y={-9} width={10} height={10} />
+      <text class="alt-decomp__legend-label" x={14} y={0}>ΔU contribution</text>
+      <rect class="alt-decomp__swatch alt-decomp__swatch--e" x={130} y={-9} width={10} height={10} />
+      <text class="alt-decomp__legend-label" x={144} y={0}>ΔE contribution</text>
+      <line class="alt-decomp__legend-line" x1={260} y1={-4} x2={282} y2={-4} />
+      <text class="alt-decomp__legend-label" x={286} y={0}>Total ΔUR</text>
+    </g>
+
+    {/* Gridlines (excluding zero) */}
+    {yTicks.map((v) => {
+      const yy = yScale(v);
+      if (Math.abs(yy - zeroY) < 0.5) return null;
+      return (
+        <line
+          class="alt-chart__gridline"
+          x1={PLOT.X0.toFixed(2)}
+          y1={yy.toFixed(2)}
+          x2={PLOT.X1.toFixed(2)}
+          y2={yy.toFixed(2)}
+        />
+      );
+    })}
+
+    {/* Stacked bars */}
+    {bars.map((b) => (
+      <rect
+        class={`alt-decomp__bar alt-decomp__bar--${b.bucket}${b.isLatest ? " alt-decomp__bar--latest" : ""}`}
+        x={b.x.toFixed(2)}
+        y={b.y.toFixed(2)}
+        width={b.w.toFixed(2)}
+        height={b.h.toFixed(2)}
+      />
+    ))}
+
+    {/* Zero line (bold, above bars) */}
+    <line
+      class="alt-chart__zero-line"
+      x1={PLOT.X0.toFixed(2)}
+      y1={zeroY.toFixed(2)}
+      x2={PLOT.X1.toFixed(2)}
+      y2={zeroY.toFixed(2)}
+    />
+
+    {/* ΔUR overlay (thin dashed) */}
+    {urPath && <path class="alt-decomp__total-line" d={urPath} fill="none" />}
+
+    {/* Latest ΔUR dot in MTA red */}
+    <circle
+      class="alt-chart__latest-dot"
+      cx={latestX.toFixed(2)}
+      cy={latestY.toFixed(2)}
+      r="4"
+    >
+      <title>{`Latest ${latestDate}: ΔUR ${latest.dUR >= 0 ? "+" : ""}${latest.dUR.toFixed(2)}pp (ΔU contrib ${latest.cu >= 0 ? "+" : ""}${latest.cu.toFixed(2)}, ΔE contrib ${latest.ce >= 0 ? "+" : ""}${latest.ce.toFixed(2)})`}</title>
+    </circle>
+
+    {/* Plot frame */}
+    <rect class="alt-chart__frame" x={PLOT.X0} y={PLOT.Y0} width={PLOT.W} height={PLOT.H} />
+
+    {/* x-axis */}
+    {xTicks.map((t) => (
+      <g>
+        <line
+          class="alt-chart__xtick"
+          x1={t.x.toFixed(2)}
+          y1={PLOT.Y1.toFixed(2)}
+          x2={t.x.toFixed(2)}
+          y2={(PLOT.Y1 + 4).toFixed(2)}
+        />
+        <text
+          class="alt-chart__xtick-label"
+          x={t.x.toFixed(2)}
+          y={(PLOT.Y1 + 18).toFixed(2)}
+          text-anchor="middle"
+        >{t.label}</text>
+      </g>
+    ))}
+
+    {/* y-axis labels */}
+    {yTicks.map((v, i) => {
+      const yy = yScale(v);
+      const isTop = i === yTicks.length - 1;
+      const sign = v > 0 ? "+" : "";
+      const txt = isTop ? `${sign}${v.toFixed(2)}pp` : `${sign}${v.toFixed(2)}`;
+      return (
+        <text
+          class="alt-chart__ytick-label"
+          x={(PLOT.X0 - 8).toFixed(2)}
+          y={(yy + 4).toFixed(2)}
+          text-anchor="end"
+        >{txt}</text>
+      );
+    })}
+  </svg>
+</div>
+
+<AltChartStyle />
+
+<style>
+  /* Decomp-specific overrides — ΔU heavier ink (the protagonist), ΔE lighter */
+  .alt-decomp__bar { stroke: none; shape-rendering: crispEdges; }
+  .alt-decomp__bar--u { fill: var(--ink); fill-opacity: 0.72; }
+  .alt-decomp__bar--e { fill: var(--ink); fill-opacity: 0.32; }
+  .alt-decomp__bar--latest { fill: var(--accent); fill-opacity: 1; }
+  /* MTA red latest bar — both segments. Override via specificity. */
+  .alt-decomp__bar--u.alt-decomp__bar--latest { fill: var(--accent); fill-opacity: 1; }
+  .alt-decomp__bar--e.alt-decomp__bar--latest { fill: var(--accent); fill-opacity: 0.55; }
+
+  .alt-decomp__total-line {
+    stroke: var(--ink); stroke-width: 1.25; stroke-dasharray: 4 2;
+    stroke-linejoin: round; stroke-linecap: butt; fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .alt-decomp__legend { font-family: var(--font-sans); }
+  .alt-decomp__swatch { stroke: none; shape-rendering: crispEdges; }
+  .alt-decomp__swatch--u { fill: var(--ink); fill-opacity: 0.72; }
+  .alt-decomp__swatch--e { fill: var(--ink); fill-opacity: 0.32; }
+  .alt-decomp__legend-line { stroke: var(--ink); stroke-width: 1.25; stroke-dasharray: 4 2; }
+  .alt-decomp__legend-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-regular); letter-spacing: 0.04em;
+    alignment-baseline: middle;
+  }
+</style>
