@@ -159,6 +159,12 @@ class SectionConfig:
     as_of_format: str
     delta_kind: str
     positive_is_good: Optional[bool]
+    # Delta-comparator window. "prior" picks the prior row (default; right
+    # for monthly/quarterly cadence). "w/w" picks the row nearest 7 calendar
+    # days back from the latest observation (right for daily series like
+    # FX, yields, commodities -- d/d moves are noise; w/w is the macro read).
+    # When "w/w", the displayed delta string is suffixed " w/w".
+    delta_window: str = "prior"
 
 
 # Editorial mapping. Editorial-director audits this block when scoping each
@@ -277,6 +283,8 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
         # imports more expensive, hits CPI pass-through. Matches the
         # existing placeholder.
         positive_is_good=False,
+        # Daily series: compare to ~7 calendar days ago, not yesterday.
+        delta_window="w/w",
     ),
     "trade": SectionConfig(
         slug="trade",
@@ -343,6 +351,12 @@ class SupportingPrintSpec:
     secondary_series: Optional[str] = None
     secondary_dir: Optional[str] = None
     notes: Optional[str] = None  # free-form for the audit trail; not rendered
+    # See SectionConfig.delta_window. "prior" default = iloc[-2] (1 step
+    # back in the series' native cadence). "w/w" = row nearest 7 calendar
+    # days back from the latest observation. Markets daily series should
+    # use "w/w" so the tile delta reads as a macro move, not day-trader
+    # noise.
+    delta_window: str = "prior"
 
 
 # Per-section supporting prints. Each tuple is ordered; the homepage tile
@@ -683,6 +697,7 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
             delta_kind="bps",
             as_of_format="date",
             transform=None,
+            delta_window="w/w",
         ),
         SupportingPrintSpec(
             key="tsx-composite",
@@ -696,6 +711,7 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
             delta_kind="pct",
             as_of_format="date",
             transform=None,
+            delta_window="w/w",
             notes=(
                 "S&P/TSX Composite price index (Yahoo ^GSPTSE). Lands daily via "
                 "pipeline.build_financial. NB: Yahoo's range='max' silently switches "
@@ -715,6 +731,7 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
             delta_kind="pct",
             as_of_format="date",
             transform=None,
+            delta_window="w/w",
         ),
     ),
     "trade": (
@@ -929,17 +946,27 @@ def _format_value(v: float, cfg: SectionConfig) -> str:
 
 
 def _format_delta(latest: float, prior: float, cfg: SectionConfig) -> str:
-    """Compute and render the delta string in the section's preferred units."""
+    """Compute and render the delta string in the section's preferred units.
+
+    When `cfg.delta_window == "w/w"`, the period suffix is appended to the
+    rendered string ("+0.4% w/w"). The convention follows Bay Street / FT
+    practice: monthly and quarterly prints carry their period implicitly
+    in the asOf stamp ("Mar 2026", "2025Q4") so a bare delta reads as m/m
+    or q/q; daily prints (asOf "May 8, 2026") leave the comparator window
+    ambiguous, so the delta must name it.
+    """
     kind = _resolve_delta_kind(cfg.unit_display, cfg.delta_kind)
     if cfg.delta_kind == "bps":
         diff = (latest - prior) * 100.0
     elif cfg.delta_kind == "pct":
         if prior == 0:
-            return _canon_fmt_delta(0.0, kind="percent", decimals=cfg.delta_decimals)
+            base = _canon_fmt_delta(0.0, kind="percent", decimals=cfg.delta_decimals)
+            return f"{base} w/w" if cfg.delta_window == "w/w" else base
         diff = (latest / prior - 1.0) * 100.0
     else:
         diff = latest - prior
-    return _canon_fmt_delta(diff, kind=kind, decimals=cfg.delta_decimals)
+    base = _canon_fmt_delta(diff, kind=kind, decimals=cfg.delta_decimals)
+    return f"{base} w/w" if cfg.delta_window == "w/w" else base
 
 
 def _resolve_delta_dir(latest: float, prior: float, cfg: SectionConfig) -> str:
@@ -1036,18 +1063,21 @@ def _format_delta_for_spec(latest: float, prior: float, spec) -> str:
     """Render a delta per the spec's delta_kind / delta_unit.
 
     Routes through the canonical formatter. Mirrors _format_delta but
-    accepts a SupportingPrintSpec (or SectionConfig).
+    accepts a SupportingPrintSpec (or SectionConfig). When the spec's
+    `delta_window == "w/w"`, the period suffix is appended.
     """
     kind = _resolve_delta_kind(spec.unit_display, spec.delta_kind)
     if spec.delta_kind == "bps":
         diff = (latest - prior) * 100.0
     elif spec.delta_kind == "pct":
         if prior == 0:
-            return _canon_fmt_delta(0.0, kind="percent", decimals=spec.delta_decimals)
+            base = _canon_fmt_delta(0.0, kind="percent", decimals=spec.delta_decimals)
+            return f"{base} w/w" if getattr(spec, "delta_window", "prior") == "w/w" else base
         diff = (latest / prior - 1.0) * 100.0
     else:
         diff = latest - prior
-    return _canon_fmt_delta(diff, kind=kind, decimals=spec.delta_decimals)
+    base = _canon_fmt_delta(diff, kind=kind, decimals=spec.delta_decimals)
+    return f"{base} w/w" if getattr(spec, "delta_window", "prior") == "w/w" else base
 
 
 def _resolve_delta_dir_for_spec(latest: float, prior: float, spec) -> str:
@@ -1194,19 +1224,31 @@ def _build_supporting_print(spec: SupportingPrintSpec, data_root: Path) -> dict:
     latest_date = pd.Timestamp(latest_row["date"])
 
     # Prior-comparator selection. Most transforms use iloc[-2] (the prior
-    # observation in the cadence). The 'fy_ytd_yoy' transform overrides this
-    # to pick the same calendar month one year prior -- i.e. the prior FY's
-    # YTD-through-the-same-month -- which is the DoF Fiscal Monitor headline
-    # framing. Falls back to iloc[-2] if the 12-month-lag point isn't on
-    # disk (insufficient history); in that case the delta is still rendered
-    # but as the standard prior-period diff.
+    # observation in the cadence). Overrides:
+    #   - fy_ytd_yoy: same calendar month one year prior (DoF Fiscal Monitor
+    #     headline framing).
+    #   - delta_window="w/w": row nearest 7 calendar days back (right for
+    #     daily series like FX, yields, commodities).
+    # Each falls back to iloc[-2] if the target lookback point isn't on
+    # disk with sufficient proximity.
     if spec.transform == "fy_ytd_yoy":
         prior_date_target = latest_date - pd.DateOffset(years=1)
-        # Tolerate small calendar-day drift (Feb-28 vs Feb-29) by matching
-        # within +/- 3 days of the target date.
         date_diff = (df["date"] - prior_date_target).abs()
         nearest_idx = int(date_diff.idxmin())
         if date_diff.iloc[nearest_idx] <= pd.Timedelta(days=3):
+            prior_val = float(df.iloc[nearest_idx]["value"])
+        else:
+            prior_val = float(df.iloc[-2]["value"])
+    elif spec.delta_window == "w/w":
+        prior_date_target = latest_date - pd.Timedelta(days=7)
+        date_diff = (df["date"] - prior_date_target).abs()
+        nearest_idx = int(date_diff.idxmin())
+        # Sanity: must be within +/- 2 days of the 7-day target and must
+        # be at least 4 calendar days back (otherwise it's effectively a
+        # d/d move). Fall back to iloc[-2] if either gate fails.
+        nearest_row_date = pd.Timestamp(df.iloc[nearest_idx]["date"])
+        gap_days = abs((latest_date - nearest_row_date).days)
+        if date_diff.iloc[nearest_idx] <= pd.Timedelta(days=2) and gap_days >= 4:
             prior_val = float(df.iloc[nearest_idx]["value"])
         else:
             prior_val = float(df.iloc[-2]["value"])
@@ -1263,10 +1305,26 @@ def _build_section(cfg: SectionConfig, data_root: Path) -> dict:
         }
 
     latest_row = df.iloc[-1]
-    prior_row = df.iloc[-2]
     latest_val = float(latest_row["value"])
-    prior_val = float(prior_row["value"])
     latest_date = pd.Timestamp(latest_row["date"])
+
+    # Prior-comparator selection. Default is iloc[-2] (1 step back in the
+    # native cadence). delta_window="w/w" picks the row nearest 7 calendar
+    # days back -- right for daily series (FX, yields, commodities) where
+    # d/d moves are noise and w/w is the macro read. Falls back to iloc[-2]
+    # if the 7-day-back point isn't on disk with enough proximity.
+    if cfg.delta_window == "w/w":
+        prior_date_target = latest_date - pd.Timedelta(days=7)
+        date_diff = (df["date"] - prior_date_target).abs()
+        nearest_idx = int(date_diff.idxmin())
+        nearest_row_date = pd.Timestamp(df.iloc[nearest_idx]["date"])
+        gap_days = abs((latest_date - nearest_row_date).days)
+        if date_diff.iloc[nearest_idx] <= pd.Timedelta(days=2) and gap_days >= 4:
+            prior_val = float(df.iloc[nearest_idx]["value"])
+        else:
+            prior_val = float(df.iloc[-2]["value"])
+    else:
+        prior_val = float(df.iloc[-2]["value"])
 
     frequency = (loaded.meta.get("frequency") or "monthly").lower()
     spark = _sample_spark(df, frequency)

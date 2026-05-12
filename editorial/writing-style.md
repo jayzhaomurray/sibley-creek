@@ -795,7 +795,51 @@ need a Big-Six intermediary to describe a BoC surprise:
 
 ---
 
-## 8b. Ordering rule for splash-page blurb passes
+## 8b. Splash hero abstract — the take, written last
+
+### What the hero abstract is
+
+**A take on the Canadian macro picture as a whole — not a status
+report.** Three to five declarative sentences that state the editorial
+argument about where the cycle is and what's driving it. Numbers earn
+their place ONLY when they ARE the take (a level crossing, a regime
+shift, a structural fact that anchors the argument). Most data belongs
+in the section tiles below where readers can scan it directly.
+
+**The live reference for voice and structure** (current as of
+2026-05-11):
+
+> Cyclically, Canada is slowing down. Disinflation is in the final
+> mile and slack is building in the labour market. Structurally, the
+> economy is readjusting to halted population growth and tariffs.
+> Per-capita output is virtually flat since 2019; the US export share
+> has fallen from three quarters to two thirds over the last year.
+
+**Shape that lands a take:**
+
+- Sentence 1: the thesis in one declarative line (the cyclical or
+  cycle-level read).
+- Sentence 2: one supporting beat — what cyclical evidence backs the
+  thesis.
+- Sentence 3: the pivot — what the structural / second-order story is.
+- Sentence 4 (and optionally 5): one or two concrete structural facts
+  that ground the pivot.
+
+**What to cut from a draft hero abstract:**
+
+- Status-report openings ("Headline CPI firmed back to 2.3%...").
+- One sentence per section (a four-fact recitation across four sections
+  with no editorial thread).
+- Microscale numbers that belong on section pages (specific
+  percentiles, basis-point spreads, deltas-vs-prior).
+- Any sentence that could appear unchanged on a section tile below.
+- Hedge clauses ("though"... "but"... "with the caveat that...").
+
+**The test:** read the hero by itself, without the section tiles below.
+Does the reader walk away with a VIEW, or with a list of recent prints?
+If the latter, rewrite from the thesis down.
+
+### Ordering rule: hero is last
 
 When a blurb pass writes the splash page (the hero abstract paragraph
 plus the seven section blurbs), **the hero abstract is the LAST piece

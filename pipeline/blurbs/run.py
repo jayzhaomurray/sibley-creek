@@ -598,11 +598,27 @@ def _run_style(
 _SURFACE_FIT_CONTEXTS: dict[str, dict[str, str]] = {
     "homepage_abstract": {
         "lands_on": "the homepage abstract above the section grid on sibleycreek.ca",
-        "register": "3-4 sentences, plain reader-facing summary of this release for a visitor who has not yet clicked into a section",
+        "register": (
+            "3-5 declarative sentences carrying an editorial TAKE on the "
+            "Canadian macro picture as a whole. NOT a status report. Open "
+            "with the thesis (one declarative line); support with 1-2 beats; "
+            "pivot to the second-order or structural read; ground with 1-2 "
+            "concrete facts that ARE the take (a level crossing, a regime "
+            "shift). The current cyclical/structural framing is the live "
+            "exemplar -- see writing-style.md Section 8b for shape and "
+            "reference text. Do NOT recite each section's print; data "
+            "belongs in the tiles below."
+        ),
         "forbidden": (
-            "internal canon-jargon ('tri-modal product', 'chartbook unit', "
-            "'Mode 2', 'Big-Six framing'); process-talk about the pipeline; "
-            "voice-doctrine artifacts; placeholder template-slot residue"
+            "status-report openings ('Headline CPI firmed back to...'); "
+            "one-fact-per-section recitations (four sections, four facts, "
+            "no thread); microscale numbers (specific percentiles, "
+            "basis-point spreads, deltas-vs-prior) that belong on section "
+            "pages; sentences that could appear unchanged on a section tile "
+            "below; hedge clauses; internal canon-jargon ('tri-modal "
+            "product', 'chartbook unit', 'Mode 2', 'Big-Six framing'); "
+            "process-talk about the pipeline; voice-doctrine artifacts; "
+            "placeholder template-slot residue"
         ),
     },
     "topic_abstract": {

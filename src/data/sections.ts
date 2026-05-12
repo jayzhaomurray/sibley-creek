@@ -239,7 +239,7 @@ export const sections: Section[] = [
     chartSeriesKey: "cpi-yoy",
     heroKicker: "March CPI",
     tileLine:
-      "Headline CPI ran 2.3% Y/Y in March, with food and energy now carrying the above-target weight.",
+      "Headline CPI at 2.3% in March; food and energy carry the above-target weight.",
     prints: [
       {
         // The pipeline produces a real value for this row (data/site/sections.json:
@@ -492,7 +492,7 @@ export const sections: Section[] = [
     chartSeriesKey: "trade-balance",
     heroKicker: "March balance",
     tileLine:
-      "March goods trade balance narrowed to -$2.2B on a 3mma basis; US export share fell to 66.1%.",
+      "Goods balance narrowed to -$2.2B; US export share fell to 66.1%.",
     prints: [
       {
         key: "trade-balance",
@@ -551,7 +551,7 @@ export const sections: Section[] = [
     chartSeriesKey: "hpi-yoy",
     heroKicker: "March home prices",
     tileLine:
-      "Composite home prices slipped further into negative territory, Toronto and Vancouver leading the drift.",
+      "Composite home prices down 4.6% Y/Y, the eighth straight down month.",
     prints: [
       {
         key: "hpi-yoy",
