@@ -5,408 +5,56 @@
  * Not linked from production navigation. URL-accessed only:
  *   /chart-alternatives
  *
- * Renders all alternative chart treatments authored under
- * src/components/charts/_alternatives/<section>/Alt*.astro, grouped by
- * section, in a vertical scroll. Each chart sits in a frame matching the
- * chartbook-unit visual register so the reader can evaluate it in the
- * same surround a production plate would have.
+ * Renders every chart manifest under src/components/charts/_alternatives/
+ * <section>/index.ts, grouped by section, in a vertical scroll. Each chart
+ * sits in a frame matching the chartbook-unit visual register so the reader
+ * can evaluate it in the same surround a production plate would have.
  *
- * The user reads this page, picks the alternatives they want to keep,
- * and the rest get deleted in a follow-up sweep.
+ * The user reads this page, picks the alternatives they want to keep, and
+ * the rest get deleted, archived, or promoted in a follow-up sweep.
+ *
+ * Wiring:
+ *   - This page does NOT import individual Alt*.astro files. Adding a new
+ *     alt is one entry in the section's index.ts manifest — the page picks
+ *     it up automatically on the next build.
+ *   - Per-section manifests at _alternatives/<section>/index.ts.
+ *   - Aggregate manifest (the section order) at _alternatives/index.ts.
+ *
+ * Sibling page: /chart-archive renders the same shape against
+ * _archive/<section>/index.ts for charts parked indefinitely (with a
+ * pinned-favorites zone above the rest).
  */
 
 import BaseLayout from "../layouts/BaseLayout.astro";
-import labourPanelData from "../../data/site/panel_data/labour.json";
-import { pickPanel } from "../components/charts/_shared/panelData";
+import { shelves } from "../components/charts/_alternatives/index";
+import type { ChartShelfEntry } from "../components/charts/_alternatives/_shared/shelfEntry";
 
-// Production-component alternatives (live data). When a production chart
-// gets demoted off the page but is worth keeping for review, it lands
-// here wired to its real pipeline data — not as a placeholder Alt*.astro.
-import Panel1LFSHeadlineIndexed from "../components/charts/labour/Panel1LFSHeadlineIndexed.astro";
-import Panel6RegionalSmallMultiples from "../components/charts/labour/Panel6RegionalSmallMultiples.astro";
-
-const labourPanel1Data = pickPanel(labourPanelData, 1);
-const labourPanel6Data = pickPanel(labourPanelData, 6);
-
-// GDP
-import GdpAlt1 from "../components/charts/_alternatives/gdp/Alt1_ContributionsStacked.astro";
-import GdpAlt2 from "../components/charts/_alternatives/gdp/Alt2_PerCapitaVsTotal.astro";
-import GdpAlt3 from "../components/charts/_alternatives/gdp/Alt3_IndustryHeatmap.astro";
-import GdpAlt4 from "../components/charts/_alternatives/gdp/Alt4_GdpVsCapacity.astro";
-
-// Inflation
-import InfAlt1 from "../components/charts/_alternatives/inflation/Alt1_CoreOverlay.astro";
-import InfAlt2 from "../components/charts/_alternatives/inflation/Alt2_ComponentsSmallMultiples.astro";
-import InfAlt3 from "../components/charts/_alternatives/inflation/Alt3_BosBreadthStack.astro";
-import InfAlt4 from "../components/charts/_alternatives/inflation/Alt4_HeadlineMinusCore.astro";
-
-// Labour
-import LabAlt1 from "../components/charts/_alternatives/labour/Alt1_TripleLabourSeries.astro";
-import LabAlt2 from "../components/charts/_alternatives/labour/Alt2_YouthVsPrime.astro";
-import LabAlt3 from "../components/charts/_alternatives/labour/Alt3_WageGrowthYoY.astro";
-import LabAlt4 from "../components/charts/_alternatives/labour/Alt4_VacanciesVsEI.astro";
-import LabAlt5 from "../components/charts/_alternatives/labour/Alt5_URDecompIdentity.astro";
-import LabAlt6 from "../components/charts/_alternatives/labour/Alt6_ShimerDecomp.astro";
-import LabAlt7 from "../components/charts/_alternatives/labour/Alt7_PopulationDecomposition.astro";
-
-// Policy
-import PolAlt1 from "../components/charts/_alternatives/policy/Alt1_BocFedSpread.astro";
-import PolAlt2 from "../components/charts/_alternatives/policy/Alt2_BalanceSheetOverlay.astro";
-import PolAlt3 from "../components/charts/_alternatives/policy/Alt3_YieldCurveTriple.astro";
-import PolAlt4 from "../components/charts/_alternatives/policy/Alt4_TwosTensSlope.astro";
-
-// Markets
-import MktAlt1 from "../components/charts/_alternatives/markets/Alt1_GoCUstSpread.astro";
-import MktAlt2 from "../components/charts/_alternatives/markets/Alt2_OilTriple.astro";
-import MktAlt3 from "../components/charts/_alternatives/markets/Alt3_WcsDiscount.astro";
-import MktAlt4 from "../components/charts/_alternatives/markets/Alt4_UsdCadVsBocFed.astro";
-
-// Trade
-import TrdAlt1 from "../components/charts/_alternatives/trade/Alt1_ExportsImports.astro";
-import TrdAlt2 from "../components/charts/_alternatives/trade/Alt2_UsExportShare.astro";
-import TrdAlt3 from "../components/charts/_alternatives/trade/Alt3_BalanceSmoothing.astro";
-import TrdAlt4 from "../components/charts/_alternatives/trade/Alt4_TermsTradeVsWti.astro";
-
-// Housing
-import HsgAlt1 from "../components/charts/_alternatives/housing/Alt1_HpiMultiCity.astro";
-import HsgAlt2 from "../components/charts/_alternatives/housing/Alt2_StartsSmoothing.astro";
-import HsgAlt3 from "../components/charts/_alternatives/housing/Alt3_MortgageVsHpi.astro";
-import HsgAlt4 from "../components/charts/_alternatives/housing/Alt4_SnlrVsHpi.astro";
-
-interface AltSpec {
-  file: string;
-  title: string;
-  whatDifferent: string;
-  whyBetter: string;
-  dataFields: string;
-  Component: any;
-  /**
-   * Optional panel data passed through to the rendered component. Used when
-   * the alternative IS a production component (rather than an Alt*.astro
-   * placeholder) and needs real pipeline data to draw. Placeholder alts
-   * leave this unset and receive no props.
-   */
-  componentData?: unknown;
+// Sort entries within each section by addedAt desc; entries without
+// addedAt fall to the bottom in original manifest order. Stable sort
+// via manifest-index tiebreaker.
+function sortByRecency(entries: ChartShelfEntry[]): ChartShelfEntry[] {
+  return entries
+    .map((entry, idx) => ({ entry, idx }))
+    .sort((a, b) => {
+      const aDate = a.entry.addedAt ?? "";
+      const bDate = b.entry.addedAt ?? "";
+      if (aDate && bDate && aDate !== bDate) return bDate.localeCompare(aDate);
+      if (aDate && !bDate) return -1;
+      if (!aDate && bDate) return 1;
+      return a.idx - b.idx;
+    })
+    .map((wrapped) => wrapped.entry);
 }
 
-interface SectionSpec {
-  slug: string;
-  name: string;
-  alts: AltSpec[];
-}
+const sortedShelves = shelves.map((shelf) => ({
+  ...shelf,
+  entries: sortByRecency(shelf.entries),
+}));
 
-const sections: SectionSpec[] = [
-  {
-    slug: "gdp",
-    name: "Output",
-    alts: [
-      {
-        file: "gdp/Alt1_ContributionsStacked.astro",
-        title: "Contributions stacked",
-        whatDifferent: "Stacked vertical bars by component (consumption, govt, investment, exports, imports, inventories) per quarter, with total-contrib overlay line.",
-        whyBetter: "Production Panel 3 falls back to PanelEmpty; this revives the per-component story from raw CSVs.",
-        dataFields: "gdp_contrib_{consumption,govt,investment,exports,imports,inventories}.csv + gdp_total_contribution.csv",
-        Component: GdpAlt1,
-      },
-      {
-        file: "gdp/Alt2_PerCapitaVsTotal.astro",
-        title: "Total vs per-capita GDP, side-by-side",
-        whatDifferent: "Small multiples: total real GDP path and per-capita path indexed to 2019Q4 = 100. Same y-axis for visual comparability.",
-        whyBetter: "The population-padded-GDP critique is the dominant 2020s Canadian macro story; the small-multiple format makes the divergence impossible to miss.",
-        dataFields: "gdp_quarterly.csv + pop_immigrants.csv + pop_net_npr.csv",
-        Component: GdpAlt2,
-      },
-      {
-        file: "gdp/Alt3_IndustryHeatmap.astro",
-        title: "Industry Y/Y heatmap",
-        whatDifferent: "Four industry Y/Y growth rates as stacked diverging bar rows: goods, services, manufacturing, mining/oil. Ink opacity encodes magnitude.",
-        whyBetter: "Cycle dispersion across industries is invisible in a single-industry line; the heatmap puts dispersion in the foreground.",
-        dataFields: "gdp_industry_{goods,services,manufacturing,mining_oil}.csv",
-        Component: GdpAlt3,
-      },
-      {
-        file: "gdp/Alt4_GdpVsCapacity.astro",
-        title: "GDP Y/Y with capacity utilization overlay",
-        whatDifferent: "GDP Y/Y primary line, total capacity utilization secondary dashed line, both quarterly.",
-        whyBetter: "Capacity utilization alone is a level; paired with GDP Y/Y it tells the cycle-pressure story.",
-        dataFields: "gdp_quarterly.csv (Y/Y derived) + capacity_util_total.csv",
-        Component: GdpAlt4,
-      },
-    ],
-  },
-  {
-    slug: "inflation",
-    name: "Inflation",
-    alts: [
-      {
-        file: "inflation/Alt1_CoreOverlay.astro",
-        title: "Three core measures overlay",
-        whatDifferent: "Trim (primary solid), median (secondary dashed), common (tertiary sparse-dashed) on shared % axis with 2% target reference.",
-        whyBetter: "Production Panel 2 carries trim + median; adding common shows dispersion across BoC core measures, which is the editorial signal at turning points.",
-        dataFields: "cpi_trim.csv + cpi_median.csv + cpi_common.csv",
-        Component: InfAlt1,
-      },
-      {
-        file: "inflation/Alt2_ComponentsSmallMultiples.astro",
-        title: "CPI components 2x2 small multiples",
-        whatDifferent: "Four indexed-to-2019 component price levels in a 2x2 grid: shelter, food, energy, services. Each has its own frame and direct dot.",
-        whyBetter: "Cumulative price levels (food up 35%, shelter up 28%) are what the reader wants from a components view; Y/Y momentum lines lose the cumulative read.",
-        dataFields: "cpi_shelter.csv, cpi_food.csv, cpi_energy.csv, cpi_services.csv",
-        Component: InfAlt2,
-      },
-      {
-        file: "inflation/Alt3_BosBreadthStack.astro",
-        title: "BOS breadth distribution stacked",
-        whatDifferent: "100%-stacked bars per BOS round: below-1% / 1-2% / 2-3% / above-3% buckets. Ink opacity tracks distance from target; above-3% reads heaviest.",
-        whyBetter: "Distribution beats average. Business price-setters drive realized inflation, and their breadth leads CPI by quarters.",
-        dataFields: "bos_dist_below1.csv + bos_dist_1to2.csv + bos_dist_2to3.csv + bos_dist_above3.csv",
-        Component: InfAlt3,
-      },
-      {
-        file: "inflation/Alt4_HeadlineMinusCore.astro",
-        title: "Headline minus core-trim gap",
-        whatDifferent: "Single zero-crossing line: headline Y/Y minus trim Y/Y. The food/energy noise vs underlying trend diagnostic.",
-        whyBetter: "One line, one declarative statement. The chart a fixed-income desk reads first.",
-        dataFields: "cpi_all_items.csv (Y/Y derived) - cpi_trim.csv",
-        Component: InfAlt4,
-      },
-    ],
-  },
-  {
-    slug: "labour",
-    name: "Labour",
-    alts: [
-      {
-        file: "labour/Alt1_TripleLabourSeries.astro",
-        title: "Unemp + emp rate + participation triple",
-        whatDifferent: "Three LFS series overlaid: unrate primary solid, emprate secondary dashed-4-2, participation tertiary sparse-dashed-2-3. Pure ink throughout.",
-        whyBetter: "The three together tell the full LFS story; participation movement explains how the unemployment and employment rates can move in the same direction.",
-        dataFields: "unemployment_rate.csv + employment_rate.csv + participation_rate.csv",
-        Component: LabAlt1,
-      },
-      {
-        file: "labour/Alt2_YouthVsPrime.astro",
-        title: "Youth vs prime-age unemployment",
-        whatDifferent: "Youth (15-24) primary line over prime-age (25-54) secondary dashed line. Gap is the cyclical-vs-structural decomposition.",
-        whyBetter: "Youth unemployment leads cycle deterioration; the pair makes turning points legible six months earlier than the headline.",
-        dataFields: "youth_unemployment_rate.csv + prime_age_unemployment_rate.csv",
-        Component: LabAlt2,
-      },
-      {
-        file: "labour/Alt3_WageGrowthYoY.astro",
-        title: "LFS vs SEPH wage growth Y/Y",
-        whatDifferent: "Both series in Y/Y growth (not levels), with 3% trend reference. LFS leads, SEPH is the payroll truth.",
-        whyBetter: "Wage Y/Y is what the BoC watches; production Panel 3 shows levels, which obscure the cycle.",
-        dataFields: "lfs_wages_all.csv (Y/Y) + seph_earnings.csv (Y/Y)",
-        Component: LabAlt3,
-      },
-      {
-        file: "labour/Alt4_VacanciesVsEI.astro",
-        title: "Vacancies vs EI claims, both indexed",
-        whatDifferent: "Both indexed to Jan 2019 = 100 to share a unitless axis. Vacancies up + EI up = mismatch; vacancies down + EI up = recession.",
-        whyBetter: "The two-sided cycle read (demand and dislocation) is invisible from either chart alone.",
-        dataFields: "job_vacancy_rate.csv + ei_regular_beneficiaries.csv, both indexed",
-        Component: LabAlt4,
-      },
-      {
-        file: "labour/Alt5_URDecompIdentity.astro",
-        title: "ΔUR identity decomposition: numerator vs denominator",
-        whatDifferent: "Stacked signed bars per month — ΔU contribution (heavier ink, numerator) plus ΔE contribution (lighter ink, denominator) — sum exactly to ΔUR. The actual ΔUR series overlays as a thin dashed line; latest month in MTA red.",
-        whyBetter: "ΔUR = (ΔU·E − U·ΔE)/(LF·LF). The decomposition disciplines hot takes that confuse a denominator shift (population grew faster than jobs) with labour-market deterioration (jobs were lost). Most months one bar dominates — the chart names which.",
-        dataFields: "unemployment_rate.csv + unemployment_level.csv (E and LF derived from LFS identity LF = U/(UR/100), E = LF − U)",
-        Component: LabAlt5,
-      },
-      {
-        file: "labour/Alt6_ShimerDecomp.astro",
-        title: "Cyclical UR moves: separation-driven or finding-rate-driven?",
-        whatDifferent: "Two-panel Shimer-style decomposition: monthly separation rate (left, ~2% normal, spikes in 2020) and job-finding rate (right, ~30% normal, collapses in recessions). Both derived from stocks plus short-duration unemployment via Elsby-Michaels-Solon.",
-        whyBetter: "The same UR move can come from rising separations (people losing jobs, leads recessions) or falling finding rates (matching market frozen, persists into early recoveries). Naming which channel is doing the work disciplines cycle-stage takes that the level chart can't support.",
-        dataFields: "unemployment_level.csv + unemployment_rate.csv + unemployment_1_to_4_weeks.csv (E derived from LFS identity)",
-        Component: LabAlt6,
-      },
-      {
-        file: "labour/Alt7_PopulationDecomposition.astro",
-        title: "Quarterly population change decomposed: candidate replacement for the IRCC supply plate",
-        whatDifferent: "Stacked composition of quarterly population change — natural increase, net PR, net NPR (in MTA red, the swing factor), and a residual that closes the identity to ΔPOP — with total population overlaid as a thin dashed line on a right-side axis. 60 quarters / 15 years.",
-        whyBetter: "Production Panel 4 plots PR landings and net NPR vs plan; this names the entire denominator dynamic at once. The 2024–25 NPR pivot reads as the bucket that flipped sharply negative, and the dashed level line shows how the cumulative composition has rolled the pop_total over. User asked for it as a candidate replacement for the IRCC supply-trajectory plate.",
-        dataFields: "pop_births + pop_deaths + pop_immigrants + pop_emigrants + pop_net_npr + pop_total (all quarterly, data/raw/).",
-        Component: LabAlt7,
-      },
-      {
-        file: "labour/Panel1LFSHeadlineIndexed.astro",
-        title: "LFS headline indexed to pre-pandemic baseline",
-        whatDifferent: "Forces all three rates (unemployment, employment, participation) onto a shared scale (Feb 2020 = 100) so the divergence between them is the geometry.",
-        whyBetter: "User preference was per-panel y-axis tuning instead; this is the alternative kept for reference.",
-        dataFields: "lfs_unemployment_rate.csv + lfs_employment_rate.csv + lfs_participation_rate.csv, all rebased to Feb 2020.",
-        Component: Panel1LFSHeadlineIndexed,
-        componentData: labourPanel1Data,
-      },
-      {
-        file: "labour/Panel6RegionalSmallMultiples.astro",
-        title: "Provincial unemployment, 2x2 levels with Canada as reference",
-        whatDifferent: "Each panel shows the provincial rate as the protagonist line with the national rate as a dashed reference per the aggregate-vs-component canon.",
-        whyBetter: "User preferred the deviation-from-national framing (spread bars) for the production version; this is the level-comparison alternative kept for reference.",
-        dataFields: "lfs_{on,qc,bc,ab,ca}_unemployment_rate.csv",
-        Component: Panel6RegionalSmallMultiples,
-        componentData: labourPanel6Data,
-      },
-    ],
-  },
-  {
-    slug: "policy",
-    name: "Policy",
-    alts: [
-      {
-        file: "policy/Alt1_BocFedSpread.astro",
-        title: "BoC overnight minus Fed funds",
-        whatDifferent: "Spread as a single zero-crossing line. Front-end policy divergence chart.",
-        whyBetter: "The spread, not the level, drives USDCAD and the front-end basis. Production Panel 1 plots the BoC rate alone.",
-        dataFields: "overnight_rate.csv - fed_funds.csv",
-        Component: PolAlt1,
-      },
-      {
-        file: "policy/Alt2_BalanceSheetOverlay.astro",
-        title: "BoC total assets and settlement balances, side-by-side",
-        whatDifferent: "Small multiples: total assets path and settlement balances path each in their own frame.",
-        whyBetter: "A one-axis dual overlay is misleading; the two move on related but different mechanisms.",
-        dataFields: "boc_total_assets.csv + boc_settlement_balances.csv",
-        Component: PolAlt2,
-      },
-      {
-        file: "policy/Alt3_YieldCurveTriple.astro",
-        title: "GoC 2y / 5y / 10y overlay",
-        whatDifferent: "Three yield curves on shared % axis: 2y primary, 5y secondary dashed, 10y tertiary sparse-dashed. The morning desk read.",
-        whyBetter: "Curve shape and parallel shifts both visible. Production Panel 2 pairs 2y with overnight only.",
-        dataFields: "yield_2yr.csv + yield_5yr.csv + yield_10yr.csv",
-        Component: PolAlt3,
-      },
-      {
-        file: "policy/Alt4_TwosTensSlope.astro",
-        title: "GoC 2s10s slope",
-        whatDifferent: "10y minus 2y as a single line with zero (inversion) line. The canonical recession-signal chart.",
-        whyBetter: "Slope is the diagnostic; the level chart (Alt 3) shows context, this one tells the story.",
-        dataFields: "yield_10yr.csv - yield_2yr.csv",
-        Component: PolAlt4,
-      },
-    ],
-  },
-  {
-    slug: "markets",
-    name: "Markets",
-    alts: [
-      {
-        file: "markets/Alt1_GoCUstSpread.astro",
-        title: "GoC 2y minus UST 2y",
-        whatDifferent: "Front-end basis to US. Single zero-crossing line.",
-        whyBetter: "The basis trades, not the rate. Negative basis = Canada-rich; widening = policy divergence.",
-        dataFields: "yield_2yr.csv - us_2yr.csv",
-        Component: MktAlt1,
-      },
-      {
-        file: "markets/Alt2_OilTriple.astro",
-        title: "WTI + Brent + WCS triple",
-        whatDifferent: "Adds Western Canadian Select (heavy crude) to the WTI-Brent pair from production Panel 4.",
-        whyBetter: "WCS is the Canadian price; the WCS-WTI gap drives Alberta capex and federal royalties.",
-        dataFields: "wti.csv + brent.csv + wcs.csv",
-        Component: MktAlt2,
-      },
-      {
-        file: "markets/Alt3_WcsDiscount.astro",
-        title: "WCS-WTI differential",
-        whatDifferent: "Single line: WTI minus WCS. The Alberta wellhead-realization story.",
-        whyBetter: "Wide differential = pipeline constraints; tight = relief. One line, one signal.",
-        dataFields: "wti.csv - wcs.csv",
-        Component: MktAlt3,
-      },
-      {
-        file: "markets/Alt4_UsdCadVsBocFed.astro",
-        title: "USDCAD vs GoC2-UST2, side-by-side",
-        whatDifferent: "Small multiples since units differ (price vs %). The policy-driven FX story in one visual scan.",
-        whyBetter: "The whole loonie story since 2022 is the BoC-Fed rate gap. Side-by-side avoids the dual-unit trap.",
-        dataFields: "usdcad.csv + (yield_2yr.csv - us_2yr.csv)",
-        Component: MktAlt4,
-      },
-    ],
-  },
-  {
-    slug: "trade",
-    name: "Trade",
-    alts: [
-      {
-        file: "trade/Alt1_ExportsImports.astro",
-        title: "Total exports + total imports overlay",
-        whatDifferent: "Both flows in CAD billions on shared axis; the visible gap is the trade balance.",
-        whyBetter: "Level of trade flows matters as much as the balance. Production Panel 1 carries the balance alone.",
-        dataFields: "trade_exports_total.csv + trade_imports_total.csv",
-        Component: TrdAlt1,
-      },
-      {
-        file: "trade/Alt2_UsExportShare.astro",
-        title: "US share of exports with 12mma",
-        whatDifferent: "Computed share US/Total with a 12-month moving average overlay. The dependence chart.",
-        whyBetter: "The single most-cited Canadian fact (\"75% to US\") deserves its own chart.",
-        dataFields: "trade_exports_us.csv / trade_exports_total.csv",
-        Component: TrdAlt2,
-      },
-      {
-        file: "trade/Alt3_BalanceSmoothing.astro",
-        title: "Trade balance: 3mma + 12mma + monthly",
-        whatDifferent: "Three temporal scales on one chart: monthly noise, 3mma cycle, 12mma trend.",
-        whyBetter: "Trade prints are revision-noisy; three smoothings discipline the reader away from over-reading one month.",
-        dataFields: "trade_balance_total.csv with derived 3mma + 12mma",
-        Component: TrdAlt3,
-      },
-      {
-        file: "trade/Alt4_TermsTradeVsWti.astro",
-        title: "Terms of trade with WTI overlay",
-        whatDifferent: "Both indexed to 2017 = 100 on a shared axis. Canadian terms-of-trade is essentially a leveraged bet on oil.",
-        whyBetter: "Production Panel 5 carries terms-of-trade alone; the WTI overlay makes the mechanism explicit.",
-        dataFields: "trade.json panel-5 (terms_of_trade) + wti.csv indexed",
-        Component: TrdAlt4,
-      },
-    ],
-  },
-  {
-    slug: "housing",
-    name: "Housing",
-    alts: [
-      {
-        file: "housing/Alt1_HpiMultiCity.astro",
-        title: "MLS HPI Y/Y national + 3 CMAs",
-        whatDifferent: "National solid, Toronto dashed, Vancouver sparse-dashed, Calgary dotted. All pure ink; weight and dash carry identity.",
-        whyBetter: "National HPI averages across very different regional cycles. The Calgary-vs-Toronto divergence is the housing story of the past two years.",
-        dataFields: "crea_hpi_{canada,toronto,vancouver,calgary}.csv, all Y/Y derived",
-        Component: HsgAlt1,
-      },
-      {
-        file: "housing/Alt2_StartsSmoothing.astro",
-        title: "Housing starts: 6mma + 3mma + monthly",
-        whatDifferent: "Three smoothings of the SAAR starts series, with monthly noise included.",
-        whyBetter: "Starts are noisy; the smoothings train the eye on the trend rather than the print.",
-        dataFields: "housing_starts.csv with derived 3mma + 6mma",
-        Component: HsgAlt2,
-      },
-      {
-        file: "housing/Alt3_MortgageVsHpi.astro",
-        title: "5yr mortgage rate vs HPI Y/Y",
-        whatDifferent: "Same-axis (both %) dual-series overlay showing the transmission channel.",
-        whyBetter: "The mortgage rate alone is a level; paired with HPI Y/Y it tells a transmission story. BoC cuts show up here as HPI stabilizing.",
-        dataFields: "mortgage_rate_5yr.csv + crea_hpi_canada.csv (Y/Y)",
-        Component: HsgAlt3,
-      },
-      {
-        file: "housing/Alt4_SnlrVsHpi.astro",
-        title: "SNLR with HPI Y/Y overlay",
-        whatDifferent: "SNLR primary with the sellers'-market threshold (60%) as reference; HPI Y/Y secondary. The leading-indicator pair.",
-        whyBetter: "SNLR > 60 leads HPI acceleration by 3-6 months; the overlay makes the lead visible.",
-        dataFields: "crea_snlr.csv + crea_mls_hpi.csv (Y/Y)",
-        Component: HsgAlt4,
-      },
-    ],
-  },
-];
-
-const totalCount = sections.reduce((sum, s) => sum + s.alts.length, 0);
+const totalCount = sortedShelves.reduce(
+  (sum, s) => sum + s.entries.length,
+  0,
+);
 ---
 
 <BaseLayout
@@ -418,48 +66,79 @@ const totalCount = sections.reduce((sum, s) => sum + s.alts.length, 0);
       <p class="alt-page__eyebrow">CHART-BUILDER REVIEW</p>
       <h1 class="alt-page__title">Chart alternatives</h1>
       <p class="alt-page__lede">
-        {totalCount} alternative treatments across {sections.length} sections.
+        {totalCount} alternative treatments across {sortedShelves.length} sections.
         Each chart consumes data already in the pipeline. Keep what survives;
         the rest get deleted in a follow-up sweep.
       </p>
+      <p class="alt-page__crosslink">
+        Charts parked indefinitely live on
+        <a href="/chart-archive/">/chart-archive</a>.
+      </p>
     </header>
 
-    {sections.map((section) => (
-      <section class="alt-section" id={`section-${section.slug}`}>
+    <nav class="alt-jump" aria-label="Jump to section">
+      <ul class="alt-jump__list">
+        {sortedShelves.map((shelf) => {
+          const empty = shelf.entries.length === 0;
+          return (
+            <li class={`alt-jump__item${empty ? " alt-jump__item--empty" : ""}`}>
+              {empty
+                ? <span class="alt-jump__link" aria-disabled="true">
+                    {shelf.name}
+                    <span class="alt-jump__count">({shelf.entries.length})</span>
+                  </span>
+                : <a class="alt-jump__link" href={`#section-${shelf.slug}`}>
+                    {shelf.name}
+                    <span class="alt-jump__count">({shelf.entries.length})</span>
+                  </a>
+              }
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+
+    {sortedShelves.map((shelf) => (
+      <section class="alt-section" id={`section-${shelf.slug}`}>
         <header class="alt-section__head">
-          <h2 class="alt-section__title">{section.name}</h2>
-          <p class="alt-section__count">{section.alts.length} alternative{section.alts.length === 1 ? "" : "s"}</p>
+          <h2 class="alt-section__title">{shelf.name}</h2>
+          <p class="alt-section__count">
+            {shelf.entries.length} alternative{shelf.entries.length === 1 ? "" : "s"}
+          </p>
         </header>
 
-        {section.alts.map((alt) => (
-          <article class="alt-unit">
-            <header class="alt-unit__head">
-              <p class="alt-unit__file">{alt.file}</p>
-              <h3 class="alt-unit__title">{alt.title}</h3>
-            </header>
+        {shelf.entries.map((entry) => {
+          const Component = entry.Component as any;
+          return (
+            <article class="alt-unit">
+              <header class="alt-unit__head">
+                <p class="alt-unit__file">{entry.file}</p>
+                <h3 class="alt-unit__title">{entry.title}</h3>
+              </header>
 
-            <div class="alt-unit__chart">
-              {alt.componentData !== undefined
-                ? <alt.Component data={alt.componentData} />
-                : <alt.Component />}
-            </div>
+              <div class="alt-unit__chart">
+                {entry.data !== undefined
+                  ? <Component data={entry.data} />
+                  : <Component />}
+              </div>
 
-            <dl class="alt-unit__meta">
-              <div class="alt-unit__row">
-                <dt>What's different</dt>
-                <dd>{alt.whatDifferent}</dd>
-              </div>
-              <div class="alt-unit__row">
-                <dt>Why it might be better</dt>
-                <dd>{alt.whyBetter}</dd>
-              </div>
-              <div class="alt-unit__row">
-                <dt>Data fields</dt>
-                <dd><code>{alt.dataFields}</code></dd>
-              </div>
-            </dl>
-          </article>
-        ))}
+              <dl class="alt-unit__meta">
+                <div class="alt-unit__row">
+                  <dt>What's different</dt>
+                  <dd>{entry.whatDifferent}</dd>
+                </div>
+                <div class="alt-unit__row">
+                  <dt>Why it might be better</dt>
+                  <dd>{entry.whyBetter}</dd>
+                </div>
+                <div class="alt-unit__row">
+                  <dt>Data fields</dt>
+                  <dd><code>{entry.dataFields}</code></dd>
+                </div>
+              </dl>
+            </article>
+          );
+        })}
       </section>
     ))}
   </div>
@@ -503,6 +182,66 @@ const totalCount = sections.reduce((sum, s) => sum + s.alts.length, 0);
     line-height: 1.55;
     color: var(--ink);
     max-width: 60ch;
+  }
+  .alt-page__crosslink {
+    margin: 14px 0 0;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink);
+    opacity: 0.75;
+    max-width: 60ch;
+  }
+  .alt-page__crosslink a {
+    color: var(--ink);
+  }
+
+  /* Wayfinding strip — sticky at top of viewport on scroll. */
+  .alt-jump {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--paper);
+    margin: -24px 0 32px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+  }
+  .alt-jump__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    align-items: baseline;
+  }
+  .alt-jump__item {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .alt-jump__link {
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    padding-bottom: 1px;
+    transition: border-color 0.15s ease;
+  }
+  a.alt-jump__link:hover,
+  a.alt-jump__link:focus-visible {
+    border-bottom-color: var(--accent);
+  }
+  .alt-jump__count {
+    margin-left: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink);
+    opacity: 0.55;
+  }
+  .alt-jump__item--empty .alt-jump__link {
+    opacity: 0.4;
+    cursor: default;
   }
 
   .alt-section {

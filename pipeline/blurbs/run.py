@@ -62,6 +62,10 @@ from pipeline.blurbs.registry import (
     get_release_spec,
     parse_release_id,
 )
+from pipeline.blurbs.section_context import (
+    SECTION_CONTEXTS,
+    section_to_release_key,
+)
 from pipeline.blurbs.release_cycle import (
     ReleaseCycle,
     StateEvent,
@@ -1170,7 +1174,24 @@ def _parse_args(argv=None) -> argparse.Namespace:
         prog="python -m pipeline.blurbs.run",
         description="Walk one auto-blurb release-cycle end to end.",
     )
-    p.add_argument("--release-id", required=True)
+    p.add_argument("--release-id", required=True,
+        help=(
+            "Free-form release-id of the form <release_key>_<YYYY-MM> "
+            "(e.g. cpi_monthly_2026-04, lfs_monthly_2026-05). Convention "
+            "<section>_<release-type>_<YYYY-MM> works too -- the parser "
+            "splits on the trailing YYYY-MM suffix."
+        ),
+    )
+    p.add_argument("--section",
+        choices=sorted(SECTION_CONTEXTS),
+        help=(
+            "Optional section slug (e.g. labour, gdp, housing, markets, "
+            "policy, trade, inflation). When set, the orchestrator "
+            "validates that --release-id resolves to the section's "
+            "canonical release-key. Useful as a guard against typos in "
+            "release-id."
+        ),
+    )
     p.add_argument(
         "--surface", dest="single_surface",
         help="re-run only this surface against an existing cycle",
@@ -1182,12 +1203,46 @@ def _parse_args(argv=None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+def _resolve_release_key_with_section(
+    release_id: str,
+    section: Optional[str],
+) -> tuple[str, str, ReleaseKeySpec]:
+    """Parse release-id and optionally cross-check against --section.
+
+    Returns ``(release_key, reference_period, release_spec)``.
+
+    Raises:
+      ValueError: if --section is set and the release-id's release-key
+        does not match the section's canonical release-key.
+      KeyError:   if the release-id's release-key is not registered.
+    """
+    release_key, reference_period = parse_release_id(release_id)
+    if section is not None:
+        canonical = section_to_release_key(section)
+        if release_key != canonical:
+            raise ValueError(
+                f"--section {section!r} resolves to release_key "
+                f"{canonical!r}, but --release-id {release_id!r} parses "
+                f"to release_key {release_key!r}. Either fix the "
+                f"release-id (expected prefix {canonical!r}) or drop "
+                f"--section."
+            )
+    release_spec = get_release_spec(release_key)
+    return release_key, reference_period, release_spec
+
+
 def main(argv=None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     args = _parse_args(argv)
+    try:
+        release_key, reference_period, release_spec = (
+            _resolve_release_key_with_section(args.release_id, args.section)
+        )
+    except (ValueError, KeyError) as exc:
+        logger.error("release-id resolution failed: %s", exc)
+        return 2
+
     if args.dry_run:
-        release_key, reference_period = parse_release_id(args.release_id)
-        release_spec = get_release_spec(release_key)
         release_date = detect_release_landed(REPO_ROOT, release_spec)
         rc = init_release_cycle(
             repo_root=REPO_ROOT,
@@ -1202,8 +1257,12 @@ def main(argv=None) -> int:
             spec = next(s for s in release_spec.surfaces if s.surface_id == slot.surface_id)
             _init_artifact(REPO_ROOT, rc, slot, spec)
         write_release_cycle(REPO_ROOT, rc)
-        logger.info("dry-run: cycle initialized at editorial/blurbs/_cycles/%s.json",
-                    args.release_id)
+        logger.info(
+            "dry-run: cycle initialized at editorial/blurbs/_cycles/%s.json "
+            "(section=%s, release_key=%s, surfaces=%d)",
+            args.release_id, release_spec.section, release_key,
+            len(release_spec.surfaces),
+        )
         return 0
 
     try:

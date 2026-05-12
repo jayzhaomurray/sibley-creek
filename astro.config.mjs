@@ -40,7 +40,8 @@ export default defineConfig({
       filter: (page) =>
         !page.includes('/_experiments/') &&
         !page.includes('/og-preview/') &&
-        !page.includes('/chart-improvements/'),
+        !page.includes('/chart-alternatives/') &&
+        !page.includes('/chart-archive/'),
     }),
   ],
 });

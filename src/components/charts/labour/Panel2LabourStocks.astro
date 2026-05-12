@@ -1,0 +1,409 @@
+---
+/*
+ * Panel2LabourStocks - 3-panel side-by-side composite of the three
+ * labour-force stocks the working-age population sits in: employed,
+ * unemployed, not-in-labour-force. 60-month window. Shared x-axis;
+ * per-panel y-axes (the magnitudes differ by an order of magnitude --
+ * ~21M employed, ~1.5M unemployed, ~12M NLF -- so a shared y-scale
+ * would crush the small magnitudes).
+ *
+ * Editorial frame (user-codified 2026-05-12):
+ *   "Where does the working-age population sit?" Three buckets, three
+ *   trajectories. Reader sees where movement is concentrated. Replaces
+ *   the indexed-wedge V3 (archived at _alternatives/labour/Alt_Panel2-
+ *   URDriversIndexedWedge.astro) -- that geometry did not land.
+ *
+ * Geometry. Same canvas + sub-panel pattern as Panel4BeveridgeCompanion
+ * but three panes instead of two. 720x405 viewBox (canon Tier-3); three
+ * equal-width sub-panels with narrow gutters between. Each pane: single
+ * line, 1.5px solid pure ink, MTA-red terminal dot at the latest print.
+ * Per-pane kicker labels above ("EMPLOYED" / "UNEMPLOYED" / "NOT IN
+ * LABOUR FORCE", small-caps, Manrope semibold, 11px, letter-spaced --
+ * same treatment as the sub-panel titles on Panel4BeveridgeCompanion).
+ * Per-pane y-axis: millions on each panel.
+ *
+ * NO sentence annotations on canvas. NO duplicate direct labels at line
+ * termini (the sub-panel kickers above are enough). NO methodology
+ * micro-note on canvas (canon trim, 2026-05-12 session).
+ *
+ * Data wiring + derivation.
+ *   primary   = employment_level    (StatCan v2062811, SA monthly, M)
+ *   secondary = unemployment_level  (StatCan v2062814, SA monthly, M)
+ *   tertiary  = employment_rate     (StatCan v2062817, SA monthly, %)
+ *
+ * NLF is derived at render time, not fetched separately. The LFS
+ * identity gives population 15+ as
+ *   pop_15+[t] = employment[t] / (employment_rate[t] / 100)
+ * and then
+ *   NLF[t] = pop_15+[t] - employment[t] - unemployment[t].
+ *
+ * Why derived rather than a new vector? Two reasons. (1) Adding a new
+ * StatCan vector for pop_15+ (or NLF directly) requires a catalog +
+ * pipeline + fixture round-trip and a CI-only force-add for the raw
+ * CSV; the derived path is identity-clean and uses series already
+ * wired into the labour panel-1 slot. (2) The identity is exact to the
+ * rounding of the published rates -- spot-checked against the
+ * StatCan-published employment rate (Apr 2026 emp_rate = 60.5%,
+ * derived pop_15+ = 21.0337 / 0.605 = 34.766M, NLF = 12.166M).
+ *
+ * Verified spot-checks (Apr 2026 vintage):
+ *   Apr 2026: emp 21.0337M | unemp 1.5664M | NLF 12.166M
+ *   Jan 2026: emp 21.1212M | unemp 1.4575M | NLF 12.160M
+ *   Apr 2024: emp 20.6749M | unemp 1.3606M | NLF 11.527M
+ *
+ * Source: Statistics Canada Table 14-10-0287-01 (Labour Force Survey,
+ * monthly SA). The NLF panel surfaces a derived series; methodology
+ * recorded here and in the SVG aria-label (NOT on canvas).
+ */
+
+import type { PanelData, SeriesPoint } from "../_shared/panelData";
+import { decYear, tailWindow } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+const { data = null } = Astro.props;
+
+const WINDOW_MONTHS = 60;
+
+function lastReal(series: SeriesPoint[]): { date: string; value: number } | null {
+  for (let i = series.length - 1; i >= 0; i--) {
+    const pt = series[i]!;
+    if (typeof pt.value === "number" && !Number.isNaN(pt.value)) {
+      return { date: pt.date, value: pt.value };
+    }
+  }
+  return null;
+}
+
+function pickStride(lo: number, hi: number, targetTicks = 4): number {
+  const span = hi - lo;
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  const rough = span / targetTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let nice: number;
+  if (norm < 1.5) nice = 1;
+  else if (norm < 3) nice = 2;
+  else if (norm < 4) nice = 2.5;
+  else if (norm < 7) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+
+// ---- Source series -----------------------------------------------------
+const empRaw = data?.primary?.data ?? [];
+const unempRaw = data?.secondary?.data ?? [];
+const empRateRaw = data?.tertiary?.data ?? [];
+
+// Window each series to the trailing WINDOW_MONTHS months.
+const emp = tailWindow(empRaw, WINDOW_MONTHS, "monthly");
+const unemp = tailWindow(unempRaw, WINDOW_MONTHS, "monthly");
+const empRate = tailWindow(empRateRaw, WINDOW_MONTHS, "monthly");
+
+// Derive NLF per matching month via the LFS identity:
+//   pop_15+[t] = employment[t] / (employment_rate[t] / 100)
+//   NLF[t]     = pop_15+[t] - employment[t] - unemployment[t]
+const unempMap = new Map<string, number | null>(unemp.map((p) => [p.date, p.value]));
+const empRateMap = new Map<string, number | null>(empRate.map((p) => [p.date, p.value]));
+const nlf: SeriesPoint[] = [];
+for (const pt of emp) {
+  const e = pt.value;
+  const u = unempMap.get(pt.date);
+  const er = empRateMap.get(pt.date);
+  if (
+    typeof e === "number" && !Number.isNaN(e) &&
+    typeof u === "number" && !Number.isNaN(u) &&
+    typeof er === "number" && !Number.isNaN(er) && er > 0
+  ) {
+    const pop15 = e / (er / 100);
+    nlf.push({ date: pt.date, value: pop15 - e - u });
+  } else {
+    nlf.push({ date: pt.date, value: null });
+  }
+}
+
+const hasData =
+  emp.length > 1 &&
+  unemp.length > 1 &&
+  empRate.length > 1 &&
+  nlf.some((p) => typeof p.value === "number");
+
+// Shared x-domain across all 3 sub-panels.
+const allDates = hasData ? [...emp, ...unemp, ...nlf] : [];
+const allX = allDates.map((d) => decYear(d.date)).filter((v) => !Number.isNaN(v));
+const xMinShared = allX.length > 0 ? Math.min(...allX) : 0;
+const xMaxShared = allX.length > 0 ? Math.max(...allX) : 1;
+
+// ---- Geometry ----------------------------------------------------------
+// Three sub-panels, narrow gutters. Mirrors Panel4BeveridgeCompanion
+// proportions but with three panes instead of two.
+const VB_W = 720;
+const VB_H = 405;
+const M_OUT = 8;
+const GAP_X = 32;
+const M_T = 52;
+const M_B = 36;
+const SUB_M_L = 38;
+const SUB_M_R = 10;
+
+const SUB_W = (VB_W - 2 * M_OUT - 2 * GAP_X) / 3;
+const P1_X0 = M_OUT;
+const P1_X1 = P1_X0 + SUB_W;
+const P2_X0 = P1_X1 + GAP_X;
+const P2_X1 = P2_X0 + SUB_W;
+const P3_X0 = P2_X1 + GAP_X;
+const P3_X1 = P3_X0 + SUB_W;
+
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_H = PLOT_Y1 - PLOT_Y0;
+
+// ---- Per-pane builder -------------------------------------------------
+//
+// Each sub-panel is a single line on its own y-scale (millions). x-scale
+// is shared across all three panes (xMinShared..xMaxShared) so the year
+// ticks align horizontally across the composite.
+interface PaneGeom {
+  plotX0: number;
+  plotX1: number;
+  plotW: number;
+  yLo: number;
+  yHi: number;
+  yRange: number;
+  yTicks: number[];
+  xTicks: Array<{ x: number; label: string }>;
+  linePath: string;
+  lastXY: { x: number; y: number; value: number; date: string } | null;
+}
+
+function buildPane(
+  series: SeriesPoint[],
+  subX0: number,
+  subX1: number,
+): PaneGeom {
+  const plotX0 = subX0 + SUB_M_L;
+  const plotX1 = subX1 - SUB_M_R;
+  const plotW = plotX1 - plotX0;
+
+  const vals: number[] = [];
+  for (const d of series) if (typeof d.value === "number" && !Number.isNaN(d.value)) vals.push(d.value);
+
+  let yLo = 0, yHi = 1;
+  if (vals.length > 0) {
+    const rawMin = Math.min(...vals);
+    const rawMax = Math.max(...vals);
+    const span = (rawMax - rawMin) || Math.max(0.05, Math.abs(rawMax) * 0.05);
+    yLo = rawMin - span * 0.15;
+    yHi = rawMax + span * 0.15;
+  }
+  const yRange = yHi - yLo || 1;
+
+  const xScale = (yr: number) => {
+    if (xMaxShared === xMinShared) return plotX0 + plotW / 2;
+    return plotX0 + ((yr - xMinShared) / (xMaxShared - xMinShared)) * plotW;
+  };
+  const yScale = (v: number) => PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
+
+  const stride = pickStride(yLo, yHi);
+  const yTicks: number[] = [];
+  const start = Math.ceil(yLo / stride) * stride;
+  for (let v = start; v <= yHi + 1e-9; v += stride) yTicks.push(Number(v.toFixed(6)));
+  if (yTicks.length === 0) yTicks.push(Number(((yLo + yHi) / 2).toFixed(6)));
+
+  const yearStart = Math.ceil(xMinShared);
+  const yearEnd = Math.floor(xMaxShared);
+  const allYearTicks: Array<{ x: number; label: string }> = [];
+  for (let yr = yearStart; yr <= yearEnd; yr++) {
+    const decY = yr + (1 - 0.5) / 12;
+    if (decY < xMinShared || decY > xMaxShared) continue;
+    allYearTicks.push({ x: xScale(decY), label: String(yr) });
+  }
+  // Skinny panes: thin the year ticks so the labels do not collide.
+  const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 3));
+  const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
+
+  let linePath = "";
+  let started = false;
+  for (const pt of series) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) { started = false; continue; }
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    linePath += (started ? "L" : "M") + xScale(xv).toFixed(2) + " " + yScale(pt.value).toFixed(2) + " ";
+    started = true;
+  }
+  linePath = linePath.trim();
+
+  const last = lastReal(series);
+  const lastXY = last ? {
+    x: xScale(decYear(last.date)),
+    y: yScale(last.value),
+    value: last.value,
+    date: last.date,
+  } : null;
+
+  return {
+    plotX0, plotX1, plotW,
+    yLo, yHi, yRange, yTicks, xTicks,
+    linePath, lastXY,
+  };
+}
+
+const P1 = hasData ? buildPane(emp, P1_X0, P1_X1) : null;
+const P2 = hasData ? buildPane(unemp, P2_X0, P2_X1) : null;
+const P3 = hasData ? buildPane(nlf, P3_X0, P3_X1) : null;
+
+const lastEmp = lastReal(emp);
+const lastUnemp = lastReal(unemp);
+const lastNLF = lastReal(nlf);
+
+const ariaLabel =
+  "Three side-by-side line panels, last sixty months, shared x-axis. " +
+  "Left panel: employed persons in Canada (15 and over, seasonally adjusted, millions). " +
+  "Middle panel: unemployed persons (same scope, millions). " +
+  "Right panel: persons not in the labour force (millions). The not-in-labour-force series " +
+  "is derived from the Labour Force Survey identity: population 15+ equals employment divided " +
+  "by the employment rate; not-in-labour-force equals population 15+ minus employment minus " +
+  "unemployment. Each panel's latest print is marked with a red dot. " +
+  "Source: Statistics Canada Table 14-10-0287-01.";
+
+// Per-pane kicker labels (small-caps, semibold, letter-spaced).
+const KICKERS = [
+  "EMPLOYED",
+  "UNEMPLOYED",
+  "NOT IN LABOUR FORCE",
+];
+const PANE_BOUNDS = [
+  { x0: P1_X0, x1: P1_X1 },
+  { x0: P2_X0, x1: P2_X1 },
+  { x0: P3_X0, x1: P3_X1 },
+];
+---
+{hasData && P1 && P2 && P3 ? (
+  <div class="canon-chart canon-chart--triple" data-panel="labour-panel-2-stocks">
+    <svg
+      class="canon-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {/* Per-pane kicker labels, small-caps semibold. */}
+      {KICKERS.map((label, i) => (
+        <text
+          class="canon-chart__subpanel-title"
+          x={((PANE_BOUNDS[i]!.x0 + PANE_BOUNDS[i]!.x1) / 2).toFixed(2)}
+          y={(M_T - 18).toFixed(2)}
+          text-anchor="middle"
+        >{label}</text>
+      ))}
+
+      {/* Three panes -- iterated below by indexing into [P1, P2, P3]. */}
+      {[P1, P2, P3].map((P) => (
+        <g>
+          {P!.yTicks.map((v) => {
+            const yy = PLOT_Y0 + PLOT_H - ((v - P!.yLo) / P!.yRange) * PLOT_H;
+            return (
+              <line
+                class="canon-chart__gridline"
+                x1={P!.plotX0.toFixed(2)}
+                y1={yy.toFixed(2)}
+                x2={P!.plotX1.toFixed(2)}
+                y2={yy.toFixed(2)}
+              />
+            );
+          })}
+
+          <path class="canon-chart__line" d={P!.linePath} fill="none" />
+
+          <rect
+            class="canon-chart__frame"
+            x={P!.plotX0}
+            y={PLOT_Y0}
+            width={P!.plotW}
+            height={PLOT_H}
+          />
+
+          {P!.xTicks.map((t) => (
+            <g>
+              <line
+                class="canon-chart__xtick"
+                x1={t.x.toFixed(2)}
+                y1={PLOT_Y1.toFixed(2)}
+                x2={t.x.toFixed(2)}
+                y2={(PLOT_Y1 + 4).toFixed(2)}
+              />
+              <text
+                class="canon-chart__xtick-label"
+                x={t.x.toFixed(2)}
+                y={(PLOT_Y1 + 18).toFixed(2)}
+                text-anchor="middle"
+              >{t.label}</text>
+            </g>
+          ))}
+
+          {P!.yTicks.map((v, i) => {
+            const yy = PLOT_Y0 + PLOT_H - ((v - P!.yLo) / P!.yRange) * PLOT_H;
+            const isTop = i === P!.yTicks.length - 1;
+            // Topmost y-tick carries the unit per canon Section 5.3.
+            const txt = `${v.toFixed(1)}${isTop ? "M" : ""}`;
+            return (
+              <text
+                class="canon-chart__ytick-label"
+                x={(P!.plotX0 - 6).toFixed(2)}
+                y={(yy + 4).toFixed(2)}
+                text-anchor="end"
+              >{txt}</text>
+            );
+          })}
+
+          {P!.lastXY && (
+            <circle
+              class="canon-chart__latest-dot"
+              cx={P!.lastXY.x.toFixed(2)}
+              cy={P!.lastXY.y.toFixed(2)}
+              r="4"
+            >
+              <title>{`${P!.lastXY.date}: ${P!.lastXY.value.toFixed(2)}M`}</title>
+            </circle>
+          )}
+        </g>
+      ))}
+    </svg>
+  </div>
+) : (
+  <PanelEmpty reason="Employment level, unemployment level, and employment rate series all required for the three-stocks composite." />
+)}
+
+<style>
+  .canon-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
+  .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
+
+  .canon-chart__subpanel-title {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
+  }
+
+  /* Canon hairlines (shared) */
+  .canon-chart__gridline { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges; }
+  .canon-chart__frame    { fill: none; stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick    { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+
+  .canon-chart__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+
+  /* Line: solid 1.5px pure ink, MTA-red terminal dot. Visual weight
+     fixed across vintages and across the three panes. */
+  .canon-chart__line {
+    stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round;
+    stroke-linecap: round; fill: none; vector-effect: non-scaling-stroke;
+  }
+  .canon-chart__latest-dot { fill: var(--accent); stroke: none; }
+</style>

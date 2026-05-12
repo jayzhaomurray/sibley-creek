@@ -1,0 +1,902 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Chart spec builder — Sibley Creek</title>
+<style>
+  :root {
+    --ink: #15171a;
+    --ink-faint: #6b7178;
+    --paper: #fafaf7;
+    --rule: #d8d6cf;
+    --accent: #e63946;
+    --gap: #ececea;
+    --code: #f3f2ee;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    font-size: 15px; line-height: 1.5;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 32px 24px 96px; }
+  h1 {
+    font-size: 22px; font-weight: 700; letter-spacing: -0.01em;
+    margin: 0 0 4px;
+  }
+  .lede { color: var(--ink-faint); margin: 0 0 28px; font-size: 14px; }
+  .header-row {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  }
+  #reset-btn {
+    background: white; color: var(--ink); border: 1px solid var(--ink);
+    padding: 8px 16px; font-size: 12px; letter-spacing: 0.04em;
+    text-transform: uppercase; font-weight: 600; cursor: pointer;
+    flex-shrink: 0;
+  }
+  #reset-btn:hover { background: var(--ink); color: white; }
+
+  fieldset {
+    border: none; padding: 0; margin: 0 0 24px;
+    border-top: 1px solid var(--rule);
+    padding-top: 18px;
+  }
+  fieldset:first-of-type { border-top: none; padding-top: 0; }
+  legend {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink); margin: 0 0 12px;
+    padding: 0;
+  }
+
+  label {
+    display: block; font-size: 14px; margin: 10px 0 4px;
+    color: var(--ink);
+  }
+  label .hint {
+    display: block; font-size: 12px; color: var(--ink-faint);
+    margin-top: 2px; font-weight: 400;
+  }
+
+  input[type=text], input[type=date], textarea, select {
+    width: 100%; padding: 7px 10px;
+    border: 1px solid var(--rule); background: white;
+    font-family: ui-monospace, "JetBrains Mono", "IBM Plex Mono", Consolas, monospace;
+    font-size: 13px; color: var(--ink);
+    border-radius: 0;
+  }
+  textarea { min-height: 84px; resize: vertical; }
+  input:focus, textarea:focus, select:focus {
+    outline: 2px solid var(--accent); outline-offset: -2px;
+  }
+
+  .radio-row, .check-row {
+    display: flex; flex-wrap: wrap; gap: 6px 8px;
+    margin: 4px 0 6px;
+  }
+  .radio-row label, .check-row label {
+    margin: 0; padding: 6px 10px;
+    border: 1px solid var(--rule);
+    background: white; cursor: pointer;
+    font-size: 13px;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .radio-row input, .check-row input { margin: 0; accent-color: var(--accent); }
+  .radio-row label:has(input:checked),
+  .check-row label:has(input:checked) {
+    border-color: var(--ink); background: var(--gap);
+  }
+
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .row-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+
+  .series-block {
+    border: 1px solid var(--rule); padding: 12px;
+    margin: 8px 0; background: white;
+  }
+  .series-block legend {
+    margin: -6px 0 8px; font-size: 10px; padding: 0 4px;
+    background: var(--paper);
+  }
+
+  .hidden { display: none !important; }
+
+  .preview {
+    position: sticky; bottom: 0;
+    margin-top: 32px; background: white;
+    border: 1px solid var(--ink); padding: 0;
+  }
+  .preview-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1px solid var(--rule);
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .preview-head button {
+    background: var(--ink); color: white; border: none;
+    padding: 6px 12px; font-size: 11px; cursor: pointer;
+    letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600;
+  }
+  .preview-head button.copied { background: var(--accent); }
+  pre.spec {
+    margin: 0; padding: 14px; max-height: 320px; overflow: auto;
+    background: var(--code); color: var(--ink);
+    font-family: ui-monospace, "JetBrains Mono", "IBM Plex Mono", Consolas, monospace;
+    font-size: 12px; line-height: 1.55;
+    white-space: pre-wrap; word-break: break-word;
+  }
+
+  .axes-note {
+    font-size: 12px; color: var(--ink-faint); margin: 4px 0 0;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header-row">
+    <div>
+      <h1>Chart spec builder</h1>
+      <p class="lede">Pick the orthogonal pieces; the spec block at the bottom updates as you go. Copy it, paste into Claude chat, dispatch.</p>
+    </div>
+    <button id="reset-btn" type="button">Reset</button>
+  </div>
+
+  <form id="form">
+
+    <fieldset>
+      <legend>Where</legend>
+      <div class="row-2">
+        <div>
+          <label>Section
+            <select name="section">
+              <option value="">—</option>
+              <option>labour</option>
+              <option>gdp</option>
+              <option>inflation</option>
+              <option>housing</option>
+              <option>markets</option>
+              <option>policy</option>
+              <option>trade</option>
+              <option value="research">research / deep dive</option>
+            </select>
+          </label>
+        </div>
+        <div>
+          <label>Plate slot
+            <input type="text" name="plate" placeholder="e.g. labour-panel-2 or alt6" />
+          </label>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Chart family</legend>
+      <div class="radio-row">
+        <label><input type="radio" name="family" value="lines" /> Lines</label>
+        <label><input type="radio" name="family" value="bars" /> Bars</label>
+        <label><input type="radio" name="family" value="lines-bars" /> Lines + bars (2-panel preset)</label>
+        <label><input type="radio" name="family" value="small-multiples" /> Small multiples</label>
+        <label><input type="radio" name="family" value="composite" /> Multi-panel composite</label>
+        <label><input type="radio" name="family" value="other" /> Other</label>
+      </div>
+      <p class="axes-note" id="family-hint"></p>
+    </fieldset>
+
+    <!-- LINES -->
+    <fieldset id="block-lines" class="hidden">
+      <legend>Lines</legend>
+      <label>How many lines?
+        <div class="radio-row">
+          <label><input type="radio" name="lines-count" value="1" /> 1</label>
+          <label><input type="radio" name="lines-count" value="2" /> 2</label>
+          <label><input type="radio" name="lines-count" value="3" /> 3+</label>
+        </div>
+      </label>
+      <div id="lines-series-blocks"></div>
+      <div id="lines-multi-options" class="hidden">
+        <label>Axes
+          <div class="radio-row">
+            <label><input type="radio" name="lines-axes" value="overlay" /> Single y-axis (both lines comparable units)</label>
+            <label><input type="radio" name="lines-axes" value="dual" /> Dual y-axis (different units)</label>
+          </div>
+        </label>
+        <label>Gap-band between lines?
+          <div class="radio-row">
+            <label><input type="radio" name="lines-gapband" value="false" /> No</label>
+            <label><input type="radio" name="lines-gapband" value="true" /> Yes — light shaded fill between the lines</label>
+          </div>
+          <span class="hint">Gap-band only makes sense with single y-axis. The wedge chart = 2 lines + indexed-to-base + gap-band on.</span>
+        </label>
+      </div>
+    </fieldset>
+
+    <!-- BARS -->
+    <fieldset id="block-bars" class="hidden">
+      <legend>Bars</legend>
+      <label>Bar style
+        <div class="radio-row">
+          <label><input type="radio" name="bars-style" value="single" /> Single signed series</label>
+          <label><input type="radio" name="bars-style" value="stacked" /> Stacked (signed contributions to a total)</label>
+          <label><input type="radio" name="bars-style" value="grouped" /> Side-by-side per period</label>
+        </div>
+      </label>
+      <div id="bars-series-blocks"></div>
+      <label>Color rule
+        <div class="radio-row">
+          <label><input type="radio" name="bars-color" value="signed" /> Signed (positive ink / negative red, or per stack)</label>
+          <label><input type="radio" name="bars-color" value="single" /> Single ink color</label>
+        </div>
+      </label>
+      <label id="bars-total-line-wrap" class="hidden">Show total as a line or dot?
+        <div class="radio-row">
+          <label><input type="radio" name="bars-total" value="none" /> None</label>
+          <label><input type="radio" name="bars-total" value="dot" /> Dot at top of each stack</label>
+          <label><input type="radio" name="bars-total" value="line" /> Line overlay</label>
+        </div>
+      </label>
+    </fieldset>
+
+    <!-- LINES + BARS -->
+    <fieldset id="block-lines-bars" class="hidden">
+      <legend>Lines + bars</legend>
+      <p class="axes-note">Dual encoding. Bars on one axis, lines on the other. Common pattern: m/m delta bars + level line, or signed-spread bars + trajectory line.</p>
+      <div class="series-block">
+        <legend>Bars</legend>
+        <label>Bar series key
+          <input type="text" name="lb-bar-series" placeholder="e.g. employment_level" />
+        </label>
+        <label>Bar transform
+          <select name="lb-bar-transform">
+            <option value="raw">raw level</option>
+            <option value="mm_delta">m/m delta (change from last month)</option>
+            <option value="yoy">Y/Y change</option>
+            <option value="yoy_pp">Y/Y change, pp</option>
+          </select>
+        </label>
+        <label>Bar units in title?
+          <input type="text" name="lb-bar-units" placeholder="e.g. thousands, pp" />
+        </label>
+      </div>
+      <div class="series-block">
+        <legend>Line</legend>
+        <label>Line series key
+          <input type="text" name="lb-line-series" placeholder="e.g. unemployment_rate" />
+        </label>
+        <label>Line transform
+          <select name="lb-line-transform">
+            <option value="raw">raw level</option>
+            <option value="yoy">Y/Y change</option>
+            <option value="mm_delta">m/m delta</option>
+            <option value="index_to_base">index to base</option>
+          </select>
+        </label>
+        <label>Line units in title?
+          <input type="text" name="lb-line-units" placeholder="e.g. %, $" />
+        </label>
+      </div>
+      <label>Layout
+        <div class="radio-row">
+          <label><input type="radio" name="lb-layout" value="overlay" /> Single canvas, dual y-axis</label>
+          <label><input type="radio" name="lb-layout" value="two-panel" /> Two side-by-side panels (bars on one, lines on the other)</label>
+        </div>
+      </label>
+    </fieldset>
+
+    <!-- SMALL MULTIPLES -->
+    <fieldset id="block-small-multiples" class="hidden">
+      <legend>Small multiples</legend>
+      <label>Number of sub-panels
+        <input type="text" name="sm-count" placeholder="e.g. 4 or 6" />
+      </label>
+      <label>What's being broken out?
+        <div class="radio-row">
+          <label><input type="radio" name="sm-dimension" value="geography" /> Geography (provinces, regions)</label>
+          <label><input type="radio" name="sm-dimension" value="age" /> Age group</label>
+          <label><input type="radio" name="sm-dimension" value="industry" /> Industry</label>
+          <label><input type="radio" name="sm-dimension" value="custom" /> Custom</label>
+        </div>
+      </label>
+      <label>Series key (shared across sub-panels)
+        <input type="text" name="sm-series" placeholder="e.g. lfs_unemployment_rate" />
+      </label>
+      <label>Entities (comma-separated)
+        <input type="text" name="sm-entities" placeholder="e.g. AB, BC, ON, QC" />
+      </label>
+      <label>Y-axis
+        <div class="radio-row">
+          <label><input type="radio" name="sm-y" value="shared" /> Shared (all panels same scale)</label>
+          <label><input type="radio" name="sm-y" value="per-panel" /> Per-panel (each panel auto-scales)</label>
+        </div>
+      </label>
+    </fieldset>
+
+    <!-- COMPOSITE -->
+    <fieldset id="block-composite" class="hidden">
+      <legend>Multi-panel composite</legend>
+      <p class="axes-note">Side-by-side or stacked panels, each panel its own thing. Beveridge companion (lines | spread bars), hours-vs-headcount (lines | spread bars), or anything else where each slot has different content.</p>
+      <label>Number of panels?
+        <div class="radio-row">
+          <label><input type="radio" name="comp-count" value="2" /> 2</label>
+          <label><input type="radio" name="comp-count" value="3" /> 3</label>
+          <label><input type="radio" name="comp-count" value="4" /> 4</label>
+        </div>
+      </label>
+      <label>Layout
+        <div class="radio-row">
+          <label><input type="radio" name="comp-layout" value="horizontal" /> Side-by-side</label>
+          <label><input type="radio" name="comp-layout" value="vertical" /> Stacked vertically</label>
+          <label><input type="radio" name="comp-layout" value="grid" /> Grid (2x2)</label>
+        </div>
+      </label>
+      <label>Shared x-axis across panels?
+        <div class="radio-row">
+          <label><input type="radio" name="comp-shared-x" value="true" /> Yes</label>
+          <label><input type="radio" name="comp-shared-x" value="false" /> No</label>
+        </div>
+      </label>
+      <div id="comp-panel-blocks"></div>
+    </fieldset>
+
+    <!-- OTHER -->
+    <fieldset id="block-other" class="hidden">
+      <legend>Other geometry</legend>
+      <label>Type
+        <div class="radio-row">
+          <label><input type="radio" name="other-type" value="scatter" /> Scatter / trajectory (2D plot, time as path)</label>
+          <label><input type="radio" name="other-type" value="dumbbell" /> Dumbbell (period A vs period B per row)</label>
+          <label><input type="radio" name="other-type" value="yield-curve" /> Yield curve (maturity x, yield y)</label>
+          <label><input type="radio" name="other-type" value="bespoke" /> Bespoke — describe in extras</label>
+        </div>
+      </label>
+      <label>Series keys (comma-separated)
+        <input type="text" name="other-series" placeholder="e.g. vacancy_rate, unemployment_rate" />
+      </label>
+    </fieldset>
+
+    <!-- COMMON -->
+    <fieldset>
+      <legend>Window</legend>
+      <div class="radio-row">
+        <label><input type="radio" name="window" value="12m" /> 12 months</label>
+        <label><input type="radio" name="window" value="24m" /> 24 months</label>
+        <label><input type="radio" name="window" value="36m" /> 36 months</label>
+        <label><input type="radio" name="window" value="60m" /> 60 months</label>
+        <label><input type="radio" name="window" value="since-base" /> From a base date</label>
+        <label><input type="radio" name="window" value="full" /> Full history</label>
+        <label><input type="radio" name="window" value="custom" /> Custom</label>
+      </div>
+      <div id="window-since-base" class="hidden">
+        <label>Base date
+          <input type="date" name="window-base-date" />
+        </label>
+      </div>
+      <div id="window-custom" class="hidden">
+        <label>Custom range
+          <input type="text" name="window-custom" placeholder="e.g. 2020-01 to latest, or last 15y" />
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Reference rule on chart</legend>
+      <div class="radio-row">
+        <label><input type="radio" name="ref" value="none" /> None</label>
+        <label><input type="radio" name="ref" value="zero" /> Zero line</label>
+        <label><input type="radio" name="ref" value="target" /> Specific level (e.g. BoC 2% target)</label>
+        <label><input type="radio" name="ref" value="period-avg" /> Period average</label>
+      </div>
+      <div id="ref-target" class="hidden">
+        <label>Target value + label
+          <input type="text" name="ref-target-value" placeholder="e.g. 2.0 — BoC target" />
+        </label>
+      </div>
+      <div id="ref-period-avg" class="hidden">
+        <label>Reference period
+          <div class="radio-row">
+            <label><input type="radio" name="ref-period" value="2015-2019" /> 2015–2019 pre-pandemic</label>
+            <label><input type="radio" name="ref-period" value="2010-2019" /> 2010–2019</label>
+            <label><input type="radio" name="ref-period" value="custom" /> Custom</label>
+          </div>
+          <input type="text" name="ref-period-custom" placeholder="e.g. 2017-01 to 2019-12" class="hidden" />
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Recession band</legend>
+      <div class="radio-row">
+        <label><input type="radio" name="recession" value="auto" checked /> Auto (drawn if visible in window)</label>
+        <label><input type="radio" name="recession" value="none" /> None</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Period labels on canvas (word-only)</legend>
+      <p class="axes-note">No sentences. Just period names: "Pandemic", "Pre-pandemic average", "Forecast", etc.</p>
+      <label>Labels (comma-separated, leave blank for none)
+        <input type="text" name="period-labels" placeholder="e.g. Pandemic, Pre-pandemic average" />
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Editorial copy</legend>
+
+      <label>Plate title (headline)
+        <div class="radio-row">
+          <label><input type="radio" name="title-mode" value="writer-now" checked /> Writer drafts it immediately</label>
+          <label><input type="radio" name="title-mode" value="write-now" /> I'll write it now</label>
+          <label><input type="radio" name="title-mode" value="placeholder" /> Placeholder for writer later</label>
+        </div>
+        <input type="text" name="title" class="hidden" placeholder="Terminal period. One verb. Names the finding." />
+      </label>
+
+      <label>Indicator (kicker line)
+        <input type="text" name="indicator" placeholder='e.g. "Composition-adjusted vs headline wage growth, Y/Y"' />
+      </label>
+
+      <label>Source line
+        <input type="text" name="source" placeholder='e.g. "Statistics Canada Table 14-10-0287-01."' />
+      </label>
+
+      <label>Blurb
+        <div class="radio-row">
+          <label><input type="radio" name="blurb-mode" value="writer-now" checked /> Writer drafts it immediately</label>
+          <label><input type="radio" name="blurb-mode" value="draft" /> I'll write it now</label>
+          <label><input type="radio" name="blurb-mode" value="placeholder" /> Placeholder for writer later</label>
+          <label><input type="radio" name="blurb-mode" value="none" /> No blurb</label>
+        </div>
+      </label>
+      <textarea name="blurb-draft" class="hidden" placeholder="Your draft blurb..."></textarea>
+    </fieldset>
+
+    <fieldset>
+      <legend>Callout (side rail)</legend>
+      <div class="row-2">
+        <label>Value <input type="text" name="callout-value" placeholder="e.g. +1.2pp" /></label>
+        <label>Unit prefix <input type="text" name="callout-unit" placeholder="e.g. wedge, Apr 2026" /></label>
+      </div>
+      <div class="row-2">
+        <label>Delta <input type="text" name="callout-delta" placeholder="e.g. UR up 1.2pp" /></label>
+        <label>Direction
+          <select name="callout-direction">
+            <option value="">—</option>
+            <option>neg</option>
+            <option>pos</option>
+            <option>neutral</option>
+          </select>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Specific instructions / tweaks</legend>
+      <p class="axes-note">Anything that doesn't fit a slot above. Free text — agent will read it.</p>
+      <textarea name="extras" placeholder="e.g.&#10;- Latest bar in MTA red regardless of sign&#10;- Right gutter widened to 150px to seat the two-line label&#10;- Hollow dots for the May–Sep 2020 imputed window&#10;- Topmost y-tick carries the unit tag, not a separate eyebrow label"></textarea>
+    </fieldset>
+
+  </form>
+
+  <div class="preview">
+    <div class="preview-head">
+      <span>Generated spec — paste into Claude chat</span>
+      <button id="copy-btn" type="button">Copy</button>
+    </div>
+    <pre class="spec" id="spec"></pre>
+  </div>
+</div>
+
+<script>
+(function () {
+  const form = document.getElementById("form");
+  const spec = document.getElementById("spec");
+  const copyBtn = document.getElementById("copy-btn");
+
+  // Series-block builder for "lines" family
+  function buildLineSeriesBlocks(n) {
+    const host = document.getElementById("lines-series-blocks");
+    host.innerHTML = "";
+    for (let i = 1; i <= n; i++) {
+      const role = i === 1 ? "main (solid, terminal red dot)"
+                : i === 2 ? "comparator (dashed)"
+                : `series ${i}`;
+      host.insertAdjacentHTML("beforeend", `
+        <div class="series-block">
+          <legend>Line ${i} — ${role}</legend>
+          <label>Series key
+            <input type="text" name="line${i}-key" placeholder="e.g. employment_level" />
+          </label>
+          <label>Label on chart (right gutter)
+            <input type="text" name="line${i}-label" placeholder="e.g. Employment" />
+          </label>
+          <label>Is the data already in final form, or transform it?
+            <select name="line${i}-transform">
+              <option value="raw">Already final (use as-is)</option>
+              <option value="yoy">Convert to Y/Y change</option>
+              <option value="mm_delta">Convert to m/m delta</option>
+              <option value="mm_annualized">Convert to m/m annualized %</option>
+              <option value="3m_annualized">Convert to 3-month annualized %</option>
+              <option value="index_to_base">Index to a base period (= 100)</option>
+              <option value="smooth_3m">3-month moving average</option>
+            </select>
+          </label>
+          <label class="line-base-wrap hidden">Base date for indexing
+            <input type="date" name="line${i}-base" />
+          </label>
+        </div>
+      `);
+    }
+    // Wire up the base-date visibility per block
+    host.querySelectorAll('select[name^="line"]').forEach((sel) => {
+      sel.addEventListener("change", (e) => {
+        const wrap = e.target.closest(".series-block").querySelector(".line-base-wrap");
+        if (e.target.value === "index_to_base") wrap.classList.remove("hidden");
+        else wrap.classList.add("hidden");
+        render();
+      });
+    });
+    // Show the multi-line options block if n >= 2
+    document.getElementById("lines-multi-options").classList.toggle("hidden", n < 2);
+  }
+
+  function buildCompositePanelBlocks(n) {
+    const host = document.getElementById("comp-panel-blocks");
+    host.innerHTML = "";
+    for (let i = 1; i <= n; i++) {
+      host.insertAdjacentHTML("beforeend", `
+        <div class="series-block">
+          <legend>Panel ${i}</legend>
+          <label>Title for this panel (sub-panel kicker, sentence-case)
+            <input type="text" name="comp${i}-title" placeholder='e.g. "Hours, indexed to 2019" or "Spread, pp"' />
+          </label>
+          <label>Family
+            <select name="comp${i}-family">
+              <option value="">—</option>
+              <option value="lines">Lines</option>
+              <option value="bars">Bars (signed, stacked, or grouped)</option>
+              <option value="lines-bars">Lines + bars overlay</option>
+              <option value="scatter">Scatter / trajectory</option>
+              <option value="dumbbell">Dumbbell</option>
+              <option value="bespoke">Bespoke — describe</option>
+            </select>
+          </label>
+          <label>Series + transform (one line, free-form)
+            <input type="text" name="comp${i}-series" placeholder="e.g. vacancy_rate, unemployment_rate; both raw %" />
+          </label>
+          <label>Specific notes for this panel
+            <textarea name="comp${i}-notes" rows="2" placeholder="e.g. Signed bars, positive red. Direct labels at termini. No annotation."></textarea>
+          </label>
+        </div>
+      `);
+    }
+  }
+
+  function buildBarSeriesBlocks(style) {
+    const host = document.getElementById("bars-series-blocks");
+    host.innerHTML = "";
+    if (style === "single") {
+      host.insertAdjacentHTML("beforeend", `
+        <div class="series-block">
+          <legend>Single bar series</legend>
+          <label>Series key <input type="text" name="bar1-key" placeholder="e.g. cpi_breadth_above3" /></label>
+          <label>Label <input type="text" name="bar1-label" /></label>
+          <label>Transform
+            <select name="bar1-transform">
+              <option value="raw">Raw level</option>
+              <option value="mm_delta">m/m delta</option>
+              <option value="yoy">Y/Y change</option>
+            </select>
+          </label>
+        </div>
+      `);
+    } else if (style === "stacked" || style === "grouped") {
+      // Allow 2-5 stacks
+      host.insertAdjacentHTML("beforeend", `
+        <label>How many ${style === "stacked" ? "stacks" : "groups"}?
+          <div class="radio-row" id="bar-count-pick">
+            <label><input type="radio" name="bar-count" value="2" /> 2</label>
+            <label><input type="radio" name="bar-count" value="3" /> 3</label>
+            <label><input type="radio" name="bar-count" value="4" /> 4</label>
+            <label><input type="radio" name="bar-count" value="5" /> 5</label>
+          </div>
+        </label>
+        <div id="bar-series-list"></div>
+      `);
+      host.querySelectorAll('input[name="bar-count"]').forEach((r) => {
+        r.addEventListener("change", (e) => {
+          const list = document.getElementById("bar-series-list");
+          list.innerHTML = "";
+          const c = parseInt(e.target.value, 10);
+          for (let i = 1; i <= c; i++) {
+            list.insertAdjacentHTML("beforeend", `
+              <div class="series-block">
+                <legend>${style === "stacked" ? "Stack" : "Group"} ${i}</legend>
+                <label>Series key <input type="text" name="bar${i}-key" /></label>
+                <label>Label <input type="text" name="bar${i}-label" /></label>
+              </div>
+            `);
+          }
+          render();
+        });
+      });
+    }
+    // Total-line option only for stacked
+    document.getElementById("bars-total-line-wrap").classList.toggle("hidden", style !== "stacked");
+  }
+
+  // Top-level family branch
+  form.addEventListener("change", (e) => {
+    const name = e.target.name;
+    if (name === "family") {
+      ["lines", "bars", "lines-bars", "small-multiples", "composite", "other"].forEach((fam) => {
+        document.getElementById("block-" + fam).classList.toggle("hidden", fam !== e.target.value);
+      });
+      const hints = {
+        "lines": "1+ time series as lines. Two lines + indexed-to-base + gap-band = wedge chart.",
+        "bars": "Bars per period. Signed colors, stacked contributions, or side-by-side groups.",
+        "lines-bars": "Dual encoding on one canvas. Bars carry one signal, lines carry another. Preset for the common 2-panel pattern; use multi-panel composite for the general case.",
+        "small-multiples": "Same chart repeated for each entity (provinces, age groups, etc.).",
+        "composite": "N panels, each its own thing. Describe each panel in one line; agent figures out the per-panel chart shape.",
+        "other": "Scatter, dumbbell, yield curve, or bespoke."
+      };
+      document.getElementById("family-hint").textContent = hints[e.target.value] || "";
+    }
+    if (name === "lines-count") buildLineSeriesBlocks(parseInt(e.target.value, 10));
+    if (name === "bars-style") buildBarSeriesBlocks(e.target.value);
+    if (name === "comp-count") buildCompositePanelBlocks(parseInt(e.target.value, 10));
+
+    // Window sub-fields
+    if (name === "window") {
+      document.getElementById("window-since-base").classList.toggle("hidden", e.target.value !== "since-base");
+      document.getElementById("window-custom").classList.toggle("hidden", e.target.value !== "custom");
+    }
+    // Reference sub-fields
+    if (name === "ref") {
+      document.getElementById("ref-target").classList.toggle("hidden", e.target.value !== "target");
+      document.getElementById("ref-period-avg").classList.toggle("hidden", e.target.value !== "period-avg");
+    }
+    if (name === "ref-period") {
+      document.querySelector('input[name="ref-period-custom"]').classList.toggle("hidden", e.target.value !== "custom");
+    }
+    // Blurb draft visibility
+    if (name === "blurb-mode") {
+      document.querySelector('textarea[name="blurb-draft"]').classList.toggle("hidden", e.target.value !== "draft");
+    }
+    // Title input visibility
+    if (name === "title-mode") {
+      document.querySelector('input[name="title"]').classList.toggle("hidden", e.target.value !== "write-now");
+    }
+    render();
+  });
+
+  form.addEventListener("input", render);
+
+  function v(name) {
+    const el = form.elements[name];
+    if (!el) return "";
+    if (el.length && el.type !== "select-one") {
+      // RadioNodeList
+      for (const opt of el) if (opt.checked) return opt.value;
+      return el.value || "";
+    }
+    return (el.value || "").trim();
+  }
+
+  function render() {
+    const lines = [];
+    const fam = v("family");
+    lines.push("# chart spec");
+    if (v("section")) lines.push(`section: ${v("section")}`);
+    if (v("plate")) lines.push(`plate: ${v("plate")}`);
+    if (fam) lines.push(`family: ${fam}`);
+
+    if (fam === "lines") {
+      const n = parseInt(v("lines-count") || "0", 10);
+      if (n > 0) {
+        lines.push("series:");
+        for (let i = 1; i <= n; i++) {
+          const key = v(`line${i}-key`);
+          if (!key) continue;
+          lines.push(`  - key: ${key}`);
+          if (v(`line${i}-label`)) lines.push(`    label: ${v(`line${i}-label`)}`);
+          if (v(`line${i}-transform`) && v(`line${i}-transform`) !== "raw") {
+            lines.push(`    transform: ${v(`line${i}-transform`)}`);
+            if (v(`line${i}-transform`) === "index_to_base" && v(`line${i}-base`)) {
+              lines.push(`    base: ${v(`line${i}-base`)}`);
+            }
+          }
+          if (i === 1) lines.push(`    role: main`);
+          else if (i === 2) lines.push(`    role: comparator`);
+        }
+        if (n >= 2) {
+          if (v("lines-axes")) lines.push(`axes: ${v("lines-axes")}`);
+          if (v("lines-gapband") === "true") lines.push(`gap_band: true`);
+        }
+      }
+    }
+
+    if (fam === "bars") {
+      if (v("bars-style")) lines.push(`bars_style: ${v("bars-style")}`);
+      if (v("bars-color")) lines.push(`bars_color: ${v("bars-color")}`);
+      if (v("bars-style") === "single") {
+        if (v("bar1-key")) {
+          lines.push("series:");
+          lines.push(`  - key: ${v("bar1-key")}`);
+          if (v("bar1-label")) lines.push(`    label: ${v("bar1-label")}`);
+          if (v("bar1-transform")) lines.push(`    transform: ${v("bar1-transform")}`);
+        }
+      } else {
+        const c = parseInt(v("bar-count") || "0", 10);
+        if (c > 0) {
+          lines.push("series:");
+          for (let i = 1; i <= c; i++) {
+            const key = v(`bar${i}-key`);
+            if (!key) continue;
+            lines.push(`  - key: ${key}`);
+            if (v(`bar${i}-label`)) lines.push(`    label: ${v(`bar${i}-label`)}`);
+          }
+        }
+      }
+      if (v("bars-total") && v("bars-total") !== "none") {
+        lines.push(`total_overlay: ${v("bars-total")}`);
+      }
+    }
+
+    if (fam === "lines-bars") {
+      if (v("lb-layout")) lines.push(`layout: ${v("lb-layout")}`);
+      lines.push("bars:");
+      if (v("lb-bar-series")) lines.push(`  key: ${v("lb-bar-series")}`);
+      if (v("lb-bar-transform")) lines.push(`  transform: ${v("lb-bar-transform")}`);
+      if (v("lb-bar-units")) lines.push(`  units: ${v("lb-bar-units")}`);
+      lines.push("line:");
+      if (v("lb-line-series")) lines.push(`  key: ${v("lb-line-series")}`);
+      if (v("lb-line-transform")) lines.push(`  transform: ${v("lb-line-transform")}`);
+      if (v("lb-line-units")) lines.push(`  units: ${v("lb-line-units")}`);
+    }
+
+    if (fam === "composite") {
+      const c = parseInt(v("comp-count") || "0", 10);
+      if (v("comp-layout")) lines.push(`layout: ${v("comp-layout")}`);
+      if (v("comp-shared-x")) lines.push(`shared_x_axis: ${v("comp-shared-x")}`);
+      if (c > 0) {
+        lines.push("panels:");
+        for (let i = 1; i <= c; i++) {
+          lines.push(`  - panel: ${i}`);
+          if (v(`comp${i}-title`)) lines.push(`    title: "${v(`comp${i}-title`)}"`);
+          if (v(`comp${i}-family`)) lines.push(`    family: ${v(`comp${i}-family`)}`);
+          if (v(`comp${i}-series`)) lines.push(`    series: ${v(`comp${i}-series`)}`);
+          if (v(`comp${i}-notes`)) {
+            lines.push(`    notes: |`);
+            v(`comp${i}-notes`).split("\n").forEach((l) => lines.push(`      ${l}`));
+          }
+        }
+      }
+    }
+
+    if (fam === "small-multiples") {
+      if (v("sm-count")) lines.push(`sub_panels: ${v("sm-count")}`);
+      if (v("sm-dimension")) lines.push(`dimension: ${v("sm-dimension")}`);
+      if (v("sm-series")) lines.push(`series: ${v("sm-series")}`);
+      if (v("sm-entities")) lines.push(`entities: [${v("sm-entities")}]`);
+      if (v("sm-y")) lines.push(`y_axis: ${v("sm-y")}`);
+    }
+
+    if (fam === "other") {
+      if (v("other-type")) lines.push(`subtype: ${v("other-type")}`);
+      if (v("other-series")) lines.push(`series: [${v("other-series")}]`);
+    }
+
+    // Window
+    if (v("window")) {
+      if (v("window") === "since-base" && v("window-base-date")) {
+        lines.push(`window: since ${v("window-base-date")}`);
+      } else if (v("window") === "custom" && v("window-custom")) {
+        lines.push(`window: ${v("window-custom")}`);
+      } else {
+        lines.push(`window: ${v("window")}`);
+      }
+    }
+
+    // Reference
+    if (v("ref") && v("ref") !== "none") {
+      if (v("ref") === "zero") lines.push(`reference: zero`);
+      else if (v("ref") === "target" && v("ref-target-value")) {
+        lines.push(`reference: target — ${v("ref-target-value")}`);
+      } else if (v("ref") === "period-avg") {
+        const p = v("ref-period") === "custom" ? v("ref-period-custom") : v("ref-period");
+        if (p) lines.push(`reference: period average over ${p}`);
+      }
+    }
+
+    if (v("recession") === "none") lines.push("recession_band: off");
+
+    if (v("period-labels")) lines.push(`period_labels: [${v("period-labels")}]`);
+
+    const tMode = v("title-mode") || "writer-now";
+    if (tMode === "writer-now") lines.push(`title: <dispatch writer immediately to draft from chart data>`);
+    else if (tMode === "write-now" && v("title")) lines.push(`title: "${v("title")}"`);
+    else if (tMode === "placeholder") lines.push(`title: <placeholder — writer later>`);
+
+    if (v("indicator")) lines.push(`indicator: "${v("indicator")}"`);
+    if (v("source")) lines.push(`source: "${v("source")}"`);
+
+    const bMode = v("blurb-mode") || "writer-now";
+    if (bMode === "writer-now") {
+      lines.push(`blurb: <dispatch writer immediately to draft from chart data>`);
+    } else if (bMode === "draft" && v("blurb-draft")) {
+      lines.push("blurb: |");
+      v("blurb-draft").split("\n").forEach((l) => lines.push("  " + l));
+    } else if (bMode === "placeholder") {
+      lines.push(`blurb: <placeholder — writer later>`);
+    } else if (bMode === "none") {
+      lines.push(`blurb: none`);
+    }
+
+    const cv = v("callout-value");
+    const cu = v("callout-unit");
+    const cd = v("callout-delta");
+    const cdir = v("callout-direction");
+    if (cv || cu || cd || cdir) {
+      lines.push("callout:");
+      if (cv) lines.push(`  value: ${cv}`);
+      if (cu) lines.push(`  unit: ${cu}`);
+      if (cd) lines.push(`  delta: ${cd}`);
+      if (cdir) lines.push(`  direction: ${cdir}`);
+    }
+
+    if (v("extras")) {
+      lines.push("extras: |");
+      v("extras").split("\n").forEach((l) => lines.push("  " + l));
+    }
+
+    lines.push("");
+    lines.push("# Canon constraints (auto, do not change):");
+    lines.push("# - No sentence annotations on canvas");
+    lines.push("# - No methodology micro-notes on canvas");
+    lines.push("# - Word-only direct labels at line termini");
+    lines.push("# - Main line: 1.5px solid pure ink + MTA red terminal dot");
+    lines.push("# - Comparator line: 1px dashed (4-2) pure ink, no dot");
+    lines.push("# - 720x405 viewBox; canon margins");
+    lines.push("# - Source line below the chart (no methodology prose)");
+
+    spec.textContent = lines.join("\n");
+  }
+
+  document.getElementById("reset-btn").addEventListener("click", () => {
+    if (!confirm("Reset the form? All entries will be cleared.")) return;
+    form.reset();
+    // Clear dynamically-built sub-blocks
+    document.getElementById("lines-series-blocks").innerHTML = "";
+    document.getElementById("bars-series-blocks").innerHTML = "";
+    document.getElementById("comp-panel-blocks").innerHTML = "";
+    // Hide all conditional fieldsets
+    ["lines", "bars", "lines-bars", "small-multiples", "composite", "other"].forEach((fam) => {
+      document.getElementById("block-" + fam).classList.add("hidden");
+    });
+    document.getElementById("lines-multi-options").classList.add("hidden");
+    document.getElementById("window-since-base").classList.add("hidden");
+    document.getElementById("window-custom").classList.add("hidden");
+    document.getElementById("ref-target").classList.add("hidden");
+    document.getElementById("ref-period-avg").classList.add("hidden");
+    document.getElementById("family-hint").textContent = "";
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  copyBtn.addEventListener("click", () => {
+    navigator.clipboard.writeText(spec.textContent).then(() => {
+      copyBtn.textContent = "Copied";
+      copyBtn.classList.add("copied");
+      setTimeout(() => {
+        copyBtn.textContent = "Copy";
+        copyBtn.classList.remove("copied");
+      }, 1500);
+    });
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

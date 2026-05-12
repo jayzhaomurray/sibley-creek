@@ -1,0 +1,470 @@
+---
+/*
+ * chart-archive - holding zone for chart work parked indefinitely.
+ *
+ * Not linked from production navigation. URL-accessed only:
+ *   /chart-archive
+ *
+ * Two-zone layout:
+ *   1. Pinned   — entries with `pinned: true` across all sections. The
+ *                user's favorites; rendered first, with a star badge.
+ *                When `pinnedReason` is set on the entry, it renders as
+ *                a small subtitle on the card.
+ *   2. Archive  — everything else, grouped by section.
+ *
+ * Within each zone+section, entries sort by `addedAt` descending when
+ * present, else alphabetically by title.
+ *
+ * Wiring:
+ *   - This page does NOT import individual archived chart files. Charts
+ *     enter the archive by being added to a section's
+ *     _archive/<section>/index.ts manifest (see scripts/move_chart.mjs).
+ *
+ * Sibling page: /chart-alternatives renders the active-iteration zone.
+ */
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { shelves } from "../components/charts/_archive/index";
+import type { ChartShelfEntry } from "../components/charts/_alternatives/_shared/shelfEntry";
+
+function sortEntries<T extends ChartShelfEntry>(entries: T[]): T[] {
+  // addedAt desc when both set; otherwise present-before-absent; tiebreak
+  // by original manifest order via the captured index.
+  return entries
+    .map((entry, idx) => ({ entry, idx }))
+    .sort((a, b) => {
+      const aDate = a.entry.addedAt ?? "";
+      const bDate = b.entry.addedAt ?? "";
+      if (aDate && bDate && aDate !== bDate) return bDate.localeCompare(aDate);
+      if (aDate && !bDate) return -1;
+      if (!aDate && bDate) return 1;
+      return a.idx - b.idx;
+    })
+    .map((wrapped) => wrapped.entry);
+}
+
+interface PinnedEntry extends ChartShelfEntry {
+  __sectionSlug: string;
+  __sectionName: string;
+}
+
+const pinnedFlat: PinnedEntry[] = [];
+for (const shelf of shelves) {
+  for (const entry of shelf.entries) {
+    if (entry.pinned) {
+      pinnedFlat.push({
+        ...entry,
+        __sectionSlug: shelf.slug,
+        __sectionName: shelf.name,
+      });
+    }
+  }
+}
+const pinnedSorted = sortEntries(pinnedFlat) as PinnedEntry[];
+
+const archiveShelves = shelves.map((shelf) => ({
+  ...shelf,
+  entries: sortEntries(shelf.entries.filter((e) => !e.pinned)),
+}));
+
+const totalArchived = shelves.reduce(
+  (sum, s) => sum + s.entries.length,
+  0,
+);
+const isEmpty = totalArchived === 0;
+---
+
+<BaseLayout
+  title="Chart archive"
+  description="Internal holding zone for chart work parked indefinitely. Not for production."
+>
+  <div class="arc-page">
+    <header class="arc-page__head">
+      <p class="arc-page__eyebrow">CHART ARCHIVE</p>
+      <h1 class="arc-page__title">Chart archive</h1>
+      <p class="arc-page__lede">
+        {isEmpty
+          ? "Nothing parked yet. Move work here when you want to keep it but aren't iterating on it."
+          : `${totalArchived} chart${totalArchived === 1 ? "" : "s"} parked across ${archiveShelves.filter((s) => s.entries.length > 0).length + (pinnedSorted.length > 0 ? 1 : 0)} zone${totalArchived === 1 ? "" : "s"}.`}
+      </p>
+      <p class="arc-page__crosslink">
+        Charts under active comparison live on
+        <a href="/chart-alternatives/">/chart-alternatives</a>.
+      </p>
+    </header>
+
+    {!isEmpty && (
+      <nav class="arc-jump" aria-label="Jump to section">
+        <ul class="arc-jump__list">
+          {pinnedSorted.length > 0 && (
+            <li class="arc-jump__item">
+              <a class="arc-jump__link" href="#section-pinned">
+                Pinned
+                <span class="arc-jump__count">({pinnedSorted.length})</span>
+              </a>
+            </li>
+          )}
+          {archiveShelves
+            .filter((shelf) => shelf.entries.length > 0)
+            .map((shelf) => (
+              <li class="arc-jump__item">
+                <a class="arc-jump__link" href={`#section-${shelf.slug}`}>
+                  {shelf.name}
+                  <span class="arc-jump__count">({shelf.entries.length})</span>
+                </a>
+              </li>
+            ))}
+        </ul>
+      </nav>
+    )}
+
+    {pinnedSorted.length > 0 && (
+      <section class="arc-section arc-section--pinned" id="section-pinned">
+        <header class="arc-section__head">
+          <h2 class="arc-section__title">
+            <span class="arc-section__star" aria-hidden="true">★</span>
+            Pinned
+          </h2>
+          <p class="arc-section__count">
+            {pinnedSorted.length} chart{pinnedSorted.length === 1 ? "" : "s"}
+          </p>
+        </header>
+
+        {pinnedSorted.map((entry) => {
+          const Component = entry.Component as any;
+          return (
+            <article class="arc-unit arc-unit--pinned">
+              <header class="arc-unit__head">
+                <p class="arc-unit__file">
+                  <span class="arc-unit__section-tag">{entry.__sectionName}</span>
+                  <span aria-hidden="true"> · </span>
+                  {entry.file}
+                </p>
+                <h3 class="arc-unit__title">
+                  <span class="arc-unit__star" aria-label="Pinned">★</span>
+                  {entry.title}
+                </h3>
+                {entry.pinnedReason && (
+                  <p class="arc-unit__pinned-reason">{entry.pinnedReason}</p>
+                )}
+              </header>
+
+              <div class="arc-unit__chart">
+                {entry.data !== undefined
+                  ? <Component data={entry.data} />
+                  : <Component />}
+              </div>
+
+              <dl class="arc-unit__meta">
+                <div class="arc-unit__row">
+                  <dt>What's different</dt>
+                  <dd>{entry.whatDifferent}</dd>
+                </div>
+                <div class="arc-unit__row">
+                  <dt>Why it might be better</dt>
+                  <dd>{entry.whyBetter}</dd>
+                </div>
+                <div class="arc-unit__row">
+                  <dt>Data fields</dt>
+                  <dd><code>{entry.dataFields}</code></dd>
+                </div>
+              </dl>
+            </article>
+          );
+        })}
+      </section>
+    )}
+
+    {archiveShelves.map((shelf) =>
+      shelf.entries.length === 0 ? null : (
+        <section class="arc-section" id={`section-${shelf.slug}`}>
+          <header class="arc-section__head">
+            <h2 class="arc-section__title">{shelf.name}</h2>
+            <p class="arc-section__count">
+              {shelf.entries.length} chart{shelf.entries.length === 1 ? "" : "s"}
+            </p>
+          </header>
+
+          {shelf.entries.map((entry) => {
+            const Component = entry.Component as any;
+            return (
+              <article class="arc-unit">
+                <header class="arc-unit__head">
+                  <p class="arc-unit__file">{entry.file}</p>
+                  <h3 class="arc-unit__title">{entry.title}</h3>
+                </header>
+
+                <div class="arc-unit__chart">
+                  {entry.data !== undefined
+                    ? <Component data={entry.data} />
+                    : <Component />}
+                </div>
+
+                <dl class="arc-unit__meta">
+                  <div class="arc-unit__row">
+                    <dt>What's different</dt>
+                    <dd>{entry.whatDifferent}</dd>
+                  </div>
+                  <div class="arc-unit__row">
+                    <dt>Why it might be better</dt>
+                    <dd>{entry.whyBetter}</dd>
+                  </div>
+                  <div class="arc-unit__row">
+                    <dt>Data fields</dt>
+                    <dd><code>{entry.dataFields}</code></dd>
+                  </div>
+                </dl>
+              </article>
+            );
+          })}
+        </section>
+      )
+    )}
+  </div>
+</BaseLayout>
+
+<style>
+  .arc-page {
+    max-width: 880px;
+    margin: 0 auto;
+    padding-block: 48px 96px;
+  }
+
+  .arc-page__head {
+    padding-bottom: 36px;
+    border-bottom: 1px solid var(--ink);
+    margin-bottom: 48px;
+  }
+  .arc-page__eyebrow {
+    margin: 0 0 12px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .arc-page__title {
+    margin: 0 0 16px;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: clamp(36px, 5vw, 56px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .arc-page__lede {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--ink);
+    max-width: 60ch;
+  }
+  .arc-page__crosslink {
+    margin: 14px 0 0;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink);
+    opacity: 0.75;
+    max-width: 60ch;
+  }
+  .arc-page__crosslink a {
+    color: var(--ink);
+  }
+
+  /* Wayfinding strip — sticky at top of viewport on scroll. */
+  .arc-jump {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--paper);
+    margin: -24px 0 32px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+  }
+  .arc-jump__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    align-items: baseline;
+  }
+  .arc-jump__item {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .arc-jump__link {
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    padding-bottom: 1px;
+    transition: border-color 0.15s ease;
+  }
+  a.arc-jump__link:hover,
+  a.arc-jump__link:focus-visible {
+    border-bottom-color: var(--accent);
+  }
+  .arc-jump__count {
+    margin-left: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink);
+    opacity: 0.55;
+  }
+
+  .arc-section {
+    margin-bottom: 64px;
+  }
+  .arc-section--pinned {
+    /* Visually delineate the pinned zone with a slightly heavier rule. */
+    border-top: 2px solid var(--ink);
+    padding-top: 18px;
+  }
+  .arc-section__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: 12px;
+    margin-bottom: 24px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .arc-section__title {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 32px;
+    letter-spacing: -0.012em;
+    color: var(--ink);
+    display: inline-flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .arc-section__star {
+    color: var(--accent);
+    font-size: 28px;
+    line-height: 1;
+  }
+  .arc-section__count {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 12px;
+    color: var(--ink);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .arc-unit {
+    padding-block: 28px;
+    border-bottom: 1px solid var(--ink);
+  }
+  .arc-unit:last-child {
+    border-bottom: 0;
+  }
+  .arc-unit__head {
+    margin-bottom: 16px;
+  }
+  .arc-unit__file {
+    margin: 0 0 6px;
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 11px;
+    color: var(--ink);
+    opacity: 0.65;
+  }
+  .arc-unit__section-tag {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 10px;
+    color: var(--ink);
+    opacity: 0.85;
+  }
+  .arc-unit__title {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 22px;
+    line-height: 1.2;
+    color: var(--ink);
+  }
+  .arc-unit__star {
+    color: var(--accent);
+    margin-right: 8px;
+    font-size: 20px;
+  }
+  .arc-unit__pinned-reason {
+    margin: 6px 0 0;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--ink);
+    opacity: 0.75;
+    font-style: italic;
+  }
+
+  .arc-unit__chart {
+    width: 100%;
+    border: 1px solid var(--ink);
+    margin-bottom: 16px;
+    background: var(--paper);
+  }
+  .arc-unit__chart :global(.alt-chart),
+  .arc-unit__chart :global(svg) {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .arc-unit__meta {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .arc-unit__row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 16px;
+    align-items: baseline;
+  }
+  .arc-unit__row dt {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .arc-unit__row dd {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+  .arc-unit__row dd code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink);
+    background: rgba(0,0,0,0.04);
+    padding: 1px 4px;
+  }
+
+  @media (max-width: 640px) {
+    .arc-unit__row {
+      grid-template-columns: 1fr;
+      gap: 4px;
+    }
+  }
+</style>

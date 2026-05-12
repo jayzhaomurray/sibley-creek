@@ -334,24 +334,30 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         ),
         PanelSpec(
             panel_id="panel-2", section="labour", panel_num=2,
-            file="labour/Panel2URDrivers.astro",
+            file="labour/Panel2LabourStocks.astro",
             primary=SlotSpec("employment_level", "raw",
                              label="Employment level (SA, monthly, millions)"),
-            secondary=SlotSpec("unemployment_rate", "raw",
-                               label="Unemployment rate (SA, monthly, %)"),
+            secondary=SlotSpec("unemployment_level", "raw",
+                               label="Unemployment level (SA, monthly, millions)"),
+            tertiary=SlotSpec("employment_rate", "raw",
+                              label="Employment rate (SA, monthly, %); denominator for derived pop_15+"),
             expected_status="WIRED",
             notes=(
-                "UR-drivers plate (2026-05-12). Replaces the retired m/m "
-                "identity decomp (Alt_Panel2URDecompIdentity.astro). Same "
-                "shape as panel-1: primary = employment_level (StatCan "
-                "v2062811, SA monthly, millions), secondary = unemployment_"
-                "rate (StatCan v2062815, SA monthly, %). Chart wrapper "
-                "derives labour-force level via the LFS identity "
-                "(LF = E / (1 - UR/100)), then computes 3-month annualized "
-                "growth for both employment and labour force "
-                "(((level[t]/level[t-3])^4 - 1) * 100), and renders the "
-                "signed gap (LF_growth - emp_growth) as bars. No pipeline "
-                "transforms; everything chart-side."
+                "Three-stocks plate (2026-05-12). Replaces the indexed-wedge "
+                "V3 (archived at _alternatives/labour/Alt_Panel2URDriversIndexed"
+                "Wedge.astro) -- that geometry did not land. Three side-by-"
+                "side line panels of the labour-force stocks: employed, "
+                "unemployed, not-in-labour-force. 60-month window, shared x-"
+                "axis, per-panel y-axes (the magnitudes differ by an order "
+                "of magnitude). Primary = employment_level (StatCan v2062811, "
+                "SA monthly, millions); secondary = unemployment_level "
+                "(v2062814, SA monthly, millions); tertiary = employment_"
+                "rate (v2062817, SA monthly, %). Not-in-labour-force is "
+                "derived at render time via the LFS identity: pop_15+ = "
+                "employment_level / (employment_rate / 100); NLF = pop_15+ - "
+                "employment_level - unemployment_level. No pipeline-tier "
+                "derivation -- identity is exact to the rounding of the "
+                "published rates and uses series already on disk."
             ),
         ),
         PanelSpec(

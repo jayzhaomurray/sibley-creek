@@ -1,0 +1,59 @@
+/*
+ * _alternatives/housing/index.ts — chart-alternatives manifest for the
+ * Housing section. See _alternatives/gdp/index.ts for the pattern.
+ */
+
+import type { ChartShelfEntry } from "../_shared/shelfEntry";
+
+import Alt1_HpiMultiCity from "./Alt1_HpiMultiCity.astro";
+import Alt2_StartsSmoothing from "./Alt2_StartsSmoothing.astro";
+import Alt3_MortgageVsHpi from "./Alt3_MortgageVsHpi.astro";
+import Alt4_SnlrVsHpi from "./Alt4_SnlrVsHpi.astro";
+
+export const entries: ChartShelfEntry[] = [
+  {
+    Component: Alt1_HpiMultiCity,
+    file: "housing/Alt1_HpiMultiCity.astro",
+    title: "MLS HPI Y/Y national + 3 CMAs",
+    whatDifferent:
+      "National solid, Toronto dashed, Vancouver sparse-dashed, Calgary dotted. All pure ink; weight and dash carry identity.",
+    whyBetter:
+      "National HPI averages across very different regional cycles. The Calgary-vs-Toronto divergence is the housing story of the past two years.",
+    dataFields:
+      "crea_hpi_{canada,toronto,vancouver,calgary}.csv, all Y/Y derived",
+    addedAt: "2026-05-12",
+  },
+  {
+    Component: Alt2_StartsSmoothing,
+    file: "housing/Alt2_StartsSmoothing.astro",
+    title: "Housing starts: 6mma + 3mma + monthly",
+    whatDifferent:
+      "Three smoothings of the SAAR starts series, with monthly noise included.",
+    whyBetter:
+      "Starts are noisy; the smoothings train the eye on the trend rather than the print.",
+    dataFields: "housing_starts.csv with derived 3mma + 6mma",
+    addedAt: "2026-05-12",
+  },
+  {
+    Component: Alt3_MortgageVsHpi,
+    file: "housing/Alt3_MortgageVsHpi.astro",
+    title: "5yr mortgage rate vs HPI Y/Y",
+    whatDifferent:
+      "Same-axis (both %) dual-series overlay showing the transmission channel.",
+    whyBetter:
+      "The mortgage rate alone is a level; paired with HPI Y/Y it tells a transmission story. BoC cuts show up here as HPI stabilizing.",
+    dataFields: "mortgage_rate_5yr.csv + crea_hpi_canada.csv (Y/Y)",
+    addedAt: "2026-05-12",
+  },
+  {
+    Component: Alt4_SnlrVsHpi,
+    file: "housing/Alt4_SnlrVsHpi.astro",
+    title: "SNLR with HPI Y/Y overlay",
+    whatDifferent:
+      "SNLR primary with the sellers'-market threshold (60%) as reference; HPI Y/Y secondary. The leading-indicator pair.",
+    whyBetter:
+      "SNLR > 60 leads HPI acceleration by 3-6 months; the overlay makes the lead visible.",
+    dataFields: "crea_snlr.csv + crea_mls_hpi.csv (Y/Y)",
+    addedAt: "2026-05-12",
+  },
+];

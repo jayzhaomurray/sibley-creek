@@ -20,6 +20,7 @@ __all__ = [
     "release_cycle",
     "artifact",
     "registry",
+    "section_context",
     "validators",
     "factcheck",
     "verify_claims",

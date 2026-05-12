@@ -13,9 +13,10 @@ Triggers when the user runs `/fix-chart` (optionally with an argument: a plate i
 Resolve which chart, in this order:
 
 1. **Explicit arg** — if the user passed `plate-2`, `labour-panel-2`, or a path, use that.
-2. **Pasted screenshot** — if the user attached an image in the current turn, that IS the target. Find the chart that matches the screenshot from page context.
-3. **Most-recently-discussed plate in this session** — scan back through the conversation for the last chart that was rebuilt, edited, or mentioned by name.
-4. **If still ambiguous** — ask the user which chart, one short question.
+2. **Natural-language fragment** — if the user passed a phrase like `"the wedge chart"` or `"hours panel"`, fuzzy-match against plate `title` / `indicator` fields across all section pages, and against `title` / `whatDifferent` in all `_alternatives/` and `_archive/` manifests. Confirm via `AskUserQuestion` if multiple candidates.
+3. **Pasted screenshot** — if the user attached an image in the current turn, that IS the target. Find the chart that matches the screenshot from page context.
+4. **Most-recently-discussed plate in this session** — scan back through the conversation for the last chart that was rebuilt, edited, or mentioned by name.
+5. **If still ambiguous** — ask the user which chart via picker.
 
 Locate the underlying `.astro` component, the route that renders it (e.g. `src/pages/labour.astro`), and the built `dist/<route>/index.html`.
 
