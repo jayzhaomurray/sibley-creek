@@ -323,15 +323,25 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         ),
         PanelSpec(
             panel_id="panel-3", section="labour", panel_num=3,
-            file="labour/Panel3WageBand.astro",
-            primary=SlotSpec("lfs_wages_all", "raw", label="LFS wages, all"),
-            secondary=SlotSpec("lfs_wages_permanent", "raw", label="LFS wages, permanent"),
-            tertiary=SlotSpec("seph_earnings", "raw", label="SEPH earnings"),
+            file="labour/Panel3WageBandV2.astro",
+            # V2 wage-band canon (chart-builder, 2026-05-12): primary is the
+            # BoC LFS-Micro composition-adjusted Y/Y measure, the canon BoC
+            # read. LFS-all hourly wages (CAD/hr) and SEPH average weekly
+            # earnings ($) sit as the headline comparators in secondary and
+            # tertiary; both are emitted in levels and the component derives
+            # Y/Y at render time. The services-ex-shelter Y/Y CPI line is the
+            # real-wage anchor (a separate y-extra). lfs_wages_permanent is
+            # kept as an optional extra; the V2 default omits it to avoid
+            # crowding.
+            primary=SlotSpec("lfs_micro", "raw", label="LFS-Micro Y/Y (BoC)"),
+            secondary=SlotSpec("lfs_wages_all", "raw", label="LFS, all employees"),
+            tertiary=SlotSpec("seph_earnings", "raw", label="SEPH avg weekly earnings"),
             extras=(
-                SlotSpec("lfs_micro", "raw", label="BoC LFS-Micro composition-adj. wage"),
-                SlotSpec("cpi_services_yoy", "processed", label="Services CPI Y/Y (real-wage anchor)"),
+                SlotSpec("cpi_services_ex_shelter_yoy", "processed",
+                         label="Services CPI ex-shelter Y/Y (real-wage anchor)"),
+                SlotSpec("lfs_wages_permanent", "raw", label="LFS, permanent employees"),
             ),
-            notes="Chart-builder computes Y/Y on each level series at render time; or backend can add processed/<wage>_yoy companions.",
+            notes="V2 chart: chart-builder derives Y/Y on lfs_wages_all and seph_earnings at render time; lfs_micro and cpi_services_ex_shelter_yoy arrive already in Y/Y %.",
         ),
         PanelSpec(
             panel_id="panel-4", section="labour", panel_num=4,

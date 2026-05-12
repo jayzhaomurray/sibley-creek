@@ -1,0 +1,526 @@
+---
+/*
+ * Panel3WageBandV2 - wage growth band, Y/Y comparison.
+ *
+ * Editorial question: is wage growth picking up or slowing down? Do the
+ * different measures agree?
+ *
+ * V1 (Panel3WageBand): rendered LFS-all and LFS-permanent in dollar
+ *   LEVELS. Monotone upward-sloping flat lines that could not answer the
+ *   "is wage growth accelerating?" question. Diagnosed as wrong-shape
+ *   2026-05-11; rebuilt here.
+ *
+ * V2 (THIS): four wage measures on a shared Y/Y % axis.
+ *
+ *   - Primary  (1.5px solid ink, MTA-red latest dot): LFS-Micro Y/Y, the
+ *     BoC's composition-adjusted canon wage measure. Pipeline emits it
+ *     already in Y/Y %.
+ *   - Secondary (1px dashed 4-2): LFS-all hourly wages Y/Y. Pipeline
+ *     emits CAD/hour level; component derives Y/Y at render time.
+ *   - Tertiary (1px sparse-dashed 2-3): SEPH average weekly earnings
+ *     Y/Y. Pipeline emits CAD/week level; component derives Y/Y at
+ *     render time.
+ *   - Reference (1px dotted, lighter ink, no red dot): services CPI ex-
+ *     shelter Y/Y, the real-wage anchor. Pipeline emits processed Y/Y %.
+ *
+ * Aggregate-vs-component canon (design-system.md Sec 5): the LFS-Micro
+ * read is the protagonist (carries the editorial frame). The two
+ * headline LFS / SEPH measures are companions, NOT a true aggregate, so
+ * the canon's "no red dot on the aggregate" applies to the inflation
+ * reference line: that reference is the contextual frame and never
+ * carries an accent dot. The LFS / SEPH companions retain small pure-
+ * ink termini per the three-line panel convention in PanelLiveChart.
+ *
+ * Window: 60 months (5 years) so the post-pandemic wage cycle reads.
+ */
+
+import type { PanelData, SeriesPoint } from "../_shared/panelData";
+import { decYear, tailWindow } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+const { data = null } = Astro.props;
+
+// ---- Y/Y derivation on level series -------------------------------------
+// 12-period lag on monthly grids. Pipeline emits all wage levels with a
+// stable monthly cadence; mirror the altUtils.yoy() pattern so the
+// numbers match the chart-alternatives prototype line for line.
+function yoy(series: SeriesPoint[]): SeriesPoint[] {
+  const out: SeriesPoint[] = [];
+  for (let i = 0; i < series.length; i++) {
+    const here = series[i]!;
+    const prev = series[i - 12];
+    if (
+      !prev ||
+      typeof prev.value !== "number" ||
+      typeof here.value !== "number" ||
+      prev.value === 0
+    ) {
+      out.push({ date: here.date, value: null });
+    } else {
+      out.push({
+        date: here.date,
+        value: ((here.value - prev.value) / prev.value) * 100,
+      });
+    }
+  }
+  return out;
+}
+
+// ---- Pull series --------------------------------------------------------
+function findExtra(key: string): SeriesPoint[] {
+  if (!data || !Array.isArray((data as any).extras)) return [];
+  const extras = (data as any).extras as Array<{ key: string; data: SeriesPoint[] }>;
+  return extras.find((e) => e.key === key)?.data ?? [];
+}
+
+const lfsMicroRaw = data?.primary?.data ?? [];
+const lfsAllRawLevels = data?.secondary?.data ?? [];
+const sephRawLevels = data?.tertiary?.data ?? [];
+const cpiServicesExShelterRaw = findExtra("cpi_services_ex_shelter_yoy");
+
+const lfsMicroAll = lfsMicroRaw; // already %
+const lfsAllYoyAll = yoy(lfsAllRawLevels);
+const sephYoyAll = yoy(sephRawLevels);
+const cpiServicesExShelterAll = cpiServicesExShelterRaw;
+
+const hasData =
+  lfsMicroAll.length > 0 &&
+  lfsAllYoyAll.length > 0 &&
+  sephYoyAll.length > 0 &&
+  cpiServicesExShelterAll.length > 0;
+
+// ---- Windowing (5 years) ------------------------------------------------
+const WINDOW_MONTHS = 60;
+const lfsMicroData = tailWindow(lfsMicroAll, WINDOW_MONTHS, "monthly");
+const lfsAllData = tailWindow(lfsAllYoyAll, WINDOW_MONTHS, "monthly");
+const sephData = tailWindow(sephYoyAll, WINDOW_MONTHS, "monthly");
+const cpiRefData = tailWindow(cpiServicesExShelterAll, WINDOW_MONTHS, "monthly");
+
+// ---- Geometry (pinned to PanelLiveChart canon) -------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 56;
+const M_R = 96;
+const M_T = 44;
+const M_B = 40;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+// ---- x-domain spans all four series ------------------------------------
+function xDomain(series: SeriesPoint[]): number[] {
+  return series.map((d) => decYear(d.date)).filter((v) => !Number.isNaN(v));
+}
+const xs = [
+  ...xDomain(lfsMicroData),
+  ...xDomain(lfsAllData),
+  ...xDomain(sephData),
+  ...xDomain(cpiRefData),
+];
+const xMin = xs.length > 0 ? Math.min(...xs) : 0;
+const xMax = xs.length > 0 ? Math.max(...xs) : 1;
+
+// ---- y-domain spans all four series ------------------------------------
+function yValues(series: SeriesPoint[]): number[] {
+  return series
+    .map((p) => p.value)
+    .filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
+}
+const allY = [
+  ...yValues(lfsMicroData),
+  ...yValues(lfsAllData),
+  ...yValues(sephData),
+  ...yValues(cpiRefData),
+];
+let yLo = 0;
+let yHi = 1;
+if (allY.length > 0) {
+  const rawMin = Math.min(...allY);
+  const rawMax = Math.max(...allY);
+  const span = rawMax - rawMin || Math.max(1, Math.abs(rawMax) * 0.1);
+  yLo = rawMin - span * 0.10;
+  yHi = rawMax + span * 0.10;
+}
+const yRange = yHi - yLo || 1;
+const crossesZero = yLo < 0 && yHi > 0;
+
+function xScale(yr: number): number {
+  if (xMax === xMin) return PLOT_X0 + PLOT_W / 2;
+  return PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
+}
+function yScale(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
+}
+
+// ---- Path builder ------------------------------------------------------
+function buildLinePath(series: SeriesPoint[]): string {
+  let d = "";
+  let started = false;
+  for (const pt of series) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) {
+      started = false;
+      continue;
+    }
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    const x = xScale(xv);
+    const y = yScale(pt.value);
+    d += `${started ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)} `;
+    started = true;
+  }
+  return d.trim();
+}
+
+const lfsMicroPath = buildLinePath(lfsMicroData);
+const lfsAllPath = buildLinePath(lfsAllData);
+const sephPath = buildLinePath(sephData);
+const cpiRefPath = buildLinePath(cpiRefData);
+
+// ---- Latest non-null point per series ----------------------------------
+function lastReal(series: SeriesPoint[]): { x: number; y: number; v: number; date: string } | null {
+  for (let i = series.length - 1; i >= 0; i--) {
+    const pt = series[i]!;
+    if (typeof pt.value === "number" && !Number.isNaN(pt.value)) {
+      const xv = decYear(pt.date);
+      if (Number.isNaN(xv)) continue;
+      return { x: xScale(xv), y: yScale(pt.value), v: pt.value, date: pt.date };
+    }
+  }
+  return null;
+}
+const lastMicro = lastReal(lfsMicroData);
+const lastLfsAll = lastReal(lfsAllData);
+const lastSeph = lastReal(sephData);
+const lastCpiRef = lastReal(cpiRefData);
+
+// ---- Y-axis ticks ------------------------------------------------------
+function pickStride(lo: number, hi: number, target = 5): number {
+  const span = hi - lo;
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  const rough = span / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let nice = 1;
+  if (norm < 1.5) nice = 1;
+  else if (norm < 3) nice = 2;
+  else if (norm < 4) nice = 2.5;
+  else if (norm < 7) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+const yStride = pickStride(yLo, yHi);
+const yTicks: number[] = [];
+const yStart = Math.ceil(yLo / yStride) * yStride;
+for (let v = yStart; v <= yHi + 1e-9; v += yStride) yTicks.push(Number(v.toFixed(6)));
+if (yTicks.length === 0) yTicks.push(Number(((yLo + yHi) / 2).toFixed(6)));
+
+// ---- X-axis year ticks -------------------------------------------------
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const allYearTicks: Array<{ x: number; label: string }> = [];
+for (let yr = yearStart; yr <= yearEnd; yr++) {
+  const decY = yr + (1 - 0.5) / 12;
+  if (decY < xMin || decY > xMax) continue;
+  allYearTicks.push({ x: xScale(decY), label: String(yr) });
+}
+const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 5));
+const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
+
+// ---- Recession band (out of 5-year window in 2026; defensive) ---------
+const recStart = 2020 + (2 - 0.5) / 12;
+const recEnd = 2020 + (4 - 0.5) / 12;
+const recVisible = recEnd >= xMin && recStart <= xMax;
+const recX0 = recVisible ? xScale(Math.max(recStart, xMin)) : 0;
+const recX1 = recVisible ? xScale(Math.min(recEnd, xMax)) : 0;
+
+// ---- Direct-label placement -------------------------------------------
+// Four labels: LFS-Micro, LFS-all, SEPH, Services CPI ex-shelter. Stack
+// by natural y; on collision, slide subsequent labels by LABEL_LH.
+const LABEL_GAP_X = 10;
+const LABEL_LH = 14;
+const LABEL_MIN_DY = 12;
+
+type LabelEntry = {
+  text: string;
+  cls: string;       // CSS class for the <text>
+  x: number;
+  y: number;
+  natY: number;
+};
+
+const labelEntries: LabelEntry[] = [];
+function addLabel(
+  last: { x: number; y: number } | null,
+  text: string,
+  cls: string,
+) {
+  if (!last) return;
+  labelEntries.push({
+    text,
+    cls,
+    x: last.x + LABEL_GAP_X,
+    y: last.y + 4,
+    natY: last.y + 4,
+  });
+}
+addLabel(lastMicro, "LFS-Micro", "wage-label wage-label--primary");
+addLabel(lastLfsAll, "LFS, all", "wage-label wage-label--secondary");
+addLabel(lastSeph, "SEPH weekly", "wage-label wage-label--tertiary");
+addLabel(lastCpiRef, "Services CPI", "wage-label wage-label--reference");
+
+// Collision resolution: sort by natY, push subsequent labels down by
+// at most LABEL_LH from the previous resolved label. Keeps reading
+// order matched to vertical order at the chart's right edge.
+labelEntries.sort((a, b) => a.natY - b.natY);
+for (let i = 1; i < labelEntries.length; i++) {
+  const prev = labelEntries[i - 1]!;
+  const cur = labelEntries[i]!;
+  if (cur.y - prev.y < LABEL_MIN_DY) {
+    cur.y = prev.y + LABEL_LH;
+  }
+}
+// Bounds clamp: keep within the y-extents of the plot region.
+for (const e of labelEntries) {
+  if (e.y < PLOT_Y0 + 4) e.y = PLOT_Y0 + 4;
+  if (e.y > PLOT_Y1 + M_B - 4) e.y = PLOT_Y1 + M_B - 4;
+}
+
+const ariaLabel =
+  "Wage growth measures, year-over-year, last 60 months: BoC LFS-Micro composition-adjusted (primary), LFS all-employees hourly wages, SEPH average weekly earnings, and services CPI ex-shelter as the real-wage anchor.";
+---
+{hasData ? (
+  <div class="canon-chart" data-panel="labour-3-wage-band-v2">
+    <svg
+      class="canon-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {recVisible && (
+        <g class="canon-chart__recession-group">
+          <rect
+            class="canon-chart__recession"
+            x={recX0.toFixed(2)}
+            y={PLOT_Y0}
+            width={Math.max(1, recX1 - recX0).toFixed(2)}
+            height={PLOT_H}
+          />
+          <text
+            class="canon-chart__recession-label"
+            x={(Math.max(recX1 + 4, PLOT_X0 + 4)).toFixed(2)}
+            y={(PLOT_Y0 + 12).toFixed(2)}
+            text-anchor="start"
+          >RECESSION (2020Q1-Q2)</text>
+        </g>
+      )}
+
+      {yTicks.map((v) => {
+        const yy = yScale(v);
+        if (crossesZero && Math.abs(v) < 1e-9) return null;
+        return (
+          <line
+            class="canon-chart__gridline"
+            x1={PLOT_X0}
+            y1={yy.toFixed(2)}
+            x2={PLOT_X1}
+            y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      {crossesZero && (
+        <line
+          class="canon-chart__zero-line"
+          x1={PLOT_X0}
+          y1={yScale(0).toFixed(2)}
+          x2={PLOT_X1}
+          y2={yScale(0).toFixed(2)}
+        />
+      )}
+
+      <defs>
+        <clipPath id="wage-band-v2-clip">
+          <rect x={PLOT_X0} y={PLOT_Y0} width={PLOT_W} height={PLOT_H} />
+        </clipPath>
+      </defs>
+      <g clip-path="url(#wage-band-v2-clip)">
+        {/* Draw reference (services CPI) first so it sits behind the
+           wage lines; treatment is dashed 2-2 at reduced opacity per
+           the aggregate-vs-component reference convention. */}
+        {cpiRefPath && (
+          <path class="wage-band__ref" d={cpiRefPath} fill="none" />
+        )}
+
+        {sephPath && (
+          <path class="wage-band__tertiary" d={sephPath} fill="none" />
+        )}
+
+        {lfsAllPath && (
+          <path class="wage-band__secondary" d={lfsAllPath} fill="none" />
+        )}
+
+        {lfsMicroPath && (
+          <path class="wage-band__primary" d={lfsMicroPath} fill="none" />
+        )}
+      </g>
+
+      {/* Small pure-ink dots on the companion termini (LFS-all, SEPH);
+         no dot on the inflation reference (aggregate-vs-component canon). */}
+      {lastLfsAll && (
+        <circle
+          class="wage-band__dot-companion"
+          cx={lastLfsAll.x.toFixed(2)}
+          cy={lastLfsAll.y.toFixed(2)}
+          r="3"
+        />
+      )}
+      {lastSeph && (
+        <circle
+          class="wage-band__dot-companion"
+          cx={lastSeph.x.toFixed(2)}
+          cy={lastSeph.y.toFixed(2)}
+          r="3"
+        />
+      )}
+
+      {/* MTA-red latest dot on the primary protagonist. */}
+      {lastMicro && (
+        <circle
+          class="canon-chart__latest-dot"
+          cx={lastMicro.x.toFixed(2)}
+          cy={lastMicro.y.toFixed(2)}
+          r="4"
+        >
+          <title>{`LFS-Micro Y/Y, ${lastMicro.date}: ${lastMicro.v.toFixed(2)}%`}</title>
+        </circle>
+      )}
+
+      <rect
+        class="canon-chart__frame"
+        x={PLOT_X0}
+        y={PLOT_Y0}
+        width={PLOT_W}
+        height={PLOT_H}
+      />
+
+      {xTicks.map((t) => (
+        <g>
+          <line
+            class="canon-chart__xtick"
+            x1={t.x.toFixed(2)}
+            y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="canon-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {yTicks.map((v, i) => {
+        const yy = yScale(v);
+        const isTop = i === yTicks.length - 1;
+        const txt = isTop ? `${v.toFixed(1)}%` : v.toFixed(1);
+        return (
+          <text
+            class="canon-chart__ytick-label"
+            x={(PLOT_X0 - 8).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{txt}</text>
+        );
+      })}
+
+      {/* Direct labels at line termini, hand-stacked by natural y order. */}
+      {labelEntries.map((e) => (
+        <text
+          class={e.cls}
+          x={e.x.toFixed(2)}
+          y={e.y.toFixed(2)}
+          text-anchor="start"
+        >{e.text}</text>
+      ))}
+    </svg>
+  </div>
+) : (
+  <PanelEmpty reason="Wage-band V2 needs lfs_micro (primary, % Y/Y), lfs_wages_all (secondary, level), seph_earnings (tertiary, level), and cpi_services_ex_shelter_yoy (extra, % Y/Y); one or more not yet wired." />
+)}
+
+<style>
+  .canon-chart { width: 100%; aspect-ratio: 16 / 9; background-color: var(--paper); overflow: visible; }
+  .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
+
+  /* Canon hairlines */
+  .canon-chart__recession { fill: rgba(21, 23, 26, 0.06); }
+  .canon-chart__recession-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
+  }
+  .canon-chart__gridline { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges; }
+  .canon-chart__zero-line { stroke: var(--ink); stroke-width: 1; stroke-opacity: 1; shape-rendering: crispEdges; }
+  .canon-chart__frame { fill: none; stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__xtick-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__ytick-label {
+    fill: var(--ink); font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__latest-dot { fill: var(--accent); stroke: none; }
+
+  /* Wage-band line treatments. Primary = LFS-Micro, the canon BoC
+   * composition-adjusted measure (1.5px solid). Secondary = LFS-all
+   * (1px dashed 4-2). Tertiary = SEPH weekly (1px sparse-dashed 2-3).
+   * Reference = services CPI ex-shelter (1px sparser 1-3 at 55%
+   * opacity, the real-wage anchor — distinguished from the wage
+   * triplet by ink weight). */
+  .wage-band__primary {
+    stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round;
+    stroke-linecap: round; fill: none; vector-effect: non-scaling-stroke;
+  }
+  .wage-band__secondary {
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2;
+    stroke-linejoin: round; stroke-linecap: butt; fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+  .wage-band__tertiary {
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 2 3;
+    stroke-linejoin: round; stroke-linecap: butt; fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+  .wage-band__ref {
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 1 3;
+    stroke-opacity: 0.55; stroke-linejoin: round; stroke-linecap: butt;
+    fill: none; vector-effect: non-scaling-stroke;
+  }
+
+  .wage-band__dot-companion { fill: var(--ink); stroke: none; }
+
+  /* Direct labels. Primary in semibold; companions in regular weight;
+   * inflation reference in regular weight at reduced opacity to match
+   * the reference-line treatment. */
+  .wage-label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 13px;
+  }
+  .wage-label--primary { font-weight: var(--fw-semibold); }
+  .wage-label--secondary { font-weight: var(--fw-regular); }
+  .wage-label--tertiary { font-weight: var(--fw-regular); }
+  .wage-label--reference {
+    font-weight: var(--fw-regular); fill-opacity: 0.7;
+    font-size: 12px;
+  }
+</style>
