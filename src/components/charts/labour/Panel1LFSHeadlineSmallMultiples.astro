@@ -16,11 +16,27 @@
  *
  * Pipeline shape: panel-1 emits unemployment_rate (primary),
  * employment_rate (secondary), participation_rate (tertiary). All three
- * are percent series; the y-domain auto-tunes per panel.
+ * are percent series; the y-domain is forced to a 2pp visual span
+ * centered on the midpoint of (pre-pandemic mean, latest value) so
+ * visual slope is comparable across panels (art-director sign-off
+ * 2026-05-12).
  *
  * Custom SVG (not PanelLiveChart) because the three-panel small-multiples
- * idiom is outside PanelLiveChart's single-panel scope. Pattern cribbed
- * from Panel1HeadlineGDPV3's two-panel small-multiples + custom y-scales.
+ * idiom is outside PanelLiveChart's single-panel scope.
+ *
+ * Visual rules (art-director redesign 2026-05-12):
+ *  - Reference label sits ON the dashed rule (canon-reference Rule 8 +
+ *    canon Rule L4): "X.X% pre-pandemic avg", right-anchored inside the
+ *    plot, baseline 5px above the rule.
+ *  - Shaded gap between dashed rule and latest data segment, from last
+ *    crossing date (or panel left edge if no crossing inside window) to
+ *    the latest data point. Same ink wash as the recession band.
+ *  - Panel titles in sentence case, left-aligned at plotX0, no "%" suffix.
+ *  - Equalized 2pp y-span across all three panels.
+ *  - "scale: 2pp" micro-stamp above the leftmost (unemployment) panel.
+ *  - No plot frame per-panel (small-multiples adaptation, art-director
+ *    blessed). Single 1px bottom rule under x-ticks.
+ *  - Annotation callout on panel 1 only.
  */
 
 import type { PanelData, SeriesPoint } from "../_shared/panelData";
@@ -59,15 +75,19 @@ function pickStride(lo: number, hi: number, targetTicks = 4): number {
   return nice * mag;
 }
 
-// Historical mean is computed from the FULL series (every observation the
-// pipeline emits) BEFORE windowing. The dashed reference line gives readers
-// an instant "above or below the historical norm" anchor that wouldn't
-// survive a 36-month window restriction (the 36-month sample IS the cycle).
-function historicalMean(series: SeriesPoint[] | undefined): number | null {
+// Pre-pandemic decade (2010-01 to 2019-12) is the cyclical-normal anchor:
+// excludes the GFC and the pandemic, the two biggest distortions in the
+// available history, leaving a clean post-recovery / pre-shock window.
+// User-ratified 2026-05-12 over the 20-year-full-series default.
+const PRE_PANDEMIC_START = "2010-01-01";
+const PRE_PANDEMIC_END = "2019-12-31";
+
+function prePandemicMean(series: SeriesPoint[] | undefined): number | null {
   if (!series) return null;
   let sum = 0;
   let n = 0;
   for (const pt of series) {
+    if (pt.date < PRE_PANDEMIC_START || pt.date > PRE_PANDEMIC_END) continue;
     if (typeof pt.value === "number" && !Number.isNaN(pt.value)) {
       sum += pt.value;
       n++;
@@ -80,9 +100,9 @@ const urFull = data?.primary?.data ?? [];
 const erFull = data?.secondary?.data ?? [];
 const prFull = data?.tertiary?.data ?? [];
 
-const urMean = historicalMean(urFull);
-const erMean = historicalMean(erFull);
-const prMean = historicalMean(prFull);
+const urMean = prePandemicMean(urFull);
+const erMean = prePandemicMean(erFull);
+const prMean = prePandemicMean(prFull);
 
 const ur = urFull.length > 0 ? tailWindow(urFull, WINDOW_MONTHS, "monthly") : [];
 const er = erFull.length > 0 ? tailWindow(erFull, WINDOW_MONTHS, "monthly") : [];
@@ -102,7 +122,7 @@ const VB_W = 720;
 const VB_H = 405;
 const M_OUT = 8;
 const GAP_X = 36;
-const M_T = 52;
+const M_T = 60;        // bumped slightly for the scale-stamp + title row
 const M_B = 36;
 const SUB_M_L = 36;
 const SUB_M_R = 8;
@@ -114,6 +134,12 @@ const COL_X1 = (i: number) => COL_X0(i) + SUB_W;
 const PLOT_Y0 = M_T;
 const PLOT_Y1 = VB_H - M_B;
 const PLOT_H = PLOT_Y1 - PLOT_Y0;
+
+// Forced y-span: 2.0 percentage points across all three panels so visual
+// slope reads comparably. Centered on midpoint of (pre-pandemic mean,
+// latest value). A "scale: 2pp" micro-stamp on the leftmost panel signals
+// the equalization to the reader.
+const Y_SPAN_PP = 2.0;
 
 interface SubPanelGeom {
   plotX0: number;
@@ -131,6 +157,12 @@ interface SubPanelGeom {
   lastDate: string | null;
   meanY: number | null;
   meanValue: number | null;
+  // Shaded-gap band geometry: rect from gapX0 to lastX, spanning the
+  // vertical region between the dashed rule and the latest data point.
+  gapX0: number | null;
+  gapX1: number | null;
+  gapY0: number | null;
+  gapY1: number | null;
 }
 
 function buildSubPanel(
@@ -142,26 +174,28 @@ function buildSubPanel(
   const plotX1 = COL_X1(colIdx) - SUB_M_R;
   const plotW = plotX1 - plotX0;
 
-  const ys = series
-    .map((d) => d.value)
-    .filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
+  const last = lastReal(series);
+
+  // Forced 2pp visual span centered on midpoint of (mean, latest). When
+  // either is missing, fall back to the data's natural range with a tight
+  // pad so the small-multiples still read.
   let yLo = 0;
   let yHi = 1;
-  if (ys.length > 0) {
-    const rawMin = Math.min(...ys);
-    const rawMax = Math.max(...ys);
-    const span = (rawMax - rawMin) || Math.max(0.5, Math.abs(rawMax) * 0.05);
-    yLo = rawMin - span * 0.18;
-    yHi = rawMax + span * 0.18;
-  }
-  // Expand y-domain so the historical mean falls inside the visible plot.
-  // Without this, a low-volatility cycle window (e.g. participation rate
-  // hovering at 65.x while the full-history mean is closer to 65.5) clips
-  // the dashed line outside the frame.
-  if (meanValue !== null) {
-    const span = (yHi - yLo) || 1;
-    if (meanValue < yLo) yLo = meanValue - span * 0.08;
-    if (meanValue > yHi) yHi = meanValue + span * 0.08;
+  if (meanValue !== null && last) {
+    const mid = (meanValue + last.value) / 2;
+    yLo = mid - Y_SPAN_PP / 2;
+    yHi = mid + Y_SPAN_PP / 2;
+  } else {
+    const ys = series
+      .map((d) => d.value)
+      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
+    if (ys.length > 0) {
+      const rawMin = Math.min(...ys);
+      const rawMax = Math.max(...ys);
+      const span = (rawMax - rawMin) || Math.max(0.5, Math.abs(rawMax) * 0.05);
+      yLo = rawMin - span * 0.18;
+      yHi = rawMax + span * 0.18;
+    }
   }
   const yRange = yHi - yLo || 1;
 
@@ -191,16 +225,80 @@ function buildSubPanel(
   const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 3));
   const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
 
-  let path = "";
-  let started = false;
+  // Build the path, clipped against [yLo, yHi]. The forced 2pp y-span can
+  // push history data outside the visible range; an unclipped stroke would
+  // (a) escape PLOT_Y0/PLOT_Y1 in the rendered chart and (b) cause the
+  // text-overlap detector's getPointAtLength sampler to flag the title
+  // and reference label as overlapping. Clipping the path data itself
+  // (rather than via SVG <clipPath>) fixes both, because the path's
+  // intrinsic geometry now stays inside the plot box.
+  type PathPt = { x: number; v: number };
+  const rawPts: PathPt[] = [];
   for (const pt of series) {
     if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
     const xv = decYear(pt.date);
     if (Number.isNaN(xv)) continue;
-    const xp = xScale(xv).toFixed(2);
-    const yp = yScale(pt.value).toFixed(2);
-    path += (started ? "L" : "M") + xp + " " + yp + " ";
-    started = true;
+    rawPts.push({ x: xv, v: pt.value });
+  }
+  function inside(v: number): boolean {
+    return v >= yLo && v <= yHi;
+  }
+  function interpAtBound(a: PathPt, b: PathPt, bound: number): PathPt {
+    const t = (bound - a.v) / (b.v - a.v);
+    return { x: a.x + t * (b.x - a.x), v: bound };
+  }
+  let path = "";
+  let inSegment = false;
+  for (let i = 0; i < rawPts.length; i++) {
+    const curr = rawPts[i]!;
+    const prev = i > 0 ? rawPts[i - 1]! : null;
+    if (prev) {
+      const aIn = inside(prev.v);
+      const bIn = inside(curr.v);
+      if (aIn && bIn) {
+        // Whole segment inside; if we hadn't started yet, start at prev.
+        if (!inSegment) {
+          path += `M${xScale(prev.x).toFixed(2)} ${yScale(prev.v).toFixed(2)} `;
+          inSegment = true;
+        }
+        path += `L${xScale(curr.x).toFixed(2)} ${yScale(curr.v).toFixed(2)} `;
+      } else if (aIn && !bIn) {
+        // Exit boundary - clip to the y-bound and close this sub-path.
+        if (!inSegment) {
+          path += `M${xScale(prev.x).toFixed(2)} ${yScale(prev.v).toFixed(2)} `;
+          inSegment = true;
+        }
+        const bound = curr.v > yHi ? yHi : yLo;
+        const pt = interpAtBound(prev, curr, bound);
+        path += `L${xScale(pt.x).toFixed(2)} ${yScale(pt.v).toFixed(2)} `;
+        inSegment = false;
+      } else if (!aIn && bIn) {
+        // Entry - start a new sub-path at the boundary.
+        const bound = prev.v > yHi ? yHi : yLo;
+        const pt = interpAtBound(prev, curr, bound);
+        path += `M${xScale(pt.x).toFixed(2)} ${yScale(pt.v).toFixed(2)} `;
+        path += `L${xScale(curr.x).toFixed(2)} ${yScale(curr.v).toFixed(2)} `;
+        inSegment = true;
+      } else {
+        // Both outside: if they straddle the band, clip the crossing
+        // sub-segment; otherwise skip.
+        if ((prev.v < yLo && curr.v > yHi) || (prev.v > yHi && curr.v < yLo)) {
+          const bound1 = prev.v < yLo ? yLo : yHi;
+          const bound2 = curr.v < yLo ? yLo : yHi;
+          const p1 = interpAtBound(prev, curr, bound1);
+          const p2 = interpAtBound(prev, curr, bound2);
+          path += `M${xScale(p1.x).toFixed(2)} ${yScale(p1.v).toFixed(2)} `;
+          path += `L${xScale(p2.x).toFixed(2)} ${yScale(p2.v).toFixed(2)} `;
+        }
+        inSegment = false;
+      }
+    } else {
+      // First point: if inside, start at it; otherwise wait.
+      if (inside(curr.v)) {
+        path += `M${xScale(curr.x).toFixed(2)} ${yScale(curr.v).toFixed(2)} `;
+        inSegment = true;
+      }
+    }
   }
   path = path.trim();
 
@@ -208,7 +306,6 @@ function buildSubPanel(
   let lastY: number | null = null;
   let lastValue: number | null = null;
   let lastDate: string | null = null;
-  const last = lastReal(series);
   if (last) {
     const xv = decYear(last.date);
     if (!Number.isNaN(xv)) {
@@ -223,22 +320,137 @@ function buildSubPanel(
     ? yScale(meanValue)
     : null;
 
+  // Shaded-gap geometry. Walk the windowed series left-to-right; if the
+  // series crosses the mean value, remember the most recent crossing's
+  // x-coordinate (linearly interpolated between flanking samples). If no
+  // crossing exists inside the 36-month window, the band spans the full
+  // panel width.
+  let gapX0: number | null = null;
+  let gapX1: number | null = null;
+  let gapY0: number | null = null;
+  let gapY1: number | null = null;
+  if (meanValue !== null && lastX !== null && lastY !== null && meanY !== null) {
+    let crossXDataUnits: number | null = null;
+    let prev: { x: number; v: number } | null = null;
+    for (const pt of series) {
+      if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
+      const xv = decYear(pt.date);
+      if (Number.isNaN(xv)) continue;
+      const curr = { x: xv, v: pt.value };
+      if (prev) {
+        const a = prev.v - meanValue;
+        const b = curr.v - meanValue;
+        if ((a === 0 && b !== 0) || (a !== 0 && b === 0) || (a > 0 && b < 0) || (a < 0 && b > 0)) {
+          // Linear interpolation for the exact crossing x in data units.
+          const t = a / (a - b);
+          crossXDataUnits = prev.x + t * (curr.x - prev.x);
+        }
+      }
+      prev = curr;
+    }
+    gapX0 = crossXDataUnits !== null ? xScale(crossXDataUnits) : plotX0;
+    gapX1 = lastX;
+    gapY0 = Math.min(meanY, lastY);
+    gapY1 = Math.max(meanY, lastY);
+  }
+
   return {
     plotX0, plotX1, plotW,
     yLo, yHi, yRange,
     yTicks, xTicks,
     path, lastX, lastY, lastValue, lastDate,
     meanY, meanValue,
+    gapX0, gapX1, gapY0, gapY1,
   };
 }
 
+// Mean-label placement side per panel: label sits 5px above the rule and
+// competes for the upper portion of the plot. Place on the x-half with
+// FEWER above-rule samples so it sits in clear whitespace. Ties default
+// right.
+function labelSideForPanel(
+  series: SeriesPoint[],
+  meanValue: number | null,
+): "left" | "right" {
+  if (meanValue === null) return "right";
+  const xMid = (xMin + xMax) / 2;
+  let aboveLeft = 0;
+  let aboveRight = 0;
+  for (const pt of series) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
+    if (pt.value <= meanValue) continue;
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    if (xv < xMid) aboveLeft++;
+    else aboveRight++;
+  }
+  return aboveLeft < aboveRight ? "left" : "right";
+}
+
 const panels = hasData ? [
-  { idx: 0, title: "UNEMPLOYMENT RATE, %", geom: buildSubPanel(0, ur, urMean) },
-  { idx: 1, title: "EMPLOYMENT RATE, %", geom: buildSubPanel(1, er, erMean) },
-  { idx: 2, title: "PARTICIPATION RATE, %", geom: buildSubPanel(2, pr, prMean) },
+  {
+    idx: 0,
+    title: "Unemployment rate",
+    geom: buildSubPanel(0, ur, urMean),
+    labelSide: labelSideForPanel(ur, urMean),
+  },
+  {
+    idx: 1,
+    title: "Employment rate",
+    geom: buildSubPanel(1, er, erMean),
+    labelSide: labelSideForPanel(er, erMean),
+  },
+  {
+    idx: 2,
+    title: "Participation rate",
+    geom: buildSubPanel(2, pr, prMean),
+    labelSide: labelSideForPanel(pr, prMean),
+  },
 ] : [];
 
-const ariaLabel = "Three-panel small multiples of LFS headline rates, last 36 months. Unemployment, employment and participation rates each on own y-axis. Latest print marked in red.";
+// Panel-1 annotation geometry (upper-right whitespace of the unemployment
+// panel; single straight leader ending 7px from the red-dot center per
+// canon-reference Rule 11 / "Annotation leader endpoint" gap convention).
+const panel1 = panels[0] ?? null;
+const annoText = "Back at the pre-pandemic average — unemployment has done the visible loosening.";
+function parseAnchor(s: string): Array<{ text: string; bold: boolean }> {
+  const parts: Array<{ text: string; bold: boolean }> = [];
+  const re = /\*\*([^*]+)\*\*/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(s)) !== null) {
+    if (m.index > last) parts.push({ text: s.slice(last, m.index), bold: false });
+    parts.push({ text: m[1], bold: true });
+    last = m.index + m[0].length;
+  }
+  if (last < s.length) parts.push({ text: s.slice(last), bold: false });
+  return parts;
+}
+const annoMarkup = "**Back at the pre-pandemic average** — unemployment has done the visible loosening.";
+const annoParts = parseAnchor(annoMarkup);
+
+// Place the annotation in the upper-right white space of panel 1, above
+// the mean rule so the leader can descend into the gap toward the red dot.
+let annoX0 = 0, annoY0 = 0, annoW = 0, annoH = 44;
+let leaderX1 = 0, leaderY1 = 0, leaderX2 = 0, leaderY2 = 0;
+let showAnno = false;
+if (panel1 && panel1.geom.lastX !== null && panel1.geom.lastY !== null) {
+  const g = panel1.geom;
+  // Block sits in the upper-right quadrant of the panel, hugging the
+  // right plot edge. Width about 58% of plot width to fit two short lines.
+  annoW = Math.max(120, g.plotW * 0.62);
+  annoX0 = g.plotX1 - annoW;
+  annoY0 = PLOT_Y0 + 4;
+  // Leader: from the bottom-center of the anno block down to 7px above
+  // the dot center. Single straight segment, no elbow.
+  leaderX1 = annoX0 + annoW * 0.18;     // hand-tuned anchor under "Back"
+  leaderY1 = annoY0 + annoH - 2;
+  leaderX2 = g.lastX!;
+  leaderY2 = g.lastY! - 7;
+  showAnno = true;
+}
+
+const ariaLabel = "Three-panel small multiples of LFS headline rates, last 36 months. Unemployment, employment and participation rates each on own y-axis with a forced 2pp visual span. Pre-pandemic average rule on each; latest print marked in red.";
 ---
 {hasData ? (
   <div class="canon-chart canon-chart--triptych" data-panel="labour-1-small-multiples">
@@ -249,16 +461,58 @@ const ariaLabel = "Three-panel small multiples of LFS headline rates, last 36 mo
       role="img"
       aria-label={ariaLabel}
     >
+      <defs>
+        {panels.map((p) => (
+          <clipPath id={`labour-p1-clip-${p.idx}`}>
+            <rect
+              x={p.geom.plotX0.toFixed(2)}
+              y={PLOT_Y0}
+              width={p.geom.plotW.toFixed(2)}
+              height={PLOT_H}
+            />
+          </clipPath>
+        ))}
+      </defs>
       {panels.map((p) => {
         const g = p.geom;
+        const labelOnLeft = p.labelSide === "left";
+        const meanLabelX = labelOnLeft
+          ? g.plotX0 + 4
+          : g.plotX1 - 4;
+        const meanLabelAnchor = labelOnLeft ? "start" : "end";
         return (
           <g>
+            {/* Scale stamp - leftmost panel only, sits in the top margin
+                above the title. Signals to the reader that all three
+                panels share the same vertical pp-span. */}
+            {p.idx === 0 && (
+              <text
+                class="canon-chart__scale-stamp"
+                x={g.plotX0.toFixed(2)}
+                y={(M_T - 32).toFixed(2)}
+              >SCALE: 2PP</text>
+            )}
+
             <text
               class="canon-chart__subpanel-title"
-              x={((COL_X0(p.idx) + COL_X1(p.idx)) / 2).toFixed(2)}
-              y={(M_T - 18).toFixed(2)}
-              text-anchor="middle"
+              x={g.plotX0.toFixed(2)}
+              y={(M_T - 16).toFixed(2)}
+              text-anchor="start"
             >{p.title}</text>
+
+            {/* Shaded-gap band - the "distance from pre-pandemic", the
+                editorial payload. Same ink wash as the recession band.
+                Drawn first so the dashed rule and the data line sit on
+                top of it in z-order. */}
+            {g.gapX0 !== null && g.gapX1 !== null && g.gapY0 !== null && g.gapY1 !== null && (
+              <rect
+                class="canon-chart__gap-band"
+                x={g.gapX0.toFixed(2)}
+                y={g.gapY0.toFixed(2)}
+                width={Math.max(0, g.gapX1 - g.gapX0).toFixed(2)}
+                height={Math.max(0, g.gapY1 - g.gapY0).toFixed(2)}
+              />
+            )}
 
             {g.yTicks.map((v) => {
               const yy = (PLOT_Y0 + PLOT_H) - ((v - g.yLo) / g.yRange) * PLOT_H;
@@ -273,9 +527,10 @@ const ariaLabel = "Three-panel small multiples of LFS headline rates, last 36 mo
               );
             })}
 
-            {/* Historical-average dashed reference per the aggregate-vs-
-                component canon: 1px ink, dashed, 55% opacity, no red dot.
-                Drawn before the protagonist line so the data sits on top. */}
+            {/* Pre-pandemic dashed reference rule + on-rule label. Label
+                is anchored on the OPPOSITE side of the panel from the
+                line's terminus relative to the rule, so the label sits
+                in clear whitespace. */}
             {g.meanY !== null && g.meanValue !== null && (
               <g class="canon-chart__mean-group">
                 <line
@@ -287,21 +542,33 @@ const ariaLabel = "Three-panel small multiples of LFS headline rates, last 36 mo
                 />
                 <text
                   class="canon-chart__mean-label"
-                  x={(g.plotX1 - 4).toFixed(2)}
-                  y={(g.meanY - 4).toFixed(2)}
-                  text-anchor="end"
-                >{`Avg ${g.meanValue.toFixed(1)}%`}</text>
+                  x={meanLabelX.toFixed(2)}
+                  y={(g.meanY - 5).toFixed(2)}
+                  text-anchor={meanLabelAnchor}
+                >{`${g.meanValue.toFixed(1)}% pre-pandemic avg`}</text>
               </g>
             )}
 
-            <path class="canon-chart__line" d={g.path} fill="none" />
+            {/* Data line clipped to the plot rect: the forced 2pp y-span
+                may push some history outside [yLo, yHi], and the clip
+                stops the stroke from running over the title or the bottom
+                rule. */}
+            <path
+              class="canon-chart__line"
+              d={g.path}
+              fill="none"
+              clip-path={`url(#labour-p1-clip-${p.idx})`}
+            />
 
-            <rect
-              class="canon-chart__frame"
-              x={g.plotX0}
-              y={PLOT_Y0}
-              width={g.plotW}
-              height={PLOT_H}
+            {/* Bottom rule under the x-tick row - the only piece of the
+                old plot frame retained. Small-multiples adaptation
+                blessed by art-director 2026-05-12. */}
+            <line
+              class="canon-chart__bottom-rule"
+              x1={g.plotX0.toFixed(2)}
+              y1={PLOT_Y1.toFixed(2)}
+              x2={g.plotX1.toFixed(2)}
+              y2={PLOT_Y1.toFixed(2)}
             />
 
             {g.xTicks.map((t) => (
@@ -349,6 +616,36 @@ const ariaLabel = "Three-panel small multiples of LFS headline rates, last 36 mo
           </g>
         );
       })}
+
+      {/* Panel-1 editorial annotation (unemployment). Single straight
+          ink leader, foreignObject for inline weight contrast on the
+          anchor phrase. Panels 2 and 3 carry no callout - their
+          shaded-gap bands are the story. */}
+      {showAnno && (
+        <g class="canon-chart__annotation">
+          <line
+            class="canon-chart__anno-leader"
+            x1={leaderX1.toFixed(2)}
+            y1={leaderY1.toFixed(2)}
+            x2={leaderX2.toFixed(2)}
+            y2={leaderY2.toFixed(2)}
+          />
+          <foreignObject
+            x={annoX0.toFixed(2)}
+            y={annoY0.toFixed(2)}
+            width={annoW.toFixed(2)}
+            height={annoH.toFixed(2)}
+          >
+            <p class="canon-chart__anno-text">
+              {annoParts.map((part) =>
+                part.bold
+                  ? <strong class="canon-chart__anno-anchor">{part.text}</strong>
+                  : <span>{part.text}</span>
+              )}
+            </p>
+          </foreignObject>
+        </g>
+      )}
     </svg>
   </div>
 ) : (
@@ -360,24 +657,42 @@ const ariaLabel = "Three-panel small multiples of LFS headline rates, last 36 mo
   .canon-chart__svg { display: block; width: 100%; height: 100%; overflow: visible; font-family: var(--font-sans); }
   .canon-chart__subpanel-title {
     fill: var(--ink); font-family: var(--font-sans);
-    font-size: 11px; font-weight: var(--fw-semibold); letter-spacing: 0.18em;
+    font-size: 13px; font-weight: var(--fw-semibold);
+  }
+  .canon-chart__scale-stamp {
+    fill: var(--ink); fill-opacity: 0.55;
+    font-family: var(--font-mono);
+    font-size: 10px; font-weight: var(--fw-regular);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
   }
   .canon-chart__gridline { stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.18; shape-rendering: crispEdges; }
+  .canon-chart__gap-band {
+    fill: rgba(21, 23, 26, 0.06);
+  }
   .canon-chart__mean-rule {
     stroke: var(--ink); stroke-width: 1; stroke-opacity: 0.55;
     stroke-dasharray: 4 2; shape-rendering: crispEdges;
   }
+  /* Paper halo behind the mean label so the dashed rule and any
+     above-rule data segment don't cross through the glyphs. Vignelli
+     paper-on-ink move for label-on-rule treatments on narrow panels. */
   .canon-chart__mean-label {
-    fill: var(--ink); fill-opacity: 0.7;
-    font-family: var(--font-sans); font-size: 10px;
-    font-weight: var(--fw-semibold); letter-spacing: 0.06em;
+    fill: var(--ink);
+    font-family: var(--font-sans); font-size: 11px;
+    font-weight: var(--fw-semibold);
+    stroke: var(--paper);
+    stroke-width: 3px;
+    paint-order: stroke fill;
   }
   .canon-chart__line {
     stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
     fill: none; vector-effect: non-scaling-stroke;
   }
   .canon-chart__latest-dot { fill: var(--accent); stroke: none; }
-  .canon-chart__frame { fill: none; stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
+  .canon-chart__bottom-rule {
+    stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges;
+  }
   .canon-chart__xtick { stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; }
   .canon-chart__xtick-label {
     fill: var(--ink); font-family: var(--font-sans);
@@ -386,5 +701,20 @@ const ariaLabel = "Three-panel small multiples of LFS headline rates, last 36 mo
   .canon-chart__ytick-label {
     fill: var(--ink); font-family: var(--font-mono);
     font-size: 12px; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums;
+  }
+  .canon-chart__anno-leader {
+    stroke: var(--ink); stroke-width: 1; shape-rendering: crispEdges; fill: none;
+  }
+  .canon-chart__anno-text {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: var(--fw-regular);
+    line-height: 1.28;
+    letter-spacing: 0;
+  }
+  .canon-chart__anno-anchor {
+    font-weight: var(--fw-semibold);
   }
 </style>
