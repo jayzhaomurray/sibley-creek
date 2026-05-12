@@ -351,6 +351,66 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
                                                    "British Columbia; Unemployment rate; Total - Gender; 15+; Estimate; SA. "
                                                    "Cube coord 11.7.1.1.1.1.0.0.0.0. Resolved 2026-05-11."
                                                )),
+    # Unemployment by duration of search (Table 14-10-0342-01).
+    # Resolved 2026-05-12 via getCubeMetadata + getSeriesInfoFromCubePidCoord.
+    # Cube title: "Duration of unemployment, monthly, seasonally adjusted".
+    # The Shimer / Elsby-Michaels-Solon (EMS) decomposition of UR variance into
+    # inflow (job-loss / separation) and outflow (job-finding) rates needs a
+    # "short-term unemployed" stock series U_short_t -- the standard EMS proxy
+    # is unemployed-less-than-one-month, which in StatCan-bucket terms is the
+    # "1 to 4 weeks" series. Once U_short is on disk, the job-finding rate
+    # f_t can be backed out of stock data alone as
+    #   f_t = 1 - (U_{t+1} - U_short_{t+1}) / U_t
+    # i.e., the share of last-month's unemployed who are no longer unemployed
+    # (or are newly unemployed) this month.
+    #
+    # Coordinate template: Geo.Duration.Age.Gender.Statistics.DataType.0.0.0.0
+    # Canada=1, all-ages=1, total-gender=1, Estimate=1, SA=1.
+    # UOM 428 = persons; scalarFactorCode=3 = thousands -> scale 0.001 to millions
+    # so the series is unit-compatible with unemployment_level (also millions).
+    #
+    # The full bucket set is registered so future cuts (long-term-unemployed
+    # share, average-duration overlay) don't require a second WDS round-trip.
+    "unemployment_total_duration": StatcanSpec(
+        "unemployment_total_duration", 1078667526, "14-10-0342-01",
+        "Millions", "monthly", "labour", scale=0.001, sa=True,
+        notes=(
+            "Total unemployed, all duration buckets, Canada 15+, SA. "
+            "Reconciliation companion to unemployment_level (different cube; "
+            "the duration table has a 'duration unknown' bucket so the sum of "
+            "1-4 + 5-13 + 14-26 + 27+ falls short of this total by 50-80k). "
+            "Coord 1.1.1.1.1.1.0.0.0.0. Resolved 2026-05-12."
+        ),
+    ),
+    "unemployment_1_to_4_weeks": StatcanSpec(
+        "unemployment_1_to_4_weeks", 1078667742, "14-10-0342-01",
+        "Millions", "monthly", "labour", scale=0.001, sa=True,
+        notes=(
+            "Unemployed 1 to 4 weeks (short-term unemployed), Canada 15+, SA. "
+            "Primary input to the Shimer / EMS UR decomposition: serves as "
+            "U_short_t for backing out the job-finding rate from stock data. "
+            "Coord 1.3.1.1.1.1.0.0.0.0. Resolved 2026-05-12."
+        ),
+    ),
+    "unemployment_5_to_13_weeks": StatcanSpec(
+        "unemployment_5_to_13_weeks", 1078667850, "14-10-0342-01",
+        "Millions", "monthly", "labour", scale=0.001, sa=True,
+        notes="Unemployed 5 to 13 weeks, Canada 15+, SA. Coord 1.4.1.1.1.1.0.0.0.0. Resolved 2026-05-12.",
+    ),
+    "unemployment_14_to_26_weeks": StatcanSpec(
+        "unemployment_14_to_26_weeks", 1078667958, "14-10-0342-01",
+        "Millions", "monthly", "labour", scale=0.001, sa=True,
+        notes="Unemployed 14 to 26 weeks, Canada 15+, SA. Coord 1.5.1.1.1.1.0.0.0.0. Resolved 2026-05-12.",
+    ),
+    "unemployment_27_plus_weeks": StatcanSpec(
+        "unemployment_27_plus_weeks", 1078668066, "14-10-0342-01",
+        "Millions", "monthly", "labour", scale=0.001, sa=True,
+        notes=(
+            "Unemployed 27 weeks or more (long-term unemployed), Canada 15+, SA. "
+            "Coord 1.6.1.1.1.1.0.0.0.0. Resolved 2026-05-12."
+        ),
+    ),
+
     # EI Regular Beneficiaries (Wave 5 brief, Section 5 backend item 1).
     # Source: StatCan Table 14-10-0011-01 ("Employment Insurance Beneficiaries
     # by Province/Territory; type of income benefits and sex"), Canada-total,
