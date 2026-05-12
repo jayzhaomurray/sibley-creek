@@ -16,6 +16,17 @@
  */
 
 import BaseLayout from "../layouts/BaseLayout.astro";
+import labourPanelData from "../../data/site/panel_data/labour.json";
+import { pickPanel } from "../components/charts/_shared/panelData";
+
+// Production-component alternatives (live data). When a production chart
+// gets demoted off the page but is worth keeping for review, it lands
+// here wired to its real pipeline data — not as a placeholder Alt*.astro.
+import Panel1LFSHeadlineIndexed from "../components/charts/labour/Panel1LFSHeadlineIndexed.astro";
+import Panel6RegionalSmallMultiples from "../components/charts/labour/Panel6RegionalSmallMultiples.astro";
+
+const labourPanel1Data = pickPanel(labourPanelData, 1);
+const labourPanel6Data = pickPanel(labourPanelData, 6);
 
 // GDP
 import GdpAlt1 from "../components/charts/_alternatives/gdp/Alt1_ContributionsStacked.astro";
@@ -66,6 +77,13 @@ interface AltSpec {
   whyBetter: string;
   dataFields: string;
   Component: any;
+  /**
+   * Optional panel data passed through to the rendered component. Used when
+   * the alternative IS a production component (rather than an Alt*.astro
+   * placeholder) and needs real pipeline data to draw. Placeholder alts
+   * leave this unset and receive no props.
+   */
+  componentData?: unknown;
 }
 
 interface SectionSpec {
@@ -186,6 +204,24 @@ const sections: SectionSpec[] = [
         whyBetter: "The two-sided cycle read (demand and dislocation) is invisible from either chart alone.",
         dataFields: "job_vacancy_rate.csv + ei_regular_beneficiaries.csv, both indexed",
         Component: LabAlt4,
+      },
+      {
+        file: "labour/Panel1LFSHeadlineIndexed.astro",
+        title: "LFS headline indexed to pre-pandemic baseline",
+        whatDifferent: "Forces all three rates (unemployment, employment, participation) onto a shared scale (Feb 2020 = 100) so the divergence between them is the geometry.",
+        whyBetter: "User preference was per-panel y-axis tuning instead; this is the alternative kept for reference.",
+        dataFields: "lfs_unemployment_rate.csv + lfs_employment_rate.csv + lfs_participation_rate.csv, all rebased to Feb 2020.",
+        Component: Panel1LFSHeadlineIndexed,
+        componentData: labourPanel1Data,
+      },
+      {
+        file: "labour/Panel6RegionalSmallMultiples.astro",
+        title: "Provincial unemployment, 2x2 levels with Canada as reference",
+        whatDifferent: "Each panel shows the provincial rate as the protagonist line with the national rate as a dashed reference per the aggregate-vs-component canon.",
+        whyBetter: "User preferred the deviation-from-national framing (spread bars) for the production version; this is the level-comparison alternative kept for reference.",
+        dataFields: "lfs_{on,qc,bc,ab,ca}_unemployment_rate.csv",
+        Component: Panel6RegionalSmallMultiples,
+        componentData: labourPanel6Data,
       },
     ],
   },
@@ -376,7 +412,9 @@ const totalCount = sections.reduce((sum, s) => sum + s.alts.length, 0);
             </header>
 
             <div class="alt-unit__chart">
-              <alt.Component />
+              {alt.componentData !== undefined
+                ? <alt.Component data={alt.componentData} />
+                : <alt.Component />}
             </div>
 
             <dl class="alt-unit__meta">
