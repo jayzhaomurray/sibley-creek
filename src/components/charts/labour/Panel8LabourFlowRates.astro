@@ -1,0 +1,373 @@
+---
+/*
+ * Panel8LabourFlowRates - Shimer-style decomposition of unemployment
+ * into a separation-rate channel and a job-finding-rate channel,
+ * monthly transition probabilities, Canada, since ~2006.
+ *
+ * Promoted from src/components/charts/_alternatives/labour/Alt6_Shimer
+ * Decomp.astro (chart-builder, 2026-05-12). The two-panel small-
+ * multiples geometry sits alongside the Beveridge family (P3a / P3b)
+ * as a third Beveridge-adjacent plate answering: is the cyclical UR
+ * move separation-driven or finding-driven?
+ *
+ * Methodology. Elsby-Michaels-Solon (the stocks-plus-short-duration
+ * approximation, "Path A"):
+ *
+ *   f_t = 1 - (U_{t+1} - U_short_{t+1}) / U_t
+ *   s_t ~= U_short_{t+1} / E_t
+ *
+ * where U_short_{t+1} is the count of persons unemployed less than five
+ * weeks at t+1 (i.e. newly unemployed), U_t is total unemployment at t,
+ * and E_t is employment at t derived from the LFS identity
+ *
+ *   LF = U / (UR / 100),   E = LF - U.
+ *
+ * Both rates are monthly transition probabilities and align on date t
+ * (the FROM side of the transition); the final month has no f / s
+ * defined and is dropped.
+ *
+ * Caveats. The separation-rate approximation assumes most newly-
+ * unemployed-at-t+1 come from employment (not NILF). This is the
+ * canonical Shimer/EMS simplification. The finding-rate formula can
+ * produce small negative values if the short-duration stock at t+1 is
+ * mismeasured relative to total U at t and t+1; raw values are left in
+ * (no clipping) so the chart stays editorially honest. No negative
+ * finding-rate appears in the plotted window.
+ *
+ * Geometry. Two-panel small multiples (left: separation rate, right:
+ * job-finding rate). Different magnitudes (separation lives near 2%
+ * normal times, finding near 30%); a shared axis would compress
+ * separation into invisibility. Each panel gets its own y-range and
+ * its own y-ticks. Vertical reference line at 2020-04 labelled
+ * PANDEMIC in both panels. Latest point in MTA red.
+ *
+ * Label canon (user-ratified 2026-05-12): full measure names
+ * everywhere — "Separation rate" and "Job finding rate", never
+ * bare "s" / "f" or "s_t" / "f_t". Sub-panel titles in letter-spaced
+ * micro-caps treatment; tooltips and aria-label use full names.
+ */
+
+import { readCsv, decYear, VB, pickStride, fmtTick, yearTicksFromX } from "../_alternatives/_shared/altUtils";
+import AltChartStyle from "../_alternatives/_shared/AltChartStyle.astro";
+
+// --- Load ------------------------------------------------------------------
+const lvl = readCsv("unemployment_level.csv");          // millions, total U
+const rate = readCsv("unemployment_rate.csv");          // percent, UR
+const short = readCsv("unemployment_1_to_4_weeks.csv"); // millions, U_short
+
+const rMap = new Map(rate.map((p) => [p.date, p.value]));
+const sMap = new Map(short.map((p) => [p.date, p.value]));
+
+interface Row { d: string; U: number; UR: number; E: number; Us: number | null; }
+const rows: Row[] = [];
+for (const p of lvl) {
+  const UR = rMap.get(p.date);
+  const Us = sMap.get(p.date);
+  if (UR === undefined || UR === null || p.value === null) continue;
+  const U = p.value;
+  const LF = U / (UR / 100);
+  const E = LF - U;
+  rows.push({ d: p.date, U, UR, E, Us: Us ?? null });
+}
+rows.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+
+// --- Build separation / finding rate series --------------------------------
+interface Flow { d: string; sep: number | null; find: number | null; }
+const flows: Flow[] = [];
+for (let i = 0; i < rows.length - 1; i++) {
+  const t = rows[i]!;
+  const t1 = rows[i + 1]!;
+  const Us1 = t1.Us;
+  let sep: number | null = null;
+  let find: number | null = null;
+  if (Us1 !== null && t.E > 0) sep = Us1 / t.E;
+  if (Us1 !== null && t.U > 0) find = 1 - (t1.U - Us1) / t.U;
+  flows.push({ d: t.d, sep, find });
+}
+
+// --- Window: last 240 months -----------------------------------------------
+const WINDOW = 240;
+const tailFlows = flows.slice(-WINDOW);
+
+// --- Geometry: two-panel small multiples -----------------------------------
+const PANEL_W = 280;
+const GAP = 56;
+const M_L = 56;
+const M_T = 44;
+const M_B = 40;
+const panel_h = VB.H - M_T - M_B;
+const panel_x0_left = M_L;
+const panel_x0_right = panel_x0_left + PANEL_W + GAP;
+
+function domain(values: Array<number | null>, padFrac = 0.12): [number, number] {
+  let lo = Infinity, hi = -Infinity;
+  for (const v of values) {
+    if (typeof v !== "number" || !Number.isFinite(v)) continue;
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  if (!Number.isFinite(lo)) return [0, 1];
+  const pad = (hi - lo) * padFrac || Math.max(0.01, hi * 0.1);
+  return [Math.max(0, lo - pad), hi + pad];
+}
+
+const sepValsPct = tailFlows.map((r) => (r.sep === null ? null : r.sep * 100));
+const findValsPct = tailFlows.map((r) => (r.find === null ? null : r.find * 100));
+
+const [loSep, hiSep] = domain(sepValsPct);
+const [loFind, hiFind] = domain(findValsPct);
+
+// Shared x-domain across both panels.
+const xs: number[] = [];
+for (const r of tailFlows) {
+  const x = decYear(r.d);
+  if (!Number.isNaN(x)) xs.push(x);
+}
+const xMin = Math.min(...xs);
+const xMax = Math.max(...xs);
+
+function makeScales(x0: number, w: number, yLo: number, yHi: number) {
+  const xScale = (yr: number) => x0 + ((yr - xMin) / (xMax - xMin || 1)) * w;
+  const yScale = (v: number) => M_T + panel_h - ((v - yLo) / (yHi - yLo)) * panel_h;
+  return { xScale, yScale };
+}
+const S = makeScales(panel_x0_left, PANEL_W, loSep, hiSep);
+const F = makeScales(panel_x0_right, PANEL_W, loFind, hiFind);
+
+function buildPath(
+  series: Array<{ d: string; v: number | null }>,
+  xScale: (yr: number) => number,
+  yScale: (v: number) => number,
+): string {
+  let d = "";
+  let started = false;
+  for (const p of series) {
+    if (typeof p.v !== "number" || !Number.isFinite(p.v)) { started = false; continue; }
+    const xv = decYear(p.d);
+    if (Number.isNaN(xv)) continue;
+    d += `${started ? "L" : "M"}${xScale(xv).toFixed(2)} ${yScale(p.v).toFixed(2)} `;
+    started = true;
+  }
+  return d.trim();
+}
+
+const sepPathSeries = tailFlows.map((r) => ({ d: r.d, v: r.sep === null ? null : r.sep * 100 }));
+const findPathSeries = tailFlows.map((r) => ({ d: r.d, v: r.find === null ? null : r.find * 100 }));
+
+const pathSep = buildPath(sepPathSeries, S.xScale, S.yScale);
+const pathFind = buildPath(findPathSeries, F.xScale, F.yScale);
+
+function makeTicks(lo: number, hi: number): number[] {
+  const stride = pickStride(lo, hi);
+  const out: number[] = [];
+  const start = Math.ceil(lo / stride) * stride;
+  for (let v = start; v <= hi + 1e-9; v += stride) out.push(v);
+  return out;
+}
+const ticksSep = makeTicks(loSep, hiSep);
+const ticksFind = makeTicks(loFind, hiFind);
+const xTicksSep = yearTicksFromX(xMin, xMax, S.xScale);
+const xTicksFind = yearTicksFromX(xMin, xMax, F.xScale);
+
+// Latest non-null point in each series.
+function lastNonNull(series: Array<{ d: string; v: number | null }>) {
+  for (let i = series.length - 1; i >= 0; i--) {
+    const p = series[i]!;
+    if (typeof p.v === "number" && Number.isFinite(p.v)) return p;
+  }
+  return null;
+}
+const latestSep = lastNonNull(sepPathSeries);
+const latestFind = lastNonNull(findPathSeries);
+
+// Pandemic reference line at 2020-04.
+const pandemicX = decYear("2020-04-01");
+const showPandemic = pandemicX >= xMin && pandemicX <= xMax;
+const pandemicXS = S.xScale(pandemicX);
+const pandemicXF = F.xScale(pandemicX);
+
+const ariaLabel =
+  "Monthly separation and job-finding transition probabilities, Canada, since 2006, two-panel small multiples; derived via Elsby-Michaels-Solon from LFS unemployment stocks plus short-duration unemployment. Pandemic shock 2020-04 marked.";
+---
+<div class="alt-chart" data-panel="labour-panel-flow-rates">
+  <svg
+    class="alt-chart__svg"
+    viewBox={`0 0 ${VB.W} ${VB.H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* ============ LEFT PANEL: SEPARATION RATE ============ */}
+    <g>
+      {ticksSep.map((v) => (
+        <line
+          class="alt-chart__gridline"
+          x1={panel_x0_left}
+          y1={S.yScale(v).toFixed(2)}
+          x2={panel_x0_left + PANEL_W}
+          y2={S.yScale(v).toFixed(2)}
+        />
+      ))}
+
+      {showPandemic && (
+        <g>
+          <line
+            class="alt-shimer__pandemic-rule"
+            x1={pandemicXS.toFixed(2)}
+            y1={M_T}
+            x2={pandemicXS.toFixed(2)}
+            y2={M_T + panel_h}
+          />
+          <text
+            class="alt-shimer__pandemic-label"
+            x={(pandemicXS + 4).toFixed(2)}
+            y={(M_T + 12).toFixed(2)}
+          >PANDEMIC</text>
+        </g>
+      )}
+
+      <path class="alt-chart__line" d={pathSep} fill="none" />
+
+      {latestSep && (
+        <circle
+          class="alt-chart__latest-dot"
+          cx={S.xScale(decYear(latestSep.d)).toFixed(2)}
+          cy={S.yScale(latestSep.v as number).toFixed(2)}
+          r="4"
+        >
+          <title>{`Separation rate, ${latestSep.d}: ${(latestSep.v as number).toFixed(2)}% per month`}</title>
+        </circle>
+      )}
+
+      <rect class="alt-chart__frame" x={panel_x0_left} y={M_T} width={PANEL_W} height={panel_h} />
+      <text class="alt-chart__small-multiple-title" x={panel_x0_left} y={M_T - 14}>SEPARATION RATE, MONTHLY %</text>
+
+      {xTicksSep.map((t) => (
+        <g>
+          <line
+            class="alt-chart__xtick"
+            x1={t.x.toFixed(2)}
+            y1={(M_T + panel_h).toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(M_T + panel_h + 4).toFixed(2)}
+          />
+          <text
+            class="alt-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(M_T + panel_h + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {ticksSep.map((v, i) => {
+        const isTop = i === ticksSep.length - 1;
+        return (
+          <text
+            class="alt-chart__ytick-label"
+            x={(panel_x0_left - 8).toFixed(2)}
+            y={(S.yScale(v) + 4).toFixed(2)}
+            text-anchor="end"
+          >{isTop ? `${fmtTick(v, 1)}%` : fmtTick(v, 1)}</text>
+        );
+      })}
+    </g>
+
+    {/* ============ RIGHT PANEL: JOB FINDING RATE ============ */}
+    <g>
+      {ticksFind.map((v) => (
+        <line
+          class="alt-chart__gridline"
+          x1={panel_x0_right}
+          y1={F.yScale(v).toFixed(2)}
+          x2={panel_x0_right + PANEL_W}
+          y2={F.yScale(v).toFixed(2)}
+        />
+      ))}
+
+      {showPandemic && (
+        <g>
+          <line
+            class="alt-shimer__pandemic-rule"
+            x1={pandemicXF.toFixed(2)}
+            y1={M_T}
+            x2={pandemicXF.toFixed(2)}
+            y2={M_T + panel_h}
+          />
+          <text
+            class="alt-shimer__pandemic-label"
+            x={(pandemicXF + 4).toFixed(2)}
+            y={(M_T + 12).toFixed(2)}
+          >PANDEMIC</text>
+        </g>
+      )}
+
+      <path class="alt-chart__line" d={pathFind} fill="none" />
+
+      {latestFind && (
+        <circle
+          class="alt-chart__latest-dot"
+          cx={F.xScale(decYear(latestFind.d)).toFixed(2)}
+          cy={F.yScale(latestFind.v as number).toFixed(2)}
+          r="4"
+        >
+          <title>{`Job finding rate, ${latestFind.d}: ${(latestFind.v as number).toFixed(2)}% per month`}</title>
+        </circle>
+      )}
+
+      <rect class="alt-chart__frame" x={panel_x0_right} y={M_T} width={PANEL_W} height={panel_h} />
+      <text class="alt-chart__small-multiple-title" x={panel_x0_right} y={M_T - 14}>JOB FINDING RATE, MONTHLY %</text>
+
+      {xTicksFind.map((t) => (
+        <g>
+          <line
+            class="alt-chart__xtick"
+            x1={t.x.toFixed(2)}
+            y1={(M_T + panel_h).toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(M_T + panel_h + 4).toFixed(2)}
+          />
+          <text
+            class="alt-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(M_T + panel_h + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {ticksFind.map((v, i) => {
+        const isTop = i === ticksFind.length - 1;
+        return (
+          <text
+            class="alt-chart__ytick-label"
+            x={(panel_x0_right - 8).toFixed(2)}
+            y={(F.yScale(v) + 4).toFixed(2)}
+            text-anchor="end"
+          >{isTop ? `${fmtTick(v, 0)}%` : fmtTick(v, 0)}</text>
+        );
+      })}
+    </g>
+  </svg>
+</div>
+
+<AltChartStyle />
+
+<style>
+  .alt-shimer__pandemic-rule {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 2 3;
+    stroke-opacity: 0.55;
+    shape-rendering: crispEdges;
+  }
+  .alt-shimer__pandemic-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 9px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+</style>
