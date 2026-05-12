@@ -411,6 +411,115 @@ export const sections: Section[] = [
     },
   },
   {
+    slug: "housing",
+    label: "Housing",
+    accentVar: "--section-accent-housing",
+    kicker: "Starts, sales, prices, and household leverage.",
+    headlineQuestion:
+      "Is the rate-sensitive sector amplifying or dampening policy?",
+    cadence: "Monthly",
+    // CREA April release (March reference period) landed Apr 15, 2026.
+    updatedAt: Date.UTC(2026, 3, 15, 9, 0),
+    chartSeriesKey: "hpi-yoy",
+    heroKicker: "March home prices",
+    tileLine:
+      "Composite home prices down 4.6% Y/Y, the eighth straight down month.",
+    prints: [
+      {
+        key: "hpi-yoy",
+        indicator: "MLS HPI, y/y",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+      spark: [],
+      },
+      {
+        key: "housing-starts-3mma",
+        indicator: "Housing starts, 3mma",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+      spark: [],
+      },
+      {
+        key: "cmhc-arrears",
+        indicator: "Bank mortgage arrears",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+      spark: [],
+      },
+    ],
+    blurb: {
+      kind: "last",
+      date: "Apr 15, 2026",
+      body:
+        "Home prices fell 4.6% Y/Y on the MLS HPI in the latest print, per the Canadian Real Estate Association, a tenth shallower than the prior month but the eighth straight negative reading. Housing starts on a 3mma basis stepped down to 241k from 257k, per Canada Mortgage and Housing Corporation. Affordability held at 42.7% of household income in Q4 2025, half a point easier on continued mortgage-cost relief.",
+    },
+  },
+  {
+    slug: "trade",
+    label: "Trade",
+    accentVar: "--section-accent-trade",
+    kicker: "Exports, imports, and the terms by which Canada sells its work.",
+    headlineQuestion:
+      "Is Canada's external position structurally shifting under US repricing?",
+    cadence: "Monthly + event",
+    // March merch-trade release landed May 5, 2026.
+    updatedAt: Date.UTC(2026, 4, 5, 8, 30),
+    chartSeriesKey: "trade-balance",
+    heroKicker: "March balance",
+    tileLine:
+      "Goods balance narrowed to -$2.2B; US export share fell to 66.1%.",
+    prints: [
+      {
+        key: "trade-balance",
+        indicator: "Goods trade balance",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+      spark: [],
+      },
+      {
+        key: "current-account",
+        indicator: "Current account",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+      spark: [],
+      },
+      {
+        key: "us-partner-share",
+        indicator: "US partner share",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+      spark: [],
+      },
+      {
+        key: "terms-of-trade",
+        indicator: "Terms of trade",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+      spark: [],
+      },
+    ],
+    blurb: {
+      kind: "last",
+      date: "May 6, 2026",
+      body:
+        "The goods trade balance narrowed to -$2.2B on a 3mma basis in March, per Statistics Canada, an $876M improvement from February. The US export share fell 2.5pp to 66.1%, the lowest reading in the available window and a continuation of the year-long drift down from the 76 to 80% range that held through 2024. The Q4 2025 current account narrowed to -$706M, a $4.6B improvement; terms of trade ticked up 0.6 to 105.5.",
+    },
+  },
+  {
     /*
      * Slug is "markets" (route: /markets/). The section was previously named
      * "Financial Conditions" / "Financial"; editorial scope is unchanged
@@ -477,115 +586,6 @@ export const sections: Section[] = [
       date: "May 8, 2026",
       body:
         "USDCAD closed May 8 at 1.369, up 0.4% on the week, per Bank of Canada noon rates. The 10y GoC yield closed at 3.53% on May 7, two basis points firmer. WTI rose to $109.76 by May 4, a 4.2% move that keeps crude above $100 for a second straight month; the TSX Composite closed near 34.1k, flat on the session.",
-    },
-  },
-  {
-    slug: "trade",
-    label: "Trade",
-    accentVar: "--section-accent-trade",
-    kicker: "Exports, imports, and the terms by which Canada sells its work.",
-    headlineQuestion:
-      "Is Canada's external position structurally shifting under US repricing?",
-    cadence: "Monthly + event",
-    // March merch-trade release landed May 5, 2026.
-    updatedAt: Date.UTC(2026, 4, 5, 8, 30),
-    chartSeriesKey: "trade-balance",
-    heroKicker: "March balance",
-    tileLine:
-      "Goods balance narrowed to -$2.2B; US export share fell to 66.1%.",
-    prints: [
-      {
-        key: "trade-balance",
-        indicator: "Goods trade balance",
-        value: "TK",
-        delta: "TK",
-        deltaDir: "neutral",
-        asOf: "TK",
-      spark: [],
-      },
-      {
-        key: "current-account",
-        indicator: "Current account",
-        value: "TK",
-        delta: "TK",
-        deltaDir: "neutral",
-        asOf: "TK",
-      spark: [],
-      },
-      {
-        key: "us-partner-share",
-        indicator: "US partner share",
-        value: "TK",
-        delta: "TK",
-        deltaDir: "neutral",
-        asOf: "TK",
-      spark: [],
-      },
-      {
-        key: "terms-of-trade",
-        indicator: "Terms of trade",
-        value: "TK",
-        delta: "TK",
-        deltaDir: "neutral",
-        asOf: "TK",
-      spark: [],
-      },
-    ],
-    blurb: {
-      kind: "last",
-      date: "May 6, 2026",
-      body:
-        "The goods trade balance narrowed to -$2.2B on a 3mma basis in March, per Statistics Canada, an $876M improvement from February. The US export share fell 2.5pp to 66.1%, the lowest reading in the available window and a continuation of the year-long drift down from the 76 to 80% range that held through 2024. The Q4 2025 current account narrowed to -$706M, a $4.6B improvement; terms of trade ticked up 0.6 to 105.5.",
-    },
-  },
-  {
-    slug: "housing",
-    label: "Housing",
-    accentVar: "--section-accent-housing",
-    kicker: "Starts, sales, prices, and household leverage.",
-    headlineQuestion:
-      "Is the rate-sensitive sector amplifying or dampening policy?",
-    cadence: "Monthly",
-    // CREA April release (March reference period) landed Apr 15, 2026.
-    updatedAt: Date.UTC(2026, 3, 15, 9, 0),
-    chartSeriesKey: "hpi-yoy",
-    heroKicker: "March home prices",
-    tileLine:
-      "Composite home prices down 4.6% Y/Y, the eighth straight down month.",
-    prints: [
-      {
-        key: "hpi-yoy",
-        indicator: "MLS HPI, y/y",
-        value: "TK",
-        delta: "TK",
-        deltaDir: "neutral",
-        asOf: "TK",
-      spark: [],
-      },
-      {
-        key: "housing-starts-3mma",
-        indicator: "Housing starts, 3mma",
-        value: "TK",
-        delta: "TK",
-        deltaDir: "neutral",
-        asOf: "TK",
-      spark: [],
-      },
-      {
-        key: "cmhc-arrears",
-        indicator: "Bank mortgage arrears",
-        value: "TK",
-        delta: "TK",
-        deltaDir: "neutral",
-        asOf: "TK",
-      spark: [],
-      },
-    ],
-    blurb: {
-      kind: "last",
-      date: "Apr 15, 2026",
-      body:
-        "Home prices fell 4.6% Y/Y on the MLS HPI in the latest print, per the Canadian Real Estate Association, a tenth shallower than the prior month but the eighth straight negative reading. Housing starts on a 3mma basis stepped down to 241k from 257k, per Canada Mortgage and Housing Corporation. Affordability held at 42.7% of household income in Q4 2025, half a point easier on continued mortgage-cost relief.",
     },
   },
 ];
