@@ -20,6 +20,16 @@ candidate homes, status.
 
 ---
 
+## Pass-through to CPI: FX and wages into goods and services
+
+- **Origin:** chart-diagnosis/inflation.md P6 — cut from inflation page 2026-05-12. Concept "interesting" but USDCAD has been choppy without a clear trend, and a clean pass-through chart probably needs a model rather than a raw two-line overlay.
+- **Concept:** Decomposition of what drives inflation pass-through. Real-time identification of channels: FX (USDCAD into goods-ex-energy CPI), wages (LFS-Micro wage growth into services-ex-shelter CPI), commodity (oil into energy CPI).
+- **Why it's parked:** the simple "USDCAD Y/Y vs goods-ex-energy CPI" overlay doesn't carry the analytical work the question deserves. A real pass-through view needs estimated elasticities and a structural decomposition (Bayesian VAR, projection method, or similar).
+- **Candidate homes:** a Research deep dive on "What's driving the recent inflation reacceleration," not a chartbook plate. The decomposition + a single headline chart could anchor that piece.
+- **Status:** parked, awaits modeling work.
+
+---
+
 ## Provincial GDP wiring (backend lift)
 
 - **Origin:** chart-diagnosis discussion 2026-05-12. The new industry plate (manufacturing vs mining and oil) carries the regional dimension editorially via title and blurb, but the geometry is industry-only. To show the regional story directly — Alberta and Saskatchewan resource economies vs Ontario and Quebec manufacturing economies — we need provincial real GDP series in the pipeline.
