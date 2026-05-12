@@ -45,8 +45,11 @@ function indexedPctChange(series: SeriesPoint[]): SeriesPoint[] {
   if (typeof base !== "number" || base === 0) {
     return series.map((p) => ({ date: p.date, value: null }));
   }
-  return series.map((p, i) => {
-    if (i < baseIdx) return { date: p.date, value: null };
+  // Drop everything before the anchor date so the chart's x-domain starts
+  // exactly at Dec 2019, not 84 months back from the latest print (which
+  // would leave a ~10-month whitespace gutter on the left before the line
+  // starts drawing).
+  return series.slice(baseIdx).map((p) => {
     if (typeof p.value !== "number" || Number.isNaN(p.value)) {
       return { date: p.date, value: null };
     }
@@ -89,7 +92,7 @@ if (data && data.secondary) {
   <PanelLiveChart
     primary={primDerived}
     secondary={secDerived}
-    primaryLabel="Manufacturing"
+    primaryLabel="Factories"
     secondaryLabel="Mining and oil"
     windowMonths={84}
     referenceValue={0}
