@@ -16,6 +16,11 @@ Probe outcomes (recorded for audit):
     - V80691344 (3-month T-bill, weekly) : FOUND. Re-verified 2026-05-11: 123 rows through
                                   2026-05-06, value 2.29.
     - M.BCPI (commodity index, daily) : FOUND. Re-verified 2026-05-11: tail 2026-04-01 = 757.06.
+    - M.BCNEI (non-energy commodity index) : NOT FOUND under that key. Re-probed 2026-05-12
+      via /valet/lists/series/json; the correct Valet identifier is **M.BCNE**
+      (label "Monthly BCPI Excluding Energy - v52673497"). The legacy key M.BCNEI
+      404s on /observations. Catalog updated to M.BCNE; the slot keeps the
+      `bcnei` slug for stable filenames and existing references.
     - Financial Conditions Index (FCI) : NOT FOUND in Valet (0 matches across 15,538 series).
       Per canon 4.6 element 6, v1 basics defers FCI to US-comparator FCIs with caveat.
     - Term Premium 10-year (GoC) : FOUND under the FVI_ namespace (re-probed 2026-05-11).
@@ -154,8 +159,12 @@ BOC_VALET_SERIES: dict[str, BocSpec] = {
     # ----- BoC commodity price index (Section 4.7 element 5) --------------
     "bcpi":     BocSpec("bcpi", "M.BCPI", "1972-01-01", "Index, 1972=100", "daily", "trade", "daily",
                        notes="BoC commodity price index, daily."),
-    "bcnei":    BocSpec("bcnei", "M.BCNEI", "1972-01-01", "Index, 1972=100", "daily", "trade", "daily",
-                       notes="BoC commodity price index, non-energy."),
+    "bcnei":    BocSpec("bcnei", "M.BCNE", "1972-01-01", "Index, 1972=100", "daily", "trade", "daily",
+                       notes=(
+                           "BoC commodity price index, non-energy (excluding energy). "
+                           "Valet key is M.BCNE (label 'Monthly BCPI Excluding Energy - v52673497'); "
+                           "legacy M.BCNEI key 404s. Filename slug kept as bcnei for stability."
+                       )),
 
     # ----- BoC Financial Stability / Vulnerability Indicators (Section 4.6 elements 2, 6) ----
     # Canon 4.6 element 2 calls for the BoC-published Canadian term-premium series at
