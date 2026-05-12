@@ -1,0 +1,483 @@
+---
+/*
+ * Alt7_PopulationDecomposition - quarterly population change, stacked.
+ *
+ * Editorial question. How is Canada's population changing - and what's
+ * driving the change?
+ *
+ * What's different. Production Panel 4 (IRCC supply trajectory) plots PR
+ * landings and net NPR vs the IRCC levels plan. This pivots to the
+ * arithmetic identity for population change:
+ *
+ *   ΔPOP_t = natural_increase_t + net_PR_t + net_NPR_t + residual_t
+ *
+ * with the three bucket flows decomposing the quarterly change, the
+ * total population level overlaid as a dashed thin line on a secondary
+ * (right-side) y-axis, and a residual catch-all that closes the
+ * identity to ΔPOP exactly (the residual absorbs census revisions and
+ * other StatCan reconciliations - small but not negligible).
+ *
+ * Why it might be better. The IRCC chart names the plan-vs-realized
+ * gap on two flow components; this names the entire denominator dynamic
+ * in one geometry. The 2024-25 NPR pivot (Oct 2024 IRCC plan revision)
+ * is the swing factor and reads cleanly as the bar bucket that flipped
+ * sharply negative.
+ *
+ * Bucket definitions.
+ *   - natural_increase   = pop_births - pop_deaths
+ *   - net_PR             = pop_immigrants - pop_emigrants
+ *   - net_NPR            = pop_net_npr           (the swing protagonist)
+ *   - residual           = ΔPOP - sum_of_above   (closes the identity)
+ *
+ * Data. pop_births, pop_deaths, pop_immigrants, pop_emigrants,
+ * pop_net_npr, pop_total - all quarterly, all in data/raw/ and
+ * force-tracked.
+ *
+ * Visual treatment per the chart canon.
+ *   - net_NPR rendered in MTA red (the swing protagonist; users care
+ *     most about whether the immigration cycle has turned).
+ *   - natural_increase + net_PR in pure ink at differing opacities.
+ *   - residual at the lightest opacity (it's bookkeeping, not signal).
+ *   - pop_total overlaid as a thin dashed ink line on a right-side
+ *     y-axis (millions of persons).
+ */
+
+import { readCsv, decYear, VB, fmtTick, yearTicksFromX } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+
+// --- Load + align on quarterly grid ---------------------------------------
+const births = readCsv("pop_births.csv");
+const deaths = readCsv("pop_deaths.csv");
+const imm = readCsv("pop_immigrants.csv");
+const em = readCsv("pop_emigrants.csv");
+const npr = readCsv("pop_net_npr.csv");
+const tot = readCsv("pop_total.csv");
+
+const mapOf = (s: typeof births) => new Map(s.map((p) => [p.date, p.value]));
+const bMap = mapOf(births);
+const dMap = mapOf(deaths);
+const iMap = mapOf(imm);
+const eMap = mapOf(em);
+const nMap = mapOf(npr);
+const tMap = mapOf(tot);
+
+// Use pop_total as the date spine; flow buckets exist whenever components
+// are non-null.
+const sortedTotDates = tot
+  .filter((p) => p.value !== null)
+  .map((p) => p.date)
+  .sort();
+
+interface QRow {
+  d: string;
+  total: number | null;     // pop_total at quarter-start (persons)
+  dpop: number | null;      // change since previous quarter (persons)
+  nat: number | null;       // natural_increase = births - deaths
+  net_pr: number | null;    // net_PR = immigrants - emigrants
+  net_npr: number | null;   // net_NPR
+  residual: number | null;  // dpop - sum
+}
+
+const rows: QRow[] = [];
+for (let i = 0; i < sortedTotDates.length; i++) {
+  const d = sortedTotDates[i]!;
+  const T = tMap.get(d);
+  const TPrev = i > 0 ? tMap.get(sortedTotDates[i - 1]!) : null;
+  const B = bMap.get(d);
+  const D = dMap.get(d);
+  const I = iMap.get(d);
+  const E = eMap.get(d);
+  const N = nMap.get(d);
+  const dpop = (typeof T === "number" && typeof TPrev === "number") ? T - TPrev : null;
+  const nat = (typeof B === "number" && typeof D === "number") ? B - D : null;
+  const net_pr = (typeof I === "number" && typeof E === "number") ? I - E : null;
+  const net_npr = (typeof N === "number") ? N : null;
+  const sumDecomp = (typeof nat === "number" && typeof net_pr === "number" && typeof net_npr === "number")
+    ? nat + net_pr + net_npr : null;
+  const residual = (typeof dpop === "number" && typeof sumDecomp === "number")
+    ? dpop - sumDecomp : null;
+  rows.push({
+    d,
+    total: typeof T === "number" ? T : null,
+    dpop,
+    nat,
+    net_pr,
+    net_npr,
+    residual,
+  });
+}
+
+// --- Window: last 60 quarters (15 years) ----------------------------------
+const WINDOW = 60;
+const tailRows = rows.slice(-WINDOW);
+
+// Drop the first quarter (it has no dpop available since no previous) and
+// any quarter whose decomposition didn't compute.
+const visible = tailRows.filter((r) => typeof r.dpop === "number");
+
+// --- Geometry -------------------------------------------------------------
+const VB_W = VB.W;
+const VB_H = VB.H;
+const M_L = 64;     // a touch wider than canon to fit the kp ticks (e.g. 300k)
+const M_R = 84;     // wider than canon for the secondary axis labels
+const M_T = 60;     // top room for legend
+const M_B = 40;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+// --- x-domain anchored to quarter dates -----------------------------------
+const xsRaw = visible.map((r) => decYear(r.d)).filter((v) => !Number.isNaN(v));
+const xMin = xsRaw.length > 0 ? Math.min(...xsRaw) - 0.1 : 0;
+const xMax = xsRaw.length > 0 ? Math.max(...xsRaw) + 0.1 : 1;
+
+function xScale(yr: number): number {
+  if (xMax === xMin) return PLOT_X0 + PLOT_W / 2;
+  return PLOT_X0 + ((yr - xMin) / (xMax - xMin)) * PLOT_W;
+}
+
+// --- Left y-axis: stacked-bar domain (persons per quarter) ----------------
+// The y-extent spans the largest positive and largest negative quarterly
+// stack across the visible window, plus padding.
+let yLoBars = 0;
+let yHiBars = 0;
+for (const r of visible) {
+  let pos = 0, neg = 0;
+  for (const v of [r.nat, r.net_pr, r.net_npr, r.residual]) {
+    if (typeof v !== "number") continue;
+    if (v >= 0) pos += v; else neg += v;
+  }
+  if (pos > yHiBars) yHiBars = pos;
+  if (neg < yLoBars) yLoBars = neg;
+  if (typeof r.dpop === "number") {
+    // Also include the dpop value itself; in normal quarters the bars
+    // sum to dpop, but the residual can push the actual dpop outside
+    // the visible stack range.
+    if (r.dpop > yHiBars) yHiBars = r.dpop;
+    if (r.dpop < yLoBars) yLoBars = r.dpop;
+  }
+}
+const spanL = (yHiBars - yLoBars) || 1;
+yLoBars -= spanL * 0.08;
+yHiBars += spanL * 0.08;
+const yRangeL = yHiBars - yLoBars;
+
+function yScaleL(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - yLoBars) / yRangeL) * PLOT_H;
+}
+const zeroY = (yLoBars <= 0 && yHiBars >= 0) ? yScaleL(0) : null;
+
+// --- Right y-axis: pop_total level (millions of persons) ------------------
+// Independent scale so the level reads cleanly without dragging the bar
+// scale into compression.
+const totalValues = visible
+  .map((r) => r.total)
+  .filter((v): v is number => typeof v === "number");
+let yLoR = totalValues.length ? Math.min(...totalValues) : 0;
+let yHiR = totalValues.length ? Math.max(...totalValues) : 1;
+const spanR = (yHiR - yLoR) || 1;
+yLoR -= spanR * 0.05;
+yHiR += spanR * 0.05;
+const yRangeR = yHiR - yLoR;
+
+function yScaleR(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - yLoR) / yRangeR) * PLOT_H;
+}
+
+// --- y-ticks for left axis (persons; display as thousands "k") ------------
+function pickStrideAdaptive(lo: number, hi: number, target = 5): number {
+  const sp = hi - lo;
+  if (sp <= 0) return 1;
+  const rough = sp / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let nice = 1;
+  if (norm < 1.5) nice = 1;
+  else if (norm < 3) nice = 2;
+  else if (norm < 4) nice = 2.5;
+  else if (norm < 7) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+const yStrideL = pickStrideAdaptive(yLoBars, yHiBars);
+const yTicksL: number[] = [];
+const yStartL = Math.ceil(yLoBars / yStrideL) * yStrideL;
+for (let v = yStartL; v <= yHiBars + 1e-6; v += yStrideL) yTicksL.push(v);
+if (yTicksL.length === 0) yTicksL.push((yLoBars + yHiBars) / 2);
+
+// Right axis ticks (millions). Three or four ticks is plenty.
+const yStrideR = pickStrideAdaptive(yLoR, yHiR, 4);
+const yTicksR: number[] = [];
+const yStartR = Math.ceil(yLoR / yStrideR) * yStrideR;
+for (let v = yStartR; v <= yHiR + 1e-6; v += yStrideR) yTicksR.push(v);
+if (yTicksR.length === 0) yTicksR.push((yLoR + yHiR) / 2);
+
+// --- x-ticks --------------------------------------------------------------
+const xTicks = yearTicksFromX(xMin, xMax, xScale);
+
+// --- Build stacked bars ---------------------------------------------------
+type Bucket = "nat" | "net_pr" | "net_npr" | "residual";
+type BarRect = { x: number; y: number; w: number; h: number; bucket: Bucket };
+const bars: BarRect[] = [];
+
+const slotWidth = PLOT_W / Math.max(visible.length, 1);
+const barWidth = Math.max(2, slotWidth * 0.62);
+
+// Stack order: natural (foundational, smallest), net_PR (PR landings),
+// net_NPR (the swing factor, in red), residual (lightest, on top).
+// Positive stack upward, negative downward.
+const stackOrder: Array<{ key: Bucket; pick: (r: QRow) => number | null }> = [
+  { key: "nat",      pick: (r) => r.nat },
+  { key: "net_pr",   pick: (r) => r.net_pr },
+  { key: "net_npr",  pick: (r) => r.net_npr },
+  { key: "residual", pick: (r) => r.residual },
+];
+
+for (const r of visible) {
+  const xv = decYear(r.d);
+  if (Number.isNaN(xv)) continue;
+  const cx = xScale(xv);
+  let posCum = 0;
+  let negCum = 0;
+  for (const s of stackOrder) {
+    const v = s.pick(r);
+    if (typeof v !== "number" || !Number.isFinite(v) || v === 0) continue;
+    let y0: number, y1: number;
+    if (v >= 0) { y0 = yScaleL(posCum); y1 = yScaleL(posCum + v); posCum += v; }
+    else { y0 = yScaleL(negCum); y1 = yScaleL(negCum + v); negCum += v; }
+    bars.push({
+      x: cx - barWidth / 2,
+      y: Math.min(y0, y1),
+      w: barWidth,
+      h: Math.max(0.5, Math.abs(y0 - y1)),
+      bucket: s.key,
+    });
+  }
+}
+
+// --- pop_total overlay path on right axis ---------------------------------
+let totalPath = "";
+let started = false;
+for (const r of visible) {
+  if (typeof r.total !== "number") continue;
+  const xv = decYear(r.d);
+  if (Number.isNaN(xv)) continue;
+  const xp = xScale(xv).toFixed(2);
+  const yp = yScaleR(r.total).toFixed(2);
+  totalPath += (started ? "L" : "M") + xp + " " + yp + " ";
+  started = true;
+}
+totalPath = totalPath.trim();
+
+// Latest pop_total point (red dot stays on the protagonist bar bucket;
+// the overlay line gets a small pure-ink dot at its terminus per
+// three-line panel convention).
+const latestTotal = [...visible].reverse().find((r) => typeof r.total === "number");
+const latestTotalX = latestTotal ? xScale(decYear(latestTotal.d)) : 0;
+const latestTotalY = latestTotal ? yScaleR(latestTotal.total as number) : 0;
+
+// Latest non-zero net_NPR bar (the protagonist) gets the MTA-red accent.
+// We don't redraw the bar in red - the bar fill already is. The accent is
+// a small marker on the bar's centre line so the latest read pops.
+const latestNpr = [...visible].reverse().find(
+  (r) => typeof r.net_npr === "number" && r.net_npr !== 0,
+);
+const latestNprX = latestNpr ? xScale(decYear(latestNpr.d)) : 0;
+const latestNprMidY = latestNpr ? yScaleL((latestNpr.net_npr as number) / 2) : 0;
+
+const ariaLabel =
+  "Quarterly population change, Canada, last 15 years, decomposed into natural increase, net permanent residents, net non-permanent residents, and a residual; total population overlaid as a dashed line on the right axis.";
+---
+<div class="alt-chart" data-panel="alt-labour-7-pop-decomp">
+  <svg
+    class="alt-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {/* ---- Legend at top of chart ----------------------------------- */}
+    <g class="popd-legend" transform={`translate(${PLOT_X0}, 28)`}>
+      <rect class="popd-swatch popd-swatch--nat" x={0} y={-9} width={10} height={10} />
+      <text class="popd-legend__label" x={14} y={0}>Natural increase</text>
+      <rect class="popd-swatch popd-swatch--net_pr" x={130} y={-9} width={10} height={10} />
+      <text class="popd-legend__label" x={144} y={0}>Net PR</text>
+      <rect class="popd-swatch popd-swatch--net_npr" x={210} y={-9} width={10} height={10} />
+      <text class="popd-legend__label" x={224} y={0}>Net NPR</text>
+      <rect class="popd-swatch popd-swatch--residual" x={296} y={-9} width={10} height={10} />
+      <text class="popd-legend__label" x={310} y={0}>Residual</text>
+      <line class="popd-legend__line" x1={376} y1={-4} x2={396} y2={-4} />
+      <text class="popd-legend__label" x={400} y={0}>Total population (right axis)</text>
+    </g>
+
+    {/* ---- Left-axis gridlines (excluding zero) ---------------------- */}
+    {yTicksL.map((v) => {
+      const yy = yScaleL(v);
+      if (zeroY !== null && Math.abs(yy - zeroY) < 0.5) return null;
+      return (
+        <line
+          class="alt-chart__gridline"
+          x1={PLOT_X0.toFixed(2)}
+          y1={yy.toFixed(2)}
+          x2={PLOT_X1.toFixed(2)}
+          y2={yy.toFixed(2)}
+        />
+      );
+    })}
+
+    {/* ---- Stacked bars --------------------------------------------- */}
+    {bars.map((b) => (
+      <rect
+        class={`popd-bar popd-bar--${b.bucket}`}
+        x={b.x.toFixed(2)}
+        y={b.y.toFixed(2)}
+        width={b.w.toFixed(2)}
+        height={b.h.toFixed(2)}
+      />
+    ))}
+
+    {/* ---- Zero line (above bars) ----------------------------------- */}
+    {zeroY !== null && (
+      <line
+        class="alt-chart__zero-line"
+        x1={PLOT_X0.toFixed(2)}
+        y1={zeroY.toFixed(2)}
+        x2={PLOT_X1.toFixed(2)}
+        y2={zeroY.toFixed(2)}
+      />
+    )}
+
+    {/* ---- pop_total overlay line on right axis -------------------- */}
+    {totalPath && (
+      <path class="popd-total-line" d={totalPath} fill="none" />
+    )}
+
+    {/* ---- Latest pop_total dot (pure ink, small) ------------------ */}
+    {latestTotal && (
+      <circle
+        class="popd-total-dot"
+        cx={latestTotalX.toFixed(2)}
+        cy={latestTotalY.toFixed(2)}
+        r="3"
+      >
+        <title>{`Population, ${latestTotal.d}: ${((latestTotal.total as number) / 1e6).toFixed(2)}M`}</title>
+      </circle>
+    )}
+
+    {/* ---- Latest NPR accent dot at the bar's mid-line ------------- */}
+    {latestNpr && (
+      <circle
+        class="alt-chart__latest-dot"
+        cx={latestNprX.toFixed(2)}
+        cy={latestNprMidY.toFixed(2)}
+        r="4"
+      >
+        <title>{`Net NPR, ${latestNpr.d}: ${((latestNpr.net_npr as number) / 1000).toFixed(0)}k`}</title>
+      </circle>
+    )}
+
+    {/* ---- Plot frame ---------------------------------------------- */}
+    <rect class="alt-chart__frame" x={PLOT_X0} y={PLOT_Y0} width={PLOT_W} height={PLOT_H} />
+
+    {/* ---- x-axis ticks --------------------------------------------- */}
+    {xTicks.map((t) => (
+      <g>
+        <line
+          class="alt-chart__xtick"
+          x1={t.x.toFixed(2)}
+          y1={PLOT_Y1.toFixed(2)}
+          x2={t.x.toFixed(2)}
+          y2={(PLOT_Y1 + 4).toFixed(2)}
+        />
+        <text
+          class="alt-chart__xtick-label"
+          x={t.x.toFixed(2)}
+          y={(PLOT_Y1 + 18).toFixed(2)}
+          text-anchor="middle"
+        >{t.label}</text>
+      </g>
+    ))}
+
+    {/* ---- Left y-axis tick labels (persons -> "k") ----------------- */}
+    {yTicksL.map((v, i) => {
+      const yy = yScaleL(v);
+      const isTop = i === yTicksL.length - 1;
+      // Display in thousands of persons. Top tick carries the unit.
+      const k = v / 1000;
+      const sign = k > 0 ? "+" : "";
+      const txt = isTop
+        ? `${sign}${fmtTick(k, 0)}k`
+        : `${sign}${fmtTick(k, 0)}`;
+      return (
+        <text
+          class="alt-chart__ytick-label"
+          x={(PLOT_X0 - 8).toFixed(2)}
+          y={(yy + 4).toFixed(2)}
+          text-anchor="end"
+        >{txt}</text>
+      );
+    })}
+
+    {/* ---- Right y-axis tick labels (millions of persons) ----------- */}
+    {yTicksR.map((v, i) => {
+      const yy = yScaleR(v);
+      const isTop = i === yTicksR.length - 1;
+      const m = v / 1e6;
+      const txt = isTop ? `${m.toFixed(1)}M` : m.toFixed(1);
+      return (
+        <text
+          class="popd-ytick-right"
+          x={(PLOT_X1 + 8).toFixed(2)}
+          y={(yy + 4).toFixed(2)}
+          text-anchor="start"
+        >{txt}</text>
+      );
+    })}
+  </svg>
+</div>
+
+<AltChartStyle />
+
+<style>
+  /* Bar fills. natural and net_PR in pure ink at differing opacities;
+   * net_NPR in MTA red (the swing protagonist); residual at the
+   * lightest opacity to read as bookkeeping not signal. */
+  .popd-bar { stroke: none; shape-rendering: crispEdges; }
+  .popd-bar--nat       { fill: var(--ink); fill-opacity: 0.62; }
+  .popd-bar--net_pr    { fill: var(--ink); fill-opacity: 0.38; }
+  .popd-bar--net_npr   { fill: var(--accent); fill-opacity: 1; }
+  .popd-bar--residual  { fill: var(--ink); fill-opacity: 0.18; }
+
+  /* Total population overlay line: thin dashed pure ink, secondary axis */
+  .popd-total-line {
+    stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2;
+    stroke-linejoin: round; stroke-linecap: butt; fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+  .popd-total-dot { fill: var(--ink); stroke: none; }
+
+  /* Right-axis tick labels: pure ink, slightly reduced opacity to read
+   * as secondary frame relative to the left axis. */
+  .popd-ytick-right {
+    fill: var(--ink); fill-opacity: 0.7;
+    font-family: var(--font-mono);
+    font-size: 12px; font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Legend */
+  .popd-swatch { stroke: none; shape-rendering: crispEdges; }
+  .popd-swatch--nat      { fill: var(--ink); fill-opacity: 0.62; }
+  .popd-swatch--net_pr   { fill: var(--ink); fill-opacity: 0.38; }
+  .popd-swatch--net_npr  { fill: var(--accent); }
+  .popd-swatch--residual { fill: var(--ink); fill-opacity: 0.18; }
+  .popd-legend__line { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 2; }
+  .popd-legend__label {
+    fill: var(--ink); font-family: var(--font-sans);
+    font-size: 11px; font-weight: var(--fw-regular); letter-spacing: 0.04em;
+    alignment-baseline: middle;
+  }
+</style>
