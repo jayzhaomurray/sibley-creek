@@ -611,6 +611,156 @@ def derive_cpi_views() -> None:
         write_series(yoy, meta, DATA_PROCESSED)
 
 
+def derive_cpi_services_ex_shelter_yoy() -> None:
+    """Y/Y % change in basket-weighted services CPI ex-shelter.
+
+    The Inflation Panel 6 pass-through panel (canon 4.2 element 6) right-pane
+    pairs LFS-Micro composition-adjusted wage growth against services-ex-shelter
+    CPI Y/Y; the Labour Panel 3 wage band uses the same series as the cleaner
+    real-wage anchor (services-ex-shelter is composition-stable against wage
+    composition-adjusted readings; total services contains shelter, which moves
+    with policy-rate cycles independently of underlying services-price drift).
+
+    Two routes to the output and the choice between them matters:
+
+      Route A ("level-then-Y/Y", standard):
+        For each month t, compute a synthetic ex-shelter services level
+            L_t = (w_services * services_index_t - w_shelter * shelter_index_t)
+                  / (w_services - w_shelter)
+        using the basket cycle in force at month t (StatCan refreshes weights
+        on a basket-cycle cadence; the latest 2024 basket applies forward).
+        Then Y/Y_t = (L_t / L_{t-12} - 1) * 100.
+
+      Route B ("subtract weighted Y/Ys"):
+        yoy_t = (w_services * yoy_services_t - w_shelter * yoy_shelter_t)
+                / (w_services - w_shelter).
+
+    Route A is the StatCan / BoC convention for ex-aggregate price indices
+    (the published all-items-ex-shelter and core-CPI variants are all level-
+    then-Y/Y). Route B differs slightly because the weights at month t apply
+    to LEVELS in B but to GROWTH RATES at month t-12 vs t in A, and the
+    basket cycle in force at t-12 may differ from the cycle in force at t
+    (Route A keeps the t-cycle for both endpoints by reconstructing the
+    same-cycle level; Route B implicitly mixes cycles).
+
+    We implement Route A. Weights come from `cpi_basket_weights_canada.csv`
+    (long-format date | aggregate | weight_pct); the cycle in force at any
+    month t is the latest cycle_start_date <= t.
+
+    Inputs:
+        data/raw/cpi_services.csv       NSA index level (StatCan v41691230)
+        data/raw/cpi_shelter.csv        NSA index level (StatCan v41691050)
+        data/derived/cpi_basket_weights_canada.csv
+            long-format weights from cpi_basket.fetch_basket_weights()
+
+    Output:
+        data/processed/cpi_services_ex_shelter_yoy.csv  date,value (%)
+    """
+    services = _read_raw("cpi_services")
+    shelter = _read_raw("cpi_shelter")
+    if services is None or shelter is None:
+        logger.warning(
+            "derive_cpi_services_ex_shelter_yoy skipped: services=%s shelter=%s",
+            services is not None, shelter is not None,
+        )
+        return
+
+    weights_path = DATA_DERIVED / "cpi_basket_weights_canada.csv"
+    if not weights_path.exists():
+        logger.warning(
+            "derive_cpi_services_ex_shelter_yoy skipped: missing %s "
+            "(run fetch_cpi_basket_weights first)",
+            weights_path,
+        )
+        return
+    w_long = pd.read_csv(weights_path, parse_dates=["date"])
+    w_services = (
+        w_long[w_long["aggregate"] == "services"]
+        .set_index("date")["weight_pct"].sort_index()
+    )
+    w_shelter = (
+        w_long[w_long["aggregate"] == "shelter"]
+        .set_index("date")["weight_pct"].sort_index()
+    )
+    if w_services.empty or w_shelter.empty:
+        logger.warning(
+            "derive_cpi_services_ex_shelter_yoy: basket weights missing services/shelter rows"
+        )
+        return
+
+    # Align index levels on date.
+    s = services.set_index("date")["value"].sort_index()
+    h = shelter.set_index("date")["value"].sort_index()
+    joined = pd.concat([s.rename("services"), h.rename("shelter")], axis=1).dropna()
+    if joined.empty:
+        logger.warning("derive_cpi_services_ex_shelter_yoy: no overlapping months")
+        return
+
+    # For each month, pick the basket cycle whose start_date is the latest
+    # cycle <= month. asof() is the natural primitive here; both weight
+    # series are sorted by date and basket cycles are discrete refresh dates.
+    ws = w_services.reindex(
+        w_services.index.union(joined.index)
+    ).sort_index().ffill().reindex(joined.index)
+    wh = w_shelter.reindex(
+        w_shelter.index.union(joined.index)
+    ).sort_index().ffill().reindex(joined.index)
+
+    # Synthetic ex-shelter level: weighted residual normalized by the
+    # ex-shelter weight share so the result reads as a like-for-like CPI
+    # sub-index (i.e. a level whose Y/Y is interpretable as inflation).
+    # Denominator (ws - wh) is the basket share of services-ex-shelter; in
+    # the current 2024 basket this is ~33pp (services ~46 minus shelter ~28).
+    denom = ws - wh
+    if (denom <= 0).any():
+        logger.warning(
+            "derive_cpi_services_ex_shelter_yoy: non-positive ex-shelter weight share "
+            "in some basket cycles; check basket_weights_canada.csv"
+        )
+    level = (ws * joined["services"] - wh * joined["shelter"]) / denom
+    level = level.dropna()
+    if len(level) < 13:
+        logger.warning(
+            "derive_cpi_services_ex_shelter_yoy: insufficient history for Y/Y (n=%d)",
+            len(level),
+        )
+        return
+
+    yoy = (level.pct_change(12) * 100.0).dropna()
+    out = yoy.reset_index()
+    out.columns = ["date", "value"]
+
+    spec_services = STATCAN_SERIES["cpi_services"]
+    spec_shelter = STATCAN_SERIES["cpi_shelter"]
+    meta = SeriesMeta(
+        name="cpi_services_ex_shelter_yoy",
+        source="Statistics Canada Web Data Service (derived)",
+        source_url=statcan_url(spec_services),
+        source_id=(
+            f"v{spec_services.vector_id}-minus-weighted-v{spec_shelter.vector_id}"
+            "-basket-link-month-weights"
+        ),
+        units="%",
+        frequency="monthly",
+        notes=(
+            "Year-over-year % change in basket-weighted services CPI excluding "
+            "shelter. Synthetic ex-shelter level reconstructed per basket cycle "
+            "from StatCan Table 18-10-0007-01 weights "
+            "(cpi_basket_weights_canada.csv): "
+            "L_t = (w_services_t * services_index_t - w_shelter_t * shelter_index_t) "
+            "/ (w_services_t - w_shelter_t). Y/Y is the standard 12-month % change "
+            "on L. Route choice ('level-then-Y/Y' vs 'subtract weighted Y/Ys'): we "
+            "use level-then-Y/Y per StatCan / BoC convention for published "
+            "ex-aggregate CPI variants. The two routes differ when basket cycles "
+            "change within the 12-month comparison window; level-then-Y/Y holds "
+            "the current-month cycle constant across both endpoints. Inputs: "
+            "cpi_services (NSA, v41691230) and cpi_shelter (NSA, v41691050)."
+        ),
+        transform="basket_weighted_services_minus_shelter_level_then_yoy(periods_per_year=12)",
+    )
+    write_series(out, meta, DATA_PROCESSED)
+
+
 def derive_cpi_breadth_gt3() -> None:
     """Share of CPI basket (weighted) with Y/Y inflation above 3%.
 
@@ -1300,6 +1450,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     #    populated. Each derivation is isolated; failures don't cascade.
     logger.info("--- Derivations ---")
     _safe("derive_cpi_views", derive_cpi_views, failed)
+    _safe("derive_cpi_services_ex_shelter_yoy", derive_cpi_services_ex_shelter_yoy, failed)
     _safe("derive_cpi_breadth_gt3", derive_cpi_breadth_gt3, failed)
     _safe("derive_cpi_breadth_band", derive_cpi_breadth_band, failed)
     _safe("derive_gdp_views", derive_gdp_views, failed)

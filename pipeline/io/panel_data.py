@@ -149,9 +149,13 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             panel_id="panel-4", section="gdp", panel_num=4,
             file="gdp/Panel4PerCapita.astro",
             primary=SlotSpec("gdp_quarterly", "raw", label="Aggregate real GDP (quarterly)"),
-            secondary=SlotSpec("pop_immigrants", "raw", label="Population proxy (component)"),
-            expected_status="NEAR",
-            notes="Needs pop_total quarterly level; pipeline currently lacks a Canada-total population vector (pop_total V1 excluded from boc-tracker per fetch.py comment). Per-capita YoY derivation requires it. MISSING: pop_total quarterly level.",
+            secondary=SlotSpec("pop_total", "raw", label="Canada total population (quarterly)"),
+            expected_status="WIRED",
+            notes=(
+                "Aggregate quarterly real GDP + Canada-total quarterly population "
+                "(v1, Table 17-10-0009-01). The derived per-capita Y/Y companion lives "
+                "at data/processed/gdp_per_capita_yoy.csv via derive_gdp_per_capita_yoy()."
+            ),
         ),
         PanelSpec(
             panel_id="panel-5", section="gdp", panel_num=5,
@@ -315,7 +319,7 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             primary=SlotSpec("unemployment_level", "raw", label="Employment level (proxy)"),
             secondary=SlotSpec("aggregate_hours", "raw", label="Aggregate hours worked"),
             expected_status="NEAR",
-            notes="Needs employment_level (StatCan v2062811) and pop_total to compute per-capita YoY. employment_level is MISSING (StatCan catalog has it but boc-tracker did not lift; can fetch via existing pipeline.fetch.statcan). aggregate_hours.csv exists in data/raw/ (Sibley-fetched).",
+            notes="Needs employment_level (StatCan v2062811) to compute per-capita YoY. employment_level is MISSING (StatCan catalog has it but boc-tracker did not lift; can fetch via existing pipeline.fetch.statcan). pop_total quarterly level is WIRED (v1, Table 17-10-0009-01) in data/raw/. aggregate_hours.csv exists in data/raw/ (Sibley-fetched).",
         ),
         PanelSpec(
             panel_id="panel-3", section="labour", panel_num=3,

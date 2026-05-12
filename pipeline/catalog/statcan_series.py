@@ -99,6 +99,42 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
         ),
     ),
 
+    # Natural-increase components: births and deaths, Canada-total quarterly.
+    # Resolved 2026-05-12 via WDS getSeriesInfoFromCubePidCoord on Table
+    # 17-10-0059-01 ("Estimates of the components of natural increase, quarterly").
+    # IMPORTANT cube clarification: the previously-wired pop_immigrants /
+    # pop_emigrants / pop_net_npr / pop_npr_inflows / pop_net_emigration set
+    # comes from Table 17-10-0040-01 (Components of population GROWTH, the
+    # migration-only cube), which does NOT publish births or deaths. Births
+    # and deaths live in the sibling Table 17-10-0059-01 (natural-increase
+    # cube). The slugs are still pop_births / pop_deaths so they sort
+    # alongside the other pop_* migration components for Labour Panel 5 IRCC
+    # / supply-trajectory consumption, but provenance is the separate cube.
+    "pop_births": StatcanSpec(
+        name="pop_births",
+        vector_id=62, table_id="17-10-0059-01",
+        units="Persons", frequency="quarterly", section="labour",
+        sa=False,
+        notes=(
+            "Births, Canada total, quarterly. Cube coord 1.1.0.0.0.0.0.0.0.0; "
+            "series title 'Canada;Births'. Table 17-10-0059-01 publishes natural-"
+            "increase components separately from the migration components in "
+            "Table 17-10-0040 (which is where pop_immigrants / pop_net_npr etc. "
+            "live). Resolved 2026-05-12."
+        ),
+    ),
+    "pop_deaths": StatcanSpec(
+        name="pop_deaths",
+        vector_id=77, table_id="17-10-0059-01",
+        units="Persons", frequency="quarterly", section="labour",
+        sa=False,
+        notes=(
+            "Deaths, Canada total, quarterly. Cube coord 1.2.0.0.0.0.0.0.0.0; "
+            "series title 'Canada;Deaths'. Companion to pop_births in Table "
+            "17-10-0059-01 (natural-increase cube). Resolved 2026-05-12."
+        ),
+    ),
+
     # ----- Inflation (Section 4.2) ----------------------------------------
     "cpi_all_items":     StatcanSpec("cpi_all_items", 41690914, "18-10-0006-01",
                                      "Index, 2002=100", "monthly", "inflation", sa=True),
