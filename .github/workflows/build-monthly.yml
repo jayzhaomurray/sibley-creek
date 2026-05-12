@@ -1,49 +1,48 @@
 # ----------------------------------------------------------------------------
-# Monthly main build (ADR-0005 sibling of the daily Financial workflow)
+# Daily macro-data refresh
 # ----------------------------------------------------------------------------
 #
-# STATE: READY-TO-ENABLE.
-# Same posture as `build-financial-daily.yml`: this workflow is committed
-# but is only meaningful once a `git remote` is configured and this branch
-# lands on GitHub. Cron triggers only fire on the default branch of the
-# repository on github.com.
+# Pulls the StatCan / BoC / DoF / CREA / IRCC source roster once per weekday
+# morning. Most days nothing new is published; the pipeline is idempotent so
+# those runs produce no diff and no commit. On a release day (LFS first
+# Friday, CPI third Tuesday, GDP, Fiscal Monitor, CMHC, CREA HPI, etc.) the
+# refreshed CSV plus any cross-series derivation lands in a commit signed
+# by the github-actions bot, pushes to master, and triggers `deploy.yml`
+# to rebuild and ship the site.
 #
-# Per ADR-0005, the monthly entry point (`python -m pipeline.build`) covers:
+# Per ADR-0005, the main entry point (`python -m pipeline.build`) covers:
 #   - StatCan WDS catalog (GDP, Inflation, Labour, Housing, Trade)
 #   - BoC Valet non-daily cadence (CPI core, expectations, mortgage rates,
-#     balance sheet, output gap)
-#   - DoF Fiscal Monitor (monthly, ~2-month lag)
-#   - CREA MLS HPI bulk download (monthly, ~3-week lag)
-#   - Cross-series derivations (per-capita employment, trade-balance MA,
-#     partner shares, CPI Y/Y views)
+#     balance sheet, output gap, CSCE, BOS)
+#   - DoF Fiscal Monitor
+#   - CREA MLS HPI bulk download
+#   - Cross-series derivations (per-capita employment, trade balance MA,
+#     partner shares, CPI Y/Y views, CPI breadth band)
 #
-# Cadence: 1st of each month at 13:00 ET (17:00 UTC during EST, 18:00 UTC
-# during EDT). GitHub cron is UTC-only so we cannot follow DST exactly; we
-# fix the slot to 17:00 UTC, which is 13:00 ET during EST and 13:00 EDT-1h
-# (= 12:00 ET) during summer. This is fine for monthly cadence: the 1st of
-# a typical month is far enough from any release-day pressure that a one-
-# hour drift doesn't matter. StatCan releases for the calendar month are
-# spread across the month, not all on the 1st; this slot just refreshes
-# everything that landed during the previous month plus the Fiscal Monitor
-# and CREA HPI.
+# Cadence: Mon-Fri at 14:00 UTC. During EST that is 9:00 ET; during EDT
+# 10:00 ET. StatCan releases at 8:30 ET, so this slot sits 30-90 minutes
+# after the typical release window with a buffer for re-pulls if a
+# scheduled release lands late. GitHub cron is UTC-only so we accept the
+# one-hour DST drift.
 #
-# Why not align to StatCan release days? Each StatCan release has its own
-# day (LFS first Friday, CPI third Tuesday, GDP varies). Running on each
-# release day requires per-section orchestration; for v1 the single-cadence
-# monthly refresh is the simpler operational choice. We can split out
-# release-day workflows in a future iteration once the v1 site is shipping.
+# Note on cadence-vs-source-day: each StatCan release has its own day
+# (LFS first Friday, CPI third Tuesday, GDP varies, Fiscal Monitor mid-
+# month). Rather than orchestrate per-section workflows, we run the
+# full main pipeline daily; sources that have no new data on a given
+# day return the same value with the same vintage, the working tree
+# stays clean, and the commit step is a no-op. Cheap and simple.
 
-name: build-monthly
+name: build-data-daily
 
 on:
   schedule:
-    # 1st of each month at 17:00 UTC. See header note on DST trade-off.
-    - cron: "0 17 1 * *"
+    # Mon-Fri at 14:00 UTC. See header note on DST trade-off.
+    - cron: "0 14 * * 1-5"
   # Manual trigger is always available for ad-hoc refresh.
   workflow_dispatch: {}
 
 concurrency:
-  group: build-monthly
+  group: build-data-daily
   cancel-in-progress: true
 
 permissions:
@@ -62,7 +61,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          # Full history so `git diff --quiet` in the commit step
+          # compares against the actual last-commit state, not a shallow
+          # snapshot.
           fetch-depth: 0
+          # Use a token with push scope so the post-build commit can be
+          # pushed back to master. GITHUB_TOKEN gets `contents: write`
+          # from the `permissions:` block above.
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -76,31 +82,36 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r pipeline/requirements.txt
 
-      - name: Run monthly main build
+      - name: Run main pipeline build
         env:
-          # FRED is invoked by `build_financial`, not `build`; we still
-          # pass it through for parity in case build.py picks up FRED
-          # series in future iterations.
+          # FRED is invoked by `build_financial`, not `build`; passed
+          # through for parity in case build.py picks up FRED series in
+          # future iterations.
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         continue-on-error: true
         id: build
         run: |
           python -m pipeline.build
 
-      - name: Commit refreshed data if changed
+      - name: Commit and push refreshed data if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/raw data/processed
+          git add data/raw data/processed data/derived data/site
           if git diff --cached --quiet; then
-            echo "No data changes; skipping commit."
+            echo "No data changes; skipping commit + push."
           else
-            git commit -m "data: monthly main refresh $(date -u +%Y-%m-%dT%H:%MZ)"
-            echo "Committed in-place. NOT pushing (no remote configured)."
+            git commit -m "data: daily macro refresh $(date -u +%Y-%m-%dT%H:%MZ)"
+            # Pull-rebase before push in case master moved while the
+            # build was running (e.g., a manual push from the user).
+            # If rebase fails, surface and bail; the next cron will retry.
+            git pull --rebase origin master
+            git push origin HEAD:master
+            echo "Pushed to master; deploy.yml will rebuild and ship."
           fi
 
       - name: Surface non-zero build outcome
         if: steps.build.outcome != 'success'
         run: |
-          echo "Monthly main build reported failures; see the build step log."
+          echo "Main pipeline build reported failures; see the build step log."
           exit 1
