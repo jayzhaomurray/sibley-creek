@@ -1,0 +1,955 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Source audit · policy</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: #111;
+  background: #f7f6f1;
+  margin: 0;
+}
+.wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 40px;
+  align-items: start;
+}
+header.page-head {
+  grid-column: 1 / -1;
+  border-bottom: 2px solid #111;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+header.page-head h1 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+header.page-head .breadcrumb a {
+  color: #666;
+  text-decoration: none;
+  margin-right: 16px;
+}
+header.page-head .breadcrumb a:hover { color: #000; text-decoration: underline; }
+main {
+  background: white;
+  padding: 32px;
+  border: 1px solid #ddd;
+}
+.headline-q {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #111;
+}
+.section-label {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.abstract {
+  font-size: 17px;
+  line-height: 1.6;
+  border-left: 3px solid #c00;
+  padding-left: 16px;
+  margin: 24px 0 40px 0;
+  color: #222;
+}
+.plate {
+  border-top: 1px solid #ccc;
+  padding: 24px 0;
+}
+.plate-number {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.plate-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 4px 0 10px 0;
+  color: #111;
+}
+.plate-meta {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #777;
+  margin-bottom: 12px;
+}
+.plate-blurb { font-size: 16px; line-height: 1.6; color: #222; }
+.plate-source-line {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #666;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dotted #ccc;
+}
+.claim {
+  background: #fffbcc;
+  padding: 1px 2px;
+  border-bottom: 2px solid #e6c200;
+  cursor: pointer;
+}
+.claim:hover {
+  background: #fff299;
+}
+.claim-sup {
+  color: #b07b00;
+  font-weight: 700;
+  font-size: 0.8em;
+  margin-left: 1px;
+}
+aside.ledger {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 16px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+}
+aside.ledger h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+.ledger-group { margin-bottom: 20px; }
+.ledger-group-h {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #555;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ddd;
+}
+.ledger-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.ledger-ref {
+  display: inline-block;
+  background: #e6c200;
+  color: white;
+  padding: 1px 6px;
+  font-weight: 700;
+  font-size: 11px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+.ledger-ref.pipeline { background: #2a7a30; }
+.ledger-ref.derived { background: #888; }
+.ledger-ref.unknown, .ledger-ref.card-missing, .ledger-ref.other { background: #c33; }
+.ledger-phrase {
+  font-style: italic;
+  color: #333;
+  display: block;
+  margin: 4px 0;
+}
+.ledger-source-label { font-weight: 600; color: #222; font-size: 12px; }
+.ledger-excerpt {
+  margin: 6px 0;
+  padding: 8px 10px;
+  background: #f3f3ef;
+  color: #444;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 2px solid #999;
+}
+.ledger-meta { font-size: 11px; color: #777; }
+.ledger-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: #006699;
+  text-decoration: none;
+  font-weight: 600;
+}
+.ledger-link:hover { text-decoration: underline; }
+.note-line { font-size: 11px; color: #888; margin-top: 4px; font-style: italic; }
+footer.audit-foot {
+  grid-column: 1 / -1;
+  border-top: 1px solid #ccc;
+  padding: 20px 0;
+  font-size: 12px;
+  color: #777;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.edit-btn {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #006699;
+  background: transparent;
+  border: 1px solid #006699;
+  padding: 3px 8px;
+  margin-left: 8px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.edit-btn:hover { background: #006699; color: white; }
+.edit-form {
+  margin-top: 12px;
+  padding: 14px;
+  background: #f8f7ec;
+  border: 1px solid #d8c773;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  display: none;
+}
+.edit-form.open { display: block; }
+.edit-form label {
+  display: block;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+  margin: 8px 0 4px 0;
+}
+.edit-form textarea, .edit-form input[type="text"] {
+  width: 100%;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #c8c0a0;
+  background: white;
+  box-sizing: border-box;
+}
+.edit-form textarea { min-height: 80px; line-height: 1.5; resize: vertical; }
+.edit-form .row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.edit-form .row .primary {
+  background: #006699;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.edit-form .row .primary:hover { background: #00557e; }
+.edit-form .row .toast {
+  font-size: 12px;
+  color: #2a7a30;
+  font-weight: 600;
+  margin-left: 8px;
+  display: none;
+}
+.edit-form .row .toast.show { display: inline; }
+.edit-form .hint {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+  margin-top: 4px;
+}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <div class="breadcrumb">
+        <a href="./index.html">← All sections</a>
+        <span style="color:#999">·</span>
+        <a href="https://sibleycreek.ca/policy/" target="_blank" rel="noopener">Live page ↗</a>
+      </div>
+      <h1>Source audit · policy</h1>
+    </header>
+    <main>
+      <div class="section-label">Section abstract <button class="edit-btn" onclick="document.getElementById('edit-abstract').classList.toggle('open')">✎ Propose edit</button></div>
+      <h2 class="headline-q">What is the policy stance, and is it consistent with the cycle?</h2>
+      <div class="abstract">The Bank of Canada held the <span class="claim" data-ref="1">overnight rate at 2.25% on April 29<sup class="claim-sup">[1]</sup></span>, the <span class="claim" data-ref="2">fourth straight hold<sup class="claim-sup">[2]</sup></span> since October's cut and <span class="claim" data-ref="3">50 bps below the <span class="claim" data-ref="4">2.75% neutral midpoint<sup class="claim-sup">[4]</sup></span><sup class="claim-sup">[3]</sup></span>. The <span class="claim" data-ref="5">2y GoC yield closed at 2.94% on May 7<sup class="claim-sup">[5]</sup></span>, leaving the <span class="claim" data-ref="6">BoC-Fed 2y spread at -98 bps<sup class="claim-sup">[6]</sup></span>. The fiscal year-to-date federal budget balance stood at -<span class="claim" data-ref="7">$25.6B through February<sup class="claim-sup">[7]</sup></span>, per the Department of Finance Canada fiscal monitor.</div>
+      
+    <div class="edit-form" id="edit-abstract">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="" />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The Bank of Canada held the overnight rate at 2.25% on April 29, the fourth straight hold since October's cut and 50 bps below the 2.75% neutral midpoint. The 2y GoC yield closed at 2.94% on May 7, leaving the BoC-Fed 2y spread at -98 bps. The fiscal year-to-date federal budget balance stood at -$25.6B through February, per the Department of Finance Canada fiscal monitor.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'policy', 'section-abstract')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      
+      <section class="plate">
+        <div class="plate-number">01 · Overnight rate</div>
+        <h3 class="plate-title">The Bank has settled the overnight rate inside its neutral range. <button class="edit-btn" onclick="document.getElementById('edit-plate-0').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Overnight rate · April 29, 2026 (rate decision)</div>
+        <div class="plate-blurb">The Bank held the overnight rate target at <span class="claim" data-ref="1">2.25% on April 29<sup class="claim-sup">[1]</sup></span>, the <span class="claim" data-ref="2">fourth consecutive hold<sup class="claim-sup">[2]</sup></span> since the <span class="claim" data-ref="3">25 bps cut to 2.25% on October 29, 2025<sup class="claim-sup">[3]</sup></span>. The setting sits inside the BoC's stated <span class="claim" data-ref="4">2.25 to 3.25% nominal neutral range<sup class="claim-sup">[4]</sup></span>; further easing would push policy into accommodative territory. The April Monetary Policy Report describes the current stance as appropriately positioned while the inflation moderation works through.</div>
+        <div class="plate-source-line">Bank of Canada rate decision and Monetary Policy Report, latest vintage.</div>
+        
+    <div class="edit-form" id="edit-plate-0">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="The Bank has settled the overnight rate inside its neutral range." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The Bank held the overnight rate target at 2.25% on April 29, the fourth consecutive hold since the 25 bps cut to 2.25% on October 29, 2025. The setting sits inside the BoC's stated 2.25 to 3.25% nominal neutral range; further easing would push policy into accommodative territory. The April Monetary Policy Report describes the current stance as appropriately positioned while the inflation moderation works through.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'policy', 'plate-1')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">02 · Market path</div>
+        <h3 class="plate-title">The market has stopped pricing further near-term easing. <button class="edit-btn" onclick="document.getElementById('edit-plate-1').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">2y GoC vs overnight</div>
+        <div class="plate-blurb">The 2-year Government of Canada yield closed at <span class="claim" data-ref="1">2.94% on May 7<sup class="claim-sup">[1]</sup></span>, <span class="claim" data-ref="3">roughly 69 bps<sup class="claim-sup">[3]</sup></span> above the <span class="claim" data-ref="2">2.25% overnight target<sup class="claim-sup">[2]</sup></span>. The curve is no longer pricing further near-term easing; the gap reflects term premium and a market that has converged toward the Bank's hold. The April MPR's market-implied curve remains the primary-source reference for the full OIS-implied path.</div>
+        <div class="plate-source-line">BoC Valet (rates); MPR market-implied curve, latest vintage.</div>
+        
+    <div class="edit-form" id="edit-plate-1">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="The market has stopped pricing further near-term easing." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The 2-year Government of Canada yield closed at 2.94% on May 7, roughly 69 bps above the 2.25% overnight target. The curve is no longer pricing further near-term easing; the gap reflects term premium and a market that has converged toward the Bank's hold. The April MPR's market-implied curve remains the primary-source reference for the full OIS-implied path.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'policy', 'plate-2')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">03 · BoC-Fed spread</div>
+        <h3 class="plate-title">The cross-border spread is deep but no longer the binding constraint on the BoC. <button class="edit-btn" onclick="document.getElementById('edit-plate-2').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Canada 2y minus US 2y</div>
+        <div class="plate-blurb"><span class="claim" data-ref="1">GoC 2y at 2.94%<sup class="claim-sup">[1]</sup></span> against <span class="claim" data-ref="2">UST 2y at 3.92%<sup class="claim-sup">[2]</sup></span> leaves the Canada-US 2y spread at <span class="claim" data-ref="3">minus 98 bps<sup class="claim-sup">[3]</sup></span>. On <span class="claim" data-ref="4">daily data since 2001<sup class="claim-sup">[4]</sup></span>, that reading sits at the <span class="claim" data-ref="5">5th percentile of the distribution<sup class="claim-sup">[5]</sup></span> -- deep, but roughly <span class="claim" data-ref="6">70 bps off the all-time minus 170 bps trough<sup class="claim-sup">[6]</sup></span> reached on February 3, 2025. USDCAD has held <span class="claim" data-ref="8">below 1.36<sup class="claim-sup">[8]</sup></span> through the spring, which is why the FX channel is not currently the binding constraint on the Bank's hold.</div>
+        <div class="plate-source-line">BoC Valet (Canada 2y); FRED DGS2 (US 2y); distribution constructed.</div>
+        
+    <div class="edit-form" id="edit-plate-2">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="The cross-border spread is deep but no longer the binding constraint on the BoC." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">GoC 2y at 2.94% against UST 2y at 3.92% leaves the Canada-US 2y spread at minus 98 bps. On daily data since 2001, that reading sits at the 5th percentile of the distribution -- deep, but roughly 70 bps off the all-time minus 170 bps trough reached on February 3, 2025. USDCAD has held below 1.36 through the spring, which is why the FX channel is not currently the binding constraint on the Bank's hold.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'policy', 'plate-3')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">04 · Asset composition</div>
+        <h3 class="plate-title">Government bonds anchor the post-QT balance sheet. <button class="edit-btn" onclick="document.getElementById('edit-plate-3').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">BoC asset composition · May 6, 2026 (weekly statement)</div>
+        <div class="plate-blurb">The Bank of Canada's asset side has settled into a shape defined by what's left of the Government Bond Purchase Programme. Government of Canada bonds account for <span class="claim" data-ref="1">$154.6bn of $219.0bn in total assets<sup class="claim-sup">[1]</sup></span> — <span class="claim" data-ref="2">about 71 per cent<sup class="claim-sup">[2]</sup></span> — and total assets have held near that level for roughly eighteen months, consistent with the Bank's <span class="claim" data-ref="3">December 2024 call that quantitative tightening was complete<sup class="claim-sup">[3]</sup></span>. Repos are the operating margin, running in a <span class="claim" data-ref="4">$20–50bn range<sup class="claim-sup">[4]</sup></span> as the Bank manages the floor system week to week, while Treasury bills and advances sit close to zero after the pandemic-era liquidity backstops ran off.</div>
+        <div class="plate-source-line">Bank of Canada weekly statement (assets and liabilities; formerly Schedule B2).</div>
+        
+    <div class="edit-form" id="edit-plate-3">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Government bonds anchor the post-QT balance sheet." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The Bank of Canada's asset side has settled into a shape defined by what's left of the Government Bond Purchase Programme. Government of Canada bonds account for $154.6bn of $219.0bn in total assets — about 71 per cent — and total assets have held near that level for roughly eighteen months, consistent with the Bank's December 2024 call that quantitative tightening was complete. Repos are the operating margin, running in a $20–50bn range as the Bank manages the floor system week to week, while Treasury bills and advances sit close to zero after the pandemic-era liquidity backstops ran off.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'policy', 'plate-4')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">05 · Liability composition</div>
+        <h3 class="plate-title">The liability side has settled into a new floor-system equilibrium. <button class="edit-btn" onclick="document.getElementById('edit-plate-4').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">BoC liability composition · May 6, 2026 (weekly statement)</div>
+        <div class="plate-blurb"><span class="claim" data-ref="1">Banknotes carry $122.5bn of $219.0bn in total liabilities<sup class="claim-sup">[1]</sup></span> — <span class="claim" data-ref="2">about 56 per cent<sup class="claim-sup">[2]</sup></span> — and have <span class="claim" data-ref="3">drifted up only $30bn over six years<sup class="claim-sup">[3]</sup></span>, a passive function of currency demand rather than policy. Settlement balances are the active line: from a <span class="claim" data-ref="4">$0.25bn pre-pandemic floor<sup class="claim-sup">[4]</sup></span> to a <span class="claim" data-ref="5">$330bn peak in 2021-22<sup class="claim-sup">[5]</sup></span>, drained through QT, and <span class="claim" data-ref="6">now $63.9bn<sup class="claim-sup">[6]</sup></span> — inside the <span class="claim" data-ref="7">$50–70bn operating range the Bank named in its December 2024 framework statement<sup class="claim-sup">[7]</sup></span>. Government of Canada deposits have <span class="claim" data-ref="8">normalized to $26bn<sup class="claim-sup">[8]</sup></span> from a <span class="claim" data-ref="9">COVID spike above $80bn<sup class="claim-sup">[9]</sup></span>, reverse repos sit at zero, and residual other liabilities round out the <span class="claim" data-ref="10">remaining $7bn<sup class="claim-sup">[10]</sup></span>.</div>
+        <div class="plate-source-line">Bank of Canada weekly statement (assets and liabilities; formerly Schedule B2).</div>
+        
+    <div class="edit-form" id="edit-plate-4">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="The liability side has settled into a new floor-system equilibrium." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Banknotes carry $122.5bn of $219.0bn in total liabilities — about 56 per cent — and have drifted up only $30bn over six years, a passive function of currency demand rather than policy. Settlement balances are the active line: from a $0.25bn pre-pandemic floor to a $330bn peak in 2021-22, drained through QT, and now $63.9bn — inside the $50–70bn operating range the Bank named in its December 2024 framework statement. Government of Canada deposits have normalized to $26bn from a COVID spike above $80bn, reverse repos sit at zero, and residual other liabilities round out the remaining $7bn.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'policy', 'plate-5')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">06 · Federal trajectory</div>
+        <h3 class="plate-title">The federal balance is tracking a familiar fiscal-year arc. <button class="edit-btn" onclick="document.getElementById('edit-plate-5').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Federal budget balance, monthly and fiscal YTD · February 28, 2026 (Fiscal Monitor)</div>
+        <div class="plate-blurb">Eleven months into <span class="claim" data-ref="1">fiscal 2025-26<sup class="claim-sup">[1]</sup></span>, the federal balance is running a <span class="claim" data-ref="2">$25.5 billion deficit<sup class="claim-sup">[2]</sup></span>, after a <span class="claim" data-ref="3">$5.7 billion February surplus<sup class="claim-sup">[3]</sup></span> pulled the year-to-date reading off its <span class="claim" data-ref="4">January trough of $31.2 billion<sup class="claim-sup">[4]</sup></span>. The monthly panel runs deficit in eight of eleven prints and surplus in three, with the largest single-month positive landing in February as personal income tax instalments cleared. The cadence is the standard one — heavy outflows through the autumn, tax-receipt months tugging the cumulative line back toward the mean — and the next Fiscal Monitor will close the year with the March print.</div>
+        <div class="plate-source-line">Department of Finance Fiscal Monitor.</div>
+        
+    <div class="edit-form" id="edit-plate-5">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="The federal balance is tracking a familiar fiscal-year arc." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Eleven months into fiscal 2025-26, the federal balance is running a $25.5 billion deficit, after a $5.7 billion February surplus pulled the year-to-date reading off its January trough of $31.2 billion. The monthly panel runs deficit in eight of eleven prints and surplus in three, with the largest single-month positive landing in February as personal income tax instalments cleared. The cadence is the standard one — heavy outflows through the autumn, tax-receipt months tugging the cumulative line back toward the mean — and the next Fiscal Monitor will close the year with the March print.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'policy', 'plate-6')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">07 · Policy divergence</div>
+        <h3 class="plate-title">The BoC-Fed policy gap has reached a generational depth. <button class="edit-btn" onclick="document.getElementById('edit-plate-6').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">BoC and Fed policy paths over time · April 2026 (BoC monthly)</div>
+        <div class="plate-blurb"><span class="claim" data-ref="1">BoC overnight at 2.25%<sup class="claim-sup">[1]</sup></span> against the <span class="claim" data-ref="2">Fed's 3.75% target upper bound<sup class="claim-sup">[2]</sup></span> leaves the policy-rate spread at <span class="claim" data-ref="3">-150 bps in monthly data through April 2026<sup class="claim-sup">[3]</sup></span> -- a deeper gap than at any point in the <span class="claim" data-ref="4">prior two decades outside the 2002-2004 episode<sup class="claim-sup">[4]</sup></span>. The bottom panel tracks the BoC-Fed spread directly: a near-zero line through most of the <span class="claim" data-ref="5">1996-2019 window<sup class="claim-sup">[5]</sup></span>, a sharp positive spike during the <span class="claim" data-ref="6">2022-23 BoC-leads-hiking phase<sup class="claim-sup">[6]</sup></span>, and a clean monotone descent into the current negative regime as the Bank cut ahead of the <span class="claim" data-ref="7">Fed through 2024-25<sup class="claim-sup">[7]</sup></span>. The market-rate read of the same divergence -- the 2y GoC minus 2y UST spread, which reached <span class="claim" data-ref="8">-170 bps on February 3, 2025<sup class="claim-sup">[8]</sup></span> -- is the deep-dive's editorial anchor; see <a href="/research/boc-fed-divergence/">the BoC-Fed divergence research note</a> for the full case.</div>
+        <div class="plate-source-line">Bank of Canada Valet (overnight rate target, monthly); FRED DFF (fed funds effective, daily resampled to monthly last). BoC-Fed spread derived in chart, percentage points.</div>
+        
+    <div class="edit-form" id="edit-plate-6">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="The BoC-Fed policy gap has reached a generational depth." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">BoC overnight at 2.25% against the Fed's 3.75% target upper bound leaves the policy-rate spread at -150 bps in monthly data through April 2026 -- a deeper gap than at any point in the prior two decades outside the 2002-2004 episode. The bottom panel tracks the BoC-Fed spread directly: a near-zero line through most of the 1996-2019 window, a sharp positive spike during the 2022-23 BoC-leads-hiking phase, and a clean monotone descent into the current negative regime as the Bank cut ahead of the Fed through 2024-25. The market-rate read of the same divergence -- the 2y GoC minus 2y UST spread, which reached -170 bps on February 3, 2025 -- is the deep-dive's editorial anchor; see the BoC-Fed divergence research note for the full case.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'policy', 'plate-7')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+    </main>
+    
+    <aside class="ledger">
+      <h2>Claims ledger</h2>
+      <div class="ledger-group">
+               <div class="ledger-group-h">Section abstract</div>
+               
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:V39079</span>
+        <div class="ledger-phrase">"overnight rate at 2.25% on April 29"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC overnight target rate, Apr 29 2026 FAD decision, via Valet V39079.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:boc:V39079</span>
+        <div class="ledger-phrase">"fourth straight hold"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Enumerated FAD sequence: Jan 29, Mar 12, Apr 16, Apr 29 holds following Oct 29 2025 cut.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref card">[3]</span>
+        <span class="ledger-source-label">BoC nominal neutral range (BoC MPR Appendix annual review)</span>
+        <div class="ledger-phrase">"50 bps below the 2.75% neutral midpoint"</div>
+        <div class="ledger-excerpt">The Canadian nominal neutral rate is estimated to be within the range of 2.25% to 3.25%, unchanged from that in the April 2025 Report.</div>
+        <div class="ledger-meta">April 2026 (unchanged from April 2025) · verified 2026-05-13 · next 2027-04-22</div>
+        <div class="note-line">Midpoint of the 2.25-3.25% nominal neutral range; 2.75% - 2.25% overnight = 50 bps gap.</div>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/publications/mpr/mpr-2026-04-29/appendix/#neutral-rate" target="_blank" rel="noopener">Open source ↗</a>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref card">[4]</span>
+        <span class="ledger-source-label">BoC nominal neutral range (BoC MPR Appendix annual review)</span>
+        <div class="ledger-phrase">"2.75% neutral midpoint"</div>
+        <div class="ledger-excerpt">The Canadian nominal neutral rate is estimated to be within the range of 2.25% to 3.25%, unchanged from that in the April 2025 Report.</div>
+        <div class="ledger-meta">April 2026 (unchanged from April 2025) · verified 2026-05-13 · next 2027-04-22</div>
+        
+        <a class="ledger-link" href="https://www.bankofcanada.ca/publications/mpr/mpr-2026-04-29/appendix/#neutral-rate" target="_blank" rel="noopener">Open source ↗</a>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[5]</span>
+        <span class="ledger-source-label">pipeline:boc:yield_2yr</span>
+        <div class="ledger-phrase">"2y GoC yield closed at 2.94% on May 7"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">GoC 2y benchmark yield, May 7 2026 daily close.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[6]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"BoC-Fed 2y spread at -98 bps"</div>
+        
+        
+        <div class="note-line">GoC 2y 2.94% minus UST 2y 3.92% = -98 bps. Inputs: BoC Valet yield_2yr and FRED DGS2, May 7 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[7]</span>
+        <span class="ledger-source-label">pipeline:dof:dof_fiscal_ytd_balance</span>
+        <div class="ledger-phrase">"$25.6B through February"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Federal fiscal YTD balance, April 2025 through February 2026, per DoF Fiscal Monitor.</div>
+        
+      </div>
+             </div>
+      
+              <div class="ledger-group">
+                <div class="ledger-group-h">01 · Overnight rate</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:V39079</span>
+        <div class="ledger-phrase">"2.25% on April 29"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC overnight target rate, April 29 2026 FAD decision, via Valet V39079.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:boc:V39079</span>
+        <div class="ledger-phrase">"fourth consecutive hold"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Enumerated FAD sequence: Jan 29, Mar 12, Apr 16, Apr 29 holds following the Oct 29 2025 cut. Verify by enumeration on Valet V39079.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:boc:V39079</span>
+        <div class="ledger-phrase">"25 bps cut to 2.25% on October 29, 2025"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC overnight target stepped from 2.50% to 2.25% on Oct 29 2025 per Valet V39079 step history.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref card">[4]</span>
+        <span class="ledger-source-label">BoC nominal neutral range (BoC MPR Appendix annual review)</span>
+        <div class="ledger-phrase">"2.25 to 3.25% nominal neutral range"</div>
+        <div class="ledger-excerpt">The Canadian nominal neutral rate is estimated to be within the range of 2.25% to 3.25%, unchanged from that in the April 2025 Report.</div>
+        <div class="ledger-meta">April 2026 (unchanged from April 2025) · verified 2026-05-13 · next 2027-04-22</div>
+        
+        <a class="ledger-link" href="https://www.bankofcanada.ca/publications/mpr/mpr-2026-04-29/appendix/#neutral-rate" target="_blank" rel="noopener">Open source ↗</a>
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">02 · Market path</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:yield_2yr</span>
+        <div class="ledger-phrase">"2.94% on May 7"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">GoC 2y benchmark yield, daily close May 7 2026, via BoC Valet.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:boc:V39079</span>
+        <div class="ledger-phrase">"2.25% overnight target"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC overnight target rate, current setting via Valet V39079.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[3]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"roughly 69 bps"</div>
+        
+        
+        <div class="note-line">2.94% (GoC 2y) - 2.25% (overnight) = 0.69 pp = 69 bps.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">03 · BoC-Fed spread</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:yield_2yr</span>
+        <div class="ledger-phrase">"GoC 2y at 2.94%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">GoC 2y benchmark yield, latest daily close, via BoC Valet.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:fred:DGS2</span>
+        <div class="ledger-phrase">"UST 2y at 3.92%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">US 2y Treasury constant-maturity yield, latest daily close, FRED DGS2.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[3]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"minus 98 bps"</div>
+        
+        
+        <div class="note-line">2.94% (GoC 2y) - 3.92% (UST 2y) = -0.98 pp = -98 bps.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[4]</span>
+        <span class="ledger-source-label">pipeline:fred:DGS2</span>
+        <div class="ledger-phrase">"daily data since 2001"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">FRED DGS2 history begins June 1976; Canada 2y daily history via BoC Valet covers post-2001 window used for the distribution.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[5]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"5th percentile of the distribution"</div>
+        
+        
+        <div class="note-line">Percentile constructed from daily (GoC 2y - UST 2y) series, 2001-01-01 through latest. -98 bps sits at ~5th percentile of that distribution.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[6]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"70 bps off the all-time minus 170 bps trough"</div>
+        
+        
+        <div class="note-line">Distribution minimum reached -170 bps on Feb 3 2025; current -98 bps is ~72 bps off that floor.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[7]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"minus 170 bps trough reached on February 3, 2025"</div>
+        
+        
+        <div class="note-line">Trough of (GoC 2y - UST 2y) daily spread series, Feb 3 2025. Sourced from pipeline yield_2yr and FRED DGS2.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[8]</span>
+        <span class="ledger-source-label">pipeline:boc:fxusdcad</span>
+        <div class="ledger-phrase">"below 1.36"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">USDCAD daily close has held below 1.36 across spring 2026 per BoC Valet FXUSDCAD.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">04 · Asset composition</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:boc_goc_bonds</span>
+        <div class="ledger-phrase">"$154.6bn of $219.0bn in total assets"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC weekly statement: GoC bonds = $154.6bn; total assets = $219.0bn; latest May 6 2026 vintage.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[2]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"about 71 per cent"</div>
+        
+        
+        <div class="note-line">154.6 / 219.0 = 70.6%, rounded to 71 per cent.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref other">[3]</span>
+        <span class="ledger-source-label">other:boc_qt_end_announcement_2024-12</span>
+        <div class="ledger-phrase">"December 2024 call that quantitative tightening was complete"</div>
+        
+        
+        <div class="note-line">BoC press statement (Dec 2024) announced QT was complete and a return to balance-sheet growth. Primary source: BoC press release Dec 17 2024.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[4]</span>
+        <span class="ledger-source-label">pipeline:boc:boc_repos</span>
+        <div class="ledger-phrase">"$20–50bn range"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC repos operating range over the past ~18 months, $20bn-$50bn, per weekly statement series.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">05 · Liability composition</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:boc_banknotes</span>
+        <div class="ledger-phrase">"Banknotes carry $122.5bn of $219.0bn in total liabilities"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC weekly statement: banknotes = $122.5bn; total liabilities = $219.0bn; May 6 2026 vintage.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[2]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"about 56 per cent"</div>
+        
+        
+        <div class="note-line">122.5 / 219.0 = 55.9%, rounded to 56 per cent.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:boc:boc_banknotes</span>
+        <div class="ledger-phrase">"drifted up only $30bn over six years"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Banknotes ~$92bn pre-pandemic to $122.5bn now, a ~$30bn drift over six years per BoC weekly statement.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[4]</span>
+        <span class="ledger-source-label">pipeline:boc:boc_settlement_balances</span>
+        <div class="ledger-phrase">"$0.25bn pre-pandemic floor"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Pre-pandemic settlement balances target floor ~$250m per BoC weekly statement history.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[5]</span>
+        <span class="ledger-source-label">pipeline:boc:boc_settlement_balances</span>
+        <div class="ledger-phrase">"$330bn peak in 2021-22"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Peak settlement balances during 2021-2022 QE period, ~$330bn per BoC weekly statement series.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[6]</span>
+        <span class="ledger-source-label">pipeline:boc:boc_settlement_balances</span>
+        <div class="ledger-phrase">"now $63.9bn"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Settlement balances, latest May 6 2026 weekly print, $63.9bn.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref other">[7]</span>
+        <span class="ledger-source-label">other:boc_floor_system_2024-12</span>
+        <div class="ledger-phrase">"$50–70bn operating range the Bank named in its December 2024 framework statement"</div>
+        
+        
+        <div class="note-line">BoC Dec 2024 statement specified $50bn-$70bn steady-state settlement-balance operating range. Primary source: BoC press release / framework statement Dec 17 2024.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[8]</span>
+        <span class="ledger-source-label">pipeline:boc:boc_goc_deposits</span>
+        <div class="ledger-phrase">"normalized to $26bn"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">GoC deposits at BoC, latest weekly statement, $26bn.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[9]</span>
+        <span class="ledger-source-label">pipeline:boc:boc_goc_deposits</span>
+        <div class="ledger-phrase">"COVID spike above $80bn"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">GoC deposits at BoC peaked above $80bn during COVID-era cash management per weekly statement history.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[10]</span>
+        <span class="ledger-source-label">pipeline:boc:boc_total_liabilities</span>
+        <div class="ledger-phrase">"remaining $7bn"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Residual other liabilities on BoC balance sheet, latest weekly statement, ~$7bn.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">06 · Federal trajectory</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:dof:dof_fiscal_ytd_balance</span>
+        <div class="ledger-phrase">"fiscal 2025-26"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Fiscal year 2025-26 (April 2025 through March 2026) per Department of Finance Fiscal Monitor convention.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:dof:dof_fiscal_ytd_balance</span>
+        <div class="ledger-phrase">"$25.5 billion deficit"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Federal fiscal YTD balance, April 2025 through February 2026, -$25.5bn per Fiscal Monitor (Feb 28 2026 print).</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:dof:dof_fiscal_monthly_balance</span>
+        <div class="ledger-phrase">"$5.7 billion February surplus"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">February 2026 monthly federal budgetary balance, +$5.7bn per Fiscal Monitor.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[4]</span>
+        <span class="ledger-source-label">pipeline:dof:dof_fiscal_ytd_balance</span>
+        <div class="ledger-phrase">"January trough of $31.2 billion"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Federal YTD balance through January 2026, -$31.2bn per Fiscal Monitor.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">07 · Policy divergence</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:V39079</span>
+        <div class="ledger-phrase">"BoC overnight at 2.25%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC overnight target rate, current setting, via Valet V39079.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref card">[2]</span>
+        <span class="ledger-source-label">Federal Reserve FOMC target range for the federal funds rate</span>
+        <div class="ledger-phrase">"Fed's 3.75% target upper bound"</div>
+        <div class="ledger-excerpt">the Committee decided to maintain the target range for the federal funds rate at 3-1/2 to 3-3/4 percent</div>
+        <div class="ledger-meta">April 29, 2026 FOMC statement · verified 2026-05-13 · next 2026-06-17</div>
+        
+        <a class="ledger-link" href="https://www.federalreserve.gov/newsevents/pressreleases/monetary20260429a.htm" target="_blank" rel="noopener">Open source ↗</a>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[3]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"-150 bps in monthly data through April 2026"</div>
+        
+        
+        <div class="note-line">BoC 2.25% - Fed upper bound 3.75% = -1.50 pp = -150 bps; monthly data through April 2026 from Valet V39079 and FRED DFF.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[4]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"prior two decades outside the 2002-2004 episode"</div>
+        
+        
+        <div class="note-line">Enumerated monthly (BoC overnight - Fed funds upper) series from 1996 onward; only the 2002-2004 episode breaches the current -150 bps in magnitude.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[5]</span>
+        <span class="ledger-source-label">pipeline:fred:DFF</span>
+        <div class="ledger-phrase">"1996-2019 window"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">FRED DFF monthly history covers 1996-2019; spread to BoC overnight was near-zero through most of that window.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[6]</span>
+        <span class="ledger-source-label">pipeline:boc:V39079</span>
+        <div class="ledger-phrase">"2022-23 BoC-leads-hiking phase"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC hiked from 0.25% to 5.00% between Mar 2022 and Jul 2023, ahead of the Fed's pace, producing a positive BoC-Fed spread peak.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[7]</span>
+        <span class="ledger-source-label">pipeline:fred:DFF</span>
+        <div class="ledger-phrase">"Fed through 2024-25"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Fed funds path 2024-2025 per FRED DFF; BoC cut ahead of Fed through this window.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[8]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"-170 bps on February 3, 2025"</div>
+        
+        
+        <div class="note-line">2y GoC - 2y UST daily spread trough, Feb 3 2025. Sourced from pipeline yield_2yr and FRED DGS2.</div>
+        
+      </div>
+              </div>
+    </aside>
+  
+    <footer class="audit-foot">
+      Generated 2026-05-13 07:21 · Tagged claims show a yellow highlight with a [N] reference. Hover or click to see the source. Sidebar lists all claims with verbatim excerpts. Sources marked as "pipeline" auto-refresh; "card" entries are managed in editorial/source_cards/registry.yaml. Use "Propose edit" to send a structured EDIT REQUEST back to Claude.
+    </footer>
+  </div>
+  <script>
+    function copyEditSpec(btn, slug, surface) {
+      const form = btn.closest('.edit-form');
+      const title = form.querySelector('[data-field="title"]').value.trim();
+      const body = form.querySelector('[data-field="body"]').value.trim();
+      const reason = form.querySelector('[data-field="reason"]').value.trim();
+      const spec = [
+        'EDIT REQUEST',
+        'section: ' + slug,
+        'surface: ' + surface,
+        '',
+        'proposed_title:',
+        title,
+        '',
+        'proposed_body:',
+        body,
+        '',
+        'reason:',
+        reason,
+      ].join('\n');
+      navigator.clipboard.writeText(spec).then(function () {
+        const toast = btn.parentElement.querySelector('.toast');
+        toast.classList.add('show');
+        setTimeout(function () { toast.classList.remove('show'); }, 2500);
+      });
+    }
+  </script>
+</body>
+</html>

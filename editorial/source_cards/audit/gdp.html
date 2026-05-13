@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Source audit · gdp</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: #111;
+  background: #f7f6f1;
+  margin: 0;
+}
+.wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 40px;
+  align-items: start;
+}
+header.page-head {
+  grid-column: 1 / -1;
+  border-bottom: 2px solid #111;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+header.page-head h1 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+header.page-head .breadcrumb a {
+  color: #666;
+  text-decoration: none;
+  margin-right: 16px;
+}
+header.page-head .breadcrumb a:hover { color: #000; text-decoration: underline; }
+main {
+  background: white;
+  padding: 32px;
+  border: 1px solid #ddd;
+}
+.headline-q {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #111;
+}
+.section-label {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.abstract {
+  font-size: 17px;
+  line-height: 1.6;
+  border-left: 3px solid #c00;
+  padding-left: 16px;
+  margin: 24px 0 40px 0;
+  color: #222;
+}
+.plate {
+  border-top: 1px solid #ccc;
+  padding: 24px 0;
+}
+.plate-number {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.plate-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 4px 0 10px 0;
+  color: #111;
+}
+.plate-meta {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #777;
+  margin-bottom: 12px;
+}
+.plate-blurb { font-size: 16px; line-height: 1.6; color: #222; }
+.plate-source-line {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #666;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dotted #ccc;
+}
+.claim {
+  background: #fffbcc;
+  padding: 1px 2px;
+  border-bottom: 2px solid #e6c200;
+  cursor: pointer;
+}
+.claim:hover {
+  background: #fff299;
+}
+.claim-sup {
+  color: #b07b00;
+  font-weight: 700;
+  font-size: 0.8em;
+  margin-left: 1px;
+}
+aside.ledger {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 16px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+}
+aside.ledger h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+.ledger-group { margin-bottom: 20px; }
+.ledger-group-h {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #555;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ddd;
+}
+.ledger-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.ledger-ref {
+  display: inline-block;
+  background: #e6c200;
+  color: white;
+  padding: 1px 6px;
+  font-weight: 700;
+  font-size: 11px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+.ledger-ref.pipeline { background: #2a7a30; }
+.ledger-ref.derived { background: #888; }
+.ledger-ref.unknown, .ledger-ref.card-missing, .ledger-ref.other { background: #c33; }
+.ledger-phrase {
+  font-style: italic;
+  color: #333;
+  display: block;
+  margin: 4px 0;
+}
+.ledger-source-label { font-weight: 600; color: #222; font-size: 12px; }
+.ledger-excerpt {
+  margin: 6px 0;
+  padding: 8px 10px;
+  background: #f3f3ef;
+  color: #444;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 2px solid #999;
+}
+.ledger-meta { font-size: 11px; color: #777; }
+.ledger-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: #006699;
+  text-decoration: none;
+  font-weight: 600;
+}
+.ledger-link:hover { text-decoration: underline; }
+.note-line { font-size: 11px; color: #888; margin-top: 4px; font-style: italic; }
+footer.audit-foot {
+  grid-column: 1 / -1;
+  border-top: 1px solid #ccc;
+  padding: 20px 0;
+  font-size: 12px;
+  color: #777;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.edit-btn {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #006699;
+  background: transparent;
+  border: 1px solid #006699;
+  padding: 3px 8px;
+  margin-left: 8px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.edit-btn:hover { background: #006699; color: white; }
+.edit-form {
+  margin-top: 12px;
+  padding: 14px;
+  background: #f8f7ec;
+  border: 1px solid #d8c773;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  display: none;
+}
+.edit-form.open { display: block; }
+.edit-form label {
+  display: block;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+  margin: 8px 0 4px 0;
+}
+.edit-form textarea, .edit-form input[type="text"] {
+  width: 100%;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #c8c0a0;
+  background: white;
+  box-sizing: border-box;
+}
+.edit-form textarea { min-height: 80px; line-height: 1.5; resize: vertical; }
+.edit-form .row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.edit-form .row .primary {
+  background: #006699;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.edit-form .row .primary:hover { background: #00557e; }
+.edit-form .row .toast {
+  font-size: 12px;
+  color: #2a7a30;
+  font-weight: 600;
+  margin-left: 8px;
+  display: none;
+}
+.edit-form .row .toast.show { display: inline; }
+.edit-form .hint {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+  margin-top: 4px;
+}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <div class="breadcrumb">
+        <a href="./index.html">← All sections</a>
+        <span style="color:#999">·</span>
+        <a href="https://sibleycreek.ca/gdp/" target="_blank" rel="noopener">Live page ↗</a>
+      </div>
+      <h1>Source audit · gdp</h1>
+    </header>
+    <main>
+      <div class="section-label">Section abstract <button class="edit-btn" onclick="document.getElementById('edit-abstract').classList.toggle('open')">✎ Propose edit</button></div>
+      <h2 class="headline-q">How fast is Canada's economy growing, and where?</h2>
+      <div class="abstract">Slowly, and mostly in the resource patch. Real GDP is running <span class="claim" data-ref="1">near 1% Y/Y<sup class="claim-sup">[1]</sup></span>, just below the Bank of Canada's <span class="claim" data-ref="2">1.2% estimate of near-term potential growth<sup class="claim-sup">[2]</sup></span>. Oil and gas are doing the heavy lifting while manufacturing is in deep recession. Services growth is trundling along. Even that 1% pace relies on population growth more than anything — on a per capita basis, output is scarcely higher than it was before the pandemic.</div>
+      
+    <div class="edit-form" id="edit-abstract">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="" />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Slowly, and mostly in the resource patch. Real GDP is running near 1% Y/Y, just below the Bank of Canada's 1.2% estimate of near-term potential growth. Oil and gas are doing the heavy lifting while manufacturing is in deep recession. Services growth is trundling along. Even that 1% pace relies on population growth more than anything — on a per capita basis, output is scarcely higher than it was before the pandemic.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'gdp', 'section-abstract')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      
+      <section class="plate">
+        <div class="plate-number">01 · Headline GDP</div>
+        <h3 class="plate-title">Headline growth is running near 1%, just below potential. <button class="edit-btn" onclick="document.getElementById('edit-plate-0').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Headline real GDP, m/m and Y/Y · Feb 2026 (released Apr 30, 2026)</div>
+        <div class="plate-blurb">Monthly real GDP edged up <span class="claim" data-ref="1">0.2% in February<sup class="claim-sup">[1]</sup></span>, leaving the year-over-year pace at <span class="claim" data-ref="2">1.0%<sup class="claim-sup">[2]</sup></span>. That sits roughly <span class="claim" data-ref="3">two-tenths of a point<sup class="claim-sup">[3]</sup></span> under the Bank of Canada's <span class="claim" data-ref="4">1.2% estimate of near-term potential growth<sup class="claim-sup">[4]</sup></span> &mdash; close to trend, not at it. Growth is positive; it is not fast.</div>
+        <div class="plate-source-line">Statistics Canada Table 36-10-0434-01 (monthly real GDP by industry); potential growth reference from BoC Monetary Policy Report, April 2026, Appendix (2026 estimate 1.2%).</div>
+        
+    <div class="edit-form" id="edit-plate-0">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Headline growth is running near 1%, just below potential." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Monthly real GDP edged up 0.2% in February, leaving the year-over-year pace at 1.0%. That sits roughly two-tenths of a point under the Bank of Canada's 1.2% estimate of near-term potential growth — close to trend, not at it. Growth is positive; it is not fast.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'gdp', 'plate-1')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">02 · Contributions</div>
+        <h3 class="plate-title">Inventories drag the Q4 headline below the underlying pulse. <button class="edit-btn" onclick="document.getElementById('edit-plate-1').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Contributions to quarterly growth, by bucket</div>
+        <div class="plate-blurb">Real GDP contracted at a <span class="claim" data-ref="1">0.6% annualized pace in Q4 2025<sup class="claim-sup">[1]</sup></span>, but the underlying composition is more constructive than the headline. Final domestic demand added <span class="claim" data-ref="2">2.3 percentage points<sup class="claim-sup">[2]</sup></span> and net trade <span class="claim" data-ref="3">another 1.5<sup class="claim-sup">[3]</sup></span>, while a <span class="claim" data-ref="4">4.2-point destocking<sup class="claim-sup">[4]</sup></span> did the damage. The quarter's weakness is more about how much was produced for the shelf than how much was sold.</div>
+        <div class="plate-source-line">Statistics Canada Table 36-10-0104-01 (quarterly expenditure-side contributions to growth).</div>
+        
+    <div class="edit-form" id="edit-plate-1">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Inventories drag the Q4 headline below the underlying pulse." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Real GDP contracted at a 0.6% annualized pace in Q4 2025, but the underlying composition is more constructive than the headline. Final domestic demand added 2.3 percentage points and net trade another 1.5, while a 4.2-point destocking did the damage. The quarter's weakness is more about how much was produced for the shelf than how much was sold.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'gdp', 'plate-2')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">03 · Industry composite</div>
+        <h3 class="plate-title">Resources lift Canada's economy as manufacturing slips deeper into recession. <button class="edit-btn" onclick="document.getElementById('edit-plate-2').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Real GDP by industry, services vs goods + manufacturing vs mining and oil · Feb 2026</div>
+        <div class="plate-blurb">The physical economy has split in two. Mining and oil-and-gas output sits <span class="claim" data-ref="1">roughly 13% above its December 2019 level<sup class="claim-sup">[1]</sup></span>; manufacturing sits <span class="claim" data-ref="2">about 6% below it<sup class="claim-sup">[2]</sup></span>, a <span class="claim" data-ref="3">half-decade recession<sup class="claim-sup">[3]</sup></span> in the country's largest goods-producing industry. Services, where most Canadians work, are growing at a <span class="claim" data-ref="4">1% annual pace<sup class="claim-sup">[4]</sup></span> &mdash; enough to keep the headline positive, not enough to push it.</div>
+        <div class="plate-source-line">Statistics Canada Table 36-10-0434-01 (monthly real GDP by industry).</div>
+        
+    <div class="edit-form" id="edit-plate-2">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Resources lift Canada's economy as manufacturing slips deeper into recession." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The physical economy has split in two. Mining and oil-and-gas output sits roughly 13% above its December 2019 level; manufacturing sits about 6% below it, a half-decade recession in the country's largest goods-producing industry. Services, where most Canadians work, are growing at a 1% annual pace — enough to keep the headline positive, not enough to push it.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'gdp', 'plate-3')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">04 · Output gap</div>
+        <h3 class="plate-title">The output gap reopened to 1% in Q4 — a hold story, not a hike one. <button class="edit-btn" onclick="document.getElementById('edit-plate-3').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">BoC MPR output gap · 2025Q4; April 2026 MPR vintage</div>
+        <div class="plate-blurb">The Bank of Canada's output gap estimate widened to <span class="claim" data-ref="1">-1.0% in Q4<sup class="claim-sup">[1]</sup></span> from <span class="claim" data-ref="2">-0.5% in Q3<sup class="claim-sup">[2]</sup></span>, the <span class="claim" data-ref="3">deepest reading since early 2021<sup class="claim-sup">[3]</sup></span>. The shortfall is demand-side: not enough spending to absorb the economy's productive capacity. A gap this size keeps the easing bias intact and takes a near-term hike off the conversation.</div>
+        <div class="plate-source-line">Bank of Canada Monetary Policy Report, April 2026 (Valet INDINF_OUTGAPMPR_Q).</div>
+        
+    <div class="edit-form" id="edit-plate-3">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="The output gap reopened to 1% in Q4 — a hold story, not a hike one." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The Bank of Canada's output gap estimate widened to -1.0% in Q4 from -0.5% in Q3, the deepest reading since early 2021. The shortfall is demand-side: not enough spending to absorb the economy's productive capacity. A gap this size keeps the easing bias intact and takes a near-term hike off the conversation.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'gdp', 'plate-4')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">05 · Per capita</div>
+        <h3 class="plate-title">Per-capita output has barely cleared its 2019 level — the growth is people. <button class="edit-btn" onclick="document.getElementById('edit-plate-4').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Total vs per-capita real GDP, indexed to 2019Q4</div>
+        <div class="plate-blurb">Total real GDP sits <span class="claim" data-ref="1">about 11% above its 2019Q4 level<sup class="claim-sup">[1]</sup></span>; on a per-person basis, <span class="claim" data-ref="2">the gain is closer to 1%<sup class="claim-sup">[2]</sup></span>. The <span class="claim" data-ref="3">ten-point wedge<sup class="claim-sup">[3]</sup></span> is the population contribution &mdash; Canada has grown by adding workers and consumers, not by producing more per Canadian. See the deep dive on <a href="/research/per-capita-output/">population-padded GDP</a>.</div>
+        <div class="plate-source-line">Statistics Canada Tables 36-10-0104-01 and 17-10-0009-01; per-capita and indexation by Sibley Creek.</div>
+        
+    <div class="edit-form" id="edit-plate-4">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Per-capita output has barely cleared its 2019 level — the growth is people." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Total real GDP sits about 11% above its 2019Q4 level; on a per-person basis, the gain is closer to 1%. The ten-point wedge is the population contribution — Canada has grown by adding workers and consumers, not by producing more per Canadian. See the deep dive on population-padded GDP.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'gdp', 'plate-5')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+    </main>
+    
+    <aside class="ledger">
+      <h2>Claims ledger</h2>
+      <div class="ledger-group">
+               <div class="ledger-group-h">Section abstract</div>
+               
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:statcan:36-10-0434-01</span>
+        <div class="ledger-phrase">"near 1% Y/Y"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Real GDP Y/Y, latest monthly print.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref card">[2]</span>
+        <span class="ledger-source-label">BoC Monetary Policy Report — Appendix: Potential output and the nominal neutral rate of interest</span>
+        <div class="ledger-phrase">"1.2% estimate of near-term potential growth"</div>
+        <div class="ledger-excerpt">Growth in potential output is expected to average 1.2% in 2026 before picking up modestly to 1.3% in 2027 and 1.5% in 2028.</div>
+        <div class="ledger-meta">April 2026 · verified 2026-05-13 · next 2026-07-23</div>
+        
+        <a class="ledger-link" href="https://www.bankofcanada.ca/publications/mpr/mpr-2026-04-29/appendix/#potential-output" target="_blank" rel="noopener">Open source ↗</a>
+      </div>
+             </div>
+      
+              <div class="ledger-group">
+                <div class="ledger-group-h">01 · Headline GDP</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:statcan:36-10-0434-01</span>
+        <div class="ledger-phrase">"0.2% in February"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:statcan:36-10-0434-01</span>
+        <div class="ledger-phrase">"1.0%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[3]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"two-tenths of a point"</div>
+        
+        
+        <div class="note-line">1.2% - 1.0% = 0.2pp</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref card">[4]</span>
+        <span class="ledger-source-label">BoC Monetary Policy Report — Appendix: Potential output and the nominal neutral rate of interest</span>
+        <div class="ledger-phrase">"1.2% estimate of near-term potential growth"</div>
+        <div class="ledger-excerpt">Growth in potential output is expected to average 1.2% in 2026 before picking up modestly to 1.3% in 2027 and 1.5% in 2028.</div>
+        <div class="ledger-meta">April 2026 · verified 2026-05-13 · next 2026-07-23</div>
+        
+        <a class="ledger-link" href="https://www.bankofcanada.ca/publications/mpr/mpr-2026-04-29/appendix/#potential-output" target="_blank" rel="noopener">Open source ↗</a>
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">02 · Contributions</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:statcan:36-10-0104-01</span>
+        <div class="ledger-phrase">"0.6% annualized pace in Q4 2025"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:statcan:36-10-0104-01</span>
+        <div class="ledger-phrase">"2.3 percentage points"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Final domestic demand contribution to Q4 2025 GDP growth (Q/Q SAAR).</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:statcan:36-10-0104-01</span>
+        <div class="ledger-phrase">"another 1.5"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Net trade contribution to Q4 2025 GDP growth (Q/Q SAAR), pp.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[4]</span>
+        <span class="ledger-source-label">pipeline:statcan:36-10-0104-01</span>
+        <div class="ledger-phrase">"4.2-point destocking"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Inventory contribution to Q4 2025 GDP growth (Q/Q SAAR), pp.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">03 · Industry composite</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:statcan:36-10-0434-01</span>
+        <div class="ledger-phrase">"roughly 13% above its December 2019 level"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Mining and oil-and-gas extraction, cumulative real GDP change since Dec 2019.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:statcan:36-10-0434-01</span>
+        <div class="ledger-phrase">"about 6% below it"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Manufacturing real GDP, cumulative since Dec 2019.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[3]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"half-decade recession"</div>
+        
+        
+        <div class="note-line">Manufacturing real GDP has flattened or contracted every full year since 2022 per Dec-over-Dec series.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[4]</span>
+        <span class="ledger-source-label">pipeline:statcan:36-10-0434-01</span>
+        <div class="ledger-phrase">"1% annual pace"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Services real GDP Y/Y, Feb 2026 = 1.055% — rounds to 1.1%, hedged as ~1%.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">04 · Output gap</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:INDINF_OUTGAPMPR_Q</span>
+        <div class="ledger-phrase">"-1.0% in Q4"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC MPR output gap, Q4 2025.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:boc:INDINF_OUTGAPMPR_Q</span>
+        <div class="ledger-phrase">"-0.5% in Q3"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC MPR output gap, Q3 2025.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:boc:INDINF_OUTGAPMPR_Q</span>
+        <div class="ledger-phrase">"deepest reading since early 2021"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Enumerated Q1 2021 onward: only Q1 2021 (-1.7) and Q2 2021 (-2.0) were deeper than Q4 2025.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">05 · Per capita</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:statcan:36-10-0104-01</span>
+        <div class="ledger-phrase">"about 11% above its 2019Q4 level"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Total real GDP, cumulative since 2019Q4 = +10.94% in 2025Q4.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[2]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"the gain is closer to 1%"</div>
+        
+        
+        <div class="note-line">Per-capita real GDP = total / population 15+. 2025Q4 = +0.94% since 2019Q4. Inputs: StatCan 36-10-0104-01 (GDP) and 17-10-0009-01 (population).</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[3]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"ten-point wedge"</div>
+        
+        
+        <div class="note-line">11% (total) - 1% (per-capita) = 10pp.</div>
+        
+      </div>
+              </div>
+    </aside>
+  
+    <footer class="audit-foot">
+      Generated 2026-05-13 07:21 · Tagged claims show a yellow highlight with a [N] reference. Hover or click to see the source. Sidebar lists all claims with verbatim excerpts. Sources marked as "pipeline" auto-refresh; "card" entries are managed in editorial/source_cards/registry.yaml. Use "Propose edit" to send a structured EDIT REQUEST back to Claude.
+    </footer>
+  </div>
+  <script>
+    function copyEditSpec(btn, slug, surface) {
+      const form = btn.closest('.edit-form');
+      const title = form.querySelector('[data-field="title"]').value.trim();
+      const body = form.querySelector('[data-field="body"]').value.trim();
+      const reason = form.querySelector('[data-field="reason"]').value.trim();
+      const spec = [
+        'EDIT REQUEST',
+        'section: ' + slug,
+        'surface: ' + surface,
+        '',
+        'proposed_title:',
+        title,
+        '',
+        'proposed_body:',
+        body,
+        '',
+        'reason:',
+        reason,
+      ].join('\n');
+      navigator.clipboard.writeText(spec).then(function () {
+        const toast = btn.parentElement.querySelector('.toast');
+        toast.classList.add('show');
+        setTimeout(function () { toast.classList.remove('show'); }, 2500);
+      });
+    }
+  </script>
+</body>
+</html>

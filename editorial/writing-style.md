@@ -371,6 +371,154 @@ capitalized as a proper noun; "the levels plan" lower-cased on
 later reference. `OAS`, `GIS`, `CPP`, `QPP` are acceptable on first
 reference without spelling out -- the audience knows.
 
+### 4.1 Source attribution in chart blurbs
+
+**Chart blurbs name the finding, not the source.** The plate's
+`source:` field and the canvas source line carry the citation. The
+blurb does not repeat them.
+
+- No "per Statistics Canada."
+- No "per the Bank of Canada."
+- No "the Statistics Canada Labour Force Survey."
+- No "released by IRCC."
+
+The reader sees the citation directly below the chart; the blurb's
+job is to name what the picture means.
+
+**Narrow exception — series disambiguation.** When a chart shows two
+or more series and the prose would be ambiguous without identifying
+which one, the **bare series label** may appear. The publisher /
+org name still does not.
+
+- Good (two series on the same plate): "LFS-Micro prints 3.1% Y/Y in
+  March while all-hourly-wages run 4.5% in April."
+- Bad: "The BoC's LFS-Micro series prints 3.1% Y/Y in March, per
+  Statistics Canada."
+
+The disambiguation exception is for the SERIES NAME ("LFS-Micro",
+"all-hourly-wages", "CPI median", "CPI common"), not the publisher.
+
+### 4.1b Section abstracts under a question header — synthesize, don't recite
+
+**When a section page opens with a question (the page-header headline
+question), the blurb directly beneath it answers the question.** The
+blurb is a take, not a recitation of the day's prints.
+
+The structure of the page makes the contract explicit: question →
+synthesis. The reader sees the question; they expect the next thing to
+be the answer, not a three-fact recap of indicators they're about to
+see in the plates anyway.
+
+**Banned in section abstracts (the under-question blurb):**
+
+- Three-fact lists where each sentence recites one indicator's latest
+  print ("UR climbed to X. Aggregate hours turned Y. Wage growth
+  printed Z.").
+- "On the data" / "Per the latest releases" / "Recent indicators
+  show" openings — they signal a recitation is coming.
+- Numbers without an editorial frame around them. Numbers carry the
+  argument, but the argument is what they're for, not what they are.
+
+**The form to use instead:**
+
+A 2-3 sentence synthesis that:
+1. Answers the question the header asked. (If the question is "how
+   tight is the labour market?", the answer is "loose, and loosening
+   on the intensive margin first" — not "UR is 6.9%, hours are -0.5%,
+   wages are 3.1%.")
+2. Names the editorial finding — the take. The reader can disagree
+   with a take; they can't disagree with a list of facts.
+3. Cites 1-2 numbers that ground the take. Not three. Two at most.
+   The supporting numbers re-appear in plates anyway.
+
+**Example pattern:**
+
+> Header question: "How tight is the labour market?"
+>
+> Bad (three-fact recitation): "Unemployment climbed to 6.9% in April,
+> a 0.2pp move that returns the rate to the high end of the recent
+> range. Aggregate hours worked turned year-over-year negative at
+> -0.5%, the deepest sub-zero reading this cycle. Composition-adjusted
+> wage growth printed 3.1% Y/Y in March, up 0.5pp."
+>
+> Good (synthesis): "Loose, and loosening on the intensive margin
+> before headcount. The hours-employment Y/Y spread has been negative
+> for more than a year; the UR has crept back up to 6.9% with the
+> wage adjustment lagging at 3.1% on the cleaner LFS-Micro series.
+> The next BoC move sits on this read."
+
+**Scope:** This rule applies to every section page that opens with a
+question header (Labour, Inflation, Housing, Policy, GDP, Markets,
+Trade). It applies to the splash hero abstract (Section 8b) by
+extension — the splash hero answers an implicit "what's going on?"
+question for the whole site. It does NOT apply to plate-level blurbs
+(those name plate-specific findings — Section 4.2 below).
+
+### 4.1c Hardcoded benchmark constants need a source-card
+
+**Any benchmark number typed as a literal — in chart-component code or
+in prose — that is cited as a fact (the BoC's potential output growth
+estimate, neutral range, the Fed funds target, an inflation control
+band, a NAIRU estimate, a productivity-growth assumption) must carry
+an explicit source citation alongside the value.**
+
+A literal like `const POTENTIAL_GROWTH_PCT = 1.7;` with a comment that
+says "confirm later" is not a source-card. It is a placeholder
+masquerading as canon. If the number is good enough to ship on a chart
+reference rule or in a blurb sentence, it is good enough to source.
+
+The source-card carries, at minimum:
+
+1. **Publication** (e.g., "BoC Monetary Policy Report, April 2026").
+2. **URL** to the published PDF or page.
+3. **Page / section reference** so a verifier can find the exact line.
+4. **Verbatim excerpt** of the source language supporting the value.
+5. **Vintage date** of the source (the report's publication date).
+6. **Re-verification cadence** — how often the constant must be
+   re-checked (typically each new MPR / quarterly statement / each
+   FOMC meeting; pin it to the source's release rhythm).
+
+For chart-component constants, the source-card lives as a comment
+block immediately above the `const` declaration. Example:
+
+```ts
+// POTENTIAL_GROWTH_PCT — BoC near-term potential output growth estimate.
+// Source: BoC Monetary Policy Report, April 2026, Technical Box 1, p. 24.
+// URL: https://www.bankofcanada.ca/2026/04/mpr-2026-04-23/
+// Excerpt: "Potential output is projected to grow by X.X% in 2026..."
+// Re-verify: each new MPR (quarterly).
+const POTENTIAL_GROWTH_PCT = 1.7;
+```
+
+For prose-only benchmarks (no chart constant), the source-card lives
+in the plate's `source:` field alongside the StatCan/BoC table number,
+in the same sentence — not in a separate field readers don't see.
+
+**The redraft re-gate rule applies to source-card values, not just
+pipeline data.** When a writer redrafts prose that cites a source-card
+number, the fact-checker re-verifies the constant against its
+source-card source — not against the constant in code (the gate
+verifies the constant against the published reality).
+
+### 4.2 Methodology in chart blurbs
+
+**The blurb names the finding; the canvas tells the rest.** Do not
+describe how to read the chart. The reader can see the chart.
+
+Banned in chart blurbs:
+- "Bars show the monthly change in employment (left axis, thousands
+  of persons); the line traces the unemployment rate (right axis)."
+- "The right panel shows the signed spread each month."
+- "Positive bars mean the province is running above the national
+  rate; negative bars mean below."
+- "The red dot marks the latest print."
+- "The three panels show the three buckets the working-age population
+  sits in."
+
+What the blurb says instead: the finding the reader is supposed to
+take away. "Aggregate hours turned negative Y/Y in April; headcount
+is still positive." The picture handles the rest.
+
 ---
 
 ## 5. Date conventions (consolidated)

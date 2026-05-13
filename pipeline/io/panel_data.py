@@ -334,30 +334,30 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         ),
         PanelSpec(
             panel_id="panel-2", section="labour", panel_num=2,
-            file="labour/Panel2LabourStocks.astro",
+            file="labour/Panel2LabourStocksPerCapita.astro",
+            # Per-capita stocks plate (2026-05-13 rebuild per user direction).
+            # Same three-stocks structure as the retired Panel2LabourStocks,
+            # but each series rendered as a share of pop_15+ instead of as a
+            # level in millions. Three side-by-side line panels:
+            #   Employed share   = employment_rate
+            #   Unemployed share = unemployment_level / pop_15+ * 100
+            #   NILF share       = 100 - employed_share - unemployed_share
+            # pop_15+ back-derived chart-side via the LFS identity:
+            #   pop_15+[t] = employment[t] / (employment_rate[t] / 100)
             primary=SlotSpec("employment_level", "raw",
                              label="Employment level (SA, monthly, millions)"),
             secondary=SlotSpec("unemployment_level", "raw",
                                label="Unemployment level (SA, monthly, millions)"),
             tertiary=SlotSpec("employment_rate", "raw",
-                              label="Employment rate (SA, monthly, %); denominator for derived pop_15+"),
+                              label="Employment rate (SA, monthly, %); back-derives pop_15+"),
             expected_status="WIRED",
             notes=(
-                "Three-stocks plate (2026-05-12). Replaces the indexed-wedge "
-                "V3 (archived at _alternatives/labour/Alt_Panel2URDriversIndexed"
-                "Wedge.astro) -- that geometry did not land. Three side-by-"
-                "side line panels of the labour-force stocks: employed, "
-                "unemployed, not-in-labour-force. 60-month window, shared x-"
-                "axis, per-panel y-axes (the magnitudes differ by an order "
-                "of magnitude). Primary = employment_level (StatCan v2062811, "
-                "SA monthly, millions); secondary = unemployment_level "
-                "(v2062814, SA monthly, millions); tertiary = employment_"
-                "rate (v2062817, SA monthly, %). Not-in-labour-force is "
-                "derived at render time via the LFS identity: pop_15+ = "
-                "employment_level / (employment_rate / 100); NLF = pop_15+ - "
-                "employment_level - unemployment_level. No pipeline-tier "
-                "derivation -- identity is exact to the rounding of the "
-                "published rates and uses series already on disk."
+                "Three-stocks-per-capita plate. Same data inputs as the prior "
+                "Panel2LabourStocks; chart deflates each level by pop_15+ to "
+                "render shares of working-age population. The three shares "
+                "sum to 100%. Employed share equals the published employment "
+                "rate directly; unemployed share = unemp / pop_15+; NILF "
+                "share = 100 - emp_share - unemp_share."
             ),
         ),
         PanelSpec(

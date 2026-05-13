@@ -1,0 +1,47 @@
+name: source-currency-check
+
+# Weekly cron — probes the source-card registry for stale entries.
+#
+# What it does:
+#   - Runs scripts/check_sources.mjs against editorial/source_cards/registry.yaml
+#   - Surfaces PAST-DUE entries (publication's next_expected date has passed)
+#   - Surfaces NEWER-VINTAGE-MAYBE hints (probe-URL response contains a date
+#     newer than the entry's verified_at)
+#   - If anything is past-due, fails the workflow (visible in the actions tab)
+#   - Always uploads the report as an artifact for review
+
+on:
+  schedule:
+    # Mondays at 12:00 UTC (~07:00 ET) — early enough to catch fresh
+    # publications from the prior week's release windows.
+    - cron: "0 12 * * 1"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: |
+          npm install --no-save yaml
+
+      - name: Run source-currency check
+        id: check
+        run: node scripts/check_sources.mjs --report
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-currency-report
+          path: editorial/source_cards/report-*.md
+          if-no-files-found: warn

@@ -54,19 +54,37 @@ For each approved-flagged surface:
    ```
    The `<release-type>` and `<vintage>` come from the section's current data vintage (read `data/site/panel_data/<section>.json` `generatedAt` and the section's `release_key` from `section_context.py`).
 
-3. After the cycle completes, the writer's draft sits in `editorial/blurbs/_cycles/<release-id>.json`. Open it, extract the drafted surface text, and apply it to the section page:
+3. After the cycle completes, the writer's draft sits in `editorial/blurbs/_cycles/<release-id>.json`. Open it, extract the drafted surface text — but **do NOT apply to the section page yet**. Proceed to Phase 3.5.
+
+## Phase 3.5 — re-gate new claims (MANDATORY, no skipping)
+
+Per `editorial/review_protocol.md` "Redraft re-gating": any new claim the writer introduces during a redraft re-enters Gate 1 before the redraft can be applied.
+
+For each redrafted surface:
+
+1. Diff the new prose against the original to identify NEW numeric / dated / countable claims (e.g., "first since X", "Nth consecutive", "0.4pp above cycle low", "negative for nearly two years"). Existing claims that survived the redraft were already verified — only NEW claims need re-checking.
+
+2. Dispatch `fact-checker` in audit mode, scoped to the specific new-claim list. Brief: "Verify the following new claims against `data/site/panel_data/<section>.json`. Enumerate countable claims directly from the data. Return PASS/FAIL per claim with the actual value observed."
+
+3. For each FAIL: either fix the claim using the fact-checker's correction OR cut the claim entirely if unrescuable. Repeat fact-check if the fix introduces another new claim.
+
+4. Only after **every new claim passes** Gate 1 may the redraft be applied to the section page:
    - Plate titles → update the `title:` field in `src/pages/<section>.astro`
    - Plate blurbs → update the `interpretationHtml:` field
    - Section abstract / sparkline blurb → wherever they live
 
-4. After all regens land, run `npm run build` and report.
+5. After all regens land, run `npm run build` and report.
+
+**The rule that closes the leak:** a writer's redraft is not trusted because the writer had verified inputs. The writer's job is prose; verification is the fact-checker's. Every new claim runs the gate, every time.
 
 ## Phase 4 — report
 
 Tight status output:
 
 ```
-refreshed: <section>. <N> surfaces regenerated, <M> left unchanged. build: clean.
+refreshed: <section>. <N> surfaces regenerated, <M> left unchanged.
+Phase 3.5 re-gate: <P> new claims PASS / <F> FAIL (fixed before apply).
+build: clean.
 - plate-2 title: updated
 - plate-3 blurb: updated
 ```

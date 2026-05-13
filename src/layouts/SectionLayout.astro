@@ -49,13 +49,12 @@ import { derivePlateAsOf } from "../components/section/_shared/derivedLabels";
 // Per-section chart components. The same dispatch pattern as the prior
 // SectionLayout - the chart-builder owns chart internals; we embed.
 import Panel1HeadlineGDP from "../components/charts/gdp/Panel1HeadlineGDPV3.astro";
-import Panel2IndustryAggregate from "../components/charts/gdp/Panel2IndustryAggregate.astro";
+import Panel3IndustryComposite from "../components/charts/gdp/Panel3IndustryComposite.astro";
 import Panel3Contributions from "../components/charts/gdp/Panel3ContributionsV2.astro";
 import Panel4PerCapita from "../components/charts/gdp/PanelTotalVsPerCapita.astro";
 import Panel5OutputGap from "../components/charts/gdp/Panel5OutputGapV2.astro";
-import Panel6IndustryCyclical from "../components/charts/gdp/Panel6IndustryCyclical.astro";
 
-import PanelHeadlineCPIDual from "../components/charts/inflation/PanelHeadlineCPIDual.astro";
+import PanelHeadlineCPITrio from "../components/charts/inflation/PanelHeadlineCPITrio.astro";
 import Panel2CoreTrio from "../components/charts/inflation/Panel2CoreTrio.astro";
 import Panel3Breadth from "../components/charts/inflation/Panel3Breadth.astro";
 import Panel4SubAggregates from "../components/charts/inflation/Panel4SubAggregatesV2.astro";
@@ -65,7 +64,7 @@ import Panel6PassThrough from "../components/charts/inflation/Panel6PassThrough.
 import Panel1LFSHeadline from "../components/charts/labour/Panel1LFSHeadline.astro";
 import Panel1HeadlinePrint from "../components/charts/labour/Panel1HeadlinePrint.astro";
 import Panel2PerCapita from "../components/charts/labour/Panel2PerCapita.astro";
-import Panel2LabourStocks from "../components/charts/labour/Panel2LabourStocks.astro";
+import Panel2LabourStocksPerCapita from "../components/charts/labour/Panel2LabourStocksPerCapita.astro";
 import Panel3WageBand from "../components/charts/labour/Panel3WageBand.astro";
 import Panel3WageBandV2 from "../components/charts/labour/Panel3WageBandV2.astro";
 import Panel3WageBandV3 from "../components/charts/labour/Panel3WageBandV3.astro";
@@ -117,25 +116,24 @@ import PolicyPanel7PolicyRateDivergence from "../components/charts/policy/Panel7
  * bindings. The registry holds ONLY the live mappings the section pages
  * dispatch through.
  */
-export type ChartKey = "gdp-panel-1" | "gdp-panel-2" | "gdp-panel-3" | "gdp-panel-4" | "gdp-panel-5" | "gdp-panel-6" | "inflation-panel-0" | "inflation-panel-1" | "inflation-panel-2" | "inflation-panel-3" | "inflation-panel-4" | "inflation-panel-5" | "inflation-panel-6" | "labour-panel-1" | "labour-panel-2" | "labour-panel-3" | "labour-panel-4" | "labour-panel-5" | "labour-panel-6" | "labour-panel-7" | "housing-panel-1" | "housing-panel-2" | "housing-panel-3" | "housing-panel-4" | "housing-panel-5" | "housing-panel-6" | "housing-panel-7" | "policy-panel-1" | "policy-panel-2" | "policy-panel-3" | "policy-panel-4" | "policy-panel-5" | "policy-panel-6" | "policy-panel-7" | "markets-panel-1" | "markets-panel-2" | "markets-panel-3" | "markets-panel-4" | "markets-panel-5" | "markets-panel-6" | "trade-panel-1" | "trade-panel-2" | "trade-panel-3" | "trade-panel-4" | "trade-panel-5" | "trade-panel-6";
+export type ChartKey = "gdp-panel-1" | "gdp-panel-2" | "gdp-panel-3" | "gdp-panel-4" | "gdp-panel-5" | "inflation-panel-0" | "inflation-panel-1" | "inflation-panel-2" | "inflation-panel-3" | "inflation-panel-4" | "inflation-panel-5" | "inflation-panel-6" | "labour-panel-1" | "labour-panel-2" | "labour-panel-3" | "labour-panel-4" | "labour-panel-5" | "labour-panel-6" | "labour-panel-7" | "housing-panel-1" | "housing-panel-2" | "housing-panel-3" | "housing-panel-4" | "housing-panel-5" | "housing-panel-6" | "housing-panel-7" | "policy-panel-1" | "policy-panel-2" | "policy-panel-3" | "policy-panel-4" | "policy-panel-5" | "policy-panel-6" | "policy-panel-7" | "markets-panel-1" | "markets-panel-2" | "markets-panel-3" | "markets-panel-4" | "markets-panel-5" | "markets-panel-6" | "trade-panel-1" | "trade-panel-2" | "trade-panel-3" | "trade-panel-4" | "trade-panel-5" | "trade-panel-6";
 
 const chartRegistry: Record<ChartKey, any> = {
   "gdp-panel-1": Panel1HeadlineGDP,
-  "gdp-panel-2": Panel2IndustryAggregate,
+  "gdp-panel-2": Panel3IndustryComposite,
   "gdp-panel-3": Panel3Contributions,
   "gdp-panel-4": Panel4PerCapita,
   "gdp-panel-5": Panel5OutputGap,
-  "gdp-panel-6": Panel6IndustryCyclical,
   // inflation-panel-0 has no live binding; reserved.
   "inflation-panel-0": null,
-  "inflation-panel-1": PanelHeadlineCPIDual,
+  "inflation-panel-1": PanelHeadlineCPITrio,
   "inflation-panel-2": Panel2CoreTrio,
   "inflation-panel-3": Panel3Breadth,
   "inflation-panel-4": Panel4SubAggregates,
   "inflation-panel-5": Panel5Expectations,
   "inflation-panel-6": Panel6PassThrough,
   "labour-panel-1": Panel1HeadlinePrint,
-  "labour-panel-2": Panel2LabourStocks,
+  "labour-panel-2": Panel2LabourStocksPerCapita,
   "labour-panel-3": Panel8HoursVsHeadcount,
   "labour-panel-4": Panel3WageBandV3,
   "labour-panel-5": Panel4BeveridgeCompanion,
@@ -230,6 +228,22 @@ export interface Plate {
   /** Optional chart-builder dispatch key. Omitted -> placeholder. */
   chartKey?: ChartKey;
   /**
+   * Source citations for claims in `title` and `interpretationHtml`.
+   * Used by `scripts/source_audit.mjs` to render the per-page audit view
+   * showing which numeric/dated/attributed claims are tagged to a source
+   * card or pipeline series, and which are unsourced.
+   *
+   * Each citation names the verbatim phrase as it appears in the prose
+   * and the source identifier:
+   *   - `card:<id>` references an entry in editorial/source_cards/registry.yaml
+   *   - `pipeline:<table-or-series>` references an auto-refreshed data feed
+   *   - `derived` marks an arithmetic derivation from other tagged claims
+   *
+   * NOT used at runtime — the live site renders interpretationHtml as-is.
+   * The audit generator finds the phrases in the rendered text.
+   */
+  citations?: ClaimCitation[];
+  /**
    * Real panel data from the pipeline's
    * data/site/panel_data/<section>.json, keyed by `panel-N`. When
    * provided, the dispatched Panel*.astro renders the live chart;
@@ -237,6 +251,15 @@ export interface Plate {
    * empty state. There is no synthetic fallback.
    */
   data?: PanelData | null;
+}
+
+export interface ClaimCitation {
+  /** Verbatim substring of the prose to tag. First-occurrence match. */
+  phrase: string;
+  /** Source identifier: card:<id> / pipeline:<key> / derived / other:<note>. */
+  source: string;
+  /** Optional explanatory note rendered in the audit view. */
+  note?: string;
 }
 
 interface Props {

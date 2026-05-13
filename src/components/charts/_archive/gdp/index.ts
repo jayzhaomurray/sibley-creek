@@ -16,6 +16,8 @@ import { pickPanel } from "../../_shared/panelData";
 
 import Panel1HeadlineGDP from "../../gdp/Panel1HeadlineGDP.astro";
 import Panel4PerCapita from "../../gdp/Panel4PerCapita.astro";
+import Panel2IndustryAggregate from "./Panel2IndustryAggregate.astro";
+import Panel6IndustryCyclical from "./Panel6IndustryCyclical.astro";
 
 const gdp1Data = pickPanel(gdpPanelData, 1);
 const gdp4Data = pickPanel(gdpPanelData, 4);
@@ -44,5 +46,27 @@ export const entries: ChartShelfEntry[] = [
     dataFields: "data/site/panel_data/gdp.json panel-4.",
     addedAt: "2026-05-12",
     data: gdp4Data,
+  },
+  {
+    Component: Panel2IndustryAggregate,
+    file: "gdp/Panel2IndustryAggregate.astro",
+    title: "Panel2IndustryAggregate (retired from production — TODO describe)",
+    whatDifferent:
+      "TODO: describe what made this version distinct.",
+    whyBetter:
+      "TODO: describe what won out and why this was parked.",
+    dataFields: "TODO: list source panel_data slot or CSV file(s).",
+    addedAt: "2026-05-13",
+  },
+  {
+    Component: Panel6IndustryCyclical,
+    file: "gdp/Panel6IndustryCyclical.astro",
+    title: "Panel6IndustryCyclical (retired from production — TODO describe)",
+    whatDifferent:
+      "TODO: describe what made this version distinct.",
+    whyBetter:
+      "TODO: describe what won out and why this was parked.",
+    dataFields: "TODO: list source panel_data slot or CSV file(s).",
+    addedAt: "2026-05-13",
   },
 ];

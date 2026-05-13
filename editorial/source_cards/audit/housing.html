@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Source audit · housing</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: #111;
+  background: #f7f6f1;
+  margin: 0;
+}
+.wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 40px;
+  align-items: start;
+}
+header.page-head {
+  grid-column: 1 / -1;
+  border-bottom: 2px solid #111;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+header.page-head h1 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+header.page-head .breadcrumb a {
+  color: #666;
+  text-decoration: none;
+  margin-right: 16px;
+}
+header.page-head .breadcrumb a:hover { color: #000; text-decoration: underline; }
+main {
+  background: white;
+  padding: 32px;
+  border: 1px solid #ddd;
+}
+.headline-q {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #111;
+}
+.section-label {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.abstract {
+  font-size: 17px;
+  line-height: 1.6;
+  border-left: 3px solid #c00;
+  padding-left: 16px;
+  margin: 24px 0 40px 0;
+  color: #222;
+}
+.plate {
+  border-top: 1px solid #ccc;
+  padding: 24px 0;
+}
+.plate-number {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.plate-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 4px 0 10px 0;
+  color: #111;
+}
+.plate-meta {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #777;
+  margin-bottom: 12px;
+}
+.plate-blurb { font-size: 16px; line-height: 1.6; color: #222; }
+.plate-source-line {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #666;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dotted #ccc;
+}
+.claim {
+  background: #fffbcc;
+  padding: 1px 2px;
+  border-bottom: 2px solid #e6c200;
+  cursor: pointer;
+}
+.claim:hover {
+  background: #fff299;
+}
+.claim-sup {
+  color: #b07b00;
+  font-weight: 700;
+  font-size: 0.8em;
+  margin-left: 1px;
+}
+aside.ledger {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 16px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+}
+aside.ledger h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+.ledger-group { margin-bottom: 20px; }
+.ledger-group-h {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #555;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ddd;
+}
+.ledger-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.ledger-ref {
+  display: inline-block;
+  background: #e6c200;
+  color: white;
+  padding: 1px 6px;
+  font-weight: 700;
+  font-size: 11px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+.ledger-ref.pipeline { background: #2a7a30; }
+.ledger-ref.derived { background: #888; }
+.ledger-ref.unknown, .ledger-ref.card-missing, .ledger-ref.other { background: #c33; }
+.ledger-phrase {
+  font-style: italic;
+  color: #333;
+  display: block;
+  margin: 4px 0;
+}
+.ledger-source-label { font-weight: 600; color: #222; font-size: 12px; }
+.ledger-excerpt {
+  margin: 6px 0;
+  padding: 8px 10px;
+  background: #f3f3ef;
+  color: #444;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 2px solid #999;
+}
+.ledger-meta { font-size: 11px; color: #777; }
+.ledger-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: #006699;
+  text-decoration: none;
+  font-weight: 600;
+}
+.ledger-link:hover { text-decoration: underline; }
+.note-line { font-size: 11px; color: #888; margin-top: 4px; font-style: italic; }
+footer.audit-foot {
+  grid-column: 1 / -1;
+  border-top: 1px solid #ccc;
+  padding: 20px 0;
+  font-size: 12px;
+  color: #777;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.edit-btn {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #006699;
+  background: transparent;
+  border: 1px solid #006699;
+  padding: 3px 8px;
+  margin-left: 8px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.edit-btn:hover { background: #006699; color: white; }
+.edit-form {
+  margin-top: 12px;
+  padding: 14px;
+  background: #f8f7ec;
+  border: 1px solid #d8c773;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  display: none;
+}
+.edit-form.open { display: block; }
+.edit-form label {
+  display: block;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+  margin: 8px 0 4px 0;
+}
+.edit-form textarea, .edit-form input[type="text"] {
+  width: 100%;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #c8c0a0;
+  background: white;
+  box-sizing: border-box;
+}
+.edit-form textarea { min-height: 80px; line-height: 1.5; resize: vertical; }
+.edit-form .row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.edit-form .row .primary {
+  background: #006699;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.edit-form .row .primary:hover { background: #00557e; }
+.edit-form .row .toast {
+  font-size: 12px;
+  color: #2a7a30;
+  font-weight: 600;
+  margin-left: 8px;
+  display: none;
+}
+.edit-form .row .toast.show { display: inline; }
+.edit-form .hint {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+  margin-top: 4px;
+}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <div class="breadcrumb">
+        <a href="./index.html">← All sections</a>
+        <span style="color:#999">·</span>
+        <a href="https://sibleycreek.ca/housing/" target="_blank" rel="noopener">Live page ↗</a>
+      </div>
+      <h1>Source audit · housing</h1>
+    </header>
+    <main>
+      <div class="section-label">Section abstract <button class="edit-btn" onclick="document.getElementById('edit-abstract').classList.toggle('open')">✎ Propose edit</button></div>
+      <h2 class="headline-q">Is the rate-sensitive sector amplifying or dampening policy?</h2>
+      <div class="abstract">Home prices <span class="claim" data-ref="1">fell 4.6% Y/Y on the MLS HPI<sup class="claim-sup">[1]</sup></span> in the latest print, per the Canadian Real Estate Association, a tenth shallower than the prior month but the <span class="claim" data-ref="2">eighth straight negative reading<sup class="claim-sup">[2]</sup></span>. Housing starts on a 3mma basis stepped down to <span class="claim" data-ref="3">241k from 257k<sup class="claim-sup">[3]</sup></span>, per Canada Mortgage and Housing Corporation. Affordability held at <span class="claim" data-ref="4">42.7% of household income in Q4 2025<sup class="claim-sup">[4]</sup></span>, half a point easier on continued mortgage-cost relief.</div>
+      
+    <div class="edit-form" id="edit-abstract">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="" />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Home prices fell 4.6% Y/Y on the MLS HPI in the latest print, per the Canadian Real Estate Association, a tenth shallower than the prior month but the eighth straight negative reading. Housing starts on a 3mma basis stepped down to 241k from 257k, per Canada Mortgage and Housing Corporation. Affordability held at 42.7% of household income in Q4 2025, half a point easier on continued mortgage-cost relief.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'housing', 'section-abstract')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      
+      <section class="plate">
+        <div class="plate-number">01 · Prices</div>
+        <h3 class="plate-title">The national price decline masks a widening split between Toronto-Vancouver and Montreal. <button class="edit-btn" onclick="document.getElementById('edit-plate-0').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">MLS HPI, national + six CMAs, Y/Y</div>
+        <div class="plate-blurb">National home prices sat at <span class="claim" data-ref="1">-4.6% Y/Y<sup class="claim-sup">[1]</sup></span> on the MLS HPI in <span class="claim" data-ref="2">March 2026<sup class="claim-sup">[2]</sup></span>, the <span class="claim" data-ref="3">eighth consecutive month in negative territory<sup class="claim-sup">[3]</sup></span>. <span class="claim" data-ref="4">Toronto (-7.2%)<sup class="claim-sup">[4]</sup></span> and <span class="claim" data-ref="5">Vancouver (-6.8%)<sup class="claim-sup">[5]</sup></span> lead the decline; Calgary, Ottawa, and Edmonton sit between <span class="claim" data-ref="6">-1.9 and -2.9%<sup class="claim-sup">[6]</sup></span>; <span class="claim" data-ref="7">Montreal alone runs positive at +4.9%<sup class="claim-sup">[7]</sup></span>. The composite read masks a widening CMA dispersion.</div>
+        <div class="plate-source-line">CREA MLS HPI national + six-CMA bulk file (April 2026 release).</div>
+        
+    <div class="edit-form" id="edit-plate-0">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="The national price decline masks a widening split between Toronto-Vancouver and Montreal." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">National home prices sat at -4.6% Y/Y on the MLS HPI in March 2026, the eighth consecutive month in negative territory. Toronto (-7.2%) and Vancouver (-6.8%) lead the decline; Calgary, Ottawa, and Edmonton sit between -1.9 and -2.9%; Montreal alone runs positive at +4.9%. The composite read masks a widening CMA dispersion.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'housing', 'plate-1')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">02 · Activity</div>
+        <h3 class="plate-title">The completions pipeline, not new starts, is now carrying supply. <button class="edit-btn" onclick="document.getElementById('edit-plate-1').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Starts, units under construction, residential permits · Mar 2026 (starts) / Feb 2026 (permits)</div>
+        <div class="plate-blurb"></div>
+        <div class="plate-source-line">Statistics Canada Table 34-10-0158 (starts and units under construction); Statistics Canada Table 34-10-0292 (building permits).</div>
+        
+    <div class="edit-form" id="edit-plate-1">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="The completions pipeline, not new starts, is now carrying supply." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body"></textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'housing', 'plate-2')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">03 · Inventory</div>
+        <h3 class="plate-title">Absorption is soft but has not tipped into a buyers' market. <button class="edit-btn" onclick="document.getElementById('edit-plate-2').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Sales-to-new-listings ratio, Canada</div>
+        <div class="plate-blurb">The national sales-to-new-listings ratio sits at <span class="claim" data-ref="1">47.6 in February 2026<sup class="claim-sup">[1]</sup></span>, up from <span class="claim" data-ref="2">46.4 in January<sup class="claim-sup">[2]</sup></span> but below the <span class="claim" data-ref="3">50-to-70 band CREA describes as balanced<sup class="claim-sup">[3]</sup></span>. The resale index has eased to <span class="claim" data-ref="4">85.6<sup class="claim-sup">[4]</sup></span>, leaving Canada in a soft absorption regime rather than an outright buyers' market. CMA-level <span class="claim" data-ref="5">12-month resale counts to October 2025<sup class="claim-sup">[5]</sup></span> point in the same direction: Toronto and Vancouver are absorbing the most volume relative to their listings overhang.</div>
+        <div class="plate-source-line">Bank of Canada Valet (CREA sales-to-new-listings and resale index); CMA-level 12-month resale counts via BoC Valet.</div>
+        
+    <div class="edit-form" id="edit-plate-2">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Absorption is soft but has not tipped into a buyers' market." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The national sales-to-new-listings ratio sits at 47.6 in February 2026, up from 46.4 in January but below the 50-to-70 band CREA describes as balanced. The resale index has eased to 85.6, leaving Canada in a soft absorption regime rather than an outright buyers' market. CMA-level 12-month resale counts to October 2025 point in the same direction: Toronto and Vancouver are absorbing the most volume relative to their listings overhang.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'housing', 'plate-3')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">04 · Rent</div>
+        <h3 class="plate-title">Rents are no longer rising; the level is now adjusting downward. <button class="edit-btn" onclick="document.getElementById('edit-plate-3').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">CPI rent and rented accommodation, Y/Y</div>
+        <div class="plate-blurb"></div>
+        <div class="plate-source-line">Statistics Canada Table 18-10-0004-01, CPI rent (v41691074) and rented accommodation (v41691073).</div>
+        
+    <div class="edit-form" id="edit-plate-3">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Rents are no longer rising; the level is now adjusting downward." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body"></textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'housing', 'plate-4')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">05 · Mortgage stack</div>
+        <h3 class="plate-title">The renewal wall has peaked, with the residual risk rotating to the labour channel. <button class="edit-btn" onclick="document.getElementById('edit-plate-4').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">5-year conventional mortgage rate</div>
+        <div class="plate-blurb"></div>
+        <div class="plate-source-line">Bank of Canada Valet (V80691335, 5-year conventional mortgage rate, weekly).</div>
+        
+    <div class="edit-form" id="edit-plate-4">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="The renewal wall has peaked, with the residual risk rotating to the labour channel." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body"></textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'housing', 'plate-5')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">06 · Supply ratio</div>
+        <h3 class="plate-title">Supply is finally running ahead of incremental population-driven demand. <button class="edit-btn" onclick="document.getElementById('edit-plate-5').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Immigrant flow proxy and housing starts</div>
+        <div class="plate-blurb"></div>
+        <div class="plate-source-line">Statistics Canada Table 17-10-0040 (immigrants, quarterly); Table 34-10-0158 (housing starts).</div>
+        
+    <div class="edit-form" id="edit-plate-5">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Supply is finally running ahead of incremental population-driven demand." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body"></textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'housing', 'plate-6')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">07 · Affordability</div>
+        <h3 class="plate-title">Affordability is improving from peak but remains worse than prior stress episodes. <button class="edit-btn" onclick="document.getElementById('edit-plate-6').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">BoC qualifying mortgage payment to income</div>
+        <div class="plate-blurb">The BoC's qualifying-mortgage-payment-to-income ratio sits at <span class="claim" data-ref="1">42.7% in Q4 2025<sup class="claim-sup">[1]</sup></span>, down from <span class="claim" data-ref="2">43.2% in Q3<sup class="claim-sup">[2]</sup></span> and <span class="claim" data-ref="3">50.4% at the Q2 2024 peak<sup class="claim-sup">[3]</sup></span>. The improvement traces to lower qualifying rates &mdash; the <span class="claim" data-ref="4">5-year conventional has settled at 6.09%<sup class="claim-sup">[4]</sup></span> &mdash; partly offset by softer wage growth in the denominator. The index remains well above the <span class="claim" data-ref="5">1989-1991<sup class="claim-sup">[5]</sup></span> and <span class="claim" data-ref="6">2007-2008<sup class="claim-sup">[6]</sup></span> stress episodes; the <span class="claim" data-ref="7">2022-2024 tightening cycle<sup class="claim-sup">[7]</sup></span> is still the binding historical anchor.</div>
+        <div class="plate-source-line">Bank of Canada Valet (INDINF_AFFORD_Q, housing affordability index, qualifying payment / income).</div>
+        
+    <div class="edit-form" id="edit-plate-6">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Affordability is improving from peak but remains worse than prior stress episodes." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The BoC's qualifying-mortgage-payment-to-income ratio sits at 42.7% in Q4 2025, down from 43.2% in Q3 and 50.4% at the Q2 2024 peak. The improvement traces to lower qualifying rates — the 5-year conventional has settled at 6.09% — partly offset by softer wage growth in the denominator. The index remains well above the 1989-1991 and 2007-2008 stress episodes; the 2022-2024 tightening cycle is still the binding historical anchor.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'housing', 'plate-7')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+    </main>
+    
+    <aside class="ledger">
+      <h2>Claims ledger</h2>
+      <div class="ledger-group">
+               <div class="ledger-group-h">Section abstract</div>
+               
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span>
+        <div class="ledger-phrase">"fell 4.6% Y/Y on the MLS HPI"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">CREA MLS HPI composite, Y/Y, Mar 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span>
+        <div class="ledger-phrase">"eighth straight negative reading"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Enumerated: Aug 2025 through Mar 2026; CREA MLS HPI Y/Y has printed negative each month.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:statcan:34-10-0158-01</span>
+        <div class="ledger-phrase">"241k from 257k"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Total housing starts, SAAR 3mma; latest vs prior month per CMHC release (StatCan table).</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[4]</span>
+        <span class="ledger-source-label">pipeline:boc:INDINF_AFFORD_Q</span>
+        <div class="ledger-phrase">"42.7% of household income in Q4 2025"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC housing affordability index, qualifying payment / income, 2025Q4.</div>
+        
+      </div>
+             </div>
+      
+              <div class="ledger-group">
+                <div class="ledger-group-h">01 · Prices</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span>
+        <div class="ledger-phrase">"-4.6% Y/Y"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">CREA MLS HPI composite, Y/Y, Mar 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span>
+        <div class="ledger-phrase">"March 2026"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Reference month for the Y/Y read.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span>
+        <div class="ledger-phrase">"eighth consecutive month in negative territory"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Enumerated: Aug 2025 onward; CREA MLS HPI Y/Y has printed negative each month through Mar 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[4]</span>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_toronto</span>
+        <div class="ledger-phrase">"Toronto (-7.2%)"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">CREA MLS HPI Toronto CMA, Y/Y, Mar 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[5]</span>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_vancouver</span>
+        <div class="ledger-phrase">"Vancouver (-6.8%)"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">CREA MLS HPI Vancouver CMA, Y/Y, Mar 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[6]</span>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_six_cma</span>
+        <div class="ledger-phrase">"-1.9 and -2.9%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">CREA MLS HPI Calgary / Ottawa / Edmonton CMA Y/Y range, Mar 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[7]</span>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_montreal</span>
+        <div class="ledger-phrase">"Montreal alone runs positive at +4.9%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">CREA MLS HPI Montreal CMA, Y/Y, Mar 2026.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">03 · Inventory</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:CREA_SNLR_CAN</span>
+        <div class="ledger-phrase">"47.6 in February 2026"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">CREA sales-to-new-listings ratio, Canada, Feb 2026, via BoC Valet.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:boc:CREA_SNLR_CAN</span>
+        <div class="ledger-phrase">"46.4 in January"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">CREA sales-to-new-listings ratio, Canada, Jan 2026, via BoC Valet.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref other">[3]</span>
+        <span class="ledger-source-label">other:crea_snlr_balanced_band</span>
+        <div class="ledger-phrase">"50-to-70 band CREA describes as balanced"</div>
+        
+        
+        <div class="note-line">CREA's published interpretation of SNLR: 40-60 (per CREA monthly stats) is balanced; some BoC commentary uses 50-70. Treat as CREA/BoC methodology constant.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[4]</span>
+        <span class="ledger-source-label">pipeline:boc:CREA_RESALE_INDEX</span>
+        <div class="ledger-phrase">"85.6"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">CREA resale index, Canada, Feb 2026, via BoC Valet.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[5]</span>
+        <span class="ledger-source-label">pipeline:boc:CREA_CMA_RESALES_12M</span>
+        <div class="ledger-phrase">"12-month resale counts to October 2025"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC Valet CMA-level CREA 12-month resale counts, vintage Oct 2025.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">07 · Affordability</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:INDINF_AFFORD_Q</span>
+        <div class="ledger-phrase">"42.7% in Q4 2025"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC housing affordability index, qualifying payment / income, 2025Q4.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:boc:INDINF_AFFORD_Q</span>
+        <div class="ledger-phrase">"43.2% in Q3"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC housing affordability index, 2025Q3.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:boc:INDINF_AFFORD_Q</span>
+        <div class="ledger-phrase">"50.4% at the Q2 2024 peak"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC housing affordability index, 2024Q2 peak in current cycle.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref card">[4]</span>
+        <span class="ledger-source-label">BoC 5-year conventional mortgage rate (Valet series V80691335)</span>
+        <div class="ledger-phrase">"5-year conventional has settled at 6.09%"</div>
+        <div class="ledger-excerpt">Latest 15 weekly observations from 2026-01-28 through 2026-05-06 all print 6.09%.</div>
+        <div class="ledger-meta">Weekly print 2026-05-06 · verified 2026-05-13 · next 2026-05-13</div>
+        <div class="note-line">5-year conventional mortgage rate, BoC Valet V80691335.</div>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/V80691335/json?recent=15" target="_blank" rel="noopener">Open source ↗</a>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[5]</span>
+        <span class="ledger-source-label">pipeline:boc:INDINF_AFFORD_Q</span>
+        <div class="ledger-phrase">"1989-1991"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Historical stress episode in BoC affordability series; identified from full-history INDINF_AFFORD_Q.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[6]</span>
+        <span class="ledger-source-label">pipeline:boc:INDINF_AFFORD_Q</span>
+        <div class="ledger-phrase">"2007-2008"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Historical stress episode in BoC affordability series.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[7]</span>
+        <span class="ledger-source-label">pipeline:boc:V39079</span>
+        <div class="ledger-phrase">"2022-2024 tightening cycle"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC overnight target rate hike cycle, Mar 2022 through Jul 2023 hike, on hold through 2024.</div>
+        
+      </div>
+              </div>
+    </aside>
+  
+    <footer class="audit-foot">
+      Generated 2026-05-13 07:21 · Tagged claims show a yellow highlight with a [N] reference. Hover or click to see the source. Sidebar lists all claims with verbatim excerpts. Sources marked as "pipeline" auto-refresh; "card" entries are managed in editorial/source_cards/registry.yaml. Use "Propose edit" to send a structured EDIT REQUEST back to Claude.
+    </footer>
+  </div>
+  <script>
+    function copyEditSpec(btn, slug, surface) {
+      const form = btn.closest('.edit-form');
+      const title = form.querySelector('[data-field="title"]').value.trim();
+      const body = form.querySelector('[data-field="body"]').value.trim();
+      const reason = form.querySelector('[data-field="reason"]').value.trim();
+      const spec = [
+        'EDIT REQUEST',
+        'section: ' + slug,
+        'surface: ' + surface,
+        '',
+        'proposed_title:',
+        title,
+        '',
+        'proposed_body:',
+        body,
+        '',
+        'reason:',
+        reason,
+      ].join('\n');
+      navigator.clipboard.writeText(spec).then(function () {
+        const toast = btn.parentElement.querySelector('.toast');
+        toast.classList.add('show');
+        setTimeout(function () { toast.classList.remove('show'); }, 2500);
+      });
+    }
+  </script>
+</body>
+</html>

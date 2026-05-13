@@ -104,6 +104,16 @@ export interface Section {
   prints: SectionPrint[];
   blurb: SectionBlurb;
   /**
+   * Source citations for the section's `blurb.body` (the under-question
+   * synthesis on the section page and the sparkline-blurb on the splash).
+   * Used by `scripts/source_audit.mjs` to render the audit view + by
+   * `scripts/check_citation_coverage.mjs` to enforce coverage at build
+   * time. Optional only until the section is brought under audit; once
+   * a section has any entries here, it's strict and the build fails on
+   * uncovered citable tokens.
+   */
+  abstractCitations?: import("../layouts/SectionLayout.astro").ClaimCitation[];
+  /**
    * Epoch milliseconds for the section's most-recently-updated print or
    * event. Drives the homepage hero selection (Layout B): the section with
    * the maximum `updatedAt` value is rendered as the hero; the rest fall
@@ -216,7 +226,7 @@ export const sections: Section[] = [
     accentVar: "--section-accent-gdp",
     kicker: "Output, expenditure, and the quarterly arithmetic of growth.",
     headlineQuestion:
-      "Is the Canadian economy at potential, growing, or contracting?",
+      "How fast is Canada's economy growing, and where?",
     cadence: "Monthly + quarterly",
     // Most recent monthly GDP print released Apr 30, 2026 (Feb 2026 reference period).
     updatedAt: Date.UTC(2026, 3, 30, 8, 30),
@@ -270,8 +280,12 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 30, 2026",
       body:
-        "Real GDP rose 1.0% Y/Y in February, per Statistics Canada, a 0.3pp acceleration from January but still well below the 1.5 to 2.0% run that held through last summer. The monthly print stayed at 0.2% m/m. The Q4 2025 output gap widened to negative 1.0%, half a point softer than Q3 and below the Bank of Canada's potential growth estimate near 1.6%.",
+        "Slowly, and mostly in the resource patch. Real GDP is running near 1% Y/Y, just below the Bank of Canada's 1.2% estimate of near-term potential growth. Oil and gas are doing the heavy lifting while manufacturing is in deep recession. Services growth is trundling along. Even that 1% pace relies on population growth more than anything — on a per capita basis, output is scarcely higher than it was before the pandemic.",
     },
+    abstractCitations: [
+      { phrase: "near 1% Y/Y", source: "pipeline:statcan:36-10-0434-01", note: "Real GDP Y/Y, latest monthly print." },
+      { phrase: "1.2% estimate of near-term potential growth", source: "card:boc_mpr_potential_growth" },
+    ],
   },
   {
     slug: "inflation",
@@ -279,7 +293,7 @@ export const sections: Section[] = [
     accentVar: "--section-accent-inflation",
     kicker: "Headline, core, and the breadth of price pressure.",
     headlineQuestion:
-      "Is the 2% target being met, and on what measures and what breadth?",
+      "How close is Canadian inflation to the 2% target, and is the anchor holding?",
     cadence: "Monthly",
     // Most recent CPI print released Apr 20, 2026 (March 2026 reference period).
     // April CPI lands May 14; not yet on disk as of 2026-05-11.
@@ -337,8 +351,12 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 20, 2026",
       body:
-        "Headline CPI ran at 2.3% Y/Y in the latest print, per Statistics Canada, a 0.5pp acceleration that pushes headline back above the Bank of Canada's 2% target. Core-trim eased a tenth to 2.2% and core-median held at 2.3%; the underlying signal is steadier than the headline. Both cores now sit inside the 1-3% band for the third straight print.",
+        "Headline CPI sits at 2.3% — a hair above target, with food and energy now carrying the overshoot that shelter used to. Core-trim and core-median, the measures the Bank of Canada actually reacts to, are back at 2.2-2.3%. And consumer and firm expectations have moderated together: the anchor is holding while the composition rotates.",
     },
+    abstractCitations: [
+      { phrase: "Headline CPI sits at 2.3%", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI Y/Y, March 2026." },
+      { phrase: "back at 2.2-2.3%", source: "pipeline:boc:STATIC_TOTALCPICOMMON_TRIM", note: "CPI-trim and CPI-median Y/Y range, March 2026; BoC Valet preferred-core series." },
+    ],
   },
   {
     slug: "labour",
@@ -350,7 +368,7 @@ export const sections: Section[] = [
     accentVar: "--section-accent-labour",
     kicker: "Jobs, wages, participation, and the workforce that backs them.",
     headlineQuestion:
-      "How tight is the labour market, and is per-capita output recovering?",
+      "Is the labour market loosening, and how fast?",
     cadence: "Monthly",
     // Most recent LFS landed May 2, 2026 (April 2026 reference period).
     updatedAt: Date.UTC(2026, 4, 2, 8, 30),
@@ -396,8 +414,12 @@ export const sections: Section[] = [
       kind: "fresh",
       date: "May 8, 2026",
       body:
-        "Unemployment climbed to 6.9% in April, per the Statistics Canada Labour Force Survey, a 0.2pp move that returns the rate to the high end of the recent range. Aggregate hours worked turned negative Y/Y at -0.5%, the deepest sub-zero reading this cycle. Wage growth on the LFS-Micro series printed 3.1% Y/Y, up 0.5pp.",
+        "Yes, and the intensive margin is leading. Hours worked are running negative year-over-year while the unemployment rate has drifted up to 6.9%, the pattern of a market that is shedding work before it sheds workers — and one where a population surge is being absorbed straight into not-in-labour-force rather than into jobs. Wages are the lagging piece, with composition-adjusted growth at 3.1% still above where the Bank of Canada wants it, but the cyclical direction is no longer in doubt.",
     },
+    abstractCitations: [
+      { phrase: "unemployment rate has drifted up to 6.9%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA, Apr 2026." },
+      { phrase: "composition-adjusted growth at 3.1%", source: "pipeline:boc:INDINF_LFSMICRO_M", note: "BoC LFS-Micro composition-adjusted wage growth, Y/Y, Mar 2026." },
+    ],
   },
   {
     slug: "policy",
@@ -469,6 +491,15 @@ export const sections: Section[] = [
       body:
         "The Bank of Canada held the overnight rate at 2.25% on April 29, the fourth straight hold since October's cut and 50 bps below the 2.75% neutral midpoint. The 2y GoC yield closed at 2.94% on May 7, leaving the BoC-Fed 2y spread at -98 bps. The fiscal year-to-date federal budget balance stood at -$25.6B through February, per the Department of Finance Canada fiscal monitor.",
     },
+    abstractCitations: [
+      { phrase: "overnight rate at 2.25% on April 29", source: "pipeline:boc:V39079", note: "BoC overnight target rate, Apr 29 2026 FAD decision, via Valet V39079." },
+      { phrase: "fourth straight hold", source: "pipeline:boc:V39079", note: "Enumerated FAD sequence: Jan 29, Mar 12, Apr 16, Apr 29 holds following Oct 29 2025 cut." },
+      { phrase: "50 bps below the 2.75% neutral midpoint", source: "card:boc_mpr_neutral_range", note: "Midpoint of the 2.25-3.25% nominal neutral range; 2.75% - 2.25% overnight = 50 bps gap." },
+      { phrase: "2.75% neutral midpoint", source: "card:boc_mpr_neutral_range" },
+      { phrase: "2y GoC yield closed at 2.94% on May 7", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, May 7 2026 daily close." },
+      { phrase: "BoC-Fed 2y spread at -98 bps", source: "derived", note: "GoC 2y 2.94% minus UST 2y 3.92% = -98 bps. Inputs: BoC Valet yield_2yr and FRED DGS2, May 7 2026." },
+      { phrase: "$25.6B through February", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "Federal fiscal YTD balance, April 2025 through February 2026, per DoF Fiscal Monitor." },
+    ],
   },
   {
     slug: "housing",
@@ -521,6 +552,12 @@ export const sections: Section[] = [
       body:
         "Home prices fell 4.6% Y/Y on the MLS HPI in the latest print, per the Canadian Real Estate Association, a tenth shallower than the prior month but the eighth straight negative reading. Housing starts on a 3mma basis stepped down to 241k from 257k, per Canada Mortgage and Housing Corporation. Affordability held at 42.7% of household income in Q4 2025, half a point easier on continued mortgage-cost relief.",
     },
+    abstractCitations: [
+      { phrase: "fell 4.6% Y/Y on the MLS HPI", source: "pipeline:crea:mls_hpi_national", note: "CREA MLS HPI composite, Y/Y, Mar 2026." },
+      { phrase: "eighth straight negative reading", source: "pipeline:crea:mls_hpi_national", note: "Enumerated: Aug 2025 through Mar 2026; CREA MLS HPI Y/Y has printed negative each month." },
+      { phrase: "241k from 257k", source: "pipeline:statcan:34-10-0158-01", note: "Total housing starts, SAAR 3mma; latest vs prior month per CMHC release (StatCan table)." },
+      { phrase: "42.7% of household income in Q4 2025", source: "pipeline:boc:INDINF_AFFORD_Q", note: "BoC housing affordability index, qualifying payment / income, 2025Q4." },
+    ],
   },
   {
     slug: "trade",
@@ -583,6 +620,14 @@ export const sections: Section[] = [
       body:
         "The goods trade balance narrowed to -$2.2B on a 3mma basis in March, per Statistics Canada, an $876M improvement from February. The US export share fell 2.5pp to 66.1%, the lowest reading in the available window and a continuation of the year-long drift down from the 76 to 80% range that held through 2024. The Q4 2025 current account narrowed to -$706M, a $4.6B improvement; terms of trade ticked up 0.6 to 105.5.",
     },
+    abstractCitations: [
+      { phrase: "narrowed to -$2.2B on a 3mma basis in March", source: "pipeline:statcan:12-10-0119-01", note: "Goods trade balance, 3-month moving average, March 2026." },
+      { phrase: "$876M improvement from February", source: "derived", note: "March 2026 3mma minus February 2026 3mma goods balance, StatCan 12-10-0119-01." },
+      { phrase: "US export share fell 2.5pp to 66.1%", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, March 2026; 2.5pp drop vs prior month." },
+      { phrase: "76 to 80% range that held through 2024", source: "pipeline:statcan:12-10-0121-01", note: "Enumerated US export share monthly series: trailing 12-month band sat in the 76-80% range across 2024." },
+      { phrase: "Q4 2025 current account narrowed to -$706M", source: "pipeline:statcan:36-10-0014-01", note: "Current account balance, Q4 2025." },
+      { phrase: "$4.6B improvement", source: "derived", note: "Q4 2025 current account (-$706M) minus Q3 2025 current account, StatCan 36-10-0014-01." },
+    ],
   },
   {
     /*
@@ -657,6 +702,14 @@ export const sections: Section[] = [
       body:
         "USDCAD closed May 8 at 1.369, up 0.4% on the week, per Bank of Canada noon rates. The 10y GoC yield closed at 3.53% on May 7, two basis points firmer. WTI rose to $109.76 by May 4, a 4.2% move that keeps crude above $100 for a second straight month; the TSX Composite closed near 34.1k, flat on the session.",
     },
+    abstractCitations: [
+      { phrase: "up 0.4% on the week", source: "derived", note: "USDCAD week-over-week change to May 8, 2026 close, per BoC Valet FXUSDCAD." },
+      { phrase: "10y GoC yield closed at 3.53% on May 7", source: "pipeline:boc:yield_10yr", note: "GoC 10y benchmark yield, May 7 2026 daily close." },
+      { phrase: "WTI rose to $109.76 by May 4", source: "pipeline:fred:DCOILWTICO", note: "WTI spot, May 4 2026 daily close." },
+      { phrase: "a 4.2% move", source: "derived", note: "WTI week-over-week change ending May 4 2026, FRED DCOILWTICO." },
+      { phrase: "above $100 for a second straight month", source: "pipeline:fred:DCOILWTICO", note: "Enumerated WTI daily closes: held above $100 in April and May 2026 to date." },
+      { phrase: "TSX Composite closed near 34.1k", source: "other:TMX Group S&P/TSX Composite Index close, May 8, 2026." },
+    ],
   },
 ];
 

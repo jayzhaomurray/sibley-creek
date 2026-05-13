@@ -1,6 +1,6 @@
 {
   "section": "labour",
-  "generatedAt": "2026-05-13T01:17:51.655093+00:00",
+  "generatedAt": "2026-05-13T02:54:04.218335+00:00",
   "panels": {
     "panel-1": {
       "panelNum": 1,
@@ -3908,9 +3908,9 @@
     },
     "panel-2": {
       "panelNum": 2,
-      "file": "labour/Panel2LabourStocks.astro",
+      "file": "labour/Panel2LabourStocksPerCapita.astro",
       "expectedStatus": "WIRED",
-      "notes": "Three-stocks plate (2026-05-12). Replaces the indexed-wedge V3 (archived at _alternatives/labour/Alt_Panel2URDriversIndexedWedge.astro) -- that geometry did not land. Three side-by-side line panels of the labour-force stocks: employed, unemployed, not-in-labour-force. 60-month window, shared x-axis, per-panel y-axes (the magnitudes differ by an order of magnitude). Primary = employment_level (StatCan v2062811, SA monthly, millions); secondary = unemployment_level (v2062814, SA monthly, millions); tertiary = employment_rate (v2062817, SA monthly, %). Not-in-labour-force is derived at render time via the LFS identity: pop_15+ = employment_level / (employment_rate / 100); NLF = pop_15+ - employment_level - unemployment_level. No pipeline-tier derivation -- identity is exact to the rounding of the published rates and uses series already on disk.",
+      "notes": "Three-stocks-per-capita plate. Same data inputs as the prior Panel2LabourStocks; chart deflates each level by pop_15+ to render shares of working-age population. The three shares sum to 100%. Employed share equals the published employment rate directly; unemployed share = unemp / pop_15+; NILF share = 100 - emp_share - unemp_share.",
       "primary": {
         "key": "employment_level",
         "label": "Employment level (SA, monthly, millions)",
@@ -5861,7 +5861,7 @@
       },
       "tertiary": {
         "key": "employment_rate",
-        "label": "Employment rate (SA, monthly, %); denominator for derived pop_15+",
+        "label": "Employment rate (SA, monthly, %); back-derives pop_15+",
         "tier": "raw",
         "data": [
           {

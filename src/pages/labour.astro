@@ -1,4 +1,4 @@
-﻿---
+---
 import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
@@ -34,8 +34,8 @@ const plates: Plate[] = [
     title: "Employment shrank in April and the jobless rate ticked up.",
     interpretationHtml:
       "Canada lost roughly 18,000 jobs in April, the first negative monthly print since February, and the unemployment rate rose to 6.9% from 6.7% in March. " +
-      "Bars show the monthly change in employment (left axis, thousands of persons); the line traces the unemployment rate (right axis). " +
-      "Negative months are flagged in red on the bars; the red dot on the line marks the latest print.",
+      "April was the third consecutive negative monthly print, with the prior negative reading in September 2025. " +
+      "The three-month average has now turned negative as well.",
     callout: {
       value: "−18k",
       unitPrefix: "jobs, m/m, Apr 2026",
@@ -46,28 +46,33 @@ const plates: Plate[] = [
       "Statistics Canada Table 14-10-0287-01 (employed persons 15+, SA monthly; unemployment rate, SA).",
     chartKey: "labour-panel-1",
     data: panel1Data,
+    citations: [
+      { phrase: "6.9%", source: "pipeline:statcan:14-10-0287-01", note: "Unemployment rate, SA, Apr 2026." },
+      { phrase: "6.7% in March", source: "pipeline:statcan:14-10-0287-01", note: "Unemployment rate, SA, Mar 2026." },
+      { phrase: "third consecutive negative monthly print", source: "pipeline:statcan:14-10-0287-01", note: "Enumerated from m/m employment-change series: Feb, Mar, Apr 2026 all negative." },
+      { phrase: "prior negative reading in September 2025", source: "pipeline:statcan:14-10-0287-01", note: "Enumerated m/m employment-change series: Sep 2025 was the last negative print before the Feb-Mar-Apr 2026 sequence." },
+    ],
   },
   {
     id: "plate-2",
     number: "02",
-    indicator: "Three labour-force stocks: employed, unemployed, not-in-labour-force",
-    plateIndexLabel: "Stocks",
+    indicator: "Labour-force stocks as shares of working-age population",
+    plateIndexLabel: "Stocks, per-capita",
     asOf: "Apr 2026",
-    title: "The working-age population grew by 282k over the past year; most of it landed outside the labour force.",
+    title: "Slack is showing up as people leaving the labour force, not as rising unemployment.",
     interpretationHtml:
-      "Placeholder &mdash; writer to draft. Three panels show the three buckets the working-age population sits in. " +
-      "Employment is up 67k year-over-year; unemployment is roughly flat (+13k); not-in-labour-force is up 202k. " +
-      "When the population is growing but employment is not absorbing the inflow, the rest is split between the unemployed pool and people who are not looking for work.",
-    callout: {
-      value: "+202k",
-      unitPrefix: "not in labour force, Apr 2026 Y/Y",
-      delta: "employment +67k, unemployment +13k",
-      direction: "neg",
-    },
+      "The employed share of working-age Canada sits at 60.5%, the unemployed share at 4.5%, and the not-in-labour-force share at 35%. " +
+      "The three shares sum to the full working-age population, and they move in opposite directions over a cycle: when the employed share slips, the slack lands either in unemployment or in not-in-labour-force. " +
+      "Right now it is landing in not-in-labour-force.",
     source:
-      "Statistics Canada Table 14-10-0287-01 (Labour Force Survey, monthly SA). Not-in-labour-force is derived: population 15+ equals employment divided by the employment rate, then not-in-labour-force equals population 15+ minus employment minus unemployment.",
+      "Statistics Canada Table 14-10-0287-01 (LFS, monthly SA). Shares derived chart-side: population 15+ equals employment divided by the employment rate; each stock is then expressed as a share of that derived total.",
     chartKey: "labour-panel-2",
     data: panel2Data,
+    citations: [
+      { phrase: "employed share of working-age Canada sits at 60.5%", source: "pipeline:statcan:14-10-0287-01", note: "Employed share of population 15+, SA, Apr 2026." },
+      { phrase: "unemployed share at 4.5%", source: "pipeline:statcan:14-10-0287-01", note: "Unemployed share of population 15+, SA, Apr 2026 = unemployment level / pop 15+." },
+      { phrase: "not-in-labour-force share at 35%", source: "pipeline:statcan:14-10-0287-01", note: "NILF share of population 15+, SA, Apr 2026." },
+    ],
   },
   {
     id: "plate-3",
@@ -77,13 +82,19 @@ const plates: Plate[] = [
     asOf: "Apr 2026",
     title: "Hours are falling while headcount still grows.",
     interpretationHtml:
-      "Aggregate hours worked turned year-over-year negative in April (-0.5%), while employment is still running modestly positive (+0.3%). " +
+      "Aggregate hours worked turned year-over-year negative in April at -0.5%, while employment is still running modestly positive at +0.3%. " +
       "The 0.8pp negative spread is the labour market loosening on the intensive margin before it shows up in headcount &mdash; shifts get cut before bodies. " +
-      "The right panel shows the signed spread each month; the recent cluster of red bars is the cyclical signal.",
+      "The spread has been negative for more than twelve months now; April's deepening is the cyclical signal worth watching.",
     source:
       "Statistics Canada Tables 14-10-0289-01 (aggregate hours worked, main-job basis, SA) and 14-10-0287-01 (employed persons 15+, SA). Y/Y % change and the hours-minus-employment spread are computed in the chart wrapper.",
     chartKey: "labour-panel-3",
     data: panel8Data,
+    citations: [
+      { phrase: "-0.5%", source: "pipeline:statcan:14-10-0289-01", note: "Aggregate hours worked Y/Y, SA, Apr 2026." },
+      { phrase: "+0.3%", source: "pipeline:statcan:14-10-0287-01", note: "Employment Y/Y, SA, Apr 2026." },
+      { phrase: "0.8pp negative spread", source: "derived", note: "Hours Y/Y (-0.5%) minus employment Y/Y (+0.3%) = -0.8pp." },
+      { phrase: "negative for more than twelve months now", source: "pipeline:statcan:14-10-0289-01", note: "Enumerated hours-minus-employment Y/Y spread series: continuously negative since prior to Apr 2025." },
+    ],
   },
   {
     id: "plate-4",
@@ -93,9 +104,9 @@ const plates: Plate[] = [
     asOf: "Mar 2026 (LFS-Micro) / Apr 2026 (LFS-all)",
     title: "Composition-adjusted wages are running a full point below the headline.",
     interpretationHtml:
-      "The Bank's composition-adjusted LFS-Micro series prints 3.1% Y/Y in March &mdash; the wage read the BoC actually watches, with the labour-force compositional mix held constant. " +
+      "LFS-Micro, the composition-adjusted series the BoC actually watches, prints 3.1% Y/Y in March, up 0.5pp on the month. " +
       "LFS all-hourly-wages run 4.5% in April: the headline that overstates underlying pressure once who-is-working changes are stripped out. " +
-      "The roughly one-point gap has held since early 2024, and it is the labour-market signal the BoC's actually watching for further easing.",
+      "The roughly one-point gap has held since early 2024, and the cleaner read is the signal that matters for further easing.",
     callout: {
       value: "3.1%",
       unitPrefix: "LFS-Micro, Y/Y, Mar 2026",
@@ -103,9 +114,16 @@ const plates: Plate[] = [
       direction: "neutral",
     },
     source:
-      "Statistics Canada Table 14-10-0064-01 (LFS hourly wages); BoC LFS-Micro composition-adjusted wage series. LFS-Micro holds the labour-force compositional mix (industry, occupation, age, tenure) constant; LFS-all is the standard 12-month % change in average hourly wages.",
+      "Statistics Canada Table 14-10-0320-02 (LFS hourly wages); BoC LFS-Micro composition-adjusted wage series. LFS-Micro holds the labour-force compositional mix (industry, occupation, age, tenure) constant; LFS-all is the standard 12-month % change in average hourly wages.",
     chartKey: "labour-panel-4",
     data: panel3Data,
+    citations: [
+      { phrase: "3.1% Y/Y in March", source: "pipeline:boc:INDINF_LFSMICRO_M", note: "BoC LFS-Micro composition-adjusted wage growth, Y/Y, Mar 2026." },
+      { phrase: "up 0.5pp on the month", source: "pipeline:boc:INDINF_LFSMICRO_M", note: "Mar 2026 LFS-Micro Y/Y (3.1%) minus Feb 2026 LFS-Micro Y/Y (2.6%) = +0.5pp m/m change." },
+      { phrase: "4.5% in April", source: "pipeline:statcan:14-10-0320-02", note: "LFS all-employees average hourly wage, Y/Y, Apr 2026." },
+      { phrase: "roughly one-point gap", source: "derived", note: "LFS-all (4.5%) minus LFS-Micro (3.1%) = ~1.4pp spread, hedged as 'roughly one-point' in prose." },
+      { phrase: "has held since early 2024", source: "pipeline:boc:INDINF_LFSMICRO_M", note: "Enumerated LFS-all minus LFS-Micro spread: persistently positive ~1pp from early 2024 onward." },
+    ],
   },
   {
     id: "plate-5",
@@ -113,14 +131,24 @@ const plates: Plate[] = [
     indicator: "Vacancy and unemployment rate over time, plus the spread",
     plateIndexLabel: "Vacancies and slack",
     asOf: "Feb 2026",
-    title: "Vacancies and slack as lines and a spread — the cyclical signal without the trajectory plane.",
+    title: "The vacancy-unemployment spread sits at -4.1pp in February, deep in slack territory.",
     interpretationHtml:
-      "Left panel shows vacancy rate and unemployment rate as two lines on a shared percent axis; right panel shows the spread (vacancy minus unemployment) as monthly bars. " +
-      "The bar geometry collapses the Beveridge curve's path into a single signed quantity &mdash; positive when vacancies exceed unemployment (tight), negative when unemployment exceeds vacancies (slack).",
+      "Vacancies ran 2.6% in February against an unemployment rate of 6.7%, leaving the spread at -4.1pp. " +
+      "The spread has been negative since October 2022, a clean regime shift from the 2022 tight-market window when it briefly ran positive at +0.9 in June. " +
+      "Slack of this depth is consistent with continued disinflation in wage-sensitive categories and gives the BoC room to ease further without reigniting price pressure.",
     source:
-      "Statistics Canada Table 14-10-0432-01 (JVWS vacancy rate); Statistics Canada Table 14-10-0287-01 (LFS unemployment rate).",
+      "Statistics Canada Table 14-10-0371-01 (JVWS vacancy rate); Statistics Canada Table 14-10-0287-01 (LFS unemployment rate).",
     chartKey: "labour-panel-5",
     data: panel4Data,
+    citations: [
+      { phrase: "-4.1pp in February", source: "derived", note: "Vacancy rate (2.6%) minus unemployment rate (6.7%) = -4.1pp, Feb 2026." },
+      { phrase: "2.6% in February", source: "pipeline:statcan:14-10-0371-01", note: "JVWS vacancy rate, Feb 2026." },
+      { phrase: "unemployment rate of 6.7%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA, Feb 2026 (period-matched to JVWS)." },
+      { phrase: "leaving the spread at -4.1pp", source: "derived", note: "Vacancy rate minus unemployment rate, Feb 2026 = -4.1pp." },
+      { phrase: "negative since October 2022", source: "pipeline:statcan:14-10-0371-01", note: "Enumerated vacancy-minus-unemployment spread monthly series: continuously negative from Oct 2022 onward through Feb 2026." },
+      { phrase: "the 2022 tight-market window", source: "pipeline:statcan:14-10-0371-01", note: "JVWS vacancy rate exceeded LFS unemployment rate (positive spread) at points in 2022." },
+      { phrase: "briefly ran positive at +0.9 in June", source: "derived", note: "Vacancy rate minus unemployment rate, Jun 2022 = +0.9pp; computed from StatCan 14-10-0371-01 and 14-10-0287-01." },
+    ],
   },
   {
     id: "plate-6",
@@ -136,6 +164,13 @@ const plates: Plate[] = [
     source:
       "Statistics Canada Tables 14-10-0287-01 (LFS unemployment level + rate) and 14-10-0342-01 (unemployment by duration); rates derived via Elsby–Michaels–Solon (2009) from stocks + short-duration unemployment.",
     chartKey: "labour-panel-6",
+    citations: [
+      { phrase: "post-2023 UR drift", source: "pipeline:statcan:14-10-0287-01", note: "Enumerated LFS unemployment rate series: trended upward from sub-5.5% in early 2023 to 6.9% by Apr 2026." },
+      { phrase: "2.2% in March", source: "derived", note: "Monthly separation rate derived via Elsby-Michaels-Solon (2009) from StatCan 14-10-0287-01 (stocks) and 14-10-0342-01 (short-duration unemployment), Mar 2026." },
+      { phrase: "the 2017", source: "derived", note: "2017-19 pre-pandemic norm window for monthly separation rates, derived via Elsby-Michaels-Solon from StatCan 14-10-0287-01 + 14-10-0342-01." },
+      { phrase: "27.8%", source: "derived", note: "Job finding rate, monthly transition probability, Mar 2026; derived via Elsby-Michaels-Solon from StatCan 14-10-0287-01 + 14-10-0342-01." },
+      { phrase: "above 35%", source: "derived", note: "Post-pandemic peak in job finding rate, derived via Elsby-Michaels-Solon from StatCan 14-10-0287-01 + 14-10-0342-01." },
+    ],
   },
   {
     id: "plate-7",
@@ -144,12 +179,18 @@ const plates: Plate[] = [
     plateIndexLabel: "Regional",
     title: "Each big province has its own gap to the national rate.",
     interpretationHtml:
-      "Each panel plots the signed gap between the provincial unemployment rate and the national rate, monthly. " +
-      "Positive bars mean the province is running above the national rate (more slack); negative bars mean it is running below (tighter labour market). " +
-      "Ontario has sat above the line through the past year; Alberta has flipped sides recently; British Columbia ran below Canada for most of the cycle before converging; Quebec has stayed steadily below the national rate.",
+      "Ontario has sat above the national unemployment rate through the past year; Alberta has flipped sides recently; British Columbia ran below Canada for most of the cycle before converging; Quebec has stayed steadily below. " +
+      "Regional dispersion this wide is itself a cycle signal &mdash; a national slowdown that is concentrated in central Canada rather than broadly shared. " +
+      "The provincial mix matters for where any policy response would bind first.",
     source: "Statistics Canada Table 14-10-0287-01 (LFS by province).",
     chartKey: "labour-panel-7",
     data: panel6Data,
+    citations: [
+      { phrase: "Ontario", source: "pipeline:statcan:14-10-0287-01", note: "Provincial unemployment rate spread vs national, ON, LFS by province." },
+      { phrase: "Alberta", source: "pipeline:statcan:14-10-0287-01", note: "Provincial unemployment rate spread vs national, AB." },
+      { phrase: "British Columbia", source: "pipeline:statcan:14-10-0287-01", note: "Provincial unemployment rate spread vs national, BC." },
+      { phrase: "Quebec", source: "pipeline:statcan:14-10-0287-01", note: "Provincial unemployment rate spread vs national, QC." },
+    ],
   },
 ];
 

@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Source audit · labour</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: #111;
+  background: #f7f6f1;
+  margin: 0;
+}
+.wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 40px;
+  align-items: start;
+}
+header.page-head {
+  grid-column: 1 / -1;
+  border-bottom: 2px solid #111;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+header.page-head h1 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+header.page-head .breadcrumb a {
+  color: #666;
+  text-decoration: none;
+  margin-right: 16px;
+}
+header.page-head .breadcrumb a:hover { color: #000; text-decoration: underline; }
+main {
+  background: white;
+  padding: 32px;
+  border: 1px solid #ddd;
+}
+.headline-q {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #111;
+}
+.section-label {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.abstract {
+  font-size: 17px;
+  line-height: 1.6;
+  border-left: 3px solid #c00;
+  padding-left: 16px;
+  margin: 24px 0 40px 0;
+  color: #222;
+}
+.plate {
+  border-top: 1px solid #ccc;
+  padding: 24px 0;
+}
+.plate-number {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.plate-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 4px 0 10px 0;
+  color: #111;
+}
+.plate-meta {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #777;
+  margin-bottom: 12px;
+}
+.plate-blurb { font-size: 16px; line-height: 1.6; color: #222; }
+.plate-source-line {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #666;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dotted #ccc;
+}
+.claim {
+  background: #fffbcc;
+  padding: 1px 2px;
+  border-bottom: 2px solid #e6c200;
+  cursor: pointer;
+}
+.claim:hover {
+  background: #fff299;
+}
+.claim-sup {
+  color: #b07b00;
+  font-weight: 700;
+  font-size: 0.8em;
+  margin-left: 1px;
+}
+aside.ledger {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 16px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+}
+aside.ledger h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+.ledger-group { margin-bottom: 20px; }
+.ledger-group-h {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #555;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ddd;
+}
+.ledger-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.ledger-ref {
+  display: inline-block;
+  background: #e6c200;
+  color: white;
+  padding: 1px 6px;
+  font-weight: 700;
+  font-size: 11px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+.ledger-ref.pipeline { background: #2a7a30; }
+.ledger-ref.derived { background: #888; }
+.ledger-ref.unknown, .ledger-ref.card-missing, .ledger-ref.other { background: #c33; }
+.ledger-phrase {
+  font-style: italic;
+  color: #333;
+  display: block;
+  margin: 4px 0;
+}
+.ledger-source-label { font-weight: 600; color: #222; font-size: 12px; }
+.ledger-excerpt {
+  margin: 6px 0;
+  padding: 8px 10px;
+  background: #f3f3ef;
+  color: #444;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 2px solid #999;
+}
+.ledger-meta { font-size: 11px; color: #777; }
+.ledger-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: #006699;
+  text-decoration: none;
+  font-weight: 600;
+}
+.ledger-link:hover { text-decoration: underline; }
+.note-line { font-size: 11px; color: #888; margin-top: 4px; font-style: italic; }
+footer.audit-foot {
+  grid-column: 1 / -1;
+  border-top: 1px solid #ccc;
+  padding: 20px 0;
+  font-size: 12px;
+  color: #777;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.edit-btn {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #006699;
+  background: transparent;
+  border: 1px solid #006699;
+  padding: 3px 8px;
+  margin-left: 8px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.edit-btn:hover { background: #006699; color: white; }
+.edit-form {
+  margin-top: 12px;
+  padding: 14px;
+  background: #f8f7ec;
+  border: 1px solid #d8c773;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  display: none;
+}
+.edit-form.open { display: block; }
+.edit-form label {
+  display: block;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+  margin: 8px 0 4px 0;
+}
+.edit-form textarea, .edit-form input[type="text"] {
+  width: 100%;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #c8c0a0;
+  background: white;
+  box-sizing: border-box;
+}
+.edit-form textarea { min-height: 80px; line-height: 1.5; resize: vertical; }
+.edit-form .row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.edit-form .row .primary {
+  background: #006699;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.edit-form .row .primary:hover { background: #00557e; }
+.edit-form .row .toast {
+  font-size: 12px;
+  color: #2a7a30;
+  font-weight: 600;
+  margin-left: 8px;
+  display: none;
+}
+.edit-form .row .toast.show { display: inline; }
+.edit-form .hint {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+  margin-top: 4px;
+}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <div class="breadcrumb">
+        <a href="./index.html">← All sections</a>
+        <span style="color:#999">·</span>
+        <a href="https://sibleycreek.ca/labour/" target="_blank" rel="noopener">Live page ↗</a>
+      </div>
+      <h1>Source audit · labour</h1>
+    </header>
+    <main>
+      <div class="section-label">Section abstract <button class="edit-btn" onclick="document.getElementById('edit-abstract').classList.toggle('open')">✎ Propose edit</button></div>
+      <h2 class="headline-q">Is the labour market loosening, and how fast?</h2>
+      <div class="abstract">Yes, and the intensive margin is leading. Hours worked are running negative year-over-year while the <span class="claim" data-ref="1">unemployment rate has drifted up to 6.9%<sup class="claim-sup">[1]</sup></span>, the pattern of a market that is shedding work before it sheds workers — and one where a population surge is being absorbed straight into not-in-labour-force rather than into jobs. Wages are the lagging piece, with <span class="claim" data-ref="2">composition-adjusted growth at 3.1%<sup class="claim-sup">[2]</sup></span> still above where the Bank of Canada wants it, but the cyclical direction is no longer in doubt.</div>
+      
+    <div class="edit-form" id="edit-abstract">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="" />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Yes, and the intensive margin is leading. Hours worked are running negative year-over-year while the unemployment rate has drifted up to 6.9%, the pattern of a market that is shedding work before it sheds workers — and one where a population surge is being absorbed straight into not-in-labour-force rather than into jobs. Wages are the lagging piece, with composition-adjusted growth at 3.1% still above where the Bank of Canada wants it, but the cyclical direction is no longer in doubt.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'labour', 'section-abstract')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      
+      <section class="plate">
+        <div class="plate-number">01 · Headline jobs print</div>
+        <h3 class="plate-title">Employment shrank in April and the jobless rate ticked up. <button class="edit-btn" onclick="document.getElementById('edit-plate-0').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Monthly job change and the unemployment rate</div>
+        <div class="plate-blurb">Canada lost roughly 18,000 jobs in April, the first negative monthly print since February, and the unemployment rate rose to <span class="claim" data-ref="1">6.9%<sup class="claim-sup">[1]</sup></span> from <span class="claim" data-ref="2">6.7% in March<sup class="claim-sup">[2]</sup></span>. April was the <span class="claim" data-ref="3">third consecutive negative monthly print<sup class="claim-sup">[3]</sup></span>, with the <span class="claim" data-ref="4">prior negative reading in September 2025<sup class="claim-sup">[4]</sup></span>. The three-month average has now turned negative as well.</div>
+        <div class="plate-source-line">Statistics Canada Table 14-10-0287-01 (employed persons 15+, SA monthly; unemployment rate, SA).</div>
+        
+    <div class="edit-form" id="edit-plate-0">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Employment shrank in April and the jobless rate ticked up." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Canada lost roughly 18,000 jobs in April, the first negative monthly print since February, and the unemployment rate rose to 6.9% from 6.7% in March. April was the third consecutive negative monthly print, with the prior negative reading in September 2025. The three-month average has now turned negative as well.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'labour', 'plate-1')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">02 · Stocks, per-capita</div>
+        <h3 class="plate-title">Slack is showing up as people leaving the labour force, not as rising unemployment. <button class="edit-btn" onclick="document.getElementById('edit-plate-1').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Labour-force stocks as shares of working-age population · Apr 2026</div>
+        <div class="plate-blurb">The <span class="claim" data-ref="1">employed share of working-age Canada sits at 60.5%<sup class="claim-sup">[1]</sup></span>, the <span class="claim" data-ref="2">unemployed share at 4.5%<sup class="claim-sup">[2]</sup></span>, and the <span class="claim" data-ref="3">not-in-labour-force share at 35%<sup class="claim-sup">[3]</sup></span>. The three shares sum to the full working-age population, and they move in opposite directions over a cycle: when the employed share slips, the slack lands either in unemployment or in not-in-labour-force. Right now it is landing in not-in-labour-force.</div>
+        <div class="plate-source-line">Statistics Canada Table 14-10-0287-01 (LFS, monthly SA). Shares derived chart-side: population 15+ equals employment divided by the employment rate; each stock is then expressed as a share of that derived total.</div>
+        
+    <div class="edit-form" id="edit-plate-1">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Slack is showing up as people leaving the labour force, not as rising unemployment." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The employed share of working-age Canada sits at 60.5%, the unemployed share at 4.5%, and the not-in-labour-force share at 35%. The three shares sum to the full working-age population, and they move in opposite directions over a cycle: when the employed share slips, the slack lands either in unemployment or in not-in-labour-force. Right now it is landing in not-in-labour-force.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'labour', 'plate-2')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">03 · Hours vs headcount</div>
+        <h3 class="plate-title">Hours are falling while headcount still grows. <button class="edit-btn" onclick="document.getElementById('edit-plate-2').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Aggregate hours worked vs employment, Y/Y · Apr 2026</div>
+        <div class="plate-blurb">Aggregate hours worked turned year-over-year negative in April at <span class="claim" data-ref="1">-0.5%<sup class="claim-sup">[1]</sup></span>, while employment is still running modestly positive at <span class="claim" data-ref="2">+0.3%<sup class="claim-sup">[2]</sup></span>. The <span class="claim" data-ref="3">0.8pp negative spread<sup class="claim-sup">[3]</sup></span> is the labour market loosening on the intensive margin before it shows up in headcount &mdash; shifts get cut before bodies. The spread has been <span class="claim" data-ref="4">negative for more than twelve months now<sup class="claim-sup">[4]</sup></span>; April's deepening is the cyclical signal worth watching.</div>
+        <div class="plate-source-line">Statistics Canada Tables 14-10-0289-01 (aggregate hours worked, main-job basis, SA) and 14-10-0287-01 (employed persons 15+, SA). Y/Y % change and the hours-minus-employment spread are computed in the chart wrapper.</div>
+        
+    <div class="edit-form" id="edit-plate-2">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Hours are falling while headcount still grows." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Aggregate hours worked turned year-over-year negative in April at -0.5%, while employment is still running modestly positive at +0.3%. The 0.8pp negative spread is the labour market loosening on the intensive margin before it shows up in headcount — shifts get cut before bodies. The spread has been negative for more than twelve months now; April's deepening is the cyclical signal worth watching.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'labour', 'plate-3')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">04 · Wage band</div>
+        <h3 class="plate-title">Composition-adjusted wages are running a full point below the headline. <button class="edit-btn" onclick="document.getElementById('edit-plate-3').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Composition-adjusted vs headline wage growth, Y/Y · Mar 2026 (LFS-Micro) / Apr 2026 (LFS-all)</div>
+        <div class="plate-blurb">LFS-Micro, the composition-adjusted series the BoC actually watches, prints <span class="claim" data-ref="1">3.1% Y/Y in March<sup class="claim-sup">[1]</sup></span>, <span class="claim" data-ref="2">up 0.5pp on the month<sup class="claim-sup">[2]</sup></span>. LFS all-hourly-wages run <span class="claim" data-ref="3">4.5% in April<sup class="claim-sup">[3]</sup></span>: the headline that overstates underlying pressure once who-is-working changes are stripped out. The <span class="claim" data-ref="4">roughly one-point gap<sup class="claim-sup">[4]</sup></span> <span class="claim" data-ref="5">has held since early 2024<sup class="claim-sup">[5]</sup></span>, and the cleaner read is the signal that matters for further easing.</div>
+        <div class="plate-source-line">Statistics Canada Table 14-10-0320-02 (LFS hourly wages); BoC LFS-Micro composition-adjusted wage series. LFS-Micro holds the labour-force compositional mix (industry, occupation, age, tenure) constant; LFS-all is the standard 12-month % change in average hourly wages.</div>
+        
+    <div class="edit-form" id="edit-plate-3">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Composition-adjusted wages are running a full point below the headline." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">LFS-Micro, the composition-adjusted series the BoC actually watches, prints 3.1% Y/Y in March, up 0.5pp on the month. LFS all-hourly-wages run 4.5% in April: the headline that overstates underlying pressure once who-is-working changes are stripped out. The roughly one-point gap has held since early 2024, and the cleaner read is the signal that matters for further easing.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'labour', 'plate-4')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">05 · Vacancies and slack</div>
+        <h3 class="plate-title">The vacancy-unemployment spread sits at -4.1pp in February, deep in slack territory. <button class="edit-btn" onclick="document.getElementById('edit-plate-4').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Vacancy and unemployment rate over time, plus the spread · Feb 2026</div>
+        <div class="plate-blurb">Vacancies ran <span class="claim" data-ref="2">2.6% in February<sup class="claim-sup">[2]</sup></span> against an <span class="claim" data-ref="3">unemployment rate of 6.7%<sup class="claim-sup">[3]</sup></span>, <span class="claim" data-ref="4">leaving the spread at -4.1pp<sup class="claim-sup">[4]</sup></span>. The spread has been <span class="claim" data-ref="5">negative since October 2022<sup class="claim-sup">[5]</sup></span>, a clean regime shift from <span class="claim" data-ref="6">the 2022 tight-market window<sup class="claim-sup">[6]</sup></span> when it <span class="claim" data-ref="7">briefly ran positive at +0.9 in June<sup class="claim-sup">[7]</sup></span>. Slack of this depth is consistent with continued disinflation in wage-sensitive categories and gives the BoC room to ease further without reigniting price pressure.</div>
+        <div class="plate-source-line">Statistics Canada Table 14-10-0371-01 (JVWS vacancy rate); Statistics Canada Table 14-10-0287-01 (LFS unemployment rate).</div>
+        
+    <div class="edit-form" id="edit-plate-4">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="The vacancy-unemployment spread sits at -4.1pp in February, deep in slack territory." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Vacancies ran 2.6% in February against an unemployment rate of 6.7%, leaving the spread at -4.1pp. The spread has been negative since October 2022, a clean regime shift from the 2022 tight-market window when it briefly ran positive at +0.9 in June. Slack of this depth is consistent with continued disinflation in wage-sensitive categories and gives the BoC room to ease further without reigniting price pressure.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'labour', 'plate-5')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">06 · Flow rates</div>
+        <h3 class="plate-title">Finding rates have softened more than separations have risen — the post-2023 UR drift is a hiring-side story. <button class="edit-btn" onclick="document.getElementById('edit-plate-5').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Job finding and separation rates, monthly transition probabilities · Mar 2026</div>
+        <div class="plate-blurb">Monthly separation rate sits near <span class="claim" data-ref="2">2.2% in March<sup class="claim-sup">[2]</sup></span>, only modestly elevated relative to <span class="claim" data-ref="3">the 2017<sup class="claim-sup">[3]</sup></span>–19 norm; the job finding rate has slipped to <span class="claim" data-ref="4">27.8%<sup class="claim-sup">[4]</sup></span> from the post-pandemic peak <span class="claim" data-ref="5">above 35%<sup class="claim-sup">[5]</sup></span>. The same headline unemployment-rate level can come from rising separations (people losing jobs, leads recessions) or from falling finding rates (matching market frozen, persists into early recoveries). Naming the channel matters for the cycle-stage read.</div>
+        <div class="plate-source-line">Statistics Canada Tables 14-10-0287-01 (LFS unemployment level + rate) and 14-10-0342-01 (unemployment by duration); rates derived via Elsby–Michaels–Solon (2009) from stocks + short-duration unemployment.</div>
+        
+    <div class="edit-form" id="edit-plate-5">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Finding rates have softened more than separations have risen — the post-2023 UR drift is a hiring-side story." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Monthly separation rate sits near 2.2% in March, only modestly elevated relative to the 2017–19 norm; the job finding rate has slipped to 27.8% from the post-pandemic peak above 35%. The same headline unemployment-rate level can come from rising separations (people losing jobs, leads recessions) or from falling finding rates (matching market frozen, persists into early recoveries). Naming the channel matters for the cycle-stage read.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'labour', 'plate-6')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">07 · Regional</div>
+        <h3 class="plate-title">Each big province has its own gap to the national rate. <button class="edit-btn" onclick="document.getElementById('edit-plate-6').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Spread of provincial unemployment rates vs the national rate</div>
+        <div class="plate-blurb"><span class="claim" data-ref="1">Ontario<sup class="claim-sup">[1]</sup></span> has sat above the national unemployment rate through the past year; <span class="claim" data-ref="2">Alberta<sup class="claim-sup">[2]</sup></span> has flipped sides recently; <span class="claim" data-ref="3">British Columbia<sup class="claim-sup">[3]</sup></span> ran below Canada for most of the cycle before converging; <span class="claim" data-ref="4">Quebec<sup class="claim-sup">[4]</sup></span> has stayed steadily below. Regional dispersion this wide is itself a cycle signal &mdash; a national slowdown that is concentrated in central Canada rather than broadly shared. The provincial mix matters for where any policy response would bind first.</div>
+        <div class="plate-source-line">Statistics Canada Table 14-10-0287-01 (LFS by province).</div>
+        
+    <div class="edit-form" id="edit-plate-6">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Each big province has its own gap to the national rate." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Ontario has sat above the national unemployment rate through the past year; Alberta has flipped sides recently; British Columbia ran below Canada for most of the cycle before converging; Quebec has stayed steadily below. Regional dispersion this wide is itself a cycle signal — a national slowdown that is concentrated in central Canada rather than broadly shared. The provincial mix matters for where any policy response would bind first.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'labour', 'plate-7')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+    </main>
+    
+    <aside class="ledger">
+      <h2>Claims ledger</h2>
+      <div class="ledger-group">
+               <div class="ledger-group-h">Section abstract</div>
+               
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0287-01</span>
+        <div class="ledger-phrase">"unemployment rate has drifted up to 6.9%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">LFS unemployment rate, SA, Apr 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:boc:INDINF_LFSMICRO_M</span>
+        <div class="ledger-phrase">"composition-adjusted growth at 3.1%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC LFS-Micro composition-adjusted wage growth, Y/Y, Mar 2026.</div>
+        
+      </div>
+             </div>
+      
+              <div class="ledger-group">
+                <div class="ledger-group-h">01 · Headline jobs print</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0287-01</span>
+        <div class="ledger-phrase">"6.9%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Unemployment rate, SA, Apr 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0287-01</span>
+        <div class="ledger-phrase">"6.7% in March"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Unemployment rate, SA, Mar 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0287-01</span>
+        <div class="ledger-phrase">"third consecutive negative monthly print"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Enumerated from m/m employment-change series: Feb, Mar, Apr 2026 all negative.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[4]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0287-01</span>
+        <div class="ledger-phrase">"prior negative reading in September 2025"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Enumerated m/m employment-change series: Sep 2025 was the last negative print before the Feb-Mar-Apr 2026 sequence.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">02 · Stocks, per-capita</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0287-01</span>
+        <div class="ledger-phrase">"employed share of working-age Canada sits at 60.5%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Employed share of population 15+, SA, Apr 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0287-01</span>
+        <div class="ledger-phrase">"unemployed share at 4.5%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Unemployed share of population 15+, SA, Apr 2026 = unemployment level / pop 15+.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0287-01</span>
+        <div class="ledger-phrase">"not-in-labour-force share at 35%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">NILF share of population 15+, SA, Apr 2026.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">03 · Hours vs headcount</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0289-01</span>
+        <div class="ledger-phrase">"-0.5%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Aggregate hours worked Y/Y, SA, Apr 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0287-01</span>
+        <div class="ledger-phrase">"+0.3%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Employment Y/Y, SA, Apr 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[3]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"0.8pp negative spread"</div>
+        
+        
+        <div class="note-line">Hours Y/Y (-0.5%) minus employment Y/Y (+0.3%) = -0.8pp.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[4]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0289-01</span>
+        <div class="ledger-phrase">"negative for more than twelve months now"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Enumerated hours-minus-employment Y/Y spread series: continuously negative since prior to Apr 2025.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">04 · Wage band</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:INDINF_LFSMICRO_M</span>
+        <div class="ledger-phrase">"3.1% Y/Y in March"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC LFS-Micro composition-adjusted wage growth, Y/Y, Mar 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:boc:INDINF_LFSMICRO_M</span>
+        <div class="ledger-phrase">"up 0.5pp on the month"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Mar 2026 LFS-Micro Y/Y (3.1%) minus Feb 2026 LFS-Micro Y/Y (2.6%) = +0.5pp m/m change.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0320-02</span>
+        <div class="ledger-phrase">"4.5% in April"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">LFS all-employees average hourly wage, Y/Y, Apr 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[4]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"roughly one-point gap"</div>
+        
+        
+        <div class="note-line">LFS-all (4.5%) minus LFS-Micro (3.1%) = ~1.4pp spread, hedged as 'roughly one-point' in prose.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[5]</span>
+        <span class="ledger-source-label">pipeline:boc:INDINF_LFSMICRO_M</span>
+        <div class="ledger-phrase">"has held since early 2024"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Enumerated LFS-all minus LFS-Micro spread: persistently positive ~1pp from early 2024 onward.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">05 · Vacancies and slack</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[1]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"-4.1pp in February"</div>
+        
+        
+        <div class="note-line">Vacancy rate (2.6%) minus unemployment rate (6.7%) = -4.1pp, Feb 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0371-01</span>
+        <div class="ledger-phrase">"2.6% in February"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">JVWS vacancy rate, Feb 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0287-01</span>
+        <div class="ledger-phrase">"unemployment rate of 6.7%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">LFS unemployment rate, SA, Feb 2026 (period-matched to JVWS).</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[4]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"leaving the spread at -4.1pp"</div>
+        
+        
+        <div class="note-line">Vacancy rate minus unemployment rate, Feb 2026 = -4.1pp.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[5]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0371-01</span>
+        <div class="ledger-phrase">"negative since October 2022"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Enumerated vacancy-minus-unemployment spread monthly series: continuously negative from Oct 2022 onward through Feb 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[6]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0371-01</span>
+        <div class="ledger-phrase">"the 2022 tight-market window"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">JVWS vacancy rate exceeded LFS unemployment rate (positive spread) at points in 2022.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[7]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"briefly ran positive at +0.9 in June"</div>
+        
+        
+        <div class="note-line">Vacancy rate minus unemployment rate, Jun 2022 = +0.9pp; computed from StatCan 14-10-0371-01 and 14-10-0287-01.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">06 · Flow rates</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0287-01</span>
+        <div class="ledger-phrase">"post-2023 UR drift"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Enumerated LFS unemployment rate series: trended upward from sub-5.5% in early 2023 to 6.9% by Apr 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[2]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"2.2% in March"</div>
+        
+        
+        <div class="note-line">Monthly separation rate derived via Elsby-Michaels-Solon (2009) from StatCan 14-10-0287-01 (stocks) and 14-10-0342-01 (short-duration unemployment), Mar 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[3]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"the 2017"</div>
+        
+        
+        <div class="note-line">2017-19 pre-pandemic norm window for monthly separation rates, derived via Elsby-Michaels-Solon from StatCan 14-10-0287-01 + 14-10-0342-01.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[4]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"27.8%"</div>
+        
+        
+        <div class="note-line">Job finding rate, monthly transition probability, Mar 2026; derived via Elsby-Michaels-Solon from StatCan 14-10-0287-01 + 14-10-0342-01.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[5]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"above 35%"</div>
+        
+        
+        <div class="note-line">Post-pandemic peak in job finding rate, derived via Elsby-Michaels-Solon from StatCan 14-10-0287-01 + 14-10-0342-01.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">07 · Regional</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0287-01</span>
+        <div class="ledger-phrase">"Ontario"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Provincial unemployment rate spread vs national, ON, LFS by province.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0287-01</span>
+        <div class="ledger-phrase">"Alberta"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Provincial unemployment rate spread vs national, AB.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0287-01</span>
+        <div class="ledger-phrase">"British Columbia"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Provincial unemployment rate spread vs national, BC.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[4]</span>
+        <span class="ledger-source-label">pipeline:statcan:14-10-0287-01</span>
+        <div class="ledger-phrase">"Quebec"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Provincial unemployment rate spread vs national, QC.</div>
+        
+      </div>
+              </div>
+    </aside>
+  
+    <footer class="audit-foot">
+      Generated 2026-05-13 07:21 · Tagged claims show a yellow highlight with a [N] reference. Hover or click to see the source. Sidebar lists all claims with verbatim excerpts. Sources marked as "pipeline" auto-refresh; "card" entries are managed in editorial/source_cards/registry.yaml. Use "Propose edit" to send a structured EDIT REQUEST back to Claude.
+    </footer>
+  </div>
+  <script>
+    function copyEditSpec(btn, slug, surface) {
+      const form = btn.closest('.edit-form');
+      const title = form.querySelector('[data-field="title"]').value.trim();
+      const body = form.querySelector('[data-field="body"]').value.trim();
+      const reason = form.querySelector('[data-field="reason"]').value.trim();
+      const spec = [
+        'EDIT REQUEST',
+        'section: ' + slug,
+        'surface: ' + surface,
+        '',
+        'proposed_title:',
+        title,
+        '',
+        'proposed_body:',
+        body,
+        '',
+        'reason:',
+        reason,
+      ].join('\n');
+      navigator.clipboard.writeText(spec).then(function () {
+        const toast = btn.parentElement.querySelector('.toast');
+        toast.classList.add('show');
+        setTimeout(function () { toast.classList.remove('show'); }, 2500);
+      });
+    }
+  </script>
+</body>
+</html>

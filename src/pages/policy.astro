@@ -1,4 +1,4 @@
-﻿---
+---
 import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
@@ -52,6 +52,12 @@ const plates: Plate[] = [
     source: "Bank of Canada rate decision and Monetary Policy Report, latest vintage.",
     chartKey: "policy-panel-1",
     data: panel1Data,
+    citations: [
+      { phrase: "2.25% on April 29", source: "pipeline:boc:V39079", note: "BoC overnight target rate, April 29 2026 FAD decision, via Valet V39079." },
+      { phrase: "fourth consecutive hold", source: "pipeline:boc:V39079", note: "Enumerated FAD sequence: Jan 29, Mar 12, Apr 16, Apr 29 holds following the Oct 29 2025 cut. Verify by enumeration on Valet V39079." },
+      { phrase: "25 bps cut to 2.25% on October 29, 2025", source: "pipeline:boc:V39079", note: "BoC overnight target stepped from 2.50% to 2.25% on Oct 29 2025 per Valet V39079 step history." },
+      { phrase: "2.25 to 3.25% nominal neutral range", source: "card:boc_mpr_neutral_range" },
+    ],
   },
   {
     id: "plate-2",
@@ -66,6 +72,11 @@ const plates: Plate[] = [
     source: "BoC Valet (rates); MPR market-implied curve, latest vintage.",
     chartKey: "policy-panel-2",
     data: panel2Data,
+    citations: [
+      { phrase: "2.94% on May 7", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, daily close May 7 2026, via BoC Valet." },
+      { phrase: "2.25% overnight target", source: "pipeline:boc:V39079", note: "BoC overnight target rate, current setting via Valet V39079." },
+      { phrase: "roughly 69 bps", source: "derived", note: "2.94% (GoC 2y) - 2.25% (overnight) = 0.69 pp = 69 bps." },
+    ],
   },
   {
     id: "plate-3",
@@ -86,6 +97,16 @@ const plates: Plate[] = [
     source: "BoC Valet (Canada 2y); FRED DGS2 (US 2y); distribution constructed.",
     chartKey: "policy-panel-3",
     data: panel3Data,
+    citations: [
+      { phrase: "GoC 2y at 2.94%", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, latest daily close, via BoC Valet." },
+      { phrase: "UST 2y at 3.92%", source: "pipeline:fred:DGS2", note: "US 2y Treasury constant-maturity yield, latest daily close, FRED DGS2." },
+      { phrase: "minus 98 bps", source: "derived", note: "2.94% (GoC 2y) - 3.92% (UST 2y) = -0.98 pp = -98 bps." },
+      { phrase: "daily data since 2001", source: "pipeline:fred:DGS2", note: "FRED DGS2 history begins June 1976; Canada 2y daily history via BoC Valet covers post-2001 window used for the distribution." },
+      { phrase: "5th percentile of the distribution", source: "derived", note: "Percentile constructed from daily (GoC 2y - UST 2y) series, 2001-01-01 through latest. -98 bps sits at ~5th percentile of that distribution." },
+      { phrase: "70 bps off the all-time minus 170 bps trough", source: "derived", note: "Distribution minimum reached -170 bps on Feb 3 2025; current -98 bps is ~72 bps off that floor." },
+      { phrase: "minus 170 bps trough reached on February 3, 2025", source: "derived", note: "Trough of (GoC 2y - UST 2y) daily spread series, Feb 3 2025. Sourced from pipeline yield_2yr and FRED DGS2." },
+      { phrase: "below 1.36", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close has held below 1.36 across spring 2026 per BoC Valet FXUSDCAD." },
+    ],
   },
   {
     id: "plate-4",
@@ -108,6 +129,12 @@ const plates: Plate[] = [
       "Bank of Canada weekly statement (assets and liabilities; formerly Schedule B2).",
     chartKey: "policy-panel-4",
     data: panel4Data,
+    citations: [
+      { phrase: "$154.6bn of $219.0bn in total assets", source: "pipeline:boc:boc_goc_bonds", note: "BoC weekly statement: GoC bonds = $154.6bn; total assets = $219.0bn; latest May 6 2026 vintage." },
+      { phrase: "about 71 per cent", source: "derived", note: "154.6 / 219.0 = 70.6%, rounded to 71 per cent." },
+      { phrase: "December 2024 call that quantitative tightening was complete", source: "other:boc_qt_end_announcement_2024-12", note: "BoC press statement (Dec 2024) announced QT was complete and a return to balance-sheet growth. Primary source: BoC press release Dec 17 2024." },
+      { phrase: "$20–50bn range", source: "pipeline:boc:boc_repos", note: "BoC repos operating range over the past ~18 months, $20bn-$50bn, per weekly statement series." },
+    ],
   },
   {
     id: "plate-5",
@@ -130,6 +157,18 @@ const plates: Plate[] = [
       "Bank of Canada weekly statement (assets and liabilities; formerly Schedule B2).",
     chartKey: "policy-panel-5",
     data: panel5Data,
+    citations: [
+      { phrase: "Banknotes carry $122.5bn of $219.0bn in total liabilities", source: "pipeline:boc:boc_banknotes", note: "BoC weekly statement: banknotes = $122.5bn; total liabilities = $219.0bn; May 6 2026 vintage." },
+      { phrase: "about 56 per cent", source: "derived", note: "122.5 / 219.0 = 55.9%, rounded to 56 per cent." },
+      { phrase: "drifted up only $30bn over six years", source: "pipeline:boc:boc_banknotes", note: "Banknotes ~$92bn pre-pandemic to $122.5bn now, a ~$30bn drift over six years per BoC weekly statement." },
+      { phrase: "$0.25bn pre-pandemic floor", source: "pipeline:boc:boc_settlement_balances", note: "Pre-pandemic settlement balances target floor ~$250m per BoC weekly statement history." },
+      { phrase: "$330bn peak in 2021-22", source: "pipeline:boc:boc_settlement_balances", note: "Peak settlement balances during 2021-2022 QE period, ~$330bn per BoC weekly statement series." },
+      { phrase: "now $63.9bn", source: "pipeline:boc:boc_settlement_balances", note: "Settlement balances, latest May 6 2026 weekly print, $63.9bn." },
+      { phrase: "$50–70bn operating range the Bank named in its December 2024 framework statement", source: "other:boc_floor_system_2024-12", note: "BoC Dec 2024 statement specified $50bn-$70bn steady-state settlement-balance operating range. Primary source: BoC press release / framework statement Dec 17 2024." },
+      { phrase: "normalized to $26bn", source: "pipeline:boc:boc_goc_deposits", note: "GoC deposits at BoC, latest weekly statement, $26bn." },
+      { phrase: "COVID spike above $80bn", source: "pipeline:boc:boc_goc_deposits", note: "GoC deposits at BoC peaked above $80bn during COVID-era cash management per weekly statement history." },
+      { phrase: "remaining $7bn", source: "pipeline:boc:boc_total_liabilities", note: "Residual other liabilities on BoC balance sheet, latest weekly statement, ~$7bn." },
+    ],
   },
   {
     id: "plate-6",
@@ -151,6 +190,12 @@ const plates: Plate[] = [
     source: "Department of Finance Fiscal Monitor.",
     chartKey: "policy-panel-6",
     data: panel6Data,
+    citations: [
+      { phrase: "fiscal 2025-26", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "Fiscal year 2025-26 (April 2025 through March 2026) per Department of Finance Fiscal Monitor convention." },
+      { phrase: "$25.5 billion deficit", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "Federal fiscal YTD balance, April 2025 through February 2026, -$25.5bn per Fiscal Monitor (Feb 28 2026 print)." },
+      { phrase: "$5.7 billion February surplus", source: "pipeline:dof:dof_fiscal_monthly_balance", note: "February 2026 monthly federal budgetary balance, +$5.7bn per Fiscal Monitor." },
+      { phrase: "January trough of $31.2 billion", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "Federal YTD balance through January 2026, -$31.2bn per Fiscal Monitor." },
+    ],
   },
   {
     id: "plate-7",
@@ -169,6 +214,16 @@ const plates: Plate[] = [
       "BoC-Fed spread derived in chart, percentage points.",
     chartKey: "policy-panel-7",
     data: panel1Data,
+    citations: [
+      { phrase: "BoC overnight at 2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, current setting, via Valet V39079." },
+      { phrase: "Fed's 3.75% target upper bound", source: "card:fomc_target_rate" },
+      { phrase: "-150 bps in monthly data through April 2026", source: "derived", note: "BoC 2.25% - Fed upper bound 3.75% = -1.50 pp = -150 bps; monthly data through April 2026 from Valet V39079 and FRED DFF." },
+      { phrase: "prior two decades outside the 2002-2004 episode", source: "derived", note: "Enumerated monthly (BoC overnight - Fed funds upper) series from 1996 onward; only the 2002-2004 episode breaches the current -150 bps in magnitude." },
+      { phrase: "1996-2019 window", source: "pipeline:fred:DFF", note: "FRED DFF monthly history covers 1996-2019; spread to BoC overnight was near-zero through most of that window." },
+      { phrase: "2022-23 BoC-leads-hiking phase", source: "pipeline:boc:V39079", note: "BoC hiked from 0.25% to 5.00% between Mar 2022 and Jul 2023, ahead of the Fed's pace, producing a positive BoC-Fed spread peak." },
+      { phrase: "Fed through 2024-25", source: "pipeline:fred:DFF", note: "Fed funds path 2024-2025 per FRED DFF; BoC cut ahead of Fed through this window." },
+      { phrase: "-170 bps on February 3, 2025", source: "derived", note: "2y GoC - 2y UST daily spread trough, Feb 3 2025. Sourced from pipeline yield_2yr and FRED DGS2." },
+    ],
   },
 ];
 

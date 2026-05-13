@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Source audit · markets</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: #111;
+  background: #f7f6f1;
+  margin: 0;
+}
+.wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 40px;
+  align-items: start;
+}
+header.page-head {
+  grid-column: 1 / -1;
+  border-bottom: 2px solid #111;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+header.page-head h1 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+header.page-head .breadcrumb a {
+  color: #666;
+  text-decoration: none;
+  margin-right: 16px;
+}
+header.page-head .breadcrumb a:hover { color: #000; text-decoration: underline; }
+main {
+  background: white;
+  padding: 32px;
+  border: 1px solid #ddd;
+}
+.headline-q {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #111;
+}
+.section-label {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.abstract {
+  font-size: 17px;
+  line-height: 1.6;
+  border-left: 3px solid #c00;
+  padding-left: 16px;
+  margin: 24px 0 40px 0;
+  color: #222;
+}
+.plate {
+  border-top: 1px solid #ccc;
+  padding: 24px 0;
+}
+.plate-number {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.plate-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 4px 0 10px 0;
+  color: #111;
+}
+.plate-meta {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #777;
+  margin-bottom: 12px;
+}
+.plate-blurb { font-size: 16px; line-height: 1.6; color: #222; }
+.plate-source-line {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #666;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dotted #ccc;
+}
+.claim {
+  background: #fffbcc;
+  padding: 1px 2px;
+  border-bottom: 2px solid #e6c200;
+  cursor: pointer;
+}
+.claim:hover {
+  background: #fff299;
+}
+.claim-sup {
+  color: #b07b00;
+  font-weight: 700;
+  font-size: 0.8em;
+  margin-left: 1px;
+}
+aside.ledger {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 16px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+}
+aside.ledger h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+.ledger-group { margin-bottom: 20px; }
+.ledger-group-h {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #555;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ddd;
+}
+.ledger-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.ledger-ref {
+  display: inline-block;
+  background: #e6c200;
+  color: white;
+  padding: 1px 6px;
+  font-weight: 700;
+  font-size: 11px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+.ledger-ref.pipeline { background: #2a7a30; }
+.ledger-ref.derived { background: #888; }
+.ledger-ref.unknown, .ledger-ref.card-missing, .ledger-ref.other { background: #c33; }
+.ledger-phrase {
+  font-style: italic;
+  color: #333;
+  display: block;
+  margin: 4px 0;
+}
+.ledger-source-label { font-weight: 600; color: #222; font-size: 12px; }
+.ledger-excerpt {
+  margin: 6px 0;
+  padding: 8px 10px;
+  background: #f3f3ef;
+  color: #444;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 2px solid #999;
+}
+.ledger-meta { font-size: 11px; color: #777; }
+.ledger-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: #006699;
+  text-decoration: none;
+  font-weight: 600;
+}
+.ledger-link:hover { text-decoration: underline; }
+.note-line { font-size: 11px; color: #888; margin-top: 4px; font-style: italic; }
+footer.audit-foot {
+  grid-column: 1 / -1;
+  border-top: 1px solid #ccc;
+  padding: 20px 0;
+  font-size: 12px;
+  color: #777;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.edit-btn {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #006699;
+  background: transparent;
+  border: 1px solid #006699;
+  padding: 3px 8px;
+  margin-left: 8px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.edit-btn:hover { background: #006699; color: white; }
+.edit-form {
+  margin-top: 12px;
+  padding: 14px;
+  background: #f8f7ec;
+  border: 1px solid #d8c773;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  display: none;
+}
+.edit-form.open { display: block; }
+.edit-form label {
+  display: block;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+  margin: 8px 0 4px 0;
+}
+.edit-form textarea, .edit-form input[type="text"] {
+  width: 100%;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #c8c0a0;
+  background: white;
+  box-sizing: border-box;
+}
+.edit-form textarea { min-height: 80px; line-height: 1.5; resize: vertical; }
+.edit-form .row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.edit-form .row .primary {
+  background: #006699;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.edit-form .row .primary:hover { background: #00557e; }
+.edit-form .row .toast {
+  font-size: 12px;
+  color: #2a7a30;
+  font-weight: 600;
+  margin-left: 8px;
+  display: none;
+}
+.edit-form .row .toast.show { display: inline; }
+.edit-form .hint {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+  margin-top: 4px;
+}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <div class="breadcrumb">
+        <a href="./index.html">← All sections</a>
+        <span style="color:#999">·</span>
+        <a href="https://sibleycreek.ca/markets/" target="_blank" rel="noopener">Live page ↗</a>
+      </div>
+      <h1>Source audit · markets</h1>
+    </header>
+    <main>
+      <div class="section-label">Section abstract <button class="edit-btn" onclick="document.getElementById('edit-abstract').classList.toggle('open')">✎ Propose edit</button></div>
+      <h2 class="headline-q">What external winds are pushing on Canadian inflation, growth, and the CAD?</h2>
+      <div class="abstract">USDCAD closed May 8 at 1.369, <span class="claim" data-ref="1">up 0.4% on the week<sup class="claim-sup">[1]</sup></span>, per Bank of Canada noon rates. The <span class="claim" data-ref="2">10y GoC yield closed at 3.53% on May 7<sup class="claim-sup">[2]</sup></span>, two basis points firmer. <span class="claim" data-ref="3">WTI rose to $109.76 by May 4<sup class="claim-sup">[3]</sup></span>, <span class="claim" data-ref="4">a 4.2% move<sup class="claim-sup">[4]</sup></span> that keeps crude <span class="claim" data-ref="5">above $100 for a second straight month<sup class="claim-sup">[5]</sup></span>; the <span class="claim" data-ref="6">TSX Composite closed near 34.1k<sup class="claim-sup">[6]</sup></span>, flat on the session.</div>
+      
+    <div class="edit-form" id="edit-abstract">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="" />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">USDCAD closed May 8 at 1.369, up 0.4% on the week, per Bank of Canada noon rates. The 10y GoC yield closed at 3.53% on May 7, two basis points firmer. WTI rose to $109.76 by May 4, a 4.2% move that keeps crude above $100 for a second straight month; the TSX Composite closed near 34.1k, flat on the session.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'markets', 'section-abstract')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      
+      <section class="plate">
+        <div class="plate-number">01 · CAD</div>
+        <h3 class="plate-title">The loonie has settled into a range well below last fall's stress reach. <button class="edit-btn" onclick="document.getElementById('edit-plate-0').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">USDCAD spot</div>
+        <div class="plate-blurb">USDCAD closed the week at 1.3686, weaker by about a cent from 1.3576 on May 1 as the early-May CAD rally reversed. The pair has spent the past month inside a 1.36 to 1.38 band, well below the <span class="claim" data-ref="1">1.42 stress reach of late 2025<sup class="claim-sup">[1]</sup></span>. The BoC effective exchange rate (CEER) overlay is not yet wired in the data pipeline.</div>
+        <div class="plate-source-line">Bank of Canada Valet (FXUSDCAD).</div>
+        
+    <div class="edit-form" id="edit-plate-0">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="The loonie has settled into a range well below last fall's stress reach." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">USDCAD closed the week at 1.3686, weaker by about a cent from 1.3576 on May 1 as the early-May CAD rally reversed. The pair has spent the past month inside a 1.36 to 1.38 band, well below the 1.42 stress reach of late 2025. The BoC effective exchange rate (CEER) overlay is not yet wired in the data pipeline.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'markets', 'plate-1')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">02 · GoC curve</div>
+        <h3 class="plate-title">The front end has repriced on firmer inflation while the long end stayed anchored. <button class="edit-btn" onclick="document.getElementById('edit-plate-1').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">GoC yield curve</div>
+        <div class="plate-blurb">The <span class="claim" data-ref="1">GoC 10y sits at 3.53%<sup class="claim-sup">[1]</sup></span>, with the <span class="claim" data-ref="2">2y at 2.94%<sup class="claim-sup">[2]</sup></span>, the <span class="claim" data-ref="3">5y at 3.18%<sup class="claim-sup">[3]</sup></span>, and the <span class="claim" data-ref="4">30y at 3.90%<sup class="claim-sup">[4]</sup></span>. The <span class="claim" data-ref="5">2s10s spread of 59 bps<sup class="claim-sup">[5]</sup></span> marks the steepest reading in months, driven by a <span class="claim" data-ref="6">12 bps lift at the 2y over the past two weeks<sup class="claim-sup">[6]</sup></span> as front-end repricing absorbed firmer near-term inflation prints. The long end held steady through the same window, consistent with anchored term premium.</div>
+        <div class="plate-source-line">Bank of Canada Valet (BD.CDN.2YR / 5YR / 10YR / LONG.DQ.YLD).</div>
+        
+    <div class="edit-form" id="edit-plate-1">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="The front end has repriced on firmer inflation while the long end stayed anchored." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The GoC 10y sits at 3.53%, with the 2y at 2.94%, the 5y at 3.18%, and the 30y at 3.90%. The 2s10s spread of 59 bps marks the steepest reading in months, driven by a 12 bps lift at the 2y over the past two weeks as front-end repricing absorbed firmer near-term inflation prints. The long end held steady through the same window, consistent with anchored term premium.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'markets', 'plate-2')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">03 · Credit spreads</div>
+        <h3 class="plate-title">Canadian investment-grade and high-yield spread series pending, with GoC 10y shown as the rate benchmark. <button class="edit-btn" onclick="document.getElementById('edit-plate-2').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Canadian corporate credit spreads · May 7, 2026</div>
+        <div class="plate-blurb">Canadian investment-grade and high-yield option-adjusted spread series are not yet wired; the <span class="claim" data-ref="1">GoC 10y benchmark anchors the chart at 3.53%<sup class="claim-sup">[1]</sup></span>. Spread data is the read that anchors this plate and will be added once the corporate-index feed is in place.</div>
+        <div class="plate-source-line">Bank of Canada Valet (BD.CDN.10YR.DQ.YLD).</div>
+        
+    <div class="edit-form" id="edit-plate-2">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Canadian investment-grade and high-yield spread series pending, with GoC 10y shown as the rate benchmark." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Canadian investment-grade and high-yield option-adjusted spread series are not yet wired; the GoC 10y benchmark anchors the chart at 3.53%. Spread data is the read that anchors this plate and will be added once the corporate-index feed is in place.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'markets', 'plate-3')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">04 · Energy</div>
+        <h3 class="plate-title">Crude has broken higher and the Canadian heavy differential has compressed sharply. <button class="edit-btn" onclick="document.getElementById('edit-plate-3').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">WTI, Brent, and WCS oil prices · May 4, 2026 (WTI, Brent); March 2026 (WCS)</div>
+        <div class="plate-blurb"><span class="claim" data-ref="1">WTI closed at US$109.76 on May 4<sup class="claim-sup">[1]</sup></span>, <span class="claim" data-ref="2">up nearly US$10<sup class="claim-sup">[2]</sup></span> <span class="claim" data-ref="3">from US$99.89 a week earlier<sup class="claim-sup">[3]</sup></span>, with <span class="claim" data-ref="4">Brent at US$118.26 (May 1)<sup class="claim-sup">[4]</sup></span> tracking the same move higher. <span class="claim" data-ref="5">WCS averaged US$75.85 in March<sup class="claim-sup">[5]</sup></span>, well above the <span class="claim" data-ref="6">US$50 range that held through late 2025<sup class="claim-sup">[6]</sup></span> and a sharply narrower differential to WTI than the <span class="claim" data-ref="7">typical post-2018 discount<sup class="claim-sup">[7]</sup></span>. AECO gas is not in the current data feed.</div>
+        <div class="plate-source-line">FRED (DCOILWTICO, DCOILBRENTEU); Government of Alberta Economic Dashboard (WCS monthly).</div>
+        
+    <div class="edit-form" id="edit-plate-3">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Crude has broken higher and the Canadian heavy differential has compressed sharply." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">WTI closed at US$109.76 on May 4, up nearly US$10 from US$99.89 a week earlier, with Brent at US$118.26 (May 1) tracking the same move higher. WCS averaged US$75.85 in March, well above the US$50 range that held through late 2025 and a sharply narrower differential to WTI than the typical post-2018 discount. AECO gas is not in the current data feed.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'markets', 'plate-4')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">05 · Bank stability</div>
+        <h3 class="plate-title">Big-Six PCL and common-equity tier-1 ratio series pending, with settlement balances at $63.9 billion. <button class="edit-btn" onclick="document.getElementById('edit-plate-4').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">BoC settlement balances · May 6, 2026</div>
+        <div class="plate-blurb">Bank-level provisions for credit losses and common-equity tier-1 ratios from the latest earnings round are not yet wired; <span class="claim" data-ref="1">settlement balances at the Bank of Canada anchor the chart at $63.9 billion on May 6<sup class="claim-sup">[1]</sup></span>, inside the <span class="claim" data-ref="2">$60 to $80 billion band that has held since late 2025<sup class="claim-sup">[2]</sup></span>. PCL builds and CET1 versus the OSFI Domestic Stability Buffer are the reads that anchor this plate and will be added once the bank-disclosure feed is in place.</div>
+        <div class="plate-source-line">Bank of Canada Valet (V36636).</div>
+        
+    <div class="edit-form" id="edit-plate-4">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Big-Six PCL and common-equity tier-1 ratio series pending, with settlement balances at $63.9 billion." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Bank-level provisions for credit losses and common-equity tier-1 ratios from the latest earnings round are not yet wired; settlement balances at the Bank of Canada anchor the chart at $63.9 billion on May 6, inside the $60 to $80 billion band that has held since late 2025. PCL builds and CET1 versus the OSFI Domestic Stability Buffer are the reads that anchor this plate and will be added once the bank-disclosure feed is in place.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'markets', 'plate-5')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">06 · FCI</div>
+        <h3 class="plate-title">Standardized financial conditions series pending, with GoC 10y and USDCAD shown as rate and FX inputs. <button class="edit-btn" onclick="document.getElementById('edit-plate-5').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Financial conditions · May 7, 2026</div>
+        <div class="plate-blurb">A standardized financial conditions index for Canada is not yet wired; the <span class="claim" data-ref="1">GoC 10y at 3.53%<sup class="claim-sup">[1]</sup></span> and <span class="claim" data-ref="2">USDCAD at 1.3686<sup class="claim-sup">[2]</sup></span> are shown as the rate and FX components that any composite would draw on. A financial conditions composite is the read that anchors this plate and will be added once the index feed is in place.</div>
+        <div class="plate-source-line">Bank of Canada Valet (BD.CDN.10YR.DQ.YLD, FXUSDCAD).</div>
+        
+    <div class="edit-form" id="edit-plate-5">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Standardized financial conditions series pending, with GoC 10y and USDCAD shown as rate and FX inputs." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">A standardized financial conditions index for Canada is not yet wired; the GoC 10y at 3.53% and USDCAD at 1.3686 are shown as the rate and FX components that any composite would draw on. A financial conditions composite is the read that anchors this plate and will be added once the index feed is in place.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'markets', 'plate-6')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+    </main>
+    
+    <aside class="ledger">
+      <h2>Claims ledger</h2>
+      <div class="ledger-group">
+               <div class="ledger-group-h">Section abstract</div>
+               
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[1]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"up 0.4% on the week"</div>
+        
+        
+        <div class="note-line">USDCAD week-over-week change to May 8, 2026 close, per BoC Valet FXUSDCAD.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:boc:yield_10yr</span>
+        <div class="ledger-phrase">"10y GoC yield closed at 3.53% on May 7"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">GoC 10y benchmark yield, May 7 2026 daily close.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:fred:DCOILWTICO</span>
+        <div class="ledger-phrase">"WTI rose to $109.76 by May 4"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">WTI spot, May 4 2026 daily close.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[4]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"a 4.2% move"</div>
+        
+        
+        <div class="note-line">WTI week-over-week change ending May 4 2026, FRED DCOILWTICO.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[5]</span>
+        <span class="ledger-source-label">pipeline:fred:DCOILWTICO</span>
+        <div class="ledger-phrase">"above $100 for a second straight month"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Enumerated WTI daily closes: held above $100 in April and May 2026 to date.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref other">[6]</span>
+        <span class="ledger-source-label">other:TMX Group S&amp;P/TSX Composite Index close, May 8, 2026.</span>
+        <div class="ledger-phrase">"TSX Composite closed near 34.1k"</div>
+        
+        
+        
+        
+      </div>
+             </div>
+      
+              <div class="ledger-group">
+                <div class="ledger-group-h">01 · CAD</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:fxusdcad</span>
+        <div class="ledger-phrase">"1.42 stress reach of late 2025"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">USDCAD daily high reached ~1.42 in late 2025; year token covered here.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">02 · GoC curve</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:yield_10yr</span>
+        <div class="ledger-phrase">"GoC 10y sits at 3.53%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">GoC 10y benchmark yield, latest daily close.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:boc:yield_2yr</span>
+        <div class="ledger-phrase">"2y at 2.94%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">GoC 2y benchmark yield, latest daily close.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:boc:yield_5yr</span>
+        <div class="ledger-phrase">"5y at 3.18%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">GoC 5y benchmark yield, latest daily close.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[4]</span>
+        <span class="ledger-source-label">pipeline:boc:yield_30yr</span>
+        <div class="ledger-phrase">"30y at 3.90%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">GoC long (~30y) benchmark yield, latest daily close.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[5]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"2s10s spread of 59 bps"</div>
+        
+        
+        <div class="note-line">10y (3.53%) - 2y (2.94%) = 59 bps.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[6]</span>
+        <span class="ledger-source-label">pipeline:boc:yield_2yr</span>
+        <div class="ledger-phrase">"12 bps lift at the 2y over the past two weeks"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Change in GoC 2y yield over the trailing ~2-week window.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">03 · Credit spreads</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:yield_10yr</span>
+        <div class="ledger-phrase">"GoC 10y benchmark anchors the chart at 3.53%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">GoC 10y benchmark yield, latest daily close.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">04 · Energy</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:fred:DCOILWTICO</span>
+        <div class="ledger-phrase">"WTI closed at US$109.76 on May 4"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">WTI spot, May 4, 2026 daily close.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[2]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"up nearly US$10"</div>
+        
+        
+        <div class="note-line">$109.76 - $99.89 = $9.87, rounds to ~$10.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:fred:DCOILWTICO</span>
+        <div class="ledger-phrase">"from US$99.89 a week earlier"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">WTI spot, ~one week before May 4, 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[4]</span>
+        <span class="ledger-source-label">pipeline:fred:DCOILBRENTEU</span>
+        <div class="ledger-phrase">"Brent at US$118.26 (May 1)"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Brent spot, May 1, 2026 daily close.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[5]</span>
+        <span class="ledger-source-label">pipeline:gov_ab:wcs</span>
+        <div class="ledger-phrase">"WCS averaged US$75.85 in March"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Western Canadian Select monthly average, March 2026, Government of Alberta Economic Dashboard.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[6]</span>
+        <span class="ledger-source-label">pipeline:gov_ab:wcs</span>
+        <div class="ledger-phrase">"US$50 range that held through late 2025"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">WCS monthly averages held in the ~US$50 range through late 2025; year token covered here.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[7]</span>
+        <span class="ledger-source-label">pipeline:gov_ab:wcs</span>
+        <div class="ledger-phrase">"typical post-2018 discount"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Historical WCS-WTI differential context; post-2018 anchor reflects the structural widening era following the Alberta production curtailment regime.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">05 · Bank stability</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:settlement_balances</span>
+        <div class="ledger-phrase">"settlement balances at the Bank of Canada anchor the chart at $63.9 billion on May 6"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC settlement balances (Valet V36636), daily, May 6, 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:boc:settlement_balances</span>
+        <div class="ledger-phrase">"$60 to $80 billion band that has held since late 2025"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">BoC settlement balances daily series has held in a ~$60-80 bn band since late 2025; year token covered here.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">06 · FCI</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:yield_10yr</span>
+        <div class="ledger-phrase">"GoC 10y at 3.53%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">GoC 10y benchmark yield, latest daily close.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:boc:fxusdcad</span>
+        <div class="ledger-phrase">"USDCAD at 1.3686"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">USDCAD spot, latest daily close.</div>
+        
+      </div>
+              </div>
+    </aside>
+  
+    <footer class="audit-foot">
+      Generated 2026-05-13 07:21 · Tagged claims show a yellow highlight with a [N] reference. Hover or click to see the source. Sidebar lists all claims with verbatim excerpts. Sources marked as "pipeline" auto-refresh; "card" entries are managed in editorial/source_cards/registry.yaml. Use "Propose edit" to send a structured EDIT REQUEST back to Claude.
+    </footer>
+  </div>
+  <script>
+    function copyEditSpec(btn, slug, surface) {
+      const form = btn.closest('.edit-form');
+      const title = form.querySelector('[data-field="title"]').value.trim();
+      const body = form.querySelector('[data-field="body"]').value.trim();
+      const reason = form.querySelector('[data-field="reason"]').value.trim();
+      const spec = [
+        'EDIT REQUEST',
+        'section: ' + slug,
+        'surface: ' + surface,
+        '',
+        'proposed_title:',
+        title,
+        '',
+        'proposed_body:',
+        body,
+        '',
+        'reason:',
+        reason,
+      ].join('\n');
+      navigator.clipboard.writeText(spec).then(function () {
+        const toast = btn.parentElement.querySelector('.toast');
+        toast.classList.add('show');
+        setTimeout(function () { toast.classList.remove('show'); }, 2500);
+      });
+    }
+  </script>
+</body>
+</html>

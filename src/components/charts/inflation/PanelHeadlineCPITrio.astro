@@ -1,0 +1,859 @@
+---
+/*
+ * PanelHeadlineCPITrio — Headline CPI three-series composite.
+ *
+ * Extends PanelHeadlineCPIDual with a 3M-AR line added to the right panel.
+ *
+ * Layout:
+ *   Left sub-panel  — m/m CPI % as bars, last 24 months.
+ *   Right sub-panel — Y/Y CPI % (solid line) + 3M annualized rate (dashed
+ *                     line) + BoC 1–3 % control band, last 36 months.
+ *
+ * 3M-AR derivation (chart-side, frontmatter):
+ *   cpi_3m_ar[t] = ((cpi_level[t] / cpi_level[t-3])^4 − 1) × 100
+ *   Source: standard annualized period-growth formula. 4 = 12 months ÷ 3
+ *   months. Produces the annualized rate implied by the most recent
+ *   3-month run rate. No simplification vs the canonical formula; discrete
+ *   compounding. No smoothing applied.
+ *
+ * Control-range label placement decision:
+ *   The label is placed BELOW the plot frame at y = PLOT_Y1 + 28,
+ *   right-aligned to the plot-frame right edge (text-anchor="end").
+ *   Rationale: the line termini for both Y/Y and 3M-AR converge on the
+ *   right side of the plot frame at y-values close to the 2% midpoint of
+ *   the band, making inside-band placement (left or right) collision-prone.
+ *   The top-margin gutter (y = PLOT_Y0 − 6) was used in the prior Dual
+ *   version and crowded the subpanel title 12 px above it. The caption-row
+ *   below the frame (same register as x-tick labels) is always clear of
+ *   data marks; placing it right-aligned keeps it visually paired with the
+ *   right panel and distinct from the x-tick year labels (left-of-center).
+ *
+ * Data sources:
+ *   panel-1 primary  → cpi_all_items_yoy  (processed Y/Y series)
+ *   panel-1 secondary → cpi_all_items     (SA monthly index levels)
+ *   m/m and 3M-AR both derived from the level series in frontmatter.
+ */
+
+import type { PanelData, SeriesPoint } from "../_shared/panelData";
+import { decYear } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---- Helper: last non-null point ------------------------------------------
+function lastReal(series: SeriesPoint[]): { date: string; value: number } | null {
+  for (let i = series.length - 1; i >= 0; i--) {
+    const pt = series[i]!;
+    if (typeof pt.value === "number" && !Number.isNaN(pt.value)) {
+      return { date: pt.date, value: pt.value };
+    }
+  }
+  return null;
+}
+
+// ---- Helper: m/m % from level series --------------------------------------
+function pctMoM(series: SeriesPoint[]): SeriesPoint[] {
+  const out: SeriesPoint[] = [];
+  for (let i = 0; i < series.length; i++) {
+    const here = series[i]!;
+    const prev = series[i - 1];
+    if (
+      !prev ||
+      typeof prev.value !== "number" ||
+      typeof here.value !== "number" ||
+      prev.value === 0
+    ) {
+      out.push({ date: here.date, value: null });
+    } else {
+      out.push({ date: here.date, value: (here.value / prev.value - 1) * 100 });
+    }
+  }
+  return out;
+}
+
+// ---- Helper: 3M annualized rate from level series -------------------------
+// Formula: ((cpi[t] / cpi[t-3])^4 - 1) * 100
+// Conceptual definition: the annualized growth rate implied by the most
+// recent 3-month change in the CPI level. Uses discrete compounding.
+function pct3MAR(series: SeriesPoint[]): SeriesPoint[] {
+  const out: SeriesPoint[] = [];
+  for (let i = 0; i < series.length; i++) {
+    if (i < 3) {
+      out.push({ date: series[i]!.date, value: null });
+      continue;
+    }
+    const cur = series[i]!;
+    const lag = series[i - 3]!;
+    if (
+      typeof cur.value !== "number" ||
+      typeof lag.value !== "number" ||
+      lag.value === 0
+    ) {
+      out.push({ date: cur.date, value: null });
+    } else {
+      out.push({
+        date: cur.date,
+        value: (Math.pow(cur.value / lag.value, 4) - 1) * 100,
+      });
+    }
+  }
+  return out;
+}
+
+// ---- Nice-tick stride (mirrors PanelLiveChart + PanelHeadlineCPIDual) -----
+function pickStride(lo: number, hi: number, targetTicks = 4): number {
+  const span = hi - lo;
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  const rough = span / targetTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let nice: number;
+  if (norm < 1.5) nice = 1;
+  else if (norm < 3) nice = 2;
+  else if (norm < 4) nice = 2.5;
+  else if (norm < 7) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+
+// ---- Window sizing ---------------------------------------------------------
+const MOM_WINDOW = 24;
+const YOY_WINDOW = 36;
+
+// BoC inflation-control target band (annually renewed mandate).
+const CONTROL_LOWER = 1;
+const CONTROL_UPPER = 3;
+
+// ---- Process input ---------------------------------------------------------
+const yoyFull: SeriesPoint[] = data?.primary?.data ?? [];
+const levels: SeriesPoint[] = data?.secondary?.data ?? [];
+
+const momFull = levels.length > 0 ? pctMoM(levels) : [];
+const arFull  = levels.length > 0 ? pct3MAR(levels) : [];
+
+const momData = momFull.slice(-MOM_WINDOW);
+const yoyData = yoyFull
+  .filter((d) => typeof d.value === "number" && !Number.isNaN(d.value))
+  .slice(-YOY_WINDOW);
+
+// Align 3M-AR to the same date window as Y/Y so the two lines share the
+// same x-domain on the right panel.
+const yoyDateSet = new Set(yoyData.map((d) => d.date));
+const arData = arFull.filter((d) => yoyDateSet.has(d.date));
+
+const hasData = momData.length > 0 && yoyData.length > 0;
+
+// ---- Geometry (verbatim from PanelHeadlineCPIDual) -------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_OUT = 8;
+const GAP_X = 56;
+const M_T = 52;
+const M_B = 36;
+const SUB_M_L = 40;
+const SUB_M_R = 14;
+
+const SUB_W = (VB_W - 2 * M_OUT - GAP_X) / 2;
+const LEFT_X0 = M_OUT;
+const LEFT_X1 = LEFT_X0 + SUB_W;
+const RIGHT_X0 = LEFT_X1 + GAP_X;
+const RIGHT_X1 = RIGHT_X0 + SUB_W;
+
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_H = PLOT_Y1 - PLOT_Y0;
+
+// ---- Sub-panel builder -----------------------------------------------------
+interface BarRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  isLatest: boolean;
+}
+
+interface SubPanelGeom {
+  plotX0: number;
+  plotX1: number;
+  plotW: number;
+  xMin: number;
+  xMax: number;
+  yLo: number;
+  yHi: number;
+  yRange: number;
+  yTicks: number[];
+  xTicks: Array<{ x: number; label: string }>;
+  bandLowY: number | null;
+  bandHighY: number | null;
+  bandMidY: number | null;
+  showBand: boolean;
+  zeroY: number | null;
+  // Primary series path + latest-dot
+  path: string;
+  lastX: number | null;
+  lastY: number | null;
+  lastValue: number | null;
+  lastDate: string | null;
+  // Secondary series path + latest terminus (no dot; label only)
+  path2: string;
+  last2X: number | null;
+  last2Y: number | null;
+  last2Value: number | null;
+  // Bars
+  bars: BarRect[];
+}
+
+function buildSubPanel(
+  subBBoxX0: number,
+  subBBoxX1: number,
+  series: SeriesPoint[],
+  series2: SeriesPoint[] | null,
+  band: { lower: number; upper: number } | null,
+  kind: "line" | "bars",
+): SubPanelGeom {
+  const plotX0 = subBBoxX0 + SUB_M_L;
+  const plotX1 = subBBoxX1 - SUB_M_R;
+  const plotW = plotX1 - plotX0;
+
+  const xs = series
+    .map((d) => decYear(d.date))
+    .filter((v) => !Number.isNaN(v));
+  let xMin = xs.length > 0 ? Math.min(...xs) : 0;
+  let xMax = xs.length > 0 ? Math.max(...xs) : 1;
+
+  // Pad x-domain for bars so first/last bars sit inside the frame.
+  if (kind === "bars" && series.length > 0) {
+    const slotYears = (xMax - xMin) / Math.max(1, series.length - 1);
+    xMin -= slotYears * 0.6;
+    xMax += slotYears * 0.6;
+  }
+
+  // Collect y values from both series (primary + secondary if present).
+  const ys1 = series
+    .map((d) => d.value)
+    .filter((v): v is number => typeof v === "number" && !Number.isNaN(v));
+  const ys2 = series2
+    ? series2
+        .map((d) => d.value)
+        .filter((v): v is number => typeof v === "number" && !Number.isNaN(v))
+    : [];
+  const ys = [...ys1, ...ys2];
+
+  let yLo = 0;
+  let yHi = 1;
+  if (ys.length > 0) {
+    const rawMin = Math.min(...ys);
+    const rawMax = Math.max(...ys);
+    const span = (rawMax - rawMin) || Math.max(1, Math.abs(rawMax) * 0.1);
+    yLo = rawMin - span * 0.12;
+    yHi = rawMax + span * 0.12;
+  }
+  // Expand y-domain to include the band bounds if they fall outside.
+  if (band) {
+    const span = yHi - yLo;
+    if (band.lower < yLo) yLo = band.lower - span * 0.08;
+    if (band.upper > yHi) yHi = band.upper + span * 0.08;
+  }
+  // Always include zero to anchor the bar baseline.
+  if (yLo > 0) yLo = -Math.max(0.1, (yHi - yLo) * 0.05);
+  if (yHi < 0) yHi = Math.max(0.1, (yHi - yLo) * 0.05);
+  const yRange = yHi - yLo || 1;
+
+  const xScale = (yr: number) => {
+    if (xMax === xMin) return plotX0 + plotW / 2;
+    return plotX0 + ((yr - xMin) / (xMax - xMin)) * plotW;
+  };
+  const yScale = (v: number) =>
+    PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
+
+  // y-ticks via nice-stride.
+  const stride = pickStride(yLo, yHi);
+  const yTicks: number[] = [];
+  const start = Math.ceil(yLo / stride) * stride;
+  for (let v = start; v <= yHi + 1e-9; v += stride) {
+    yTicks.push(Number(v.toFixed(6)));
+  }
+  if (yTicks.length === 0) yTicks.push(Number(((yLo + yHi) / 2).toFixed(6)));
+
+  // x-ticks: year boundaries within domain.
+  const yearStart = Math.ceil(xMin);
+  const yearEnd = Math.floor(xMax);
+  const allYearTicks: Array<{ x: number; label: string }> = [];
+  for (let yr = yearStart; yr <= yearEnd; yr++) {
+    const decY = yr + (1 - 0.5) / 12;
+    if (decY < xMin || decY > xMax) continue;
+    allYearTicks.push({ x: xScale(decY), label: String(yr) });
+  }
+  const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 5));
+  const xTicks = allYearTicks.filter((_, i) => i % xTickStride === 0);
+
+  // Band geometry.
+  const bandLowY  = band ? yScale(band.lower) : null;
+  const bandHighY = band ? yScale(band.upper)  : null;
+  const bandMidY  = band ? yScale((band.lower + band.upper) / 2) : null;
+  const showBand  = band !== null && bandLowY !== null && bandHighY !== null;
+
+  // Zero baseline for bar panel.
+  const zeroY = yLo <= 0 && yHi >= 0 ? yScale(0) : null;
+
+  // ---- Build line path for primary series ----------------------------------
+  let path = "";
+  let lastX: number | null = null;
+  let lastY: number | null = null;
+  let lastValue: number | null = null;
+  let lastDate: string | null = null;
+  let bars: BarRect[] = [];
+
+  if (kind === "line") {
+    let started = false;
+    for (const pt of series) {
+      if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
+      const xv = decYear(pt.date);
+      if (Number.isNaN(xv)) continue;
+      const xp = xScale(xv).toFixed(2);
+      const yp = yScale(pt.value).toFixed(2);
+      path += (started ? "L" : "M") + xp + " " + yp + " ";
+      started = true;
+    }
+    path = path.trim();
+    const last = lastReal(series);
+    if (last) {
+      const xv = decYear(last.date);
+      if (!Number.isNaN(xv)) {
+        lastX = xScale(xv);
+        lastY = yScale(last.value);
+        lastValue = last.value;
+        lastDate = last.date;
+      }
+    }
+  } else {
+    // Bars for the left panel.
+    const zY = zeroY ?? yScale(0);
+    let validCount = 0;
+    for (const pt of series) {
+      if (typeof pt.value === "number" && !Number.isNaN(pt.value)) validCount++;
+    }
+    const slotWidth = validCount > 0 ? plotW / Math.max(validCount, 1) : plotW;
+    const barWidth = Math.max(2, slotWidth * 0.75);
+
+    let lastIdx = -1;
+    for (let i = series.length - 1; i >= 0; i--) {
+      const v = series[i]!.value;
+      if (typeof v === "number" && !Number.isNaN(v)) {
+        lastIdx = i;
+        break;
+      }
+    }
+
+    for (let i = 0; i < series.length; i++) {
+      const pt = series[i]!;
+      if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
+      const xv = decYear(pt.date);
+      if (Number.isNaN(xv)) continue;
+      const cx = xScale(xv);
+      const valueY = yScale(pt.value);
+      const topY = Math.min(valueY, zY);
+      const botY = Math.max(valueY, zY);
+      bars.push({
+        x: cx - barWidth / 2,
+        y: topY,
+        w: barWidth,
+        h: Math.max(0.5, botY - topY),
+        isLatest: i === lastIdx,
+      });
+    }
+  }
+
+  // ---- Build line path for secondary series (3M-AR) -----------------------
+  let path2 = "";
+  let last2X: number | null = null;
+  let last2Y: number | null = null;
+  let last2Value: number | null = null;
+
+  if (series2 && kind === "line") {
+    let started2 = false;
+    for (const pt of series2) {
+      if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
+      const xv = decYear(pt.date);
+      if (Number.isNaN(xv)) continue;
+      const xp = xScale(xv).toFixed(2);
+      const yp = yScale(pt.value).toFixed(2);
+      path2 += (started2 ? "L" : "M") + xp + " " + yp + " ";
+      started2 = true;
+    }
+    path2 = path2.trim();
+    const last2 = lastReal(series2);
+    if (last2) {
+      const xv = decYear(last2.date);
+      if (!Number.isNaN(xv)) {
+        last2X = xScale(xv);
+        last2Y = yScale(last2.value);
+        last2Value = last2.value;
+      }
+    }
+  }
+
+  return {
+    plotX0,
+    plotX1,
+    plotW,
+    xMin,
+    xMax,
+    yLo,
+    yHi,
+    yRange,
+    yTicks,
+    xTicks,
+    bandLowY,
+    bandHighY,
+    bandMidY,
+    showBand,
+    zeroY,
+    path,
+    lastX,
+    lastY,
+    lastValue,
+    lastDate,
+    path2,
+    last2X,
+    last2Y,
+    last2Value,
+    bars,
+  };
+}
+
+// ---- Build sub-panels ------------------------------------------------------
+const left = hasData
+  ? buildSubPanel(LEFT_X0, LEFT_X1, momData, null, null, "bars")
+  : null;
+const right = hasData
+  ? buildSubPanel(
+      RIGHT_X0,
+      RIGHT_X1,
+      yoyData,
+      arData,
+      { lower: CONTROL_LOWER, upper: CONTROL_UPPER },
+      "line",
+    )
+  : null;
+
+// ---- ARIA label ------------------------------------------------------------
+const ariaLabel =
+  "Headline CPI. Left panel: month-over-month percent change as bars, last 24 months. " +
+  "Right panel: year-over-year percent change as solid line plus 3-month annualized rate as dashed line, " +
+  "last 36 months, with the Bank of Canada 1-3% control range shaded.";
+
+// ---- Precompute label/terminus positions for Y/Y and 3M-AR ---------------
+// Y/Y label: value badge just right of the latest-dot, nudged up 2px so
+// it doesn't sit on the 2% line when Y/Y ≈ 2%.
+// 3M-AR label: "3M AR" right of terminus, same register.
+// Both labels sit outside the plot frame (x > plotX1) — the SUB_M_R = 14px
+// gutter accommodates ~3-char mono text at 11px. If the termini are within
+// 14px of each other vertically we nudge 3M-AR down 12px.
+const YOY_LABEL_NUDGE_X = 7;   // px right of terminus
+const AR_LABEL_NUDGE_X  = 7;   // px right of terminus
+const MIN_LABEL_SEP     = 12;  // px minimum vertical separation
+
+let yoyLabelY = right && right.lastY !== null ? right.lastY - 2 : null;
+let arLabelY  = right && right.last2Y !== null ? right.last2Y : null;
+
+// Resolve vertical collision between the two end-labels.
+if (yoyLabelY !== null && arLabelY !== null) {
+  const sep = Math.abs(yoyLabelY - arLabelY);
+  if (sep < MIN_LABEL_SEP) {
+    // Push 3M-AR label away from Y/Y label.
+    const dir = arLabelY >= yoyLabelY ? 1 : -1;
+    arLabelY = yoyLabelY + dir * MIN_LABEL_SEP;
+  }
+}
+---
+{hasData && left && right ? (
+  <div class="cpitrio canon-chart--dual" data-panel="inflation-headline-trio">
+    <svg
+      class="cpitrio__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {/* ================================================================
+          LEFT SUB-PANEL: m/m bars
+          ================================================================ */}
+      <text
+        class="cpitrio__subpanel-title"
+        x={((LEFT_X0 + LEFT_X1) / 2).toFixed(2)}
+        y={(M_T - 18).toFixed(2)}
+        text-anchor="middle"
+      >MONTH-OVER-MONTH, %</text>
+
+      {/* y-gridlines (skip zero — zero-line drawn separately below) */}
+      {left.yTicks.map((v) => {
+        const yy = PLOT_Y0 + PLOT_H - ((v - left.yLo) / left.yRange) * PLOT_H;
+        if (left.zeroY !== null && Math.abs(yy - left.zeroY) < 0.5) return null;
+        return (
+          <line
+            class="cpitrio__gridline"
+            x1={left.plotX0.toFixed(2)}
+            y1={yy.toFixed(2)}
+            x2={left.plotX1.toFixed(2)}
+            y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      {/* Bars */}
+      {left.bars.map((b) => (
+        <rect
+          class={b.isLatest ? "cpitrio__bar cpitrio__bar--latest" : "cpitrio__bar"}
+          x={b.x.toFixed(2)}
+          y={b.y.toFixed(2)}
+          width={b.w.toFixed(2)}
+          height={b.h.toFixed(2)}
+        />
+      ))}
+
+      {/* Zero baseline */}
+      {left.zeroY !== null && (
+        <line
+          class="cpitrio__zero-line"
+          x1={left.plotX0.toFixed(2)}
+          y1={left.zeroY.toFixed(2)}
+          x2={left.plotX1.toFixed(2)}
+          y2={left.zeroY.toFixed(2)}
+        />
+      )}
+
+      {/* Plot frame */}
+      <rect
+        class="cpitrio__frame"
+        x={left.plotX0}
+        y={PLOT_Y0}
+        width={left.plotW}
+        height={PLOT_H}
+      />
+
+      {/* x-ticks */}
+      {left.xTicks.map((t) => (
+        <g>
+          <line
+            class="cpitrio__xtick"
+            x1={t.x.toFixed(2)}
+            y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="cpitrio__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* y-tick labels */}
+      {left.yTicks.map((v, i) => {
+        const yy = PLOT_Y0 + PLOT_H - ((v - left.yLo) / left.yRange) * PLOT_H;
+        const isTop = i === left.yTicks.length - 1;
+        const txt = `${v.toFixed(1)}${isTop ? "%" : ""}`;
+        return (
+          <text
+            class="cpitrio__ytick-label"
+            x={(left.plotX0 - 6).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{txt}</text>
+        );
+      })}
+
+      {/* ================================================================
+          RIGHT SUB-PANEL: Y/Y line + 3M-AR dashed line + control band
+          ================================================================ */}
+      <text
+        class="cpitrio__subpanel-title"
+        x={((RIGHT_X0 + RIGHT_X1) / 2).toFixed(2)}
+        y={(M_T - 18).toFixed(2)}
+        text-anchor="middle"
+      >YEAR-OVER-YEAR + 3M AR, %</text>
+
+      {/* BoC control band: 1–3% shaded rect */}
+      {right.showBand && right.bandHighY !== null && right.bandLowY !== null && (
+        <rect
+          class="cpitrio__reference-band"
+          x={right.plotX0.toFixed(2)}
+          y={right.bandHighY.toFixed(2)}
+          width={right.plotW.toFixed(2)}
+          height={(right.bandLowY - right.bandHighY).toFixed(2)}
+        />
+      )}
+
+      {/* y-gridlines */}
+      {right.yTicks.map((v) => {
+        const yy = PLOT_Y0 + PLOT_H - ((v - right.yLo) / right.yRange) * PLOT_H;
+        if (right.zeroY !== null && Math.abs(yy - right.zeroY) < 0.5) return null;
+        return (
+          <line
+            class="cpitrio__gridline"
+            x1={right.plotX0.toFixed(2)}
+            y1={yy.toFixed(2)}
+            x2={right.plotX1.toFixed(2)}
+            y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      {/* Zero baseline (present when y-domain crosses zero) */}
+      {right.zeroY !== null && (
+        <line
+          class="cpitrio__zero-line"
+          x1={right.plotX0.toFixed(2)}
+          y1={right.zeroY.toFixed(2)}
+          x2={right.plotX1.toFixed(2)}
+          y2={right.zeroY.toFixed(2)}
+        />
+      )}
+
+      {/* 3M-AR line — 1px dashed (4-2), no terminal dot */}
+      {right.path2 && (
+        <path
+          class="cpitrio__line--secondary"
+          d={right.path2}
+          fill="none"
+        />
+      )}
+
+      {/* Y/Y line — 1.5px solid */}
+      <path class="cpitrio__line--primary" d={right.path} fill="none" />
+
+      {/* Plot frame — drawn above lines so it clips any overshoot */}
+      <rect
+        class="cpitrio__frame"
+        x={right.plotX0}
+        y={PLOT_Y0}
+        width={right.plotW}
+        height={PLOT_H}
+      />
+
+      {/* x-ticks */}
+      {right.xTicks.map((t) => (
+        <g>
+          <line
+            class="cpitrio__xtick"
+            x1={t.x.toFixed(2)}
+            y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="cpitrio__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* y-tick labels */}
+      {right.yTicks.map((v, i) => {
+        const yy = PLOT_Y0 + PLOT_H - ((v - right.yLo) / right.yRange) * PLOT_H;
+        const isTop = i === right.yTicks.length - 1;
+        const txt = `${v.toFixed(1)}${isTop ? "%" : ""}`;
+        return (
+          <text
+            class="cpitrio__ytick-label"
+            x={(right.plotX0 - 6).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{txt}</text>
+        );
+      })}
+
+      {/* Y/Y latest-print dot (MTA red) */}
+      {right.lastX !== null && right.lastY !== null && (
+        <circle
+          class="cpitrio__latest-dot"
+          cx={right.lastX.toFixed(2)}
+          cy={right.lastY.toFixed(2)}
+          r="4"
+        >
+          <title>{`Latest Y/Y: ${right.lastDate}: ${right.lastValue!.toFixed(2)}%`}</title>
+        </circle>
+      )}
+
+      {/* Y/Y end-of-line label — right of terminus, outside plot frame */}
+      {right.lastX !== null && yoyLabelY !== null && (
+        <text
+          class="cpitrio__eol-label"
+          x={(right.lastX + YOY_LABEL_NUDGE_X).toFixed(2)}
+          y={(yoyLabelY + 4).toFixed(2)}
+          text-anchor="start"
+        >Y/Y</text>
+      )}
+
+      {/* 3M-AR end-of-line label — right of terminus */}
+      {right.last2X !== null && arLabelY !== null && (
+        <text
+          class="cpitrio__eol-label"
+          x={(right.last2X + AR_LABEL_NUDGE_X).toFixed(2)}
+          y={(arLabelY + 4).toFixed(2)}
+          text-anchor="start"
+        >3M AR</text>
+      )}
+
+      {/* Control-range label — below the plot frame, right-aligned.
+          Placement rationale: line termini for Y/Y (~2.3%) and 3M-AR
+          (~2.9%) both cluster near the 2% band midpoint on the right edge,
+          making inside-band or top-gutter labels collision-prone. The
+          caption row below the frame is always clear of data marks. The
+          label is right-aligned to the plot-frame right edge to pair
+          visually with the right sub-panel and stay clear of year labels
+          (which are centered on tick positions well to the left). */}
+      {right.showBand && (
+        <text
+          class="cpitrio__band-caption"
+          x={(right.plotX1).toFixed(2)}
+          y={(PLOT_Y1 + 28).toFixed(2)}
+          text-anchor="end"
+        >BOC CONTROL RANGE 1–3%</text>
+      )}
+    </svg>
+  </div>
+) : (
+  <PanelEmpty reason="Headline CPI series not available." />
+)}
+
+<style>
+  .cpitrio {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+  .cpitrio__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  /* Sub-panel titles: 11px semi-bold wide-tracked caps */
+  .cpitrio__subpanel-title {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.18em;
+  }
+
+  /* Gridlines: 18% opacity hairlines */
+  .cpitrio__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+
+  /* Zero baseline: full opacity */
+  .cpitrio__zero-line {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Control band: 7% fill, no stroke */
+  .cpitrio__reference-band {
+    fill: rgba(21, 23, 26, 0.07);
+    stroke: none;
+    shape-rendering: crispEdges;
+  }
+
+  /* Y/Y primary line: 1.5px solid pure ink */
+  .cpitrio__line--primary {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* 3M-AR secondary line: 1px dashed (4px on, 2px off), pure ink */
+  .cpitrio__line--secondary {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Bars */
+  .cpitrio__bar { fill: var(--ink); }
+  .cpitrio__bar--latest { fill: var(--accent); }
+
+  /* Latest-print dot: MTA red */
+  .cpitrio__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  /* Plot frame: 1px hairline */
+  .cpitrio__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* x-tick nubs */
+  .cpitrio__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* x-tick labels: 12px sans tabular */
+  .cpitrio__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* y-tick labels: 12px mono tabular (ink-faint via opacity) */
+  .cpitrio__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* End-of-line labels: 11px micro-caps sans */
+  .cpitrio__eol-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    letter-spacing: 0.08em;
+    fill-opacity: 0.75;
+  }
+
+  /* Band caption (below frame): 10px semi-bold wide-tracked, ink-faint */
+  .cpitrio__band-caption {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.14em;
+    fill-opacity: 0.6;
+  }
+</style>

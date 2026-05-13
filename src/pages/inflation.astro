@@ -1,4 +1,4 @@
-﻿---
+---
 import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
@@ -31,10 +31,11 @@ const plates: Plate[] = [
     indicator: "Headline CPI, m/m and Y/Y",
     plateIndexLabel: "Headline CPI",
     asOf: "Mar 2026",
-    title: "Disinflation has stalled, with CPI back above the 2% target.",
+    title: "Headline CPI reaccelerated to 2.3% in March, the upper half of the band.",
     interpretationHtml:
-      "Headline CPI rose 0.5% in March, an m/m bump that pulled the Y/Y reading up 0.5pp to 2.3% &mdash; back above the BoC's 2% target. " +
-      "The 3-month annualized print sits near 2.9%, signalling the bounce has carried into the more recent windows.",
+      "Headline inflation rose to 2.3% year-over-year in March from 1.8% in February, a 0.5-point jump that lifts CPI into the upper half of the 1-to-3% control band. " +
+      "Prices climbed 0.5% on the month. " +
+      "The three-month annualized run-rate sits near 2.9%, confirming the reacceleration is momentum, not a base effect.",
     callout: {
       value: "+2.3%",
       unitPrefix: "Y/Y",
@@ -45,17 +46,26 @@ const plates: Plate[] = [
       "Statistics Canada Table 18-10-0004-01.",
     chartKey: "inflation-panel-1",
     data: panel1Data,
+    citations: [
+      { phrase: "2.3% in March", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI Y/Y, March 2026." },
+      { phrase: "2.3% year-over-year in March", source: "pipeline:statcan:18-10-0004-01" },
+      { phrase: "1.8% in February", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI Y/Y, February 2026." },
+      { phrase: "0.5-point jump", source: "derived", note: "2.3% - 1.8% = 0.5pp (Mar vs Feb 2026 headline Y/Y)." },
+      { phrase: "1-to-3% control band", source: "card:boc_inflation_mandate" },
+      { phrase: "0.5% on the month", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI m/m, March 2026." },
+      { phrase: "near 2.9%", source: "derived", note: "Three-month annualized run-rate of headline CPI through March 2026, computed from monthly index from StatCan 18-10-0004-01." },
+    ],
   },
   {
     id: "plate-2",
     number: "02",
     indicator: "Core-trim and core-median, Y/Y",
     plateIndexLabel: "Preferred cores",
-    title: "Both preferred cores have settled near 2% even as headline turned.",
+    title: "Core measures held near target as headline reaccelerated.",
     interpretationHtml:
-      "Core-trim eased to 2.2% Y/Y in March, down 0.1pp from February. Core-median held at 2.3%. " +
-      "Both preferred measures now sit inside the BoC's 1-3% control band and within 0.3pp of the 2% midpoint &mdash; the underlying disinflation has held even as headline turned. " +
-      "Core-common, shown as historical anchor, prints 2.6%; the BoC has deprioritized it since late 2022.",
+      "Core-trim eased to 2.2% in March and core-median held at 2.3% &mdash; both within a tenth of the 2% target and both lower than they were three months ago. " +
+      "The headline reaccel hasn't bled into the trimmed-mean cores, which is where the signal the Bank of Canada reads sits. " +
+      "Core-common, once the anchor measure, has been deprioritized in the policy frame.",
     callout: {
       value: "2.2%",
       unitPrefix: "core-trim, Y/Y",
@@ -65,17 +75,22 @@ const plates: Plate[] = [
     source: "Bank of Canada (CPI-trim, CPI-median, CPI-common).",
     chartKey: "inflation-panel-2",
     data: panel2Data,
+    citations: [
+      { phrase: "2.2% in March", source: "pipeline:boc:STATIC_TOTALCPICOMMON_TRIM", note: "CPI-trim Y/Y, March 2026 (BoC Valet preferred-core series)." },
+      { phrase: "2.3%", source: "pipeline:boc:STATIC_TOTALCPICOMMON_MEDIAN", note: "CPI-median Y/Y, March 2026 (BoC Valet preferred-core series)." },
+      { phrase: "2% target", source: "card:boc_inflation_mandate" },
+    ],
   },
   {
     id: "plate-3",
     number: "03",
     indicator: "Share of CPI basket above 3% Y/Y",
     plateIndexLabel: "Breadth",
-    title: "Breadth has turned higher for the first time in months, matching the headline reacceleration.",
+    title: "Breadth widened in March: 27% of the basket runs above 3%.",
     interpretationHtml:
-      "The share of CPI components rising more than 3% Y/Y jumped to 27.2% in March from 22.3% in February &mdash; a 4.9pp widening and the first meaningful breadth expansion since late 2025. " +
-      "The level is still well below the 2022 peak above two thirds, but the direction matches the headline reacceleration. " +
-      "Whether March marks a one-month spike or the start of a broader re-firming is the read to track in April.",
+      "The share of CPI components rising faster than 3% year-over-year jumped to 27.2% in March from 22.3% in February &mdash; a 4.9-point move in a single print. " +
+      "That's a real broadening, not a one-line distortion. " +
+      "The level still sits well below the 2022 peak above two thirds of the basket, but the direction has turned.",
     callout: {
       value: "27.2%",
       unitPrefix: "share >3% Y/Y",
@@ -85,17 +100,26 @@ const plates: Plate[] = [
     source: "Statistics Canada Table 18-10-0004-01; component shares constructed.",
     chartKey: "inflation-panel-3",
     data: panel3Data,
+    citations: [
+      { phrase: "27% of the basket runs above 3%", source: "derived", note: "Share of CPI components with Y/Y above 3.0%, March 2026; constructed from StatCan 18-10-0004-01 component-level Y/Y series." },
+      { phrase: "27.2% in March", source: "derived", note: "Share of CPI basket components with Y/Y > 3%, March 2026; constructed from StatCan 18-10-0004-01." },
+      { phrase: "22.3% in February", source: "derived", note: "Share of CPI basket components with Y/Y > 3%, February 2026; constructed from StatCan 18-10-0004-01." },
+      { phrase: "4.9-point move", source: "derived", note: "27.2% - 22.3% = 4.9pp (Mar vs Feb 2026 breadth share)." },
+      { phrase: "2022 peak", source: "derived", note: "Peak share of CPI components Y/Y > 3% during the 2022 inflation episode; constructed from StatCan 18-10-0004-01 component series." },
+      { phrase: "above two thirds of the basket", source: "derived", note: "2022 breadth peak exceeded ~67% of CPI components above 3% Y/Y; constructed from StatCan 18-10-0004-01." },
+    ],
   },
   {
     id: "plate-4",
     number: "04",
     indicator: "Shelter, services, goods, food, energy, Y/Y",
     plateIndexLabel: "Sub-aggregates",
-    title: "The composition of inflation has flipped from shelter to food and energy.",
+    title: "Composition flipped: food and energy now carry the overshoot, not shelter.",
     interpretationHtml:
-      "Food rose 4.0% Y/Y and energy 3.9% in March &mdash; the two above-target lines and the bulk of the headline reacceleration. " +
-      "Shelter has cooled to 1.7% as mortgage-interest cost faded to 0.7% and rent slowed to 0.9%; the line that drove the 2023-24 overshoot is no longer a source of pressure. " +
-      "Services held at 2.5%, goods at 2.1%. The composition has flipped: the stickiness that remains is in food and energy, not housing.",
+      "Shelter inflation, the engine of the 2023-24 overshoot, has cooled to 1.7% &mdash; below the 2% target for a third straight month. " +
+      "Services run at 2.5% and goods at 2.1%, both well-behaved. " +
+      "The pressure has rotated to food at 4.0% and energy at 3.9%, the two components the Bank of Canada is most willing to look through. " +
+      "The overshoot has migrated, not vanished.",
     callout: {
       value: "1.7%",
       unitPrefix: "shelter, Y/Y",
@@ -106,6 +130,16 @@ const plates: Plate[] = [
       "Statistics Canada Table 18-10-0004-01 (CPI sub-aggregates).",
     chartKey: "inflation-panel-4",
     data: panel4Data,
+    citations: [
+      { phrase: "2023-24 overshoot", source: "pipeline:statcan:18-10-0004-01", note: "Shelter Y/Y peaked above 6% in 2023 and stayed above the 2% target through 2024 per CPI sub-aggregate series." },
+      { phrase: "cooled to 1.7%", source: "pipeline:statcan:18-10-0004-01", note: "Shelter Y/Y, March 2026." },
+      { phrase: "2% target", source: "card:boc_inflation_mandate" },
+      { phrase: "third straight month", source: "pipeline:statcan:18-10-0004-01", note: "Shelter Y/Y prints below 2% in January, February, and March 2026 — enumerated from the monthly sub-aggregate series." },
+      { phrase: "Services run at 2.5%", source: "pipeline:statcan:18-10-0004-01", note: "Services Y/Y, March 2026." },
+      { phrase: "goods at 2.1%", source: "pipeline:statcan:18-10-0004-01", note: "Goods Y/Y, March 2026." },
+      { phrase: "food at 4.0%", source: "pipeline:statcan:18-10-0004-01", note: "Food Y/Y, March 2026." },
+      { phrase: "energy at 3.9%", source: "pipeline:statcan:18-10-0004-01", note: "Energy Y/Y, March 2026." },
+    ],
   },
   {
     id: "plate-5",
@@ -113,9 +147,11 @@ const plates: Plate[] = [
     indicator: "Consumer and firm inflation expectations",
     plateIndexLabel: "Expectations",
     asOf: "Q1 2026 (CSCE / BOS)",
-    title: "Both groups still see inflation pulling back toward target.",
+    title: "Expectations kept moderating as the headline jumped.",
     interpretationHtml:
-      "Consumers' five-year-ahead inflation expectations slipped to 3.0% in Q1, down from a 3.67% peak in mid-2025 and the closest reading to the 2% target since 2021. On the firm side, the share of businesses expecting inflation above 3% fell to 11% &mdash; a quarter of the level that prevailed in early 2024, with the modal firm now expecting inflation between 1% and 2%. The anchoring chain is moderating on both sides of the survey, which is the condition the Bank of Canada has named as binding for further easing.",
+      "Five-year consumer inflation expectations in the CSCE eased to 3.0% in Q1, down from a recent-cycle peak of 3.7% in mid-2025. " +
+      "On the firm side, the share of businesses expecting inflation above 3% has collapsed to 11%, from around 40% as recently as early 2024. " +
+      "Both anchors held while the headline reaccelerated &mdash; which is why the Bank of Canada can tolerate a brief blip above 2% without flinching on the rate path.",
     callout: {
       value: "3.0%",
       unit: "CSCE 5y consumer expectations, Q1 2026",
@@ -125,6 +161,15 @@ const plates: Plate[] = [
     source: "Bank of Canada Canadian Survey of Consumer Expectations and Business Outlook Survey, Q1 2026.",
     chartKey: "inflation-panel-5",
     data: panel5Data,
+    citations: [
+      { phrase: "3.0% in Q1", source: "other:BoC Canadian Survey of Consumer Expectations Q1 2026 — 5-year-ahead inflation-expectation median", note: "CSCE not in registry; cited from BoC CSCE Q1 2026 release." },
+      { phrase: "peak of 3.7% in mid-2025", source: "other:BoC Canadian Survey of Consumer Expectations Q2 2025 — 5-year-ahead inflation-expectation median (cycle peak)", note: "CSCE not in registry; recent-cycle peak Q2 2025 = 3.7%." },
+      { phrase: "above 3%", source: "card:boc_inflation_mandate", note: "Reference threshold is the upper edge of the BoC 1-3% control band." },
+      { phrase: "collapsed to 11%", source: "other:BoC Business Outlook Survey Q1 2026 — share of firms expecting CPI above 3% over the next two years", note: "BOS not in registry; firm-side share at 11% in Q1 2026." },
+      { phrase: "around 40%", source: "other:BoC Business Outlook Survey Q1 2024 — share of firms expecting CPI above 3% over the next two years", note: "BOS not in registry; firm-side share near 40% in early-2024 vintages." },
+      { phrase: "early 2024", source: "other:BoC Business Outlook Survey Q1 2024", note: "Comparison vintage for the firm-side expectations move; BOS not in registry." },
+      { phrase: "above 2%", source: "card:boc_inflation_mandate", note: "Reference is the 2% midpoint of the BoC inflation-control target." },
+    ],
   },
 ];
 

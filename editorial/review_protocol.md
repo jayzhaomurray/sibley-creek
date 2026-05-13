@@ -129,3 +129,87 @@ the gates first.
 When the user catches reader-facing prose on the live site that should
 have been gated, the immediate action is: cut it, codify why the gate
 missed it, redispatch with the gate in place.
+
+---
+
+## Source-currency — how stale citations get caught
+
+Pipeline-backed series (StatCan tables via API, BoC Valet, FRED) auto-
+refresh through the daily pipeline run; stale series surface as
+pipeline errors or as visible "not wired" states on the site.
+
+PDF/HTML publications (BoC MPR, FOMC statements, BoC inflation mandate,
+IRCC plans, IMF Article IV, OECD Economic Survey, BoC neutral-rate
+Appendix) do NOT auto-refresh. The publication on the BoC site moves
+forward, our prose stays anchored to the old vintage, and a claim that
+was true yesterday is editorially out of register today.
+
+**The registry:** `editorial/source_cards/registry.yaml` lists every
+PDF/HTML publication cited in reader-facing prose or as a chart
+constant. Schema and example entries are in the file. Required fields
+include `url`, `verified_value`, `verified_at`, `next_expected`,
+`cadence`, and `cited_in`.
+
+**The cron:** `.github/workflows/source-currency-check.yml` runs the
+registry probe weekly. `scripts/check_sources.mjs` fetches each
+`currency_probe_url`, flags `PAST-DUE` entries (where `next_expected`
+has passed) and `NEWER-VINTAGE-MAYBE` entries (where the probe response
+contains dates newer than `verified_at`). Failing the workflow on
+PAST-DUE makes the staleness visible in the Actions tab.
+
+**On demand:** the `/check-sources` skill runs the same probe locally
+and surfaces the punch list. Used between cron runs when a new vintage
+is known to have shipped (e.g., a fresh MPR just dropped) and the user
+wants to verify everything currently cited is current.
+
+**The discipline:** when a redraft pass references any registry entry,
+the fact-checker's brief includes "verify the registry entry's value
+against the cited URL is still the current published value." This
+extends the Redraft Re-gating rule below to source-currency, not just
+pipeline data. When researcher dispatch confirms a new vintage exists,
+the researcher updates the registry entry (new `url`,
+`verified_value`, `verified_at`, `vintage_label`, `next_expected`) and
+flags any prose surfaces that need rewording.
+
+The registry plus the cron close the silent-staleness loop. The
+discipline depends on actually opening and acting on the cron's output
+on the weeks publications ship.
+
+---
+
+## Redraft re-gating — the rule that closes the most common leak
+
+**Any new claim introduced during a redraft re-enters Gate 1.** No
+exceptions. If the writer rewrites a blurb in response to a style
+audit, or adds editorial context to fill a methodology cut, or
+introduces a forward-looking framing line — every new numeric,
+dated, or countable claim in the new text gets fact-checked before
+the redraft is applied to the live page.
+
+This is the most common way reader-facing claims slip through:
+
+1. Initial fact-check passes on draft A (verified numbers).
+2. Style audit flags draft A for voice issues.
+3. Writer rewrites to draft B, introducing new numbers / counts /
+   "first since" / "Nth consecutive" claims to replace cut prose.
+4. Dispatcher applies draft B to the live page WITHOUT re-checking
+   the new claims — assumes the original Gate 1 covered them.
+5. Wrong number ships.
+
+The fix: after every writer redraft, dispatch fact-checker scoped to
+the **delta between draft A and draft B**. The fact-checker brief
+names the specific new claims (e.g., "verify the '3-mo average
+negative since late-2024 stall' claim by enumeration"; "verify
+'spread negative for nearly two years' by walking the series back
+from latest"). PASS → apply. FAIL → fix the claim and re-check.
+
+This rule applies to:
+- `/refresh-blurbs` redraft passes (writer rewrites failing surfaces).
+- Auto-blurb pipeline redrafts after the verifier flags a claim card.
+- Any one-off writer dispatch where the writer adds prose beyond what
+  the source claim-cards directly carry.
+- Deep-dive revision cycles where new sub-claims appear in revision.
+
+A writer's redraft is not "trusted because the writer already had the
+verified inputs." The writer's job is prose; verification is the
+fact-checker's. The gate runs every time new claims appear.

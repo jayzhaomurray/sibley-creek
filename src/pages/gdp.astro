@@ -61,32 +61,37 @@ const plates: Plate[] = [
     indicator: "Headline real GDP, m/m and Y/Y",
     plateIndexLabel: "Headline GDP",
     asOf: "Feb 2026 (released Apr 30, 2026)",
-    title: "Canada's economy is growing, albeit weakly.",
+    title: "Headline growth is running near 1%, just below potential.",
     interpretationHtml:
-      "Monthly real GDP advanced 0.2% in February, the fourth consecutive monthly gain since October's 0.3% decline. " +
-      "The year-over-year pace sits at 1.0% &mdash; positive but still running below the Bank's near-term estimate of potential growth around 1.7%, " +
-      "consistent with an economy expanding without closing the slack opened earlier in the cycle.",
+      "Monthly real GDP edged up 0.2% in February, leaving the year-over-year pace at 1.0%. " +
+      "That sits roughly two-tenths of a point under the Bank of Canada's 1.2% estimate of near-term potential growth &mdash; close to trend, not at it. " +
+      "Growth is positive; it is not fast.",
     callout: {
       value: "+0.2%",
       unitPrefix: "month-over-month",
       delta: "Y/Y +1.0%",
       direction: "pos",
     },
-    source: "Statistics Canada Table 36-10-0434-01; potential growth reference from BoC April 2026 Monetary Policy Report.",
+    source: "Statistics Canada Table 36-10-0434-01 (monthly real GDP by industry); potential growth reference from BoC Monetary Policy Report, April 2026, Appendix (2026 estimate 1.2%).",
     chartKey: "gdp-panel-1",
     data: panel1Data,
+    citations: [
+      { phrase: "0.2% in February", source: "pipeline:statcan:36-10-0434-01" },
+      { phrase: "1.0%", source: "pipeline:statcan:36-10-0434-01" },
+      { phrase: "two-tenths of a point", source: "derived", note: "1.2% - 1.0% = 0.2pp" },
+      { phrase: "1.2% estimate of near-term potential growth", source: "card:boc_mpr_potential_growth" },
+    ],
   },
   {
     id: "plate-2",
     number: "02",
     indicator: "Contributions to quarterly growth, by bucket",
     plateIndexLabel: "Contributions",
-    title: "An inventory drawdown swamped a positive domestic profile in Q4.",
+    title: "Inventories drag the Q4 headline below the underlying pulse.",
     interpretationHtml:
-      "Real GDP contracted 0.6% q/q annualized in Q4 2025, but the composition is more constructive than the headline. " +
-      "Final domestic demand &mdash; consumption, government, and business investment combined &mdash; contributed +2.3pp; trade net contributed +1.5pp. " +
-      "The entire shortfall came from inventories, which subtracted 4.2pp. " +
-      "Because inventory swings tend to mean-revert within a few quarters and reflect production timing rather than demand, stripping them out leaves the rest of the economy expanding at roughly 3.8pp annualized.",
+      "Real GDP contracted at a 0.6% annualized pace in Q4 2025, but the underlying composition is more constructive than the headline. " +
+      "Final domestic demand added 2.3 percentage points and net trade another 1.5, while a 4.2-point destocking did the damage. " +
+      "The quarter's weakness is more about how much was produced for the shelf than how much was sold.",
     callout: {
       value: "-0.6%",
       unitPrefix: "q/q SAAR",
@@ -96,56 +101,51 @@ const plates: Plate[] = [
     source: "Statistics Canada Table 36-10-0104-01 (quarterly expenditure-side contributions to growth).",
     chartKey: "gdp-panel-3",
     data: panel3Data,
+    citations: [
+      { phrase: "0.6% annualized pace in Q4 2025", source: "pipeline:statcan:36-10-0104-01" },
+      { phrase: "2.3 percentage points", source: "pipeline:statcan:36-10-0104-01", note: "Final domestic demand contribution to Q4 2025 GDP growth (Q/Q SAAR)." },
+      { phrase: "another 1.5", source: "pipeline:statcan:36-10-0104-01", note: "Net trade contribution to Q4 2025 GDP growth (Q/Q SAAR), pp." },
+      { phrase: "4.2-point destocking", source: "pipeline:statcan:36-10-0104-01", note: "Inventory contribution to Q4 2025 GDP growth (Q/Q SAAR), pp." },
+    ],
   },
   {
     id: "plate-3",
     number: "03",
-    indicator: "Real GDP by industry, services vs goods, Y/Y",
-    plateIndexLabel: "Industry split",
-    title: "On the surface, goods and services tell the same growth story.",
+    indicator: "Real GDP by industry, services vs goods + manufacturing vs mining and oil",
+    plateIndexLabel: "Industry composite",
+    asOf: "Feb 2026",
+    title: "Resources lift Canada's economy as manufacturing slips deeper into recession.",
     interpretationHtml:
-      "Services real GDP rose 1.0% Y/Y in February &mdash; the steady ~1% pace the sector has held all cycle. Goods real GDP rose 0.8% over the same window, putting the two halves of the economy in essentially the same range at the aggregate level. " +
-      "The composition story is one level deeper. The next plate splits goods into manufacturing and mining and oil &mdash; the two are pulling in opposite directions, and the goods aggregate cancels them out.",
+      "The physical economy has split in two. " +
+      "Mining and oil-and-gas output sits roughly 13% above its December 2019 level; manufacturing sits about 6% below it, a half-decade recession in the country's largest goods-producing industry. " +
+      "Services, where most Canadians work, are growing at a 1% annual pace &mdash; enough to keep the headline positive, not enough to push it.",
     callout: {
-      value: "+1.0%",
-      unitPrefix: "services, Y/Y",
-      delta: "Goods +0.8%",
-      direction: "pos",
+      value: "+13%",
+      unitPrefix: "mining + oil, since Dec 2019",
+      delta: "Manufacturing -6%",
+      direction: "neutral",
     },
     source: "Statistics Canada Table 36-10-0434-01 (monthly real GDP by industry).",
     chartKey: "gdp-panel-2",
     data: panel2Data,
+    citations: [
+      { phrase: "roughly 13% above its December 2019 level", source: "pipeline:statcan:36-10-0434-01", note: "Mining and oil-and-gas extraction, cumulative real GDP change since Dec 2019." },
+      { phrase: "about 6% below it", source: "pipeline:statcan:36-10-0434-01", note: "Manufacturing real GDP, cumulative since Dec 2019." },
+      { phrase: "half-decade recession", source: "derived", note: "Manufacturing real GDP has flattened or contracted every full year since 2022 per Dec-over-Dec series." },
+      { phrase: "1% annual pace", source: "pipeline:statcan:36-10-0434-01", note: "Services real GDP Y/Y, Feb 2026 = 1.055% — rounds to 1.1%, hedged as ~1%." },
+    ],
   },
   {
     id: "plate-4",
     number: "04",
-    indicator: "Real GDP by industry, manufacturing vs mining and oil, indexed to Dec 2019",
-    plateIndexLabel: "Cyclical drivers",
-    title: "Under the hood, Canada's physical economy is on two tracks.",
-    interpretationHtml:
-      "Indexed to the eve of the pandemic, manufacturing real GDP sits 6% below its December 2019 level; mining and oil and gas extraction sits 13% above. The divergence has been uninterrupted since 2022 &mdash; mining and oil has grown every year, manufacturing has flattened or contracted every year. " +
-      "The split maps onto geography: the manufacturing belt of Ontario and Quebec against the resource economies of Alberta and Saskatchewan.",
-    callout: {
-      value: "-6%",
-      unitPrefix: "manufacturing, since Dec 2019",
-      delta: "Mining and oil +13%",
-      direction: "neg",
-    },
-    source: "Statistics Canada Table 36-10-0434-01 (monthly real GDP by industry).",
-    chartKey: "gdp-panel-6",
-    data: panel6Data,
-  },
-  {
-    id: "plate-5",
-    number: "05",
     indicator: "BoC MPR output gap",
     plateIndexLabel: "Output gap",
     asOf: "2025Q4; April 2026 MPR vintage",
-    title: "Output gap widened to -1.0% in Q4 2025, doubling the Q3 shortfall.",
+    title: "The output gap reopened to 1% in Q4 — a hold story, not a hike one.",
     interpretationHtml:
-      "The BoC's measure of the output gap fell to -1.0% in Q4 2025 from -0.5% in Q3, the deepest reading since early 2021. " +
-      "Measured output dipped on the quarter while potential continued to expand, so the shortfall reflects a demand-side slowdown rather than a supply-side hit. " +
-      "Slack is opening, not closing &mdash; the disinflation case from the demand side is intact.",
+      "The Bank of Canada's output gap estimate widened to -1.0% in Q4 from -0.5% in Q3, the deepest reading since early 2021. " +
+      "The shortfall is demand-side: not enough spending to absorb the economy's productive capacity. " +
+      "A gap this size keeps the easing bias intact and takes a near-term hike off the conversation.",
     callout: {
       value: "-1.0%",
       unitPrefix: "% of potential",
@@ -156,17 +156,22 @@ const plates: Plate[] = [
       "Bank of Canada Monetary Policy Report, April 2026 (Valet INDINF_OUTGAPMPR_Q).",
     chartKey: "gdp-panel-5",
     data: panel5Data,
+    citations: [
+      { phrase: "-1.0% in Q4", source: "pipeline:boc:INDINF_OUTGAPMPR_Q", note: "BoC MPR output gap, Q4 2025." },
+      { phrase: "-0.5% in Q3", source: "pipeline:boc:INDINF_OUTGAPMPR_Q", note: "BoC MPR output gap, Q3 2025." },
+      { phrase: "deepest reading since early 2021", source: "pipeline:boc:INDINF_OUTGAPMPR_Q", note: "Enumerated Q1 2021 onward: only Q1 2021 (-1.7) and Q2 2021 (-2.0) were deeper than Q4 2025." },
+    ],
   },
   {
-    id: "plate-6",
-    number: "06",
+    id: "plate-5",
+    number: "05",
     indicator: "Total vs per-capita real GDP, indexed to 2019Q4",
     plateIndexLabel: "Per capita",
-    title: "Output per head has fallen well short of overall growth.",
+    title: "Per-capita output has barely cleared its 2019 level — the growth is people.",
     interpretationHtml:
-      "Indexed to the eve of the pandemic, total real GDP sits roughly +11% above its 2019Q4 level; per-capita real GDP sits at +1%. " +
-      "The gap between the two lines is the population contribution &mdash; the share of headline growth that has gone into adding people rather than into output per person. " +
-      "Per-capita output has barely cleared the pre-pandemic level six years on, which is the central fact behind the deep dive on <a href=\"/research/per-capita-output/\">population-padded GDP</a>.",
+      "Total real GDP sits about 11% above its 2019Q4 level; on a per-person basis, the gain is closer to 1%. " +
+      "The ten-point wedge is the population contribution &mdash; Canada has grown by adding workers and consumers, not by producing more per Canadian. " +
+      "See the deep dive on <a href=\"/research/per-capita-output/\">population-padded GDP</a>.",
     callout: {
       value: "+1%",
       unit: "per-capita real GDP, cumulative since 2019Q4",
@@ -177,6 +182,11 @@ const plates: Plate[] = [
       "Statistics Canada Tables 36-10-0104-01 and 17-10-0009-01; per-capita and indexation by Sibley Creek.",
     chartKey: "gdp-panel-4",
     data: panel4Data,
+    citations: [
+      { phrase: "about 11% above its 2019Q4 level", source: "pipeline:statcan:36-10-0104-01", note: "Total real GDP, cumulative since 2019Q4 = +10.94% in 2025Q4." },
+      { phrase: "the gain is closer to 1%", source: "derived", note: "Per-capita real GDP = total / population 15+. 2025Q4 = +0.94% since 2019Q4. Inputs: StatCan 36-10-0104-01 (GDP) and 17-10-0009-01 (population)." },
+      { phrase: "ten-point wedge", source: "derived", note: "11% (total) - 1% (per-capita) = 10pp." },
+    ],
   },
 ];
 

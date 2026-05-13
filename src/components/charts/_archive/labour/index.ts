@@ -12,6 +12,8 @@ import Alt1_TripleLabourSeries from "./Alt1_TripleLabourSeries.astro";
 import PanelBeveridgeCurve from "./PanelBeveridgeCurve.astro";
 import Panel5IRCCSupplyTrajectory from "./Panel5IRCCSupplyTrajectory.astro";
 import Panel7EIBeneficiaries from "./Panel7EIBeneficiaries.astro";
+import Panel2LabourStocks from "./Panel2LabourStocks.astro";
+import Panel2PerCapitaSignature from "./Panel2PerCapitaSignature.astro";
 
 const labour2Data = pickPanel(labourPanelData, 2);
 const labour4Data = pickPanel(labourPanelData, 4);
@@ -81,5 +83,28 @@ export const entries: ChartShelfEntry[] = [
       "Statistics Canada Table 14-10-0011-01 (EI beneficiaries, monthly).",
     addedAt: "2026-05-12",
     data: labour7Data,
+  },
+  {
+    Component: Panel2LabourStocks,
+    file: "labour/Panel2LabourStocks.astro",
+    title: "Three labour-force stocks (V1 — retired from production)",
+    whatDifferent:
+      "Three side-by-side line panels: employed, unemployed, not-in-labour-force levels. 60-month window, shared x-axis, per-panel y-axes. NLF derived chart-side via pop_15+ = emp_level / (emp_rate/100); NLF = pop_15+ − emp_level − unemp_level.",
+    whyBetter:
+      "Retired 2026-05-13 per EDR audit: overlapped Plate 1's headline jobs print without surfacing the per-capita signature canon names (`editorial/dashboard_purpose.md` § 4.3 element 2). Panel2PerCapitaSignature now occupies the slot, showing emp Y/Y vs emp-per-capita Y/Y and hours Y/Y vs hours-per-capita Y/Y — the divergence the section question is built around.",
+    dataFields:
+      "data/site/panel_data/labour.json panel-2 (pre-rebuild): primary=employment_level, secondary=unemployment_level, tertiary=employment_rate.",
+    addedAt: "2026-05-13",
+  },
+  {
+    Component: Panel2PerCapitaSignature,
+    file: "labour/Panel2PerCapitaSignature.astro",
+    title: "Panel2PerCapitaSignature (retired from production — TODO describe)",
+    whatDifferent:
+      "TODO: describe what made this version distinct.",
+    whyBetter:
+      "TODO: describe what won out and why this was parked.",
+    dataFields: "TODO: list source panel_data slot or CSV file(s).",
+    addedAt: "2026-05-13",
   },
 ];

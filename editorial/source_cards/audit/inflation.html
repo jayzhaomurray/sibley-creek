@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Source audit · inflation</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: #111;
+  background: #f7f6f1;
+  margin: 0;
+}
+.wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 40px;
+  align-items: start;
+}
+header.page-head {
+  grid-column: 1 / -1;
+  border-bottom: 2px solid #111;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+header.page-head h1 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+header.page-head .breadcrumb a {
+  color: #666;
+  text-decoration: none;
+  margin-right: 16px;
+}
+header.page-head .breadcrumb a:hover { color: #000; text-decoration: underline; }
+main {
+  background: white;
+  padding: 32px;
+  border: 1px solid #ddd;
+}
+.headline-q {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #111;
+}
+.section-label {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.abstract {
+  font-size: 17px;
+  line-height: 1.6;
+  border-left: 3px solid #c00;
+  padding-left: 16px;
+  margin: 24px 0 40px 0;
+  color: #222;
+}
+.plate {
+  border-top: 1px solid #ccc;
+  padding: 24px 0;
+}
+.plate-number {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.plate-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 4px 0 10px 0;
+  color: #111;
+}
+.plate-meta {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #777;
+  margin-bottom: 12px;
+}
+.plate-blurb { font-size: 16px; line-height: 1.6; color: #222; }
+.plate-source-line {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #666;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dotted #ccc;
+}
+.claim {
+  background: #fffbcc;
+  padding: 1px 2px;
+  border-bottom: 2px solid #e6c200;
+  cursor: pointer;
+}
+.claim:hover {
+  background: #fff299;
+}
+.claim-sup {
+  color: #b07b00;
+  font-weight: 700;
+  font-size: 0.8em;
+  margin-left: 1px;
+}
+aside.ledger {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 16px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+}
+aside.ledger h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+.ledger-group { margin-bottom: 20px; }
+.ledger-group-h {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #555;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ddd;
+}
+.ledger-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.ledger-ref {
+  display: inline-block;
+  background: #e6c200;
+  color: white;
+  padding: 1px 6px;
+  font-weight: 700;
+  font-size: 11px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+.ledger-ref.pipeline { background: #2a7a30; }
+.ledger-ref.derived { background: #888; }
+.ledger-ref.unknown, .ledger-ref.card-missing, .ledger-ref.other { background: #c33; }
+.ledger-phrase {
+  font-style: italic;
+  color: #333;
+  display: block;
+  margin: 4px 0;
+}
+.ledger-source-label { font-weight: 600; color: #222; font-size: 12px; }
+.ledger-excerpt {
+  margin: 6px 0;
+  padding: 8px 10px;
+  background: #f3f3ef;
+  color: #444;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 2px solid #999;
+}
+.ledger-meta { font-size: 11px; color: #777; }
+.ledger-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: #006699;
+  text-decoration: none;
+  font-weight: 600;
+}
+.ledger-link:hover { text-decoration: underline; }
+.note-line { font-size: 11px; color: #888; margin-top: 4px; font-style: italic; }
+footer.audit-foot {
+  grid-column: 1 / -1;
+  border-top: 1px solid #ccc;
+  padding: 20px 0;
+  font-size: 12px;
+  color: #777;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.edit-btn {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #006699;
+  background: transparent;
+  border: 1px solid #006699;
+  padding: 3px 8px;
+  margin-left: 8px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.edit-btn:hover { background: #006699; color: white; }
+.edit-form {
+  margin-top: 12px;
+  padding: 14px;
+  background: #f8f7ec;
+  border: 1px solid #d8c773;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  display: none;
+}
+.edit-form.open { display: block; }
+.edit-form label {
+  display: block;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+  margin: 8px 0 4px 0;
+}
+.edit-form textarea, .edit-form input[type="text"] {
+  width: 100%;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #c8c0a0;
+  background: white;
+  box-sizing: border-box;
+}
+.edit-form textarea { min-height: 80px; line-height: 1.5; resize: vertical; }
+.edit-form .row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.edit-form .row .primary {
+  background: #006699;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.edit-form .row .primary:hover { background: #00557e; }
+.edit-form .row .toast {
+  font-size: 12px;
+  color: #2a7a30;
+  font-weight: 600;
+  margin-left: 8px;
+  display: none;
+}
+.edit-form .row .toast.show { display: inline; }
+.edit-form .hint {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+  margin-top: 4px;
+}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <div class="breadcrumb">
+        <a href="./index.html">← All sections</a>
+        <span style="color:#999">·</span>
+        <a href="https://sibleycreek.ca/inflation/" target="_blank" rel="noopener">Live page ↗</a>
+      </div>
+      <h1>Source audit · inflation</h1>
+    </header>
+    <main>
+      <div class="section-label">Section abstract <button class="edit-btn" onclick="document.getElementById('edit-abstract').classList.toggle('open')">✎ Propose edit</button></div>
+      <h2 class="headline-q">How close is Canadian inflation to the 2% target, and is the anchor holding?</h2>
+      <div class="abstract"><span class="claim" data-ref="1">Headline CPI sits at 2.3%<sup class="claim-sup">[1]</sup></span> — a hair above target, with food and energy now carrying the overshoot that shelter used to. Core-trim and core-median, the measures the Bank of Canada actually reacts to, are <span class="claim" data-ref="2">back at 2.2-2.3%<sup class="claim-sup">[2]</sup></span>. And consumer and firm expectations have moderated together: the anchor is holding while the composition rotates.</div>
+      
+    <div class="edit-form" id="edit-abstract">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="" />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Headline CPI sits at 2.3% — a hair above target, with food and energy now carrying the overshoot that shelter used to. Core-trim and core-median, the measures the Bank of Canada actually reacts to, are back at 2.2-2.3%. And consumer and firm expectations have moderated together: the anchor is holding while the composition rotates.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'inflation', 'section-abstract')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      
+      <section class="plate">
+        <div class="plate-number">01 · Headline CPI</div>
+        <h3 class="plate-title">Headline CPI reaccelerated to 2.3% in March, the upper half of the band. <button class="edit-btn" onclick="document.getElementById('edit-plate-0').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Headline CPI, m/m and Y/Y · Mar 2026</div>
+        <div class="plate-blurb">Headline inflation rose to <span class="claim" data-ref="2">2.3% year-over-year in March<sup class="claim-sup">[2]</sup></span> from <span class="claim" data-ref="3">1.8% in February<sup class="claim-sup">[3]</sup></span>, a <span class="claim" data-ref="4">0.5-point jump<sup class="claim-sup">[4]</sup></span> that lifts CPI into the upper half of the <span class="claim" data-ref="5">1-to-3% control band<sup class="claim-sup">[5]</sup></span>. Prices climbed <span class="claim" data-ref="6">0.5% on the month<sup class="claim-sup">[6]</sup></span>. The three-month annualized run-rate sits <span class="claim" data-ref="7">near 2.9%<sup class="claim-sup">[7]</sup></span>, confirming the reacceleration is momentum, not a base effect.</div>
+        <div class="plate-source-line">Statistics Canada Table 18-10-0004-01.</div>
+        
+    <div class="edit-form" id="edit-plate-0">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Headline CPI reaccelerated to 2.3% in March, the upper half of the band." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Headline inflation rose to 2.3% year-over-year in March from 1.8% in February, a 0.5-point jump that lifts CPI into the upper half of the 1-to-3% control band. Prices climbed 0.5% on the month. The three-month annualized run-rate sits near 2.9%, confirming the reacceleration is momentum, not a base effect.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'inflation', 'plate-1')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">02 · Preferred cores</div>
+        <h3 class="plate-title">Core measures held near target as headline reaccelerated. <button class="edit-btn" onclick="document.getElementById('edit-plate-1').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Core-trim and core-median, Y/Y</div>
+        <div class="plate-blurb">Core-trim eased to <span class="claim" data-ref="1">2.2% in March<sup class="claim-sup">[1]</sup></span> and core-median held at <span class="claim" data-ref="2">2.3%<sup class="claim-sup">[2]</sup></span> &mdash; both within a tenth of the <span class="claim" data-ref="3">2% target<sup class="claim-sup">[3]</sup></span> and both lower than they were three months ago. The headline reaccel hasn't bled into the trimmed-mean cores, which is where the signal the Bank of Canada reads sits. Core-common, once the anchor measure, has been deprioritized in the policy frame.</div>
+        <div class="plate-source-line">Bank of Canada (CPI-trim, CPI-median, CPI-common).</div>
+        
+    <div class="edit-form" id="edit-plate-1">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Core measures held near target as headline reaccelerated." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Core-trim eased to 2.2% in March and core-median held at 2.3% — both within a tenth of the 2% target and both lower than they were three months ago. The headline reaccel hasn't bled into the trimmed-mean cores, which is where the signal the Bank of Canada reads sits. Core-common, once the anchor measure, has been deprioritized in the policy frame.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'inflation', 'plate-2')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">03 · Breadth</div>
+        <h3 class="plate-title">Breadth widened in March: 27% of the basket runs above 3%. <button class="edit-btn" onclick="document.getElementById('edit-plate-2').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Share of CPI basket above 3% Y/Y</div>
+        <div class="plate-blurb">The share of CPI components rising faster than 3% year-over-year jumped to <span class="claim" data-ref="2">27.2% in March<sup class="claim-sup">[2]</sup></span> from <span class="claim" data-ref="3">22.3% in February<sup class="claim-sup">[3]</sup></span> &mdash; a <span class="claim" data-ref="4">4.9-point move<sup class="claim-sup">[4]</sup></span> in a single print. That's a real broadening, not a one-line distortion. The level still sits well below the <span class="claim" data-ref="5">2022 peak<sup class="claim-sup">[5]</sup></span> <span class="claim" data-ref="6">above two thirds of the basket<sup class="claim-sup">[6]</sup></span>, but the direction has turned.</div>
+        <div class="plate-source-line">Statistics Canada Table 18-10-0004-01; component shares constructed.</div>
+        
+    <div class="edit-form" id="edit-plate-2">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Breadth widened in March: 27% of the basket runs above 3%." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The share of CPI components rising faster than 3% year-over-year jumped to 27.2% in March from 22.3% in February — a 4.9-point move in a single print. That's a real broadening, not a one-line distortion. The level still sits well below the 2022 peak above two thirds of the basket, but the direction has turned.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'inflation', 'plate-3')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">04 · Sub-aggregates</div>
+        <h3 class="plate-title">Composition flipped: food and energy now carry the overshoot, not shelter. <button class="edit-btn" onclick="document.getElementById('edit-plate-3').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Shelter, services, goods, food, energy, Y/Y</div>
+        <div class="plate-blurb">Shelter inflation, the engine of the <span class="claim" data-ref="1">2023-24 overshoot<sup class="claim-sup">[1]</sup></span>, has <span class="claim" data-ref="2">cooled to 1.7%<sup class="claim-sup">[2]</sup></span> &mdash; below the <span class="claim" data-ref="3">2% target<sup class="claim-sup">[3]</sup></span> for a <span class="claim" data-ref="4">third straight month<sup class="claim-sup">[4]</sup></span>. <span class="claim" data-ref="5">Services run at 2.5%<sup class="claim-sup">[5]</sup></span> and <span class="claim" data-ref="6">goods at 2.1%<sup class="claim-sup">[6]</sup></span>, both well-behaved. The pressure has rotated to <span class="claim" data-ref="7">food at 4.0%<sup class="claim-sup">[7]</sup></span> and <span class="claim" data-ref="8">energy at 3.9%<sup class="claim-sup">[8]</sup></span>, the two components the Bank of Canada is most willing to look through. The overshoot has migrated, not vanished.</div>
+        <div class="plate-source-line">Statistics Canada Table 18-10-0004-01 (CPI sub-aggregates).</div>
+        
+    <div class="edit-form" id="edit-plate-3">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Composition flipped: food and energy now carry the overshoot, not shelter." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Shelter inflation, the engine of the 2023-24 overshoot, has cooled to 1.7% — below the 2% target for a third straight month. Services run at 2.5% and goods at 2.1%, both well-behaved. The pressure has rotated to food at 4.0% and energy at 3.9%, the two components the Bank of Canada is most willing to look through. The overshoot has migrated, not vanished.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'inflation', 'plate-4')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">05 · Expectations</div>
+        <h3 class="plate-title">Expectations kept moderating as the headline jumped. <button class="edit-btn" onclick="document.getElementById('edit-plate-4').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Consumer and firm inflation expectations · Q1 2026 (CSCE / BOS)</div>
+        <div class="plate-blurb">Five-year consumer inflation expectations in the CSCE eased to <span class="claim" data-ref="1">3.0% in Q1<sup class="claim-sup">[1]</sup></span>, down from a recent-cycle <span class="claim" data-ref="2">peak of 3.7% in mid-2025<sup class="claim-sup">[2]</sup></span>. On the firm side, the share of businesses expecting inflation <span class="claim" data-ref="3">above 3%<sup class="claim-sup">[3]</sup></span> has <span class="claim" data-ref="4">collapsed to 11%<sup class="claim-sup">[4]</sup></span>, from <span class="claim" data-ref="5">around 40%<sup class="claim-sup">[5]</sup></span> as recently as <span class="claim" data-ref="6">early 2024<sup class="claim-sup">[6]</sup></span>. Both anchors held while the headline reaccelerated &mdash; which is why the Bank of Canada can tolerate a brief blip <span class="claim" data-ref="7">above 2%<sup class="claim-sup">[7]</sup></span> without flinching on the rate path.</div>
+        <div class="plate-source-line">Bank of Canada Canadian Survey of Consumer Expectations and Business Outlook Survey, Q1 2026.</div>
+        
+    <div class="edit-form" id="edit-plate-4">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Expectations kept moderating as the headline jumped." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Five-year consumer inflation expectations in the CSCE eased to 3.0% in Q1, down from a recent-cycle peak of 3.7% in mid-2025. On the firm side, the share of businesses expecting inflation above 3% has collapsed to 11%, from around 40% as recently as early 2024. Both anchors held while the headline reaccelerated — which is why the Bank of Canada can tolerate a brief blip above 2% without flinching on the rate path.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'inflation', 'plate-5')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+    </main>
+    
+    <aside class="ledger">
+      <h2>Claims ledger</h2>
+      <div class="ledger-group">
+               <div class="ledger-group-h">Section abstract</div>
+               
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:statcan:18-10-0004-01</span>
+        <div class="ledger-phrase">"Headline CPI sits at 2.3%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Headline CPI Y/Y, March 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:boc:STATIC_TOTALCPICOMMON_TRIM</span>
+        <div class="ledger-phrase">"back at 2.2-2.3%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">CPI-trim and CPI-median Y/Y range, March 2026; BoC Valet preferred-core series.</div>
+        
+      </div>
+             </div>
+      
+              <div class="ledger-group">
+                <div class="ledger-group-h">01 · Headline CPI</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:statcan:18-10-0004-01</span>
+        <div class="ledger-phrase">"2.3% in March"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Headline CPI Y/Y, March 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:statcan:18-10-0004-01</span>
+        <div class="ledger-phrase">"2.3% year-over-year in March"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[3]</span>
+        <span class="ledger-source-label">pipeline:statcan:18-10-0004-01</span>
+        <div class="ledger-phrase">"1.8% in February"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Headline CPI Y/Y, February 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[4]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"0.5-point jump"</div>
+        
+        
+        <div class="note-line">2.3% - 1.8% = 0.5pp (Mar vs Feb 2026 headline Y/Y).</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref card">[5]</span>
+        <span class="ledger-source-label">BoC inflation-control mandate</span>
+        <div class="ledger-phrase">"1-to-3% control band"</div>
+        <div class="ledger-excerpt">2 per cent midpoint of an inflation-control target range of 1 to 3 per cent.</div>
+        <div class="ledger-meta">December 2021 renewal (5-year term) · verified 2026-05-13 · next 2026-12-01</div>
+        
+        <a class="ledger-link" href="https://www.bankofcanada.ca/core-functions/monetary-policy/inflation/" target="_blank" rel="noopener">Open source ↗</a>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[6]</span>
+        <span class="ledger-source-label">pipeline:statcan:18-10-0004-01</span>
+        <div class="ledger-phrase">"0.5% on the month"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Headline CPI m/m, March 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[7]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"near 2.9%"</div>
+        
+        
+        <div class="note-line">Three-month annualized run-rate of headline CPI through March 2026, computed from monthly index from StatCan 18-10-0004-01.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">02 · Preferred cores</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:boc:STATIC_TOTALCPICOMMON_TRIM</span>
+        <div class="ledger-phrase">"2.2% in March"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">CPI-trim Y/Y, March 2026 (BoC Valet preferred-core series).</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:boc:STATIC_TOTALCPICOMMON_MEDIAN</span>
+        <div class="ledger-phrase">"2.3%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">CPI-median Y/Y, March 2026 (BoC Valet preferred-core series).</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref card">[3]</span>
+        <span class="ledger-source-label">BoC inflation-control mandate</span>
+        <div class="ledger-phrase">"2% target"</div>
+        <div class="ledger-excerpt">2 per cent midpoint of an inflation-control target range of 1 to 3 per cent.</div>
+        <div class="ledger-meta">December 2021 renewal (5-year term) · verified 2026-05-13 · next 2026-12-01</div>
+        
+        <a class="ledger-link" href="https://www.bankofcanada.ca/core-functions/monetary-policy/inflation/" target="_blank" rel="noopener">Open source ↗</a>
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">03 · Breadth</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[1]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"27% of the basket runs above 3%"</div>
+        
+        
+        <div class="note-line">Share of CPI components with Y/Y above 3.0%, March 2026; constructed from StatCan 18-10-0004-01 component-level Y/Y series.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[2]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"27.2% in March"</div>
+        
+        
+        <div class="note-line">Share of CPI basket components with Y/Y &gt; 3%, March 2026; constructed from StatCan 18-10-0004-01.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[3]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"22.3% in February"</div>
+        
+        
+        <div class="note-line">Share of CPI basket components with Y/Y &gt; 3%, February 2026; constructed from StatCan 18-10-0004-01.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[4]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"4.9-point move"</div>
+        
+        
+        <div class="note-line">27.2% - 22.3% = 4.9pp (Mar vs Feb 2026 breadth share).</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[5]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"2022 peak"</div>
+        
+        
+        <div class="note-line">Peak share of CPI components Y/Y &gt; 3% during the 2022 inflation episode; constructed from StatCan 18-10-0004-01 component series.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref derived">[6]</span>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"above two thirds of the basket"</div>
+        
+        
+        <div class="note-line">2022 breadth peak exceeded ~67% of CPI components above 3% Y/Y; constructed from StatCan 18-10-0004-01.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">04 · Sub-aggregates</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[1]</span>
+        <span class="ledger-source-label">pipeline:statcan:18-10-0004-01</span>
+        <div class="ledger-phrase">"2023-24 overshoot"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Shelter Y/Y peaked above 6% in 2023 and stayed above the 2% target through 2024 per CPI sub-aggregate series.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[2]</span>
+        <span class="ledger-source-label">pipeline:statcan:18-10-0004-01</span>
+        <div class="ledger-phrase">"cooled to 1.7%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Shelter Y/Y, March 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref card">[3]</span>
+        <span class="ledger-source-label">BoC inflation-control mandate</span>
+        <div class="ledger-phrase">"2% target"</div>
+        <div class="ledger-excerpt">2 per cent midpoint of an inflation-control target range of 1 to 3 per cent.</div>
+        <div class="ledger-meta">December 2021 renewal (5-year term) · verified 2026-05-13 · next 2026-12-01</div>
+        
+        <a class="ledger-link" href="https://www.bankofcanada.ca/core-functions/monetary-policy/inflation/" target="_blank" rel="noopener">Open source ↗</a>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[4]</span>
+        <span class="ledger-source-label">pipeline:statcan:18-10-0004-01</span>
+        <div class="ledger-phrase">"third straight month"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Shelter Y/Y prints below 2% in January, February, and March 2026 — enumerated from the monthly sub-aggregate series.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[5]</span>
+        <span class="ledger-source-label">pipeline:statcan:18-10-0004-01</span>
+        <div class="ledger-phrase">"Services run at 2.5%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Services Y/Y, March 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[6]</span>
+        <span class="ledger-source-label">pipeline:statcan:18-10-0004-01</span>
+        <div class="ledger-phrase">"goods at 2.1%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Goods Y/Y, March 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[7]</span>
+        <span class="ledger-source-label">pipeline:statcan:18-10-0004-01</span>
+        <div class="ledger-phrase">"food at 4.0%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Food Y/Y, March 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref pipeline">[8]</span>
+        <span class="ledger-source-label">pipeline:statcan:18-10-0004-01</span>
+        <div class="ledger-phrase">"energy at 3.9%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.</div>
+        
+        <div class="note-line">Energy Y/Y, March 2026.</div>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">05 · Expectations</div>
+                
+      <div class="ledger-item">
+        <span class="ledger-ref other">[1]</span>
+        <span class="ledger-source-label">other:BoC Canadian Survey of Consumer Expectations Q1 2026 — 5-year-ahead inflation-expectation median</span>
+        <div class="ledger-phrase">"3.0% in Q1"</div>
+        
+        
+        <div class="note-line">CSCE not in registry; cited from BoC CSCE Q1 2026 release.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref other">[2]</span>
+        <span class="ledger-source-label">other:BoC Canadian Survey of Consumer Expectations Q2 2025 — 5-year-ahead inflation-expectation median (cycle peak)</span>
+        <div class="ledger-phrase">"peak of 3.7% in mid-2025"</div>
+        
+        
+        <div class="note-line">CSCE not in registry; recent-cycle peak Q2 2025 = 3.7%.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref card">[3]</span>
+        <span class="ledger-source-label">BoC inflation-control mandate</span>
+        <div class="ledger-phrase">"above 3%"</div>
+        <div class="ledger-excerpt">2 per cent midpoint of an inflation-control target range of 1 to 3 per cent.</div>
+        <div class="ledger-meta">December 2021 renewal (5-year term) · verified 2026-05-13 · next 2026-12-01</div>
+        <div class="note-line">Reference threshold is the upper edge of the BoC 1-3% control band.</div>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/core-functions/monetary-policy/inflation/" target="_blank" rel="noopener">Open source ↗</a>
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref other">[4]</span>
+        <span class="ledger-source-label">other:BoC Business Outlook Survey Q1 2026 — share of firms expecting CPI above 3% over the next two years</span>
+        <div class="ledger-phrase">"collapsed to 11%"</div>
+        
+        
+        <div class="note-line">BOS not in registry; firm-side share at 11% in Q1 2026.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref other">[5]</span>
+        <span class="ledger-source-label">other:BoC Business Outlook Survey Q1 2024 — share of firms expecting CPI above 3% over the next two years</span>
+        <div class="ledger-phrase">"around 40%"</div>
+        
+        
+        <div class="note-line">BOS not in registry; firm-side share near 40% in early-2024 vintages.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref other">[6]</span>
+        <span class="ledger-source-label">other:BoC Business Outlook Survey Q1 2024</span>
+        <div class="ledger-phrase">"early 2024"</div>
+        
+        
+        <div class="note-line">Comparison vintage for the firm-side expectations move; BOS not in registry.</div>
+        
+      </div>
+      <div class="ledger-item">
+        <span class="ledger-ref card">[7]</span>
+        <span class="ledger-source-label">BoC inflation-control mandate</span>
+        <div class="ledger-phrase">"above 2%"</div>
+        <div class="ledger-excerpt">2 per cent midpoint of an inflation-control target range of 1 to 3 per cent.</div>
+        <div class="ledger-meta">December 2021 renewal (5-year term) · verified 2026-05-13 · next 2026-12-01</div>
+        <div class="note-line">Reference is the 2% midpoint of the BoC inflation-control target.</div>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/core-functions/monetary-policy/inflation/" target="_blank" rel="noopener">Open source ↗</a>
+      </div>
+              </div>
+    </aside>
+  
+    <footer class="audit-foot">
+      Generated 2026-05-13 07:21 · Tagged claims show a yellow highlight with a [N] reference. Hover or click to see the source. Sidebar lists all claims with verbatim excerpts. Sources marked as "pipeline" auto-refresh; "card" entries are managed in editorial/source_cards/registry.yaml. Use "Propose edit" to send a structured EDIT REQUEST back to Claude.
+    </footer>
+  </div>
+  <script>
+    function copyEditSpec(btn, slug, surface) {
+      const form = btn.closest('.edit-form');
+      const title = form.querySelector('[data-field="title"]').value.trim();
+      const body = form.querySelector('[data-field="body"]').value.trim();
+      const reason = form.querySelector('[data-field="reason"]').value.trim();
+      const spec = [
+        'EDIT REQUEST',
+        'section: ' + slug,
+        'surface: ' + surface,
+        '',
+        'proposed_title:',
+        title,
+        '',
+        'proposed_body:',
+        body,
+        '',
+        'reason:',
+        reason,
+      ].join('\n');
+      navigator.clipboard.writeText(spec).then(function () {
+        const toast = btn.parentElement.querySelector('.toast');
+        toast.classList.add('show');
+        setTimeout(function () { toast.classList.remove('show'); }, 2500);
+      });
+    }
+  </script>
+</body>
+</html>

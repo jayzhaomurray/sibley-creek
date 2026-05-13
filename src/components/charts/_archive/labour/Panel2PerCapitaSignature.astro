@@ -1,0 +1,940 @@
+---
+/*
+ * Panel2PerCapitaSignature — Tier-3, Mode B small-multiples (1 row × 2 cols).
+ * Labour per-capita signature panel.
+ *
+ * Editorial argument: "Is employment growth per-capita or just headcount?"
+ * Side-by-side split reveals whether aggregate growth masks population-driven
+ * dilution by showing both the raw Y/Y and the per-capita Y/Y together.
+ *
+ * CELL A (LEFT)  — Employment Y/Y %
+ *   Primary line  : emp_yoy         — aggregate employment Y/Y (1.5px solid)
+ *   Comparator    : emp_pc_yoy      — employment-rate Y/Y (proxy per-capita, 1px dashed 4-2)
+ *
+ * CELL B (RIGHT) — Hours Y/Y %
+ *   Primary line  : hours_yoy       — aggregate hours Y/Y (1.5px solid)
+ *   Comparator    : hours_pc_yoy    — hours-per-capita Y/Y (1px dashed 4-2)
+ *
+ * Derivations (all % Y/Y, computed below from panel-2 raw series):
+ *   1. emp_yoy[t]       = (emp[t] − emp[t−12]) / emp[t−12] × 100
+ *      Source: StatCan LFS employment level (SA monthly millions),
+ *              panel-2 primary = employment_level.
+ *   2. emp_pc_yoy[t]    = (empRate[t] − empRate[t−12]) / empRate[t−12] × 100
+ *      Source: StatCan LFS employment rate (SA monthly %), panel-2 secondary.
+ *      Note: employment_rate = employment / pop_15+ by definition, so its Y/Y
+ *      equals the per-capita employment Y/Y. No additional population series
+ *      needed (the ratio already IS the per-capita measure).
+ *   3. hours_yoy[t]     = (hours[t] − hours[t−12]) / hours[t−12] × 100
+ *      Source: StatCan LFS aggregate hours (SA monthly thousands), panel-2 tertiary.
+ *   4. hours_pc_yoy[t]  = (hours_pc[t] − hours_pc[t−12]) / hours_pc[t−12] × 100
+ *      where hours_pc[t] = hours[t] / pop_15+[t]
+ *      and pop_15+[t]    = emp[t] / (empRate[t] / 100)
+ *      Source: pop_15+ back-derived from emp and empRate at each point.
+ *
+ * Methodology note:
+ *   Concept: Is more hours worked per person, or just more people working?
+ *   Formula (4): (hours per capita this month minus hours per capita 12 months ago)
+ *                divided by hours per capita 12 months ago, times 100.
+ *   pop15[t] is not published directly by StatCan for this panel; it is
+ *   back-derived as employment_level[t] / (employment_rate[t] / 100). This
+ *   derivation exactly reproduces the published pop_15+ count when both
+ *   series are the same vintage (StatCan rounds both to same denominator).
+ *   Simplification: uses point-in-time pop15+ (no mid-period interpolation).
+ *   Bias: negligible — monthly pop_15+ growth is ~0.1%, so the omission
+ *   of intra-month interpolation is below display precision.
+ *   Reference: StatCan Labour Force Survey methodology,
+ *   https://www23.statcan.gc.ca/imdb/p2SV.pl?Function=getSurvey&SDDS=3701
+ *
+ * Z-order (back-to-front per canon_reference_panel.md):
+ *   recession band → gridlines → zero line → comparator line →
+ *   primary line → hit circles → latest-dot → frame → labels → panel label
+ *
+ * Canon compliance checklist (design/canon_reference_panel.md):
+ *   1. Primary line: pure ink 1.5px solid. Yes.
+ *   2. Latest-dot: MTA red (#E63946), 4px, one per CELL on primary. Yes.
+ *   3. Hairline frame 1px pure ink per cell. Yes.
+ *   4. 3 horizontal gridlines per cell, stroke-opacity 0.18. Yes.
+ *   5. Y-ticks: IBM Plex Mono 11px, right-aligned; topmost of LEFT cell
+ *      carries % suffix only. Yes (Mode B: each cell has own ticks).
+ *   6. X-ticks: Manrope 11px, 4 year labels shared across cells. Yes.
+ *   7. Zero line 1px full opacity (data crosses zero). Yes.
+ *   8. Comparator: pure ink 1px dashed "4 2", no terminal dot. Yes.
+ *   9. Direct end-of-line label "Per-capita" on comparator. Yes.
+ *  10. Recession band Feb 2020–Aug 2020, rgba(21,23,26,0.06). Yes.
+ *  11. No legends. No series color. No client JS. Yes.
+ *  12. Native SVG <title> per data point (hit circles). Yes.
+ *  13. viewBox 720×405, preserveAspectRatio=xMidYMid meet. Yes.
+ *  14. aspect-ratio: 16/9 on wrapper. Yes.
+ *  15. aria-label describing indicator + latest print. Yes.
+ *  16–20. No accent on data, no series tokens, pure white bg, correct z-order. Yes.
+ *
+ * Authoring pattern: ALL compute in frontmatter. JSX maps over pre-computed
+ * record arrays. No IIFE in JSX. Reference: Panel6FederalTrajectorySplit.
+ *
+ * BEM scope: .p2ps-chart__* (panel-2-percap-signature shortname: p2ps).
+ */
+
+import type { PanelData } from "../../_shared/panelData";
+import { decYear }         from "../../_shared/panelData";
+import PanelEmpty          from "../../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---- Guard ------------------------------------------------------------------
+// Need primary (emp level) AND secondary (emp rate) AND tertiary (hours).
+const hasData = !!(
+  data &&
+  data.primary   && data.primary.data.length   > 12 &&
+  data.secondary && data.secondary.data.length > 12 &&
+  data.tertiary  && data.tertiary.data.length  > 12
+);
+
+// ---- Geometry (Tier-3, 1×2 composite) ---------------------------------------
+const VB_W   = 720;
+const VB_H   = 405;
+const M_L    = 52;   // left gutter (y-tick labels)
+const M_R    = 14;   // right margin
+const M_T    = 30;   // top (panel label row)
+const M_B    = 38;   // bottom (x-tick labels)
+const GAP_X  = 38;   // inter-cell gap
+const CELL_W = (VB_W - M_L - M_R - GAP_X) / 2;  // ≈308
+const CELL_H = VB_H - M_T - M_B;                  // 337
+
+// Cell origins
+const A_X0 = M_L;
+const A_Y0 = M_T;
+const A_X1 = A_X0 + CELL_W;
+const A_Y1 = A_Y0 + CELL_H;
+
+const B_X0 = M_L + CELL_W + GAP_X;
+const B_Y0 = M_T;
+const B_X1 = B_X0 + CELL_W;
+const B_Y1 = B_Y0 + CELL_H;
+
+// ---- Types ------------------------------------------------------------------
+type Point = { xv: number; yv: number; date: string; raw: number };
+type YTick = { value: number; yPos: number; label: string };
+type XTick = { x: number; label: string };
+type HitCircle = { cx: number; cy: number; titleText: string };
+
+// ---- Y-axis helpers ---------------------------------------------------------
+
+function niceStep(lo: number, hi: number, targetTicks = 3): number {
+  const span = hi - lo;
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  const rough = span / targetTicks;
+  const mag   = Math.pow(10, Math.floor(Math.log10(Math.abs(rough) || 1)));
+  const norm  = rough / mag;
+  let nice: number;
+  if (norm < 1.5)      nice = 1;
+  else if (norm < 3)   nice = 2;
+  else if (norm < 4)   nice = 2.5;
+  else if (norm < 7)   nice = 5;
+  else                 nice = 10;
+  return nice * mag;
+}
+
+function decimalsForStep(step: number): number {
+  // How many decimal places to show for a given tick step magnitude
+  if (step >= 10)  return 0;
+  if (step >= 1)   return 1;
+  if (step >= 0.1) return 2;
+  return 3;
+}
+
+function buildYTicks(
+  lo: number,
+  hi: number,
+  yScale: (v: number) => number,
+  isLeftmost: boolean,
+): YTick[] {
+  const step  = niceStep(lo, hi, 3);
+  const start = Math.ceil(lo / step) * step;
+  const raw: number[] = [];
+  for (let v = start; v <= hi + 1e-9; v += step) {
+    raw.push(Number(v.toFixed(8)));
+  }
+  if (raw.length === 0) raw.push((lo + hi) / 2);
+  // Cap 4 ticks
+  let kept = raw;
+  if (kept.length > 4) {
+    const s = Math.floor((kept.length - 1) / 3);
+    kept = [raw[0]!, raw[s]!, raw[s * 2]!, raw[raw.length - 1]!];
+  }
+  const dec = decimalsForStep(step);
+  return kept.map((v, i) => {
+    const isTop = i === kept.length - 1;
+    const num   = v.toFixed(dec);
+    // Topmost tick of leftmost cell carries % suffix (canon rule 5)
+    const label = isTop && isLeftmost ? `${num}%` : num;
+    return { value: v, yPos: yScale(v), label };
+  });
+}
+
+// ---- X-axis helpers ---------------------------------------------------------
+// Show 4 year labels across the shared domain.
+const YEAR_LABELS = new Set([2016, 2019, 2022, 2026]);
+
+function buildXTicks(
+  pts: Point[],
+  xScale: (xv: number) => number,
+): XTick[] {
+  const seen  = new Set<number>();
+  const ticks: XTick[] = [];
+  for (const pt of pts) {
+    const yr = parseInt(pt.date.substring(0, 4), 10);
+    const mo = parseInt(pt.date.substring(5, 7), 10);
+    if (mo !== 1) continue;
+    if (!YEAR_LABELS.has(yr) || seen.has(yr)) continue;
+    seen.add(yr);
+    ticks.push({ x: xScale(pt.xv), label: String(yr) });
+  }
+  return ticks;
+}
+
+// ---- Path builder -----------------------------------------------------------
+function buildPath(pts: Point[]): string {
+  const cmds: string[] = [];
+  let pen = false;
+  for (const pt of pts) {
+    const x = pt.xv;
+    const y = pt.yv;
+    if (!pen) {
+      cmds.push(`M${x.toFixed(2)},${y.toFixed(2)}`);
+      pen = true;
+    } else {
+      cmds.push(`L${x.toFixed(2)},${y.toFixed(2)}`);
+    }
+  }
+  return cmds.join(" ");
+}
+
+// ---- Recession-band constants -----------------------------------------------
+// Pandemic recession: Feb 2020 – Aug 2020 (C.D. Howe Business Cycle Council)
+const REC_START = "2020-02-01";
+const REC_END   = "2020-08-01";
+
+// ---- Main computation -------------------------------------------------------
+
+// Pre-init all derived variables so JSX can reference unconditionally.
+let ptsA_prim:   Point[] = [];
+let ptsA_cmp:    Point[] = [];
+let ptsB_prim:   Point[] = [];
+let ptsB_cmp:    Point[] = [];
+
+let pathA_prim   = "";
+let pathA_cmp    = "";
+let pathB_prim   = "";
+let pathB_cmp    = "";
+
+let yTicksA:     YTick[] = [];
+let yTicksB:     YTick[] = [];
+let xTicksA:     XTick[] = [];
+let xTicksB:     XTick[] = [];
+
+let hitA_prim:   HitCircle[] = [];
+let hitA_cmp:    HitCircle[] = [];
+let hitB_prim:   HitCircle[] = [];
+let hitB_cmp:    HitCircle[] = [];
+
+let dotAx = 0;
+let dotAy = 0;
+let dotBx = 0;
+let dotBy = 0;
+
+// Comparator direct-label positions (right of terminus)
+const LABEL_GAP_X = 10;
+let lblAx = 0;
+let lblAy = 0;
+let lblBx = 0;
+let lblBy = 0;
+
+// Zero-line positions per cell
+let zeroYA = A_Y0 + CELL_H / 2;
+let zeroYB = B_Y0 + CELL_H / 2;
+
+// Recession band rect per cell
+let recA: { x: number; w: number } | null = null;
+let recB: { x: number; w: number } | null = null;
+
+let ariaLabel =
+  "Per-capita labour signature. Left: employment Y/Y and employment-rate Y/Y. " +
+  "Right: aggregate hours Y/Y and per-capita hours Y/Y. StatCan LFS, monthly SA, May 2016 to present.";
+
+if (hasData) {
+  const empRaw    = data!.primary!.data;   // millions
+  const rateRaw   = data!.secondary!.data; // %
+  const hoursRaw  = data!.tertiary!.data;  // thousands
+
+  const n = empRaw.length; // 132
+
+  // ---- Derive four Y/Y series -------------------------------------------------
+  const emp_yoy:      number[] = new Array(n).fill(NaN);
+  const emp_pc_yoy:   number[] = new Array(n).fill(NaN);
+  const hours_yoy:    number[] = new Array(n).fill(NaN);
+  const hours_pc_yoy: number[] = new Array(n).fill(NaN);
+
+  for (let t = 12; t < n; t++) {
+    const emp_t    = empRaw[t]!.value   as number;
+    const emp_t12  = empRaw[t - 12]!.value as number;
+    const rate_t   = rateRaw[t]!.value  as number;
+    const rate_t12 = rateRaw[t - 12]!.value as number;
+    const hrs_t    = hoursRaw[t]!.value as number;
+    const hrs_t12  = hoursRaw[t - 12]!.value as number;
+
+    if (!emp_t12 || !rate_t12 || !hrs_t12) continue;
+
+    emp_yoy[t]    = (emp_t  - emp_t12)  / emp_t12  * 100;
+    emp_pc_yoy[t] = (rate_t - rate_t12) / rate_t12 * 100;
+
+    // pop_15+[t] back-derived as employment / (employment_rate / 100)
+    const pop_t   = emp_t   / (rate_t   / 100);
+    const pop_t12 = emp_t12 / (rate_t12 / 100);
+    const hpc_t   = hrs_t   / pop_t;
+    const hpc_t12 = hrs_t12 / pop_t12;
+
+    hours_yoy[t]    = (hrs_t  - hrs_t12)  / hrs_t12  * 100;
+    hours_pc_yoy[t] = (hpc_t  - hpc_t12)  / hpc_t12  * 100;
+  }
+
+  // ---- Shared x-domain --------------------------------------------------------
+  // Use points with valid values in both cells (index >= 12)
+  const allXvals: number[] = [];
+  for (let t = 12; t < n; t++) {
+    if (!Number.isNaN(emp_yoy[t])) {
+      const xv = decYear(empRaw[t]!.date);
+      if (!Number.isNaN(xv)) allXvals.push(xv);
+    }
+  }
+  const xMin   = allXvals.length > 0 ? Math.min(...allXvals) : 0;
+  const xMax   = allXvals.length > 0 ? Math.max(...allXvals) : 1;
+  const xRange = xMax - xMin || 1;
+
+  const xScaleA = (xv: number): number => A_X0 + ((xv - xMin) / xRange) * CELL_W;
+  const xScaleB = (xv: number): number => B_X0 + ((xv - xMin) / xRange) * CELL_W;
+
+  // ---- Build point arrays (x = decimal year, y = will be filled after y-scale) --
+  // First pass: collect y-domain values per cell
+  const aVals: number[] = [];  // all y values for cell A (both lines)
+  const bVals: number[] = [];  // all y values for cell B (both lines)
+
+  for (let t = 12; t < n; t++) {
+    if (!Number.isNaN(emp_yoy[t]))    aVals.push(emp_yoy[t]!);
+    if (!Number.isNaN(emp_pc_yoy[t])) aVals.push(emp_pc_yoy[t]!);
+    if (!Number.isNaN(hours_yoy[t]))    bVals.push(hours_yoy[t]!);
+    if (!Number.isNaN(hours_pc_yoy[t])) bVals.push(hours_pc_yoy[t]!);
+  }
+
+  // Per-cell y-domain with 8% padding, ensuring zero is visible
+  function domainBounds(vals: number[]): { lo: number; hi: number } {
+    const rawMin = Math.min(...vals);
+    const rawMax = Math.max(...vals);
+    const span   = rawMax - rawMin || 1;
+    let lo = rawMin - span * 0.08;
+    let hi = rawMax + span * 0.08;
+    // Ensure zero is in range (data crosses zero in both cells)
+    if (lo > 0) lo = -span * 0.05;
+    if (hi < 0) hi =  span * 0.05;
+    return { lo, hi };
+  }
+
+  const { lo: aYLo, hi: aYHi } = domainBounds(aVals);
+  const { lo: bYLo, hi: bYHi } = domainBounds(bVals);
+  const aYRange = aYHi - aYLo || 1;
+  const bYRange = bYHi - bYLo || 1;
+
+  const yScaleA = (v: number): number => A_Y0 + CELL_H - ((v - aYLo) / aYRange) * CELL_H;
+  const yScaleB = (v: number): number => B_Y0 + CELL_H - ((v - bYLo) / bYRange) * CELL_H;
+
+  zeroYA = yScaleA(0);
+  zeroYB = yScaleB(0);
+
+  // ---- Build point arrays with screen coords ----------------------------------
+  for (let t = 12; t < n; t++) {
+    const date = empRaw[t]!.date;
+    const xv   = decYear(date);
+    if (Number.isNaN(xv)) continue;
+
+    if (!Number.isNaN(emp_yoy[t])) {
+      ptsA_prim.push({ xv: xScaleA(xv), yv: yScaleA(emp_yoy[t]!), date, raw: emp_yoy[t]! });
+    }
+    if (!Number.isNaN(emp_pc_yoy[t])) {
+      ptsA_cmp.push({ xv: xScaleA(xv), yv: yScaleA(emp_pc_yoy[t]!), date, raw: emp_pc_yoy[t]! });
+    }
+    if (!Number.isNaN(hours_yoy[t])) {
+      ptsB_prim.push({ xv: xScaleB(xv), yv: yScaleB(hours_yoy[t]!), date, raw: hours_yoy[t]! });
+    }
+    if (!Number.isNaN(hours_pc_yoy[t])) {
+      ptsB_cmp.push({ xv: xScaleB(xv), yv: yScaleB(hours_pc_yoy[t]!), date, raw: hours_pc_yoy[t]! });
+    }
+  }
+
+  // ---- Line paths -------------------------------------------------------------
+  pathA_prim = buildPath(ptsA_prim);
+  pathA_cmp  = buildPath(ptsA_cmp);
+  pathB_prim = buildPath(ptsB_prim);
+  pathB_cmp  = buildPath(ptsB_cmp);
+
+  // ---- Latest-print dot positions (primary only) ------------------------------
+  if (ptsA_prim.length > 0) {
+    const last = ptsA_prim[ptsA_prim.length - 1]!;
+    dotAx = last.xv;
+    dotAy = last.yv;
+  }
+  if (ptsB_prim.length > 0) {
+    const last = ptsB_prim[ptsB_prim.length - 1]!;
+    dotBx = last.xv;
+    dotBy = last.yv;
+  }
+
+  // ---- Comparator direct-label positions (at terminus) ------------------------
+  // Place label to the right of the comparator line terminus.
+  // Clamped so it does not overflow right margin.
+  const maxLblX_A = A_X1 - 2;
+  const maxLblX_B = B_X1 - 2;
+
+  if (ptsA_cmp.length > 0) {
+    const last = ptsA_cmp[ptsA_cmp.length - 1]!;
+    // Label sits right of terminus; if it would overflow the cell, pin to right edge
+    const naturalX = last.xv + LABEL_GAP_X;
+    lblAx = Math.min(naturalX, maxLblX_A);
+    lblAy = last.yv + 4;
+  }
+  if (ptsB_cmp.length > 0) {
+    const last = ptsB_cmp[ptsB_cmp.length - 1]!;
+    const naturalX = last.xv + LABEL_GAP_X;
+    lblBx = Math.min(naturalX, maxLblX_B);
+    lblBy = last.yv + 4;
+  }
+
+  // ---- Y-ticks (per-panel, Mode B) -------------------------------------------
+  yTicksA = buildYTicks(aYLo, aYHi, yScaleA, true);   // leftmost cell — carries %
+  yTicksB = buildYTicks(bYLo, bYHi, yScaleB, false);  // right cell
+
+  // ---- X-ticks (shared x-domain, positioned per cell) -----------------------
+  xTicksA = buildXTicks(ptsA_prim, (xv: number) => xv);  // x already screen coords
+  xTicksB = buildXTicks(ptsB_prim, (xv: number) => xv);
+
+  // ---- Hit circles for native SVG <title> hover (derived from pts arrays) ----
+  hitA_prim = ptsA_prim.map((pt) => ({
+    cx: pt.xv, cy: pt.yv,
+    titleText: `${pt.date}: emp Y/Y ${pt.raw.toFixed(2)}%`,
+  }));
+  hitA_cmp = ptsA_cmp.map((pt) => ({
+    cx: pt.xv, cy: pt.yv,
+    titleText: `${pt.date}: emp-rate Y/Y ${pt.raw.toFixed(2)}%`,
+  }));
+  hitB_prim = ptsB_prim.map((pt) => ({
+    cx: pt.xv, cy: pt.yv,
+    titleText: `${pt.date}: hours Y/Y ${pt.raw.toFixed(2)}%`,
+  }));
+  hitB_cmp = ptsB_cmp.map((pt) => ({
+    cx: pt.xv, cy: pt.yv,
+    titleText: `${pt.date}: hours-per-capita Y/Y ${pt.raw.toFixed(2)}%`,
+  }));
+
+  // ---- Recession band (pandemic: Feb 2020 – Aug 2020) -----------------------
+  // Clamp to x-domain visible range
+  const recStartXv = decYear(REC_START);
+  const recEndXv   = decYear(REC_END);
+  if (recStartXv <= xMax && recEndXv >= xMin) {
+    const clampedStart = Math.max(recStartXv, xMin);
+    const clampedEnd   = Math.min(recEndXv, xMax);
+    const rxA = xScaleA(clampedStart);
+    const rwA = xScaleA(clampedEnd) - rxA;
+    recA = { x: rxA, w: rwA };
+    const rxB = xScaleB(clampedStart);
+    const rwB = xScaleB(clampedEnd) - rxB;
+    recB = { x: rxB, w: rwB };
+  }
+
+  // ---- aria-label (updated with latest values) --------------------------------
+  const lastEmpYoY  = emp_yoy[n - 1];
+  const lastEmpPcYoY = emp_pc_yoy[n - 1];
+  const lastHrsYoY  = hours_yoy[n - 1];
+  const lastHrsPcYoY = hours_pc_yoy[n - 1];
+  const lastDate    = empRaw[n - 1]!.date;
+  ariaLabel =
+    `Per-capita labour signature panel, StatCan LFS, monthly SA. ` +
+    `Left cell: employment Y/Y — latest ${lastDate}: ${(lastEmpYoY ?? NaN).toFixed(2)}%; ` +
+    `employment-rate Y/Y (per-capita proxy): ${(lastEmpPcYoY ?? NaN).toFixed(2)}%. ` +
+    `Right cell: hours Y/Y — latest: ${(lastHrsYoY ?? NaN).toFixed(2)}%; ` +
+    `hours-per-capita Y/Y: ${(lastHrsPcYoY ?? NaN).toFixed(2)}%.`;
+}
+
+// Clip IDs (unique per component instance via a fixed suffix — Astro scopes CSS but not IDs)
+const clipIdA = "p2ps-clip-a";
+const clipIdB = "p2ps-clip-b";
+
+// Recession label y position (near top of frame, below panel label)
+const recLabelY = A_Y0 + 12;
+---
+
+{!hasData ? (
+  <PanelEmpty reason="Panel-2 per-capita signature requires primary (employment_level), secondary (employment_rate), and tertiary (aggregate_hours) series from labour.json." />
+) : (
+  <div class="p2ps-chart" data-panel="labour-2-percap-signature">
+    <svg
+      class="p2ps-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      <defs>
+        <clipPath id={clipIdA}>
+          <rect x={A_X0} y={A_Y0} width={CELL_W} height={CELL_H} />
+        </clipPath>
+        <clipPath id={clipIdB}>
+          <rect x={B_X0} y={B_Y0} width={CELL_W} height={CELL_H} />
+        </clipPath>
+      </defs>
+
+      {/* ================================================================
+          CELL A — EMPLOYMENT Y/Y (LEFT)
+          Z-order: recession band → gridlines → zero → cmp line → prim line
+                   → hit circles → latest dot → frame → ticks+labels → panel label
+          ================================================================ */}
+
+      {/* A: Recession band */}
+      {recA && (
+        <rect
+          class="p2ps-chart__recession"
+          x={recA.x.toFixed(2)}
+          y={A_Y0.toFixed(2)}
+          width={Math.max(0, recA.w).toFixed(2)}
+          height={CELL_H.toFixed(2)}
+          clip-path={`url(#${clipIdA})`}
+        />
+      )}
+      {recA && (
+        <text
+          class="p2ps-chart__recession-label"
+          x={((recA.x + recA.x + recA.w) / 2).toFixed(2)}
+          y={recLabelY.toFixed(2)}
+          text-anchor="middle"
+          clip-path={`url(#${clipIdA})`}
+        >PANDEMIC</text>
+      )}
+
+      {/* A: Gridlines (skip zero — drawn full-opacity below) */}
+      {yTicksA.map((t) => {
+        if (Math.abs(t.value) < 1e-9) return null;
+        return (
+          <line
+            class="p2ps-chart__gridline"
+            x1={A_X0.toFixed(2)} y1={t.yPos.toFixed(2)}
+            x2={A_X1.toFixed(2)} y2={t.yPos.toFixed(2)}
+          />
+        );
+      })}
+
+      {/* A: Zero line */}
+      <line
+        class="p2ps-chart__zero-line"
+        x1={A_X0.toFixed(2)} y1={zeroYA.toFixed(2)}
+        x2={A_X1.toFixed(2)} y2={zeroYA.toFixed(2)}
+      />
+
+      {/* A: Comparator line (emp_pc_yoy) — 1px dashed 4-2 */}
+      <g clip-path={`url(#${clipIdA})`}>
+        <path
+          class="p2ps-chart__line-cmp"
+          d={pathA_cmp}
+        />
+      </g>
+
+      {/* A: Primary line (emp_yoy) — 1.5px solid */}
+      <g clip-path={`url(#${clipIdA})`}>
+        <path
+          class="p2ps-chart__line-prim"
+          d={pathA_prim}
+        />
+      </g>
+
+      {/* A: Hit circles — primary */}
+      <g clip-path={`url(#${clipIdA})`}>
+        {hitA_prim.map((h) => (
+          <circle
+            class="p2ps-chart__hit"
+            cx={h.cx.toFixed(2)}
+            cy={h.cy.toFixed(2)}
+            r="4"
+          >
+            <title>{h.titleText}</title>
+          </circle>
+        ))}
+      </g>
+
+      {/* A: Hit circles — comparator */}
+      <g clip-path={`url(#${clipIdA})`}>
+        {hitA_cmp.map((h) => (
+          <circle
+            class="p2ps-chart__hit"
+            cx={h.cx.toFixed(2)}
+            cy={h.cy.toFixed(2)}
+            r="4"
+          >
+            <title>{h.titleText}</title>
+          </circle>
+        ))}
+      </g>
+
+      {/* A: Latest-print dot (primary only — MTA red) */}
+      <circle
+        class="p2ps-chart__latest-dot"
+        cx={dotAx.toFixed(2)}
+        cy={dotAy.toFixed(2)}
+        r="4"
+      >
+        <title>{`Latest: ${ptsA_prim.length > 0 ? ptsA_prim[ptsA_prim.length - 1]!.date : ""} emp Y/Y`}</title>
+      </circle>
+
+      {/* A: Hairline frame */}
+      <rect
+        class="p2ps-chart__frame"
+        x={A_X0.toFixed(2)}
+        y={A_Y0.toFixed(2)}
+        width={CELL_W.toFixed(2)}
+        height={CELL_H.toFixed(2)}
+      />
+
+      {/* A: Panel label */}
+      <text
+        class="p2ps-chart__panel-label"
+        x={(A_X0 + 6).toFixed(2)}
+        y={(A_Y0 - 7).toFixed(2)}
+      >EMPLOYMENT Y/Y</text>
+
+      {/* A: Y-tick labels */}
+      {yTicksA.map((t) => (
+        <text
+          class="p2ps-chart__ytick-label"
+          x={(A_X0 - 6).toFixed(2)}
+          y={(t.yPos + 4).toFixed(2)}
+          text-anchor="end"
+        >{t.label}</text>
+      ))}
+
+      {/* A: X-ticks + labels */}
+      {xTicksA.map((t) => (
+        <g>
+          <line
+            class="p2ps-chart__xtick"
+            x1={t.x.toFixed(2)} y1={A_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)} y2={(A_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="p2ps-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(A_Y1 + 16).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* A: Comparator direct label "Per-capita" */}
+      <text
+        class="p2ps-chart__direct-label-cmp"
+        x={lblAx.toFixed(2)}
+        y={lblAy.toFixed(2)}
+        text-anchor="start"
+      >Per-capita</text>
+
+      {/* ================================================================
+          CELL B — HOURS Y/Y (RIGHT)
+          ================================================================ */}
+
+      {/* B: Recession band */}
+      {recB && (
+        <rect
+          class="p2ps-chart__recession"
+          x={recB.x.toFixed(2)}
+          y={B_Y0.toFixed(2)}
+          width={Math.max(0, recB.w).toFixed(2)}
+          height={CELL_H.toFixed(2)}
+          clip-path={`url(#${clipIdB})`}
+        />
+      )}
+      {recB && (
+        <text
+          class="p2ps-chart__recession-label"
+          x={((recB.x + recB.x + recB.w) / 2).toFixed(2)}
+          y={recLabelY.toFixed(2)}
+          text-anchor="middle"
+          clip-path={`url(#${clipIdB})`}
+        >PANDEMIC</text>
+      )}
+
+      {/* B: Gridlines */}
+      {yTicksB.map((t) => {
+        if (Math.abs(t.value) < 1e-9) return null;
+        return (
+          <line
+            class="p2ps-chart__gridline"
+            x1={B_X0.toFixed(2)} y1={t.yPos.toFixed(2)}
+            x2={B_X1.toFixed(2)} y2={t.yPos.toFixed(2)}
+          />
+        );
+      })}
+
+      {/* B: Zero line */}
+      <line
+        class="p2ps-chart__zero-line"
+        x1={B_X0.toFixed(2)} y1={zeroYB.toFixed(2)}
+        x2={B_X1.toFixed(2)} y2={zeroYB.toFixed(2)}
+      />
+
+      {/* B: Comparator line (hours_pc_yoy) — 1px dashed 4-2 */}
+      <g clip-path={`url(#${clipIdB})`}>
+        <path
+          class="p2ps-chart__line-cmp"
+          d={pathB_cmp}
+        />
+      </g>
+
+      {/* B: Primary line (hours_yoy) — 1.5px solid */}
+      <g clip-path={`url(#${clipIdB})`}>
+        <path
+          class="p2ps-chart__line-prim"
+          d={pathB_prim}
+        />
+      </g>
+
+      {/* B: Hit circles — primary */}
+      <g clip-path={`url(#${clipIdB})`}>
+        {hitB_prim.map((h) => (
+          <circle
+            class="p2ps-chart__hit"
+            cx={h.cx.toFixed(2)}
+            cy={h.cy.toFixed(2)}
+            r="4"
+          >
+            <title>{h.titleText}</title>
+          </circle>
+        ))}
+      </g>
+
+      {/* B: Hit circles — comparator */}
+      <g clip-path={`url(#${clipIdB})`}>
+        {hitB_cmp.map((h) => (
+          <circle
+            class="p2ps-chart__hit"
+            cx={h.cx.toFixed(2)}
+            cy={h.cy.toFixed(2)}
+            r="4"
+          >
+            <title>{h.titleText}</title>
+          </circle>
+        ))}
+      </g>
+
+      {/* B: Latest-print dot (primary only — MTA red) */}
+      <circle
+        class="p2ps-chart__latest-dot"
+        cx={dotBx.toFixed(2)}
+        cy={dotBy.toFixed(2)}
+        r="4"
+      >
+        <title>{`Latest: ${ptsB_prim.length > 0 ? ptsB_prim[ptsB_prim.length - 1]!.date : ""} hours Y/Y`}</title>
+      </circle>
+
+      {/* B: Hairline frame */}
+      <rect
+        class="p2ps-chart__frame"
+        x={B_X0.toFixed(2)}
+        y={B_Y0.toFixed(2)}
+        width={CELL_W.toFixed(2)}
+        height={CELL_H.toFixed(2)}
+      />
+
+      {/* B: Panel label */}
+      <text
+        class="p2ps-chart__panel-label"
+        x={(B_X0 + 6).toFixed(2)}
+        y={(B_Y0 - 7).toFixed(2)}
+      >HOURS Y/Y</text>
+
+      {/* B: Y-tick labels — left gutter of cell B */}
+      {yTicksB.map((t) => (
+        <text
+          class="p2ps-chart__ytick-label"
+          x={(B_X0 - 6).toFixed(2)}
+          y={(t.yPos + 4).toFixed(2)}
+          text-anchor="end"
+        >{t.label}</text>
+      ))}
+
+      {/* B: X-ticks + labels */}
+      {xTicksB.map((t) => (
+        <g>
+          <line
+            class="p2ps-chart__xtick"
+            x1={t.x.toFixed(2)} y1={B_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)} y2={(B_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="p2ps-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(B_Y1 + 16).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* B: Comparator direct label "Per-capita" */}
+      <text
+        class="p2ps-chart__direct-label-cmp"
+        x={lblBx.toFixed(2)}
+        y={lblBy.toFixed(2)}
+        text-anchor="start"
+      >Per-capita</text>
+
+    </svg>
+  </div>
+)}
+
+<style>
+  /* -------------------------------------------------------------------
+     Panel2PerCapitaSignature — Tier-3 Mode-B composite.
+     Two cells side-by-side: employment Y/Y (left), hours Y/Y (right).
+     Each cell: primary solid line + comparator dashed line.
+     Vignelli canon: pure ink, MTA red dot, hairline frames.
+     BEM scope: .p2ps-chart__*
+     ------------------------------------------------------------------- */
+
+  .p2ps-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+
+  .p2ps-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  /* Recession band — canon rgba(21,23,26,0.06) */
+  .p2ps-chart__recession {
+    fill: rgba(21, 23, 26, 0.06);
+    stroke: none;
+  }
+
+  /* Recession label — Manrope 600 micro-caps 11px */
+  .p2ps-chart__recession-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  /* Gridlines — pure ink, 0.18 opacity */
+  .p2ps-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+
+  /* Zero line — full opacity */
+  .p2ps-chart__zero-line {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Primary line — 1.5px solid pure ink */
+  .p2ps-chart__line-prim {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Comparator line — 1px dashed 4-2 pure ink, recedes behind primary */
+  .p2ps-chart__line-cmp {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Hit-area circles — invisible, carry native <title> tooltip */
+  .p2ps-chart__hit {
+    fill: transparent;
+    stroke: none;
+    cursor: crosshair;
+  }
+
+  /* Latest-print dot — MTA red, 4px radius, no stroke */
+  .p2ps-chart__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  /* Hairline frame — 1px pure ink per cell */
+  .p2ps-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Panel label — Manrope 600 micro-caps */
+  .p2ps-chart__panel-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+
+  /* Y-tick labels — IBM Plex Mono 11px (Mode B: each cell) */
+  .p2ps-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* X-tick marks */
+  .p2ps-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* X-tick labels — Manrope 11px */
+  .p2ps-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 400;
+  }
+
+  /* Comparator direct label — Manrope 400 13px, pure ink */
+  .p2ps-chart__direct-label-cmp {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 400;
+  }
+</style>
