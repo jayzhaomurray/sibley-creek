@@ -329,16 +329,26 @@ function insertEntryIntoManifest(manifestText, block, importLine, newFileSubpath
   }
 
   // 2) Walk forward from newEntriesStart to find the closing `];` of the
-  // array. Track brace + bracket depth so we don't get fooled by braces
-  // inside individual entries.
+  // array. Bracket counting must skip the `[]` in the type annotation
+  // `ChartShelfEntry[]` — so on the start line, only count brackets after
+  // the `=` token.
   let bracketDepth = 0;
   let arrayCloseIdx = -1;
+  let seenArrayOpen = false;
   for (let i = newEntriesStart; i < lines.length; i++) {
-    for (const ch of lines[i]) {
-      if (ch === "[") bracketDepth++;
-      else if (ch === "]") {
+    let scanFrom = 0;
+    if (!seenArrayOpen) {
+      const eqIdx = lines[i].indexOf("=");
+      if (eqIdx !== -1) scanFrom = eqIdx + 1;
+    }
+    const segment = lines[i].slice(scanFrom);
+    for (const ch of segment) {
+      if (ch === "[") {
+        bracketDepth++;
+        seenArrayOpen = true;
+      } else if (ch === "]") {
         bracketDepth--;
-        if (bracketDepth === 0) {
+        if (bracketDepth === 0 && seenArrayOpen) {
           arrayCloseIdx = i;
           break;
         }

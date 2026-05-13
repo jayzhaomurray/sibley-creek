@@ -35,6 +35,10 @@ export default defineConfig({
   build: {
     format: 'directory',
   },
+  redirects: {
+    '/chart-improvements': '/chart-alternatives',
+    '/chart-improvements/': '/chart-alternatives/',
+  },
   integrations: [
     sitemap({
       filter: (page) =>

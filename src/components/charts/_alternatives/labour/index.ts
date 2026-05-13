@@ -18,7 +18,6 @@ import type { ChartShelfEntry } from "../_shared/shelfEntry";
 import labourPanelData from "../../../../../data/site/panel_data/labour.json";
 import { pickPanel } from "../../_shared/panelData";
 
-import Alt1_TripleLabourSeries from "./Alt1_TripleLabourSeries.astro";
 import Alt2_YouthVsPrime from "./Alt2_YouthVsPrime.astro";
 import Alt3_WageGrowthYoY from "./Alt3_WageGrowthYoY.astro";
 import Alt4_VacanciesVsEI from "./Alt4_VacanciesVsEI.astro";
@@ -36,18 +35,6 @@ const labourPanel2Data = pickPanel(labourPanelData, 2);
 const labourPanel6Data = pickPanel(labourPanelData, 6);
 
 export const entries: ChartShelfEntry[] = [
-  {
-    Component: Alt1_TripleLabourSeries,
-    file: "labour/Alt1_TripleLabourSeries.astro",
-    title: "Unemp + emp rate + participation triple",
-    whatDifferent:
-      "Three LFS series overlaid: unrate primary solid, emprate secondary dashed-4-2, participation tertiary sparse-dashed-2-3. Pure ink throughout.",
-    whyBetter:
-      "The three together tell the full LFS story; participation movement explains how the unemployment and employment rates can move in the same direction.",
-    dataFields:
-      "unemployment_rate.csv + employment_rate.csv + participation_rate.csv",
-    addedAt: "2026-05-12",
-  },
   {
     Component: Alt2_YouthVsPrime,
     file: "labour/Alt2_YouthVsPrime.astro",

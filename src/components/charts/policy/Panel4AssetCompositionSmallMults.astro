@@ -1,0 +1,522 @@
+---
+/*
+ * Panel4AssetCompositionSmallMults - BoC balance-sheet asset composition,
+ * five small multiples.
+ *
+ * Sub-panels (each with its own y-axis, shared x-domain 2020-01-01 to latest):
+ *   1. Total assets    (data.secondary)
+ *   2. GoC bonds       (data.extras[0]  key: boc_goc_bonds)
+ *   3. T-bills         (data.extras[1]  key: boc_tbills)
+ *   4. Advances        (data.extras[2]  key: boc_advances)
+ *   5. Repos           (data.extras[3]  key: boc_repos)
+ *
+ * Layout: 3-across top row, 2-across bottom row (bottom-right cell empty).
+ * ViewBox 720 x 405 (16:9). No JS. Native SVG <title> hover.
+ *
+ * Canon compliance checklist (design/canon_reference_panel.md):
+ *   1. 1.5px pure ink line (var(--ink)).
+ *   2. 4px MTA red latest-print dot (var(--accent)).
+ *   3. 1px pure ink hairline frame per sub-panel.
+ *   4. 2-3 horizontal gridlines per sub-panel, stroke-opacity 0.18.
+ *   5. Y-axis: IBM Plex Mono 12px, right-aligned; topmost tick of leftmost
+ *      column carries "$bn" unit.
+ *   6. X-axis: Manrope 12px, bottom row only, 3 ticks max.
+ *   7. Per-panel label: Manrope 600 micro-caps, top-left of each sub-panel.
+ *   8. No annotations on canvas. No legends. No series color.
+ *   9. aria-label + native SVG <title> per data point.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import { decYear } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---- Guard ------------------------------------------------------------------
+// Require secondary (total assets) to be present. extras may have gaps.
+const hasData = !!(data && data.secondary && data.secondary.data.length > 0);
+
+// ---- Series extraction ------------------------------------------------------
+// extras comes through as unknown[] on the PanelData index signature.
+type SeriesPoint = { date: string; value: number | null };
+type SeriesLike = { key?: string; label?: string; data?: SeriesPoint[] };
+
+function extractSeries(raw: unknown): SeriesPoint[] {
+  if (!raw || typeof raw !== "object") return [];
+  const s = raw as SeriesLike;
+  if (!Array.isArray(s.data)) return [];
+  return s.data;
+}
+
+const extrasRaw = Array.isArray((data as Record<string, unknown>)?.extras)
+  ? ((data as Record<string, unknown>).extras as unknown[])
+  : [];
+
+// Filter each series to date >= 2020-01-01
+const WINDOW_START = "2020-01-01";
+function filterWindow(pts: SeriesPoint[]): SeriesPoint[] {
+  return pts.filter((p) => p.date >= WINDOW_START && p.value !== null);
+}
+
+const rawTotalAssets   = hasData ? filterWindow(data!.secondary!.data) : [];
+const rawGocBonds      = filterWindow(extractSeries(extrasRaw[0]));
+const rawTbills        = filterWindow(extractSeries(extrasRaw[1]));
+const rawAdvances      = filterWindow(extractSeries(extrasRaw[2]));
+const rawRepos         = filterWindow(extractSeries(extrasRaw[3]));
+
+// ---- Panel definitions ------------------------------------------------------
+const subPanels = [
+  { label: "TOTAL ASSETS", data: rawTotalAssets },
+  { label: "GOC BONDS",    data: rawGocBonds    },
+  { label: "T-BILLS",      data: rawTbills      },
+  { label: "ADVANCES",     data: rawAdvances    },
+  { label: "REPOS",        data: rawRepos       },
+] as const;
+
+// ---- Shared x-domain --------------------------------------------------------
+let xMin = Infinity, xMax = -Infinity;
+for (const sp of subPanels) {
+  for (const pt of sp.data) {
+    const xv = decYear(pt.date);
+    if (!Number.isNaN(xv)) {
+      if (xv < xMin) xMin = xv;
+      if (xv > xMax) xMax = xv;
+    }
+  }
+}
+if (!Number.isFinite(xMin)) { xMin = 2020; xMax = 2026.5; }
+
+// ---- Geometry ---------------------------------------------------------------
+// ViewBox: 720 x 405 (16:9)
+const VB_W = 720;
+const VB_H = 405;
+
+// Outer margins
+const M_L = 52;   // left gutter for y-axis labels
+const M_R = 14;   // right margin
+const M_T = 30;   // top margin
+const M_B = 38;   // bottom margin (room for x-tick labels on bottom row)
+
+const GRID_W = VB_W - M_L - M_R;   // 654
+const GRID_H = VB_H - M_T - M_B;   // 337
+
+// 3-col layout; bottom row uses leftmost 2 cells
+const NUM_COLS = 3;
+const NUM_ROWS = 2;
+const GAP_X = 18;
+const GAP_Y = 20;
+
+const CELL_W = (GRID_W - GAP_X * (NUM_COLS - 1)) / NUM_COLS;   // ~206
+const CELL_H = (GRID_H - GAP_Y * (NUM_ROWS - 1)) / NUM_ROWS;   // ~158.5
+
+// Sub-panel grid positions: [col, row] for each of the 5 sub-panels
+// Top row: panels 0, 1, 2 (col 0,1,2 row 0)
+// Bottom row: panels 3, 4 (col 0,1 row 1) — col 2 row 1 is empty
+const GRID_POSITIONS = [
+  [0, 0], // Total assets
+  [1, 0], // GoC bonds
+  [2, 0], // T-bills
+  [0, 1], // Advances
+  [1, 1], // Repos
+] as const;
+
+function cellOrigin(col: number, row: number): [number, number] {
+  const x0 = M_L + col * (CELL_W + GAP_X);
+  const y0 = M_T + row * (CELL_H + GAP_Y);
+  return [x0, y0];
+}
+
+// ---- Y-scale helpers --------------------------------------------------------
+function niceTickStride(lo: number, hi: number, targetTicks = 3): number {
+  const span = hi - lo;
+  if (span <= 0) return 1;
+  const rawStep = span / targetTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const candidates = [1, 2, 2.5, 5, 10].map((f) => f * mag);
+  for (const c of candidates) {
+    const n = Math.floor(span / c);
+    if (n >= 2 && n <= 4) return c;
+  }
+  return candidates[candidates.length - 1]!;
+}
+
+function computeYDomain(pts: SeriesPoint[]): [number, number] {
+  if (pts.length === 0) return [0, 10];
+  let lo = Infinity, hi = -Infinity;
+  for (const pt of pts) {
+    const v = pt.value as number;
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  const span = hi - lo || 1;
+  // Floor lo toward zero for clean ticks; pad top 8%
+  const pad = span * 0.08;
+  const yLo = Math.max(0, lo - pad);
+  const yHi = hi + pad;
+  return [yLo, yHi];
+}
+
+function buildYTicks(yLo: number, yHi: number): number[] {
+  const stride = niceTickStride(yLo, yHi, 3);
+  const start = Math.ceil(yLo / stride) * stride;
+  const ticks: number[] = [];
+  for (let v = start; v <= yHi + 1e-9; v += stride) {
+    ticks.push(Number(v.toFixed(6)));
+  }
+  // Keep 2-3 ticks
+  if (ticks.length > 3) {
+    // Keep first, middle, last
+    const mid = Math.floor(ticks.length / 2);
+    return [ticks[0]!, ticks[mid]!, ticks[ticks.length - 1]!];
+  }
+  return ticks;
+}
+
+function fmtYTick(v: number): string {
+  const a = Math.abs(v);
+  if (a >= 1000) return v.toFixed(0);
+  if (a >= 100)  return v.toFixed(0);
+  if (a >= 10)   return v.toFixed(0);
+  if (a >= 1)    return v.toFixed(1);
+  return v.toFixed(2);
+}
+
+// ---- X-ticks (bottom row only) ----------------------------------------------
+// 3 ticks: Jan 2020 (start), a midpoint year, latest year
+function buildXTicks(
+  xMinVal: number,
+  xMaxVal: number,
+  xScale: (x: number) => number,
+): Array<{ x: number; label: string }> {
+  const yearStart = Math.ceil(xMinVal);
+  const yearEnd   = Math.floor(xMaxVal);
+  const span = yearEnd - yearStart;
+  // Pick ~3 evenly spaced years
+  const stride = Math.max(1, Math.round(span / 2));
+  const ticks: Array<{ x: number; label: string }> = [];
+  for (let yr = yearStart; yr <= yearEnd; yr += stride) {
+    const decY = yr + (1 - 0.5) / 12; // mid-January
+    if (decY >= xMinVal && decY <= xMaxVal) {
+      ticks.push({ x: xScale(decY), label: String(yr) });
+    }
+  }
+  // Ensure we have at most 3
+  if (ticks.length > 3) {
+    return [ticks[0]!, ticks[Math.floor(ticks.length / 2)]!, ticks[ticks.length - 1]!];
+  }
+  return ticks;
+}
+
+// ---- Per-panel computed geometry --------------------------------------------
+interface SubPanelGeom {
+  label: string;
+  data: SeriesPoint[];
+  col: number;
+  row: number;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  yLo: number;
+  yHi: number;
+  yTicks: number[];
+  linePath: string;
+  latestPt: SeriesPoint | null;
+  latestX: number;
+  latestY: number;
+  xTicks: Array<{ x: number; label: string }>;
+  isBottomRow: boolean;
+  isLeftmostCol: boolean;
+}
+
+function makeXScale(xMinV: number, xMaxV: number, cx0: number, cw: number) {
+  return (xv: number) =>
+    cx0 + ((xv - xMinV) / (xMaxV - xMinV || 1)) * cw;
+}
+function makeYScale(yLoV: number, yHiV: number, cy0: number, ch: number) {
+  return (v: number) =>
+    cy0 + ch - ((v - yLoV) / (yHiV - yLoV || 1)) * ch;
+}
+
+const geoms: SubPanelGeom[] = subPanels.map((sp, idx) => {
+  const [col, row] = GRID_POSITIONS[idx];
+  const [x0, y0] = cellOrigin(col, row);
+  const x1 = x0 + CELL_W;
+  const y1 = y0 + CELL_H;
+
+  const [yLo, yHi] = computeYDomain(sp.data as SeriesPoint[]);
+  const yTicks = buildYTicks(yLo, yHi);
+
+  const xScale = makeXScale(xMin, xMax, x0, CELL_W);
+  const yScale = makeYScale(yLo, yHi, y0, CELL_H);
+
+  // Build line path
+  let linePath = "";
+  let started = false;
+  for (const pt of sp.data as SeriesPoint[]) {
+    const v = pt.value as number;
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) { started = false; continue; }
+    linePath += `${started ? "L" : "M"}${xScale(xv).toFixed(2)} ${yScale(v).toFixed(2)} `;
+    started = true;
+  }
+
+  // Latest data point
+  const validData = (sp.data as SeriesPoint[]).filter((p) => p.value !== null);
+  const lastPt = validData.length > 0 ? validData[validData.length - 1]! : null;
+  const latestX = lastPt ? xScale(decYear(lastPt.date)) : 0;
+  const latestY = lastPt ? yScale(lastPt.value as number) : 0;
+
+  const xTicks = buildXTicks(xMin, xMax, xScale);
+
+  return {
+    label: sp.label,
+    data: sp.data as SeriesPoint[],
+    col,
+    row,
+    x0,
+    y0,
+    x1,
+    y1,
+    yLo,
+    yHi,
+    yTicks,
+    linePath: linePath.trim(),
+    latestPt: lastPt,
+    latestX,
+    latestY,
+    xTicks,
+    isBottomRow: row === NUM_ROWS - 1,
+    isLeftmostCol: col === 0,
+  };
+});
+
+// Latest print for aria-label
+const totalAssetsLatest = rawTotalAssets.length > 0
+  ? rawTotalAssets[rawTotalAssets.length - 1]!
+  : null;
+const latestDateStr = totalAssetsLatest?.date ?? "unknown";
+const latestValStr  = totalAssetsLatest
+  ? `$${(totalAssetsLatest.value as number).toFixed(0)}bn`
+  : "—";
+---
+
+{!hasData ? (
+  <PanelEmpty reason="Pipeline did not emit panel-4 secondary series (total assets)." />
+) : (
+  <div class="p4sm-chart" data-panel="policy-4">
+    <svg
+      class="p4sm-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={`Bank of Canada balance-sheet asset composition, five series, weekly, 2020 to ${latestDateStr}. Total assets latest: ${latestValStr}.`}
+    >
+      {geoms.map((g) => {
+        const showXAxis = g.isBottomRow;
+        const showYAxis = g.isLeftmostCol;
+
+        return (
+          <g class="p4sm-chart__cell" data-series={g.label}>
+
+            {/* Horizontal gridlines */}
+            {g.yTicks.map((v) => {
+              const yyv = g.y0 + CELL_H - ((v - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
+              return (
+                <line
+                  class="p4sm-chart__gridline"
+                  x1={g.x0}
+                  y1={yyv.toFixed(2)}
+                  x2={g.x1}
+                  y2={yyv.toFixed(2)}
+                />
+              );
+            })}
+
+            {/* Data line */}
+            {g.linePath && (
+              <path class="p4sm-chart__line" d={g.linePath} />
+            )}
+
+            {/* Native SVG <title> hit areas per data point */}
+            {g.data.map((pt) => {
+              if (pt.value === null) return null;
+              const xScale2 = makeXScale(xMin, xMax, g.x0, CELL_W);
+              const yScale2 = makeYScale(g.yLo, g.yHi, g.y0, CELL_H);
+              const cx = xScale2(decYear(pt.date));
+              const cy = yScale2(pt.value as number);
+              return (
+                <circle class="p4sm-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="4">
+                  <title>{`${g.label} ${pt.date}: $${(pt.value as number).toFixed(1)}bn`}</title>
+                </circle>
+              );
+            })}
+
+            {/* Latest-print dot — MTA red */}
+            {g.latestPt && (
+              <circle
+                class="p4sm-chart__latest-dot"
+                cx={g.latestX.toFixed(2)}
+                cy={g.latestY.toFixed(2)}
+                r="4"
+              >
+                <title>{`Latest — ${g.label} ${g.latestPt.date}: $${(g.latestPt.value as number).toFixed(1)}bn`}</title>
+              </circle>
+            )}
+
+            {/* Plot frame — 1px pure ink hairline */}
+            <rect
+              class="p4sm-chart__frame"
+              x={g.x0}
+              y={g.y0}
+              width={CELL_W}
+              height={CELL_H}
+            />
+
+            {/* Sub-panel label — top-left, Manrope 600 micro-caps */}
+            <text
+              class="p4sm-chart__panel-label"
+              x={(g.x0 + 6).toFixed(2)}
+              y={(g.y0 - 7).toFixed(2)}
+            >{g.label}</text>
+
+            {/* Y-axis tick labels — left column only */}
+            {showYAxis && g.yTicks.map((v, i) => {
+              const yyv = g.y0 + CELL_H - ((v - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
+              const isTop = i === g.yTicks.length - 1;
+              const numStr = fmtYTick(v);
+              // Topmost tick of leftmost column carries "$bn" unit
+              const txt = isTop ? `${numStr} $bn` : numStr;
+              return (
+                <text
+                  class="p4sm-chart__ytick-label"
+                  x={(g.x0 - 6).toFixed(2)}
+                  y={(yyv + 4).toFixed(2)}
+                  text-anchor="end"
+                >{txt}</text>
+              );
+            })}
+
+            {/* X-axis ticks + labels — bottom row only */}
+            {showXAxis && g.xTicks.map((t) => (
+              <g>
+                <line
+                  class="p4sm-chart__xtick"
+                  x1={t.x.toFixed(2)}
+                  y1={g.y1.toFixed(2)}
+                  x2={t.x.toFixed(2)}
+                  y2={(g.y1 + 4).toFixed(2)}
+                />
+                <text
+                  class="p4sm-chart__xtick-label"
+                  x={t.x.toFixed(2)}
+                  y={(g.y1 + 16).toFixed(2)}
+                  text-anchor="middle"
+                >{t.label}</text>
+              </g>
+            ))}
+
+          </g>
+        );
+      })}
+    </svg>
+  </div>
+)}
+
+<style>
+  /* ------------------------------------------------------------------
+     Panel4AssetCompositionSmallMults — Tier-3 small-multiples chart.
+     Vignelli canon: pure ink line, MTA red latest dot, hairline frame.
+     No section-accent on data marks, ever.
+     ------------------------------------------------------------------ */
+  .p4sm-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+  .p4sm-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  /* Gridlines — pure ink, low opacity */
+  .p4sm-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+
+  /* Data line — pure ink, 1.5px. The non-negotiable. */
+  .p4sm-chart__line {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Invisible hit-area for native SVG <title> hover — no JS */
+  .p4sm-chart__hit {
+    fill: transparent;
+    pointer-events: all;
+  }
+
+  /* Latest-print dot — MTA red, brand signal */
+  .p4sm-chart__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  /* Plot frame — 1px pure ink hairline rectangle per sub-panel */
+  .p4sm-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Sub-panel label — Manrope 600, micro-caps, pure ink, top-left */
+  .p4sm-chart__panel-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+
+  /* Y-axis tick labels — IBM Plex Mono 400 micro (12px), right-aligned */
+  .p4sm-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* X-axis tick marks — 4px outward, pure ink */
+  .p4sm-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* X-axis tick labels — Manrope 400 micro (12px), pure ink */
+  .p4sm-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
