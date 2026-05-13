@@ -236,7 +236,7 @@ function extractSectionAbstract(slug) {
   const text = fs.readFileSync(SECTIONS_TS, "utf-8");
   const slugRe = new RegExp(`slug:\\s*"${slug}"`);
   const m = text.match(slugRe);
-  if (!m) return { abstract: null, abstractCitations: [] };
+  if (!m) return { abstract: null, abstractCitations: [], tileLine: null, tileLineCitations: [] };
   const start = m.index;
   const slice = text.slice(start, start + 5000);
   const bodyMatch = slice.match(/body:\s*/);
@@ -254,7 +254,43 @@ function extractSectionAbstract(slug) {
       abstractCitations = parseCitations("[" + slice.slice(acStart, acClose) + "]");
     }
   }
-  return { abstract, abstractCitations };
+  // tileLine: the splash-tile sub-headline. Same per-section scope as abstract.
+  let tileLine = null;
+  const tlMatch = slice.match(/tileLine:\s*/);
+  if (tlMatch) {
+    const tlStart = tlMatch.index + tlMatch[0].length;
+    tileLine = extractStringChain(slice, tlStart).text;
+  }
+  let tileLineCitations = [];
+  const tlcMatch = slice.match(/tileLineCitations:\s*\[/);
+  if (tlcMatch) {
+    const tlcStart = tlcMatch.index + tlcMatch[0].length;
+    const tlcClose = findMatchingClose(slice, tlcStart, "[", "]");
+    if (tlcClose !== -1) {
+      tileLineCitations = parseCitations("[" + slice.slice(tlcStart, tlcClose) + "]");
+    }
+  }
+  return { abstract, abstractCitations, tileLine, tileLineCitations };
+}
+
+/**
+ * Extract the splashHero const + its citations from sections.ts.
+ * Format: `export const splashHero: {...} = { abstract: "...", citations: [...] };`
+ */
+function extractSplashHero() {
+  const text = fs.readFileSync(SECTIONS_TS, "utf-8");
+  const m = text.match(/export const splashHero[:\s][^=]*=\s*{/);
+  if (!m) return { abstract: null, citations: [] };
+  const objStart = m.index + m[0].length - 1;
+  const objClose = findMatchingClose(text, objStart + 1, "{", "}");
+  if (objClose === -1) return { abstract: null, citations: [] };
+  const objText = text.slice(objStart, objClose + 1);
+  const abstractField = extractField(objText, "abstract");
+  const citationsField = extractField(objText, "citations");
+  return {
+    abstract: abstractField?.text ?? null,
+    citations: citationsField ? parseCitations(citationsField.text) : [],
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -392,6 +428,13 @@ function checkSurface(slug, surfaceLabel, prose, citations) {
   return { tokens, uncovered, mode: citations.length > 0 ? "strict" : "needs-tagging" };
 }
 
+// STRICT_NEEDS_TAGGING: when true, a surface that has citable tokens but
+// no citations[] FAILS the build (instead of WARN). Codifies the rule
+// that no prose with verifiable claims may ship without explicit
+// citations. Per the editorial canon: every reader-facing claim — user-
+// or LLM-written — gets the same gate.
+const STRICT_NEEDS_TAGGING = true;
+
 /**
  * Strip markdown formatting from a deep-dive body so the tokenizer
  * doesn't trip over heading hashes, list bullets, link syntax, etc.
@@ -456,7 +499,7 @@ function main() {
     const pagePath = path.join(PAGES_DIR, `${slug}.astro`);
     if (!fs.existsSync(pagePath)) continue;
 
-    const { abstract, abstractCitations } = extractSectionAbstract(slug);
+    const { abstract, abstractCitations, tileLine, tileLineCitations } = extractSectionAbstract(slug);
     const plates = extractPlates(pagePath);
 
     const surfaces = [];
@@ -465,6 +508,13 @@ function main() {
         label: "section-abstract",
         prose: abstract,
         citations: abstractCitations,
+      });
+    }
+    if (tileLine) {
+      surfaces.push({
+        label: "tile-line",
+        prose: tileLine,
+        citations: tileLineCitations,
       });
     }
     for (const p of plates) {
@@ -487,9 +537,33 @@ function main() {
         }
       } else {
         if (r.tokens.length > 0) {
-          warnSurfaces++;
-          report.push({ slug, label: s.label, kind: "WARN", uncovered: r.tokens, totalTokens: r.tokens.length, citationsCount: 0 });
+          if (STRICT_NEEDS_TAGGING) {
+            strictFails++;
+            report.push({ slug, label: s.label, kind: "FAIL", uncovered: r.tokens, totalTokens: r.tokens.length, citationsCount: 0, reason: "no citations[] on a surface with citable tokens" });
+          } else {
+            warnSurfaces++;
+            report.push({ slug, label: s.label, kind: "WARN", uncovered: r.tokens, totalTokens: r.tokens.length, citationsCount: 0 });
+          }
         }
+      }
+    }
+  }
+
+  // Splash hero abstract — top-of-page synthesis on /
+  if (!args.length || args.includes("splash")) {
+    const hero = extractSplashHero();
+    if (hero.abstract) {
+      const r = checkSurface("splash", "hero-abstract", hero.abstract, hero.citations);
+      if (r.mode === "strict") {
+        if (r.uncovered.length > 0) {
+          strictFails++;
+          report.push({ slug: "splash", label: "hero-abstract", kind: "FAIL", uncovered: r.uncovered, totalTokens: r.tokens.length, citationsCount: hero.citations.length });
+        } else {
+          strictPasses++;
+        }
+      } else if (r.tokens.length > 0) {
+        warnSurfaces++;
+        report.push({ slug: "splash", label: "hero-abstract", kind: "WARN", uncovered: r.tokens, totalTokens: r.tokens.length, citationsCount: 0 });
       }
     }
   }
@@ -511,8 +585,13 @@ function main() {
       }
     } else {
       if (r.tokens.length > 0) {
-        warnSurfaces++;
-        report.push({ slug: `research/${diveSlug}`, label: "body", kind: "WARN", uncovered: r.tokens, totalTokens: r.tokens.length, citationsCount: 0 });
+        if (STRICT_NEEDS_TAGGING) {
+          strictFails++;
+          report.push({ slug: `research/${diveSlug}`, label: "body", kind: "FAIL", uncovered: r.tokens, totalTokens: r.tokens.length, citationsCount: 0, reason: "no sidecar at editorial/source_cards/research/" });
+        } else {
+          warnSurfaces++;
+          report.push({ slug: `research/${diveSlug}`, label: "body", kind: "WARN", uncovered: r.tokens, totalTokens: r.tokens.length, citationsCount: 0 });
+        }
       }
     }
   }

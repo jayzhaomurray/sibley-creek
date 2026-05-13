@@ -106,13 +106,13 @@ export interface Section {
   /**
    * Source citations for the section's `blurb.body` (the under-question
    * synthesis on the section page and the sparkline-blurb on the splash).
-   * Used by `scripts/source_audit.mjs` to render the audit view + by
-   * `scripts/check_citation_coverage.mjs` to enforce coverage at build
-   * time. Optional only until the section is brought under audit; once
-   * a section has any entries here, it's strict and the build fails on
-   * uncovered citable tokens.
    */
   abstractCitations?: import("../layouts/SectionLayout.astro").ClaimCitation[];
+  /**
+   * Source citations for the section's `tileLine` (the 1-sentence summary
+   * rendered on the splash tile under the section name + chart).
+   */
+  tileLineCitations?: import("../layouts/SectionLayout.astro").ClaimCitation[];
   /**
    * Epoch milliseconds for the section's most-recently-updated print or
    * event. Drives the homepage hero selection (Layout B): the section with
@@ -304,6 +304,9 @@ export const sections: Section[] = [
     latestReleasePrefix: "Headline CPI",
     tileLine:
       "Headline CPI at 2.3% in March; food and energy carry the above-target weight.",
+    tileLineCitations: [
+      { phrase: "2.3%", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI Y/Y, March 2026." },
+    ],
     prints: [
       {
         // The pipeline produces a real value for this row (data/site/sections.json:
@@ -378,6 +381,9 @@ export const sections: Section[] = [
     latestReleasePrefix: "LFS",
     tileLine:
       "Unemployment climbed to 6.9% in April; aggregate hours turned negative Y/Y.",
+    tileLineCitations: [
+      { phrase: "6.9%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA, April 2026." },
+    ],
     prints: [
       {
         // Pipeline produces a real value for this row (unemployment rate,
@@ -444,6 +450,10 @@ export const sections: Section[] = [
     latestReleaseDateOverride: "Apr 29, 2026",
     tileLine:
       "BoC held at 2.25% on April 29, the fourth straight hold since October's cut.",
+    tileLineCitations: [
+      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, Apr 29 2026 FAD decision, via Valet V39079." },
+      { phrase: "fourth straight", source: "pipeline:boc:V39079", note: "Enumerated FAD sequence: Jan 29, Mar 12, Apr 16, Apr 29 holds following Oct 29 2025 cut." },
+    ],
     prints: [
       {
         // Pipeline produces a real value for this row (BoC overnight rate,
@@ -517,6 +527,10 @@ export const sections: Section[] = [
     latestReleasePrefix: "Home prices",
     tileLine:
       "Composite home prices down 4.6% Y/Y, the eighth straight down month.",
+    tileLineCitations: [
+      { phrase: "4.6%", source: "pipeline:crea:mls_hpi_national", note: "CREA MLS HPI composite, Y/Y, March 2026." },
+      { phrase: "eighth straight", source: "pipeline:crea:mls_hpi_national", note: "Enumerated: Aug 2025 through Mar 2026; CREA MLS HPI Y/Y has printed negative each month." },
+    ],
     prints: [
       {
         key: "hpi-yoy",
@@ -575,6 +589,10 @@ export const sections: Section[] = [
     latestReleasePrefix: "Merchandise trade",
     tileLine:
       "Goods balance narrowed to -$2.2B; US export share fell to 66.1%.",
+    tileLineCitations: [
+      { phrase: "-$2.2B", source: "pipeline:statcan:12-10-0119-01", note: "Goods trade balance, 3-month moving average, March 2026." },
+      { phrase: "66.1%", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, March 2026." },
+    ],
     tileChartKind: "bars",
     prints: [
       {
@@ -655,6 +673,9 @@ export const sections: Section[] = [
     latestReleasePrefix: "Daily close",
     tileLine:
       "USDCAD closed the week at 1.369 as the BoC-Fed 2y spread held near -98 bps.",
+    tileLineCitations: [
+      { phrase: "-98 bps", source: "derived", note: "GoC 2y 2.94% minus UST 2y 3.92% = -98 bps. Inputs: BoC Valet yield_2yr and FRED DGS2, May 7 2026." },
+    ],
     prints: [
       {
         // Pipeline produces a real value for this row (USDCAD, currently 1.369
@@ -823,6 +844,11 @@ export const deepDives: DeepDive[] = [
     // Legacy fields retained so /experiments/* keeps building. Not rendered in production.
     pillar: "A",
     status: "drafted",
+    // Tagged as a pending-human-review draft so the reader sees the
+    // "DRAFT - HUMAN REVISION PENDING" stamp. Matches the other three
+    // deep dives in this set — all four pieces were authored or revised
+    // by the writer agent and have not been human-finalized.
+    draftStatus: "draft",
   },
   {
     slug: "boc-fed-divergence",
@@ -880,6 +906,26 @@ export const nextRelease = {
   label: "TK",
   date: "TK",
   agency: "Statistics Canada",
+};
+
+/*
+ * Splash-page hero abstract. The text rendered under the "Where is Canada's
+ * economy?" headline on the homepage (src/components/home/TitleStatement.astro).
+ * Lives here so the build-time citation gate
+ * (scripts/check_citation_coverage.mjs) can scan it like the section
+ * abstracts. TitleStatement imports `splashHero.abstract`.
+ */
+export const splashHero: {
+  abstract: string;
+  citations: import("../layouts/SectionLayout.astro").ClaimCitation[];
+} = {
+  abstract:
+    "Cyclically, Canada is slowing down. Disinflation is in the final mile and slack is building in the labour market. Structurally, the economy is readjusting to halted population growth and tariffs. Per-capita output is virtually flat since 2019; the US export share has fallen from three quarters to two thirds over the last year.",
+  citations: [
+    { phrase: "since 2019", source: "pipeline:statcan:36-10-0104-01", note: "Per-capita real GDP indexed to 2019Q4." },
+    { phrase: "from three quarters to two thirds", source: "derived", note: "US share of Canadian merchandise exports moved from ~75% (Y2024 average) to ~66% (latest 3mma) per StatCan 12-10-0121-01." },
+    { phrase: "over the last year", source: "pipeline:statcan:12-10-0121-01", note: "12-month window through latest monthly merchandise-trade-by-partner release." },
+  ],
 };
 
 /*

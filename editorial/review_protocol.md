@@ -177,6 +177,44 @@ on the weeks publications ship.
 
 ---
 
+## Authorship is not a gate exemption — user-written prose follows the same rules
+
+**The author of a piece of prose does not change whether it gets fact-
+checked.** Whether the prose was drafted by an LLM agent, edited by a
+human in a chat redraft, hand-typed directly into the source file, or
+pasted in from somewhere else — every numeric, dated, or countable
+claim must be tagged with a citation, and the citation must be
+verifiable against its source.
+
+The build-time citation gate (`scripts/check_citation_coverage.mjs`)
+treats every reader-facing prose surface identically. A surface with
+citable tokens but no `citations[]` array fails the build, regardless
+of who wrote the prose. The gate doesn't read authorship; it reads
+prose and citations.
+
+The principle, from the user: *"I am not above AI. I am equally at
+risk of writing something incorrect."* Authorship-blind enforcement is
+how we protect the publication's credibility against author errors —
+including the user's own.
+
+When the user (or any human) edits a section page, section abstract,
+deep-dive markdown, splash hero, or tile line and introduces a new
+number, date, or countable claim:
+
+1. The change must include a corresponding `citations[]` entry (for
+   inline plate/section/tile surfaces) or sidecar YAML entry (for
+   research deep dives).
+2. On `npm run build`, the gate runs first. Uncovered tokens fail the
+   build. Nothing reaches the live site without passing this gate.
+3. The redraft re-gating rule (below) also applies — new claims
+   re-enter Gate 1 (fact-check) regardless of authorship.
+
+This is non-bypassable by design. Convention is too easy to forget; a
+build-time check that refuses to ship uncovered prose is the only
+durable enforcement.
+
+---
+
 ## Redraft re-gating — the rule that closes the most common leak
 
 **Any new claim introduced during a redraft re-enters Gate 1.** No
