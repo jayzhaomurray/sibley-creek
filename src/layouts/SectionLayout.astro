@@ -257,11 +257,34 @@ export interface Plate {
 
 export interface ClaimCitation {
   /** Verbatim substring of the prose to tag. First-occurrence match. */
-  phrase: string;
+  phrase?: string;
   /** Source identifier: card:<id> / pipeline:<key> / derived / other:<note>. */
   source: string;
   /** Optional explanatory note rendered in the audit view. */
   note?: string;
+  /** Slot-bound (writing-style.md §4.1e): citation auto-resolves from
+   * panel_data.json at build time via source_audit.mjs. Citation may omit
+   * `phrase:` when slot is set; effective phrase composed as
+   * `${formatted_value} ${context}` with {month}/{year} substitution. */
+  slot?: string;
+  /** Slot observation selector: "latest" (default), "T-N" (N steps back),
+   * or "YYYY-MM" / "YYYY-MM-DD" for explicit observation. */
+  at?: string;
+  /** Format spec for the slot value: "{0.1}%", "{int}%", "{0.1}-point", etc.
+   * For date returns from prior_above/prior_below: "{quarter}", "{month_year}". */
+  value_format?: string;
+  /** Trailing words after the formatted value. Supports {month}/{year}/
+   * {quarter}/{month_year}/{month_abbr} substitution from the slot's
+   * observation date. */
+  context?: string;
+  /** Compute DSL (writing-style.md §4.1f Pattern B): arithmetic over slot
+   * values, or a named primitive (count_consecutive_at_latest, prior_below,
+   * etc.). Result formatted via value_format + context. */
+  compute?: string;
+  /** Enumeration-card validation (writing-style.md §4.1f Pattern A): the
+   * cited card must have `enumeration:` of exactly this length. Build fails
+   * on mismatch. Catches ordinal drift on "Nth consecutive" claims. */
+  expected_count?: number;
 }
 
 interface Props {

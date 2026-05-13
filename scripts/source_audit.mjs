@@ -400,8 +400,13 @@ function extractTileLine(slug) {
   const slugRe = new RegExp(`slug:\\s*"${slug}"`);
   const m = text.match(slugRe);
   if (!m) return { tileLine: null, citations: [] };
-  // Walk forward until the next slug: or the end of the object — bound at ~6KB.
-  const slice = text.slice(m.index, m.index + 6000);
+  // Walk forward until the NEXT `slug: "..."` or end of file — bounding the
+  // slice prevents cross-section citation leakage (e.g. gdp picking up
+  // inflation's `tileLineCitations` because no slug delimiter was respected).
+  const after = text.slice(m.index + m[0].length);
+  const nextSlugMatch = after.match(/slug:\s*"/);
+  const sliceEnd = nextSlugMatch ? m.index + m[0].length + nextSlugMatch.index : text.length;
+  const slice = text.slice(m.index, sliceEnd);
   const tlMatch = slice.match(/tileLine:\s*/);
   let tileLine = null;
   if (tlMatch) {
@@ -3635,7 +3640,23 @@ function main() {
     process.exit(1);
   }
 
-  const orphans = getOrphanCitations();
+  // Orphan-citation gate: enforce only on SHIPPING surfaces. Dive sidecars
+  // for dives in `_holding` (no `publishedPath` in sections.ts) are drafts
+  // in flight; their orphans are expected and not ship-blocking.
+  const heldDiveSlugs = new Set();
+  for (const dive of dives) {
+    if (!dive.publishedPath) heldDiveSlugs.add(dive.slug);
+  }
+  const allOrphans = getOrphanCitations();
+  const orphans = allOrphans.filter((o) => {
+    if (!o.surface?.startsWith?.("research/")) return true; // section surfaces always enforce
+    const slug = o.surface.split("/")[1]?.split(" ")[0];
+    return slug && !heldDiveSlugs.has(slug);
+  });
+  const skippedDraftOrphans = allOrphans.length - orphans.length;
+  if (skippedDraftOrphans > 0) {
+    console.log(`(skipping ${skippedDraftOrphans} orphan(s) from research dives in _holding — not ship-blocking)`);
+  }
   if (orphans.length > 0) {
     console.error("");
     console.error(`source_audit: ${orphans.length} orphan citation(s) — phrase declared in sidecar/citations: but does NOT appear in the prose.`);
