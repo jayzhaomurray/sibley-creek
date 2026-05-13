@@ -499,18 +499,12 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 29, 2026",
       body:
-        "Canada's policy stance is restrictive in name only. The Bank of Canada has held the overnight rate at 2.25% through four consecutive decisions since October's cut, parking the policy rate at the floor of its 2.25-3.25% neutral range and 150 bps below the Fed's upper bound — the widest gap outside the 2002-2004 episode. Markets have absorbed the divergence without forcing the Bank's hand: the 2y GoC-UST spread sits at -98 bps, around the fifth percentile of its post-2001 distribution, and the loonie has held a 1.36-1.39 range through the spring. The balance sheet has settled into floor-system equilibrium, leaving the overnight rate as the active lever. With near-term potential growth marked at 1.2% for 2026, the bar for further easing is a clearer break in activity, not a reach for stimulus.",
+        "Idle on both levers. The Bank of Canada has held at 2.25% for four straight decisions — the floor of its stated 2.25 to 3.25% neutral range — and the federal fiscal arc is tracking the cadence of recent years, not leaning against the cycle. The next move belongs to monetary, and the bar is a clearer break in activity.",
     },
     abstractCitations: [
-      { phrase: "overnight rate at 2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, Apr 29 2026 FAD decision, via Valet V39079." },
-      { phrase: "four consecutive decisions since October's cut", source: "pipeline:boc:V39079", note: "Enumerated FAD sequence: Dec 10 2025, Jan 28 2026, Mar 18 2026, Apr 29 2026 holds following Oct 29 2025 cut to 2.25%." },
-      { phrase: "floor of its 2.25-3.25% neutral range", source: "card:boc_mpr_neutral_range" },
-      { phrase: "150 bps below the Fed's upper bound", source: "derived", note: "BoC overnight 2.25% minus Fed upper bound 3.75% = -150 bps." },
-      { phrase: "widest gap outside the 2002-2004 episode", source: "derived", note: "Enumerated monthly (BoC overnight - Fed funds upper) series from 1996 onward; only the 2002-2004 episode breaches the current -150 bps in magnitude." },
-      { phrase: "2y GoC-UST spread sits at -98 bps", source: "derived", note: "GoC 2y 2.94% minus UST 2y 3.92% = -98 bps. Inputs: BoC Valet yield_2yr and FRED DGS2, May 7 2026." },
-      { phrase: "fifth percentile of its post-2001 distribution", source: "derived", note: "Verified 2026-05-13 against raw CSVs (data/raw/yield_2yr.csv + data/raw/us_2yr.csv): 6,219 daily observations since 2001-01-02; -98 bps sits at the 5.07th percentile." },
-      { phrase: "1.36-1.39 range through the spring", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close range, March-May 2026, per BoC Valet FXUSDCAD." },
-      { phrase: "near-term potential growth marked at 1.2% for 2026", source: "card:boc_mpr_potential_growth" },
+      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, Apr 29 2026 FAD decision, via Valet V39079." },
+      { phrase: "four straight decisions", source: "card:boc_fad_holds_post_oct_2025_cut", expected_count: 4, note: "Enumerated FAD holds since Oct 29, 2025 cut: Dec 10, Jan 28, Mar 18, Apr 29." },
+      { phrase: "2.25 to 3.25% neutral range", source: "card:boc_mpr_neutral_range" },
     ],
   },
   {
