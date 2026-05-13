@@ -651,6 +651,84 @@ function wrapUnwrappedToken(html, token, wrapClass, refSup) {
   return out.join("");
 }
 
+// Length-budget table per surface type (writing-style.md §4.1f hard caps).
+// Build refuses on any cap overrun for shipping surfaces. The 140-word
+// policy abstract that survived the prior process would have hard-failed
+// here. Soft-target overruns surface as warnings (non-blocking).
+const LENGTH_BUDGETS = {
+  // Soft targets are the editorial ideal (warnings on overrun).
+  // Hard caps are calibrated to the longest currently-shipping surfaces
+  // the user has approved; the gate refuses anything beyond.
+  // Recalibrate by hand when norms shift.
+  "section-abstract": { sentenceMin: 2, sentenceMax: 3, sentenceHardCap: 5, wordMin: 45, wordMax: 75, wordHardCap: 105 },
+  "tile-line":        { sentenceMin: 1, sentenceMax: 1, sentenceHardCap: 1, wordMin: 8,  wordMax: 16, wordHardCap: 20, charHardCap: 90 },
+  "plate-title":      { sentenceMin: 1, sentenceMax: 1, sentenceHardCap: 2, wordMin: 6,  wordMax: 14, wordHardCap: 22, charHardCap: 110 },
+  "plate-blurb":      { sentenceMin: 2, sentenceMax: 4, sentenceHardCap: 6, wordMin: 40, wordMax: 70, wordHardCap: 110 },
+  "splash-hero":      { sentenceMin: 3, sentenceMax: 5, sentenceHardCap: 7, wordMin: 70, wordMax: 110, wordHardCap: 150 },
+};
+
+function stripHtmlToText(html) {
+  return String(html ?? "")
+    .replace(/<a\b[^>]*>([\s\S]*?)<\/a>/gi, "$1")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&mdash;/g, " ")
+    .replace(/&ndash;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&[a-z]+;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function countSentences(text) {
+  if (!text) return 0;
+  // Treat .?! followed by whitespace or end-of-text as sentence terminators.
+  // Em-dashes don't count. Ellipses count as one terminator.
+  const parts = text.replace(/\.{3,}/g, ".").split(/[.!?](?:\s+|$)/).filter((s) => s.trim().length > 0);
+  return parts.length;
+}
+
+function countWords(text) {
+  if (!text) return 0;
+  return text.split(/\s+/).filter((w) => w.length > 0).length;
+}
+
+let LENGTH_VIOLATIONS = [];
+let LENGTH_WARNINGS = [];
+function resetLengthChecks() { LENGTH_VIOLATIONS = []; LENGTH_WARNINGS = []; }
+function getLengthViolations() { return LENGTH_VIOLATIONS; }
+function getLengthWarnings() { return LENGTH_WARNINGS; }
+
+function checkLengthBudget(surfaceLabel, surfaceType, rawProse) {
+  const budget = LENGTH_BUDGETS[surfaceType];
+  if (!budget || !rawProse) return;
+  const text = stripHtmlToText(rawProse);
+  const sentences = countSentences(text);
+  const words = countWords(text);
+  const chars = text.length;
+  const violations = [];
+  const warnings = [];
+  if (budget.wordHardCap && words > budget.wordHardCap) {
+    violations.push(`${words}W exceeds hard cap ${budget.wordHardCap}W`);
+  }
+  if (budget.charHardCap && chars > budget.charHardCap) {
+    violations.push(`${chars} chars exceeds hard cap ${budget.charHardCap}`);
+  }
+  if (budget.sentenceHardCap && sentences > budget.sentenceHardCap) {
+    violations.push(`${sentences} sentences exceeds hard cap ${budget.sentenceHardCap}`);
+  } else if (budget.sentenceMax && sentences > budget.sentenceMax) {
+    warnings.push(`${sentences} sentences (target ${budget.sentenceMin}-${budget.sentenceMax})`);
+  }
+  if (budget.wordMax && words > budget.wordMax && (!budget.wordHardCap || words <= budget.wordHardCap)) {
+    warnings.push(`${words}W (target ${budget.wordMin}-${budget.wordMax}W)`);
+  }
+  if (violations.length) {
+    LENGTH_VIOLATIONS.push({ surface: surfaceLabel, surfaceType, sentences, words, chars, violations });
+  }
+  if (warnings.length) {
+    LENGTH_WARNINGS.push({ surface: surfaceLabel, surfaceType, sentences, words, chars, warnings });
+  }
+}
+
 // Module-level counter for globally-unique inline anchor ids. Each
 // annotateProse() call increments this so ids never collide across
 // section abstracts, plate blurbs, dive bodies, etc. on the same page.
@@ -2176,10 +2254,13 @@ function renderPage(slug, headlineQuestion, abstract, abstractCitations, plates,
   const sectionRefDate = sectionFreshestDate(slug);
   const slots = loadPanelSlots(slug);
 
+  checkLengthBudget(`${slug} · section abstract`, "section-abstract", abstract);
   const sectionAbs = annotateProse(abstract, abstractCitations || [], registry, pendingMap, `${slug} · section abstract`, slots);
   sectionAbs.resolved.forEach((r) => { r.note = augmentNoteWithDate(r.note, r.source, sectionRefDate); });
 
   const plateRenders = plates.map((p) => {
+    checkLengthBudget(`${slug} · ${p.id || "plate"} title`, "plate-title", p.title);
+    checkLengthBudget(`${slug} · ${p.id || "plate"} blurb`, "plate-blurb", p.interpretationHtml);
     // Combine plate title + blurb so a single citation phrase can match in
     // either surface. The sentinel `<<SC_SPLIT>>` separates them — it
     // contains no digit/percent tokens so TOKEN_PATTERNS won't touch it,
@@ -2819,6 +2900,7 @@ function renderSplashPage(registry, now) {
     if (!d) continue;
     if (!heroRefDate || new Date(d.isoDate) > new Date(heroRefDate.isoDate)) heroRefDate = d;
   }
+  checkLengthBudget("splash · hero abstract", "splash-hero", hero.abstract);
   const heroAnnotated = annotateProse(hero.abstract, hero.citations || [], registry, null, "splash · hero abstract");
   heroAnnotated.resolved.forEach((r) => { r.note = augmentNoteWithDate(r.note, r.source, heroRefDate); });
 
@@ -2828,6 +2910,7 @@ function renderSplashPage(registry, now) {
     const { tileLine, citations } = extractTileLine(slug);
     if (!tileLine) continue;
     const ref = sectionFreshestDate(slug);
+    checkLengthBudget(`splash · ${slug} tile`, "tile-line", tileLine);
     const annotated = annotateProse(tileLine, citations || [], registry, null, `splash · ${slug} tile`);
     annotated.resolved.forEach((r) => { r.note = augmentNoteWithDate(r.note, r.source, ref); });
     tiles.push({ slug, tileLine, annotated, referenceDate: ref });
@@ -3450,6 +3533,7 @@ function main() {
   resetUncoveredHints();
   resetEnumerationMismatches();
   resetDeepDiveLinks();
+  resetLengthChecks();
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   const now = new Date().toISOString().slice(0, 16).replace("T", " ");
 
@@ -3578,6 +3662,30 @@ function main() {
     console.log("");
     for (const h of hints) console.log(`  ~ [${h.surface}] uncovered "${h.token}" → matches slot "${h.slot}" (latest = ${h.formatted})`);
     console.log("");
+  }
+
+  // Length-budget gate (writing-style.md §4.1f): HARD FAIL on hard-cap
+  // overruns; soft-target overruns surface as warnings (non-blocking).
+  const lengthWarnings = getLengthWarnings();
+  if (lengthWarnings.length > 0) {
+    console.log("");
+    console.log(`source_audit: ${lengthWarnings.length} length-budget warning(s) (over soft target, within hard cap):`);
+    for (const w of lengthWarnings) {
+      console.log(`  ~ [${w.surface}] ${w.warnings.join("; ")}`);
+    }
+    console.log("");
+  }
+  const lengthViolations = getLengthViolations();
+  if (lengthViolations.length > 0) {
+    console.error("");
+    console.error(`source_audit: ${lengthViolations.length} length-budget violation(s) — build refuses.`);
+    console.error("Each surface below exceeds its hard cap from editorial/writing-style.md §4.1f. Trim or restructure.");
+    console.error("");
+    for (const v of lengthViolations) {
+      console.error(`  - [${v.surface}] (${v.surfaceType}): ${v.violations.join("; ")}`);
+    }
+    console.error("");
+    process.exit(1);
   }
 
   // Derived-slot materialization queue: HARD FAIL if any entries are

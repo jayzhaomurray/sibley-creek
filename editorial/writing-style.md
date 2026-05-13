@@ -664,6 +664,32 @@ it's: before drafting, ask "if the reader only saw my blurb, what's
 the single thing they walk away with?" That's the take. Ground with
 1-2 numbers; let the chart carry the inventory.
 
+### 4.1i Take-mechanism-land: the structural pattern of a working blurb
+
+Every blurb on Sibley Creek — section abstract, plate blurb, splash hero — follows a three-beat argumentative structure. The user's working blurbs (output, inflation, labour) all share it. The pattern that fails (policy round 1) is the inversion: opener + list of facts + free-floating close.
+
+**The pattern:**
+
+- **Sentence 1 — the take.** A single declarative claim that answers the page-header question. Names the regime, the turn, the tension. Reader can disagree; reader cannot mistake what's being argued.
+- **Sentences 2 to 3 — the mechanism.** Explain WHY the take is true. Composition, sequence, anchor, contrast. NOT new adjacent facts about the same topic. The middle is in service of the opener.
+- **Optional close — the landing.** A short sentence that either extends the argument (one implication, one anchor) or lands it with finality. Earns its place by saying something the middle hasn't.
+
+**Working exemplars** (live blurbs as of 2026-05-13):
+
+> Labour: *"Yes, and the intensive margin is leading. Hours worked are running negative year-over-year while the unemployment rate has drifted up to 6.9%, the pattern of a market that is shedding work before it sheds workers — and one where a population surge is being absorbed straight into not-in-labour-force rather than into jobs. Wages are the lagging piece, with composition-adjusted growth at 3.1% still above where the Bank of Canada wants it, but the cyclical direction is no longer in doubt."*
+
+> Inflation: *"Headline CPI sits at 2.3% — a hair above target, with food and energy now carrying the overshoot that shelter used to. Core-trim and core-median, the measures the Bank of Canada actually reacts to, are back at 2.2-2.3%. And consumer and firm expectations have moderated together: the anchor is holding while the composition rotates."*
+
+> Output: *"Slowly, and mostly in the resource patch. Real GDP is running near 1% Y/Y, just below the Bank of Canada's 1.2% estimate of near-term potential growth. Oil and gas are doing the heavy lifting while manufacturing is in deep recession. Services growth is trundling along. Even that 1% pace relies on population growth more than anything — on a per capita basis, output is scarcely higher than it was before the pandemic."*
+
+In each: the opener is a take. The middle explains the take (intensive-margin mechanism / composition rotation / resource-patch concentration). The close lands (direction no longer in doubt / anchor holding while composition rotates / per-capita scarcely above pre-pandemic).
+
+**The failing pattern (anti-exemplar):** a contested or weak opener; the middle inventories related facts rather than supporting the opener; the close is a reasonable claim disconnected from what came before. Reads as a status report dressed as an argument.
+
+**The diagnostic test:** read sentences 2-3 out loud. Do they say WHY the opener is true (mechanism, composition, anchor)? Or do they say WHAT ELSE is true about the topic (related facts, level descriptions, adjacent prints)? If "what else," the body is recitation — the blurb has an opener and a close but no middle.
+
+This structure isn't a stylistic preference; it's how readers process editorial argument. A blurb without it isn't a blurb — it's a paragraph of facts with a headline.
+
 ### 4.1g The take is at the scope of the header question — synthesis, not enumeration
 
 When the page-header question spans multiple sub-domains, the
