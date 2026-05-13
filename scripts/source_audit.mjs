@@ -380,6 +380,97 @@ function annotateProse(prose, citations, registry) {
   return { html, resolved };
 }
 
+/**
+ * Build an external source URL for a pipeline:<provider>:<key> citation.
+ * Returns the URL string + a human-readable label for the provider/key.
+ */
+function resolvePipelineUrl(pipelineKey) {
+  // Format: pipeline:<provider>:<key>  e.g. pipeline:statcan:14-10-0287-01
+  // Some entries omit the provider (legacy): pipeline:yield_2yr → unknown.
+  const parts = pipelineKey.split(":");
+  if (parts.length < 3) {
+    return {
+      label: `pipeline series: ${parts.slice(1).join(":")}`,
+      url: null,
+      providerLabel: "pipeline (provider unspecified)",
+    };
+  }
+  const provider = parts[1];
+  const key = parts.slice(2).join(":");
+
+  switch (provider) {
+    case "statcan": {
+      // Strip dashes for the pid query param.
+      const pid = key.replace(/-/g, "");
+      return {
+        label: `StatCan Table ${key}`,
+        url: `https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=${pid}`,
+        providerLabel: "Statistics Canada",
+      };
+    }
+    case "boc": {
+      // BoC Valet — the series-page URL works for both Valet series keys
+      // (V39079) and named series (FXUSDCAD, INDINF_LFSMICRO_M). Internal
+      // slugs like "yield_2yr" or "boc_goc_bonds" don't resolve at Valet
+      // directly; fall back to the Valet search page.
+      const looksLikeValet = /^[A-Z][A-Z0-9_.]*$/.test(key) || /^V\d+$/.test(key);
+      if (looksLikeValet) {
+        return {
+          label: `BoC Valet ${key}`,
+          url: `https://www.bankofcanada.ca/valet/series/${key}`,
+          providerLabel: "Bank of Canada (Valet)",
+        };
+      }
+      return {
+        label: `BoC pipeline series ${key}`,
+        url: `https://www.bankofcanada.ca/valet/lists/series?term=${encodeURIComponent(key)}`,
+        providerLabel: "Bank of Canada (Valet search)",
+      };
+    }
+    case "fred": {
+      return {
+        label: `FRED ${key}`,
+        url: `https://fred.stlouisfed.org/series/${key}`,
+        providerLabel: "FRED (St. Louis Fed)",
+      };
+    }
+    case "dof": {
+      return {
+        label: `DoF Fiscal Monitor ${key}`,
+        url: "https://www.canada.ca/en/department-finance/services/publications/fiscal-monitor.html",
+        providerLabel: "Department of Finance Canada",
+      };
+    }
+    case "gov_ab": {
+      return {
+        label: `Alberta gov ${key}`,
+        url: "https://economicdashboard.alberta.ca/dashboard/",
+        providerLabel: "Government of Alberta",
+      };
+    }
+    case "ircc": {
+      return {
+        label: `IRCC ${key}`,
+        url: "https://www.canada.ca/en/immigration-refugees-citizenship.html",
+        providerLabel: "Immigration, Refugees and Citizenship Canada",
+      };
+    }
+    case "indeed": {
+      return {
+        label: `Indeed Hiring Lab ${key}`,
+        url: "https://www.hiringlab.org/canada/",
+        providerLabel: "Indeed Hiring Lab",
+      };
+    }
+    default:
+      return {
+        label: `pipeline:${provider}:${key}`,
+        url: null,
+        providerLabel: `provider unknown: ${provider}`,
+      };
+  }
+}
+
 function resolveSource(srcId, registry) {
   if (!srcId) return { kind: "unknown", label: "(no source)", url: null, excerpt: null };
   if (srcId.startsWith("card:")) {
@@ -398,20 +489,46 @@ function resolveSource(srcId, registry) {
     };
   }
   if (srcId.startsWith("pipeline:")) {
+    const p = resolvePipelineUrl(srcId);
     return {
       kind: "pipeline",
-      label: srcId,
-      url: null,
-      excerpt: "Auto-refreshed via the data pipeline. Latest value is whatever the pipeline emitted on its most recent run.",
+      label: p.label,
+      url: p.url,
+      providerLabel: p.providerLabel,
+      excerpt: "Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.",
     };
   }
   if (srcId === "derived") {
     return { kind: "derived", label: "Derived (arithmetic from other tagged claims)", url: null, excerpt: null };
   }
+  if (srcId.startsWith("other:")) {
+    return {
+      kind: "other",
+      label: srcId.slice(6),
+      url: null,
+      excerpt: "Source flagged as outside the registered source-card set. Add to editorial/source_cards/registry.yaml when promoted to a load-bearing claim.",
+    };
+  }
   return { kind: "other", label: srcId, url: null, excerpt: null };
 }
 
+function loadPipelineFreshness(slug) {
+  const panelDataPath = path.join(repoRoot, "data", "site", "panel_data", `${slug}.json`);
+  if (!fs.existsSync(panelDataPath)) return null;
+  try {
+    const raw = JSON.parse(fs.readFileSync(panelDataPath, "utf-8"));
+    return {
+      generatedAt: raw.generatedAt ?? null,
+      panelCount: raw.panels ? Object.keys(raw.panels).length : 0,
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
 function renderPage(slug, headlineQuestion, abstract, abstractCitations, plates, registry, now) {
+  const freshness = loadPipelineFreshness(slug);
+
   const sectionAbs = annotateProse(abstract, abstractCitations || [], registry);
   const plateRenders = plates.map((p) => {
     const blurb = annotateProse(p.interpretationHtml, p.citations || [], registry);
@@ -614,6 +731,19 @@ aside.ledger h2 {
   font-weight: 600;
 }
 .ledger-link:hover { text-decoration: underline; }
+.freshness {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #eef5f3;
+  border-left: 3px solid #2a7a30;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #2a4f30;
+}
+.freshness-label { font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
+.freshness-stamp { font-family: var(--font-mono, monospace); margin-left: 6px; }
+.freshness-meta { color: #555; margin-left: 12px; }
+.freshness-hint { display: block; margin-top: 4px; color: #555; font-style: italic; }
 .note-line { font-size: 11px; color: #888; margin-top: 4px; font-style: italic; }
 footer.audit-foot {
   grid-column: 1 / -1;
@@ -794,6 +924,13 @@ footer.audit-foot {
         <a href="https://sibleycreek.ca/${escapeHtml(slug)}/" target="_blank" rel="noopener">Live page ↗</a>
       </div>
       <h1>Source audit · ${escapeHtml(slug)}</h1>
+      ${freshness && freshness.generatedAt ? `
+      <div class="freshness">
+        <span class="freshness-label">Pipeline run:</span>
+        <span class="freshness-stamp">${escapeHtml(freshness.generatedAt)}</span>
+        <span class="freshness-meta">${freshness.panelCount} panels</span>
+        <span class="freshness-hint">Pipeline-tagged claims read the value as of this run. Click any source link to verify against the live upstream page.</span>
+      </div>` : ""}
     </header>
     <main>
       <div class="section-label">Section abstract <button class="edit-btn" onclick="document.getElementById('edit-abstract').classList.toggle('open')">✎ Propose edit</button></div>
