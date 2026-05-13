@@ -9,6 +9,9 @@ import Alt1_GoCUstSpread from "./Alt1_GoCUstSpread.astro";
 import Alt2_OilTriple from "./Alt2_OilTriple.astro";
 import Alt3_WcsDiscount from "./Alt3_WcsDiscount.astro";
 import Alt4_UsdCadVsBocFed from "./Alt4_UsdCadVsBocFed.astro";
+import Panel3CreditSpreads from "./Panel3CreditSpreads.astro";
+import Panel5BankStability from "./Panel5BankStability.astro";
+import Panel6FCI from "./Panel6FCI.astro";
 
 export const entries: ChartShelfEntry[] = [
   {
@@ -53,5 +56,38 @@ export const entries: ChartShelfEntry[] = [
       "The whole loonie story since 2022 is the BoC-Fed rate gap. Side-by-side avoids the dual-unit trap.",
     dataFields: "usdcad.csv + (yield_2yr.csv - us_2yr.csv)",
     addedAt: "2026-05-12",
+  },
+  {
+    Component: Panel3CreditSpreads,
+    file: "markets/Panel3CreditSpreads.astro",
+    title: "Panel3CreditSpreads (retired from production — TODO describe)",
+    whatDifferent:
+      "TODO: describe what made this version distinct.",
+    whyBetter:
+      "TODO: describe what won out and why this was parked.",
+    dataFields: "TODO: list source panel_data slot or CSV file(s).",
+    addedAt: "2026-05-13",
+  },
+  {
+    Component: Panel5BankStability,
+    file: "markets/Panel5BankStability.astro",
+    title: "Panel5BankStability (retired from production — TODO describe)",
+    whatDifferent:
+      "TODO: describe what made this version distinct.",
+    whyBetter:
+      "TODO: describe what won out and why this was parked.",
+    dataFields: "TODO: list source panel_data slot or CSV file(s).",
+    addedAt: "2026-05-13",
+  },
+  {
+    Component: Panel6FCI,
+    file: "markets/Panel6FCI.astro",
+    title: "Panel6FCI (retired from production — TODO describe)",
+    whatDifferent:
+      "TODO: describe what made this version distinct.",
+    whyBetter:
+      "TODO: describe what won out and why this was parked.",
+    dataFields: "TODO: list source panel_data slot or CSV file(s).",
+    addedAt: "2026-05-13",
   },
 ];

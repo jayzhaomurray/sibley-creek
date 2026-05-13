@@ -9,6 +9,8 @@ import Alt1_HpiMultiCity from "./Alt1_HpiMultiCity.astro";
 import Alt2_StartsSmoothing from "./Alt2_StartsSmoothing.astro";
 import Alt3_MortgageVsHpi from "./Alt3_MortgageVsHpi.astro";
 import Alt4_SnlrVsHpi from "./Alt4_SnlrVsHpi.astro";
+import Panel5MortgageStack from "./Panel5MortgageStack.astro";
+import Panel6PopulationStock from "./Panel6PopulationStock.astro";
 
 export const entries: ChartShelfEntry[] = [
   {
@@ -55,5 +57,27 @@ export const entries: ChartShelfEntry[] = [
       "SNLR > 60 leads HPI acceleration by 3-6 months; the overlay makes the lead visible.",
     dataFields: "crea_snlr.csv + crea_mls_hpi.csv (Y/Y)",
     addedAt: "2026-05-12",
+  },
+  {
+    Component: Panel5MortgageStack,
+    file: "housing/Panel5MortgageStack.astro",
+    title: "Panel5MortgageStack (retired from production — TODO describe)",
+    whatDifferent:
+      "TODO: describe what made this version distinct.",
+    whyBetter:
+      "TODO: describe what won out and why this was parked.",
+    dataFields: "TODO: list source panel_data slot or CSV file(s).",
+    addedAt: "2026-05-13",
+  },
+  {
+    Component: Panel6PopulationStock,
+    file: "housing/Panel6PopulationStock.astro",
+    title: "Panel6PopulationStock (retired from production — TODO describe)",
+    whatDifferent:
+      "TODO: describe what made this version distinct.",
+    whyBetter:
+      "TODO: describe what won out and why this was parked.",
+    dataFields: "TODO: list source panel_data slot or CSV file(s).",
+    addedAt: "2026-05-13",
   },
 ];

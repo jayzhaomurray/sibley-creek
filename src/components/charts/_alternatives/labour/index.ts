@@ -29,6 +29,7 @@ import Alt_Panel2LabourStocksYoY from "./Alt_Panel2LabourStocksYoY.astro";
 
 import Panel1LFSHeadlineIndexed from "../../labour/Panel1LFSHeadlineIndexed.astro";
 import Panel6RegionalSmallMultiples from "../../labour/Panel6RegionalSmallMultiples.astro";
+import Panel6RegionalSpreadBars from "./Panel6RegionalSpreadBars.astro";
 
 const labourPanel1Data = pickPanel(labourPanelData, 1);
 const labourPanel2Data = pickPanel(labourPanelData, 2);
@@ -160,5 +161,16 @@ export const entries: ChartShelfEntry[] = [
     dataFields: "lfs_{on,qc,bc,ab,ca}_unemployment_rate.csv",
     data: labourPanel6Data,
     addedAt: "2026-05-12",
+  },
+  {
+    Component: Panel6RegionalSpreadBars,
+    file: "labour/Panel6RegionalSpreadBars.astro",
+    title: "Panel6RegionalSpreadBars (retired from production — TODO describe)",
+    whatDifferent:
+      "TODO: describe what made this version distinct.",
+    whyBetter:
+      "TODO: describe what won out and why this was parked.",
+    dataFields: "TODO: list source panel_data slot or CSV file(s).",
+    addedAt: "2026-05-13",
   },
 ];
