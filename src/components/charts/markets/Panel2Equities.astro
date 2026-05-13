@@ -1,0 +1,28 @@
+---
+/*
+ * Panel2Equities - S&P/TSX Composite Index.
+ *
+ * Pipeline emits `tsx_composite` (primary) from Yahoo Finance ^GSPTSE.
+ * Daily close, index level. No secondary series at this layer.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+---
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    primaryLabel="S&P/TSX Composite"
+    dataPanelAttr="markets-2"
+    ariaLabel="S&P/TSX Composite Index, daily close."
+  />
+) : (
+  <PanelEmpty reason="Pipeline did not emit panel-2 data." />
+)}

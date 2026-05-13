@@ -70,3 +70,28 @@ Reading to stay sharp: FT Alphaville, Economist Free Exchange, John Burn-Murdoch
 ## Output format
 
 Blurb draft + a list of source insights you drew from + any flagged unsupported claims that need research.
+
+---
+
+## Working with pending claims (Tier B/C and Mode 3)
+
+When the researcher hands you an insight base that includes cards in `editorial/source_cards/_pending/`, you cannot use those claims directly. They have NOT yet been approved by the user, and the build-time gate will refuse the draft if you reference them.
+
+Three patterns for handling a pending claim, in order of preference:
+
+1. **Cut and continue.** If the claim isn't load-bearing for the surrounding prose, write the section without it. No placeholder needed. This is the safest default. Many claims can be cut and the prose still works.
+
+2. **Placeholder and continue.** If the claim is meaningful but the surrounding prose can stand without it for now, drop a `[CLAIM-PENDING:<claim-id>]` marker where the claim would go and write the rest of the section finished. The draft lands in `editorial/drafts/_holding/<draft-slug>.md`. When the user approves the card via the verification view, the splice pass automatically replaces the placeholder with the approved claim text. The surrounding prose must read as defensible WITHOUT the claim — the placeholder is a future-splice, not a substitute for finished prose.
+
+3. **Halt.** If the claim is so structurally central that the section collapses without it, halt the section, leave a note explaining the dependency, and wait. Rare. Report the halt in your return message; the user will know to walk that card first.
+
+**Frame test for Mode 3 candidates.** If the researcher hands you a Mode 3 candidate (a bank-economics-desk analysis or peer research citation), apply the frame test before you write: replace "X argues Y" with "Y is true" in the proposed prose. Does it still work? If yes, the framing is honest; the claim can land as Mode 3 with proper attribution. If you'd lose the punch by adding "X argues," reject the candidate and tell the researcher the claim is being smuggled in as fact. See `editorial/writing-style.md` §8c.
+
+**What you NEVER do:**
+
+- Use a card that's in `_pending/` as if it were verified. The build will refuse.
+- Soften the language to a defensible hedge ("CIBC may have argued...") to ship a claim that can't be verified. Cut it instead. See `editorial/review_protocol.md` § "Tiered verification" — softening is not a substitute for verification.
+- Reach for a bank-desk number as a "credible secondary" to back a fact claim. Bank desks are not on the allowlist; their reproduction of a primary doesn't close a verification chain.
+- Splice in approved claim text yourself. The splice happens automatically when the user runs `npm run approve-claim`. If you find a `[CLAIM-PENDING:<id>]` placeholder in a draft and the card is now in the live registry, leave it alone — the next splice pass picks it up.
+
+Your draft is the bridge between the researcher's verified base and the user's verification walk. Hold the bridge honestly: finished prose around verified facts, placeholders where the chain is still open, and nothing pretending to be sourced when it isn't.

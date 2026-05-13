@@ -104,3 +104,32 @@ Hard requirements you must walk in with:
 The verifier returns each card as `verifier_status: passed` or `failed:<reason>` where `<reason>` is one of: `url_404`, `text_not_present`, `value_mismatch`, `claim_overreach`, `source_kind_mismatch`. On failure, you get the failed cards back with `verifier_notes` filled in. You revise only the failed cards. The revision budget is 2 round-trips before the cycle escalates to user.
 
 Note: your free-form prose outputs (the wave-style deep-research deliverables like `research/wave5_pillar_a_unresolved.md`) are unchanged. The claim-card format applies specifically to auto-blurb context notes written to `research/blurb_context/<release-id>/<unit-slug>.md`.
+
+---
+
+## Tiered verification (mandatory for every card you produce)
+
+Every card you emit carries a `verification_tier` that records how the verification chain closes. Read `editorial/review_protocol.md` § "Tiered verification" and `editorial/credible_secondaries.md` before drafting any new card.
+
+**Tier A — Primary verified.** Your default. You fetched the primary at output time, captured the verbatim excerpt, the URL resolves cleanly. Card lands in `editorial/source_cards/registry.yaml` directly.
+
+**Tier B — Triangulated secondary.** Use when the primary returns 403, redirects to an unfetchable WAF page, or is a binary PDF you can't extract from. Required: **two or more independent credible secondaries** from the allowlist in `editorial/credible_secondaries.md`. Independent means different institutional affiliations and different incentive structures — a Reuters story republished by ten outlets is one secondary, not ten. The card's `triangulation` block must include each secondary's URL + verbatim excerpt + one-line credibility statement. **Bank economics desks are NOT credible secondaries** — they are competitors. See the allowlist's "What does NOT count" section.
+
+**Tier C — Single credible secondary.** Use sparingly. One credible secondary OR two that converge on the number without verbatim agreement. The card must include explicit justification for why one is sufficient.
+
+**Tier D — Below the bar.** If neither Tier A, B, nor C is achievable, the claim does NOT ship. Tell the writer to cut the claim from the prose. Do NOT produce a card with a freeform `other:` note. Do NOT produce a Tier B card with a best-effort excerpt and a `[NEEDS HUMAN VERIFICATION]` flag — that pattern is banned. Either the verification chain closes or the claim is cut.
+
+**Mode 3 — Analysis citation.** When the editorial point is what a bank desk or peer research provider argued (not what is true), the citation appears as Mode 3. Set `mode: 3` on the card. Frame test: replace "X argues Y" with "Y is true" in the proposed prose; if it still works, the framing is honest; if you'd lose the punch by adding "X argues," reject the candidate and tell the writer to reframe or cut.
+
+**Pending queue for Tier B, Tier C, and Mode 3 cards.** Cards in these tiers do NOT land directly in `registry.yaml`. They land in `editorial/source_cards/_pending/<draft-slug>/<claim-id>.yaml` with empty `user_confirmed_at` (Tier B/C) or `user_approved_at` (Mode 3). The writer drops `[CLAIM-PENDING:<claim-id>]` placeholders in `editorial/drafts/_holding/<draft-slug>.md`. The user walks the verification view, approves or rejects each, then the splice pass replaces the placeholder with the approved claim text.
+
+**The build-time gate refuses pending cards.** Any draft that references a card in `_pending/` or a Tier B/C card without `user_confirmed_at` filled will fail `npm run build`. The site cannot ship the claim until the user has approved it. This is by design.
+
+**Your default flow:**
+
+1. Try the primary first. If reachable → Tier A card → registry.
+2. If primary returns 403 or binary → check the allowlist. Can you find 2+ independent credible secondaries with consistent verbatim? If yes → Tier B candidate → `_pending/`.
+3. Only one secondary, or strong reason a single one suffices? → Tier C candidate → `_pending/` with justification.
+4. Neither → tell the writer to cut the claim. Do not produce a card.
+
+If the writer needs the claim regardless, the user walks the queue and decides. If you produce a Tier B/C candidate with a thin secondary trail or fabricate the triangulation block, the verifier will catch it and the user's verification view will surface it for rejection. Don't produce them with thin trails to "be helpful" — be honest. The publication's positioning rests on claim integrity.

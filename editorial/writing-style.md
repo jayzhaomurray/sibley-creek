@@ -175,6 +175,14 @@ Rules:
 - **One clause preferred; one extending clause OK.** Use a comma or
   em-dash to extend; avoid semicolons (they push toward compound-
   headline register and away from a single declarative sentence).
+- **Observation — interpretation pattern is valid.** When the
+  finding has a two-step structure (a data observation that needs
+  one beat of interpretation to land), an em-dash can join two
+  independent clauses: *"Finding rates have softened more than
+  separations have risen — rising unemployment is a hiring-side
+  story."* The observation half stays plain; the interpretation
+  half names the read. The em-dash is the gate: anything past it
+  is the interpretive payoff, not a second observation.
 - **No colons.** Colons are headline-style ("Breadth widens: a
   quarter of the basket back above 3%"); we want a sentence.
 
@@ -500,6 +508,345 @@ number, the fact-checker re-verifies the constant against its
 source-card source — not against the constant in code (the gate
 verifies the constant against the published reality).
 
+### 4.1d Every citation source must be registered
+
+**Three citation source types, no others:**
+
+1. `pipeline:<provider>:<key>` — value flows through the data pipeline.
+2. `card:<id>` — primary source registered in `editorial/source_cards/registry.yaml`.
+3. `derived` — arithmetic from other tagged claims on the same surface (show the math in the note).
+
+`other:<freeform note>` is BANNED. A freeform note is not a
+verifiable source; it's an unaudited assertion in a metadata field.
+Past practice used `other:` as the escape valve for sources that
+should have been registered, and the result was ~136 claims pointing
+at unverifiable freeform descriptions. Every one of those is being
+migrated to `card:` (with url + verbatim excerpt + verified_at) or
+to `pipeline:` / `derived` where applicable.
+
+Authoring discipline: when you cite a primary source for the first
+time, promote it to a registered card BEFORE you reference it.
+Adding a registry entry costs about a minute (url, excerpt, dates);
+the cost compounds across every future citation of the same source.
+
+The build-time gate refuses `other:` source IDs. The audit pages
+flag any non-registry citation in red.
+
+### 4.1e Pipeline citations use slot binding, not hardcoded phrases
+
+For `pipeline:*` and `derived` citations, **do not hardcode the prose
+phrase in the citation entry**. Use slot binding instead so the
+citation auto-tracks the live pipeline value through every refresh.
+
+**Old pattern (drifts on every refresh — band-aid):**
+```js
+{ phrase: "2.3% in March", source: "pipeline:statcan:18-10-0004-01", note: "..." }
+```
+
+**New pattern (single source of truth — pipeline IS the value):**
+```js
+{ slot: "cpi_all_items_yoy",
+  at: "latest",                       // or "T-1", "T-2", "YYYY-MM"
+  value_format: "{0.1}%",              // formatting rule
+  context: "in {month}",               // {month}/{year}/{quarter} auto-fill from obs date
+  source: "pipeline:statcan:18-10-0004-01",
+  note: "Headline CPI Y/Y, latest print." }
+```
+
+The build resolves `cpi_all_items_yoy@latest` from
+`data/site/panel_data/<section>.json`, formats per `value_format`,
+appends `context` (with date-token substitution), and the resulting
+phrase ("2.3% in March") is what the audit annotator looks for in
+prose. When the pipeline refreshes to April, the phrase auto-becomes
+"2.4% in April" — the only thing the author updates is the **prose
+number**.
+
+**For derived arithmetic, use `compute:`:**
+```js
+{ compute: "cpi_all_items_yoy@latest - cpi_all_items_yoy@T-1",
+  value_format: "{0.1}-point",
+  context: "jump",
+  source: "derived",
+  note: "Latest vs prior headline Y/Y month-over-month change." }
+```
+
+The compute DSL accepts `<slot_key>@<atSpec>` references and basic
+arithmetic (`+ - * / ( )`). Anything else is rejected.
+
+**When to keep a literal `phrase:`:**
+
+- Static facts (BoC mandate, historical episode names) — `card:` cited.
+- Methodology constants ("rising faster than 3%", "above two thirds of
+  the basket") that don't change across refreshes.
+- Phrases the author wants to anchor verbatim regardless of pipeline state.
+
+**The reverse-lookup gate** scans uncovered prose tokens against every
+slot in `panel_data.json`. If you write "2.3%" in prose but forget to
+cite a slot that currently equals "2.3%", the audit flags it with a
+suggestion to add the slot binding. This catches "we have a pipeline
+that's not currently used by any text" — the inverse drift problem.
+
+### 4.1f-3 Deep-dive cross-links are off limits in blurbs (current rule)
+
+**Current rule (status quo as of 2026-05-13):** no cross-links from
+section blurbs, plate blurbs, section abstracts, splash hero, or tile
+lines to research deep dives. The blurb makes its macro point itself.
+If the point won't fit, cut to a smaller point or rewrite the angle —
+never punt to a cross-link.
+
+**Why this rule is in force:** the deep dives currently live as
+AI-generated drafts that have not been walked to the user's editorial
+standard. Citing them in blurbs would route readers to material the
+publication doesn't yet stand behind. Until the dives pass user review,
+they don't exist for cross-link purposes.
+
+**Future relaxation (deferred — not in force yet):** when dives are
+user-approved and live, the cross-link pattern is likely to be a
+single `(Read more →)` link at the END of the blurb, not threaded
+into the prose. The blurb still delivers a complete take; the
+"read more" affords depth without becoming the argument. The exact
+phrasing and placement will be decided then.
+
+**Build-side enforcement (to add):** the audit gate should refuse a
+blurb containing an `/research/<slug>/` href when the dive is in
+`_holding` / has no live `publishedPath` in `sections.ts`. Until then,
+the style and surface-fit gates catch deep-dive references in any
+form and fail the surface.
+
+### 4.1f-2 The three-surface stand-alone test
+
+Every plate has three surfaces a reader could land on: the **title**
+(plate hed), the **chart** (the visual), and the **blurb**
+(`interpretationHtml`). Each one must work on its own.
+
+**The test:** if a reader only saw the heds across the page, would
+they walk away with a pretty good understanding of the section? If
+they only saw the charts? If they only read the blurbs? All three
+yes.
+
+**Implications:**
+
+1. **The blurb is not a caption.** It does not exist to describe the
+   chart, count its bars, or label its axes — those are the chart's
+   job. The blurb is an independent synthesis that argues the SAME
+   underlying claim the chart shows, in prose. A reader who can't see
+   the chart still gets the take.
+2. **The chart is not just an inventory.** Its layout, labels, and
+   annotations should make the editorial argument visible at a glance,
+   so a reader who skips the blurb still gets the take.
+3. **The title is not a description of the chart.** It names the
+   finding so a reader who only scans the heds across a page still
+   gets the section's overall story.
+
+**Consequence for multi-panel charts (the small-multiples case — BoC
+balance sheet panels, CPI sub-aggregate breakdown, industry GDP split,
+etc.):** the blurb selects what to argue, the chart inventories what
+exists, and they reinforce each other. The blurb is not delinquent for
+omitting components the chart shows; that's the chart's job. The blurb
+IS delinquent if it lists components instead of arguing the signal.
+
+**Four common signal patterns for multi-panel selection:**
+
+- **Dominant component** — one item is the story (a structural anchor,
+  the source of change). Name it; the rest are silent or absorbed.
+  Example: "Government bonds carry the balance sheet; the rest is
+  operating margin."
+- **Active mover** — one component changed materially; others held.
+  Name what moved. Example: "Food and energy now carry the inflation
+  overshoot that shelter used to."
+- **Rotation** — two components flipped roles. Name the rotation.
+- **Regime** — all components share a state (everything at a floor;
+  everything above trend). Name the regime, not the inventory.
+
+**The selection is a judgment call**, and the judgment changes by
+cycle. The discipline isn't a fixed rule about which numbers belong;
+it's: before drafting, ask "if the reader only saw my blurb, what's
+the single thing they walk away with?" That's the take. Ground with
+1-2 numbers; let the chart carry the inventory.
+
+### 4.1g The take is at the scope of the header question — synthesis, not enumeration
+
+When the page-header question spans multiple sub-domains, the
+abstract's **take** must be at the scope of the question. That is
+not a license to enumerate — §4.1b still bans recitation. The take
+synthesizes the sub-domains into a single editorial argument.
+
+**Three patterns by how the sub-domains relate:**
+
+1. **Sub-domains agree** → the take IS the shared direction.
+2. **One sub-domain dominates the story** → that sub-story IS the take;
+   the rest are silent or absorbed.
+3. **Sub-domains diverge meaningfully** → the divergence itself IS the
+   take, named explicitly.
+
+**Example — policy ("What is Canada's policy stance?"):** policy
+covers monetary AND fiscal. If both are accommodative, take = "policy
+is accommodative across both levers." If monetary is at neutral and
+fiscal is the active mover, take = "fiscal carries the policy story
+while monetary holds." If they're leaning against each other, take =
+"monetary tightening, fiscal easing — leaning against each other."
+
+**Example — output ("How is the Canadian economy growing?"):** the
+question reads on headline GDP, per-capita, industry mix, and the
+output gap. If headline is +1.5% Y/Y but per-capita is flat and
+manufacturing is in recession, the take is "Canada is growing by
+adding people, not by getting more productive" — a take at the full
+scope, synthesized from per-capita + industry, with headline as the
+contrasting backdrop. Not "headline GDP rose 1.5%; per-capita flat;
+manufacturing -6%; output gap -1.0%."
+
+**Anti-pattern — enumeration disguised as synthesis:** "Headline
+growth is X, the labour market is Y, inflation is Z, policy is W"
+strung together with "and" is still a recitation. A genuine
+synthesis names a regime, a tension, or a turn that ALL of those
+indicators are facing into.
+
+**Numbers:** 1-2 anchor the synthesis — the ones that best ground
+the take. Not one number per sub-domain. The supporting numbers
+re-appear in plates anyway.
+
+**Rule:** before drafting, ask "what's the take at the scope of the
+question?" — not "what's true in each sub-domain?" If you can't name
+the take in one sentence, you don't have one yet.
+
+### 4.1h Comparisons use true superlatives
+
+When a comparison is needed ("widest gap," "deepest decline,"
+"largest move"), the phrasing is always a **true superlative**:
+"deepest since [year / episode]."
+
+Compute the prior episode by scanning back until you find a reading
+that was equal or worse than the current one. That episode anchors
+the "since." If the current reading is -150 bps and the most recent
+prior reading of -150 or deeper is in 2003, the phrasing is "deepest
+since 2003."
+
+**When a recent distortion needs to be excluded:** if the actual
+most-recent prior is a brief, named episode the author argues should
+be set aside (the pandemic is the canonical case; a temporary spike
+in an otherwise stable regime is another), the construction is:
+
+> "deepest since [longer-ago year], excluding [named distortion]"
+
+The "since" still names a true superlative; the carve-out specifies
+what window the superlative holds over. Always name what's excluded.
+
+**Never use a "second-X" construction.** Not "second-deepest," not
+"second-widest," not "second-largest." If a comparison can only be
+expressed as second-place, scan further back for a prior reading
+that makes the current a true superlative — or use the carve-out
+form with an explicit exclusion.
+
+**Why the no-second-X rule:** "Deepest since X" carries an editorial
+argument the reader can dispute or update. "Second-deepest after X"
+reads as hedging — concedes the take to the prior episode without
+making a claim of its own. The carve-out preserves the superlative
+form while staying honest about the recent distortion.
+
+**Example:** if the current BoC-Fed spread is -150 bps and a brief
+2025 deepening hit -175 bps before retracing, and 1996-97 ran -251
+bps: "deepest since 1996-97, excluding the brief 2025 deepening" —
+NOT "second-deepest after the 2025 episode."
+
+### 4.1f Countable claims — pipeline-derived or enumeration-card-validated
+
+Phrases like "fourth consecutive hold," "deepest since Q2 2021,"
+"three straight months above 3%" carry counts or "first since" claims
+that can't be checked by phrase matching alone. Two anchoring patterns:
+
+**Pattern B — auto-derive from pipeline series** (cardinal form):
+```js
+{ compute: "count_consecutive_at_latest(overnight_rate)",
+  value_format: "{int}",
+  context: "consecutive months at the current rate",
+  source: "pipeline:boc:overnight_rate",
+  note: "..." }
+```
+Primitives available in the compute DSL:
+
+- `count_consecutive_at_latest(slot)` — successive obs from end equal to latest
+- `count_consecutive_above(slot, threshold)` — from end while value > threshold
+- `count_consecutive_below(slot, threshold)` — from end while value < threshold
+- `prior_above(slot, threshold)` — earliest prior obs date above threshold
+- `prior_below(slot, threshold)` — earliest prior obs date below threshold
+- `count_enumeration(card_id, after=date?, before=date?)` — count entries
+  in a registered card's `enumeration:` list within an optional window
+
+Results are numbers (for counts) or ISO dates (for `prior_*`). The
+formatter handles both — `{int}` for counts, `{quarter}`/`{month_year}`
+for dates.
+
+**Pattern A — enumeration card + expected_count** (ordinal form, named episodes):
+```js
+{ phrase: "fourth consecutive hold",
+  source: "card:boc_fad_holds_post_oct_2025_cut",
+  expected_count: 4,
+  note: "..." }
+```
+The card carries an authoritative list:
+```yaml
+- id: boc_fad_holds_post_oct_2025_cut
+  enumeration:
+    - "2025-12-10"
+    - "2026-01-28"
+    - "2026-03-18"
+    - "2026-04-29"
+```
+The gate validates `card.enumeration.length === citation.expected_count`.
+Catches ordinal drift: if a fifth hold is added to the card without
+updating prose ("fourth" → "fifth") and `expected_count`, build fails.
+
+**When to use which:**
+
+- B for cardinal counts auto-derivable from a time series — "four
+  consecutive holds," "deepest since," "first since"
+- A for ordinal counts ("fourth hold," "third straight") OR curated
+  lists not in any pipeline series (named recession episodes, election
+  dates, FAD calendar windows)
+
+Both eliminate the worst class of bug — fact-checker missing that
+"six straight" was actually four — by validating the count at build
+time against the underlying data, not by trusting the author's count.
+
+### 4.1e Research deep-dive titles — thesis statements, not questions
+
+**A deep-dive title is the piece's thesis, asserted in a declarative
+sentence.** It is not a question. It is not a topic label. It is the
+finding the dive defends.
+
+The trade dive is the live reference: *"The reorientation has already
+happened."* That title tells the reader, before they click, what the
+dive is going to argue. The body delivers the evidence.
+
+Rules:
+
+- **Declarative, not interrogative.** "The mortgage renewal wall has
+  peaked." Not "Has the renewal wall peaked?"
+- **Names the finding.** A title that could front any article on the
+  topic is not doing the work. The thesis should be specific enough
+  that another writer would arrive at a different one if they read
+  the same data and reached a different conclusion.
+- **Sentence case.** Capitalize first word + proper nouns only.
+- **No terminal period** (unlike chart-plate titles). Deep-dive
+  titles read as article headlines in a magazine, not finished
+  sentences in a chartbook.
+- **Topic anchor + thesis OK** when the thesis benefits from being
+  scoped. *"The BoC-Fed divergence is wide, but FX is not binding"* —
+  the topic ("BoC-Fed divergence") anchors; the comma-separated thesis
+  carries the take.
+- **The deck below the title carries the supporting frame.** The deck
+  is allowed to be more discursive; the title is not.
+
+Counter-examples to fix on sight:
+
+- BAD: "Mortgage renewal wall: has it peaked?" — question form.
+- BAD: "Per-capita output: deceleration or weakness?" — either-or
+  framing dodges the thesis.
+- BAD: "The Canadian housing market in 2026" — topic label, no take.
+
+The test: read the title aloud. Would a peer hear it as "an
+argument" or as "a starting point"? Argument wins.
+
 ### 4.2 Methodology in chart blurbs
 
 **The blurb names the finding; the canvas tells the rest.** Do not
@@ -646,6 +993,40 @@ as shorthand inside a single piece):**
 - `chartSeriesKey` and other internal data shapes.
 - Y-axis units / chart-axis subtitles where space is constrained.
 - Pipeline code, design docs, internal markdown drafts.
+
+### Clipped abbreviations — write the full word
+
+**Don't truncate words mid-syllable in prose.** "Reaccel" for
+reacceleration, "decel" for deceleration, "infl" for inflation
+read as trader-desk shorthand, not editorial prose. The full word
+is two extra characters and ships finished work.
+
+This applies to reader prose, chart blurbs, plate titles, decks.
+It does NOT apply to chart-axis labels or tight slot text where
+space is the binding constraint.
+
+Examples:
+- BAD: "Cores are showing signs of reaccel."
+- GOOD: "Cores are showing signs of reacceleration."
+- BAD: "The decel into Q4 looked real."
+- GOOD: "The deceleration into Q4 looked real."
+
+### Inflation-measure naming
+
+**"Core measures"** is the canonical umbrella term for the BoC's
+trimmed-mean (CPI-trim), weighted-median (CPI-median), and common-
+component (CPI-common) measures. "Core trio" works when all three
+are charted.
+
+**Do NOT** call the pair (trim + median) "trimmed-mean cores" or
+"the trimmed cores" — CPI-median is a weighted-median measure, not
+a trimmed mean. The label is factually inaccurate.
+
+Correct usage:
+- "Core measures held above the 2% midpoint..."
+- "CPI-trim and CPI-median both ran at 2.8%..."
+- "The trimmed-mean measure stepped up to 2.9%..." (referring
+  specifically to CPI-trim alone)
 
 ### Jargon-as-armor, cut
 
@@ -1038,6 +1419,114 @@ The auto-blurb pipeline (when it runs autonomously on release days)
 must order its dispatches accordingly: section-level blurb generation
 fires per-section on each release, but the hero-abstract regeneration
 is gated on having ALL seven current-cycle section blurbs in hand.
+
+## 8c. Citing third-party research providers
+
+**Three modes for how a third-party source can appear in our prose.**
+The mode determines the bar.
+
+### Mode 1 — Fact citation
+
+A claim that *X is the case*, sourced from a primary document or
+triangulated across credible secondaries. The standard process: card
+in `editorial/source_cards/registry.yaml`, `verification_tier` of A
+(primary verified) or B/C (secondary triangulated, user-approved).
+See `editorial/review_protocol.md` for the full tier mechanics.
+
+Bank economics desks do not appear in Mode 1. They are not
+fact-reproducers; they are competitors. See
+`editorial/credible_secondaries.md` for the explicit exclusion.
+
+### Mode 2 — Consensus framing
+
+When the editorial point is what the private sector collectively
+expects, an aggregated range or median across forecasters is the
+citation, with no single forecaster named as authority.
+
+GOOD: *"Private-sector forecasters see growth between 1.0% and 1.8%
+next year."*
+
+GOOD: *"Consensus expects 25 basis points of further easing through
+year-end."*
+
+BAD: *"TD Economics sees growth at 1.4% next year."* (Single desk
+named as authority — wrong mode. Either aggregate it into a consensus
+range, or treat as Mode 3 with the appropriate framing.)
+
+Always say "consensus" or "private-sector forecasters" — never
+"Big-Six median" or any phrasing that names which desks were
+captured. The aggregation is the citation; which banks happened to
+contribute it on a given cycle is implementation detail. See
+memory note `feedback_consensus_labelling.md`.
+
+### Mode 3 — Analysis citation
+
+When a single third-party — typically a bank economics desk, a peer
+research provider, or a named analyst — has published something
+genuinely unique that becomes the subject of editorial discussion.
+The claim is what they argued, not what is true.
+
+**The frame test.** Read the sentence aloud. Replace "X argues Y"
+with "Y is true." Does it still work? If yes, the framing is honest
+analysis citation. If you'd lose the editorial punch by adding "X
+argues" to it, the claim is being smuggled in as fact when it isn't.
+Either reframe or cut.
+
+GOOD: *"CIBC has argued that StatCan may be undercounting the
+population by as much as a million; the agency rejects the
+estimate, but the question is alive in the debate over the
+population denominator."*
+
+GOOD: *"BMO Capital Markets argued in March that the BoC would
+hold through Q2, against a consensus that had been pricing
+further cuts; the call has so far proved correct."*
+
+BAD: *"Canadian housing is undervalued, according to CIBC
+Capital Markets."* (Reframable: either cut, or rewrite as
+*"CIBC Capital Markets has argued Canadian housing is
+undervalued, citing X. Whether the methodology travels is
+unsettled."* — but at that point, ask whether the claim is worth
+elevating at all.)
+
+**Rules for Mode 3.**
+
+1. **Frame as claim, not fact.** Use "argues," "has argued,"
+   "argued in [date]," "estimates," "projects." Never "X says Y
+   is true" or "Y, per X."
+2. **Name the analyst, the institution, and the date.**
+   Institution-only is too cheap; "CIBC says" reads as fact.
+   "Avery Shenfeld at CIBC, August 2023" reads as a specific
+   claim from a specific person at a specific moment.
+3. **Make it editorial discretion.** Mode 3 is reserved for cases
+   where the third-party's claim is genuinely unique, materially
+   relevant to the macro picture, and worth the reader's
+   attention. Not every interesting bank-desk forecast qualifies;
+   most don't. The bar is "is this analysis the news?"
+4. **User approval before shipping.** Mode 3 citations cannot ship
+   without the user (Jay Zhao-Murray) explicitly approving the
+   specific use. The candidate card lands in
+   `editorial/source_cards/_pending/<surface>/<id>.yaml` with
+   `mode: 3` and an empty `user_approved_at` field; the writer's
+   draft holds the placeholder in `editorial/drafts/_holding/`.
+   The build-time gate refuses Mode 3 cards without
+   `user_approved_at` and `user_approved_by`.
+5. **When in doubt, cut.** Mode 3 is a narrow exception. The
+   publication's positioning is independent research, not a digest
+   of what competitors are saying. Default: don't cite. Citing
+   them routinely makes us a news site about them, which is not
+   what we are.
+
+### Where third-party citations fail
+
+Some claims will be genuinely interesting and materially relevant
+but the third-party's analysis cannot be triangulated to a primary
+chain — the analyst published something, no one else has reproduced
+it, and the claim is paywalled or otherwise inaccessible. Under our
+rules, that claim does not ship. The discipline isn't about
+softening the language to a defensible hedge ("CIBC may have
+argued..."); the discipline is to cut the claim entirely. Sibley
+Creek's positioning is built on every claim being verifiable. A
+claim we cannot verify is one we don't make.
 
 ## 9. Working notes for style-editor
 

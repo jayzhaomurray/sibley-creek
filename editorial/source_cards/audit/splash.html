@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Source audit · splash</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: #111;
+  background: #f7f6f1;
+  margin: 0;
+}
+.wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 40px;
+  align-items: start;
+}
+header.page-head {
+  grid-column: 1 / -1;
+  border-bottom: 2px solid #111;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+header.page-head h1 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+header.page-head .breadcrumb a {
+  color: #666;
+  text-decoration: none;
+  margin-right: 16px;
+}
+header.page-head .breadcrumb a:hover { color: #000; text-decoration: underline; }
+main {
+  background: white;
+  padding: 32px;
+  border: 1px solid #ddd;
+}
+.headline-q {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #111;
+}
+.section-label {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.abstract {
+  font-size: 17px;
+  line-height: 1.6;
+  border-left: 3px solid #c00;
+  padding-left: 16px;
+  margin: 24px 0 40px 0;
+  color: #222;
+}
+.plate {
+  border-top: 1px solid #ccc;
+  padding: 24px 0;
+}
+.plate-number {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.plate-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 4px 0 10px 0;
+  color: #111;
+}
+.plate-meta {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #777;
+  margin-bottom: 12px;
+}
+.plate-blurb { font-size: 16px; line-height: 1.6; color: #222; }
+.plate-source-line {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #666;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dotted #ccc;
+}
+.claim {
+  background: #fffbcc;
+  padding: 1px 2px;
+  border-bottom: 2px solid #e6c200;
+  cursor: pointer;
+}
+.claim:hover {
+  background: #fff299;
+}
+.claim-pending {
+  background: #ffe5a0;
+  border-bottom: 2px solid #c83a00;
+}
+.claim-pending:hover {
+  background: #ffd680;
+}
+.claim-anchor {
+  color: inherit;
+  text-decoration: none;
+}
+.ledger-ref-link {
+  text-decoration: none;
+}
+.ledger-ref-link:hover .ledger-ref {
+  filter: brightness(1.1);
+  outline: 2px solid #006699;
+}
+/* Flash the target when the user clicks a cross-link, both directions. */
+.claim:target,
+.claim-pending:target {
+  animation: flash-yellow 1.5s ease-out;
+  scroll-margin-top: 80px;
+}
+.ledger-item:target {
+  animation: flash-blue 1.5s ease-out;
+  scroll-margin-top: 80px;
+}
+@keyframes flash-yellow {
+  0% { background: #ff8c00; outline: 3px solid #ff8c00; outline-offset: 2px; }
+  100% { background: inherit; outline: none; }
+}
+@keyframes flash-blue {
+  0% { background: #b3d9ff; outline: 3px solid #006699; outline-offset: 2px; }
+  100% { background: inherit; outline: none; }
+}
+.verify-toolbar {
+  background: #fbe8e8;
+  border: 1px solid #c83a00;
+  padding: 12px 16px;
+  margin-top: 14px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.verify-toolbar .nav-btn {
+  background: white;
+  color: #c83a00;
+  border: 1px solid #c83a00;
+  padding: 6px 12px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  margin-right: 6px;
+}
+.verify-toolbar .nav-btn:hover { background: #c83a00; color: white; }
+.verify-toolbar-counts { line-height: 1.5; }
+.verify-toolbar-counts .amber { color: #c83a00; font-weight: 600; }
+.verify-toolbar-counts .green { color: #2a7a30; font-weight: 600; }
+.verify-toolbar-counts .red { color: #c33; font-weight: 600; }
+.export-btn {
+  background: #006699;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.export-btn:hover { background: #00557e; }
+.export-btn:disabled { background: #888; cursor: not-allowed; }
+.export-toast {
+  font-size: 12px;
+  color: #2a7a30;
+  font-weight: 600;
+  margin-left: 8px;
+  display: none;
+}
+.export-toast.show { display: inline; }
+.ledger-item-pending {
+  border-left: 4px solid #c83a00;
+  padding-left: 8px;
+  background: #fff7e6;
+  margin-top: 8px;
+}
+.ledger-item-pending.decision-approve { border-left-color: #2a7a30; background: #f0f8f0; }
+.ledger-item-pending.decision-reject { border-left-color: #c33; background: #fbe8e8; }
+.ledger-item-pending.flash-target {
+  animation: flash-amber 1.5s ease-out;
+}
+@keyframes flash-amber {
+  0% { background: #ff8c00; outline: 3px solid #ff8c00; outline-offset: 2px; }
+  100% { background: #fff7e6; outline: none; }
+}
+.pending-decision-block { margin-top: 10px; }
+.pending-values, .pending-triangulation, .pending-card-notes {
+  margin: 8px 0;
+  font-size: 12px;
+}
+.pending-triangulation.muted { color: #888; font-style: italic; }
+.secondaries { list-style: none; padding: 0; margin: 4px 0 0 0; }
+.secondary { padding: 6px 8px; background: #f8f7ec; border-left: 2px solid #999; margin-bottom: 4px; font-size: 12px; }
+.secondary-credibility { font-size: 11px; color: #555; margin-top: 2px; }
+.secondary-excerpt { margin: 4px 0 0 0; padding: 4px 8px; background: white; font-style: italic; color: #444; font-size: 11px; line-height: 1.4; }
+.verified-values { list-style: none; padding: 0; margin: 4px 0; }
+.verified-values li { padding: 3px 6px; background: #f3f3ef; margin-bottom: 2px; font-family: var(--font-mono, monospace); font-size: 11px; }
+.verified-values code { background: transparent; font-size: 10px; color: #444; }
+fieldset.decision {
+  border: 1px solid #c83a00;
+  padding: 10px 14px;
+  margin-top: 8px;
+  background: white;
+}
+fieldset.decision legend {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #c83a00;
+  padding: 0 6px;
+}
+fieldset.decision label {
+  display: block;
+  margin: 4px 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+fieldset.decision label input { margin-right: 6px; }
+.comment-row { margin-top: 8px; }
+.comment-row label { font-size: 10px; color: #555; }
+.comment-row textarea {
+  width: 100%;
+  font-family: Georgia, serif;
+  font-size: 11px;
+  padding: 4px 6px;
+  border: 1px solid #c8c0a0;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.claim-fuzzy {
+  /* Fuzzy match — same yellow as a literal phrase match, but with a dashed
+     underline to flag that the citation's phrase: didn't match verbatim and
+     the sidecar should be tightened on the next editorial pass. */
+  border-bottom-style: dashed;
+}
+.claim-sup {
+  color: #b07b00;
+  font-weight: 700;
+  font-size: 0.8em;
+  margin-left: 1px;
+}
+.claim-uncovered {
+  /* No citation matches this token at all — true gap. The audit page surfaces
+     it so the user can either tighten a sidecar phrase or add a new citation. */
+  background: #fbe8e8;
+  padding: 1px 2px;
+  border-bottom: 2px solid #c33;
+  cursor: help;
+}
+.claim-uncovered-sup {
+  color: #c33;
+  font-weight: 700;
+  font-size: 0.85em;
+  margin-left: 1px;
+}
+aside.ledger {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 16px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+}
+aside.ledger h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+.ledger-group { margin-bottom: 20px; }
+.ledger-group-h {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #555;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ddd;
+}
+.ledger-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.ledger-ref {
+  display: inline-block;
+  background: #e6c200;
+  color: white;
+  padding: 1px 6px;
+  font-weight: 700;
+  font-size: 11px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+.ledger-ref.pipeline { background: #2a7a30; }
+.ledger-ref.derived { background: #888; }
+.ledger-ref.unknown, .ledger-ref.card-missing, .ledger-ref.other { background: #c33; }
+.ledger-phrase {
+  font-style: italic;
+  color: #333;
+  display: block;
+  margin: 4px 0;
+}
+.ledger-source-label { font-weight: 600; color: #222; font-size: 12px; }
+.tier-badge {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  margin-left: 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.tier-pipeline { background: #2a7a30; color: white; }
+.tier-a { background: #2a7a30; color: white; }
+.tier-b { background: #b07b00; color: white; }
+.tier-c { background: #c47000; color: white; }
+.tier-mode3 { background: #8a3a4a; color: white; }
+.tier-pending { background: #c33; color: white; }
+.tier-untagged { background: #777; color: white; }
+.tier-error { background: #c33; color: white; }
+.tier-other { background: #888; color: white; font-style: italic; }
+.no-inline-match {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  margin-left: 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+  background: #c33;
+  color: white;
+  cursor: help;
+}
+.ledger-excerpt {
+  margin: 6px 0;
+  padding: 8px 10px;
+  background: #f3f3ef;
+  color: #444;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 2px solid #999;
+}
+.ledger-meta { font-size: 11px; color: #777; }
+.ledger-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: #006699;
+  text-decoration: none;
+  font-weight: 600;
+}
+.ledger-link:hover { text-decoration: underline; }
+.freshness {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #eef5f3;
+  border-left: 3px solid #2a7a30;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #2a4f30;
+}
+.freshness-label { font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
+.freshness-stamp { font-family: var(--font-mono, monospace); margin-left: 6px; }
+.freshness-meta { color: #555; margin-left: 12px; }
+.freshness-hint { display: block; margin-top: 4px; color: #555; font-style: italic; }
+.note-line { font-size: 11px; color: #888; margin-top: 4px; font-style: italic; }
+footer.audit-foot {
+  grid-column: 1 / -1;
+  border-top: 1px solid #ccc;
+  padding: 20px 0;
+  font-size: 12px;
+  color: #777;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.edit-btn {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #006699;
+  background: transparent;
+  border: 1px solid #006699;
+  padding: 3px 8px;
+  margin-left: 8px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.edit-btn:hover { background: #006699; color: white; }
+.edit-form {
+  margin-top: 12px;
+  padding: 14px;
+  background: #f8f7ec;
+  border: 1px solid #d8c773;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  display: none;
+}
+.edit-form.open { display: block; }
+.edit-form label {
+  display: block;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+  margin: 8px 0 4px 0;
+}
+.edit-form textarea, .edit-form input[type="text"] {
+  width: 100%;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #c8c0a0;
+  background: white;
+  box-sizing: border-box;
+}
+.edit-form textarea { min-height: 80px; line-height: 1.5; resize: vertical; }
+.edit-form .row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.edit-form .row .primary {
+  background: #006699;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.edit-form .row .primary:hover { background: #00557e; }
+.edit-form .row .toast {
+  font-size: 12px;
+  color: #2a7a30;
+  font-weight: 600;
+  margin-left: 8px;
+  display: none;
+}
+.edit-form .row .toast.show { display: inline; }
+.edit-form .hint {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+  margin-top: 4px;
+}
+.tile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 32px;
+}
+.tile {
+  border: 1px solid #ddd;
+  padding: 16px;
+  background: #fbfaf5;
+}
+.tile-section-label {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 6px;
+}
+.tile-line {
+  font-size: 15px;
+  line-height: 1.5;
+  color: #222;
+}
+.dive-body {
+  font-size: 16px;
+  line-height: 1.65;
+  color: #222;
+}
+.dive-body h1, .dive-body h2, .dive-body h3 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  color: #111;
+  margin-top: 32px;
+}
+.dive-body h1 { font-size: 22px; }
+.dive-body h2 { font-size: 18px; }
+.dive-body h3 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.1em; color: #444; }
+.dive-body p { margin: 12px 0; }
+.dive-body ul, .dive-body ol { margin: 12px 0; padding-left: 24px; }
+.dive-body code { font-family: var(--font-mono, monospace); font-size: 0.92em; background: #f0efe8; padding: 1px 4px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <div class="breadcrumb">
+        <a href="./index.html">← All audits</a>
+        <span style="color:#999">·</span>
+        <a href="https://sibleycreek.ca/" target="_blank" rel="noopener">Live splash ↗</a>
+      </div>
+      <h1>Source audit · splash (hero + tile lines)</h1>
+    </header>
+    <main>
+      <div class="section-label">Hero abstract</div>
+      <div class="abstract">Stuck below potential, on two fronts at once. Cyclically, growth is running at <span class="claim" id="ref-1" data-ref="1"><a href="#ledger-1" class="claim-anchor">1.0% year-over-year<sup class="claim-sup">[1]</sup></a></span> against a near-term potential the Bank of Canada places <span class="claim" id="ref-2" data-ref="2"><a href="#ledger-2" class="claim-anchor">near 1.2%<sup class="claim-sup">[2]</sup></a></span>; inflation sits at <span class="claim" id="ref-3" data-ref="3"><a href="#ledger-3" class="claim-anchor">2.3%<sup class="claim-sup">[3]</sup></a></span> with <span class="claim" id="ref-4" data-ref="4"><a href="#ledger-4" class="claim-anchor">core measures right beside it<sup class="claim-sup">[4]</sup></a></span>, and unemployment is <span class="claim" id="ref-5" data-ref="5"><a href="#ledger-5" class="claim-anchor">6.9%<sup class="claim-sup">[5]</sup></a></span>. Structurally, the population is no longer growing — year-over-year growth has swung from <span class="claim" id="ref-6" data-ref="6"><a href="#ledger-6" class="claim-anchor">3.2% in mid-2024 to roughly flat this quarter<sup class="claim-sup">[6]</sup></a></span> — and the US share of merchandise exports has fallen from about <span class="claim" id="ref-7" data-ref="7"><a href="#ledger-7" class="claim-anchor">three quarters in 2024 to two thirds in March<sup class="claim-sup">[7]</sup></a></span>. Per-capita output is <span class="claim" id="ref-8" data-ref="8"><a href="#ledger-8" class="claim-anchor">scarcely above its 2019 level<sup class="claim-sup">[8]</sup></a></span>. The overnight rate sits at <span class="claim" id="ref-9" data-ref="9"><a href="#ledger-9" class="claim-anchor">2.25% after the April hold<sup class="claim-sup">[9]</sup></a></span>; the question is whether disinflation's last mile and a tariff-bruised export book leave room to ease further.</div>
+      <div class="section-label" style="margin-top:32px">Section tile lines</div>
+      <div class="tile-grid"><div class="tile">
+    <div class="tile-section-label">gdp</div>
+    <div class="tile-line">February GDP came in soft on goods-producing industries; services held up.</div>
+  </div><div class="tile">
+    <div class="tile-section-label">housing</div>
+    <div class="tile-line">Composite home prices down <span class="claim" id="ref-11" data-ref="11"><a href="#ledger-11" class="claim-anchor">4.6%<sup class="claim-sup">[11]</sup></a></span> Y/Y, now <span class="claim" id="ref-12" data-ref="12"><a href="#ledger-12" class="claim-anchor">two years of negative readings<sup class="claim-sup">[12]</sup></a></span>.</div>
+  </div><div class="tile">
+    <div class="tile-section-label">inflation</div>
+    <div class="tile-line">Headline CPI at <span class="claim" id="ref-13" data-ref="13"><a href="#ledger-13" class="claim-anchor">2.3%<sup class="claim-sup">[13]</sup></a></span> in March; food and energy carry the above-target weight.</div>
+  </div><div class="tile">
+    <div class="tile-section-label">labour</div>
+    <div class="tile-line">Unemployment climbed to <span class="claim" id="ref-14" data-ref="14"><a href="#ledger-14" class="claim-anchor">6.9%<sup class="claim-sup">[14]</sup></a></span> in April; aggregate hours turned negative Y/Y.</div>
+  </div><div class="tile">
+    <div class="tile-section-label">markets</div>
+    <div class="tile-line">USDCAD closed the week at 1.369 as the BoC-Fed 2y spread held near <span class="claim" id="ref-15" data-ref="15"><a href="#ledger-15" class="claim-anchor">-98 bps<sup class="claim-sup">[15]</sup></a></span>.</div>
+  </div><div class="tile">
+    <div class="tile-section-label">policy</div>
+    <div class="tile-line">BoC parked at the <span class="claim" id="ref-16" data-ref="16"><a href="#ledger-16" class="claim-anchor">floor of neutral<sup class="claim-sup">[16]</sup></a></span>, <span class="claim" id="ref-17" data-ref="17"><a href="#ledger-17" class="claim-anchor">150 bps below the Fed<sup class="claim-sup">[17]</sup></a></span> and holding.</div>
+  </div><div class="tile">
+    <div class="tile-section-label">trade</div>
+    <div class="tile-line">Goods balance narrowed to <span class="claim" id="ref-18" data-ref="18"><a href="#ledger-18" class="claim-anchor">-$2.2B<sup class="claim-sup">[18]</sup></a></span>; US export share fell to <span class="claim" id="ref-19" data-ref="19"><a href="#ledger-19" class="claim-anchor">66.1%<sup class="claim-sup">[19]</sup></a></span>.</div>
+  </div></div>
+    </main>
+    <aside class="ledger">
+    <h2>Claims ledger</h2>
+    <div class="ledger-group">
+      <div class="ledger-group-h">Hero abstract</div>
+      <div class="ledger-item" id="ledger-1">
+      <a href="#ref-1" class="ledger-ref-link"><span class="ledger-ref pipeline">[1]</span></a>
+      <span class="ledger-source-label">StatCan Table 36-10-0434-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"1.0% year-over-year"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Real GDP by industry, Y/Y, Feb 2026 monthly print.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3610043401" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-2">
+      <a href="#ref-2" class="ledger-ref-link"><span class="ledger-ref card">[2]</span></a>
+      <span class="ledger-source-label">BoC Monetary Policy Report — Appendix: Potential output and the nominal neutral rate of interest</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+      <div class="ledger-phrase">"near 1.2%"</div>
+      <div class="ledger-excerpt">Growth in potential output is expected to average 1.2% in 2026 before picking up modestly to 1.3% in 2027 and 1.5% in 2028.</div><div class="ledger-meta">April 2026 · verified 2026-05-13 · next 2026-07-23</div><a class="ledger-link" href="https://www.bankofcanada.ca/publications/mpr/mpr-2026-04-29/appendix/#potential-output" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-3">
+      <a href="#ref-3" class="ledger-ref-link"><span class="ledger-ref pipeline">[3]</span></a>
+      <span class="ledger-source-label">StatCan Table 18-10-0004-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"2.3%"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Headline CPI Y/Y, March 2026.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-4">
+      <a href="#ref-4" class="ledger-ref-link"><span class="ledger-ref pipeline">[4]</span></a>
+      <span class="ledger-source-label">BoC Valet CPI_TRIM (pipeline slot cpi_trim) — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"core measures right beside it"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">CPI-trim 2.2% and CPI-median 2.3% Y/Y, March 2026, via BoC Valet preferred-core series.</div><a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/CPI_TRIM/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-5">
+      <a href="#ref-5" class="ledger-ref-link"><span class="ledger-ref pipeline">[5]</span></a>
+      <span class="ledger-source-label">StatCan Table 14-10-0287-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"6.9%"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">LFS unemployment rate, April 2026.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1410028701" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-6">
+      <a href="#ref-6" class="ledger-ref-link"><span class="ledger-ref derived">[6]</span></a>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+      <div class="ledger-phrase">"3.2% in mid-2024 to roughly flat this quarter"</div>
+      <div class="note-line">Quarterly population Y/Y peaked at 3.18% in Q2 2024 and printed -0.25% in Q1 2026, per StatCan 17-10-0009-01.</div>
+    </div><div class="ledger-item" id="ledger-7">
+      <a href="#ref-7" class="ledger-ref-link"><span class="ledger-ref derived">[7]</span></a>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+      <div class="ledger-phrase">"three quarters in 2024 to two thirds in March"</div>
+      <div class="note-line">US share of Canadian merchandise exports moved from ~76% (2024 avg) to ~66% (March 2026) per StatCan 12-10-0121-01.</div>
+    </div><div class="ledger-item" id="ledger-8">
+      <a href="#ref-8" class="ledger-ref-link"><span class="ledger-ref pipeline">[8]</span></a>
+      <span class="ledger-source-label">StatCan Table 36-10-0104-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"scarcely above its 2019 level"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Per-capita real GDP indexed to 2019Q4, May 13, 2026.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3610010401" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-9">
+      <a href="#ref-9" class="ledger-ref-link"><span class="ledger-ref pipeline">[9]</span></a>
+      <span class="ledger-source-label">BoC Valet V39079 (pipeline slot V39079) — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"2.25% after the April hold"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">BoC overnight target rate, April 29 2026 FAD hold, via Valet V39079.</div><a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/V39079/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
+    </div>
+    </div>
+    <div class="ledger-group">
+      <div class="ledger-group-h">Tile · gdp</div>
+      <div class="ledger-item" id="ledger-10">
+      <span class="ledger-ref pipeline ledger-ref-orphan">[10]</span>
+      <span class="ledger-source-label">StatCan Table 18-10-0004-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"2.3%"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Headline CPI Y/Y, March 2026.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401" target="_blank" rel="noopener">Open source ↗</a>
+    </div>
+    </div><div class="ledger-group">
+      <div class="ledger-group-h">Tile · housing</div>
+      <div class="ledger-item" id="ledger-11">
+      <a href="#ref-11" class="ledger-ref-link"><span class="ledger-ref pipeline">[11]</span></a>
+      <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"4.6%"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">CREA MLS HPI composite, Y/Y, March 2026.</div>
+    </div><div class="ledger-item" id="ledger-12">
+      <a href="#ref-12" class="ledger-ref-link"><span class="ledger-ref pipeline">[12]</span></a>
+      <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"two years of negative readings"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Enumerated: CREA MLS HPI Y/Y has printed negative every month since April 2024 — 24 consecutive months through March 2026.</div>
+    </div>
+    </div><div class="ledger-group">
+      <div class="ledger-group-h">Tile · inflation</div>
+      <div class="ledger-item" id="ledger-13">
+      <a href="#ref-13" class="ledger-ref-link"><span class="ledger-ref pipeline">[13]</span></a>
+      <span class="ledger-source-label">StatCan Table 18-10-0004-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"2.3%"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Headline CPI Y/Y, March 2026.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401" target="_blank" rel="noopener">Open source ↗</a>
+    </div>
+    </div><div class="ledger-group">
+      <div class="ledger-group-h">Tile · labour</div>
+      <div class="ledger-item" id="ledger-14">
+      <a href="#ref-14" class="ledger-ref-link"><span class="ledger-ref pipeline">[14]</span></a>
+      <span class="ledger-source-label">StatCan Table 14-10-0287-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"6.9%"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">LFS unemployment rate, SA, April 2026.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1410028701" target="_blank" rel="noopener">Open source ↗</a>
+    </div>
+    </div><div class="ledger-group">
+      <div class="ledger-group-h">Tile · markets</div>
+      <div class="ledger-item" id="ledger-15">
+      <a href="#ref-15" class="ledger-ref-link"><span class="ledger-ref derived">[15]</span></a>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+      <div class="ledger-phrase">"-98 bps"</div>
+      <div class="note-line">GoC 2y 2.94% minus UST 2y 3.92% = -98 bps. Inputs: BoC Valet yield_2yr and FRED DGS2, May 7 2026.</div>
+    </div>
+    </div><div class="ledger-group">
+      <div class="ledger-group-h">Tile · policy</div>
+      <div class="ledger-item" id="ledger-16">
+      <a href="#ref-16" class="ledger-ref-link"><span class="ledger-ref card">[16]</span></a>
+      <span class="ledger-source-label">BoC nominal neutral range (BoC MPR Appendix annual review)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+      <div class="ledger-phrase">"floor of neutral"</div>
+      <div class="ledger-excerpt">The Canadian nominal neutral rate is estimated to be within the range of 2.25% to 3.25%, unchanged from that in the April 2025 Report.</div><div class="ledger-meta">April 2026 (unchanged from April 2025) · verified 2026-05-13 · next 2027-04-22</div><div class="note-line">BoC stated nominal neutral range 2.25-3.25%; overnight at 2.25% sits at the floor.</div><a class="ledger-link" href="https://www.bankofcanada.ca/publications/mpr/mpr-2026-04-29/appendix/#neutral-rate" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-17">
+      <a href="#ref-17" class="ledger-ref-link"><span class="ledger-ref derived">[17]</span></a>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+      <div class="ledger-phrase">"150 bps below the Fed"</div>
+      <div class="note-line">BoC overnight 2.25% minus Fed upper bound 3.75% = -150 bps.</div>
+    </div>
+    </div><div class="ledger-group">
+      <div class="ledger-group-h">Tile · trade</div>
+      <div class="ledger-item" id="ledger-18">
+      <a href="#ref-18" class="ledger-ref-link"><span class="ledger-ref pipeline">[18]</span></a>
+      <span class="ledger-source-label">StatCan Table 12-10-0119-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"-$2.2B"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Goods trade balance, 3-month moving average, March 2026.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1210011901" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-19">
+      <a href="#ref-19" class="ledger-ref-link"><span class="ledger-ref pipeline">[19]</span></a>
+      <span class="ledger-source-label">StatCan Table 12-10-0121-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"66.1%"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">US share of total Canadian goods exports, March 2026.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1210012101" target="_blank" rel="noopener">Open source ↗</a>
+    </div>
+    </div>
+  </aside>
+    <footer class="audit-foot">
+      Generated 2026-05-13 22:06 · Hero + 6 tile lines. Tagged claims show a yellow highlight with a [N] reference. Sidebar lists all claims; pipeline-tagged claims auto-resolve their reference date from the corresponding section's panel_data.
+    </footer>
+  </div>
+</body>
+</html>

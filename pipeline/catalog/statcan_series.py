@@ -281,6 +281,29 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
     ),
 
     # ----- Labour (Section 4.3) -------------------------------------------
+    # Population 15 years and over, seasonally adjusted (Table 14-10-0287-01).
+    # Resolved 2026-05-13 via WDS getDataFromVectorsAndLatestNPeriods:
+    # productId=14100287, coordinate 1.1.1.1.1.1.0.0.0.0 (Canada; Population
+    # estimate; Total - Gender; 15 years and over; Estimate; Seasonally adjusted).
+    # Identity check: employment_level (v2062811, April 2026: 21033.7k) /
+    # pop_15plus (v2062809, April 2026: 34755.6k) * 100 = 60.5% = employment_rate
+    # (v2062817, April 2026: 60.5%). scalarFactorCode=3 (thousands); scale=0.001
+    # converts to millions for unit-consistency with employment_level +
+    # unemployment_level. Denominator for Panel2LabourStocksPerCapita per-capita
+    # deflation -- replaces the back-derived employment/employment_rate identity.
+    "pop_15plus": StatcanSpec(
+        name="pop_15plus",
+        vector_id=2062809, table_id="14-10-0287-01",
+        units="Millions", frequency="monthly", section="labour",
+        scale=0.001, sa=True,
+        notes=(
+            "Population 15 years and over, Canada total, seasonally adjusted. "
+            "Coordinate 1.1.1.1.1.1.0.0.0.0. Source publishes in thousands "
+            "(scalarFactorCode=3); scaled 0.001 -> millions for unit-consistency "
+            "with employment_level and unemployment_level. April 2026: 34.756M. "
+            "Verified 2026-05-13 via employment identity check."
+        ),
+    ),
     "unemployment_rate":      StatcanSpec("unemployment_rate", 2062815, "14-10-0287-01",
                                           "%", "monthly", "labour", sa=True),
     "employment_rate":        StatcanSpec("employment_rate", 2062817, "14-10-0287-01",

@@ -2,7 +2,7 @@
 /*
  * PanelTotalVsPerCapita - side-by-side small multiples, total real GDP
  * versus per-capita real GDP, both expressed as cumulative percent change
- * since the 2019Q4 pre-pandemic baseline.
+ * since the January 2023 baseline.
  *
  * Ported from src/components/charts/_alternatives/gdp/Alt2_PerCapitaVsTotal.astro,
  * brought in line with the Panel4SubAggregatesV2 treatment shipped for the
@@ -41,7 +41,6 @@ import {
   VB,
   pickStride,
   yearTicksFromX,
-  tail,
   type AltPoint,
 } from "../_alternatives/_shared/altUtils";
 import AltChartStyle from "../_alternatives/_shared/AltChartStyle.astro";
@@ -79,21 +78,24 @@ const perCapitaSeries: AltPoint[] = gdp.map((p) => {
   return { date: p.date, value: (p.value * 1e6) / pv };
 });
 
-// Index both series to 2019Q4 = 100 (pre-COVID anchor), then subtract 100
-// so values read as signed % change.
+// Index both series to Q4 2019 = 100 (2019-10-01, last pre-pandemic quarter),
+// then subtract 100 so values read as signed % change.
+// Q4 2019 is the closest observable to "December 2019" in the quarterly series;
+// StatCan labels the Q4 observation 2019-10-01 (quarter start).
+const ANCHOR_DATE = "2019-10-01";
 function toPctChange(series: AltPoint[]): AltPoint[] {
   return series.map((p) => ({
     date: p.date,
     value: typeof p.value === "number" ? p.value - 100 : null,
   }));
 }
-const totalPct = toPctChange(indexAt(totalSeries, "2019-10-01"));
-const pcPct = toPctChange(indexAt(perCapitaSeries, "2019-10-01"));
+const totalPct = toPctChange(indexAt(totalSeries, ANCHOR_DATE));
+const pcPct = toPctChange(indexAt(perCapitaSeries, ANCHOR_DATE));
 
-// Keep last 40 quarters (10y window).
-const N = 40;
-const totalTail = tail(totalPct, N);
-const pcTail = tail(pcPct, N);
+// Show from start of 2019 so the pre-pandemic baseline is visible.
+const DISPLAY_START = "2019-01-01";
+const totalTail = totalPct.filter((p) => p.date >= DISPLAY_START);
+const pcTail = pcPct.filter((p) => p.date >= DISPLAY_START);
 
 // Layout. 720x405 viewBox. M_L (56) + PANEL_W (292) + GAP (36) +
 // PANEL_W (292) + M_R (44) = 720. M_R seats the right panel's "+X%"
@@ -197,7 +199,7 @@ const xTicksB = yearTicksFromX(xMin, xMax, B.xScale);
     viewBox={`0 0 ${VB.W} ${VB.H}`}
     preserveAspectRatio="xMidYMid meet"
     role="img"
-    aria-label="Total real GDP versus per-capita real GDP, cumulative percent change since 2019Q4 pre-pandemic baseline, two small multiples side by side."
+    aria-label="Total real GDP versus per-capita real GDP, cumulative percent change since Q4 2019 pre-pandemic baseline, two small multiples side by side."
   >
     {/* LEFT panel: total real GDP, cumulative % change since 2019Q4 */}
     <g>
@@ -215,7 +217,7 @@ const xTicksB = yearTicksFromX(xMin, xMax, B.xScale);
             cy={A.yScale(lastA.value as number).toFixed(2)}
             r="3.5"
           >
-            <title>{`Total real GDP ${lastA.date}: ${fmtValueLabel(lastA.value as number)} vs 2019Q4`}</title>
+            <title>{`Total real GDP ${lastA.date}: ${fmtValueLabel(lastA.value as number)} vs Q4 2019`}</title>
           </circle>
           <text
             class="panel-tvpc__value-label"
@@ -262,7 +264,7 @@ const xTicksB = yearTicksFromX(xMin, xMax, B.xScale);
             cy={B.yScale(lastB.value as number).toFixed(2)}
             r="3.5"
           >
-            <title>{`Per-capita real GDP ${lastB.date}: ${fmtValueLabel(lastB.value as number)} vs 2019Q4`}</title>
+            <title>{`Per-capita real GDP ${lastB.date}: ${fmtValueLabel(lastB.value as number)} vs Q4 2019`}</title>
           </circle>
           <text
             class="panel-tvpc__value-label"

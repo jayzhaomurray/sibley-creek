@@ -207,6 +207,75 @@ function parseCitations(arrayText) {
   return out;
 }
 
+/**
+ * Registered-source rule (editorial/review_protocol.md, editorial/writing-style.md §4.1d):
+ * every citation source must be `pipeline:<provider>:<key>`, `card:<id>`, or `derived`.
+ * `other:<freeform>` is banned. This validator collects every `other:` source it sees
+ * and fails the build after printing the offenders.
+ */
+function isValidSource(src) {
+  if (!src) return false;
+  if (src === "derived") return true;
+  if (src.startsWith("pipeline:")) return true;
+  if (src.startsWith("card:")) return true;
+  return false;
+}
+
+function loadRegistryCards() {
+  const yaml = fs.readFileSync(path.join(repoRoot, "editorial", "source_cards", "registry.yaml"), "utf-8");
+  const cards = new Map();
+  const blocks = yaml.split(/\n(?=  - id:)/);
+  for (const block of blocks) {
+    const idMatch = block.match(/^\s*-?\s*id:\s*(.+?)\s*$/m);
+    if (!idMatch) continue;
+    const id = idMatch[1].trim();
+    const tier = block.match(/verification_tier:\s*"?([A-C])"?/)?.[1] ?? null;
+    const userConfirmed = block.match(/user_confirmed_at:\s*"?(\d{4}-\d{2}-\d{2})/)?.[1] ?? null;
+    const userApproved = block.match(/user_approved_at:\s*"?(\d{4}-\d{2}-\d{2})/)?.[1] ?? null;
+    const mode = parseInt(block.match(/^\s+mode:\s*(\d+)/m)?.[1] ?? "0", 10);
+    cards.set(id, { id, tier, userConfirmed, userApproved, mode });
+  }
+  return cards;
+}
+
+function loadPendingCardIds() {
+  const dir = path.join(repoRoot, "editorial", "source_cards", "_pending");
+  if (!fs.existsSync(dir)) return new Set();
+  const ids = new Set();
+  for (const sub of fs.readdirSync(dir)) {
+    const p = path.join(dir, sub);
+    try {
+      if (!fs.statSync(p).isDirectory()) continue;
+    } catch { continue; }
+    for (const f of fs.readdirSync(p)) {
+      if (f.endsWith(".yaml")) ids.add(f.replace(/\.yaml$/, ""));
+    }
+  }
+  return ids;
+}
+
+function checkCardTier(src, registryCards, pendingIds) {
+  if (!src.startsWith("card:")) return { valid: true };
+  const id = src.slice(5);
+  if (pendingIds.has(id)) {
+    return { valid: false, reason: `card:${id} is in _pending/ — awaiting user approval` };
+  }
+  const card = registryCards.get(id);
+  if (!card) {
+    return { valid: false, reason: `card:${id} is not in registry.yaml` };
+  }
+  if (!card.tier) {
+    return { valid: false, reason: `card:${id} has no verification_tier (untagged)` };
+  }
+  if (card.mode === 3 && !card.userApproved) {
+    return { valid: false, reason: `card:${id} is Mode 3 without user_approved_at` };
+  }
+  if ((card.tier === "B" || card.tier === "C") && !card.userConfirmed) {
+    return { valid: false, reason: `card:${id} is Tier ${card.tier} without user_confirmed_at` };
+  }
+  return { valid: true };
+}
+
 function extractPlates(sectionAstroPath) {
   const fm = readAstroFrontmatter(sectionAstroPath);
   const m = fm.match(/const\s+plates\s*:\s*Plate\[\]\s*=\s*\[/);
@@ -494,6 +563,26 @@ function main() {
   let strictPasses = 0;
 
   const report = [];
+  // Registered-source rule: collect any citation whose `source:` is not
+  // pipeline:* / card:* / derived. These fail the build at the end.
+  const invalidSources = [];
+  // Tier-verification rule: collect card:* references whose card is in _pending/,
+  // whose tier is B/C without user_confirmed_at, or whose mode=3 lacks user_approved_at.
+  const tierViolations = [];
+  const registryCards = loadRegistryCards();
+  const pendingIds = loadPendingCardIds();
+  const recordInvalid = (where, citations) => {
+    for (const c of citations || []) {
+      if (!isValidSource(c.source)) {
+        invalidSources.push({ where, phrase: c.phrase, source: c.source });
+      } else if (c.source.startsWith("card:")) {
+        const tierCheck = checkCardTier(c.source, registryCards, pendingIds);
+        if (!tierCheck.valid) {
+          tierViolations.push({ where, phrase: c.phrase, source: c.source, reason: tierCheck.reason });
+        }
+      }
+    }
+  };
 
   for (const slug of sections) {
     const pagePath = path.join(PAGES_DIR, `${slug}.astro`);
@@ -527,6 +616,7 @@ function main() {
     }
 
     for (const s of surfaces) {
+      recordInvalid(`${slug}/${s.label}`, s.citations);
       const r = checkSurface(slug, s.label, s.prose, s.citations);
       if (r.mode === "strict") {
         if (r.uncovered.length > 0) {
@@ -553,6 +643,7 @@ function main() {
   if (!args.length || args.includes("splash")) {
     const hero = extractSplashHero();
     if (hero.abstract) {
+      recordInvalid("splash/hero-abstract", hero.citations);
       const r = checkSurface("splash", "hero-abstract", hero.abstract, hero.citations);
       if (r.mode === "strict") {
         if (r.uncovered.length > 0) {
@@ -575,6 +666,7 @@ function main() {
     const md = fs.readFileSync(mdPath, "utf-8");
     const body = stripMarkdown(md);
     const citations = loadResearchSidecar(diveSlug) || [];
+    recordInvalid(`research/${diveSlug}`, citations);
     const r = checkSurface(`research/${diveSlug}`, "body", body, citations);
     if (r.mode === "strict") {
       if (r.uncovered.length > 0) {
@@ -609,6 +701,36 @@ function main() {
 
   console.error("");
   console.error(`citation coverage: ${strictPasses} strict pass · ${strictFails} strict FAIL · ${warnSurfaces} needs-tagging`);
+
+  // Registered-source rule check. Print every other:* offender and fail.
+  if (invalidSources.length > 0) {
+    console.error("");
+    console.error(`registered-source rule: ${invalidSources.length} citation(s) use a banned source type.`);
+    console.error("Every source must be pipeline:<provider>:<key>, card:<id>, or derived. The other:<freeform> pattern is banned.");
+    console.error("See editorial/review_protocol.md § Registered-source rule and editorial/writing-style.md § 4.1d.");
+    for (const v of invalidSources.slice(0, 40)) {
+      console.error(`   ✗ ${v.where}: "${v.phrase}" -> source: ${v.source}`);
+    }
+    if (invalidSources.length > 40) console.error(`   ... and ${invalidSources.length - 40} more`);
+    console.error("");
+    console.error("Build blocked. Promote each other:* source to a registered card in editorial/source_cards/registry.yaml, or replace with pipeline:* / derived.");
+    process.exit(1);
+  }
+
+  // Tier-verification rule check. Print every tier violation and fail.
+  if (tierViolations.length > 0) {
+    console.error("");
+    console.error(`tier-verification rule: ${tierViolations.length} citation(s) reference cards that have not closed the verification chain.`);
+    console.error("Every card cited on the live site must be either Tier A (primary-verified), or Tier B/C with user_confirmed_at filled, or Mode 3 with user_approved_at.");
+    console.error("See editorial/review_protocol.md § 'Tiered verification' and editorial/credible_secondaries.md.");
+    for (const v of tierViolations.slice(0, 40)) {
+      console.error(`   ✗ ${v.where}: "${v.phrase}" -> ${v.source} (${v.reason})`);
+    }
+    if (tierViolations.length > 40) console.error(`   ... and ${tierViolations.length - 40} more`);
+    console.error("");
+    console.error("Build blocked. Walk the verification queue at editorial/source_cards/audit/_pending.html and approve or reject each pending card.");
+    process.exit(1);
+  }
 
   if (strictFails > 0) {
     console.error("");

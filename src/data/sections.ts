@@ -226,7 +226,7 @@ export const sections: Section[] = [
     accentVar: "--section-accent-gdp",
     kicker: "Output, expenditure, and the quarterly arithmetic of growth.",
     headlineQuestion:
-      "How fast is Canada's economy growing, and where?",
+      "How fast is Canada's economy growing?",
     cadence: "Monthly + quarterly",
     // Most recent monthly GDP print released Apr 30, 2026 (Feb 2026 reference period).
     updatedAt: Date.UTC(2026, 3, 30, 8, 30),
@@ -293,7 +293,7 @@ export const sections: Section[] = [
     accentVar: "--section-accent-inflation",
     kicker: "Headline, core, and the breadth of price pressure.",
     headlineQuestion:
-      "How close is Canadian inflation to the 2% target, and is the anchor holding?",
+      "How close is Canadian inflation to the 2% target?",
     cadence: "Monthly",
     // Most recent CPI print released Apr 20, 2026 (March 2026 reference period).
     // April CPI lands May 14; not yet on disk as of 2026-05-11.
@@ -358,7 +358,7 @@ export const sections: Section[] = [
     },
     abstractCitations: [
       { phrase: "Headline CPI sits at 2.3%", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI Y/Y, March 2026." },
-      { phrase: "back at 2.2-2.3%", source: "pipeline:boc:STATIC_TOTALCPICOMMON_TRIM", note: "CPI-trim and CPI-median Y/Y range, March 2026; BoC Valet preferred-core series." },
+      { phrase: "back at 2.2-2.3%", source: "pipeline:boc:cpi_trim", note: "CPI-trim and CPI-median Y/Y range, March 2026; BoC Valet preferred-core series." },
     ],
   },
   {
@@ -371,7 +371,7 @@ export const sections: Section[] = [
     accentVar: "--section-accent-labour",
     kicker: "Jobs, wages, participation, and the workforce that backs them.",
     headlineQuestion:
-      "Is the labour market loosening, and how fast?",
+      "Is the labour market loosening?",
     cadence: "Monthly",
     // Most recent LFS landed May 2, 2026 (April 2026 reference period).
     updatedAt: Date.UTC(2026, 4, 2, 8, 30),
@@ -433,7 +433,7 @@ export const sections: Section[] = [
     accentVar: "--section-accent-policy",
     kicker: "The Bank of Canada and the federal fiscal stance.",
     headlineQuestion:
-      "What is the policy stance, and is it consistent with the cycle?",
+      "What is Canada's policy stance?",
     cadence: "Event-driven + monthly",
     // Apr 29 rate decision is the primary event; daily yields refresh
     // continuously but the policy stance is anchored to the rate decision.
@@ -449,10 +449,10 @@ export const sections: Section[] = [
     latestReleasePrefix: "BoC rate decision",
     latestReleaseDateOverride: "Apr 29, 2026",
     tileLine:
-      "BoC held at 2.25% on April 29, the fourth straight hold since October's cut.",
+      "BoC parked at the floor of neutral, 150 bps below the Fed and holding.",
     tileLineCitations: [
-      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, Apr 29 2026 FAD decision, via Valet V39079." },
-      { phrase: "fourth straight", source: "pipeline:boc:V39079", note: "Enumerated FAD sequence: Jan 29, Mar 12, Apr 16, Apr 29 holds following Oct 29 2025 cut." },
+      { phrase: "floor of neutral", source: "card:boc_mpr_neutral_range", note: "BoC stated nominal neutral range 2.25-3.25%; overnight at 2.25% sits at the floor." },
+      { phrase: "150 bps below the Fed", source: "derived", note: "BoC overnight 2.25% minus Fed upper bound 3.75% = -150 bps." },
     ],
     prints: [
       {
@@ -499,16 +499,18 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 29, 2026",
       body:
-        "The Bank of Canada held the overnight rate at 2.25% on April 29, the fourth straight hold since October's cut and 50 bps below the 2.75% neutral midpoint. The 2y GoC yield closed at 2.94% on May 7, leaving the BoC-Fed 2y spread at -98 bps. The fiscal year-to-date federal budget balance stood at -$25.5B through February, per the Department of Finance Canada fiscal monitor.",
+        "Canada's policy stance is restrictive in name only. The Bank of Canada has held the overnight rate at 2.25% through four consecutive decisions since October's cut, parking the policy rate at the floor of its 2.25-3.25% neutral range and 150 bps below the Fed's upper bound — the widest gap outside the 2002-2004 episode. Markets have absorbed the divergence without forcing the Bank's hand: the 2y GoC-UST spread sits at -98 bps, around the fifth percentile of its post-2001 distribution, and the loonie has held a 1.36-1.39 range through the spring. The balance sheet has settled into floor-system equilibrium, leaving the overnight rate as the active lever. With near-term potential growth marked at 1.2% for 2026, the bar for further easing is a clearer break in activity, not a reach for stimulus.",
     },
     abstractCitations: [
-      { phrase: "overnight rate at 2.25% on April 29", source: "pipeline:boc:V39079", note: "BoC overnight target rate, Apr 29 2026 FAD decision, via Valet V39079." },
-      { phrase: "fourth straight hold", source: "pipeline:boc:V39079", note: "Enumerated FAD sequence: Jan 29, Mar 12, Apr 16, Apr 29 holds following Oct 29 2025 cut." },
-      { phrase: "50 bps below the 2.75% neutral midpoint", source: "card:boc_mpr_neutral_range", note: "Midpoint of the 2.25-3.25% nominal neutral range; 2.75% - 2.25% overnight = 50 bps gap." },
-      { phrase: "2.75% neutral midpoint", source: "card:boc_mpr_neutral_range" },
-      { phrase: "2y GoC yield closed at 2.94% on May 7", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, May 7 2026 daily close." },
-      { phrase: "BoC-Fed 2y spread at -98 bps", source: "derived", note: "GoC 2y 2.94% minus UST 2y 3.92% = -98 bps. Inputs: BoC Valet yield_2yr and FRED DGS2, May 7 2026." },
-      { phrase: "$25.5B through February", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "Federal fiscal YTD balance, April 2025 through February 2026, per DoF Fiscal Monitor. -25,549M rounds to -$25.5bn." },
+      { phrase: "overnight rate at 2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, Apr 29 2026 FAD decision, via Valet V39079." },
+      { phrase: "four consecutive decisions since October's cut", source: "pipeline:boc:V39079", note: "Enumerated FAD sequence: Dec 10 2025, Jan 28 2026, Mar 18 2026, Apr 29 2026 holds following Oct 29 2025 cut to 2.25%." },
+      { phrase: "floor of its 2.25-3.25% neutral range", source: "card:boc_mpr_neutral_range" },
+      { phrase: "150 bps below the Fed's upper bound", source: "derived", note: "BoC overnight 2.25% minus Fed upper bound 3.75% = -150 bps." },
+      { phrase: "widest gap outside the 2002-2004 episode", source: "derived", note: "Enumerated monthly (BoC overnight - Fed funds upper) series from 1996 onward; only the 2002-2004 episode breaches the current -150 bps in magnitude." },
+      { phrase: "2y GoC-UST spread sits at -98 bps", source: "derived", note: "GoC 2y 2.94% minus UST 2y 3.92% = -98 bps. Inputs: BoC Valet yield_2yr and FRED DGS2, May 7 2026." },
+      { phrase: "fifth percentile of its post-2001 distribution", source: "derived", note: "Verified 2026-05-13 against raw CSVs (data/raw/yield_2yr.csv + data/raw/us_2yr.csv): 6,219 daily observations since 2001-01-02; -98 bps sits at the 5.07th percentile." },
+      { phrase: "1.36-1.39 range through the spring", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close range, March-May 2026, per BoC Valet FXUSDCAD." },
+      { phrase: "near-term potential growth marked at 1.2% for 2026", source: "card:boc_mpr_potential_growth" },
     ],
   },
   {
@@ -729,7 +731,7 @@ export const sections: Section[] = [
       { phrase: "WTI rose to $109.76 by May 4", source: "pipeline:fred:DCOILWTICO", note: "WTI spot, May 4 2026 daily close." },
       { phrase: "a 9.9% move", source: "derived", note: "WTI week-over-week change: 99.89 (Apr 27) -> 109.76 (May 4) = +9.88%, rounds to 9.9%. Per FRED DCOILWTICO." },
       { phrase: "back above $100 after dipping briefly below", source: "pipeline:fred:DCOILWTICO", note: "WTI closed at 98.07 on May 1, dipping below $100 between Apr 27 (99.89) and May 4 (109.76)." },
-      { phrase: "TSX Composite closed near 34.1k", source: "other:TMX Group S&P/TSX Composite Index close, May 8, 2026." },
+      { phrase: "TSX Composite closed near 34.1k", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close, May 8 2026 (34,077.76), via Yahoo Finance ^GSPTSE." },
     ],
   },
 ];
@@ -830,7 +832,7 @@ export const deepDives: DeepDive[] = [
   {
     slug: "mortgage-renewal-wall",
     section: "housing",
-    title: "Mortgage renewal wall: has it peaked?",
+    title: "The mortgage renewal wall has peaked",
     deck:
       "The 2026 renewal cohort is the largest single tranche in the stack. We map where the residual transmission lands through 2027.",
     publishedAt: "2026-05-08",
@@ -840,8 +842,7 @@ export const deepDives: DeepDive[] = [
     // MPR release date is the most specific anchor.
     dataVintage: "2026-04-29",
     draftPath: "editorial/drafts/deepdive_pillar_a_mortgage_renewal_wall_v1.md",
-    publishedPath: "editorial/published/mortgage-renewal-wall.md",
-    // Legacy fields retained so /experiments/* keeps building. Not rendered in production.
+        // Legacy fields retained so /experiments/* keeps building. Not rendered in production.
     pillar: "A",
     status: "drafted",
     // Tagged as a pending-human-review draft so the reader sees the
@@ -853,30 +854,28 @@ export const deepDives: DeepDive[] = [
   {
     slug: "boc-fed-divergence",
     section: "policy",
-    title: "BoC vs. Fed: how far can the divergence run?",
+    title: "The BoC-Fed divergence is wide, but FX is not binding",
     deck:
       "The policy spread sits at the 8th percentile of three decades; USDCAD is at the 67th and strengthening. The binding constraint is not the loonie but the expectations chain.",
     publishedAt: "2026-05-10",
     lastUpdated: "2026-05-10",
     dataVintage: "2026-05-11",
     draftPath: "editorial/drafts/deepdive_pillar_b_boc_fed_divergence_v1.md",
-    publishedPath: "editorial/published/boc-fed-divergence.md",
-    pillar: "B",
-    status: "shipped",
+        pillar: "B",
+    status: "drafted",
     draftStatus: "draft",
   },
   {
     slug: "per-capita-output",
     section: "labour",
-    title: "Per-capita output: deceleration or weakness?",
+    title: "The per-capita output gap is a denominator story",
     deck:
       "The headline labour print is flattering. The per-capita series is not. We separate the population-deceleration story from the cyclical weakness story.",
     publishedAt: "2026-05-09",
     lastUpdated: "2026-05-09",
     dataVintage: "2026-05-11",
     draftPath: "editorial/drafts/deepdive_pillar_e_per_capita_output_v1.md",
-    publishedPath: "editorial/published/per-capita-output.md",
-    pillar: "E",
+        pillar: "E",
     status: "drafted",
     draftStatus: "draft",
   },
@@ -890,8 +889,7 @@ export const deepDives: DeepDive[] = [
     lastUpdated: "2026-05-11",
     dataVintage: "2026-05-11",
     draftPath: "editorial/drafts/deepdive_trade_tariffs_v1.md",
-    publishedPath: "editorial/published/us-tariff-repricing.md",
-    status: "shipped",
+        status: "drafted",
     draftStatus: "draft",
   },
 ];
@@ -920,11 +918,17 @@ export const splashHero: {
   citations: import("../layouts/SectionLayout.astro").ClaimCitation[];
 } = {
   abstract:
-    "Cyclically, Canada is slowing down. Disinflation is in the final mile and slack is building in the labour market. Structurally, the economy is readjusting to halted population growth and tariffs. Per-capita output is virtually flat since 2019; the US export share has fallen from three quarters to two thirds over the last year.",
+    "Stuck below potential, on two fronts at once. Cyclically, growth is running at 1.0% year-over-year against a near-term potential the Bank of Canada places near 1.2%; inflation sits at 2.3% with core measures right beside it, and unemployment is 6.9%. Structurally, the population is no longer growing — year-over-year growth has swung from 3.2% in mid-2024 to roughly flat this quarter — and the US share of merchandise exports has fallen from about three quarters in 2024 to two thirds in March. Per-capita output is scarcely above its 2019 level. The overnight rate sits at 2.25% after the April hold; the question is whether disinflation's last mile and a tariff-bruised export book leave room to ease further.",
   citations: [
-    { phrase: "since 2019", source: "pipeline:statcan:36-10-0104-01", note: "Per-capita real GDP indexed to 2019Q4." },
-    { phrase: "from three quarters to two thirds", source: "derived", note: "US share of Canadian merchandise exports moved from ~75% (Y2024 average) to ~66% (latest 3mma) per StatCan 12-10-0121-01." },
-    { phrase: "over the last year", source: "pipeline:statcan:12-10-0121-01", note: "12-month window through latest monthly merchandise-trade-by-partner release." },
+    { phrase: "1.0% year-over-year", source: "pipeline:statcan:36-10-0434-01", note: "Real GDP by industry, Y/Y, Feb 2026 monthly print." },
+    { phrase: "near 1.2%", source: "card:boc_mpr_potential_growth" },
+    { phrase: "2.3%", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI Y/Y, March 2026." },
+    { phrase: "core measures right beside it", source: "pipeline:boc:cpi_trim", note: "CPI-trim 2.2% and CPI-median 2.3% Y/Y, March 2026, via BoC Valet preferred-core series." },
+    { phrase: "6.9%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, April 2026." },
+    { phrase: "3.2% in mid-2024 to roughly flat this quarter", source: "derived", note: "Quarterly population Y/Y peaked at 3.18% in Q2 2024 and printed -0.25% in Q1 2026, per StatCan 17-10-0009-01." },
+    { phrase: "three quarters in 2024 to two thirds in March", source: "derived", note: "US share of Canadian merchandise exports moved from ~76% (2024 avg) to ~66% (March 2026) per StatCan 12-10-0121-01." },
+    { phrase: "scarcely above its 2019 level", source: "pipeline:statcan:36-10-0104-01", note: "Per-capita real GDP indexed to 2019Q4." },
+    { phrase: "2.25% after the April hold", source: "pipeline:boc:V39079", note: "BoC overnight target rate, April 29 2026 FAD hold, via Valet V39079." },
   ],
 };
 

@@ -23,6 +23,40 @@
 #   cadence:           how often the publication releases (quarterly / 8x_year / monthly / annual / 5_year).
 #   cited_in:          list of files where the value is referenced.
 #   notes:             any caveats.
+#
+# Tiered verification fields (REQUIRED):
+#   verification_tier: "A" | "B" | "C"
+#                      A = Primary verified (researcher fetched primary, verbatim excerpt captured).
+#                      B = Triangulated secondary (2+ independent credible secondaries reproduce the claim).
+#                      C = Single credible secondary (used sparingly; requires explicit justification).
+#                      See editorial/credible_secondaries.md for the allowlist.
+#                      Tier D claims (below the bar) do not appear in this registry;
+#                      they are cut from prose at production time.
+#   user_confirmed_at: ISO date (YYYY-MM-DD) — date the user (jzm) walked the verification chain
+#                      and approved the card. REQUIRED for tier B and C; null/absent fails the gate.
+#   user_confirmed_by: short user handle (e.g., "jzm"). REQUIRED alongside user_confirmed_at.
+#   triangulation:     list of credible secondaries used to verify a Tier B or C claim.
+#                      Each entry: { source, url, excerpt, credibility }.
+#                      Only required when verification_tier is "B" or "C".
+#   grandfathered:     true if backfilled during the 2026-05-13 tier-system migration.
+#                      Triangulation block to be filled in when walked in the verification queue.
+#
+# Mode 3 fields (analysis citation; see writing-style.md §8c):
+#   mode:              integer; 3 for analysis citations of a named third-party.
+#                      Default omitted = fact citation (Modes 1/2 implicit).
+#   user_approved_at:  ISO date — date the user approved the Mode 3 citation.
+#                      REQUIRED for Mode 3 cards; absent fails the gate.
+#   user_approved_by:  user handle.
+#   frame_test_check:  short note confirming the frame test was applied
+#                      ("'X argues Y' framing preserved in prose at <location>").
+#
+# Enumeration cards (for countable claims — "Nth consecutive", "first since"):
+#   enumeration:       list of dates OR list of {date, label} objects defining
+#                      the authoritative set. Citations with `expected_count:`
+#                      validate against this length; citations with
+#                      `compute: count_enumeration(<this_card>)` derive the
+#                      count automatically. Author updates the enumeration on
+#                      each refresh; build fails if expected_count drifts.
 
 sources:
 
@@ -45,6 +79,7 @@ sources:
       - "src/data/sections.ts (gdp.blurb.body)"
       - "src/pages/gdp.astro (plate-1)"
     notes: "Cited value is the 2026 near-term estimate (1.2%). Multi-year path 2026/27/28 = 1.2/1.3/1.5. The same Appendix reaffirms the 2.25-3.25% nominal neutral range — see boc_mpr_neutral_range entry."
+    verification_tier: "A"
 
   - id: boc_mpr_neutral_range
     title: "BoC nominal neutral range (BoC MPR Appendix annual review)"
@@ -62,6 +97,28 @@ sources:
     cited_in:
       - "src/pages/policy.astro (plate-1)"
     notes: "BoC reviews the neutral range annually in the April MPR. April 2026 review left it unchanged at 2.25-3.25%."
+    verification_tier: "A"
+
+  - id: boc_fad_holds_post_oct_2025_cut
+    title: "BoC FAD holds following the October 29, 2025 25-bps cut"
+    url: "https://www.bankofcanada.ca/core-functions/monetary-policy/key-interest-rate/"
+    excerpt: "Following the Oct 29, 2025 cut to 2.25%, BoC has held the overnight rate target at all subsequent fixed-announcement-date decisions."
+    currency_probe_url: "https://www.bankofcanada.ca/core-functions/monetary-policy/key-interest-rate/"
+    verified_at: 2026-05-13
+    vintage_label: "Apr 29, 2026 FAD (latest hold)"
+    next_expected: 2026-06-10
+    cadence: "8x_year"
+    cited_in:
+      - "src/pages/policy.astro (plate-1)"
+    notes: "Authoritative enumeration of FAD decisions held at 2.25% since the October 29, 2025 cut. Append new holds at each FAD; if BoC cuts/hikes, start a new card for the next streak."
+    enumeration:
+      - "2025-12-10"
+      - "2026-01-28"
+      - "2026-03-18"
+      - "2026-04-29"
+    verification_tier: "A"
+    user_confirmed_at: 2026-05-13
+    user_confirmed_by: "jzm"
 
   - id: fomc_target_rate
     title: "Federal Reserve FOMC target range for the federal funds rate"
@@ -78,6 +135,7 @@ sources:
     cited_in:
       - "src/pages/policy.astro (plate-7)"
     notes: "Third consecutive hold at the April 2026 meeting. Next FOMC June 16-17, 2026."
+    verification_tier: "A"
 
   - id: boc_inflation_mandate
     title: "BoC inflation-control mandate"
@@ -96,6 +154,7 @@ sources:
       - "src/pages/inflation.astro (plates 1, 2, 4)"
       - "src/data/sections.ts (inflation.blurb.body)"
     notes: "Joint BoC/Government of Canada mandate renewal typically lands in November or December of the renewal year. Current mandate operative through end-2026; a new mandate could in principle adjust the midpoint or band (the 2021 renewal kept both unchanged)."
+    verification_tier: "A"
 
   - id: boc_5y_mortgage_rate
     title: "BoC 5-year conventional mortgage rate (Valet series V80691335)"
@@ -112,3 +171,540 @@ sources:
     cited_in:
       - "src/pages/housing.astro (plate-5)"
     notes: "API-backed via BoC Valet but cited as a literal in prose, so listed here for currency-tracking. Pipeline does NOT yet pull this series into panel_data; prose is hand-typed."
+    verification_tier: "A"
+
+  # ===========================================================================
+  # Section-page primary sources (BoC press, CREA, BoC consumer/firm surveys)
+  # Migrated from other: citations on 2026-05-13.
+  # ===========================================================================
+
+  - id: boc_qt_end_2025_01
+    title: "BoC FAD press release — end of quantitative tightening, restart of asset purchases"
+    url: "https://www.bankofcanada.ca/2025/01/fad-press-release-2025-01-29/"
+    excerpt: "The Bank is also announcing its plan to complete the normalization of its balance sheet, ending quantitative tightening. The Bank will restart asset purchases in early March, beginning gradually so that its balance sheet stabilizes and then grows modestly, in line with growth in the economy."
+    currency_probe_url: "https://www.bankofcanada.ca/press/press-releases/"
+    verified_value:
+      announcement_date: 2025-01-29
+      asset_purchase_restart: "early March 2025"
+    verified_at: 2026-05-13
+    vintage_label: "January 29, 2025 FAD press release"
+    next_expected: null
+    cadence: "one_off"
+    cited_in:
+      - "src/pages/policy.astro (plate-4)"
+    notes: "Prose previously said 'December 2024' — corrected to 'January 2025' as part of this migration. QT-end was announced Jan 29, 2025 alongside the 25 bps cut to 3.00%."
+    verification_tier: "A"
+
+  - id: boc_floor_system_operating_range
+    title: "BoC speech — 'The end of quantitative tightening and what comes next' (Gravelle)"
+    url: "https://www.bankofcanada.ca/2025/01/the-end-of-quantitative-tightening-and-what-comes-next/"
+    excerpt: "we have revised the range upward to between $50 billion and $70 billion ... we expect to announce the end of QT and the associated restart of our business-as-usual asset purchases in the first half of this year"
+    currency_probe_url: "https://www.bankofcanada.ca/press/speeches-appearances/"
+    verified_value:
+      settlement_balances_range_low_cad_bn: 50
+      settlement_balances_range_high_cad_bn: 70
+    verified_at: 2026-05-13
+    vintage_label: "Speech by Deputy Governor Toni Gravelle, January 16, 2025"
+    next_expected: null
+    cadence: "one_off"
+    cited_in:
+      - "src/pages/policy.astro (plate-5)"
+    notes: "Prose previously said 'December 2024 framework statement' — corrected to 'January 2025 framework'. The $50-70bn range was articulated in Gravelle's Jan 16, 2025 speech and confirmed in the Jan 29, 2025 FAD release."
+    verification_tier: "A"
+
+  - id: crea_snlr_balanced_band
+    title: "CREA monthly statistics release — sales-to-new-listings ratio interpretation"
+    url: "https://stats.crea.ca/en-ca/"
+    excerpt: "A sales-to-new listings ratio between 45% and 65% is generally consistent with balanced housing market conditions"
+    currency_probe_url: "https://stats.crea.ca/en-ca/"
+    verified_value:
+      balanced_band_low_pct: 45
+      balanced_band_high_pct: 65
+      long_term_average_pct: 55
+    verified_at: 2026-05-13
+    vintage_label: "April 15, 2026 monthly release (methodology constant)"
+    next_expected: 2026-05-15
+    cadence: "monthly"
+    cited_in:
+      - "src/pages/housing.astro (plate-3)"
+    notes: "Prose previously said '50-to-70 band' — corrected to '45-to-65 band' as part of this migration. CREA's published band is 45-65 (long-term average ~55)."
+    verification_tier: "A"
+
+  - id: boc_fad_press_release_2026_04_29
+    title: "BoC Fixed Announcement Date press release — April 29, 2026"
+    url: "https://www.bankofcanada.ca/2026/04/fad-press-release-2026-04-29/"
+    excerpt: "The Bank of Canada today held its target for the overnight rate at 2.25%, with the Bank Rate at 2.5% and the deposit rate at 2.20%."
+    currency_probe_url: "https://www.bankofcanada.ca/press/press-releases/"
+    verified_value:
+      overnight_rate: 2.25
+      bank_rate: 2.50
+      deposit_rate: 2.20
+      decision_date: 2026-04-29
+    verified_at: 2026-05-13
+    vintage_label: "April 29, 2026 FAD"
+    next_expected: 2026-06-10
+    cadence: "8x_year"
+    cited_in:
+      - "editorial/source_cards/research/mortgage-renewal-wall.yaml"
+    notes: "Fourth consecutive hold since the October 29, 2025 cut."
+    verification_tier: "A"
+
+  - id: boc_san_2025_1_mortgage_composition
+    title: "BoC Staff Analytical Note 2025-1 — Using new loan data to better understand mortgage holders"
+    url: "https://www.bankofcanada.ca/2025/01/staff-analytical-note-2025-1/"
+    excerpt: "Fixed-rate mortgages are the most popular mortgage product, representing around 80% of all outstanding mortgages. ... Fixed rate, term of 5 years or more: 42% of all mortgages."
+    currency_probe_url: "https://www.bankofcanada.ca/publications/staff-analytical-notes/"
+    verified_value:
+      fixed_rate_share_pct: 80
+      variable_rate_share_pct: 20
+      five_year_plus_fixed_share_pct: 42
+      data_vintage: "September 2024"
+    verified_at: 2026-05-13
+    vintage_label: "January 2025 (data vintage September 2024)"
+    next_expected: null
+    cadence: "one_off"
+    cited_in:
+      - "editorial/source_cards/research/mortgage-renewal-wall.yaml"
+    notes: "Sidecar prose rounds the 42% '5-year-or-more fixed' figure to 'about 40%' five-year fixed."
+    verification_tier: "A"
+
+  - id: boc_san_2025_21_renewal_payments
+    title: "BoC Staff Analytical Note 2025-21 — How will mortgage payments change at renewal? An updated analysis"
+    url: "https://www.bankofcanada.ca/2025/07/staff-analytical-note-2025-21/"
+    excerpt: "About 60% of all outstanding mortgages in Canada are expected to renew in 2025 or 2026. ... the average monthly mortgage payment could be 10% higher for those renewing in 2025 and 6% higher for those renewing in 2026. ... Holders of these mortgages renewing in 2026 are likely to see an average increase in payments of 20%. ... the median MDS ratio will rise by 2.7 percentage points from 15.3% in December 2024 to 18.0% by the end of 2026. ... 10% of borrowers renewing in 2026 will see an increase of more than 40%. ... a quarter of borrowers renewing in 2026 will see a decrease of at least 7%. ... Five-year, fixed-rate mortgages make up around 40% of all mortgages in Canada ... Around 75% of those facing payment increases hold a five-year, fixed-rate mortgage."
+    currency_probe_url: "https://www.bankofcanada.ca/publications/staff-analytical-notes/"
+    verified_value:
+      renew_2025_or_2026_share_pct: 60
+      avg_pay_increase_2025_pct: 10
+      avg_pay_increase_2026_pct: 6
+      five_year_fixed_2026_avg_increase_pct: 20
+      mds_increasers_delta_pp: 2.7
+      mds_increasers_start_pct: 15.3
+      mds_increasers_end_pct: 18.0
+      tail_top10_2026_increase_threshold_pct: 40
+      tail_bottom25_2026_decrease_threshold_pct: 7
+      five_year_fixed_stock_share_pct: 40
+      five_year_fixed_increasers_share_pct: 75
+    verified_at: 2026-05-13
+    vintage_label: "July 2025"
+    next_expected: null
+    cadence: "one_off"
+    cited_in:
+      - "editorial/source_cards/research/mortgage-renewal-wall.yaml"
+    notes: "Canonical reference for the 2026 payment-shock distribution."
+    verification_tier: "A"
+
+  - id: boc_fsr_2025_renewal_shock
+    title: "BoC Financial Stability Report — 2025"
+    url: "https://www.bankofcanada.ca/2025/05/financial-stability-report-2025/"
+    excerpt: "Based on current market expectations for interest rates, approximately 60% of mortgages in this group will see an increase in their payments at renewal. ... more than 90% of mortgage holders with a five-year fixed-rate mortgage will face payment increases at renewal that are smaller than they were stress-tested for."
+    currency_probe_url: "https://www.bankofcanada.ca/publications/fsr/"
+    verified_value:
+      renewers_facing_increase_share_pct: 60
+      stress_tested_buffer_share_pct: 90
+    verified_at: 2026-05-13
+    vintage_label: "May 2025"
+    next_expected: 2026-05
+    cadence: "annual"
+    cited_in:
+      - "editorial/source_cards/research/mortgage-renewal-wall.yaml"
+    notes: "FSR 2025 frames the central-case payment-shock distribution; precise 15-20% band comes from SAN 2025-21 (separate card)."
+    verification_tier: "A"
+
+  - id: statcan_lfs_release_calendar
+    title: "Statistics Canada — Labour Force Survey release schedule"
+    url: "https://www150.statcan.gc.ca/n1/dai-quo/ssi/release-publication-eng.htm?subj=8"
+    excerpt: "Labour Force Survey, April 2026 reference month released May 9, 2026. Next release: May 2026 reference month, June 6, 2026."
+    currency_probe_url: "https://www150.statcan.gc.ca/n1/dai-quo/ssi/release-publication-eng.htm?subj=8"
+    verified_value:
+      april_2026_release_date: 2026-05-09
+      may_2026_release_date: 2026-06-06
+    verified_at: 2026-05-13
+    vintage_label: "2026 LFS schedule"
+    next_expected: null
+    cadence: "annual_schedule"
+    cited_in:
+      - "editorial/source_cards/research/mortgage-renewal-wall.yaml"
+    notes: "Standard LFS release calendar."
+    verification_tier: "A"
+
+  # ===========================================================================
+  # Per-capita-output dive — primary sources
+  # ===========================================================================
+
+  - id: irpa_section_94
+    title: "Immigration and Refugee Protection Act (SC 2001, c. 27), Section 94"
+    url: "https://laws-lois.justice.gc.ca/eng/acts/I-2.5/section-94.html"
+    excerpt: "The Minister must, on or before November 1 of each year or, if a House of Parliament is not then sitting, within the next 30 days on which that House is sitting after that date, cause to be laid before each House of Parliament a report on the operation of this Act in the preceding calendar year."
+    currency_probe_url: "https://laws-lois.justice.gc.ca/eng/acts/I-2.5/"
+    verified_value:
+      tabling_deadline: "November 1"
+    verified_at: 2026-05-13
+    vintage_label: "Statute current to 2026-03-17"
+    next_expected: null
+    cadence: "statutory"
+    cited_in:
+      - "editorial/source_cards/research/per-capita-output.yaml"
+    notes: "Anchors November-cadence claim for next plan vintage."
+    verification_tier: "A"
+
+  - id: boc_sdp_2025_8_immigration_wages
+    title: "BoC Staff Discussion Paper 2025-8 — The Shift in Canadian Immigration Composition and its Effect on Wages"
+    url: "https://www.bankofcanada.ca/2025/05/staff-discussion-paper-2025-8/"
+    excerpt: "The average nominal wage gap between temporary and Canadian-born workers has more than doubled, widening from -9.5 percent to -22.6 percent. ... aggregate nominal wages would have been, on average, 0.7 percent higher in 2023-24 had the characteristics of temporary workers remained unchanged over the past decade."
+    currency_probe_url: "https://www.bankofcanada.ca/publications/staff-discussion-papers/"
+    verified_value:
+      wage_gap_2015: -9.5
+      wage_gap_2024: -22.6
+      counterfactual_wage_lift_2023_24: 0.7
+    verified_at: 2026-05-13
+    vintage_label: "May 2025"
+    next_expected: null
+    cadence: "one_off"
+    cited_in:
+      - "editorial/source_cards/research/per-capita-output.yaml"
+    notes: "Authors: Champagne, Poulin-Moore, Long."
+    verification_tier: "A"
+
+  - id: boc_san_2025_14_potential_output
+    title: "BoC Staff Analytical Note 2025-14 — Potential output in Canada: 2025 assessment"
+    url: "https://www.bankofcanada.ca/2025/06/staff-analytical-note-2025-14/"
+    excerpt: "The contribution of trend labour input (TLI) to potential output growth declines to 0.7 percentage points in 2025 and to 0.2 percentage points over 2026-27. Working-age population growth is projected to fall from 3.3 percent in 2024 to 1.2 percent in 2025 and further to 0.5 percent during 2026-2027."
+    currency_probe_url: "https://www.bankofcanada.ca/publications/staff-analytical-notes/"
+    verified_value:
+      tli_contribution_2025_pp: 0.7
+      tli_contribution_2026_27_pp: 0.2
+      wap_growth_2024: 3.3
+      wap_growth_2025: 1.2
+      wap_growth_2026_27_avg: 0.5
+    verified_at: 2026-05-13
+    vintage_label: "June 2025"
+    next_expected: 2027-06
+    cadence: "annual"
+    cited_in:
+      - "editorial/source_cards/research/per-capita-output.yaml"
+    notes: "Authors: Abraham, Brouillette, Chernoff, Hajzler, Houle, Kim, Taskin."
+    verification_tier: "A"
+
+  - id: statcan_canada_us_productivity_gap
+    title: "StatCan Economic and Social Reports — The role of firm size in the Canada-U.S. labour productivity gap since 2000"
+    url: "https://www150.statcan.gc.ca/n1/pub/36-28-0001/2025012/article/00002-eng.htm"
+    excerpt: "Canada's business-sector labour productivity level declined from 83 percent of the U.S. level in 2002 to 73 percent in 2019. Slower productivity growth in large Canadian firms contributed 0.45 percentage points to the 0.71-percentage-point annual growth gap between 2002 and 2019."
+    currency_probe_url: "https://www150.statcan.gc.ca/n1/pub/36-28-0001/2025012-eng.htm"
+    verified_value:
+      cad_productivity_pct_of_us_2002: 83
+      cad_productivity_pct_of_us_2019: 73
+      gap_pp_2019: 27
+    verified_at: 2026-05-13
+    vintage_label: "December 22, 2025"
+    next_expected: null
+    cadence: "one_off"
+    cited_in:
+      - "editorial/source_cards/research/per-capita-output.yaml"
+    notes: "Authors: Wulong Gu, Josip Lesica."
+    verification_tier: "A"
+
+  - id: statcan_release_calendar_2026
+    title: "Statistics Canada — Release schedule (major economic releases)"
+    url: "https://www150.statcan.gc.ca/n1/dai-quo/cal2-eng.htm"
+    excerpt: "Labour productivity, hourly compensation and unit labour cost, first quarter 2026 — released June 3, 2026."
+    currency_probe_url: "https://www150.statcan.gc.ca/n1/dai-quo/cal2-eng.htm"
+    verified_value:
+      productivity_q1_2026_release: "2026-06-03"
+    verified_at: 2026-05-13
+    vintage_label: "Rolling calendar"
+    next_expected: null
+    cadence: "rolling"
+    cited_in:
+      - "editorial/source_cards/research/per-capita-output.yaml"
+    notes: "Q2 2026 productivity and population dates derived from standard publication lags."
+    verification_tier: "A"
+
+  # ===========================================================================
+  # US-tariff-repricing dive — primary sources
+  # ===========================================================================
+
+  - id: eo_14193_ieepa_canada_2025
+    title: "Executive Order 14193 — Imposing Duties To Address the Flow of Illicit Drugs Across Our Northern Border"
+    url: "https://www.whitehouse.gov/fact-sheets/2025/02/fact-sheet-president-donald-j-trump-imposes-tariffs-on-imports-from-canada-mexico-and-china/"
+    excerpt: "25% additional tariff on imports from Canada and Mexico and a 10% additional tariff on imports from China. Energy resources from Canada will have a lower 10% tariff."
+    currency_probe_url: "https://www.whitehouse.gov/presidential-actions/"
+    verified_value:
+      rate_general_pct: 25
+      rate_energy_pct: 10
+      signed_date: "2025-02-01"
+      effective_date: "2025-02-04"
+    verified_at: 2026-05-13
+    vintage_label: "EO 14193 signed February 1, 2025"
+    next_expected: null
+    cadence: "amended_as_needed"
+    cited_in:
+      - "editorial/source_cards/research/us-tariff-repricing.yaml"
+      - "editorial/published/us-tariff-repricing.md"
+    notes: "USMCA-compliant goods indefinitely suspended Mar 7, 2025."
+    verification_tier: "A"
+
+  - id: eo_14193_amendment_35pct
+    title: "Amendment to Duties to Address the Flow of Illicit Drugs Across Our Northern Border"
+    url: "https://www.whitehouse.gov/presidential-actions/2025/07/amendment-to-duties-to-address-the-flow-of-illicit-drugs-across-our-northern-border-9350/"
+    excerpt: "All articles that are subject to the additional ad valorem rate of duty of 25 percent under Executive Order 14193, as amended, shall instead be subject to an additional ad valorem rate of duty of 35 percent."
+    currency_probe_url: "https://www.whitehouse.gov/presidential-actions/"
+    verified_value:
+      rate_pct: 35
+      signed_date: "2025-07-31"
+      effective_date: "2025-08-01"
+    verified_at: 2026-05-13
+    vintage_label: "EO signed July 31, 2025"
+    next_expected: null
+    cadence: "amended_as_needed"
+    cited_in:
+      - "editorial/source_cards/research/us-tariff-repricing.yaml"
+    notes: "Modifies EO 14193 rate; USMCA-compliant carve-out remains."
+    verification_tier: "A"
+
+  - id: pp_section_232_steel_alum_50pct
+    title: "Adjusting Imports of Aluminum and Steel Into the United States (Section 232 50% rate)"
+    url: "https://www.whitehouse.gov/fact-sheets/2025/06/fact-sheet-president-donald-j-trump-increases-section-232-tariffs-on-steel-and-aluminum/"
+    excerpt: "President Trump is raising the tariff on steel and aluminum imports from 25% to 50%, with the higher tariff set to go into effect on June 4, 2025."
+    currency_probe_url: "https://www.whitehouse.gov/presidential-actions/"
+    verified_value:
+      rate_pct: 50
+      prior_rate_pct: 25
+      signed_date: "2025-06-03"
+      effective_date: "2025-06-04"
+    verified_at: 2026-05-13
+    vintage_label: "Signed June 3, 2025"
+    next_expected: null
+    cadence: "amended_as_needed"
+    cited_in:
+      - "editorial/source_cards/research/us-tariff-repricing.yaml"
+      - "src/pages/trade.astro (plate-4)"
+    notes: "Single proclamation covers both steel and aluminum."
+    verification_tier: "A"
+
+  - id: pp_10908_section_232_autos
+    title: "Presidential Proclamation — Adjusting Imports of Automobiles and Automobile Parts (Section 232 25%)"
+    url: "https://www.whitehouse.gov/presidential-actions/2025/03/adjusting-imports-of-automobiles-and-autombile-parts-into-the-united-states/"
+    excerpt: "All imports of articles specified in Annex I...shall be subject to a 25 percent tariff with respect to goods entered for consumption...on or after 12:01 a.m. eastern daylight time on April 3, 2025"
+    currency_probe_url: "https://www.whitehouse.gov/presidential-actions/"
+    verified_value:
+      rate_pct: 25
+      signed_date: "2025-03-26"
+      effective_date_autos: "2025-04-03"
+      effective_date_parts: "2025-05-03"
+    verified_at: 2026-05-13
+    vintage_label: "Signed March 26, 2025"
+    next_expected: null
+    cadence: "amended_as_needed"
+    cited_in:
+      - "editorial/source_cards/research/us-tariff-repricing.yaml"
+      - "src/pages/trade.astro (plate-4)"
+    notes: "Commonly referenced as Proclamation 10908 in secondary sources. USMCA-eligible autos get a partial carve-out."
+    verification_tier: "A"
+
+  - id: pp_10976_section_232_lumber
+    title: "Proclamation 10976 — Adjusting Imports of Timber, Lumber, and their Derivative Products"
+    url: "https://www.whitehouse.gov/presidential-actions/2025/09/adjusting-imports-of-timber-lumber-and-their-derivative-products-into-the-united-states/"
+    excerpt: "softwood timber and lumber...subject to a 10 percent ad valorem duty rate...upholstered wooden products...kitchen cabinets and vanities...subject to a 25 percent ad valorem duty rate"
+    currency_probe_url: "https://www.whitehouse.gov/presidential-actions/"
+    verified_value:
+      lumber_rate_pct: 10
+      furniture_cabinets_rate_pct: 25
+      signed_date: "2025-09-29"
+      effective_date: "2025-10-14"
+    verified_at: 2026-05-13
+    vintage_label: "Proclamation 10976, September 29, 2025"
+    next_expected: null
+    cadence: "amended_as_needed"
+    cited_in:
+      - "editorial/source_cards/research/us-tariff-repricing.yaml"
+      - "src/pages/trade.astro (plate-4)"
+    notes: "10% Section 232 stacks on pre-existing AD/CVD on Canadian softwood (see fr_softwood_adcvd_prelim_2026)."
+    verification_tier: "A"
+
+  - id: pp_section_232_metals_copper_2026
+    title: "Strengthening Actions Taken to Adjust Imports of Aluminum, Steel, and Copper Into the United States"
+    url: "https://www.whitehouse.gov/presidential-actions/2026/04/strengthening-actions-taken-to-adjust-imports-of-aluminum-steel-and-copper-into-the-united-states/"
+    excerpt: "50 percent...for all aluminum and steel articles, most copper articles, and certain derivative articles of aluminum and steel, as listed in Annex I-A...applied to the full customs value of the imported product, regardless of metal content...April 6, 2026"
+    currency_probe_url: "https://www.whitehouse.gov/presidential-actions/"
+    verified_value:
+      core_rate_pct: 50
+      derivatives_rate_pct: 25
+      signed_date: "2026-04-02"
+      effective_date: "2026-04-06"
+    verified_at: 2026-05-13
+    vintage_label: "Signed April 2, 2026"
+    next_expected: null
+    cadence: "amended_as_needed"
+    cited_in:
+      - "editorial/source_cards/research/us-tariff-repricing.yaml"
+      - "src/pages/trade.astro (plate-4)"
+    notes: "De minimis 15%-metal-content carve-out for derivatives in this proclamation's annex/implementation guidance."
+    verification_tier: "A"
+
+  - id: usmca_article_34_7
+    title: "USMCA Chapter 34 (Final Provisions) — Article 34.7 Review and Term Extension"
+    url: "https://ustr.gov/sites/default/files/files/agreements/FTA/USMCA/Text/34_Final_Provisions.pdf"
+    anchor: "#article-34.7"
+    excerpt: "This Agreement shall terminate 16 years after its entry into force, unless each Party confirms it wishes to continue this Agreement for a new 16-year term...The Joint Review shall take place on the sixth anniversary of the entry into force of this Agreement."
+    currency_probe_url: "https://ustr.gov/issue-areas/agreements/usmca"
+    verified_value:
+      initial_term_years: 16
+      joint_review_anniversary: 6
+      joint_review_date: "2026-07-01"
+      sunset_year_if_no_extension: 2036
+    verified_at: 2026-05-13
+    vintage_label: "Treaty text, entry into force July 1, 2020"
+    next_expected: 2026-07-01
+    cadence: "one_off"
+    cited_in:
+      - "editorial/source_cards/research/us-tariff-repricing.yaml"
+      - "editorial/published/us-tariff-repricing.md"
+      - "src/pages/trade.astro (plate-4)"
+    notes: "Procedural details (one-month-before rule, annual-review path) in CRS R48787."
+    verification_tier: "A"
+
+  - id: boc_mpr_jan2025_in_focus_tariffs
+    title: "BoC Monetary Policy Report — In-Focus 1: Evaluating the potential impacts of US tariffs (January 2025)"
+    url: "https://www.bankofcanada.ca/publications/mpr/mpr-2025-01-29/in-focus-1/"
+    excerpt: "The United States imposes permanent tariffs of 25% on all the goods it imports, including from Canada...the United States' trading partners, including Canada, impose retaliatory tariffs of 25%...The pass-through of tariffs to prices for final goods is initially low but increases gradually over time."
+    currency_probe_url: "https://www.bankofcanada.ca/publications/mpr/"
+    verified_value:
+      us_tariff_rate_pct: 25
+      retaliation_rate_pct: 25
+      year1_growth_pct: -0.5
+      year2_growth_pct: 0.5
+      baseline_growth_pct: 2.0
+      pass_through_horizon_years: 3
+    verified_at: 2026-05-13
+    vintage_label: "MPR January 29, 2025"
+    next_expected: null
+    cadence: "quarterly"
+    cited_in:
+      - "editorial/source_cards/research/us-tariff-repricing.yaml"
+      - "editorial/published/us-tariff-repricing.md"
+    notes: "Year-1 -2.5pp differential = 2.0% baseline minus -0.5% scenario."
+    verification_tier: "A"
+
+  - id: boc_mpr_jul2025_overview
+    title: "BoC Monetary Policy Report — Overview (July 2025)"
+    url: "https://www.bankofcanada.ca/publications/mpr/mpr-2025-07-30/overview/"
+    excerpt: "When indirect taxes are excluded, inflation rose to 2.5% in June 2025 from around 2% in the second half of 2024."
+    currency_probe_url: "https://www.bankofcanada.ca/publications/mpr/"
+    verified_value:
+      core_inflation_late2024_pct: 2.0
+      core_inflation_jun2025_pct: 2.5
+    verified_at: 2026-05-13
+    vintage_label: "MPR July 30, 2025"
+    next_expected: null
+    cadence: "quarterly"
+    cited_in:
+      - "editorial/source_cards/research/us-tariff-repricing.yaml"
+    notes: "Tariff pass-through limited to date per BoC framing."
+    verification_tier: "A"
+
+  - id: boc_rate_decision_2024_06_05
+    title: "BoC FAD press release — June 5, 2024 (first cut of the easing cycle)"
+    url: "https://www.bankofcanada.ca/2024/06/fad-press-release-2024-06-05/"
+    excerpt: "The Bank of Canada today reduced its target for the overnight rate to 4¾%, with the Bank Rate at 5% and the deposit rate at 4¾%."
+    currency_probe_url: "https://www.bankofcanada.ca/press/press-releases/"
+    verified_value:
+      overnight_rate: 4.75
+      decision_date: 2024-06-05
+      action: "25 bps cut from 5.00%"
+    verified_at: 2026-05-13
+    vintage_label: "June 5, 2024 FAD"
+    next_expected: null
+    cadence: "one_off"
+    cited_in:
+      - "editorial/source_cards/research/boc-fed-divergence.yaml"
+    notes: "First BoC cut of the 2024-25 easing cycle. Three months before the Fed's first cut (Sep 18, 2024)."
+    verification_tier: "A"
+
+  - id: boc_rate_decision_2025_10_29
+    title: "BoC FAD press release — October 29, 2025 (final cut of cycle to 2.25%)"
+    url: "https://www.bankofcanada.ca/2025/10/fad-press-release-2025-10-29/"
+    excerpt: "The Bank of Canada today reduced its target for the overnight rate to 2.25%, with the Bank Rate at 2.5% and the deposit rate at 2.20%."
+    currency_probe_url: "https://www.bankofcanada.ca/press/press-releases/"
+    verified_value:
+      overnight_rate: 2.25
+      decision_date: 2025-10-29
+      action: "25 bps cut from 2.50%"
+    verified_at: 2026-05-13
+    vintage_label: "October 29, 2025 FAD"
+    next_expected: null
+    cadence: "one_off"
+    cited_in:
+      - "editorial/source_cards/research/boc-fed-divergence.yaml"
+    notes: "Final cut of the BoC easing cycle."
+    verification_tier: "A"
+
+  - id: fomc_statement_2024_09_18
+    title: "FOMC statement — September 18, 2024 (first cut of cycle, 50 bps)"
+    url: "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240918a.htm"
+    excerpt: "the Committee decided to lower the target range for the federal funds rate by 1/2 percentage point to 4-3/4 to 5 percent"
+    currency_probe_url: "https://www.federalreserve.gov/monetarypolicy/openmarket.htm"
+    verified_value:
+      target_range_low: 4.75
+      target_range_high: 5.00
+      decision_date: 2024-09-18
+      action: "50 bps cut from 5.25-5.50%"
+    verified_at: 2026-05-13
+    vintage_label: "September 18, 2024 FOMC"
+    next_expected: null
+    cadence: "one_off"
+    cited_in:
+      - "editorial/source_cards/research/boc-fed-divergence.yaml"
+    notes: "First Fed cut of cycle. Three months after BoC's June 5, 2024 first cut."
+    verification_tier: "A"
+
+  - id: fomc_statement_2025_12_17
+    title: "FOMC statement — December 17, 2025 (25 bps cut to 3.50-3.75%)"
+    url: "https://www.federalreserve.gov/newsevents/pressreleases/monetary20251217a.htm"
+    excerpt: "the Committee decided to lower the target range for the federal funds rate by 1/4 percentage point to 3-1/2 to 3-3/4 percent"
+    currency_probe_url: "https://www.federalreserve.gov/monetarypolicy/openmarket.htm"
+    verified_value:
+      target_range_low: 3.50
+      target_range_high: 3.75
+      decision_date: 2025-12-17
+      action: "25 bps cut from 3.75-4.00%"
+    verified_at: 2026-05-13
+    vintage_label: "December 17, 2025 FOMC"
+    next_expected: null
+    cadence: "one_off"
+    cited_in:
+      - "editorial/source_cards/research/boc-fed-divergence.yaml"
+    notes: "Set the current Fed funds upper bound at 3.75%."
+    verification_tier: "A"
+
+  - id: boc_fad_schedule_2026
+    title: "BoC 2026 fixed announcement date schedule"
+    url: "https://www.bankofcanada.ca/core-functions/monetary-policy/key-interest-rate/schedule-for-2026/"
+    excerpt: "2026 scheduled dates: January 28, March 18, April 29, June 10, July 15, September 2, October 28, December 9."
+    currency_probe_url: "https://www.bankofcanada.ca/core-functions/monetary-policy/key-interest-rate/"
+    verified_value:
+      dates_2026: ["2026-01-28", "2026-03-18", "2026-04-29", "2026-06-10", "2026-07-15", "2026-09-02", "2026-10-28", "2026-12-09"]
+    verified_at: 2026-05-13
+    vintage_label: "2026 calendar"
+    next_expected: 2026-11
+    cadence: "annual_schedule"
+    cited_in:
+      - "editorial/source_cards/research/boc-fed-divergence.yaml"
+    notes: "Standard 8-times-a-year cadence."
+    verification_tier: "A"
+
+  - id: boc_csce_release_schedule
+    title: "BoC Canadian Survey of Consumer Expectations — release schedule"
+    url: "https://www.bankofcanada.ca/publications/canadian-survey-of-consumer-expectations/"
+    excerpt: "Quarterly survey release schedule: Q2 typically released mid-July, Q3 in October, Q4 in January, Q1 in April."
+    currency_probe_url: "https://www.bankofcanada.ca/publications/canadian-survey-of-consumer-expectations/"
+    verified_value:
+      next_release_q2_2026: "2026-07"
+    verified_at: 2026-05-13
+    vintage_label: "Quarterly cadence"
+    next_expected: 2026-07-21
+    cadence: "quarterly"
+    cited_in:
+      - "editorial/source_cards/research/boc-fed-divergence.yaml"
+    notes: "Standard ~3-week lag from quarter-end to release."
+    verification_tier: "A"

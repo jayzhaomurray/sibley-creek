@@ -11,13 +11,13 @@
  *   02 Contributions to quarterly growth - 4-bucket streamlined
  *      (final domestic demand, trade net, inventories, total overlay)
  *   03 Services vs goods Y/Y - surface industry split
- *   04 Manufacturing vs mining and oil, indexed to Dec 2019 - the
- *      under-the-hood split, 84-month compounded divergence; the
+ *   04 Manufacturing vs mining and oil, indexed to Jan 2023 - the
+ *      under-the-hood split, 38-month divergence; the
  *      regional shadow is ON/QC vs AB/SK
  *   05 BoC MPR output gap - cyclical synthesis, slack
  *      (methodology discussion pending; future Sibley nowcast extension
  *      to land here)
- *   06 Total vs per-capita real GDP, indexed to 2019Q4 - closes on the
+ *   06 Total vs per-capita real GDP, indexed to Q4 2019 - closes on the
  *      deepest structural arc; deep-dive exit ramp to
  *      /research/per-capita-output
  *
@@ -111,17 +111,17 @@ const plates: Plate[] = [
   {
     id: "plate-3",
     number: "03",
-    indicator: "Real GDP by industry, services vs goods + manufacturing vs mining and oil",
+    indicator: "Real GDP by industry, services vs goods Y/Y + manufacturing vs mining and oil indexed to Jan 2023",
     plateIndexLabel: "Industry composite",
     asOf: "Feb 2026",
-    title: "Resources lift Canada's economy as manufacturing slips deeper into recession.",
+    title: "Resources have outrun factories by 18 percentage points since January 2023.",
     interpretationHtml:
-      "The physical economy has split in two. " +
-      "Mining and oil-and-gas output sits roughly 13% above its December 2019 level; manufacturing sits about 6% below it, a half-decade recession in the country's largest goods-producing industry. " +
-      "Services, where most Canadians work, are growing at a 1% annual pace &mdash; enough to keep the headline positive, not enough to push it.",
+      "Mining and oil-and-gas output is up roughly 12% since January 2023; manufacturing is down about 6% &mdash; an 18-point split inside the goods economy. " +
+      "Services, which employ most Canadians, are running at about 1% year-over-year. " +
+      "The divergence maps cleanly onto Canada's regional economic geography: resource provinces pulling one direction, central-Canada factory floors pulling the other.",
     callout: {
-      value: "+13%",
-      unitPrefix: "mining + oil, since Dec 2019",
+      value: "+12%",
+      unitPrefix: "mining + oil, since Jan 2023",
       delta: "Manufacturing -6%",
       direction: "neutral",
     },
@@ -129,10 +129,12 @@ const plates: Plate[] = [
     chartKey: "gdp-panel-2",
     data: panel2Data,
     citations: [
-      { phrase: "roughly 13% above its December 2019 level", source: "pipeline:statcan:36-10-0434-01", note: "Mining and oil-and-gas extraction, cumulative real GDP change since Dec 2019." },
-      { phrase: "about 6% below it", source: "pipeline:statcan:36-10-0434-01", note: "Manufacturing real GDP, cumulative since Dec 2019." },
-      { phrase: "half-decade recession", source: "derived", note: "Manufacturing real GDP has flattened or contracted every full year since 2022 per Dec-over-Dec series." },
-      { phrase: "1% annual pace", source: "pipeline:statcan:36-10-0434-01", note: "Services real GDP Y/Y, Feb 2026 = 1.055% — rounds to 1.1%, hedged as ~1%." },
+      { phrase: "January 2023", source: "derived", note: "Chart anchor date for the right-panel index. Both mining/oil and manufacturing monthly series carry a 2023-01-01 observation in StatCan 36-10-0434-01. Appears in both title and blurb." },
+      { phrase: "18 percentage points", source: "derived", note: "12.16% - (-6.12%) = 18.28pp, rounded to 18 points. Inputs: mining and oil and manufacturing cumulative changes since January 2023 from StatCan 36-10-0434-01." },
+      { phrase: "roughly 12%", source: "pipeline:statcan:36-10-0434-01", note: "Mining and oil-and-gas extraction, cumulative real GDP change Jan 2023 to Feb 2026: (0.121981 / 0.108753 - 1) * 100 = +12.16%." },
+      { phrase: "down about 6%", source: "pipeline:statcan:36-10-0434-01", note: "Manufacturing real GDP, cumulative change Jan 2023 to Feb 2026: (0.199199 / 0.212183 - 1) * 100 = -6.12%." },
+      { phrase: "18-point split", source: "derived", note: "Same calculation as 18 percentage points citation: 12.16pp - (-6.12pp) = 18.28pp." },
+      { phrase: "1% year-over-year", source: "pipeline:statcan:36-10-0434-01", note: "Services real GDP Y/Y at Feb 2026: (1.758647 / 1.740295 - 1) * 100 = 1.05%, rounded to ~1%." },
     ],
   },
   {
@@ -165,27 +167,28 @@ const plates: Plate[] = [
   {
     id: "plate-5",
     number: "05",
-    indicator: "Total vs per-capita real GDP, indexed to 2019Q4",
+    indicator: "Total vs per-capita real GDP, indexed to pre-pandemic baseline (Q4 2019)",
     plateIndexLabel: "Per capita",
-    title: "Per-capita output has barely cleared its 2019 level — the growth is people.",
+    title: "Total output is up about 11% since the pre-pandemic peak — per-capita output is barely above it.",
     interpretationHtml:
-      "Total real GDP sits about 11% above its 2019Q4 level; on a per-person basis, the gain is closer to 1%. " +
-      "The ten-point wedge is the population contribution &mdash; Canada has grown by adding workers and consumers, not by producing more per Canadian. " +
-      "See the deep dive on <a href=\"/research/per-capita-output/\">population-padded GDP</a>.",
+      "Total real GDP has grown about 11% since Q4 2019; on a per-person basis, output has risen less than 1%. " +
+      "The 10-point wedge is the population story &mdash; Canada has added nearly 3.8 million people in that span, enough to absorb almost all the headline growth without lifting living standards.",
     callout: {
       value: "+1%",
-      unit: "per-capita real GDP, cumulative since 2019Q4",
+      unitPrefix: "per-capita real GDP, since Q4 2019",
       delta: "Total +11%",
-      direction: "neutral",
+      direction: "neg",
     },
     source:
       "Statistics Canada Tables 36-10-0104-01 and 17-10-0009-01; per-capita and indexation by Sibley Creek.",
     chartKey: "gdp-panel-4",
     data: panel4Data,
     citations: [
-      { phrase: "about 11% above its 2019Q4 level", source: "pipeline:statcan:36-10-0104-01", note: "Total real GDP, cumulative since 2019Q4 = +10.94% in 2025Q4." },
-      { phrase: "the gain is closer to 1%", source: "derived", note: "Per-capita real GDP = total / population 15+. 2025Q4 = +0.94% since 2019Q4. Inputs: StatCan 36-10-0104-01 (GDP) and 17-10-0009-01 (population)." },
-      { phrase: "ten-point wedge", source: "derived", note: "11% (total) - 1% (per-capita) = 10pp." },
+      { phrase: "Q4 2019", source: "derived", note: "Chart baseline date = 2019Q4 (2019-10-01 in StatCan quarterly notation). Both GDP and population series carry this observation per StatCan 36-10-0104-01 and 17-10-0009-01." },
+      { phrase: "about 11%", source: "derived", note: "Total real GDP cumulative since 2019Q4: 2,502,165 / 2,255,354 - 1 = +10.94%. Inputs: StatCan 36-10-0104-01, 2025Q4 latest vintage. Appears in both title and blurb." },
+      { phrase: "less than 1%", source: "derived", note: "Per-capita real GDP = total / population. 2019Q4: 2,255,354e6 / 37,828,162 = 59,621 CAD/person. 2025Q4: 2,502,165e6 / 41,575,585 = 60,184 CAD/person. Change: +0.94%. Inputs: StatCan 36-10-0104-01 (GDP) and 17-10-0009-01 (population)." },
+      { phrase: "10-point wedge", source: "derived", note: "10.94% (total) - 0.94% (per-capita) = 10.0pp. Inputs: StatCan 36-10-0104-01 and 17-10-0009-01." },
+      { phrase: "3.8 million people", source: "pipeline:statcan:17-10-0009-01", note: "Population Q4 2019 = 37,828,162; Q4 2025 = 41,575,585; difference = 3,747,423 ≈ 3.8 million." },
     ],
   },
 ];

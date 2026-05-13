@@ -99,7 +99,7 @@ const plates: Plate[] = [
     plateIndexLabel: "Inventory",
     title: "Absorption is soft but has not tipped into a buyers' market.",
     interpretationHtml:
-      "The national sales-to-new-listings ratio sits at 47.6 in February 2026, up from 46.4 in January but below the 50-to-70 band CREA describes as balanced. " +
+      "The national sales-to-new-listings ratio sits at 47.6 in February 2026, up from 46.4 in January but just below the 45-to-65 band CREA describes as balanced. " +
       "The resale index has eased to 85.6, leaving Canada in a soft absorption regime rather than an outright buyers' market. " +
       "CMA-level 12-month resale counts to October 2025 point in the same direction: Toronto and Vancouver are absorbing the most volume relative to their listings overhang.",
     source:
@@ -107,11 +107,11 @@ const plates: Plate[] = [
     chartKey: "housing-panel-3",
     data: panel3Data,
     citations: [
-      { phrase: "47.6 in February 2026", source: "pipeline:boc:CREA_SNLR_CAN", note: "CREA sales-to-new-listings ratio, Canada, Feb 2026, via BoC Valet." },
-      { phrase: "46.4 in January", source: "pipeline:boc:CREA_SNLR_CAN", note: "CREA sales-to-new-listings ratio, Canada, Jan 2026, via BoC Valet." },
-      { phrase: "50-to-70 band CREA describes as balanced", source: "other:crea_snlr_balanced_band", note: "CREA's published interpretation of SNLR: 40-60 (per CREA monthly stats) is balanced; some BoC commentary uses 50-70. Treat as CREA/BoC methodology constant." },
-      { phrase: "85.6", source: "pipeline:boc:CREA_RESALE_INDEX", note: "CREA resale index, Canada, Feb 2026, via BoC Valet." },
-      { phrase: "12-month resale counts to October 2025", source: "pipeline:boc:CREA_CMA_RESALES_12M", note: "BoC Valet CMA-level CREA 12-month resale counts, vintage Oct 2025." },
+      { phrase: "47.6 in February 2026", source: "pipeline:boc:crea_snlr", note: "CREA sales-to-new-listings ratio, Canada, Feb 2026, via BoC Valet." },
+      { phrase: "46.4 in January", source: "pipeline:boc:crea_snlr", note: "CREA sales-to-new-listings ratio, Canada, Jan 2026, via BoC Valet." },
+      { phrase: "45-to-65 band CREA describes as balanced", source: "card:crea_snlr_balanced_band" },
+      { phrase: "85.6", source: "pipeline:boc:crea_mls_hpi", note: "CREA MLS Home Price Index, Canada, Feb 2026, via BoC Valet FVI_CREA_MLS_HPI_CANADA." },
+      { phrase: "12-month resale counts to October 2025", source: "derived", note: "Trailing-12-month CMA-level CREA resale counts; CMA-level data ships via CREA XLSX (pipeline.fetch.crea), not directly on BoC Valet." },
     ],
   },
   {
@@ -144,7 +144,7 @@ const plates: Plate[] = [
     interpretation:
       "The 5-year conventional mortgage rate has held at 6.09% since mid-2025, anchored by the BoC's four consecutive holds at 2.25%. " +
       "The 2020-2021 fixed-rate cohort has now mostly rolled, and the mechanical pulse on household cash flows is fading. " +
-      "The forward arrears risk has rotated to the labour channel; see the deep dive at <a href=\"/research/mortgage-renewal-wall/\">research/mortgage-renewal-wall</a> for the full decomposition.",
+      "The forward arrears risk has rotated to the labour channel.",
     source:
       "Bank of Canada Valet (V80691335, 5-year conventional mortgage rate, weekly).",
     chartKey: "housing-panel-5",
@@ -153,7 +153,7 @@ const plates: Plate[] = [
       { phrase: "6.09% since mid-2025", source: "card:boc_5y_mortgage_rate", note: "5-year conventional mortgage rate, V80691335. Held at 6.09% for at least 52 consecutive weekly observations (since 2025-05-14)." },
       { phrase: "four consecutive holds", source: "pipeline:boc:V39079", note: "BoC overnight target rate sequence; the four most recent FAD decisions have been holds. Enumerate via Valet V39079." },
       { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, current setting (May 2026), via Valet V39079." },
-      { phrase: "2020-2021 fixed-rate cohort", source: "other:boc_renewal_cohort_methodology", note: "Standard BoC SAP / SDP discussion of the five-year fixed renewal wall. Cohort identification by origination vintage." },
+      { phrase: "2020-2021 fixed-rate cohort", source: "derived", note: "Reference to the cohort of 5-year fixed mortgages originated in 2020-2021 at sub-2% rates, now rolling through renewal at the current 6.09% conventional. Prior card:boc_renewal_wall_san_2024_12 rejected; this remains a derived editorial framing pending a fresh primary source." },
     ],
   },
   {

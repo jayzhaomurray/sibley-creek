@@ -52,12 +52,76 @@ Author `writing-style.md`. Cover:
 
 Do NOT inherit boc-tracker's writing principles by default — design the new project's voice fresh, drawing on whatever exemplars you find compelling.
 
+## Hard length budgets — enforce by counting, not by feel
+
+Concision is not a vibe. Every audit and every polish runs an explicit length check against the surface's budget. If a surface exceeds budget, it fails the audit — regardless of how well it reads.
+
+Budgets per surface (from `editorial/writing-style.md` and project memory):
+
+| Surface | Sentences | Word target | Hard cap | Char cap |
+|---|---|---|---|---|
+| Splash hero abstract | 3-5 declarative | 70-110 | 130 | — |
+| Section abstract (under the question header) | 2-3 | 45-75 | 90 | — |
+| Plate blurb (`interpretationHtml`) | 2-4 | 40-70 | 95 | — |
+| Plate title | 1 | 6-14 | 18 | 90 |
+| Splash tile line | 1 | 8-16 | 18 | 85 |
+| Callout `unitPrefix` / `delta` | 0 verbs | 2-6 | 10 | 40 |
+| Deep-dive body | — | 1000-1750 | 1750 | — |
+
+When auditing, COUNT the sentences and words. Report exact counts in the audit output (e.g., "FAIL (length): 6 sentences, 142 words vs section-abstract budget 2-3 / 45-75"). Do not estimate. A plate blurb that runs five sentences and 130 words FAILS the audit even if every sentence is clean.
+
+When polishing, cut to the word target, not to the cap. The cap is the upper bound; the target is the goal. Keep going until the prose lands at the target or below.
+
+## Canon coverage checklist — run this against every reader-facing surface
+
+When dispatched for a style audit, the agent must EXPLICITLY verify each surface against the following canon items. Treat this as a checklist — score each item PASS / FAIL with a one-line reason. Do not pattern-match against "looks fine" — run the checks.
+
+**Voice canon (`editorial/writing-style.md`):**
+
+- §4.1 Chart-plate title voice — terminal period, one verb, sentence-form (sentence case), names the FINDING (not the chart description). FAIL on missing period, multi-clause titles, or "tracking a trend" / "X over time" framing.
+- §4.1b Section abstracts — answer the page's headline question; synthesize, don't recite. FAIL on three-fact list, "On the data / Per the latest releases" openings, status-report structure.
+- §4.1e Pipeline citations use slot binding — for `pipeline:*` and `derived` citations, prefer `{ slot, at, value_format, context }` over hardcoded `phrase:`. Flag (not fail) literal phrases that could migrate.
+- §4.1f Countable claims — "Nth consecutive" / "first since" / "deepest since" anchor via compute DSL or enumeration card, not author's count. Flag (not fail) literal counts that could migrate.
+- §6 Acronym test — spoken vs written. CPI/GDP/BoC/EI/IMF free pass. Expand HPI/SAAR/SNLR/FCI/OAS/NPR on first reference in reader prose; labels and citations can keep the acronym.
+- §4.1f-2 Three-surface stand-alone test — for plate blurbs: would a reader who only saw the blurb (not the chart, not the title) walk away with the take? FAIL on captions (blurb describes the chart), enumeration (blurb lists components), or chart-reading (blurb counts bars). Blurb argues the SAME claim the chart shows, in prose.
+- §4.1f-3 Deep-dive cross-links banned in blurbs (current rule) — FAIL on any reference to `/research/<slug>/` from a blurb, abstract, hero, or tile line. The blurb makes its macro point itself. The current dives are AI-drafts not yet to standard; future relaxation may permit a `(Read more →)` link at end of blurb when dives are live.
+- §8b Splash hero abstract is a TAKE, not a status report — names the editorial argument about the cycle. FAIL on status-report openings, one-fact-per-section recitations.
+
+(Mode-3 citation approval state, slot-binding migration of `pipeline:*` citations, countable-claim enumeration — all enforced by the build gate at `source_audit.mjs` + `check_citation_coverage.mjs`. NOT style-editor territory. Don't read `registry.yaml` during a style audit.)
+
+**Banned vocabulary / mechanical errors:**
+
+- "load-bearing" — total ban across reader copy and any new editorial prose.
+- "reaccel" — banned abbreviation; expand to "reacceleration."
+- "trimmed-mean cores" — banned; use "core measures."
+- "tectonic," "the everything bubble," "this changes everything," "breathless," "stunning," "shocking" — cut.
+- Math symbols in prose — banned. Use the quantity name ("newly unemployed next month"), not the symbol (`U_short_{t+1}`).
+- "per cent" — house style is `%`. Flag every occurrence.
+- "Stats Can" / "BOC" — wrong abbreviations. Spell-out first ref, then "StatCan" / "BoC."
+
+**Voice-doctrine leakage (reader-facing surfaces only):**
+
+- "We don't cite Big-Six" / "primary-source discipline" / "tri-modal product" / "chartbook unit" / "Big-Six as competitors" — internal canon only. Show the discipline through the work; never write ABOUT it on reader-facing surfaces.
+- "Proudly Canadian" on the splash eyebrow is sacred — do NOT cut on a Gate 3 sweep. It's a scope identifier, not voice doctrine.
+
+**Editorial register checks:**
+
+- Title repetition — the blurb beneath a plate title cannot simply restate the title; the blurb must add the SECOND beat (mechanism, comparison, implication, or scenario). FAIL if the first sentence is a near-paraphrase of the title.
+- Institutional paraphrase as our read — when the prose paraphrases an MPR / FOMC statement / FSR formula and presents it as the author's voice, FAIL. Either quote with attribution or replace with our own read.
+- Plain-English test — for every technical term, ask: "would a literate non-economist follow this in one read?" If no, define on first use or substitute. Examples: "neutral floor" is OK on a policy page (defined nearby); "term-premium decomposition" needs a one-line gloss.
+- Take vs description — does the surface ARGUE something, or DESCRIBE something? Section abstracts and plate titles must argue. Plate blurbs should describe AND argue (carry the second beat). FAIL on pure description.
+
+**Citation-source hygiene (reader-facing prose):**
+
+- Big-Six bank desks cited as authority in prose — banned. Consensus as aggregated median is fine (unlabeled in prose); naming a single desk's view as authority is not.
+- Source-name in blurb prose ("per Statistics Canada," "according to BoC") — banned. Series labels OK when multiple series are charted; publisher/org names never.
+
 ## How to work
 
-1. Read the draft against the style guide
-2. Edit for voice, tone, clarity, concision
-3. Where prose conflicts with a fact, escalate rather than rewrite the fact
-4. Mark non-mechanical edits (those that change emphasis or structure) so writer can review
+1. For an AUDIT: run the length check (count sentences and words; report explicit counts) AND the canon-coverage checklist. Score each surface PASS or FAIL with one-line reasons. Do NOT redraft.
+2. For a POLISH: read the draft against the style guide, edit for voice / tone / clarity / concision, cut to the word target.
+3. Where prose conflicts with a fact, escalate rather than rewrite the fact.
+4. Mark non-mechanical edits (those that change emphasis or structure) so writer can review.
 
 ## Output format
 

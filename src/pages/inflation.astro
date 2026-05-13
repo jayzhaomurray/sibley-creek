@@ -47,10 +47,9 @@ const plates: Plate[] = [
     chartKey: "inflation-panel-1",
     data: panel1Data,
     citations: [
-      { phrase: "2.3% in March", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI Y/Y, March 2026." },
-      { phrase: "2.3% year-over-year in March", source: "pipeline:statcan:18-10-0004-01" },
-      { phrase: "1.8% in February", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI Y/Y, February 2026." },
-      { phrase: "0.5-point jump", source: "derived", note: "2.3% - 1.8% = 0.5pp (Mar vs Feb 2026 headline Y/Y)." },
+      { phrase: "2.3% year-over-year in March", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI Y/Y, latest print. Future: migrate to slot:cpi_all_items_yoy@latest once check_citation_coverage understands slot resolution." },
+      { phrase: "1.8% in February", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI Y/Y, one print back. Future: migrate to slot:cpi_all_items_yoy@T-1." },
+      { phrase: "0.5-point jump", source: "derived", note: "Latest vs prior headline Y/Y month-over-month change. Future: migrate to compute: cpi_all_items_yoy@latest - cpi_all_items_yoy@T-1." },
       { phrase: "1-to-3% control band", source: "card:boc_inflation_mandate" },
       { phrase: "0.5% on the month", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI m/m, March 2026." },
       { phrase: "near 2.9%", source: "derived", note: "Three-month annualized run-rate of headline CPI through March 2026, computed from monthly index from StatCan 18-10-0004-01." },
@@ -64,7 +63,7 @@ const plates: Plate[] = [
     title: "Core measures held near target as headline reaccelerated.",
     interpretationHtml:
       "Core-trim eased to 2.2% in March and core-median held at 2.3% &mdash; both within a tenth of the 2% target and both lower than they were three months ago. " +
-      "The headline reaccel hasn't bled into the trimmed-mean cores, which is where the signal the Bank of Canada reads sits. " +
+      "The headline reacceleration hasn't bled into the core measures, which is where the signal the Bank of Canada reads sits. " +
       "Core-common, once the anchor measure, has been deprioritized in the policy frame.",
     callout: {
       value: "2.2%",
@@ -76,8 +75,8 @@ const plates: Plate[] = [
     chartKey: "inflation-panel-2",
     data: panel2Data,
     citations: [
-      { phrase: "2.2% in March", source: "pipeline:boc:STATIC_TOTALCPICOMMON_TRIM", note: "CPI-trim Y/Y, March 2026 (BoC Valet preferred-core series)." },
-      { phrase: "2.3%", source: "pipeline:boc:STATIC_TOTALCPICOMMON_MEDIAN", note: "CPI-median Y/Y, March 2026 (BoC Valet preferred-core series)." },
+      { phrase: "2.2% in March", source: "pipeline:boc:cpi_trim", note: "CPI-trim Y/Y, March 2026 (BoC Valet preferred-core series)." },
+      { phrase: "2.3%", source: "pipeline:boc:cpi_median", note: "CPI-median Y/Y, March 2026 (BoC Valet preferred-core series)." },
       { phrase: "2% target", source: "card:boc_inflation_mandate" },
     ],
   },
@@ -102,9 +101,10 @@ const plates: Plate[] = [
     data: panel3Data,
     citations: [
       { phrase: "27% of the basket runs above 3%", source: "derived", note: "Share of CPI components with Y/Y above 3.0%, March 2026; constructed from StatCan 18-10-0004-01 component-level Y/Y series." },
+      { phrase: "rising faster than 3%", source: "derived", note: "Methodology threshold for the breadth measure: share of CPI components with Y/Y above 3.0% — the upper edge of the BoC 1-3% control band." },
       { phrase: "28.0% in March", source: "derived", note: "Share of CPI basket components with Y/Y > 3%, March 2026; constructed from StatCan 18-10-0004-01." },
       { phrase: "23.0% in February", source: "derived", note: "Share of CPI basket components with Y/Y > 3%, February 2026; constructed from StatCan 18-10-0004-01." },
-      { phrase: "4.9-point move", source: "derived", note: "28.0% - 23.0% = 4.9pp (Mar vs Feb 2026 breadth share)." },
+      { phrase: "5.0-point move", source: "derived", note: "28.0% - 23.0% = 5.0pp (Mar vs Feb 2026 breadth share)." },
       { phrase: "2022 peak", source: "derived", note: "Peak share of CPI components Y/Y > 3% during the 2022 inflation episode; constructed from StatCan 18-10-0004-01 component series." },
       { phrase: "above two thirds of the basket", source: "derived", note: "2022 breadth peak exceeded ~67% of CPI components above 3% Y/Y; constructed from StatCan 18-10-0004-01." },
     ],
@@ -162,12 +162,12 @@ const plates: Plate[] = [
     chartKey: "inflation-panel-5",
     data: panel5Data,
     citations: [
-      { phrase: "3.0% in Q1", source: "other:BoC Canadian Survey of Consumer Expectations Q1 2026 — 5-year-ahead inflation-expectation median", note: "CSCE not in registry; cited from BoC CSCE Q1 2026 release." },
-      { phrase: "peak of 3.7% in mid-2025", source: "other:BoC Canadian Survey of Consumer Expectations Q2 2025 — 5-year-ahead inflation-expectation median (cycle peak)", note: "CSCE not in registry; recent-cycle peak Q2 2025 = 3.7%." },
+      { phrase: "3.0% in Q1", source: "pipeline:boc:CES_C1_LONG_TERM", note: "CSCE 5y consumer inflation expectations, Q1 2026. BoC Valet series CES_C1_LONG_TERM (slot infl_exp_consumer_5y)." },
+      { phrase: "peak of 3.7% in mid-2025", source: "pipeline:boc:CES_C1_LONG_TERM", note: "CSCE 5y series peak reading mid-2025; BoC Valet CES_C1_LONG_TERM." },
       { phrase: "above 3%", source: "card:boc_inflation_mandate", note: "Reference threshold is the upper edge of the BoC 1-3% control band." },
-      { phrase: "collapsed to 11%", source: "other:BoC Business Outlook Survey Q1 2026 — share of firms expecting CPI above 3% over the next two years", note: "BOS not in registry; firm-side share at 11% in Q1 2026." },
-      { phrase: "around 40%", source: "other:BoC Business Outlook Survey Q1 2024 — share of firms expecting CPI above 3% over the next two years", note: "BOS not in registry; firm-side share near 40% in early-2024 vintages." },
-      { phrase: "early 2024", source: "other:BoC Business Outlook Survey Q1 2024", note: "Comparison vintage for the firm-side expectations move; BOS not in registry." },
+      { phrase: "collapsed to 11%", source: "pipeline:boc:ABOVE3", note: "Share of BOS firms expecting CPI above 3%, Q1 2026. BoC Valet ABOVE3 (slot infl_exp_above3)." },
+      { phrase: "around 40%", source: "pipeline:boc:ABOVE3", note: "BOS share-above-3% peak reading, early 2024." },
+      { phrase: "early 2024", source: "pipeline:boc:ABOVE3", note: "BOS share-above-3% time anchor for the prior peak." },
       { phrase: "above 2%", source: "card:boc_inflation_mandate", note: "Reference is the 2% midpoint of the BoC inflation-control target." },
     ],
   },

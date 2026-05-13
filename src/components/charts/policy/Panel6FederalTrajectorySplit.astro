@@ -210,15 +210,19 @@ if (hasPrimary) {
     const xv = decYear(d.date);
     if (!Number.isNaN(xv)) allXvals.push(xv);
   }
-  const xMin   = allXvals.length > 0 ? Math.min(...allXvals) : 0;
-  const xMax   = allXvals.length > 0 ? Math.max(...allXvals) : 1;
+  const xMidMin = allXvals.length > 0 ? Math.min(...allXvals) : 0;
+  const xMidMax = allXvals.length > 0 ? Math.max(...allXvals) : 1;
+  // Extend domain by half a month slot on each side so every bar — including
+  // the first and last — occupies a full, identical slot within the frame.
+  const monthFrac = 1 / 12;
+  const xMin   = xMidMin - monthFrac / 2;
+  const xMax   = xMidMax + monthFrac / 2;
   const xRange = xMax - xMin || 1;
 
-  // Bar width: fraction of cell-width proportional to 1 month; leave ~1px gap
-  const monthFrac   = 1 / 12;
-  const barWidthRaw = (monthFrac / xRange) * CELL_W;
-  const BAR_GAP     = Math.min(2, barWidthRaw * 0.06);
-  const barWidth    = Math.max(2, barWidthRaw - BAR_GAP);
+  // Bar width: exactly one month slot in the padded domain, minus a small gap.
+  const slotWidth   = (monthFrac / xRange) * CELL_W;
+  const BAR_GAP     = Math.max(1, slotWidth * 0.08);
+  const barWidth    = Math.max(2, slotWidth - BAR_GAP);
 
   // Per-cell x-scales (same domain ratio, different origins)
   const xScaleA = (xv: number): number =>

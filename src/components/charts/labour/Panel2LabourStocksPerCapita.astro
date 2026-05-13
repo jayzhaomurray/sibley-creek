@@ -24,11 +24,10 @@
  *   primary   = employment_level    (StatCan v2062811, SA monthly, M)
  *   secondary = unemployment_level  (StatCan v2062814, SA monthly, M)
  *   tertiary  = employment_rate     (StatCan v2062817, SA monthly, %)
- *
- *   pop_15+[t] = employment[t] / (employment_rate[t] / 100)
+ *   extras[0] = pop_15plus          (StatCan v2062809, SA monthly, M)
  *
  *   emp_share[t]   = employment_rate[t]                          (already %)
- *   unemp_share[t] = unemployment[t] / pop_15+[t] * 100
+ *   unemp_share[t] = unemployment[t] / pop_15plus[t] * 100
  *   nilf_share[t]  = 100 − emp_share[t] − unemp_share[t]
  *
  * Source: Statistics Canada Table 14-10-0287-01 (LFS, monthly SA).
@@ -74,31 +73,34 @@ function pickStride(lo: number, hi: number, targetTicks = 4): number {
 const empRaw = data?.primary?.data ?? [];
 const unempRaw = data?.secondary?.data ?? [];
 const empRateRaw = data?.tertiary?.data ?? [];
+const pop15Raw = (data?.extras as Array<{ key: string; data: SeriesPoint[] }> | undefined)
+  ?.find((s) => s.key === "pop_15plus")?.data ?? [];
 
 const emp = tailWindow(empRaw, WINDOW_MONTHS, "monthly");
 const unemp = tailWindow(unempRaw, WINDOW_MONTHS, "monthly");
 const empRate = tailWindow(empRateRaw, WINDOW_MONTHS, "monthly");
+const pop15 = tailWindow(pop15Raw, WINDOW_MONTHS, "monthly");
 
 // ---- Derive per-capita shares ------------------------------------------
 const unempMap = new Map<string, number | null>(unemp.map((p) => [p.date, p.value]));
 const empRateMap = new Map<string, number | null>(empRate.map((p) => [p.date, p.value]));
+const pop15Map = new Map<string, number | null>(pop15.map((p) => [p.date, p.value]));
 
 const empShare: SeriesPoint[] = [];
 const unempShare: SeriesPoint[] = [];
 const nilfShare: SeriesPoint[] = [];
 
 for (const pt of emp) {
-  const e = pt.value;
   const u = unempMap.get(pt.date);
   const er = empRateMap.get(pt.date);
+  const p = pop15Map.get(pt.date);
   if (
-    typeof e === "number" && !Number.isNaN(e) &&
     typeof u === "number" && !Number.isNaN(u) &&
-    typeof er === "number" && !Number.isNaN(er) && er > 0
+    typeof er === "number" && !Number.isNaN(er) &&
+    typeof p === "number" && !Number.isNaN(p) && p > 0
   ) {
-    const pop15 = e / (er / 100);
     const empShareVal = er;
-    const unempShareVal = (u / pop15) * 100;
+    const unempShareVal = (u / p) * 100;
     const nilfShareVal = 100 - empShareVal - unempShareVal;
     empShare.push({ date: pt.date, value: empShareVal });
     unempShare.push({ date: pt.date, value: unempShareVal });
@@ -340,7 +342,7 @@ const PANE_BOUNDS = [
     </svg>
   </div>
 ) : (
-  <PanelEmpty reason="Employment level, unemployment level, and employment rate series all required for the per-capita stocks composite." />
+  <PanelEmpty reason="Unemployment level, employment rate, and population 15+ series all required for the per-capita stocks composite." />
 )}
 
 <style>

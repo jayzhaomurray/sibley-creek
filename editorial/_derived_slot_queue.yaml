@@ -1,0 +1,51 @@
+# Derived-slot materialization queue
+#
+# Every time the fact-checker has to compute a derived series ad-hoc
+# (because no slot exists in data/site/panel_data/*.json for it), the
+# agent appends an entry to this file with the aggregation rule used.
+# Backend (or user) picks items off the queue and materializes them in
+# pipeline/io/panel_data.py + pipeline/io/site_data.py.
+#
+# Once materialized: delete the entry. Next time a similar claim
+# appears, the fact-checker reads the slot value directly. No
+# re-derivation ever happens twice.
+#
+# Convergence: every ad-hoc computation gets done exactly once. The
+# system gets more deterministic with every audit cycle.
+#
+# Entry schema:
+#   slot_name:         proposed slug for the new slot (backend can rename)
+#   added_at:          ISO date the entry was logged
+#   surface:           where the claim that triggered this lives (page + plate)
+#   source_inputs:     list of raw files / panel slots the derivation reads
+#   aggregation_rule:  one-line precise description of how the value is computed
+#                      (sampling convention, alignment, units)
+#   example_values:    a few {date, value} sample points so backend can sanity-
+#                      check the materialization matches
+#   status:            pending_materialization | materialized | rejected
+
+queue:
+
+  - slot_name: boc_fed_spread_monthly
+    added_at: 2026-05-13
+    surface: policy plate-2 (BoC vs Fed policy paths)
+    source_inputs:
+      - data/raw/overnight_rate_target.csv  # BoC monthly, month-end values
+      - data/raw/fed_funds.csv               # Fed daily, target upper bound
+    aggregation_rule: >
+      For each calendar month M: take the BoC overnight rate value at month-end
+      (last row in overnight_rate_target.csv falling in M) minus the Fed funds
+      target upper-bound value at the last daily observation in M
+      (last row in fed_funds.csv falling in M). Express as bps (multiply pp by 100).
+      Use month-end alignment to avoid intra-month transient spikes between
+      sequential BoC/Fed announcement days.
+    example_values:
+      - { date: "2025-02-28", value: -150 }
+      - { date: "2025-08-31", value: -175 }
+      - { date: "2025-11-30", value: -175 }
+      - { date: "2025-12-31", value: -150 }
+      - { date: "2026-04-30", value: -150 }
+    status: materialized
+    materialized_at: 2026-05-13
+    materialized_as: data/processed/boc_fed_spread_monthly.csv
+    wired_to: policy panel-2 tertiary slot

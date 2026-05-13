@@ -6,7 +6,13 @@ version: 1
 
 # /refresh-blurbs
 
-Triggers when the user runs `/refresh-blurbs <section>` (e.g. `/refresh-blurbs labour`). Without an arg, asks which section.
+Triggers when the user runs `/refresh-blurbs <section>` (e.g. `/refresh-blurbs labour`) for a whole section, or `/refresh-blurbs <section> <surface>` for a single surface (e.g. `/refresh-blurbs gdp plate-5` for just plate-5's title + interpretation, or `/refresh-blurbs policy section-abstract` for just the abstract). Without an arg, asks which section. With only a section arg, runs the full section as below. With both args, the audit + redraft + re-gate loop runs scoped to ONLY the named surface — Phase 1 still audits with both gates, but Scope-A audit is just the one surface; Phase 2 surfaces only that result for veto; Phase 3 redrafts only that surface; Phase 3.5 re-gates only that surface; Phase 4 reports on just that surface. The rest of the section is not touched.
+
+**Valid surface tokens:**
+- `section-abstract` — the section's `blurb.body` in `sections.ts`
+- `tile-line` — the section's `tileLine` in `sections.ts`
+- `plate-1` / `plate-2` / ... / `plate-N` — the plate's title + interpretationHtml (both treated as one surface unit since they're co-edited)
+- `plate-N-title` / `plate-N-blurb` — for finer scope when only one of title or blurb needs refresh
 
 ## Phase 1 — audit
 
@@ -56,26 +62,58 @@ For each approved-flagged surface:
 
 3. After the cycle completes, the writer's draft sits in `editorial/blurbs/_cycles/<release-id>.json`. Open it, extract the drafted surface text — but **do NOT apply to the section page yet**. Proceed to Phase 3.5.
 
-## Phase 3.5 — re-gate new claims (MANDATORY, no skipping)
+## Phase 3.5 — full re-gate loop (MANDATORY, no skipping)
 
-Per `editorial/review_protocol.md` "Redraft re-gating": any new claim the writer introduces during a redraft re-enters Gate 1 before the redraft can be applied.
+Per `editorial/review_protocol.md` "Redraft re-gating": every redraft re-enters ALL THREE gates before the prose can be applied. Fact alone is not enough — the writer can fail to fix a style flag, reintroduce a banned phrase, paraphrase an MPR formula as our read, or drift to a surface-misfit register. The loop runs until every gate green on the SAME draft, or escalates to the user after N rounds.
 
-For each redrafted surface:
+For each batch of redrafted surfaces (don't re-gate one surface at a time; batch them so audits run once per round):
 
-1. Diff the new prose against the original to identify NEW numeric / dated / countable claims (e.g., "first since X", "Nth consecutive", "0.4pp above cycle low", "negative for nearly two years"). Existing claims that survived the redraft were already verified — only NEW claims need re-checking.
+### Round 1 — re-gate all three in parallel
 
-2. Dispatch `fact-checker` in audit mode, scoped to the specific new-claim list. Brief: "Verify the following new claims against `data/site/panel_data/<section>.json`. Enumerate countable claims directly from the data. Return PASS/FAIL per claim with the actual value observed."
+Dispatch concurrently:
 
-3. For each FAIL: either fix the claim using the fact-checker's correction OR cut the claim entirely if unrescuable. Repeat fact-check if the fix introduces another new claim.
+1. **Fact re-gate** (`fact-checker` audit mode). Scope: every numeric / dated / countable / comparative / framing claim in the new draft, not just claims newly introduced. The writer's "preserved" claims are usually fine — but the surrounding rewrite may have changed the semantic context (e.g., qualifier scope), so verify the full surface. Apply semantic-flexibility discipline per `.claude/agents/fact-checker.md`. Return PASS / FAIL / PASS-WITH-FLAG per surface + per claim.
 
-4. Only after **every new claim passes** Gate 1 may the redraft be applied to the section page:
-   - Plate titles → update the `title:` field in `src/pages/<section>.astro`
-   - Plate blurbs → update the `interpretationHtml:` field
-   - Section abstract / sparkline blurb → wherever they live
+2. **Style re-gate** (`style-editor` audit mode). Scope: every redrafted surface. Run the explicit length count AND the full canon-coverage checklist per `.claude/agents/style-editor.md`. Return PASS / FAIL per surface + per checklist item.
 
-5. After all regens land, run `npm run build` and report.
+3. **Surface-fit re-gate** (`editorial-director` audit mode). Scope: does this prose BELONG on THIS surface in THIS context? Cuts canon-jargon leakage, voice-doctrine leakage, template-driven placeholder slots, internal vocabulary that shouldn't be reader-facing. Return PASS / FAIL per surface.
 
-**The rule that closes the leak:** a writer's redraft is not trusted because the writer had verified inputs. The writer's job is prose; verification is the fact-checker's. Every new claim runs the gate, every time.
+### Compute the round verdict
+
+- If ALL THREE gates return PASS for a surface → that surface is GREEN, queue for apply.
+- If ANY gate returns FAIL for a surface → that surface is RED, queue for another redraft round.
+- PASS-WITH-FLAG counts as GREEN for the loop, but the flag is surfaced to the user at the end so they can override.
+
+### If any RED surfaces remain → Round 2
+
+Hand the RED surfaces back to the writer with the combined fail list from all three gates. The writer redrafts ONLY the still-red surfaces. Then re-run the three gates on the new draft.
+
+### Round cap = 3
+
+If after 3 rounds any surface is still RED, **STOP**. Do not apply. Surface the residual fail list to the user:
+
+```
+Phase 3.5 did not converge after 3 rounds for <N> surfaces:
+- plate-2 blurb: STILL FAIL (style: "load-bearing" reintroduced in round 3)
+- plate-5 blurb: STILL FAIL (fact: peak figure still wrong despite correction)
+
+Editorial decision required. Recommend manual rewrite or cut.
+```
+
+Per `feedback_audit_recommendations_need_user_veto.md`: the loop does not apply unilaterally; the user decides whether to keep working or cut the offending surface.
+
+### Apply
+
+For surfaces that converged to GREEN within the round cap:
+- Plate titles → update the `title:` field in `src/pages/<section>.astro`
+- Plate blurbs → update the `interpretationHtml:` field
+- Section abstract → `src/data/sections.ts` (the section's `blurb.body`)
+- Tile line → `src/data/sections.ts` (the section's `tileLine`)
+- Sparkline blurb → wherever it lives in `data/site/sections.json`
+
+Run `npm run build` after apply. If build fails, the gate caught something the re-gate missed — surface to user.
+
+**The rule that closes the leak:** the writer's job is prose; verification is the gates' job. Every gate runs on every redraft, every round. A redraft that fails any gate cannot ship to the page — full stop. Three rounds is the cap to prevent infinite loops; beyond that, the writer / draft / data have a deeper problem the user must adjudicate.
 
 ## Phase 4 — report
 
@@ -83,10 +121,11 @@ Tight status output:
 
 ```
 refreshed: <section>. <N> surfaces regenerated, <M> left unchanged.
-Phase 3.5 re-gate: <P> new claims PASS / <F> FAIL (fixed before apply).
+Phase 3.5 re-gate loop: <R> rounds. <G> surfaces converged GREEN, <U> escalated to user (residual flags).
 build: clean.
-- plate-2 title: updated
-- plate-3 blurb: updated
+- plate-2 title: updated (round 1)
+- plate-3 blurb: updated (round 2 — fixed "load-bearing" reintroduction)
+- plate-5 blurb: ESCALATED — see residual flags above
 ```
 
 ## Constraints

@@ -1,7 +1,7 @@
 ---
 name: pending
-description: Surface decisions made in this conversation that haven't been triggered yet, then dispatch them. Short bullet list, then fire.
-version: 1
+description: Surface decisions made in this conversation that haven't been triggered yet, then dispatch them. Also resurface open questions the user was asked but never answered. Short bullet list, then fire.
+version: 2
 ---
 
 # /pending — resurface and trigger
@@ -10,7 +10,9 @@ When the user runs `/pending`, do this. Keep it terse — bullet output, no prea
 
 ## 1. Scan the conversation
 
-Look back through the current session for:
+Two scans, two output sections.
+
+**Scan A — pending actions** (things already decided, not yet fired):
 
 - **Ratified decisions** the user made via `AskUserQuestion` answers, explicit directives ("do X", "let's do Y", "kill that and do Z"), or accepted-without-pushback proposals.
 - **Page/chart/page-order changes** the user approved (plate moves, archives to `_alternatives/`, slot renumbers, retires).
@@ -18,20 +20,38 @@ Look back through the current session for:
 - **Memory notes** the user codified that haven't been written to the memory dir yet.
 - **Edits or refactors** the user asked for but I deferred (e.g. "I'll do that after X lands").
 
-Exclude:
+Exclude from Scan A:
 
 - Work already dispatched and **still in flight** — note as `[in flight]`, do not re-fire.
 - Work already completed in this session.
-- Open editorial questions (not yet decisions).
 - Speculative ideas the user floated but didn't pick.
+
+**Scan B — pending decisions** (asks left hanging on the user):
+
+- **`AskUserQuestion` prompts** I posed where the user replied on a different track without ever picking an option.
+- **Direct questions in prose** ("which framing do you want", "OK to swap?", "should I dispatch X or Y") where the user moved on without answering.
+- **Audit menus / option lists** I surfaced for the user to select from where the user neither selected nor dismissed (e.g. "20-item swap menu — pick which to swap tomorrow").
+- **Veto windows** opened per `feedback_audit_recommendations_need_user_veto.md` that the user neither approved nor rejected.
+
+Exclude from Scan B:
+
+- Questions the user explicitly deferred ("tomorrow", "park it", "later") — still surface them, but mark `[parked: <reason>]` so the deferral is visible.
+- Questions the user implicitly answered through subsequent direction (the answer is in their next instruction).
+- Rhetorical questions or "want me to..." closers I posed that the user reasonably ignored.
 
 ## 2. Surface a tight bullet list
 
-Format, one line each, max ~20 words:
+Two sections, each one line per item, max ~20 words per line. Omit a section entirely if empty.
+
+**Pending actions:**
 
 - **<decision>** — <state: ready | blocked-by-X | in-flight> — next: <action>
 
-If nothing is pending, say so in one sentence and stop.
+**Pending decisions (awaiting user):**
+
+- **<question>** — <state: open | parked: <reason>> — needs: <what the user has to pick>
+
+If both sections are empty, say so in one sentence and stop.
 
 ## 3. Fire what's ready
 
@@ -53,6 +73,7 @@ After triggering, output:
 
 - One line per fired item: `dispatched: <description>` or `done: <description>`.
 - One line per blocked item still on hold.
+- Open-decision items are NOT fired — they surface in the bullet list above and stay there until the user picks. Do not re-ask via `AskUserQuestion` inside `/pending`; just keep them visible.
 
 End. No summary paragraph, no recap, no "let me know if you want me to..." closer.
 

@@ -24,6 +24,8 @@ const panel3Data = pickPanel(panelDataFile, 3);
 const panel4Data = pickPanel(panelDataFile, 4);
 const panel5Data = pickPanel(panelDataFile, 5);
 const panel6Data = pickPanel(panelDataFile, 6);
+const panel7Data = pickPanel(panelDataFile, 7);
+const panel8Data = pickPanel(panelDataFile, 8);
 
 const plates: Plate[] = [
   {
@@ -54,6 +56,30 @@ const plates: Plate[] = [
     id: "plate-2",
     number: "02",
     chartKey: "markets-panel-2",
+    indicator: "S&P/TSX Composite",
+    plateIndexLabel: "Equities",
+    title: "The TSX is holding above 34,000.",
+    interpretationHtml:
+      "The S&amp;P/TSX Composite closed at 33,994.87 on May 12, off slightly from 34,077.76 on May 8 and 34,138.90 in early March. " +
+      "The index has spent the past two months in a narrow band around the 34,000 line.",
+    callout: {
+      value: "33,995",
+      unitPrefix: "TSX Composite, May 12",
+      delta: "-83 d/d",
+      direction: "neutral",
+    },
+    source: "Yahoo Finance (^GSPTSE) via Sibley Creek pipeline.",
+    data: panel2Data,
+    citations: [
+      { phrase: "33,994.87 on May 12", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close, May 12, 2026, via Yahoo Finance ^GSPTSE." },
+      { phrase: "34,077.76 on May 8", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close, May 8, 2026." },
+      { phrase: "34,138.90 in early March", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close, early March 2026 (March 1 reading)." },
+    ],
+  },
+  {
+    id: "plate-3",
+    number: "03",
+    chartKey: "markets-panel-3",
     indicator: "GoC yield curve",
     plateIndexLabel: "GoC curve",
     title: "The front end has repriced on firmer inflation while the long end stayed anchored.",
@@ -69,7 +95,7 @@ const plates: Plate[] = [
     },
     source:
       "Bank of Canada Valet (BD.CDN.2YR / 5YR / 10YR / LONG.DQ.YLD).",
-    data: panel2Data,
+    data: panel3Data,
     citations: [
       { phrase: "GoC 10y sits at 3.53%", source: "pipeline:boc:yield_10yr", note: "GoC 10y benchmark yield, latest daily close." },
       { phrase: "2y at 2.94%", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, latest daily close." },
@@ -80,9 +106,39 @@ const plates: Plate[] = [
     ],
   },
   {
-    id: "plate-3",
-    number: "03",
-    chartKey: "markets-panel-3",
+    id: "plate-4",
+    number: "04",
+    chartKey: "markets-panel-4",
+    indicator: "Canada 2y minus US 2y",
+    plateIndexLabel: "GoC-UST 2y spread",
+    title: "The cross-border spread is deep but no longer the binding constraint on the BoC.",
+    interpretationHtml:
+      "GoC 2y at 2.94% against UST 2y at 3.92% leaves the Canada-US 2y spread at minus 98 bps. " +
+      "On daily data since 2001, that reading sits at the 5th percentile of the distribution -- deep, but roughly 70 bps off the all-time minus 170 bps trough reached on February 3, 2025. " +
+      "USDCAD has stayed inside a 1.36 to 1.39 range through the spring, which is why the FX channel is not currently the binding constraint on the Bank's hold.",
+    callout: {
+      value: "-98 bps",
+      unit: "Canada 2y minus US 2y",
+      delta: "5th percentile, post-2001",
+      direction: "neutral",
+    },
+    source: "BoC Valet (Canada 2y); FRED DGS2 (US 2y); distribution constructed.",
+    data: panel4Data,
+    citations: [
+      { phrase: "GoC 2y at 2.94%", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, latest daily close, via BoC Valet." },
+      { phrase: "UST 2y at 3.92%", source: "pipeline:fred:DGS2", note: "US 2y Treasury constant-maturity yield, latest daily close, FRED DGS2." },
+      { phrase: "minus 98 bps", source: "derived", note: "2.94% (GoC 2y) - 3.92% (UST 2y) = -0.98 pp = -98 bps." },
+      { phrase: "daily data since 2001", source: "pipeline:fred:DGS2", note: "FRED DGS2 history begins June 1976; Canada 2y daily history via BoC Valet covers post-2001 window used for the distribution." },
+      { phrase: "5th percentile of the distribution", source: "derived", note: "Verified 2026-05-13 against raw CSVs (data/raw/yield_2yr.csv + data/raw/us_2yr.csv): 6,219 daily observations since 2001-01-02; -98 bps sits at the 5.07th percentile. Median spread over the period = +11 bps. 5th-percentile threshold = -98 bps exactly." },
+      { phrase: "70 bps off the all-time minus 170 bps trough", source: "derived", note: "Distribution minimum reached -170 bps on Feb 3 2025; current -98 bps is ~72 bps off that floor." },
+      { phrase: "minus 170 bps trough reached on February 3, 2025", source: "derived", note: "Trough of (GoC 2y - UST 2y) daily spread series, Feb 3 2025. Sourced from pipeline yield_2yr and FRED DGS2." },
+      { phrase: "1.36 to 1.39 range", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close range across spring 2026 per BoC Valet FXUSDCAD; series traded 1.357-1.395 across March-May 2026, May 8 close 1.369." },
+    ],
+  },
+  {
+    id: "plate-5",
+    number: "05",
+    chartKey: "markets-panel-5",
     indicator: "Canadian corporate credit spreads",
     plateIndexLabel: "Credit spreads",
     asOf: "May 7, 2026",
@@ -91,15 +147,15 @@ const plates: Plate[] = [
       "Canadian investment-grade and high-yield option-adjusted spread series are not yet wired; the GoC 10y benchmark anchors the chart at 3.53%. " +
       "Spread data is the read that anchors this plate and will be added once the corporate-index feed is in place.",
     source: "Bank of Canada Valet (BD.CDN.10YR.DQ.YLD).",
-    data: panel3Data,
+    data: panel5Data,
     citations: [
       { phrase: "GoC 10y benchmark anchors the chart at 3.53%", source: "pipeline:boc:yield_10yr", note: "GoC 10y benchmark yield, latest daily close." },
     ],
   },
   {
-    id: "plate-4",
-    number: "04",
-    chartKey: "markets-panel-4",
+    id: "plate-6",
+    number: "06",
+    chartKey: "markets-panel-6",
     indicator: "WTI, Brent, and WCS oil prices",
     plateIndexLabel: "Energy",
     asOf: "May 4, 2026 (WTI, Brent); March 2026 (WCS)",
@@ -116,7 +172,7 @@ const plates: Plate[] = [
     },
     source:
       "FRED (DCOILWTICO, DCOILBRENTEU); Government of Alberta Economic Dashboard (WCS monthly).",
-    data: panel4Data,
+    data: panel6Data,
     citations: [
       { phrase: "WTI closed at US$109.76 on May 4", source: "pipeline:fred:DCOILWTICO", note: "WTI spot, May 4, 2026 daily close." },
       { phrase: "up nearly US$10", source: "derived", note: "$109.76 - $99.89 = $9.87, rounds to ~$10." },
@@ -128,9 +184,9 @@ const plates: Plate[] = [
     ],
   },
   {
-    id: "plate-5",
-    number: "05",
-    chartKey: "markets-panel-5",
+    id: "plate-7",
+    number: "07",
+    chartKey: "markets-panel-7",
     indicator: "BoC settlement balances",
     plateIndexLabel: "Bank stability",
     asOf: "May 6, 2026",
@@ -145,16 +201,16 @@ const plates: Plate[] = [
       direction: "neutral",
     },
     source: "Bank of Canada Valet (V36636).",
-    data: panel5Data,
+    data: panel7Data,
     citations: [
-      { phrase: "settlement balances at the Bank of Canada anchor the chart at $63.9 billion on May 6", source: "pipeline:boc:settlement_balances", note: "BoC settlement balances (Valet V36636), daily, May 6, 2026." },
-      { phrase: "$60 to $80 billion band that has held since late 2025", source: "pipeline:boc:settlement_balances", note: "BoC settlement balances daily series has held in a ~$60-80 bn band since late 2025; year token covered here." },
+      { phrase: "settlement balances at the Bank of Canada anchor the chart at $63.9 billion on May 6", source: "pipeline:boc:boc_settlement_balances", note: "BoC settlement balances (Valet V36636), daily, May 6, 2026." },
+      { phrase: "$60 to $80 billion band that has held since late 2025", source: "pipeline:boc:boc_settlement_balances", note: "BoC settlement balances daily series has held in a ~$60-80 bn band since late 2025; year token covered here." },
     ],
   },
   {
-    id: "plate-6",
-    number: "06",
-    chartKey: "markets-panel-6",
+    id: "plate-8",
+    number: "08",
+    chartKey: "markets-panel-8",
     indicator: "Financial conditions",
     plateIndexLabel: "FCI",
     asOf: "May 7, 2026",
@@ -164,7 +220,7 @@ const plates: Plate[] = [
       "A financial conditions composite is the read that anchors this plate and will be added once the index feed is in place.",
     source:
       "Bank of Canada Valet (BD.CDN.10YR.DQ.YLD, FXUSDCAD).",
-    data: panel6Data,
+    data: panel8Data,
     citations: [
       { phrase: "GoC 10y at 3.53%", source: "pipeline:boc:yield_10yr", note: "GoC 10y benchmark yield, latest daily close." },
       { phrase: "USDCAD at 1.3686", source: "pipeline:boc:fxusdcad", note: "USDCAD spot, latest daily close." },

@@ -1516,6 +1516,86 @@ def derive_labour_force_ex_npr() -> None:
     write_series(out, meta, DATA_PROCESSED)
 
 
+def derive_boc_fed_spread_monthly() -> None:
+    """BoC overnight-rate-target minus Fed funds target upper-bound, monthly, bps.
+
+    Aggregation rule (per editorial/_derived_slot_queue.yaml 2026-05-13):
+        For each calendar month M:
+          1. BoC value  = last row in overnight_rate_target.csv falling in M
+             (series is monthly; month-end alignment avoids intra-month
+             transients on sequential BoC/Fed announcement days).
+          2. Fed value  = last daily observation in fed_funds.csv falling in M
+             (series is daily; last trading day of month picked by groupby.last).
+          3. spread_bps = (BoC_pp - Fed_pp) * 100
+
+    Inputs:
+        data/raw/overnight_rate_target.csv  -- monthly, BoC overnight rate (%)
+        data/raw/fed_funds.csv              -- daily, Fed funds target upper bound (%)
+
+    Output:
+        data/processed/boc_fed_spread_monthly.csv
+            date, value -- month-start ISO dates, spread in basis points (signed).
+    """
+    boc_df = _read_raw("overnight_rate_target")
+    fed_df = _read_raw("fed_funds")
+    if boc_df is None or fed_df is None:
+        logger.warning(
+            "derive_boc_fed_spread_monthly skipped: missing inputs "
+            "(overnight_rate_target=%s fed_funds=%s)",
+            boc_df is not None,
+            fed_df is not None,
+        )
+        return
+
+    # Month-end last-observation alignment for both series.
+    boc_df["_ym"] = boc_df["date"].dt.to_period("M")
+    fed_df["_ym"] = fed_df["date"].dt.to_period("M")
+
+    boc_me = (
+        boc_df.sort_values("date")
+        .groupby("_ym")["value"]
+        .last()
+        .rename("boc")
+    )
+    fed_me = (
+        fed_df.sort_values("date")
+        .groupby("_ym")["value"]
+        .last()
+        .rename("fed")
+    )
+
+    merged = pd.concat([boc_me, fed_me], axis=1).dropna()
+    if merged.empty:
+        logger.warning("derive_boc_fed_spread_monthly: no overlapping months")
+        return
+
+    spread = ((merged["boc"] - merged["fed"]) * 100).rename("value")
+    # Represent each month as its month-start date (YYYY-MM-01) for consistency
+    # with the existing monthly series convention on disk.
+    out = spread.reset_index()
+    out["date"] = out["_ym"].dt.to_timestamp("s")  # 's' = start of period
+    out = out[["date", "value"]].sort_values("date").reset_index(drop=True)
+
+    meta = SeriesMeta(
+        name="boc_fed_spread_monthly",
+        source="Bank of Canada Valet API / US Federal Reserve (derived)",
+        source_url="https://www.bankofcanada.ca/valet/observations/group/INDINF_RATES/json",
+        source_id="derived: overnight_rate_target - fed_funds (upper bound)",
+        units="basis points",
+        frequency="monthly",
+        notes=(
+            "BoC overnight rate target minus Fed funds target upper bound, "
+            "expressed in basis points (pp x 100). Month-end last-observation "
+            "alignment: for BoC the monthly series has one row per month; for "
+            "Fed the daily series is sampled at the last trading day of each month. "
+            "Negative values indicate BoC rate is below Fed rate. "
+            "Derivation materialized 2026-05-13 per editorial/_derived_slot_queue.yaml."
+        ),
+        transform="boc_fed_spread_monthly: (overnight_rate_target - fed_funds) * 100",
+    )
+    write_series(out, meta, DATA_PROCESSED)
+
+
 # --------------------------------------------------------------------------- #
 # Orchestrator
 # --------------------------------------------------------------------------- #
@@ -1612,6 +1692,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     _safe("derive_current_account_views", derive_current_account_views, failed)
     _safe("derive_federal_fiscal_ytd", derive_federal_fiscal_ytd, failed)
     _safe("derive_labour_force_ex_npr", derive_labour_force_ex_npr, failed)
+    _safe("derive_boc_fed_spread_monthly", derive_boc_fed_spread_monthly, failed)
 
     # 6b) Snapshot the PRIOR vintage of data/site/* before step 7
     #     overwrites it. This feeds the diff-aware writer brief (see

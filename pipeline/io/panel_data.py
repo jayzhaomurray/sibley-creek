@@ -339,25 +339,30 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             # Same three-stocks structure as the retired Panel2LabourStocks,
             # but each series rendered as a share of pop_15+ instead of as a
             # level in millions. Three side-by-side line panels:
-            #   Employed share   = employment_rate
-            #   Unemployed share = unemployment_level / pop_15+ * 100
+            #   Employed share   = employment_rate (published directly)
+            #   Unemployed share = unemployment_level / pop_15plus * 100
             #   NILF share       = 100 - employed_share - unemployed_share
-            # pop_15+ back-derived chart-side via the LFS identity:
-            #   pop_15+[t] = employment[t] / (employment_rate[t] / 100)
+            # pop_15plus is the published StatCan series (v2062809, SA monthly,
+            # millions); no longer back-derived from employment / employment_rate.
             primary=SlotSpec("employment_level", "raw",
                              label="Employment level (SA, monthly, millions)"),
             secondary=SlotSpec("unemployment_level", "raw",
                                label="Unemployment level (SA, monthly, millions)"),
             tertiary=SlotSpec("employment_rate", "raw",
-                              label="Employment rate (SA, monthly, %); back-derives pop_15+"),
+                              label="Employment rate (SA, monthly, %)"),
+            extras=(
+                SlotSpec("pop_15plus", "raw",
+                         label="Population 15+ (SA, monthly, millions)"),
+            ),
             expected_status="WIRED",
             notes=(
-                "Three-stocks-per-capita plate. Same data inputs as the prior "
-                "Panel2LabourStocks; chart deflates each level by pop_15+ to "
-                "render shares of working-age population. The three shares "
-                "sum to 100%. Employed share equals the published employment "
-                "rate directly; unemployed share = unemp / pop_15+; NILF "
-                "share = 100 - emp_share - unemp_share."
+                "Three-stocks-per-capita plate. Chart deflates each level by "
+                "pop_15plus to render shares of working-age population. The three "
+                "shares sum to 100%. Employed share equals the published employment "
+                "rate directly; unemployed share = unemp / pop_15plus; NILF "
+                "share = 100 - emp_share - unemp_share. pop_15plus is StatCan "
+                "Table 14-10-0287-01 v2062809 (SA monthly, millions). Tertiary "
+                "slot (employment_rate) retained for reconciliation cross-check."
             ),
         ),
         PanelSpec(
@@ -563,14 +568,15 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             file="policy/Panel2MarketPath.astro",
             primary=SlotSpec("yield_2yr", "raw", label="GoC 2-yr yield"),
             secondary=SlotSpec("overnight_rate_daily", "raw", label="Overnight rate"),
+            tertiary=SlotSpec(
+                "boc_fed_spread_monthly", "processed",
+                label="BoC-Fed spread (bps, monthly)",
+                unit_override="basis points",
+            ),
         ),
-        PanelSpec(
-            panel_id="panel-3", section="policy", panel_num=3,
-            file="policy/Panel3BoCFedSpread.astro",
-            primary=SlotSpec("yield_2yr", "raw", label="Canada 2y"),
-            secondary=SlotSpec("us_2yr", "raw", label="US 2y"),
-            notes="Spread = Canada 2y - US 2y. Chart-builder joins on date and converts to bp.",
-        ),
+        # panel-3 (Canada 2y - US 2y spread) relocated to markets section per
+        # editorial reorder 2026-05-13. Slot intentionally vacant to preserve
+        # downstream panel numbering (chartRegistry / .astro pickPanel calls).
         PanelSpec(
             panel_id="panel-4", section="policy", panel_num=4,
             file="policy/Panel4BalanceSheet.astro",
@@ -643,6 +649,12 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         ),
         PanelSpec(
             panel_id="panel-2", section="markets", panel_num=2,
+            file="markets/Panel2Equities.astro",
+            primary=SlotSpec("tsx_composite", "raw", label="S&P/TSX Composite"),
+            notes="S&P/TSX Composite daily close. Yahoo Finance ^GSPTSE. Added 2026-05-13 per editorial directive.",
+        ),
+        PanelSpec(
+            panel_id="panel-3", section="markets", panel_num=3,
             file="markets/Panel2GoCCurve.astro",
             primary=SlotSpec("yield_2yr", "raw", label="GoC 2y"),
             secondary=SlotSpec("yield_5yr", "raw", label="GoC 5y"),
@@ -652,14 +664,21 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             ),
         ),
         PanelSpec(
-            panel_id="panel-3", section="markets", panel_num=3,
+            panel_id="panel-4", section="markets", panel_num=4,
+            file="markets/Panel3CanadaUS2ySpread.astro",
+            primary=SlotSpec("yield_2yr", "raw", label="Canada 2y"),
+            secondary=SlotSpec("us_2yr", "raw", label="US 2y"),
+            notes="Spread = Canada 2y - US 2y. Chart-builder joins on date and converts to bp.",
+        ),
+        PanelSpec(
+            panel_id="panel-5", section="markets", panel_num=5,
             file="markets/Panel3CreditSpreads.astro",
             primary=SlotSpec("yield_10yr", "raw", label="GoC 10y (proxy denominator)"),
             expected_status="MISSING",
             notes="Panel expects IG OAS bp and HY OAS bp (Canada IG/HY indices). Both MISSING -- need FTSE Canada Universe Corporate OAS or ICE BofA Canada series (licensed; M/L effort). FRED publishes US BAMLC0A0CM and BAMLH0A0HYM2 OAS daily; could proxy as v1 fallback (M).",
         ),
         PanelSpec(
-            panel_id="panel-4", section="markets", panel_num=4,
+            panel_id="panel-6", section="markets", panel_num=6,
             file="markets/Panel4Energy.astro",
             primary=SlotSpec("wti", "raw", label="WTI"),
             secondary=SlotSpec("brent", "raw", label="Brent"),
@@ -669,14 +688,14 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             ),
         ),
         PanelSpec(
-            panel_id="panel-5", section="markets", panel_num=5,
+            panel_id="panel-7", section="markets", panel_num=7,
             file="markets/Panel5BankStability.astro",
             primary=SlotSpec("boc_settlement_balances", "raw", label="Settlement balances (system liquidity proxy)"),
             expected_status="MISSING",
             notes="Panel expects Big-Six PCL build and avg CET1 ratio (quarterly bank earnings). Both MISSING -- need OSFI / per-bank disclosure or manual fixture (M/L).",
         ),
         PanelSpec(
-            panel_id="panel-6", section="markets", panel_num=6,
+            panel_id="panel-8", section="markets", panel_num=8,
             file="markets/Panel6FCI.astro",
             primary=SlotSpec("yield_10yr", "raw", label="GoC 10y (proxy for FCI)"),
             secondary=SlotSpec("usdcad", "raw", label="USDCAD spot"),

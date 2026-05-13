@@ -112,10 +112,180 @@ main {
 .claim:hover {
   background: #fff299;
 }
+.claim-pending {
+  background: #ffe5a0;
+  border-bottom: 2px solid #c83a00;
+}
+.claim-pending:hover {
+  background: #ffd680;
+}
+.claim-anchor {
+  color: inherit;
+  text-decoration: none;
+}
+.ledger-ref-link {
+  text-decoration: none;
+}
+.ledger-ref-link:hover .ledger-ref {
+  filter: brightness(1.1);
+  outline: 2px solid #006699;
+}
+/* Flash the target when the user clicks a cross-link, both directions. */
+.claim:target,
+.claim-pending:target {
+  animation: flash-yellow 1.5s ease-out;
+  scroll-margin-top: 80px;
+}
+.ledger-item:target {
+  animation: flash-blue 1.5s ease-out;
+  scroll-margin-top: 80px;
+}
+@keyframes flash-yellow {
+  0% { background: #ff8c00; outline: 3px solid #ff8c00; outline-offset: 2px; }
+  100% { background: inherit; outline: none; }
+}
+@keyframes flash-blue {
+  0% { background: #b3d9ff; outline: 3px solid #006699; outline-offset: 2px; }
+  100% { background: inherit; outline: none; }
+}
+.verify-toolbar {
+  background: #fbe8e8;
+  border: 1px solid #c83a00;
+  padding: 12px 16px;
+  margin-top: 14px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.verify-toolbar .nav-btn {
+  background: white;
+  color: #c83a00;
+  border: 1px solid #c83a00;
+  padding: 6px 12px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  margin-right: 6px;
+}
+.verify-toolbar .nav-btn:hover { background: #c83a00; color: white; }
+.verify-toolbar-counts { line-height: 1.5; }
+.verify-toolbar-counts .amber { color: #c83a00; font-weight: 600; }
+.verify-toolbar-counts .green { color: #2a7a30; font-weight: 600; }
+.verify-toolbar-counts .red { color: #c33; font-weight: 600; }
+.export-btn {
+  background: #006699;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.export-btn:hover { background: #00557e; }
+.export-btn:disabled { background: #888; cursor: not-allowed; }
+.export-toast {
+  font-size: 12px;
+  color: #2a7a30;
+  font-weight: 600;
+  margin-left: 8px;
+  display: none;
+}
+.export-toast.show { display: inline; }
+.ledger-item-pending {
+  border-left: 4px solid #c83a00;
+  padding-left: 8px;
+  background: #fff7e6;
+  margin-top: 8px;
+}
+.ledger-item-pending.decision-approve { border-left-color: #2a7a30; background: #f0f8f0; }
+.ledger-item-pending.decision-reject { border-left-color: #c33; background: #fbe8e8; }
+.ledger-item-pending.flash-target {
+  animation: flash-amber 1.5s ease-out;
+}
+@keyframes flash-amber {
+  0% { background: #ff8c00; outline: 3px solid #ff8c00; outline-offset: 2px; }
+  100% { background: #fff7e6; outline: none; }
+}
+.pending-decision-block { margin-top: 10px; }
+.pending-values, .pending-triangulation, .pending-card-notes {
+  margin: 8px 0;
+  font-size: 12px;
+}
+.pending-triangulation.muted { color: #888; font-style: italic; }
+.secondaries { list-style: none; padding: 0; margin: 4px 0 0 0; }
+.secondary { padding: 6px 8px; background: #f8f7ec; border-left: 2px solid #999; margin-bottom: 4px; font-size: 12px; }
+.secondary-credibility { font-size: 11px; color: #555; margin-top: 2px; }
+.secondary-excerpt { margin: 4px 0 0 0; padding: 4px 8px; background: white; font-style: italic; color: #444; font-size: 11px; line-height: 1.4; }
+.verified-values { list-style: none; padding: 0; margin: 4px 0; }
+.verified-values li { padding: 3px 6px; background: #f3f3ef; margin-bottom: 2px; font-family: var(--font-mono, monospace); font-size: 11px; }
+.verified-values code { background: transparent; font-size: 10px; color: #444; }
+fieldset.decision {
+  border: 1px solid #c83a00;
+  padding: 10px 14px;
+  margin-top: 8px;
+  background: white;
+}
+fieldset.decision legend {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #c83a00;
+  padding: 0 6px;
+}
+fieldset.decision label {
+  display: block;
+  margin: 4px 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+fieldset.decision label input { margin-right: 6px; }
+.comment-row { margin-top: 8px; }
+.comment-row label { font-size: 10px; color: #555; }
+.comment-row textarea {
+  width: 100%;
+  font-family: Georgia, serif;
+  font-size: 11px;
+  padding: 4px 6px;
+  border: 1px solid #c8c0a0;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.claim-fuzzy {
+  /* Fuzzy match — same yellow as a literal phrase match, but with a dashed
+     underline to flag that the citation's phrase: didn't match verbatim and
+     the sidecar should be tightened on the next editorial pass. */
+  border-bottom-style: dashed;
+}
 .claim-sup {
   color: #b07b00;
   font-weight: 700;
   font-size: 0.8em;
+  margin-left: 1px;
+}
+.claim-uncovered {
+  /* No citation matches this token at all — true gap. The audit page surfaces
+     it so the user can either tighten a sidecar phrase or add a new citation. */
+  background: #fbe8e8;
+  padding: 1px 2px;
+  border-bottom: 2px solid #c33;
+  cursor: help;
+}
+.claim-uncovered-sup {
+  color: #c33;
+  font-weight: 700;
+  font-size: 0.85em;
   margin-left: 1px;
 }
 aside.ledger {
@@ -171,6 +341,43 @@ aside.ledger h2 {
   margin: 4px 0;
 }
 .ledger-source-label { font-weight: 600; color: #222; font-size: 12px; }
+.tier-badge {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  margin-left: 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.tier-pipeline { background: #2a7a30; color: white; }
+.tier-a { background: #2a7a30; color: white; }
+.tier-b { background: #b07b00; color: white; }
+.tier-c { background: #c47000; color: white; }
+.tier-mode3 { background: #8a3a4a; color: white; }
+.tier-pending { background: #c33; color: white; }
+.tier-untagged { background: #777; color: white; }
+.tier-error { background: #c33; color: white; }
+.tier-other { background: #888; color: white; font-style: italic; }
+.no-inline-match {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  margin-left: 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+  background: #c33;
+  color: white;
+  cursor: help;
+}
 .ledger-excerpt {
   margin: 6px 0;
   padding: 8px 10px;
@@ -284,6 +491,46 @@ footer.audit-foot {
   font-style: italic;
   margin-top: 4px;
 }
+.tile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 32px;
+}
+.tile {
+  border: 1px solid #ddd;
+  padding: 16px;
+  background: #fbfaf5;
+}
+.tile-section-label {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 6px;
+}
+.tile-line {
+  font-size: 15px;
+  line-height: 1.5;
+  color: #222;
+}
+.dive-body {
+  font-size: 16px;
+  line-height: 1.65;
+  color: #222;
+}
+.dive-body h1, .dive-body h2, .dive-body h3 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  color: #111;
+  margin-top: 32px;
+}
+.dive-body h1 { font-size: 22px; }
+.dive-body h2 { font-size: 18px; }
+.dive-body h3 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.1em; color: #444; }
+.dive-body p { margin: 12px 0; }
+.dive-body ul, .dive-body ol { margin: 12px 0; padding-left: 24px; }
+.dive-body code { font-family: var(--font-mono, monospace); font-size: 0.92em; background: #f0efe8; padding: 1px 4px; }
 </style>
 </head>
 <body>
@@ -298,15 +545,16 @@ footer.audit-foot {
       
       <div class="freshness">
         <span class="freshness-label">Pipeline run:</span>
-        <span class="freshness-stamp">2026-05-13T02:54:04.495412+00:00</span>
+        <span class="freshness-stamp">2026-05-13T16:40:32.327751+00:00</span>
         <span class="freshness-meta">7 panels</span>
         <span class="freshness-hint">Pipeline-tagged claims read the value as of this run. Click any source link to verify against the live upstream page.</span>
       </div>
+      
     </header>
     <main>
       <div class="section-label">Section abstract <button class="edit-btn" onclick="document.getElementById('edit-abstract').classList.toggle('open')">✎ Propose edit</button></div>
       <h2 class="headline-q">Is the rate-sensitive sector amplifying or dampening policy?</h2>
-      <div class="abstract">Home prices <span class="claim" data-ref="1">fell 4.6% Y/Y on the MLS HPI<sup class="claim-sup">[1]</sup></span> in the latest print, per the Canadian Real Estate Association, a tenth shallower than the prior month but now <span class="claim" data-ref="2">two years into negative territory<sup class="claim-sup">[2]</sup></span>. Housing starts on a 3mma basis stepped down to <span class="claim" data-ref="3">241k from 257k<sup class="claim-sup">[3]</sup></span>, per Canada Mortgage and Housing Corporation. Affordability held at <span class="claim" data-ref="4">42.7% of household income in Q4 2025<sup class="claim-sup">[4]</sup></span>, half a point easier on continued mortgage-cost relief.</div>
+      <div class="abstract">Home prices <span class="claim" id="ref-1" data-ref="1"><a href="#ledger-1" class="claim-anchor">fell 4.6% Y/Y on the MLS HPI<sup class="claim-sup">[1]</sup></a></span> in the latest print, per the Canadian Real Estate Association, a tenth shallower than the prior month but now <span class="claim" id="ref-2" data-ref="2"><a href="#ledger-2" class="claim-anchor">two years into negative territory<sup class="claim-sup">[2]</sup></a></span>. Housing starts on a 3mma basis stepped down to <span class="claim" id="ref-3" data-ref="3"><a href="#ledger-3" class="claim-anchor">241k from 257k<sup class="claim-sup">[3]</sup></a></span>, per Canada Mortgage and Housing Corporation. Affordability held at <span class="claim" id="ref-4" data-ref="4"><a href="#ledger-4" class="claim-anchor">42.7% of household income in Q4 2025<sup class="claim-sup">[4]</sup></a></span>, half a point easier on continued mortgage-cost relief.</div>
       
     <div class="edit-form" id="edit-abstract">
       <label>Title (current)</label>
@@ -326,7 +574,7 @@ footer.audit-foot {
         <div class="plate-number">01 · Prices</div>
         <h3 class="plate-title">The national price decline masks a widening split between Toronto-Vancouver and Montreal. <button class="edit-btn" onclick="document.getElementById('edit-plate-0').classList.toggle('open')">✎ Propose edit</button></h3>
         <div class="plate-meta">MLS HPI, national + six CMAs, Y/Y</div>
-        <div class="plate-blurb">National home prices sat at <span class="claim" data-ref="1">-4.6% Y/Y<sup class="claim-sup">[1]</sup></span> on the MLS HPI in <span class="claim" data-ref="2">March 2026<sup class="claim-sup">[2]</sup></span>, now <span class="claim" data-ref="3">two years into negative territory<sup class="claim-sup">[3]</sup></span>. <span class="claim" data-ref="4">Toronto (-7.2%)<sup class="claim-sup">[4]</sup></span> and <span class="claim" data-ref="5">Vancouver (-6.8%)<sup class="claim-sup">[5]</sup></span> lead the decline; Calgary, Ottawa, and Edmonton sit between <span class="claim" data-ref="6">-1.9 and -2.9%<sup class="claim-sup">[6]</sup></span>; <span class="claim" data-ref="7">Montreal alone runs positive at +4.9%<sup class="claim-sup">[7]</sup></span>. The composite read masks a widening CMA dispersion.</div>
+        <div class="plate-blurb">National home prices sat at <span class="claim" id="ref-5" data-ref="5"><a href="#ledger-5" class="claim-anchor">-4.6% Y/Y<sup class="claim-sup">[5]</sup></a></span> on the MLS HPI in <span class="claim" id="ref-6" data-ref="6"><a href="#ledger-6" class="claim-anchor">March 2026<sup class="claim-sup">[6]</sup></a></span>, now <span class="claim" id="ref-7" data-ref="7"><a href="#ledger-7" class="claim-anchor">two years into negative territory<sup class="claim-sup">[7]</sup></a></span>. <span class="claim" id="ref-8" data-ref="8"><a href="#ledger-8" class="claim-anchor">Toronto (-7.2%)<sup class="claim-sup">[8]</sup></a></span> and <span class="claim" id="ref-9" data-ref="9"><a href="#ledger-9" class="claim-anchor">Vancouver (-6.8%)<sup class="claim-sup">[9]</sup></a></span> lead the decline; Calgary, Ottawa, and Edmonton sit between <span class="claim" id="ref-10" data-ref="10"><a href="#ledger-10" class="claim-anchor">-1.9 and -2.9%<sup class="claim-sup">[10]</sup></a></span>; <span class="claim" id="ref-11" data-ref="11"><a href="#ledger-11" class="claim-anchor">Montreal alone runs positive at +4.9%<sup class="claim-sup">[11]</sup></a></span>. The composite read masks a widening CMA dispersion.</div>
         <div class="plate-source-line">CREA MLS HPI national + six-CMA bulk file (April 2026 release).</div>
         
     <div class="edit-form" id="edit-plate-0">
@@ -347,14 +595,14 @@ footer.audit-foot {
         <div class="plate-number">02 · Activity</div>
         <h3 class="plate-title">The completions pipeline, not new starts, is now carrying supply. <button class="edit-btn" onclick="document.getElementById('edit-plate-1').classList.toggle('open')">✎ Propose edit</button></h3>
         <div class="plate-meta">Starts, units under construction, residential permits · Mar 2026 (starts) / Feb 2026 (permits)</div>
-        <div class="plate-blurb"></div>
+        <div class="plate-blurb">Housing starts came in at <span class="claim" id="ref-12" data-ref="12"><a href="#ledger-12" class="claim-anchor">235.9K annualized in March 2026<sup class="claim-sup">[12]</sup></a></span>, down from <span class="claim" id="ref-13" data-ref="13"><a href="#ledger-13" class="claim-anchor">251.0K in February<sup class="claim-sup">[13]</sup></a></span> and below the <span class="claim" id="ref-14" data-ref="14"><a href="#ledger-14" class="claim-anchor">2021-2023 average<sup class="claim-sup">[14]</sup></a></span>. Units under construction held near <span class="claim" id="ref-15" data-ref="15"><a href="#ledger-15" class="claim-anchor">246K annualized (January)<sup class="claim-sup">[15]</sup></a></span>, keeping the completions pipeline elevated relative to the pre-<span class="claim-uncovered">2020<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> norm. Residential permits ran at <span class="claim" id="ref-16" data-ref="16"><a href="#ledger-16" class="claim-anchor">$8.13 billion in February<sup class="claim-sup">[16]</sup></a></span>, modestly above January and consistent with starts stabilizing rather than rolling over further.</div>
         <div class="plate-source-line">Statistics Canada Table 34-10-0158 (starts and units under construction); Statistics Canada Table 34-10-0292 (building permits).</div>
         
     <div class="edit-form" id="edit-plate-1">
       <label>Title (current)</label>
       <input type="text" data-field="title" value="The completions pipeline, not new starts, is now carrying supply." />
       <label>Blurb (current)</label>
-      <textarea data-field="body"></textarea>
+      <textarea data-field="body">Housing starts came in at 235.9K annualized in March 2026, down from 251.0K in February and below the 2021-2023 average. Units under construction held near 246K annualized (January), keeping the completions pipeline elevated relative to the pre-2020 norm. Residential permits ran at $8.13 billion in February, modestly above January and consistent with starts stabilizing rather than rolling over further.</textarea>
       <label>Reason for the change</label>
       <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
       <div class="row">
@@ -368,14 +616,14 @@ footer.audit-foot {
         <div class="plate-number">03 · Inventory</div>
         <h3 class="plate-title">Absorption is soft but has not tipped into a buyers' market. <button class="edit-btn" onclick="document.getElementById('edit-plate-2').classList.toggle('open')">✎ Propose edit</button></h3>
         <div class="plate-meta">Sales-to-new-listings ratio, Canada</div>
-        <div class="plate-blurb">The national sales-to-new-listings ratio sits at <span class="claim" data-ref="1">47.6 in February 2026<sup class="claim-sup">[1]</sup></span>, up from <span class="claim" data-ref="2">46.4 in January<sup class="claim-sup">[2]</sup></span> but below the <span class="claim" data-ref="3">50-to-70 band CREA describes as balanced<sup class="claim-sup">[3]</sup></span>. The resale index has eased to <span class="claim" data-ref="4">85.6<sup class="claim-sup">[4]</sup></span>, leaving Canada in a soft absorption regime rather than an outright buyers' market. CMA-level <span class="claim" data-ref="5">12-month resale counts to October 2025<sup class="claim-sup">[5]</sup></span> point in the same direction: Toronto and Vancouver are absorbing the most volume relative to their listings overhang.</div>
+        <div class="plate-blurb">The national sales-to-new-listings ratio sits at <span class="claim" id="ref-17" data-ref="17"><a href="#ledger-17" class="claim-anchor">47.6 in February 2026<sup class="claim-sup">[17]</sup></a></span>, up from <span class="claim" id="ref-18" data-ref="18"><a href="#ledger-18" class="claim-anchor">46.4 in January<sup class="claim-sup">[18]</sup></a></span> but just below the <span class="claim" id="ref-19" data-ref="19"><a href="#ledger-19" class="claim-anchor">45-to-65 band CREA describes as balanced<sup class="claim-sup">[19]</sup></a></span>. The resale index has eased to <span class="claim" id="ref-20" data-ref="20"><a href="#ledger-20" class="claim-anchor">85.6<sup class="claim-sup">[20]</sup></a></span>, leaving Canada in a soft absorption regime rather than an outright buyers' market. CMA-level <span class="claim" id="ref-21" data-ref="21"><a href="#ledger-21" class="claim-anchor">12-month resale counts to October 2025<sup class="claim-sup">[21]</sup></a></span> point in the same direction: Toronto and Vancouver are absorbing the most volume relative to their listings overhang.</div>
         <div class="plate-source-line">Bank of Canada Valet (CREA sales-to-new-listings and resale index); CMA-level 12-month resale counts via BoC Valet.</div>
         
     <div class="edit-form" id="edit-plate-2">
       <label>Title (current)</label>
       <input type="text" data-field="title" value="Absorption is soft but has not tipped into a buyers' market." />
       <label>Blurb (current)</label>
-      <textarea data-field="body">The national sales-to-new-listings ratio sits at 47.6 in February 2026, up from 46.4 in January but below the 50-to-70 band CREA describes as balanced. The resale index has eased to 85.6, leaving Canada in a soft absorption regime rather than an outright buyers' market. CMA-level 12-month resale counts to October 2025 point in the same direction: Toronto and Vancouver are absorbing the most volume relative to their listings overhang.</textarea>
+      <textarea data-field="body">The national sales-to-new-listings ratio sits at 47.6 in February 2026, up from 46.4 in January but just below the 45-to-65 band CREA describes as balanced. The resale index has eased to 85.6, leaving Canada in a soft absorption regime rather than an outright buyers' market. CMA-level 12-month resale counts to October 2025 point in the same direction: Toronto and Vancouver are absorbing the most volume relative to their listings overhang.</textarea>
       <label>Reason for the change</label>
       <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
       <div class="row">
@@ -389,14 +637,14 @@ footer.audit-foot {
         <div class="plate-number">04 · Rent</div>
         <h3 class="plate-title">Rents are no longer rising; the level is now adjusting downward. <button class="edit-btn" onclick="document.getElementById('edit-plate-3').classList.toggle('open')">✎ Propose edit</button></h3>
         <div class="plate-meta">CPI rent and rented accommodation, Y/Y</div>
-        <div class="plate-blurb"></div>
+        <div class="plate-blurb">CPI rent decelerated to <span class="claim" id="ref-22" data-ref="22"><a href="#ledger-22" class="claim-anchor">0.9% Y/Y in March 2026<sup class="claim-sup">[22]</sup></a></span>, the <span class="claim" id="ref-23" data-ref="23"><a href="#ledger-23" class="claim-anchor">slowest reading since the 2020-2021 demand vacuum<sup class="claim-sup">[23]</sup></a></span>. The rented-accommodation sub-series fell <span class="claim" id="ref-24" data-ref="24"><a href="#ledger-24" class="claim-anchor">-2.5% Y/Y<sup class="claim-sup">[24]</sup></a></span>, an outright price decline driven by the unwind of the <span class="claim" id="ref-25" data-ref="25"><a href="#ledger-25" class="claim-anchor">2023-2024 newcomer-flow surge<sup class="claim-sup">[25]</sup></a></span>. The CMHC Rental Market Survey vacancy print remains the levels anchor; the CPI velocity says the level is now adjusting downward.</div>
         <div class="plate-source-line">Statistics Canada Table 18-10-0004-01, CPI rent (v41691074) and rented accommodation (v41691073).</div>
         
     <div class="edit-form" id="edit-plate-3">
       <label>Title (current)</label>
       <input type="text" data-field="title" value="Rents are no longer rising; the level is now adjusting downward." />
       <label>Blurb (current)</label>
-      <textarea data-field="body"></textarea>
+      <textarea data-field="body">CPI rent decelerated to 0.9% Y/Y in March 2026, the slowest reading since the 2020-2021 demand vacuum. The rented-accommodation sub-series fell -2.5% Y/Y, an outright price decline driven by the unwind of the 2023-2024 newcomer-flow surge. The CMHC Rental Market Survey vacancy print remains the levels anchor; the CPI velocity says the level is now adjusting downward.</textarea>
       <label>Reason for the change</label>
       <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
       <div class="row">
@@ -410,14 +658,14 @@ footer.audit-foot {
         <div class="plate-number">05 · Mortgage stack</div>
         <h3 class="plate-title">The renewal wall has peaked, with the residual risk rotating to the labour channel. <button class="edit-btn" onclick="document.getElementById('edit-plate-4').classList.toggle('open')">✎ Propose edit</button></h3>
         <div class="plate-meta">5-year conventional mortgage rate</div>
-        <div class="plate-blurb"></div>
+        <div class="plate-blurb">The 5-year conventional mortgage rate has held at <span class="claim" id="ref-26" data-ref="26"><a href="#ledger-26" class="claim-anchor">6.09% since mid-2025<sup class="claim-sup">[26]</sup></a></span>, anchored by the BoC's <span class="claim" id="ref-27" data-ref="27"><a href="#ledger-27" class="claim-anchor">four consecutive holds<sup class="claim-sup">[27]</sup></a></span> at <span class="claim" id="ref-28" data-ref="28"><a href="#ledger-28" class="claim-anchor">2.25%<sup class="claim-sup">[28]</sup></a></span>. The <span class="claim" id="ref-29" data-ref="29"><a href="#ledger-29" class="claim-anchor">2020-2021 fixed-rate cohort<sup class="claim-sup">[29]</sup></a></span> has now mostly rolled, and the mechanical pulse on household cash flows is fading. The forward arrears risk has rotated to the labour channel.</div>
         <div class="plate-source-line">Bank of Canada Valet (V80691335, 5-year conventional mortgage rate, weekly).</div>
         
     <div class="edit-form" id="edit-plate-4">
       <label>Title (current)</label>
       <input type="text" data-field="title" value="The renewal wall has peaked, with the residual risk rotating to the labour channel." />
       <label>Blurb (current)</label>
-      <textarea data-field="body"></textarea>
+      <textarea data-field="body">The 5-year conventional mortgage rate has held at 6.09% since mid-2025, anchored by the BoC's four consecutive holds at 2.25%. The 2020-2021 fixed-rate cohort has now mostly rolled, and the mechanical pulse on household cash flows is fading. The forward arrears risk has rotated to the labour channel.</textarea>
       <label>Reason for the change</label>
       <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
       <div class="row">
@@ -431,14 +679,14 @@ footer.audit-foot {
         <div class="plate-number">06 · Supply ratio</div>
         <h3 class="plate-title">Supply is finally running ahead of incremental population-driven demand. <button class="edit-btn" onclick="document.getElementById('edit-plate-5').classList.toggle('open')">✎ Propose edit</button></h3>
         <div class="plate-meta">Immigrant flow proxy and housing starts</div>
-        <div class="plate-blurb"></div>
+        <div class="plate-blurb">Quarterly immigrant arrivals fell to <span class="claim" id="ref-30" data-ref="30"><a href="#ledger-30" class="claim-anchor">83,168 in Q4 2025<sup class="claim-sup">[30]</sup></a></span>, down from <span class="claim" id="ref-31" data-ref="31"><a href="#ledger-31" class="claim-anchor">102,867 in Q3<sup class="claim-sup">[31]</sup></a></span> and well below the <span class="claim" id="ref-32" data-ref="32"><a href="#ledger-32" class="claim-anchor">2022-2024 average<sup class="claim-sup">[32]</sup></a></span> that drove the rental squeeze. Housing starts running near <span class="claim" id="ref-33" data-ref="33"><a href="#ledger-33" class="claim-anchor">236K annualized in March<sup class="claim-sup">[33]</sup></a></span> now sit above the pace at which the incremental population is forming households. The full population-per-housing-unit ratio by CMA is not yet wired; the flow-vs-flow comparison here is the v1 read.</div>
         <div class="plate-source-line">Statistics Canada Table 17-10-0040 (immigrants, quarterly); Table 34-10-0158 (housing starts).</div>
         
     <div class="edit-form" id="edit-plate-5">
       <label>Title (current)</label>
       <input type="text" data-field="title" value="Supply is finally running ahead of incremental population-driven demand." />
       <label>Blurb (current)</label>
-      <textarea data-field="body"></textarea>
+      <textarea data-field="body">Quarterly immigrant arrivals fell to 83,168 in Q4 2025, down from 102,867 in Q3 and well below the 2022-2024 average that drove the rental squeeze. Housing starts running near 236K annualized in March now sit above the pace at which the incremental population is forming households. The full population-per-housing-unit ratio by CMA is not yet wired; the flow-vs-flow comparison here is the v1 read.</textarea>
       <label>Reason for the change</label>
       <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
       <div class="row">
@@ -452,7 +700,7 @@ footer.audit-foot {
         <div class="plate-number">07 · Affordability</div>
         <h3 class="plate-title">Affordability is improving from peak but remains worse than prior stress episodes. <button class="edit-btn" onclick="document.getElementById('edit-plate-6').classList.toggle('open')">✎ Propose edit</button></h3>
         <div class="plate-meta">BoC qualifying mortgage payment to income</div>
-        <div class="plate-blurb">The BoC's qualifying-mortgage-payment-to-income ratio sits at <span class="claim" data-ref="1">42.7% in Q4 2025<sup class="claim-sup">[1]</sup></span>, down from <span class="claim" data-ref="2">43.2% in Q3<sup class="claim-sup">[2]</sup></span> and <span class="claim" data-ref="3">54.5% at the Q3 2023 peak<sup class="claim-sup">[3]</sup></span>. The improvement traces to lower qualifying rates &mdash; the <span class="claim" data-ref="4">5-year conventional has settled at 6.09%<sup class="claim-sup">[4]</sup></span> &mdash; partly offset by softer wage growth in the denominator. The index remains well above the <span class="claim" data-ref="5">1989-1991<sup class="claim-sup">[5]</sup></span> and <span class="claim" data-ref="6">2007-2008<sup class="claim-sup">[6]</sup></span> stress episodes; the <span class="claim" data-ref="7">2022-2024 tightening cycle<sup class="claim-sup">[7]</sup></span> is still the binding historical anchor.</div>
+        <div class="plate-blurb">The BoC's qualifying-mortgage-payment-to-income ratio sits at <span class="claim" id="ref-34" data-ref="34"><a href="#ledger-34" class="claim-anchor">42.7% in Q4 2025<sup class="claim-sup">[34]</sup></a></span>, down from <span class="claim" id="ref-35" data-ref="35"><a href="#ledger-35" class="claim-anchor">43.2% in Q3<sup class="claim-sup">[35]</sup></a></span> and <span class="claim" id="ref-36" data-ref="36"><a href="#ledger-36" class="claim-anchor">54.5% at the Q3 2023 peak<sup class="claim-sup">[36]</sup></a></span>. The improvement traces to lower qualifying rates &mdash; the <span class="claim" id="ref-37" data-ref="37"><a href="#ledger-37" class="claim-anchor">5-year conventional has settled at 6.09%<sup class="claim-sup">[37]</sup></a></span> &mdash; partly offset by softer wage growth in the denominator. The index remains well above the <span class="claim" id="ref-38" data-ref="38"><a href="#ledger-38" class="claim-anchor">1989-1991<sup class="claim-sup">[38]</sup></a></span> and <span class="claim" id="ref-39" data-ref="39"><a href="#ledger-39" class="claim-anchor">2007-2008<sup class="claim-sup">[39]</sup></a></span> stress episodes; the <span class="claim" id="ref-40" data-ref="40"><a href="#ledger-40" class="claim-anchor">2022-2024 tightening cycle<sup class="claim-sup">[40]</sup></a></span> is still the binding historical anchor.</div>
         <div class="plate-source-line">Bank of Canada Valet (INDINF_AFFORD_Q, housing affordability index, qualifying payment / income).</div>
         
     <div class="edit-form" id="edit-plate-6">
@@ -476,231 +724,440 @@ footer.audit-foot {
       <div class="ledger-group">
                <div class="ledger-group-h">Section abstract</div>
                
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[1]</span>
-        <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span>
+      <div class="ledger-item" id="ledger-1">
+        <a href="#ref-1" class="ledger-ref-link"><span class="ledger-ref pipeline">[1]</span></a>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"fell 4.6% Y/Y on the MLS HPI"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
         <div class="note-line">CREA MLS HPI composite, Y/Y, Mar 2026.</div>
         
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[2]</span>
-        <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span>
+      <div class="ledger-item" id="ledger-2">
+        <a href="#ref-2" class="ledger-ref-link"><span class="ledger-ref pipeline">[2]</span></a>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"two years into negative territory"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
         <div class="note-line">Enumerated: CREA MLS HPI Y/Y has printed negative every month since April 2024 — 24 consecutive months through March 2026.</div>
         
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[3]</span>
-        <span class="ledger-source-label">StatCan Table 34-10-0158-01</span>
+      <div class="ledger-item" id="ledger-3">
+        <a href="#ref-3" class="ledger-ref-link"><span class="ledger-ref pipeline">[3]</span></a>
+        <span class="ledger-source-label">StatCan Table 34-10-0158-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"241k from 257k"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
-        <div class="note-line">Total housing starts, SAAR 3mma; latest vs prior month per CMHC release (StatCan table).</div>
+        <div class="note-line">Total housing starts, SAAR 3mma; latest vs prior month per CMHC release (StatCan table), May 6, 2026.</div>
         <a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3410015801" target="_blank" rel="noopener">Open source ↗</a>
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[4]</span>
-        <span class="ledger-source-label">BoC Valet INDINF_AFFORD_Q</span>
+      <div class="ledger-item" id="ledger-4">
+        <a href="#ref-4" class="ledger-ref-link"><span class="ledger-ref pipeline">[4]</span></a>
+        <span class="ledger-source-label">BoC Valet INDINF_AFFORD_Q — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"42.7% of household income in Q4 2025"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
-        <div class="note-line">BoC housing affordability index, qualifying payment / income, 2025Q4.</div>
-        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/series/INDINF_AFFORD_Q" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="note-line">BoC housing affordability index, qualifying payment / income, 2025Q4, May 6, 2026.</div>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/INDINF_AFFORD_Q/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
+        
       </div>
              </div>
       
               <div class="ledger-group">
                 <div class="ledger-group-h">01 · Prices</div>
                 
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[1]</span>
-        <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span>
+      <div class="ledger-item" id="ledger-5">
+        <a href="#ref-5" class="ledger-ref-link"><span class="ledger-ref pipeline">[5]</span></a>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"-4.6% Y/Y"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
         <div class="note-line">CREA MLS HPI composite, Y/Y, Mar 2026.</div>
         
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[2]</span>
-        <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span>
+      <div class="ledger-item" id="ledger-6">
+        <a href="#ref-6" class="ledger-ref-link"><span class="ledger-ref pipeline">[6]</span></a>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"March 2026"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
-        <div class="note-line">Reference month for the Y/Y read.</div>
+        <div class="note-line">Reference month for the Y/Y read, March 2026.</div>
+        
         
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[3]</span>
-        <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span>
+      <div class="ledger-item" id="ledger-7">
+        <a href="#ref-7" class="ledger-ref-link"><span class="ledger-ref pipeline">[7]</span></a>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_national</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"two years into negative territory"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
         <div class="note-line">Enumerated: CREA MLS HPI Y/Y has printed negative every month since April 2024 — 24 consecutive months through March 2026.</div>
         
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[4]</span>
-        <span class="ledger-source-label">pipeline:crea:mls_hpi_toronto</span>
+      <div class="ledger-item" id="ledger-8">
+        <a href="#ref-8" class="ledger-ref-link"><span class="ledger-ref pipeline">[8]</span></a>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_toronto</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"Toronto (-7.2%)"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
         <div class="note-line">CREA MLS HPI Toronto CMA, Y/Y, Mar 2026.</div>
         
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[5]</span>
-        <span class="ledger-source-label">pipeline:crea:mls_hpi_vancouver</span>
+      <div class="ledger-item" id="ledger-9">
+        <a href="#ref-9" class="ledger-ref-link"><span class="ledger-ref pipeline">[9]</span></a>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_vancouver</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"Vancouver (-6.8%)"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
         <div class="note-line">CREA MLS HPI Vancouver CMA, Y/Y, Mar 2026.</div>
         
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[6]</span>
-        <span class="ledger-source-label">pipeline:crea:mls_hpi_six_cma</span>
+      <div class="ledger-item" id="ledger-10">
+        <a href="#ref-10" class="ledger-ref-link"><span class="ledger-ref pipeline">[10]</span></a>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_six_cma</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"-1.9 and -2.9%"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
         <div class="note-line">CREA MLS HPI Calgary / Ottawa / Edmonton CMA Y/Y range, Mar 2026.</div>
         
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[7]</span>
-        <span class="ledger-source-label">pipeline:crea:mls_hpi_montreal</span>
+      <div class="ledger-item" id="ledger-11">
+        <a href="#ref-11" class="ledger-ref-link"><span class="ledger-ref pipeline">[11]</span></a>
+        <span class="ledger-source-label">pipeline:crea:mls_hpi_montreal</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"Montreal alone runs positive at +4.9%"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
         <div class="note-line">CREA MLS HPI Montreal CMA, Y/Y, Mar 2026.</div>
+        
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">02 · Activity</div>
+                
+      <div class="ledger-item" id="ledger-12">
+        <a href="#ref-12" class="ledger-ref-link"><span class="ledger-ref pipeline">[12]</span></a>
+        <span class="ledger-source-label">StatCan Table 34-10-0158-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"235.9K annualized in March 2026"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">Total housing starts, SAAR, all areas, Mar 2026.</div>
+        <a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3410015801" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+      <div class="ledger-item" id="ledger-13">
+        <a href="#ref-13" class="ledger-ref-link"><span class="ledger-ref pipeline">[13]</span></a>
+        <span class="ledger-source-label">StatCan Table 34-10-0158-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"251.0K in February"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">Total housing starts, SAAR, Feb 2026.</div>
+        <a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3410015801" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+      <div class="ledger-item" id="ledger-14">
+        <a href="#ref-14" class="ledger-ref-link"><span class="ledger-ref derived">[14]</span></a>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"2021-2023 average"</div>
+        
+        
+        <div class="note-line">Three-year mean of monthly SAAR starts, 2021-01 through 2023-12, StatCan 34-10-0158-01.</div>
+        
+        
+      </div>
+      <div class="ledger-item" id="ledger-15">
+        <a href="#ref-15" class="ledger-ref-link"><span class="ledger-ref pipeline">[15]</span></a>
+        <span class="ledger-source-label">StatCan Table 34-10-0158-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"246K annualized (January)"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">Units under construction (or starts UC equivalent), SAAR, Jan 2026.</div>
+        <a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3410015801" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+      <div class="ledger-item" id="ledger-16">
+        <a href="#ref-16" class="ledger-ref-link"><span class="ledger-ref pipeline">[16]</span></a>
+        <span class="ledger-source-label">StatCan Table 34-10-0292-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"$8.13 billion in February"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">Total residential building permits, value, Feb 2026.</div>
+        <a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3410029201" target="_blank" rel="noopener">Open source ↗</a>
         
       </div>
               </div>
               <div class="ledger-group">
                 <div class="ledger-group-h">03 · Inventory</div>
                 
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[1]</span>
-        <span class="ledger-source-label">BoC Valet CREA_SNLR_CAN</span>
+      <div class="ledger-item" id="ledger-17">
+        <a href="#ref-17" class="ledger-ref-link"><span class="ledger-ref pipeline">[17]</span></a>
+        <span class="ledger-source-label">BoC Valet FVI_CREA_HOUSE_SALES_TO_NEW_LISTINGS_CANADA (pipeline slot crea_snlr) — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"47.6 in February 2026"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
         <div class="note-line">CREA sales-to-new-listings ratio, Canada, Feb 2026, via BoC Valet.</div>
-        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/series/CREA_SNLR_CAN" target="_blank" rel="noopener">Open source ↗</a>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/FVI_CREA_HOUSE_SALES_TO_NEW_LISTINGS_CANADA/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[2]</span>
-        <span class="ledger-source-label">BoC Valet CREA_SNLR_CAN</span>
+      <div class="ledger-item" id="ledger-18">
+        <a href="#ref-18" class="ledger-ref-link"><span class="ledger-ref pipeline">[18]</span></a>
+        <span class="ledger-source-label">BoC Valet FVI_CREA_HOUSE_SALES_TO_NEW_LISTINGS_CANADA (pipeline slot crea_snlr) — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"46.4 in January"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
         <div class="note-line">CREA sales-to-new-listings ratio, Canada, Jan 2026, via BoC Valet.</div>
-        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/series/CREA_SNLR_CAN" target="_blank" rel="noopener">Open source ↗</a>
-      </div>
-      <div class="ledger-item">
-        <span class="ledger-ref other">[3]</span>
-        <span class="ledger-source-label">crea_snlr_balanced_band</span>
-        <div class="ledger-phrase">"50-to-70 band CREA describes as balanced"</div>
-        <div class="ledger-excerpt">Source flagged as outside the registered source-card set. Add to editorial/source_cards/registry.yaml when promoted to a load-bearing claim.</div>
-        
-        <div class="note-line">CREA's published interpretation of SNLR: 40-60 (per CREA monthly stats) is balanced; some BoC commentary uses 50-70. Treat as CREA/BoC methodology constant.</div>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/FVI_CREA_HOUSE_SALES_TO_NEW_LISTINGS_CANADA/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
         
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[4]</span>
-        <span class="ledger-source-label">BoC Valet CREA_RESALE_INDEX</span>
+      <div class="ledger-item" id="ledger-19">
+        <a href="#ref-19" class="ledger-ref-link"><span class="ledger-ref card">[19]</span></a>
+        <span class="ledger-source-label">CREA monthly statistics release — sales-to-new-listings ratio interpretation</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"45-to-65 band CREA describes as balanced"</div>
+        <div class="ledger-excerpt">A sales-to-new listings ratio between 45% and 65% is generally consistent with balanced housing market conditions</div>
+        <div class="ledger-meta">April 15, 2026 monthly release (methodology constant) · verified 2026-05-13 · next 2026-05-15</div>
+        
+        <a class="ledger-link" href="https://stats.crea.ca/en-ca/" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+      <div class="ledger-item" id="ledger-20">
+        <a href="#ref-20" class="ledger-ref-link"><span class="ledger-ref pipeline">[20]</span></a>
+        <span class="ledger-source-label">BoC Valet FVI_CREA_MLS_HPI_CANADA (pipeline slot crea_mls_hpi) — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"85.6"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
-        <div class="note-line">CREA resale index, Canada, Feb 2026, via BoC Valet.</div>
-        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/series/CREA_RESALE_INDEX" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="note-line">CREA MLS Home Price Index, Canada, Feb 2026, via BoC Valet FVI_CREA_MLS_HPI_CANADA.</div>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/FVI_CREA_MLS_HPI_CANADA/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[5]</span>
-        <span class="ledger-source-label">BoC Valet CREA_CMA_RESALES_12M</span>
+      <div class="ledger-item" id="ledger-21">
+        <a href="#ref-21" class="ledger-ref-link"><span class="ledger-ref derived">[21]</span></a>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
         <div class="ledger-phrase">"12-month resale counts to October 2025"</div>
+        
+        
+        <div class="note-line">Trailing-12-month CMA-level CREA resale counts; CMA-level data ships via CREA XLSX (pipeline.fetch.crea), not directly on BoC Valet.</div>
+        
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">04 · Rent</div>
+                
+      <div class="ledger-item" id="ledger-22">
+        <a href="#ref-22" class="ledger-ref-link"><span class="ledger-ref pipeline">[22]</span></a>
+        <span class="ledger-source-label">StatCan Table 18-10-0004-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"0.9% Y/Y in March 2026"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
-        <div class="note-line">BoC Valet CMA-level CREA 12-month resale counts, vintage Oct 2025.</div>
-        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/series/CREA_CMA_RESALES_12M" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="note-line">CPI rent (v41691074), Y/Y, Mar 2026.</div>
+        <a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+      <div class="ledger-item" id="ledger-23">
+        <a href="#ref-23" class="ledger-ref-link"><span class="ledger-ref pipeline">[23]</span></a>
+        <span class="ledger-source-label">StatCan Table 18-10-0004-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"slowest reading since the 2020-2021 demand vacuum"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">Enumerated from v41691074 monthly Y/Y series; the only sub-1% prints since 2020 are clustered in the 2020-2021 demand-vacuum window.</div>
+        <a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+      <div class="ledger-item" id="ledger-24">
+        <a href="#ref-24" class="ledger-ref-link"><span class="ledger-ref pipeline">[24]</span></a>
+        <span class="ledger-source-label">StatCan Table 18-10-0004-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"-2.5% Y/Y"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">CPI rented accommodation (v41691073), Y/Y, Mar 2026.</div>
+        <a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+      <div class="ledger-item" id="ledger-25">
+        <a href="#ref-25" class="ledger-ref-link"><span class="ledger-ref pipeline">[25]</span></a>
+        <span class="ledger-source-label">StatCan Table 17-10-0040-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"2023-2024 newcomer-flow surge"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">Quarterly immigrant arrivals 2023-2024 ran well above the post-2015 norm per StatCan 17-10-0040-01.</div>
+        <a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1710004001" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">05 · Mortgage stack</div>
+                
+      <div class="ledger-item" id="ledger-26">
+        <a href="#ref-26" class="ledger-ref-link"><span class="ledger-ref card">[26]</span></a>
+        <span class="ledger-source-label">BoC 5-year conventional mortgage rate (Valet series V80691335)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"6.09% since mid-2025"</div>
+        <div class="ledger-excerpt">Latest 15 weekly observations from 2026-01-28 through 2026-05-06 all print 6.09%.</div>
+        <div class="ledger-meta">Weekly print 2026-05-06 · verified 2026-05-13 · next 2026-05-13</div>
+        <div class="note-line">5-year conventional mortgage rate, V80691335. Held at 6.09% for at least 52 consecutive weekly observations (since 2025-05-14).</div>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/V80691335/json?recent=15" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+      <div class="ledger-item" id="ledger-27">
+        <a href="#ref-27" class="ledger-ref-link"><span class="ledger-ref pipeline">[27]</span></a>
+        <span class="ledger-source-label">BoC Valet V39079 (pipeline slot V39079) — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"four consecutive holds"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">BoC overnight target rate sequence; the four most recent FAD decisions have been holds. Enumerate via Valet V39079.</div>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/V39079/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+      <div class="ledger-item" id="ledger-28">
+        <a href="#ref-28" class="ledger-ref-link"><span class="ledger-ref pipeline">[28]</span></a>
+        <span class="ledger-source-label">BoC Valet V39079 (pipeline slot V39079) — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"2.25%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">BoC overnight target rate, current setting (May 2026), via Valet V39079.</div>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/V39079/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+      <div class="ledger-item" id="ledger-29">
+        <a href="#ref-29" class="ledger-ref-link"><span class="ledger-ref card-missing">[29]</span></a>
+        <span class="ledger-source-label">card:boc_renewal_wall_san_2024_12 (NOT IN REGISTRY)</span><span class="tier-badge tier-error" title="Referenced card not in registry">CARD MISSING</span>
+        <div class="ledger-phrase">"2020-2021 fixed-rate cohort"</div>
+        
+        
+        
+        
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">06 · Supply ratio</div>
+                
+      <div class="ledger-item" id="ledger-30">
+        <a href="#ref-30" class="ledger-ref-link"><span class="ledger-ref pipeline">[30]</span></a>
+        <span class="ledger-source-label">StatCan Table 17-10-0040-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"83,168 in Q4 2025"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">Quarterly immigrant arrivals, Canada, 2025Q4, Q4 2025.</div>
+        <a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1710004001" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+      <div class="ledger-item" id="ledger-31">
+        <a href="#ref-31" class="ledger-ref-link"><span class="ledger-ref pipeline">[31]</span></a>
+        <span class="ledger-source-label">StatCan Table 17-10-0040-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"102,867 in Q3"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">Quarterly immigrant arrivals, Canada, 2025Q3, Q4 2025.</div>
+        <a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1710004001" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+      <div class="ledger-item" id="ledger-32">
+        <a href="#ref-32" class="ledger-ref-link"><span class="ledger-ref derived">[32]</span></a>
+        <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+        <div class="ledger-phrase">"2022-2024 average"</div>
+        
+        
+        <div class="note-line">Three-year mean of quarterly immigrant arrivals 2022Q1-2024Q4, StatCan 17-10-0040-01.</div>
+        
+        
+      </div>
+      <div class="ledger-item" id="ledger-33">
+        <a href="#ref-33" class="ledger-ref-link"><span class="ledger-ref pipeline">[33]</span></a>
+        <span class="ledger-source-label">StatCan Table 34-10-0158-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"236K annualized in March"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">Total housing starts, SAAR, Mar 2026 (rounded from 235.9K).</div>
+        <a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3410015801" target="_blank" rel="noopener">Open source ↗</a>
+        
       </div>
               </div>
               <div class="ledger-group">
                 <div class="ledger-group-h">07 · Affordability</div>
                 
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[1]</span>
-        <span class="ledger-source-label">BoC Valet INDINF_AFFORD_Q</span>
+      <div class="ledger-item" id="ledger-34">
+        <a href="#ref-34" class="ledger-ref-link"><span class="ledger-ref pipeline">[34]</span></a>
+        <span class="ledger-source-label">BoC Valet INDINF_AFFORD_Q — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"42.7% in Q4 2025"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
-        <div class="note-line">BoC housing affordability index, qualifying payment / income, 2025Q4.</div>
-        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/series/INDINF_AFFORD_Q" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="note-line">BoC housing affordability index, qualifying payment / income, 2025Q4, Q4 2025.</div>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/INDINF_AFFORD_Q/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[2]</span>
-        <span class="ledger-source-label">BoC Valet INDINF_AFFORD_Q</span>
+      <div class="ledger-item" id="ledger-35">
+        <a href="#ref-35" class="ledger-ref-link"><span class="ledger-ref pipeline">[35]</span></a>
+        <span class="ledger-source-label">BoC Valet INDINF_AFFORD_Q — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"43.2% in Q3"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
-        <div class="note-line">BoC housing affordability index, 2025Q3.</div>
-        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/series/INDINF_AFFORD_Q" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="note-line">BoC housing affordability index, 2025Q3, Q4 2025.</div>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/INDINF_AFFORD_Q/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[3]</span>
-        <span class="ledger-source-label">BoC Valet INDINF_AFFORD_Q</span>
+      <div class="ledger-item" id="ledger-36">
+        <a href="#ref-36" class="ledger-ref-link"><span class="ledger-ref pipeline">[36]</span></a>
+        <span class="ledger-source-label">BoC Valet INDINF_AFFORD_Q — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"54.5% at the Q3 2023 peak"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
-        <div class="note-line">BoC qualifying-mortgage-payment-to-income ratio cycle peak; 54.5% in 2023Q3 per Valet INDINF_AFFORD_Q.</div>
-        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/series/INDINF_AFFORD_Q" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="note-line">BoC qualifying-mortgage-payment-to-income ratio cycle peak; 54.5% in 2023Q3 per Valet INDINF_AFFORD_Q, Q4 2025.</div>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/INDINF_AFFORD_Q/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref card">[4]</span>
-        <span class="ledger-source-label">BoC 5-year conventional mortgage rate (Valet series V80691335)</span>
+      <div class="ledger-item" id="ledger-37">
+        <a href="#ref-37" class="ledger-ref-link"><span class="ledger-ref card">[37]</span></a>
+        <span class="ledger-source-label">BoC 5-year conventional mortgage rate (Valet series V80691335)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
         <div class="ledger-phrase">"5-year conventional has settled at 6.09%"</div>
         <div class="ledger-excerpt">Latest 15 weekly observations from 2026-01-28 through 2026-05-06 all print 6.09%.</div>
         <div class="ledger-meta">Weekly print 2026-05-06 · verified 2026-05-13 · next 2026-05-13</div>
         <div class="note-line">5-year conventional mortgage rate, BoC Valet V80691335.</div>
         <a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/V80691335/json?recent=15" target="_blank" rel="noopener">Open source ↗</a>
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[5]</span>
-        <span class="ledger-source-label">BoC Valet INDINF_AFFORD_Q</span>
+      <div class="ledger-item" id="ledger-38">
+        <a href="#ref-38" class="ledger-ref-link"><span class="ledger-ref pipeline">[38]</span></a>
+        <span class="ledger-source-label">BoC Valet INDINF_AFFORD_Q — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"1989-1991"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
-        <div class="note-line">Historical stress episode in BoC affordability series; identified from full-history INDINF_AFFORD_Q.</div>
-        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/series/INDINF_AFFORD_Q" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="note-line">Historical stress episode in BoC affordability series; identified from full-history INDINF_AFFORD_Q, Q4 2025.</div>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/INDINF_AFFORD_Q/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[6]</span>
-        <span class="ledger-source-label">BoC Valet INDINF_AFFORD_Q</span>
+      <div class="ledger-item" id="ledger-39">
+        <a href="#ref-39" class="ledger-ref-link"><span class="ledger-ref pipeline">[39]</span></a>
+        <span class="ledger-source-label">BoC Valet INDINF_AFFORD_Q — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"2007-2008"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
-        <div class="note-line">Historical stress episode in BoC affordability series.</div>
-        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/series/INDINF_AFFORD_Q" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="note-line">Historical stress episode in BoC affordability series, Q4 2025.</div>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/INDINF_AFFORD_Q/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
+        
       </div>
-      <div class="ledger-item">
-        <span class="ledger-ref pipeline">[7]</span>
-        <span class="ledger-source-label">BoC Valet V39079</span>
+      <div class="ledger-item" id="ledger-40">
+        <a href="#ref-40" class="ledger-ref-link"><span class="ledger-ref pipeline">[40]</span></a>
+        <span class="ledger-source-label">BoC Valet V39079 (pipeline slot V39079) — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
         <div class="ledger-phrase">"2022-2024 tightening cycle"</div>
         <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
         
         <div class="note-line">BoC overnight target rate hike cycle, Mar 2022 through Jul 2023 hike, on hold through 2024.</div>
-        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/series/V39079" target="_blank" rel="noopener">Open source ↗</a>
+        <a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/V39079/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
+        
       </div>
               </div>
     </aside>
   
     <footer class="audit-foot">
-      Generated 2026-05-13 08:16 · Tagged claims show a yellow highlight with a [N] reference. Hover or click to see the source. Sidebar lists all claims with verbatim excerpts. Sources marked as "pipeline" auto-refresh; "card" entries are managed in editorial/source_cards/registry.yaml. Use "Propose edit" to send a structured EDIT REQUEST back to Claude.
+      Generated 2026-05-13 22:06 · Tagged claims show a yellow highlight with a [N] reference. Hover or click to see the source. Sidebar lists all claims with verbatim excerpts. Sources marked as "pipeline" auto-refresh; "card" entries are managed in editorial/source_cards/registry.yaml. Use "Propose edit" to send a structured EDIT REQUEST back to Claude.
     </footer>
   </div>
   <script>
@@ -729,6 +1186,72 @@ footer.audit-foot {
         setTimeout(function () { toast.classList.remove('show'); }, 2500);
       });
     }
+    function updateVerifyTally() {
+      const approved = document.querySelectorAll('input[type=radio][value=approve]:checked').length;
+      const rejected = document.querySelectorAll('input[type=radio][value=reject]:checked').length;
+      const total = document.querySelectorAll('.pending-decision-block fieldset.decision').length;
+      const pending = total - approved - rejected;
+      const pendEl = document.querySelector('.verify-toolbar-counts .amber');
+      const apprEl = document.getElementById('approved-count');
+      const rejEl = document.getElementById('rejected-count');
+      if (pendEl) pendEl.textContent = pending + ' pending';
+      if (apprEl) apprEl.textContent = approved + ' approved';
+      if (rejEl) rejEl.textContent = rejected + ' rejected';
+      document.querySelectorAll('.ledger-item-pending').forEach(function (el) {
+        const fs = el.querySelector('.decision');
+        if (!fs) return;
+        const id = fs.dataset.claimId;
+        const choice = document.querySelector('input[name="decision-' + id + '"]:checked')?.value;
+        el.classList.toggle('decision-approve', choice === 'approve');
+        el.classList.toggle('decision-reject', choice === 'reject');
+      });
+      const btn = document.getElementById('export-btn');
+      if (btn) btn.disabled = (approved + rejected) === 0;
+    }
+    function exportDecisions(surfaceSlug) {
+      const lines = ['# Generated ' + new Date().toISOString().slice(0, 16).replace('T', ' ') + ', surface: ' + surfaceSlug, ''];
+      document.querySelectorAll('.pending-decision-block fieldset.decision').forEach(function (fs) {
+        const id = fs.dataset.claimId;
+        const choice = document.querySelector('input[name="decision-' + id + '"]:checked')?.value;
+        if (choice === 'approve') {
+          lines.push('npm run approve-claim ' + surfaceSlug + ':' + id);
+        } else if (choice === 'reject') {
+          const comment = (document.getElementById('comment-' + id)?.value || '').replace(/"/g, '\\"');
+          lines.push('npm run reject-claim ' + surfaceSlug + ':' + id + (comment ? ' -- --reason "' + comment + '"' : ''));
+        }
+      });
+      const text = lines.join('\n');
+      navigator.clipboard.writeText(text).then(function () {
+        const toast = document.getElementById('export-toast');
+        if (toast) {
+          toast.classList.add('show');
+          setTimeout(function () { toast.classList.remove('show'); }, 2500);
+        }
+      });
+    }
+    function jumpToNextPending() {
+      // Find the first pending card that hasn't been decided yet.
+      const pendingCards = document.querySelectorAll('.ledger-item-pending');
+      for (const card of pendingCards) {
+        const fs = card.querySelector('.decision');
+        if (!fs) continue;
+        const id = fs.dataset.claimId;
+        const approved = document.querySelector('input[name="decision-' + id + '"][value="approve"]:checked');
+        const rejected = document.querySelector('input[name="decision-' + id + '"][value="reject"]:checked');
+        if (!approved && !rejected) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          card.classList.add('flash-target');
+          setTimeout(function () { card.classList.remove('flash-target'); }, 1500);
+          return;
+        }
+      }
+      // All decided — alert.
+      alert('All pending claims on this surface have been marked. Hit "Copy decisions to clipboard" to export.');
+    }
+    document.addEventListener('change', function (e) {
+      if (e.target.matches('input[type=radio]')) updateVerifyTally();
+    });
+    updateVerifyTally();
   </script>
 </body>
 </html>

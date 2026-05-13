@@ -96,9 +96,13 @@ function indexedCumPct(series: SP[], anchorDate: string): SP[] {
   });
 }
 
-const ANCHOR_DATE = "2019-12-01";
-const WINDOW_LEFT  = 36;   // months
-const WINDOW_RIGHT = 84;   // months (from anchor forward)
+const ANCHOR_DATE = "2023-01-01";
+// Left cell: show the Y/Y series from Jan 2023 onward (about 38 months through Feb 2026).
+// WINDOW_LEFT is used as a tail-cap; set generously to ensure the full Jan-2023-onward
+// window is not clipped by the tail function.
+const WINDOW_LEFT  = 48;   // months — tail cap, larger than the actual Jan-2023–Feb-2026 window
+// Right cell: Jan 2023 is the anchor (= 0%). Show all data from the anchor forward.
+const WINDOW_RIGHT = 48;   // months from anchor forward
 
 // ---- LEFT cell data ---------------------------------------------------------
 // primary  = services Y/Y (solid)
@@ -110,9 +114,18 @@ const rawGoodsAll      = panelLeft?.secondary?.data ?? [];
 const svcYoYAll  = pctYoY(rawServicesAll);
 const gdYoYAll   = pctYoY(rawGoodsAll);
 
-// Window to last 36 valid months
-const svcYoY  = tailWindow(svcYoYAll.filter((p) => p.value !== null), WINDOW_LEFT);
-const gdYoY   = tailWindow(gdYoYAll.filter((p) => p.value !== null), WINDOW_LEFT);
+// Filter to Jan 2023 onward so the left cell's date range matches the right cell.
+// tailWindow cap (WINDOW_LEFT = 48) ensures we don't overflow if the series extends
+// further than expected.
+const LEFT_DATE_START = "2023-01-01";
+const svcYoY  = tailWindow(
+  svcYoYAll.filter((p) => p.value !== null && p.date >= LEFT_DATE_START),
+  WINDOW_LEFT,
+);
+const gdYoY   = tailWindow(
+  gdYoYAll.filter((p) => p.value !== null && p.date >= LEFT_DATE_START),
+  WINDOW_LEFT,
+);
 
 // Align to same dates: use union of available dates within each's window
 // (both series should have identical monthly cadence post-alignment)
@@ -395,7 +408,7 @@ const rightLatest = rightLastPrim?.value?.toFixed(1) ?? "—";
 const ariaLabel =
   `Two-panel industry GDP composite. Left: services vs goods Y/Y growth rate, ` +
   `services latest ${leftLatest}%. Right: manufacturing vs mining and oil cumulative ` +
-  `percent change since December 2019, mining and oil latest ${rightLatest}%.`;
+  `percent change since January 2023, mining and oil latest ${rightLatest}%.`;
 ---
 
 {!hasData ? (
@@ -609,7 +622,7 @@ const ariaLabel =
           cy={rightLastPrimY.toFixed(2)}
           r="4"
         >
-          <title>{`Mining and oil indexed latest ${rightLastPrim.date}: ${(rightLastPrim.value as number).toFixed(1)}%`}</title>
+          <title>{`Mining and oil indexed latest ${rightLastPrim.date}: ${(rightLastPrim.value as number).toFixed(1)}% vs Jan 2023`}</title>
         </circle>
       )}
 
@@ -625,7 +638,7 @@ const ariaLabel =
             cy={rightYScale(pt.value).toFixed(2)}
             r="5"
           >
-            <title>{`Mining + oil ${pt.date}: ${(pt.value).toFixed(1)}% vs Dec 2019`}</title>
+            <title>{`Mining + oil ${pt.date}: ${(pt.value).toFixed(1)}% vs Jan 2023`}</title>
           </circle>
         );
       })}
@@ -642,7 +655,7 @@ const ariaLabel =
             cy={rightYScale(pt.value).toFixed(2)}
             r="5"
           >
-            <title>{`Manufacturing ${pt.date}: ${(pt.value).toFixed(1)}% vs Dec 2019`}</title>
+            <title>{`Manufacturing ${pt.date}: ${(pt.value).toFixed(1)}% vs Jan 2023`}</title>
           </circle>
         );
       })}
@@ -661,7 +674,7 @@ const ariaLabel =
         class="ic3-chart__cell-label"
         x={(RIGHT_X0 + 6).toFixed(2)}
         y={(CELL_Y0 - 8).toFixed(2)}
-      >INDEXED TO DEC 2019</text>
+      >INDEXED TO JAN 2023</text>
 
       {/* Y-axis ticks — right cell (no unit suffix; dimensionless) */}
       {rightYTicks.map((v) => {
