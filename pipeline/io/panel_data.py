@@ -603,19 +603,33 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         ),
         PanelSpec(
             panel_id="panel-5", section="policy", panel_num=5,
-            file="policy/Panel5FederalTrajectory.astro",
-            primary=SlotSpec("dof_fiscal_monthly_balance", "raw", label="Federal monthly balance"),
-            secondary=SlotSpec("dof_fiscal_ytd_balance", "raw", label="Federal fiscal-YTD balance"),
-            tertiary=SlotSpec("dof_fiscal_ytd_summary", "raw", label="Fiscal Monitor YTD summary"),
-            notes="DoF Fiscal Monitor; revenues + debt service indexed to FY19/20 are derivable from the YTD summary across past issues. Multi-issue back-fill: NEAR.",
+            file="policy/Panel5LiabilityCompositionSmallMults.astro",
+            # Liability composition (Mode B small-multiples). Five components +
+            # derived Other liabilities residual (handled chart-side).
+            primary=SlotSpec("boc_total_liabilities", "raw", label="Total liabilities", window_override=340),
+            extras=(
+                SlotSpec("boc_banknotes", "raw", label="Banknotes", window_override=340),
+                SlotSpec("boc_goc_deposits", "raw", label="GoC deposits", window_override=340),
+                SlotSpec("boc_settlement_balances", "raw", label="Settlement balances", window_override=340),
+                SlotSpec("boc_reverse_repos", "raw", label="Reverse repos", window_override=340),
+            ),
+            notes=(
+                "BoC liability composition (Mode B small-multiples, 6 sub-panels). "
+                "Six = primary + 4 extras + chart-derived Other-liabilities residual. "
+                "Window since 2020-01-01 (340 weekly points)."
+            ),
         ),
         PanelSpec(
             panel_id="panel-6", section="policy", panel_num=6,
-            file="policy/Panel6FiscalStanceCycle.astro",
-            primary=SlotSpec("capacity_util_total", "raw", label="Output gap proxy"),
-            secondary=SlotSpec("dof_fiscal_ytd_summary", "raw", label="Fiscal stance proxy"),
-            expected_status="NEAR",
-            notes="Panel expects output gap + cyclically-adjusted primary balance (CAPB). True output gap and CAPB are MISSING; capacity-util + Fiscal-Monitor YTD provide a v1 proxy.",
+            file="policy/Panel6FederalTrajectorySplit.astro",
+            primary=SlotSpec("dof_fiscal_monthly_balance", "raw", label="Federal monthly balance"),
+            secondary=SlotSpec("dof_fiscal_ytd_balance", "raw", label="Federal fiscal-YTD balance"),
+            tertiary=SlotSpec("dof_fiscal_ytd_summary", "raw", label="Fiscal Monitor YTD summary"),
+            notes=(
+                "DoF Fiscal Monitor. Two-panel side-by-side composite: monthly bars "
+                "(left) + YTD line (right), each with own y-axis. Revenues + debt "
+                "service indexed to FY19/20 derivable from the YTD summary."
+            ),
         ),
     ],
     "markets": [

@@ -1,0 +1,656 @@
+---
+/*
+ * Panel6FederalTrajectorySplit — federal fiscal balance, 2-panel composite.
+ *
+ * Layout: 1 row × 2 cols, side-by-side. Both panels are BAR charts.
+ *   Panel A (LEFT)  — Budget balance year-to-date (data.secondary,
+ *                     dof_fiscal_ytd_balance). Monthly cumulative balance
+ *                     from April 1 of the fiscal year. Each bar is the
+ *                     reported YTD total at that month-end. Always starts
+ *                     near zero in April and deepens into deficit.
+ *   Panel B (RIGHT) — Monthly balance (data.primary,
+ *                     dof_fiscal_monthly_balance). Surplus months rise
+ *                     above, deficit months hang below the zero line.
+ *
+ * Window: 2025-04-01 onward (current fiscal year — 11 monthly points).
+ * Shared x-domain; per-panel y-scale (Mode B composite).
+ *
+ * Authoring pattern: ALL compute in frontmatter. JSX is presentational
+ * only (.map over pre-computed record arrays). No IIFE-returning-JSX —
+ * Astro's HTML-mode parser breaks on `<` operators inside JSX bodies.
+ *
+ * Canon compliance:
+ *   1. Pure ink fill bars (var(--ink)); no stroke. Zero-anchored.
+ *   2. 4px MTA red latest-print dot, one per panel (top edge surplus,
+ *      bottom edge deficit).
+ *   3. 1px pure ink hairline frame per cell (shape-rendering: crispEdges).
+ *   4. Zero line 1px full opacity — both series cross or sit at zero.
+ *   5. 2-3 horizontal gridlines per cell, stroke-opacity 0.18.
+ *   6. Y-axis: IBM Plex Mono 11px, right-aligned in left gutter.
+ *      Mode B — every cell has its own y-ticks.
+ *      Topmost tick of the LEFT cell carries the unit suffix.
+ *   7. X-axis: shared x-domain, BOTH cells get month labels (3-4 max).
+ *   8. Panel labels: Manrope 600 micro-caps, top-left above frame.
+ *   9. aria-label + native SVG <title> per bar.
+ *  10. No annotations on canvas. No legends. No series color.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import { decYear } from "../_shared/panelData";
+import {
+  fmtTick as fmtTickKind,
+  fmtValue,
+  inferKindFromUnit,
+  unitScaleFactor,
+} from "../_shared/format";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---- Guard ------------------------------------------------------------------
+const hasPrimary = !!(data && data.primary && data.primary.data.length > 0);
+
+// ---- Geometry (Tier-3, 1×2 composite) ---------------------------------------
+const VB_W   = 720;
+const VB_H   = 405;
+const M_L    = 52;    // left gutter (y-tick labels)
+const M_R    = 14;    // right margin
+const M_T    = 30;    // top margin (room for panel label above frame)
+const M_B    = 38;    // bottom margin (x-tick labels)
+const GAP_X  = 38;    // inter-cell horizontal gap
+const CELL_W = (VB_W - M_L - M_R - GAP_X) / 2;  // ≈308
+const CELL_H = VB_H - M_T - M_B;                  // 337
+
+// Cell origins (top-left corner of each plot frame)
+const A_X0 = M_L;
+const A_Y0 = M_T;
+const A_X1 = A_X0 + CELL_W;
+const A_Y1 = A_Y0 + CELL_H;
+
+const B_X0 = M_L + CELL_W + GAP_X;
+const B_Y0 = M_T;
+const B_X1 = B_X0 + CELL_W;
+const B_Y1 = B_Y0 + CELL_H;
+
+// ---- Types ------------------------------------------------------------------
+type SeriesPoint = { date: string; value: number | null };
+type BarRect = {
+  x: number; y: number; w: number; h: number;
+  v: number; date: string; titleText: string;
+};
+type YTick = { value: number; yPos: number; label: string };
+type XTick = { x: number; label: string };
+
+// ---- Y-axis helpers ---------------------------------------------------------
+
+function pickStride(lo: number, hi: number, targetTicks = 3): number {
+  const s = hi - lo;
+  if (!Number.isFinite(s) || s <= 0) return 1;
+  const rough = s / targetTicks;
+  const mag   = Math.pow(10, Math.floor(Math.log10(Math.abs(rough) || 1)));
+  const norm  = rough / mag;
+  let nice: number;
+  if (norm < 1.5)      nice = 1;
+  else if (norm < 3)   nice = 2;
+  else if (norm < 4)   nice = 2.5;
+  else if (norm < 7)   nice = 5;
+  else                 nice = 10;
+  return nice * mag;
+}
+
+function buildYTicks(
+  yLo: number,
+  yHi: number,
+  yScale: (v: number) => number,
+  kind: Parameters<typeof fmtTickKind>[1],
+  scale: number,
+  isLeftmost: boolean,
+): YTick[] {
+  const stride = pickStride(yLo, yHi);
+  const start  = Math.ceil(yLo / stride) * stride;
+  const raw: number[] = [];
+  for (let v = start; v <= yHi + 1e-9; v += stride) {
+    raw.push(Number(v.toFixed(6)));
+  }
+  if (raw.length === 0) raw.push(Number(((yLo + yHi) / 2).toFixed(6)));
+  // Cap at 4 ticks: keep first, up to two interior, last
+  let kept = raw;
+  if (kept.length > 4) {
+    const step = Math.floor((kept.length - 1) / 3);
+    kept = [raw[0]!, raw[step]!, raw[step * 2]!, raw[raw.length - 1]!];
+  }
+  return kept.map((v, i) => {
+    const isTop = i === kept.length - 1;
+    // currency_cad always carries "$" in the tick, so the isTop&&isLeftmost
+    // flag here is the canonical Mode B hook even if the formatter doesn't
+    // need it for its own rendering decision.
+    const label = fmtTickKind(v * scale, kind, isTop && isLeftmost);
+    return { value: v, yPos: yScale(v), label };
+  });
+}
+
+// ---- X-axis helpers ---------------------------------------------------------
+// Fiscal year window (Apr 2025 – Mar 2026): show quarterly labels.
+// Target months: Apr=4, Jul=7, Oct=10, Jan=1.
+const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const SHOW_MONTHS = new Set([4, 7, 10, 1]);
+
+function buildXTicks(
+  pts: SeriesPoint[],
+  xScale: (xv: number) => number,
+): XTick[] {
+  const seen  = new Set<string>();
+  const ticks: XTick[] = [];
+  for (const pt of pts) {
+    if (typeof pt.value !== "number" || !Number.isFinite(pt.value)) continue;
+    const m = pt.date.match(/^(\d{4})-(\d{2})/);
+    if (!m) continue;
+    const mo  = parseInt(m[2]!, 10);
+    const key = `${m[1]}-${m[2]}`;
+    if (!SHOW_MONTHS.has(mo) || seen.has(key)) continue;
+    seen.add(key);
+    const xv = decYear(pt.date);
+    ticks.push({ x: xScale(xv), label: MONTH_ABBR[mo - 1]! });
+  }
+  return ticks;
+}
+
+// ---- Main computation (runs only when data present) -------------------------
+// All variables initialized to inert defaults so JSX can reference them
+// unconditionally; the gate is `hasPrimary`.
+
+const WINDOW_START = "2025-04-01";
+
+let barsA:      BarRect[] = [];
+let yTicksA:    YTick[]   = [];
+let xTicksA:    XTick[]   = [];
+let barsB:      BarRect[] = [];
+let yTicksB:    YTick[]   = [];
+let xTicksB:    XTick[]   = [];
+
+let crossesZeroA = false;
+let zeroYA       = 0;
+let crossesZeroB = false;
+let zeroYB       = 0;
+
+let latestDotAX = 0;
+let latestDotAY = 0;
+let lastBarA: BarRect | null = null;
+
+let latestDotBX = 0;
+let latestDotBY = 0;
+let lastBarB: BarRect | null = null;
+
+let ariaLabel =
+  "Federal fiscal balance split view. Left panel: budget balance year-to-date as bars, CAD millions. " +
+  "Right panel: monthly balance as bars, CAD millions. Both from Department of Finance Fiscal Monitor.";
+
+if (hasPrimary) {
+  const primary   = data!.primary!;
+  const secondary = data!.secondary ?? null;
+
+  // Filter both series to fiscal year window
+  const secRaw: SeriesPoint[] = secondary
+    ? secondary.data.filter((p: SeriesPoint) => p.date >= WINDOW_START)
+    : [];
+  const primRaw: SeriesPoint[] = primary.data.filter((p: SeriesPoint) => p.date >= WINDOW_START);
+
+  // Value-kind: both series are CAD millions
+  const kind  = (primary.kind as Parameters<typeof fmtValue>[1] | null | undefined)
+               ?? inferKindFromUnit(primary.unit);
+  const scale = unitScaleFactor(primary.unit);
+
+  // ---- Shared x-domain -------------------------------------------------------
+  const allXvals: number[] = [];
+  for (const d of [...secRaw, ...primRaw]) {
+    const xv = decYear(d.date);
+    if (!Number.isNaN(xv)) allXvals.push(xv);
+  }
+  const xMin   = allXvals.length > 0 ? Math.min(...allXvals) : 0;
+  const xMax   = allXvals.length > 0 ? Math.max(...allXvals) : 1;
+  const xRange = xMax - xMin || 1;
+
+  // Bar width: fraction of cell-width proportional to 1 month; leave ~1px gap
+  const monthFrac   = 1 / 12;
+  const barWidthRaw = (monthFrac / xRange) * CELL_W;
+  const BAR_GAP     = Math.min(2, barWidthRaw * 0.06);
+  const barWidth    = Math.max(2, barWidthRaw - BAR_GAP);
+
+  // Per-cell x-scales (same domain ratio, different origins)
+  const xScaleA = (xv: number): number =>
+    A_X0 + ((xv - xMin) / xRange) * CELL_W;
+  const xScaleB = (xv: number): number =>
+    B_X0 + ((xv - xMin) / xRange) * CELL_W;
+
+  // ---- Panel A (LEFT) — YTD balance (secondary) y-domain -------------------
+  // YTD is all negative in a deficit year; zero should be visible at or
+  // above the top of the frame so the zero baseline reads clearly.
+  const secVals: number[] = [];
+  for (const d of secRaw) {
+    if (typeof d.value === "number" && Number.isFinite(d.value)) secVals.push(d.value);
+  }
+  const secRawMin = secVals.length > 0 ? Math.min(...secVals) : -1;
+  const secRawMax = secVals.length > 0 ? Math.max(...secVals) : 0;
+  const secSpan   = secRawMax - secRawMin || Math.max(1, Math.abs(secRawMin) * 0.1);
+  const aYLo      = secRawMin - secSpan * 0.10;
+  // Pad upward to include zero so the YTD baseline reads against zero
+  const aYHi      = Math.max(0, secRawMax + secSpan * 0.05);
+  const aYRange   = aYHi - aYLo || 1;
+
+  const yScaleA = (v: number): number =>
+    A_Y0 + CELL_H - ((v - aYLo) / aYRange) * CELL_H;
+
+  crossesZeroA = aYLo < 0 && aYHi > 0;
+  zeroYA       = yScaleA(0);
+
+  // ---- Panel B (RIGHT) — monthly balance (primary) y-domain ----------------
+  const primVals: number[] = [];
+  for (const d of primRaw) {
+    if (typeof d.value === "number" && Number.isFinite(d.value)) primVals.push(d.value);
+  }
+  const primRawMin = primVals.length > 0 ? Math.min(...primVals) : -1;
+  const primRawMax = primVals.length > 0 ? Math.max(...primVals) : 1;
+  const primSpan   = primRawMax - primRawMin || Math.max(1, Math.abs(primRawMax) * 0.1);
+  const bYLo       = primRawMin - primSpan * 0.10;
+  const bYHi       = primRawMax + primSpan * 0.10;
+  const bYRange    = bYHi - bYLo || 1;
+
+  const yScaleB = (v: number): number =>
+    B_Y0 + CELL_H - ((v - bYLo) / bYRange) * CELL_H;
+
+  crossesZeroB = bYLo < 0 && bYHi > 0;
+  zeroYB       = yScaleB(0);
+
+  // ---- Panel A bars (YTD — secondary) --------------------------------------
+  for (const pt of secRaw) {
+    if (typeof pt.value !== "number" || !Number.isFinite(pt.value)) continue;
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    const xc   = xScaleA(xv);
+    const x    = xc - barWidth / 2;
+    const v    = pt.value;
+    // Zero-anchored: surplus bar rises from zero-line, deficit bar hangs below
+    const bTop = yScaleA(v > 0 ? v : 0);
+    const bBot = yScaleA(v < 0 ? v : 0);
+    const h    = Math.max(1, bBot - bTop);
+    barsA.push({
+      x, y: bTop, w: barWidth, h, v,
+      date: pt.date,
+      titleText: `${pt.date}: ${fmtValue(v * scale, kind)}`,
+    });
+  }
+  lastBarA = barsA.length > 0 ? barsA[barsA.length - 1]! : null;
+  if (lastBarA) {
+    latestDotAX = lastBarA.x + lastBarA.w / 2;
+    // Dot on top edge for surplus, bottom edge for deficit
+    latestDotAY = lastBarA.v >= 0 ? lastBarA.y : lastBarA.y + lastBarA.h;
+  }
+
+  // ---- Panel B bars (monthly — primary) ------------------------------------
+  for (const pt of primRaw) {
+    if (typeof pt.value !== "number" || !Number.isFinite(pt.value)) continue;
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    const xc   = xScaleB(xv);
+    const x    = xc - barWidth / 2;
+    const v    = pt.value;
+    const bTop = yScaleB(v > 0 ? v : 0);
+    const bBot = yScaleB(v < 0 ? v : 0);
+    const h    = Math.max(1, bBot - bTop);
+    barsB.push({
+      x, y: bTop, w: barWidth, h, v,
+      date: pt.date,
+      titleText: `${pt.date}: ${fmtValue(v * scale, kind)}`,
+    });
+  }
+  lastBarB = barsB.length > 0 ? barsB[barsB.length - 1]! : null;
+  if (lastBarB) {
+    latestDotBX = lastBarB.x + lastBarB.w / 2;
+    latestDotBY = lastBarB.v >= 0 ? lastBarB.y : lastBarB.y + lastBarB.h;
+  }
+
+  // ---- Y-ticks (per-panel) -------------------------------------------------
+  yTicksA = buildYTicks(aYLo, aYHi, yScaleA, kind, scale, true);   // leftmost cell
+  yTicksB = buildYTicks(bYLo, bYHi, yScaleB, kind, scale, false);  // right cell
+
+  // ---- X-ticks (shared domain, per-cell x-position) ------------------------
+  xTicksA = buildXTicks(secRaw,  xScaleA);
+  xTicksB = buildXTicks(primRaw, xScaleB);
+
+  // ---- aria-label -----------------------------------------------------------
+  const lastSecDate = secRaw.length  > 0 ? secRaw[secRaw.length - 1]!.date   : "?";
+  const lastSecVal  = secRaw.length  > 0 ? secRaw[secRaw.length - 1]!.value  : null;
+  const lastPrimDate= primRaw.length > 0 ? primRaw[primRaw.length - 1]!.date  : "?";
+  const lastPrimVal = primRaw.length > 0 ? primRaw[primRaw.length - 1]!.value : null;
+  const ytdStr  = typeof lastSecVal  === "number" ? fmtValue(lastSecVal  * scale, kind) : "—";
+  const monStr  = typeof lastPrimVal === "number" ? fmtValue(lastPrimVal * scale, kind) : "—";
+  ariaLabel = `Federal fiscal balance split view. Left panel: budget balance year-to-date as bars, CAD millions, fiscal year 2025–26 — latest ${lastSecDate}: ${ytdStr}. Right panel: monthly balance as bars — latest ${lastPrimDate}: ${monStr}. Source: Department of Finance Fiscal Monitor.`;
+}
+
+const clipIdA = "p6s-clip-a";
+const clipIdB = "p6s-clip-b";
+---
+
+{!hasPrimary ? (
+  <PanelEmpty reason="Federal fiscal balance series (panel-6) not yet emitted by pipeline." />
+) : (
+  <div class="p6s-chart" data-panel="policy-6">
+    <svg
+      class="p6s-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      <defs>
+        <clipPath id={clipIdA}>
+          <rect x={A_X0} y={A_Y0} width={CELL_W} height={CELL_H} />
+        </clipPath>
+        <clipPath id={clipIdB}>
+          <rect x={B_X0} y={B_Y0} width={CELL_W} height={CELL_H} />
+        </clipPath>
+      </defs>
+
+      {/* ================================================================
+          PANEL A — YTD BALANCE BARS (LEFT)
+          ================================================================ */}
+
+      {/* Panel A gridlines — skip zero tick (drawn full-opacity below) */}
+      {yTicksA.map((t) => {
+        if (crossesZeroA && Math.abs(t.value) < 1e-9) return null;
+        return (
+          <line
+            class="p6s-chart__gridline"
+            x1={A_X0.toFixed(2)}
+            y1={t.yPos.toFixed(2)}
+            x2={A_X1.toFixed(2)}
+            y2={t.yPos.toFixed(2)}
+          />
+        );
+      })}
+
+      {/* Panel A zero line */}
+      {crossesZeroA && (
+        <line
+          class="p6s-chart__zero-line"
+          x1={A_X0.toFixed(2)}
+          y1={zeroYA.toFixed(2)}
+          x2={A_X1.toFixed(2)}
+          y2={zeroYA.toFixed(2)}
+        />
+      )}
+
+      {/* Panel A bars */}
+      <g clip-path={`url(#${clipIdA})`}>
+        {barsA.map((b) => (
+          <rect
+            class="p6s-chart__bar"
+            x={b.x.toFixed(2)}
+            y={b.y.toFixed(2)}
+            width={b.w.toFixed(2)}
+            height={b.h.toFixed(2)}
+          >
+            <title>{b.titleText}</title>
+          </rect>
+        ))}
+      </g>
+
+      {/* Panel A latest-print dot */}
+      {lastBarA && (
+        <circle
+          class="p6s-chart__latest-dot"
+          cx={latestDotAX.toFixed(2)}
+          cy={latestDotAY.toFixed(2)}
+          r="4"
+        >
+          <title>{`Latest YTD: ${lastBarA.titleText}`}</title>
+        </circle>
+      )}
+
+      {/* Panel A hairline frame */}
+      <rect
+        class="p6s-chart__frame"
+        x={A_X0.toFixed(2)}
+        y={A_Y0.toFixed(2)}
+        width={CELL_W.toFixed(2)}
+        height={CELL_H.toFixed(2)}
+      />
+
+      {/* Panel A label */}
+      <text
+        class="p6s-chart__panel-label"
+        x={(A_X0 + 6).toFixed(2)}
+        y={(A_Y0 - 7).toFixed(2)}
+      >BUDGET BALANCE YEAR-TO-DATE</text>
+
+      {/* Panel A y-tick labels */}
+      {yTicksA.map((t) => (
+        <text
+          class="p6s-chart__ytick-label"
+          x={(A_X0 - 6).toFixed(2)}
+          y={(t.yPos + 4).toFixed(2)}
+          text-anchor="end"
+        >{t.label}</text>
+      ))}
+
+      {/* Panel A x-ticks + labels */}
+      {xTicksA.map((t) => (
+        <g>
+          <line
+            class="p6s-chart__xtick"
+            x1={t.x.toFixed(2)}
+            y1={A_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(A_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="p6s-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(A_Y1 + 16).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* ================================================================
+          PANEL B — MONTHLY BALANCE BARS (RIGHT)
+          ================================================================ */}
+
+      {/* Panel B gridlines — skip zero tick (drawn full-opacity below) */}
+      {yTicksB.map((t) => {
+        if (crossesZeroB && Math.abs(t.value) < 1e-9) return null;
+        return (
+          <line
+            class="p6s-chart__gridline"
+            x1={B_X0.toFixed(2)}
+            y1={t.yPos.toFixed(2)}
+            x2={B_X1.toFixed(2)}
+            y2={t.yPos.toFixed(2)}
+          />
+        );
+      })}
+
+      {/* Panel B zero line */}
+      {crossesZeroB && (
+        <line
+          class="p6s-chart__zero-line"
+          x1={B_X0.toFixed(2)}
+          y1={zeroYB.toFixed(2)}
+          x2={B_X1.toFixed(2)}
+          y2={zeroYB.toFixed(2)}
+        />
+      )}
+
+      {/* Panel B bars */}
+      <g clip-path={`url(#${clipIdB})`}>
+        {barsB.map((b) => (
+          <rect
+            class="p6s-chart__bar"
+            x={b.x.toFixed(2)}
+            y={b.y.toFixed(2)}
+            width={b.w.toFixed(2)}
+            height={b.h.toFixed(2)}
+          >
+            <title>{b.titleText}</title>
+          </rect>
+        ))}
+      </g>
+
+      {/* Panel B latest-print dot */}
+      {lastBarB && (
+        <circle
+          class="p6s-chart__latest-dot"
+          cx={latestDotBX.toFixed(2)}
+          cy={latestDotBY.toFixed(2)}
+          r="4"
+        >
+          <title>{`Latest monthly: ${lastBarB.titleText}`}</title>
+        </circle>
+      )}
+
+      {/* Panel B hairline frame */}
+      <rect
+        class="p6s-chart__frame"
+        x={B_X0.toFixed(2)}
+        y={B_Y0.toFixed(2)}
+        width={CELL_W.toFixed(2)}
+        height={CELL_H.toFixed(2)}
+      />
+
+      {/* Panel B label */}
+      <text
+        class="p6s-chart__panel-label"
+        x={(B_X0 + 6).toFixed(2)}
+        y={(B_Y0 - 7).toFixed(2)}
+      >MONTHLY BALANCE</text>
+
+      {/* Panel B y-tick labels — left gutter of Panel B cell */}
+      {yTicksB.map((t) => (
+        <text
+          class="p6s-chart__ytick-label"
+          x={(B_X0 - 6).toFixed(2)}
+          y={(t.yPos + 4).toFixed(2)}
+          text-anchor="end"
+        >{t.label}</text>
+      ))}
+
+      {/* Panel B x-ticks + labels */}
+      {xTicksB.map((t) => (
+        <g>
+          <line
+            class="p6s-chart__xtick"
+            x1={t.x.toFixed(2)}
+            y1={B_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(B_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="p6s-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(B_Y1 + 16).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+    </svg>
+  </div>
+)}
+
+<style>
+  /* -------------------------------------------------------------------
+     Panel6FederalTrajectorySplit — Tier-3 Mode-B composite chart.
+     Two bar panels side-by-side: YTD balance (left), monthly (right).
+     Vignelli canon: pure ink bars, MTA red latest dot, hairline frames.
+     No color on data marks; no legends.
+     ------------------------------------------------------------------- */
+  .p6s-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+  .p6s-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  /* Gridlines — pure ink, low opacity */
+  .p6s-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+
+  /* Zero line — full opacity, establishes surplus/deficit baseline */
+  .p6s-chart__zero-line {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Bars — pure ink fill, no stroke; gap built into geometry */
+  .p6s-chart__bar {
+    fill: var(--ink);
+    stroke: none;
+    shape-rendering: crispEdges;
+  }
+
+  /* Latest-print dot — MTA red, the only non-ink mark */
+  .p6s-chart__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  /* Hairline frame — 1px pure ink per cell */
+  .p6s-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Sub-panel label — Manrope 600 micro-caps, top-left */
+  .p6s-chart__panel-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+
+  /* Y-axis tick labels — IBM Plex Mono 11px, right-aligned */
+  .p6s-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* X-axis tick marks — 4px outward */
+  .p6s-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* X-axis tick labels — Manrope 11px */
+  .p6s-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+</style>

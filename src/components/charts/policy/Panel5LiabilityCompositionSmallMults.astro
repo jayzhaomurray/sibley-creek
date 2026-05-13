@@ -1,16 +1,22 @@
 ---
 /*
- * Panel4AssetCompositionSmallMults - BoC balance-sheet asset composition,
- * five small multiples.
+ * Panel5LiabilityCompositionSmallMults - BoC balance-sheet liability
+ * composition, six small multiples (Mode B — per-panel y-axis).
  *
  * Sub-panels (each with its own y-axis, shared x-domain 2020-01-01 to latest):
- *   1. Total assets    (data.secondary)
- *   2. GoC bonds       (data.extras[0]  key: boc_goc_bonds)
- *   3. T-bills         (data.extras[1]  key: boc_tbills)
- *   4. Advances        (data.extras[2]  key: boc_advances)
- *   5. Repos           (data.extras[3]  key: boc_repos)
+ *   1. Total liabilities + equity  (data.primary  key: boc_total_liabilities)
+ *   2. Banknotes                   (data.extras[0] key: boc_banknotes)
+ *   3. GoC deposits                (data.extras[1] key: boc_goc_deposits)
+ *   4. Settlement balances         (data.extras[2] key: boc_settlement_balances)
+ *   5. Reverse repos               (data.extras[3] key: boc_reverse_repos)
+ *   6. Other (residual)            derived in frontmatter:
+ *        other[t] = total[t] - banknotes[t] - goc_deposits[t]
+ *                             - settlement_balances[t] - reverse_repos[t]
  *
- * Layout: 3-across top row, 2-across bottom row (bottom-right cell empty).
+ * Layout: 3 cols x 2 rows (6 cells — no empty cell).
+ *   Top row:    TOTAL LIAB. & EQUITY | BANKNOTES | GOC DEPOSITS
+ *   Bottom row: SETTLEMENT BALANCES  | REVERSE REPOS | OTHER
+ *
  * ViewBox 720 x 405 (16:9). No JS. Native SVG <title> hover.
  *
  * Canon compliance checklist (design/canon_reference_panel.md):
@@ -18,9 +24,9 @@
  *   2. 4px MTA red latest-print dot (var(--accent)).
  *   3. 1px pure ink hairline frame per sub-panel.
  *   4. 2-3 horizontal gridlines per sub-panel, stroke-opacity 0.18.
- *   5. Y-axis: IBM Plex Mono 12px, right-aligned; topmost tick of leftmost
- *      column carries "$bn" unit.
- *   6. X-axis: Manrope 12px, bottom row only, 3 ticks max.
+ *   5. Y-axis: IBM Plex Mono 11px, right-aligned; topmost tick of leftmost
+ *      column carries "$bn" unit suffix.
+ *   6. X-axis: Manrope 11px, bottom row only, 3 ticks max.
  *   7. Per-panel label: Manrope 600 micro-caps, top-left of each sub-panel.
  *   8. No annotations on canvas. No legends. No series color.
  *   9. aria-label + native SVG <title> per data point.
@@ -37,11 +43,9 @@ interface Props {
 const { data = null } = Astro.props;
 
 // ---- Guard ------------------------------------------------------------------
-// Require secondary (total assets) to be present. extras may have gaps.
-const hasData = !!(data && data.secondary && data.secondary.data.length > 0);
+const hasData = !!(data && data.primary && data.primary.data.length > 0);
 
 // ---- Series extraction ------------------------------------------------------
-// extras comes through as unknown[] on the PanelData index signature.
 type SeriesPoint = { date: string; value: number | null };
 type SeriesLike = { key?: string; label?: string; data?: SeriesPoint[] };
 
@@ -62,56 +66,51 @@ function filterWindow(pts: SeriesPoint[]): SeriesPoint[] {
   return pts.filter((p) => p.date >= WINDOW_START && p.value !== null);
 }
 
-const rawTotalAssets   = hasData ? filterWindow(data!.secondary!.data) : [];
-const rawGocBonds      = filterWindow(extractSeries(extrasRaw[0]));
-const rawTbills        = filterWindow(extractSeries(extrasRaw[1]));
-const rawAdvances      = filterWindow(extractSeries(extrasRaw[2]));
-const rawRepos         = filterWindow(extractSeries(extrasRaw[3]));
+const rawTotal     = hasData ? filterWindow(data!.primary!.data) : [];
+const rawBanknotes = filterWindow(extractSeries(extrasRaw[0]));
+const rawGocDeps   = filterWindow(extractSeries(extrasRaw[1]));
+const rawSettBal   = filterWindow(extractSeries(extrasRaw[2]));
+const rawRevRepos  = filterWindow(extractSeries(extrasRaw[3]));
 
-// ---- Derived: "Other assets" residual ---------------------------------------
-// total_assets minus (goc_bonds + tbills + advances + repos). Captures cash +
-// foreign deposits + other receivables + other investments (e.g. CMBs) +
-// capital + intangibles + accruals. Not a single BoC-published series —
-// our computed residual to make the breakdown sum to total assets.
-function buildOtherAssets(): SeriesPoint[] {
-  const map = (pts: SeriesPoint[]) =>
-    new Map(pts.map((p) => [p.date, p.value as number]));
-  const totMap = map(rawTotalAssets);
-  const bondMap = map(rawGocBonds);
-  const tbillMap = map(rawTbills);
-  const advMap = map(rawAdvances);
-  const repoMap = map(rawRepos);
-  const out: SeriesPoint[] = [];
-  for (const pt of rawTotalAssets) {
-    const t = pt.date;
-    const total = totMap.get(t);
-    const b = bondMap.get(t);
-    const tb = tbillMap.get(t);
-    const a = advMap.get(t);
-    const r = repoMap.get(t);
-    if (
-      total === undefined ||
-      b === undefined ||
-      tb === undefined ||
-      a === undefined ||
-      r === undefined
-    ) {
-      continue;
-    }
-    out.push({ date: t, value: total - b - tb - a - r });
+// ---- Sub-panel 6 (OTHER) — residual derived in frontmatter -----------------
+// other[t] = total[t] - banknotes[t] - goc_deposits[t]
+//           - settlement_balances[t] - reverse_repos[t]
+// Date-join: only dates where ALL five contributors are present + non-null.
+const buildDateMap = (pts: SeriesPoint[]) => {
+  const m = new Map<string, number>();
+  for (const p of pts) {
+    if (p.value !== null) m.set(p.date, p.value as number);
   }
-  return out;
+  return m;
+};
+const mapBanknotes = buildDateMap(rawBanknotes);
+const mapGocDeps   = buildDateMap(rawGocDeps);
+const mapSettBal   = buildDateMap(rawSettBal);
+const mapRevRepos  = buildDateMap(rawRevRepos);
+
+type OtherPoint = { date: string; value: number };
+const rawOtherPoints: OtherPoint[] = [];
+for (const p of rawTotal) {
+  const d = p.date;
+  const bn = mapBanknotes.get(d);
+  const gc = mapGocDeps.get(d);
+  const sb = mapSettBal.get(d);
+  const rr = mapRevRepos.get(d);
+  if (bn === undefined || gc === undefined || sb === undefined || rr === undefined) continue;
+  rawOtherPoints.push({ date: d, value: (p.value as number) - bn - gc - sb - rr });
 }
-const rawOtherAssets = buildOtherAssets();
+const rawOther: SeriesPoint[] = rawOtherPoints;
 
 // ---- Panel definitions ------------------------------------------------------
+// Top row: TOTAL LIAB. & EQUITY, BANKNOTES, GOC DEPOSITS
+// Bottom row: SETTLEMENT BALANCES, REVERSE REPOS, OTHER
 const subPanels = [
-  { label: "TOTAL ASSETS", data: rawTotalAssets },
-  { label: "GOC BONDS",    data: rawGocBonds    },
-  { label: "T-BILLS",      data: rawTbills      },
-  { label: "ADVANCES",     data: rawAdvances    },
-  { label: "REPOS",        data: rawRepos       },
-  { label: "OTHER",        data: rawOtherAssets },
+  { label: "TOTAL LIAB. & EQUITY", data: rawTotal     },
+  { label: "BANKNOTES",            data: rawBanknotes },
+  { label: "GOC DEPOSITS",         data: rawGocDeps   },
+  { label: "SETTLEMENT BAL.",      data: rawSettBal   },
+  { label: "REVERSE REPOS",        data: rawRevRepos  },
+  { label: "OTHER",                data: rawOther     },
 ] as const;
 
 // ---- Shared x-domain --------------------------------------------------------
@@ -128,20 +127,20 @@ for (const sp of subPanels) {
 if (!Number.isFinite(xMin)) { xMin = 2020; xMax = 2026.5; }
 
 // ---- Geometry ---------------------------------------------------------------
-// ViewBox: 720 x 405 (16:9)
+// ViewBox: 720 x 405 (16:9) — identical to Panel4
 const VB_W = 720;
 const VB_H = 405;
 
-// Outer margins
-const M_L = 52;   // left gutter for y-axis labels
-const M_R = 14;   // right margin
-const M_T = 30;   // top margin
-const M_B = 38;   // bottom margin (room for x-tick labels on bottom row)
+// Outer margins — verbatim from Panel4
+const M_L = 52;
+const M_R = 14;
+const M_T = 30;
+const M_B = 38;
 
 const GRID_W = VB_W - M_L - M_R;   // 654
 const GRID_H = VB_H - M_T - M_B;   // 337
 
-// 3-col layout; bottom row uses leftmost 2 cells
+// 3-col x 2-row, all 6 cells filled (Mode B — 6 sub-panels)
 const NUM_COLS = 3;
 const NUM_ROWS = 2;
 const GAP_X = 38;
@@ -150,16 +149,17 @@ const GAP_Y = 20;
 const CELL_W = (GRID_W - GAP_X * (NUM_COLS - 1)) / NUM_COLS;   // ~206
 const CELL_H = (GRID_H - GAP_Y * (NUM_ROWS - 1)) / NUM_ROWS;   // ~158.5
 
-// Sub-panel grid positions: [col, row] for each of the 6 sub-panels.
-// 3 cols x 2 rows, no empty cells.
-const GRID_POSITIONS = [
-  [0, 0], // Total assets
-  [1, 0], // GoC bonds
-  [2, 0], // T-bills
-  [0, 1], // Advances
-  [1, 1], // Repos
-  [2, 1], // Other (residual)
-] as const;
+// Grid positions: [col, row] for each of the 6 sub-panels
+// Top row:    panels 0, 1, 2 (col 0,1,2 row 0)
+// Bottom row: panels 3, 4, 5 (col 0,1,2 row 1)
+const GRID_POSITIONS: [number, number][] = [
+  [0, 0], // TOTAL LIAB. & EQUITY
+  [1, 0], // BANKNOTES
+  [2, 0], // GOC DEPOSITS
+  [0, 1], // SETTLEMENT BAL.
+  [1, 1], // REVERSE REPOS
+  [2, 1], // OTHER
+];
 
 function cellOrigin(col: number, row: number): [number, number] {
   const x0 = M_L + col * (CELL_W + GAP_X);
@@ -190,7 +190,6 @@ function computeYDomain(pts: SeriesPoint[]): [number, number] {
     if (v > hi) hi = v;
   }
   const span = hi - lo || 1;
-  // Floor lo toward zero for clean ticks; pad top 8%
   const pad = span * 0.08;
   const yLo = Math.max(0, lo - pad);
   const yHi = hi + pad;
@@ -204,9 +203,7 @@ function buildYTicks(yLo: number, yHi: number): number[] {
   for (let v = start; v <= yHi + 1e-9; v += stride) {
     ticks.push(Number(v.toFixed(6)));
   }
-  // Keep 2-3 ticks
   if (ticks.length > 3) {
-    // Keep first, middle, last
     const mid = Math.floor(ticks.length / 2);
     return [ticks[0]!, ticks[mid]!, ticks[ticks.length - 1]!];
   }
@@ -223,7 +220,6 @@ function fmtYTick(v: number): string {
 }
 
 // ---- X-ticks (bottom row only) ----------------------------------------------
-// 3 ticks: Jan 2020 (start), a midpoint year, latest year
 function buildXTicks(
   xMinVal: number,
   xMaxVal: number,
@@ -232,7 +228,6 @@ function buildXTicks(
   const yearStart = Math.ceil(xMinVal);
   const yearEnd   = Math.floor(xMaxVal);
   const span = yearEnd - yearStart;
-  // Pick ~3 evenly spaced years
   const stride = Math.max(1, Math.round(span / 2));
   const ticks: Array<{ x: number; label: string }> = [];
   for (let yr = yearStart; yr <= yearEnd; yr += stride) {
@@ -241,7 +236,6 @@ function buildXTicks(
       ticks.push({ x: xScale(decY), label: String(yr) });
     }
   }
-  // Ensure we have at most 3
   if (ticks.length > 3) {
     return [ticks[0]!, ticks[Math.floor(ticks.length / 2)]!, ticks[ticks.length - 1]!];
   }
@@ -280,7 +274,7 @@ function makeYScale(yLoV: number, yHiV: number, cy0: number, ch: number) {
 }
 
 const geoms: SubPanelGeom[] = subPanels.map((sp, idx) => {
-  const [col, row] = GRID_POSITIONS[idx];
+  const [col, row] = GRID_POSITIONS[idx]!;
   const [x0, y0] = cellOrigin(col, row);
   const x1 = x0 + CELL_W;
   const y1 = y0 + CELL_H;
@@ -332,40 +326,39 @@ const geoms: SubPanelGeom[] = subPanels.map((sp, idx) => {
   };
 });
 
-// Latest print for aria-label
-const totalAssetsLatest = rawTotalAssets.length > 0
-  ? rawTotalAssets[rawTotalAssets.length - 1]!
+// Latest print for aria-label (from total liabilities series)
+const totalLatest = rawTotal.length > 0
+  ? rawTotal[rawTotal.length - 1]!
   : null;
-const latestDateStr = totalAssetsLatest?.date ?? "unknown";
-const latestValStr  = totalAssetsLatest
-  ? `$${(totalAssetsLatest.value as number).toFixed(0)}bn`
+const latestDateStr = totalLatest?.date ?? "unknown";
+const latestValStr  = totalLatest
+  ? `$${(totalLatest.value as number).toFixed(0)}bn`
   : "—";
 ---
 
 {!hasData ? (
-  <PanelEmpty reason="Pipeline did not emit panel-4 secondary series (total assets)." />
+  <PanelEmpty reason="Pipeline did not emit panel-5 primary series (total liabilities)." />
 ) : (
-  <div class="p4sm-chart" data-panel="policy-4">
+  <div class="p5sm-chart" data-panel="policy-5">
     <svg
-      class="p4sm-chart__svg"
+      class="p5sm-chart__svg"
       viewBox={`0 0 ${VB_W} ${VB_H}`}
       preserveAspectRatio="xMidYMid meet"
       role="img"
-      aria-label={`Bank of Canada balance-sheet asset composition, five series, weekly, 2020 to ${latestDateStr}. Total assets latest: ${latestValStr}.`}
+      aria-label={`Bank of Canada balance-sheet liability composition, six series, weekly, 2020 to ${latestDateStr}. Total liabilities and equity latest: ${latestValStr}.`}
     >
       {geoms.map((g) => {
         const showXAxis = g.isBottomRow;
-        const showYAxis = g.isLeftmostCol;
 
         return (
-          <g class="p4sm-chart__cell" data-series={g.label}>
+          <g class="p5sm-chart__cell" data-series={g.label}>
 
             {/* Horizontal gridlines */}
             {g.yTicks.map((v) => {
               const yyv = g.y0 + CELL_H - ((v - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
               return (
                 <line
-                  class="p4sm-chart__gridline"
+                  class="p5sm-chart__gridline"
                   x1={g.x0}
                   y1={yyv.toFixed(2)}
                   x2={g.x1}
@@ -376,7 +369,7 @@ const latestValStr  = totalAssetsLatest
 
             {/* Data line */}
             {g.linePath && (
-              <path class="p4sm-chart__line" d={g.linePath} />
+              <path class="p5sm-chart__line" d={g.linePath} />
             )}
 
             {/* Native SVG <title> hit areas per data point */}
@@ -387,7 +380,7 @@ const latestValStr  = totalAssetsLatest
               const cx = xScale2(decYear(pt.date));
               const cy = yScale2(pt.value as number);
               return (
-                <circle class="p4sm-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="4">
+                <circle class="p5sm-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="4">
                   <title>{`${g.label} ${pt.date}: $${(pt.value as number).toFixed(1)}bn`}</title>
                 </circle>
               );
@@ -396,7 +389,7 @@ const latestValStr  = totalAssetsLatest
             {/* Latest-print dot — MTA red */}
             {g.latestPt && (
               <circle
-                class="p4sm-chart__latest-dot"
+                class="p5sm-chart__latest-dot"
                 cx={g.latestX.toFixed(2)}
                 cy={g.latestY.toFixed(2)}
                 r="4"
@@ -407,7 +400,7 @@ const latestValStr  = totalAssetsLatest
 
             {/* Plot frame — 1px pure ink hairline */}
             <rect
-              class="p4sm-chart__frame"
+              class="p5sm-chart__frame"
               x={g.x0}
               y={g.y0}
               width={CELL_W}
@@ -416,22 +409,21 @@ const latestValStr  = totalAssetsLatest
 
             {/* Sub-panel label — top-left, Manrope 600 micro-caps */}
             <text
-              class="p4sm-chart__panel-label"
+              class="p5sm-chart__panel-label"
               x={(g.x0 + 6).toFixed(2)}
               y={(g.y0 - 7).toFixed(2)}
             >{g.label}</text>
 
-            {/* Y-axis tick labels — per-panel (every sub-panel has its own y-scale) */}
+            {/* Y-axis tick labels — per-panel (Mode B: every cell has its own y-scale) */}
             {g.yTicks.map((v, i) => {
               const yyv = g.y0 + CELL_H - ((v - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
               const isTop = i === g.yTicks.length - 1;
               const numStr = fmtYTick(v);
-              // Unit suffix "$bn" only on the topmost tick of leftmost-column cells,
-              // since units are uniform across all five sub-panels.
+              // Unit suffix "$bn" only on the topmost tick of leftmost-column cells
               const txt = isTop && g.isLeftmostCol ? `${numStr} $bn` : numStr;
               return (
                 <text
-                  class="p4sm-chart__ytick-label"
+                  class="p5sm-chart__ytick-label"
                   x={(g.x0 - 6).toFixed(2)}
                   y={(yyv + 4).toFixed(2)}
                   text-anchor="end"
@@ -443,14 +435,14 @@ const latestValStr  = totalAssetsLatest
             {showXAxis && g.xTicks.map((t) => (
               <g>
                 <line
-                  class="p4sm-chart__xtick"
+                  class="p5sm-chart__xtick"
                   x1={t.x.toFixed(2)}
                   y1={g.y1.toFixed(2)}
                   x2={t.x.toFixed(2)}
                   y2={(g.y1 + 4).toFixed(2)}
                 />
                 <text
-                  class="p4sm-chart__xtick-label"
+                  class="p5sm-chart__xtick-label"
                   x={t.x.toFixed(2)}
                   y={(g.y1 + 16).toFixed(2)}
                   text-anchor="middle"
@@ -467,17 +459,18 @@ const latestValStr  = totalAssetsLatest
 
 <style>
   /* ------------------------------------------------------------------
-     Panel4AssetCompositionSmallMults — Tier-3 small-multiples chart.
+     Panel5LiabilityCompositionSmallMults — Tier-3 small-multiples chart.
      Vignelli canon: pure ink line, MTA red latest dot, hairline frame.
+     Mode B: per-panel y-axis (6 cells, disparate magnitudes).
      No section-accent on data marks, ever.
      ------------------------------------------------------------------ */
-  .p4sm-chart {
+  .p5sm-chart {
     width: 100%;
     aspect-ratio: 16 / 9;
     background-color: var(--paper);
     overflow: visible;
   }
-  .p4sm-chart__svg {
+  .p5sm-chart__svg {
     display: block;
     width: 100%;
     height: 100%;
@@ -486,7 +479,7 @@ const latestValStr  = totalAssetsLatest
   }
 
   /* Gridlines — pure ink, low opacity */
-  .p4sm-chart__gridline {
+  .p5sm-chart__gridline {
     stroke: var(--ink);
     stroke-width: 1;
     stroke-opacity: 0.18;
@@ -494,7 +487,7 @@ const latestValStr  = totalAssetsLatest
   }
 
   /* Data line — pure ink, 1.5px. The non-negotiable. */
-  .p4sm-chart__line {
+  .p5sm-chart__line {
     stroke: var(--ink);
     stroke-width: 1.5;
     stroke-linejoin: round;
@@ -504,19 +497,19 @@ const latestValStr  = totalAssetsLatest
   }
 
   /* Invisible hit-area for native SVG <title> hover — no JS */
-  .p4sm-chart__hit {
+  .p5sm-chart__hit {
     fill: transparent;
     pointer-events: all;
   }
 
   /* Latest-print dot — MTA red, brand signal */
-  .p4sm-chart__latest-dot {
+  .p5sm-chart__latest-dot {
     fill: var(--accent);
     stroke: none;
   }
 
   /* Plot frame — 1px pure ink hairline rectangle per sub-panel */
-  .p4sm-chart__frame {
+  .p5sm-chart__frame {
     fill: none;
     stroke: var(--ink);
     stroke-width: 1;
@@ -524,7 +517,7 @@ const latestValStr  = totalAssetsLatest
   }
 
   /* Sub-panel label — Manrope 600, micro-caps, pure ink, top-left */
-  .p4sm-chart__panel-label {
+  .p5sm-chart__panel-label {
     fill: var(--ink);
     font-family: var(--font-sans);
     font-size: 11px;
@@ -533,8 +526,8 @@ const latestValStr  = totalAssetsLatest
     text-transform: uppercase;
   }
 
-  /* Y-axis tick labels — IBM Plex Mono 400 micro (12px), right-aligned */
-  .p4sm-chart__ytick-label {
+  /* Y-axis tick labels — IBM Plex Mono 400 (11px), right-aligned */
+  .p5sm-chart__ytick-label {
     fill: var(--ink);
     font-family: var(--font-mono);
     font-size: 11px;
@@ -543,14 +536,14 @@ const latestValStr  = totalAssetsLatest
   }
 
   /* X-axis tick marks — 4px outward, pure ink */
-  .p4sm-chart__xtick {
+  .p5sm-chart__xtick {
     stroke: var(--ink);
     stroke-width: 1;
     shape-rendering: crispEdges;
   }
 
-  /* X-axis tick labels — Manrope 400 micro (12px), pure ink */
-  .p4sm-chart__xtick-label {
+  /* X-axis tick labels — Manrope 400 (11px), pure ink */
+  .p5sm-chart__xtick-label {
     fill: var(--ink);
     font-family: var(--font-sans);
     font-size: 11px;
