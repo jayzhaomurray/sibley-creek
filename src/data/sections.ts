@@ -584,9 +584,9 @@ export const sections: Section[] = [
     heroKickerPrefix: "Trade balance",
     latestReleasePrefix: "Merchandise trade",
     tileLine:
-      "Goods balance narrowed to -$2.2B; US export share fell to 66.1%.",
+      "Goods balance flipped to $1.8B surplus in March; US export share fell to 66.1%.",
     tileLineCitations: [
-      { phrase: "-$2.2B", source: "pipeline:statcan:12-10-0119-01", note: "Goods trade balance, 3-month moving average, March 2026." },
+      { phrase: "$1.8B surplus in March", source: "pipeline:statcan:12-10-0119-01", note: "Goods trade balance, March 2026 monthly print: +$1,779M (swung from -$5,113M deficit in February)." },
       { phrase: "66.1%", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, March 2026." },
     ],
     tileChartKind: "bars",
