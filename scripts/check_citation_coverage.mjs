@@ -28,6 +28,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parse as parseYaml } from "yaml";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +36,8 @@ const repoRoot = path.resolve(__dirname, "..");
 
 const PAGES_DIR = path.join(repoRoot, "src", "pages");
 const SECTIONS_TS = path.join(repoRoot, "src", "data", "sections.ts");
+const RESEARCH_DIR = path.join(repoRoot, "editorial", "published");
+const RESEARCH_CITATIONS_DIR = path.join(repoRoot, "editorial", "source_cards", "research");
 const ALL_SECTIONS = ["gdp", "inflation", "labour", "housing", "policy", "markets", "trade"];
 
 // ---------------------------------------------------------------------------
@@ -389,9 +392,59 @@ function checkSurface(slug, surfaceLabel, prose, citations) {
   return { tokens, uncovered, mode: citations.length > 0 ? "strict" : "needs-tagging" };
 }
 
+/**
+ * Strip markdown formatting from a deep-dive body so the tokenizer
+ * doesn't trip over heading hashes, list bullets, link syntax, etc.
+ */
+function stripMarkdown(md) {
+  if (!md) return "";
+  return md
+    .replace(/^---\n[\s\S]*?\n---\n/, "")       // YAML frontmatter
+    .replace(/```[\s\S]*?```/g, " ")             // fenced code blocks
+    .replace(/`[^`]*`/g, " ")                    // inline code
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")       // images
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")     // links: keep text
+    .replace(/^#+\s+/gm, "")                     // heading hashes
+    .replace(/^>\s?/gm, "")                      // blockquote markers
+    .replace(/\*\*([^*]+)\*\*/g, "$1")           // bold
+    .replace(/\*([^*]+)\*/g, "$1")               // italic
+    .replace(/_([^_]+)_/g, "$1")                 // underscore italic
+    .replace(/^\s*[-*+]\s+/gm, "")               // list bullets
+    .replace(/^\s*\d+\.\s+/gm, "");              // ordered list markers
+}
+
+function loadResearchSidecar(slug) {
+  const sidecarPath = path.join(RESEARCH_CITATIONS_DIR, `${slug}.yaml`);
+  if (!fs.existsSync(sidecarPath)) return null;
+  try {
+    const raw = fs.readFileSync(sidecarPath, "utf-8");
+    const parsed = parseYaml(raw);
+    return Array.isArray(parsed?.citations) ? parsed.citations : [];
+  } catch (e) {
+    console.error(`error parsing ${sidecarPath}: ${e.message}`);
+    return [];
+  }
+}
+
+function discoverResearchDives() {
+  if (!fs.existsSync(RESEARCH_DIR)) return [];
+  return fs.readdirSync(RESEARCH_DIR)
+    .filter((f) => f.endsWith(".md") && f !== "README.md")
+    .map((f) => f.replace(/\.md$/, ""));
+}
+
 function main() {
   const args = process.argv.slice(2);
-  const sections = args.length ? args : ALL_SECTIONS;
+  // Default: scan all sections + all research dives. With explicit args,
+  // limit to those slugs.
+  const allDives = discoverResearchDives();
+  let sections = args.length ? args.filter((a) => ALL_SECTIONS.includes(a)) : ALL_SECTIONS;
+  let dives = args.length ? args.filter((a) => allDives.includes(a)) : allDives;
+  // If user passed args that match neither sections nor dives, treat them
+  // as section slugs (backward compat) and let the section path skip them.
+  if (args.length && sections.length === 0 && dives.length === 0) {
+    sections = args;
+  }
 
   let strictFails = 0;
   let warnSurfaces = 0;
@@ -437,6 +490,29 @@ function main() {
           warnSurfaces++;
           report.push({ slug, label: s.label, kind: "WARN", uncovered: r.tokens, totalTokens: r.tokens.length, citationsCount: 0 });
         }
+      }
+    }
+  }
+
+  // Research deep dives — each as a single surface (the full body)
+  for (const diveSlug of dives) {
+    const mdPath = path.join(RESEARCH_DIR, `${diveSlug}.md`);
+    if (!fs.existsSync(mdPath)) continue;
+    const md = fs.readFileSync(mdPath, "utf-8");
+    const body = stripMarkdown(md);
+    const citations = loadResearchSidecar(diveSlug) || [];
+    const r = checkSurface(`research/${diveSlug}`, "body", body, citations);
+    if (r.mode === "strict") {
+      if (r.uncovered.length > 0) {
+        strictFails++;
+        report.push({ slug: `research/${diveSlug}`, label: "body", kind: "FAIL", uncovered: r.uncovered, totalTokens: r.tokens.length, citationsCount: citations.length });
+      } else {
+        strictPasses++;
+      }
+    } else {
+      if (r.tokens.length > 0) {
+        warnSurfaces++;
+        report.push({ slug: `research/${diveSlug}`, label: "body", kind: "WARN", uncovered: r.tokens, totalTokens: r.tokens.length, citationsCount: 0 });
       }
     }
   }
