@@ -1,0 +1,185 @@
+# Night-shift summary — 2026-05-13
+
+## Plain-English summary
+
+Built the full citation-and-fact-check infrastructure for the
+publication, end to end, then ran a fact-check audit over every claim
+on the site.
+
+The five biggest things that landed live overnight:
+
+1. **The site now has a build-time citation gate.** Every numeric,
+   dated, or countable claim on a section page, section abstract,
+   splash tile line, splash hero, or research deep dive must carry a
+   `citations[]` entry pointing to a verifiable source. The gate runs
+   ahead of `astro check` on every `npm run build`. If a claim is
+   uncovered, the build halts. **This is the user-asked, non-bypassable
+   chokepoint that keeps untagged claims off the live site — including
+   claims the user types in directly.**
+
+2. **Every reader-facing surface is now tagged.** 61 strict-pass
+   surfaces: 7 section abstracts, 6 splash tile lines, splash hero, 41
+   section-page plates, 4 research deep dives. ~970 individual citations
+   across the site (~600 on section pages + ~340 on the dives + the
+   splash). Zero "needs-tagging" surfaces remain.
+
+3. **Each citation resolves to something verifiable.** Pipeline-tagged
+   claims now show a clickable external link (StatCan tableViewer, BoC
+   Valet series page, FRED series page, etc.) — click through and
+   eyeball the upstream value. Source-card claims (BoC MPR, FOMC,
+   inflation mandate, 5y mortgage rate) carry a verbatim excerpt + URL
+   with optional page anchor + verified-at + next-expected dates. The
+   audit pages (one per section, one per dive) render this for the
+   journalist's eye-scan review.
+
+4. **Source-currency cron.** Catalog of every cited PDF/HTML
+   publication in `editorial/source_cards/registry.yaml`. A weekly
+   GitHub Action runs `scripts/check_sources.mjs` against each entry's
+   probe URL; surfaces past-due entries and newer-vintage-maybe hints.
+   The April 2026 MPR, April 29 FOMC, inflation mandate (renewal due
+   Dec 2026), and 5y conventional mortgage rate are all under audit
+   today. On-demand: `/check-sources` skill.
+
+5. **Fact-check audit ran across the whole site.** Four parallel
+   fact-checkers covered every section + every deep dive. 12 hard
+   FAILs surfaced. Eight were surgical (clear substitutions) — fixed
+   in this session. Four need editorial judgment — flagged below for
+   the morning.
+
+The big editorial correction caught earlier in the day: the **1.7%
+"potential growth" hardcoded constant** on the GDP chart turned out
+to be a placeholder with a "confirm later" code comment that was
+never actioned. Researcher pulled the April 2026 MPR Appendix; actual
+value is **1.2% in 2026** (1.3% / 1.5% in 2027 / 2028). Updated the
+chart constant, the section abstract, and Plate 1's blurb to match,
+and added the source-card with the verbatim MPR excerpt.
+
+The user's principle, codified in `editorial/review_protocol.md`:
+*"Authorship is not a gate exemption."* The build-time gate is
+authorship-blind — user-typed prose faces the same coverage
+requirement as agent-drafted prose. Non-bypassable. The user
+explicitly framed this: "I am not above AI. I am equally at risk of
+writing something incorrect."
+
+What FAILED (blockers I hit) — none that stopped a phase from
+shipping. Multiple editorial-judgment FAILs surfaced that need the
+user's call rather than a defensible auto-fix (the housing "eighth
+straight" framing, the markets w/w arithmetic). All flagged below
+with the corrected values from the pipeline.
+
+---
+
+## What landed — detailed
+
+| Item | Where it lives | Live? |
+|------|----------------|-------|
+| Build-time citation gate | `scripts/check_citation_coverage.mjs` (wired in `package.json` build script ahead of `astro check`) | Yes — `npm run build` fails on uncovered tokens. Non-bypassable. |
+| Per-plate `citations[]` field | `src/layouts/SectionLayout.astro` (Plate type + ClaimCitation type) | Yes — used by all section pages |
+| Per-section `abstractCitations` + `tileLineCitations` | `src/data/sections.ts` (Section type) | Yes — used by all 7 sections |
+| Splash hero abstract refactor | Moved from `TitleStatement.astro` hardcode into `sections.ts` as `splashHero = { abstract, citations }` | Yes |
+| Research-deep-dive sidecar pattern | `editorial/source_cards/research/<slug>.yaml` per dive (4 dives) | Yes — README in `editorial/source_cards/research/README.md` |
+| Source-card registry | `editorial/source_cards/registry.yaml` — 5 entries: BoC MPR potential growth, BoC neutral range, FOMC target, BoC inflation mandate, BoC 5y mortgage rate. Each carries url + anchor + excerpt + verified_at + next_expected + cited_in. | Yes |
+| Source-currency probe | `scripts/check_sources.mjs` + `.github/workflows/source-currency-check.yml` (weekly cron) + `/check-sources` skill | Yes |
+| Per-section HTML audit pages | `editorial/source_cards/audit/<section>.html` for each of 7 sections + `index.html`. Generated by `scripts/source_audit.mjs`. | Yes — open in browser, click claim links to verify upstream |
+| Audit page "Propose edit" flow | Each plate + abstract has an inline edit form that copies a structured EDIT REQUEST to clipboard for paste into chat | Yes |
+| Audit page pipeline-freshness panel | Top-of-page stamp showing each section's panel_data `generatedAt` + per-citation external URL resolution | Yes |
+| `/source-audit` skill | `.claude/commands/source-audit.md` | Yes |
+| Authorship-blind enforcement rule | `editorial/review_protocol.md` + memory note `feedback_authorship_is_not_an_exemption.md` | Codified |
+| Source-card-for-constants rule | `editorial/writing-style.md` §4.1c + memory note | Codified |
+| Redraft-regate rule (new claims re-enter Gate 1) | `editorial/review_protocol.md` + `.claude/agents/writer.md` + `.claude/commands/refresh-blurbs.md` Phase 3.5 + memory note | Codified |
+| Section-abstract synthesis rule (under a question header, answer the question) | `editorial/writing-style.md` §4.1b + memory note | Codified |
+| Numeric-equivalence fuzzy matcher | "1%" / "1.0%" / "1 percent" / "1 per cent" all match each other in the gate | Yes |
+| BOM-tolerant parser | Multiple `.astro` files had UTF-8 BOM that was silently failing frontmatter regex; parser hardened | Yes |
+| All 4 deep dives flagged as `draftStatus: "draft"` | `src/data/sections.ts` deepDives array. Renders "DRAFT — HUMAN REVISION PENDING" stamp + "DRAFT" chip on /research/. mortgage-renewal-wall was previously untagged — now matches the other three. | Yes |
+| The 1.7% → 1.2% potential-growth correction | `src/components/charts/gdp/Panel1HeadlineGDPV3.astro` + `src/data/sections.ts` + `src/pages/gdp.astro` | Yes — chart reference rule, section abstract, Plate 1 blurb all aligned to the actual April 2026 MPR value |
+
+## Phase-by-phase shipping
+
+- **Phase A** (commit `0cd7f82`): pipeline-freshness panel on audit pages + per-citation external URL resolution (StatCan / BoC Valet / FRED / DoF / etc.). Three-way Bloomberg-style verification (claim → our pipeline value → upstream live page) now takes seconds per claim.
+- **Phase B** (commit `78b4351`): sidecar YAML pattern for research deep dives + parser extension to scan markdown body. All 4 dives tagged (337 citations).
+- **Phase C** (commit `91fe306`): splash hero + tile lines under audit. Gate strict-by-default (untagged claims now FAIL the build, not WARN). User-prose rule codified.
+- **Phase D** (commit `d6cf5fc`): full fact-check audit across the site. 8 surgical fixes applied; 4 editorial-judgment items flagged below.
+
+---
+
+## Open issues — editorial judgment needed before promote
+
+Four fact-check FAILs survived the surgical fix pass because they need
+your call on how to reframe. Order matches priority — the housing item
+ships across 3 surfaces (section page, abstract, splash tile) and is the
+most visible.
+
+### 1. Housing — "eighth straight" / "eighth consecutive month" negative HPI
+
+- **Where:** `src/pages/housing.astro` plate-1; `src/data/sections.ts` housing section abstract + tileLine
+- **The error:** the prose says HPI fell "for the eighth consecutive month / straight month." Pipeline enumeration: the streak is **24 consecutive negative months** (since Apr 2024). The number is off by a factor of three.
+- **Why it's editorial:** "eighth straight" reads as a fresh signal that just turned. "Two years and counting" reads as a structural drift. Picking the right framing changes the read meaningfully.
+- **Suggested fix (user can override):** "for two full years now" or "for 24 consecutive months." All three surfaces need the same update.
+
+### 2. Housing plate-7 — "50.4% at the Q2 2024 peak" (affordability)
+
+- **Where:** `src/pages/housing.astro` plate-7
+- **The error:** Q2 2024 affordability index = 50.4% is correct. But Q2 2024 was NOT the peak. Cycle peak: 54.5% in Q3 2023. Q2 2024 had already eased 4pp from the peak.
+- **Suggested fix:** "54.5% at the Q3 2023 peak" — or qualify Q2 2024 as a different anchor ("a year after the Q3 2023 peak of 54.5%, the ratio sat at 50.4%").
+
+### 3. Policy plate-3 — Canada-US 2y spread distribution claim
+
+- **Where:** `src/pages/policy.astro` plate-3
+- **Errors:** (a) "5th percentile of the distribution" — the panel-data window shows current −98 bps near the median (~50-60th percentile). May be correct in a longer (post-2001) sample, but the panel data can't verify that independently. (b) "USDCAD has held below 1.36 through the spring" — markets panel shows USDCAD mostly above 1.36 across Mar-May 2026; the blurb's own May 8 reference is 1.369.
+- **Suggested fix:** writer needs to clarify the distribution window for the percentile and rerun the USDCAD spring-range claim against the actual data.
+
+### 4. Markets section abstract — w/w arithmetic + WTI streak
+
+- **Where:** `src/data/sections.ts` markets abstract
+- **Errors:** 
+  - "USDCAD up 0.4% on the week" — actual May 1 → May 8 is +0.81%.
+  - "WTI a 4.2% move" — actual Apr 27 → May 4 is +9.88%.
+  - "above $100 for a second straight month" — May 1 close was $98.07, contradicting "every close above $100."
+  - Plate 4 also has Brent listed at $118.26 on May 1; actual May 1 close was $104.21 (Apr 30 was $124.24).
+- **Suggested fix:** writer reruns w/w arithmetic against the actual values; drops or qualifies the "second straight month" claim.
+
+## Other items flagged but not blocking
+
+- **us-tariff-repricing deep dive** carries 39 `other:<note>` citations for tariff-policy sources (USTR EOs, Federal Register notices, CRS reports, Presidential Proclamations). These cannot be auto-verified by the pipeline — they need primary-source verification by a human or by researcher dispatch with the registry promoted to full source-cards. The gate accepts them as `other:` for now; they don't block the build but they're flagged in the audit page.
+- The 1.4% pipeline-tagged values in the deep dives that aren't surfaced in `panel_data/*.json` (live in raw CSVs only) — flagged as "trust the pipeline tag, verify in raw CSV if central to the argument" by the fact-checker.
+- The `boc-fed-divergence` sidecar enumerates the BoC March 2026 FAD as Mar 11; verify against the BoC fixed-date schedule before promote (sidecar agent flagged Mar 18 as the canonical date).
+
+---
+
+## Things to look at first when you scan the site
+
+1. **Open `editorial/source_cards/audit/index.html`** in a browser. Click through to any section. Each tagged claim has a yellow highlight; the sidebar has the source ledger with clickable links. Three-way verify any claim that looks off.
+2. **Read the four editorial-judgment FAILs above** in `editorial/night-shift-2026-05-13.md`. Pick the right framing for each. The `/source-audit <section>` skill regenerates the audit pages after you apply a change.
+3. **Run `/check-sources`** to dry-run the source-currency probe. (Cron also runs weekly via GitHub Actions.)
+4. **Review the source-card registry** at `editorial/source_cards/registry.yaml`. 5 entries today. The 4 deep dives surface ~40 candidate registry promotions (BoC SAPs, OSFI M4, CMHC RMIR, etc.); pick the high-recurrence ones for promotion.
+5. **The gate is on.** Any new prose you type into a section page or sections.ts must include a `citations[]` entry for its citable claims, OR the build fails loudly with the exact uncovered tokens.
+
+---
+
+## Commits shipped overnight
+
+- `d8bbe51` editorial: codify the audit infrastructure + tag the whole site for citations. (Phase 0 — the morning + early-evening session before the user went to sleep.)
+- `0cd7f82` audit phase A: pipeline freshness panel + per-citation source URLs.
+- `78b4351` audit phase B: sidecar pattern for research deep dives, all 4 tagged.
+- `91fe306` audit phase C: splash hero + tile lines tagged; gate strict-by-default; user-prose rule codified.
+- `d6cf5fc` fact-check phase D: 8 surgical corrections + audit findings documented.
+
+All on `master`, pushed to `origin`. CI deploy will pick them up via the standard `deploy.yml` workflow.
+
+---
+
+## Memory notes added this session
+
+For future sessions to inherit:
+
+- `feedback_section_abstract_synthesize_not_recite.md` — section abstracts under a question header answer the question with a synthesis, not a three-fact recitation.
+- `feedback_redraft_regate_new_claims.md` — every writer redraft re-enters Gate 1; new claims get fact-checked before the redraft is applied.
+- `feedback_blurbs_dont_cite_sources.md` — chart blurbs name the finding, not the source-org. Series labels OK for disambiguation; publisher name never.
+- `feedback_source_card_for_benchmark_constants.md` — hardcoded benchmark constants (potential growth, neutral range, target band, etc.) need a source-card comment block, not a "confirm later" placeholder.
+- `feedback_authorship_is_not_an_exemption.md` — user-written prose faces the same citation gate as LLM-written prose. The gate is authorship-blind.
+
+All indexed in `MEMORY.md`.
+
+---
+
+End of summary.
