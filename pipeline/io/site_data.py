@@ -288,7 +288,7 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
     ),
     "trade": SectionConfig(
         slug="trade",
-        primary_series="trade_balance_total_3m_ma",
+        primary_series="trade_balance_total",
         primary_dir="processed",
         unit_display="B",  # rendered as e.g. "-$2.3B"
         value_decimals=1,
@@ -298,7 +298,7 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
         reference_label="Balance neutral",
         chart_series_key="trade-balance",
         print_key="trade-balance",
-        print_indicator="Goods trade balance, 3mma",
+        print_indicator="Goods trade balance",
         as_of_format="month-year",
         delta_kind="level",
         positive_is_good=True,  # surplus widening reads positive

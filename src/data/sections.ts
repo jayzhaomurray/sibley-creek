@@ -668,7 +668,7 @@ export const sections: Section[] = [
     heroKickerPrefix: "Daily close",
     latestReleasePrefix: "Daily close",
     tileLine:
-      "USDCAD closed the week at 1.369 as the BoC-Fed 2y spread held near -98 bps.",
+      "USDCAD closed the week at 1.369 as the Canada-US 2y spread held near -98 bps.",
     tileLineCitations: [
       { phrase: "-98 bps", source: "derived", note: "GoC 2y 2.94% minus UST 2y 3.92% = -98 bps. Inputs: BoC Valet yield_2yr and FRED DGS2, May 7 2026." },
     ],
