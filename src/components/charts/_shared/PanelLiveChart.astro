@@ -88,6 +88,14 @@ interface Props {
    * Defaults to null so existing panels see zero visual change.
    */
   referenceBand?: { lower: number; upper: number; label?: string } | null;
+  /** Position of the band label relative to the band rect.
+   *  "above" (default) places the label just above the band's upper edge —
+   *  works for charts where the data line stays below or inside the band.
+   *  "below" places the label just below the band's lower edge — required
+   *  for charts where the data line crosses the band's TOP edge at the
+   *  leftmost x (i.e., the line starts above the band on the historical
+   *  side, like inflation core measures during the 2022-23 spike). */
+  bandLabelPosition?: "above" | "below";
   /** data-panel attribute for QA / theming hooks. */
   dataPanelAttr?: string;
 }
@@ -109,6 +117,7 @@ const {
   referenceValueSecondary = null,
   referenceLabelSecondary = null,
   referenceBand = null,
+  bandLabelPosition = "above",
   dataPanelAttr,
 } = Astro.props;
 
@@ -407,9 +416,16 @@ const showBand = referenceBand !== null && bandTopY !== null && bandBotY !== nul
 // charts (Panel1HeadlineCPI, Panel2CoreTrio, Panel1OvernightRate) all
 // run a 60-mo window — no horizontal collision in practice. See the
 // text-vs-line overlap audit.
-// Band label sits ~4px above the band's upper edge. Clamped so it never
-// crosses above the plot frame (PLOT_Y0) into the title area.
-const BAND_LABEL_Y = bandTopY !== null ? Math.max(PLOT_Y0 + 10, bandTopY - 4) : 0;
+// Band label position: "above" places ~4px above the band's upper edge
+// (clamped to PLOT_Y0+10 so it never crosses the plot frame); "below"
+// places at yScale(1.4) — inside the chart but below the band's lower
+// edge — for charts where the data line crosses the band's TOP at the
+// leftmost x (inflation core measures during the 2022-23 spike).
+const BAND_LABEL_Y = bandTopY !== null
+  ? (bandLabelPosition === "below"
+      ? yScale((referenceBand?.lower ?? 0) - 0.6)
+      : Math.max(PLOT_Y0 + 10, bandTopY - 4))
+  : 0;
 // (Band-label collision suppression resolves after showRefLabel /
 // showRefLabel2 / RECESSION_LABEL_Y are defined below.)
 
