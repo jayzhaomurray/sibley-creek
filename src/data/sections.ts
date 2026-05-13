@@ -526,10 +526,10 @@ export const sections: Section[] = [
     heroKickerPrefix: "Home prices",
     latestReleasePrefix: "Home prices",
     tileLine:
-      "Composite home prices down 4.6% Y/Y, the eighth straight down month.",
+      "Composite home prices down 4.6% Y/Y, now two years of negative readings.",
     tileLineCitations: [
       { phrase: "4.6%", source: "pipeline:crea:mls_hpi_national", note: "CREA MLS HPI composite, Y/Y, March 2026." },
-      { phrase: "eighth straight", source: "pipeline:crea:mls_hpi_national", note: "Enumerated: Aug 2025 through Mar 2026; CREA MLS HPI Y/Y has printed negative each month." },
+      { phrase: "two years of negative readings", source: "pipeline:crea:mls_hpi_national", note: "Enumerated: CREA MLS HPI Y/Y has printed negative every month since April 2024 — 24 consecutive months through March 2026." },
     ],
     prints: [
       {
@@ -564,11 +564,11 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 15, 2026",
       body:
-        "Home prices fell 4.6% Y/Y on the MLS HPI in the latest print, per the Canadian Real Estate Association, a tenth shallower than the prior month but the eighth straight negative reading. Housing starts on a 3mma basis stepped down to 241k from 257k, per Canada Mortgage and Housing Corporation. Affordability held at 42.7% of household income in Q4 2025, half a point easier on continued mortgage-cost relief.",
+        "Home prices fell 4.6% Y/Y on the MLS HPI in the latest print, per the Canadian Real Estate Association, a tenth shallower than the prior month but now two years into negative territory. Housing starts on a 3mma basis stepped down to 241k from 257k, per Canada Mortgage and Housing Corporation. Affordability held at 42.7% of household income in Q4 2025, half a point easier on continued mortgage-cost relief.",
     },
     abstractCitations: [
       { phrase: "fell 4.6% Y/Y on the MLS HPI", source: "pipeline:crea:mls_hpi_national", note: "CREA MLS HPI composite, Y/Y, Mar 2026." },
-      { phrase: "eighth straight negative reading", source: "pipeline:crea:mls_hpi_national", note: "Enumerated: Aug 2025 through Mar 2026; CREA MLS HPI Y/Y has printed negative each month." },
+      { phrase: "two years into negative territory", source: "pipeline:crea:mls_hpi_national", note: "Enumerated: CREA MLS HPI Y/Y has printed negative every month since April 2024 — 24 consecutive months through March 2026." },
       { phrase: "241k from 257k", source: "pipeline:statcan:34-10-0158-01", note: "Total housing starts, SAAR 3mma; latest vs prior month per CMHC release (StatCan table)." },
       { phrase: "42.7% of household income in Q4 2025", source: "pipeline:boc:INDINF_AFFORD_Q", note: "BoC housing affordability index, qualifying payment / income, 2025Q4." },
     ],
@@ -721,14 +721,14 @@ export const sections: Section[] = [
       kind: "last",
       date: "May 8, 2026",
       body:
-        "USDCAD closed May 8 at 1.369, up 0.4% on the week, per Bank of Canada noon rates. The 10y GoC yield closed at 3.53% on May 7, two basis points firmer. WTI rose to $109.76 by May 4, a 4.2% move that keeps crude above $100 for a second straight month; the TSX Composite closed near 34.1k, flat on the session.",
+        "USDCAD closed May 8 at 1.369, up 0.8% on the week, per Bank of Canada noon rates. The 10y GoC yield closed at 3.53% on May 7, two basis points firmer. WTI rose to $109.76 by May 4, a 9.9% move that put crude back above $100 after dipping briefly below; the TSX Composite closed near 34.1k, flat on the session.",
     },
     abstractCitations: [
-      { phrase: "up 0.4% on the week", source: "derived", note: "USDCAD week-over-week change to May 8, 2026 close, per BoC Valet FXUSDCAD." },
+      { phrase: "up 0.8% on the week", source: "derived", note: "USDCAD week-over-week change: 1.3576 (May 1) -> 1.3686 (May 8) = +0.81%, rounds to 0.8%. Per BoC Valet FXUSDCAD." },
       { phrase: "10y GoC yield closed at 3.53% on May 7", source: "pipeline:boc:yield_10yr", note: "GoC 10y benchmark yield, May 7 2026 daily close." },
       { phrase: "WTI rose to $109.76 by May 4", source: "pipeline:fred:DCOILWTICO", note: "WTI spot, May 4 2026 daily close." },
-      { phrase: "a 4.2% move", source: "derived", note: "WTI week-over-week change ending May 4 2026, FRED DCOILWTICO." },
-      { phrase: "above $100 for a second straight month", source: "pipeline:fred:DCOILWTICO", note: "Enumerated WTI daily closes: held above $100 in April and May 2026 to date." },
+      { phrase: "a 9.9% move", source: "derived", note: "WTI week-over-week change: 99.89 (Apr 27) -> 109.76 (May 4) = +9.88%, rounds to 9.9%. Per FRED DCOILWTICO." },
+      { phrase: "back above $100 after dipping briefly below", source: "pipeline:fred:DCOILWTICO", note: "WTI closed at 98.07 on May 1, dipping below $100 between Apr 27 (99.89) and May 4 (109.76)." },
       { phrase: "TSX Composite closed near 34.1k", source: "other:TMX Group S&P/TSX Composite Index close, May 8, 2026." },
     ],
   },
