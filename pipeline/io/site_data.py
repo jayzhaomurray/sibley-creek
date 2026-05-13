@@ -514,30 +514,6 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
                 "Canada LFS Table 14-10-0287, v2062817; Canada total, 15+, SA."
             ),
         ),
-        # EI Regular Beneficiaries (Wave 5 brief: Labour Panel 7 home; surfaced
-        # on the homepage tile as a Y/Y supporting print for the cyclical-
-        # inflection signal). StatCan Table 14-10-0011 v64549350; CSV stores
-        # raw counts in persons. Y/Y % is the canonical headline transform on
-        # the tile (Panel 7 default-view is level in thousands; the tile uses
-        # Y/Y because three-digit thousands look noisy in a small row).
-        SupportingPrintSpec(
-            key="ei-regular-beneficiaries-yoy",
-            indicator="EI regular beneficiaries, y/y",
-            primary_series="ei_regular_beneficiaries",
-            primary_dir="raw",
-            unit_display="%",
-            value_decimals=1,
-            delta_decimals=1,
-            delta_unit="pp",
-            delta_kind="pp",
-            as_of_format="month-year",
-            transform="yoy",
-            notes=(
-                "Y/Y % change in EI regular benefits recipients (StatCan v64549350, "
-                "Canada total SA). Demand-side cyclical-inflection signal; uptake "
-                "tends to lead LFS unemployment by ~1-2 months. Wave 5 add."
-            ),
-        ),
     ),
     "housing": (
         SupportingPrintSpec(
@@ -627,7 +603,7 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
         ),
         SupportingPrintSpec(
             key="boc-fed-spread",
-            indicator="BoC-Fed spread, 2y",
+            indicator="Canada-US 2y spread",
             primary_series="yield_2yr",
             primary_dir="raw",
             unit_display="bps",  # render as e.g. "-150 bps"

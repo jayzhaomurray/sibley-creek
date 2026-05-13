@@ -8,7 +8,6 @@ import type { ChartShelfEntry } from "../_shared/shelfEntry";
 import Alt1_GoCUstSpread from "./Alt1_GoCUstSpread.astro";
 import Alt2_OilTriple from "./Alt2_OilTriple.astro";
 import Alt3_WcsDiscount from "./Alt3_WcsDiscount.astro";
-import Alt4_UsdCadVsBocFed from "./Alt4_UsdCadVsBocFed.astro";
 import Panel3CreditSpreads from "./Panel3CreditSpreads.astro";
 import Panel5BankStability from "./Panel5BankStability.astro";
 import Panel6FCI from "./Panel6FCI.astro";
@@ -44,17 +43,6 @@ export const entries: ChartShelfEntry[] = [
     whyBetter:
       "Wide differential = pipeline constraints; tight = relief. One line, one signal.",
     dataFields: "wti.csv - wcs.csv",
-    addedAt: "2026-05-12",
-  },
-  {
-    Component: Alt4_UsdCadVsBocFed,
-    file: "markets/Alt4_UsdCadVsBocFed.astro",
-    title: "USDCAD vs GoC2-UST2, side-by-side",
-    whatDifferent:
-      "Small multiples since units differ (price vs %). The policy-driven FX story in one visual scan.",
-    whyBetter:
-      "The whole loonie story since 2022 is the BoC-Fed rate gap. Side-by-side avoids the dual-unit trap.",
-    dataFields: "usdcad.csv + (yield_2yr.csv - us_2yr.csv)",
     addedAt: "2026-05-12",
   },
   {

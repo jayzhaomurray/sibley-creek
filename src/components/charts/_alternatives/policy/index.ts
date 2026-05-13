@@ -5,23 +5,11 @@
 
 import type { ChartShelfEntry } from "../_shared/shelfEntry";
 
-import Alt1_BocFedSpread from "./Alt1_BocFedSpread.astro";
 import Alt2_BalanceSheetOverlay from "./Alt2_BalanceSheetOverlay.astro";
 import Alt3_YieldCurveTriple from "./Alt3_YieldCurveTriple.astro";
 import Alt4_TwosTensSlope from "./Alt4_TwosTensSlope.astro";
 
 export const entries: ChartShelfEntry[] = [
-  {
-    Component: Alt1_BocFedSpread,
-    file: "policy/Alt1_BocFedSpread.astro",
-    title: "BoC overnight minus Fed funds",
-    whatDifferent:
-      "Spread as a single zero-crossing line. Front-end policy divergence chart.",
-    whyBetter:
-      "The spread, not the level, drives USDCAD and the front-end basis. Production Panel 1 plots the BoC rate alone.",
-    dataFields: "overnight_rate.csv - fed_funds.csv",
-    addedAt: "2026-05-12",
-  },
   {
     Component: Alt2_BalanceSheetOverlay,
     file: "policy/Alt2_BalanceSheetOverlay.astro",

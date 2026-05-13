@@ -478,7 +478,7 @@ export const sections: Section[] = [
       },
       {
         key: "boc-fed-spread",
-        indicator: "BoC-Fed spread, 2y",
+        indicator: "Canada-US 2y spread",
         value: "TK",
         delta: "TK",
         deltaDir: "neutral",
