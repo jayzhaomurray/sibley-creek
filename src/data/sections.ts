@@ -499,7 +499,7 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 29, 2026",
       body:
-        "The Bank of Canada held the overnight rate at 2.25% on April 29, the fourth straight hold since October's cut and 50 bps below the 2.75% neutral midpoint. The 2y GoC yield closed at 2.94% on May 7, leaving the BoC-Fed 2y spread at -98 bps. The fiscal year-to-date federal budget balance stood at -$25.6B through February, per the Department of Finance Canada fiscal monitor.",
+        "The Bank of Canada held the overnight rate at 2.25% on April 29, the fourth straight hold since October's cut and 50 bps below the 2.75% neutral midpoint. The 2y GoC yield closed at 2.94% on May 7, leaving the BoC-Fed 2y spread at -98 bps. The fiscal year-to-date federal budget balance stood at -$25.5B through February, per the Department of Finance Canada fiscal monitor.",
     },
     abstractCitations: [
       { phrase: "overnight rate at 2.25% on April 29", source: "pipeline:boc:V39079", note: "BoC overnight target rate, Apr 29 2026 FAD decision, via Valet V39079." },
@@ -508,7 +508,7 @@ export const sections: Section[] = [
       { phrase: "2.75% neutral midpoint", source: "card:boc_mpr_neutral_range" },
       { phrase: "2y GoC yield closed at 2.94% on May 7", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, May 7 2026 daily close." },
       { phrase: "BoC-Fed 2y spread at -98 bps", source: "derived", note: "GoC 2y 2.94% minus UST 2y 3.92% = -98 bps. Inputs: BoC Valet yield_2yr and FRED DGS2, May 7 2026." },
-      { phrase: "$25.6B through February", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "Federal fiscal YTD balance, April 2025 through February 2026, per DoF Fiscal Monitor." },
+      { phrase: "$25.5B through February", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "Federal fiscal YTD balance, April 2025 through February 2026, per DoF Fiscal Monitor. -25,549M rounds to -$25.5bn." },
     ],
   },
   {
