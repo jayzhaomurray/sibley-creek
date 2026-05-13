@@ -166,6 +166,11 @@ interface PanelRenderData {
   valueLabelX: string | null;
   valueLabelY: string | null;
   valueLabelText: string | null;
+  // Backdrop rect for the value label — clears line overlaps (SVG-painter's order)
+  backdropX: string | null;
+  backdropY: string | null;
+  backdropW: string | null;
+  backdropH: string | null;
 }
 
 const REFERENCE_VALUE = 2; // BoC 2% target
@@ -237,8 +242,29 @@ const panelRenderData: PanelRenderData[] = trimmed.map((series, idx) => {
     ? `${series.label} ${lastPt.date}: ${fmtValueLabel(lastPt.value)} Y/Y`
     : null;
   const valueLabelX = lastPt ? (xS(decYear(lastPt.date)) + 6).toFixed(2) : null;
-  const valueLabelY = lastPt && typeof lastPt.value === "number" ? (yS(lastPt.value) + 4).toFixed(2) : null;
+  // Offset upward (-8) instead of downward (+4): the data line ends at the dot
+  // and the label's bottom edge was clipping the stroke. Moving above the dot
+  // keeps the label clear of the line terminus in all four panels.
+  const valueLabelY = lastPt && typeof lastPt.value === "number" ? (yS(lastPt.value) - 8).toFixed(2) : null;
   const valueLabelText = lastPt && typeof lastPt.value === "number" ? fmtValueLabel(lastPt.value) : null;
+
+  // Backdrop rect: 11px font, ~6.5px per char, 13px tall.
+  // Positioned to cover the text bounding box so the data line (which
+  // terminates at the dot) cannot visually overlap the label.
+  // x-anchor matches text-anchor="start" at valueLabelX; y is text baseline.
+  const LABEL_CHAR_W = 6.5;  // px per character at 11px Plex Mono
+  const LABEL_H = 13;        // px cap-height + descender clearance
+  const LABEL_PAD_X = 1;     // horizontal inset from text rect edge
+  const backdropX = valueLabelX !== null
+    ? (parseFloat(valueLabelX) - LABEL_PAD_X).toFixed(2)
+    : null;
+  const backdropY = valueLabelY !== null
+    ? (parseFloat(valueLabelY) - LABEL_H + 3).toFixed(2)
+    : null;
+  const backdropW = valueLabelText !== null
+    ? (valueLabelText.length * LABEL_CHAR_W + LABEL_PAD_X * 2).toFixed(2)
+    : null;
+  const backdropH = LABEL_H.toFixed(2);
 
   void x1; // used implicitly via x0 + cellW in xS()
 
@@ -261,6 +287,10 @@ const panelRenderData: PanelRenderData[] = trimmed.map((series, idx) => {
     valueLabelX,
     valueLabelY,
     valueLabelText,
+    backdropX,
+    backdropY,
+    backdropW,
+    backdropH,
   };
 });
 
@@ -313,6 +343,15 @@ const hasData = panelRenderData.length >= 4;
           <circle class="alt-chart__latest-dot" cx={p.dotCx} cy={p.dotCy} r="3.5">
             {p.dotTitle !== null && <title>{p.dotTitle}</title>}
           </circle>
+        )}
+        {p.backdropX !== null && p.backdropY !== null && p.backdropW !== null && (
+          <rect
+            class="panel4v2__value-label-backdrop"
+            x={p.backdropX}
+            y={p.backdropY}
+            width={p.backdropW}
+            height={p.backdropH}
+          />
         )}
         {p.valueLabelX !== null && p.valueLabelY !== null && p.valueLabelText !== null && (
           <text class="panel4v2__value-label" x={p.valueLabelX} y={p.valueLabelY} text-anchor="start">
@@ -373,6 +412,16 @@ const hasData = panelRenderData.length >= 4;
 <AltChartStyle />
 
 <style is:global>
+  /*
+   * Backdrop rect behind each value label.
+   * White fill, no stroke — blocks any data line that passes under the label.
+   * SVG painter's order guarantees the backdrop renders before the <text>.
+   */
+  .panel4v2__value-label-backdrop {
+    fill: var(--bg, #ffffff);
+    stroke: none;
+  }
+
   /*
    * Latest-dot value label. Plex Mono 11px, pure ink.
    * Rationale: four red dots already fire the brand-stamp;
