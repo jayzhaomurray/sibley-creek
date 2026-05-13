@@ -1,16 +1,42 @@
 ---
 /*
- * Panel5FederalTrajectory - federal deficit trajectory.
+ * Panel5FederalTrajectory - federal fiscal balance, monthly + YTD.
  *
- * Pipeline emits `dof_fiscal_monthly_balance` (primary, CAD millions)
- * and `dof_fiscal_ytd_balance` (secondary). Editorial argument is
- * deficit YTD plus debt-service growth; the latter is not on disk.
+ * Primary: dof_fiscal_monthly_balance (CAD millions, monthly) - rendered
+ * as bars. Each bar is anchored at the zero line; surplus months rise above,
+ * deficit months hang below. Bars are honest for this series because monthly
+ * fiscal flows are discontinuous - revenue timing, transfer cadence, and
+ * end-of-year accruals make a connecting line editorially misleading.
  *
- * Synthetic-data fallback removed.
+ * Secondary: dof_fiscal_ytd_balance (CAD millions, fiscal-YTD) - rendered
+ * as a 1px dashed line (canon secondary treatment). Same y-axis (both series
+ * in CAD millions). YTD accumulates within each fiscal year (Apr 1 - Mar 31)
+ * and resets at the start of the next fiscal year.
+ *
+ * Bespoke (Option A): PanelLiveChart has no bar-primary mode. This component
+ * hand-rolls the SVG following Tier-3 chartbook canon:
+ *   - viewBox 720x405, margins M_L=56 M_R=96 M_T=44 M_B=40
+ *   - 1px hairline frame, gridlines at 0.18 opacity
+ *   - 1px full-opacity zero line (data crosses zero frequently)
+ *   - Bars: pure ink fill, no stroke, 1px inter-bar gap
+ *   - Secondary: 1px dashed 4 2 ink line
+ *   - MTA red 4px latest-dot on the top edge of the latest bar (center-x)
+ *   - IBM Plex Mono 12px y-tick labels; Manrope 12px x-tick labels
+ *   - No JS; no legend; direct end-of-line label on secondary
+ *   - currency_cad formatting from ./format via fmtTick + fmtValue
+ *
+ * Data contract unchanged: primary = dof_fiscal_monthly_balance,
+ * secondary = dof_fiscal_ytd_balance, both in CAD millions monthly.
  */
 
 import type { PanelData } from "../_shared/panelData";
-import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import { decYear, tailWindow } from "../_shared/panelData";
+import {
+  fmtTick as fmtTickKind,
+  fmtValue,
+  inferKindFromUnit,
+  unitScaleFactor,
+} from "../_shared/format";
 import PanelEmpty from "../_shared/PanelEmpty.astro";
 
 interface Props {
@@ -18,16 +44,452 @@ interface Props {
 }
 
 const { data = null } = Astro.props;
+
+// ---- Geometry (pinned to Tier-3 canon) ------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 56;
+const M_R = 96;
+const M_T = 44;
+const M_B = 40;
+const PLOT_X0 = M_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+// ---- Bail to empty if data absent -----------------------------------------
+const hasPrimary = !!(data && data.primary && data.primary.data.length > 0);
 ---
-{data && data.primary ? (
-  <PanelLiveChart
-    primary={data.primary}
-    secondary={data.secondary}
-    primaryLabel="Monthly bal."
-    secondaryLabel="YTD balance"
-    dataPanelAttr="policy-5"
-    ariaLabel="Federal monthly and year-to-date fiscal balance."
-  />
-) : (
+{!hasPrimary ? (
   <PanelEmpty reason="Debt-service growth index not yet emitted." />
-)}
+) : (() => {
+  // All bespoke logic inside this IIFE so TypeScript narrowing works
+  // and Astro still compiles this as a static expression.
+  // (Astro fragments cannot have top-level conditional variable bindings
+  // in the template; the IIFE wraps the full SVG render as a single
+  // expression returned to the JSX slot.)
+
+  const primary = data!.primary!;
+  const secondary = data!.secondary ?? null;
+
+  // Window: show all available primary data (pipeline emits fiscal year
+  // to date, typically 11-12 months). tailWindow with a generous 36-month
+  // cap so we display up to 3 fiscal years when the pipeline grows.
+  const primData = tailWindow(primary.data, 36, primary.frequency);
+  const secData = secondary
+    ? tailWindow(secondary.data, 36, secondary.frequency ?? primary.frequency)
+    : [];
+
+  // ---- Value-kind resolution -----------------------------------------------
+  const primKind = (primary.kind as Parameters<typeof fmtValue>[1] | null | undefined)
+    ?? inferKindFromUnit(primary.unit);
+  const primScale = unitScaleFactor(primary.unit);
+  const secKind = secondary
+    ? ((secondary.kind as Parameters<typeof fmtValue>[1] | null | undefined)
+        ?? inferKindFromUnit(secondary.unit))
+    : primKind;
+  const secScale = secondary ? unitScaleFactor(secondary.unit) : 1;
+
+  // ---- x-scale: monthly bars positioned by decimal-year -------------------
+  // For a bar chart, we still use decimal-year for x-positioning so the
+  // bar centers match the monthly data grid. Bar width is derived from the
+  // month-to-month spacing on the x-scale minus 1px gap on each side.
+  const primXvals = primData
+    .map((d) => decYear(d.date))
+    .filter((v): v is number => !Number.isNaN(v));
+
+  const xMin = primXvals.length > 0 ? Math.min(...primXvals) : 0;
+  const xMax = primXvals.length > 0 ? Math.max(...primXvals) : 1;
+  const xRange = xMax - xMin || 1;
+
+  function xScale(yr: number): number {
+    if (xMax === xMin) return PLOT_X0 + PLOT_W / 2;
+    return PLOT_X0 + ((yr - xMin) / xRange) * PLOT_W;
+  }
+
+  // Bar width: one bar occupies 1/12 of a year on the x-axis.
+  // In pixel space that is (1/12) / xRange * PLOT_W.
+  // Subtract 1px gap (0.5px each side) so adjacent bars have a visible gap.
+  const monthFrac = 1 / 12;
+  const barWidthRaw = (monthFrac / xRange) * PLOT_W;
+  // Ensure at least 2px width after gap subtraction; cap at generous max.
+  const BAR_GAP = Math.min(1, barWidthRaw * 0.05); // 1px total gap
+  const barWidth = Math.max(2, barWidthRaw - BAR_GAP);
+
+  // ---- y-domain: span primary + secondary (same unit = CAD millions) -------
+  const allVals: number[] = [];
+  for (const d of primData) {
+    if (typeof d.value === "number" && Number.isFinite(d.value)) allVals.push(d.value);
+  }
+  for (const d of secData) {
+    if (typeof d.value === "number" && Number.isFinite(d.value)) allVals.push(d.value);
+  }
+  const rawMin = allVals.length > 0 ? Math.min(...allVals) : -1;
+  const rawMax = allVals.length > 0 ? Math.max(...allVals) : 1;
+  const span = (rawMax - rawMin) || Math.max(1, Math.abs(rawMax) * 0.1);
+  // 10% padding each side so the tallest bar doesn't kiss the frame
+  const yLo = rawMin - span * 0.10;
+  const yHi = rawMax + span * 0.10;
+  const yRange = yHi - yLo || 1;
+
+  function yScale(v: number): number {
+    return PLOT_Y0 + PLOT_H - ((v - yLo) / yRange) * PLOT_H;
+  }
+
+  const zeroY = yScale(0);
+  const crossesZero = yLo < 0 && yHi > 0;
+
+  // ---- Y-axis ticks ---------------------------------------------------------
+  function pickStride(lo: number, hi: number, targetTicks = 5): number {
+    const s = hi - lo;
+    if (!Number.isFinite(s) || s <= 0) return 1;
+    const rough = s / targetTicks;
+    const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+    const norm = rough / mag;
+    let nice: number;
+    if (norm < 1.5) nice = 1;
+    else if (norm < 3) nice = 2;
+    else if (norm < 4) nice = 2.5;
+    else if (norm < 7) nice = 5;
+    else nice = 10;
+    return nice * mag;
+  }
+  const yStride = pickStride(yLo, yHi);
+  const yTicks: number[] = [];
+  const yStart = Math.ceil(yLo / yStride) * yStride;
+  for (let v = yStart; v <= yHi + 1e-9; v += yStride) {
+    yTicks.push(Number(v.toFixed(6)));
+  }
+  if (yTicks.length === 0) yTicks.push(Number(((yLo + yHi) / 2).toFixed(6)));
+
+  // ---- X-axis year ticks ---------------------------------------------------
+  const yearStart = Math.ceil(xMin);
+  const yearEnd = Math.floor(xMax);
+  type XTick = { x: number; label: string };
+  const allYearTicks: XTick[] = [];
+  for (let yr = yearStart; yr <= yearEnd; yr++) {
+    const decY = yr + (1 - 0.5) / 12;
+    if (decY < xMin || decY > xMax) continue;
+    allYearTicks.push({ x: xScale(decY), label: String(yr) });
+  }
+  const xTickStride = Math.max(1, Math.ceil(allYearTicks.length / 5));
+  const xTicks: XTick[] = allYearTicks.filter((_, i) => i % xTickStride === 0);
+
+  // ---- Bar geometry for each primary observation ---------------------------
+  type BarRect = {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    v: number;
+    date: string;
+    titleText: string;
+  };
+  const bars: BarRect[] = [];
+  for (const pt of primData) {
+    if (typeof pt.value !== "number" || !Number.isFinite(pt.value)) continue;
+    const xc = xScale(decYear(pt.date)); // bar center x
+    const x = xc - barWidth / 2;
+    const v = pt.value;
+    const barTopY = yScale(Math.max(v, 0));
+    const barBotY = yScale(Math.min(v, 0));
+    const h = Math.max(1, barBotY - barTopY); // at least 1px visible
+    bars.push({
+      x,
+      y: barTopY,
+      w: barWidth,
+      h,
+      v,
+      date: pt.date,
+      titleText: `${pt.date}: ${fmtValue(v * primScale, primKind)}`,
+    });
+  }
+
+  // ---- Latest bar: MTA red dot on top edge (center-x of bar) ---------------
+  const lastBar = bars.length > 0 ? bars[bars.length - 1]! : null;
+  const latestDotX = lastBar ? lastBar.x + lastBar.w / 2 : 0;
+  const latestDotY = lastBar
+    ? lastBar.v >= 0
+      ? lastBar.y          // surplus: top edge is the top of the bar
+      : lastBar.y + lastBar.h // deficit: top edge of rect is zeroY; bottom is deficit tip
+    : 0;
+
+  // ---- Secondary line path -------------------------------------------------
+  function buildLinePath(pts: typeof secData): string {
+    let d = "";
+    let started = false;
+    for (const pt of pts) {
+      if (typeof pt.value !== "number" || !Number.isFinite(pt.value)) continue;
+      const xv = decYear(pt.date);
+      if (Number.isNaN(xv)) continue;
+      const x = xScale(xv).toFixed(2);
+      const y = yScale(pt.value).toFixed(2);
+      if (!started) { d += `M${x} ${y} `; started = true; }
+      else d += `L${x} ${y} `;
+    }
+    return d.trim();
+  }
+  const secPath =
+    secondary && (secondary.unit ?? "").toLowerCase() === (primary.unit ?? "").toLowerCase()
+      ? buildLinePath(secData)
+      : "";
+
+  // ---- Secondary direct label placement ------------------------------------
+  // Find last real secondary point for label placement.
+  let lastSecPt: { x: number; y: number; v: number } | null = null;
+  for (let i = secData.length - 1; i >= 0; i--) {
+    const pt = secData[i]!;
+    if (typeof pt.value === "number" && Number.isFinite(pt.value)) {
+      const xv = decYear(pt.date);
+      if (!Number.isNaN(xv)) {
+        lastSecPt = { x: xScale(xv), y: yScale(pt.value), v: pt.value };
+        break;
+      }
+    }
+  }
+
+  const LABEL_GAP_X = 10;
+  const secLabelY = lastSecPt ? lastSecPt.y + 4 : 0;
+
+  // ---- Aria label -----------------------------------------------------------
+  const ariaLabel =
+    `Federal monthly fiscal balance as bars, and cumulative year-to-date balance as a dashed line, ` +
+    `in CAD millions. Latest monthly print marked.`;
+
+  // ---- Clip path id ---------------------------------------------------------
+  const clipId = "p5clip";
+
+  return (
+    <div class="p5-chart" data-panel="policy-5">
+      <svg
+        class="p5-chart__svg"
+        viewBox={`0 0 ${VB_W} ${VB_H}`}
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label={ariaLabel}
+      >
+        <defs>
+          <clipPath id={clipId}>
+            <rect x={PLOT_X0} y={PLOT_Y0} width={PLOT_W} height={PLOT_H} />
+          </clipPath>
+        </defs>
+
+        {/* Gridlines (skip zero — drawn separately with full opacity) */}
+        {yTicks.map((v) => {
+          if (crossesZero && Math.abs(v) < 1e-9) return null;
+          const yy = yScale(v);
+          return (
+            <line
+              class="p5-chart__gridline"
+              x1={PLOT_X0}
+              y1={yy.toFixed(2)}
+              x2={PLOT_X1}
+              y2={yy.toFixed(2)}
+            />
+          );
+        })}
+
+        {/* Zero line — heavier than gridlines, non-negotiable when data crosses zero */}
+        {crossesZero && (
+          <line
+            class="p5-chart__zero-line"
+            x1={PLOT_X0}
+            y1={zeroY.toFixed(2)}
+            x2={PLOT_X1}
+            y2={zeroY.toFixed(2)}
+          />
+        )}
+
+        {/* Bars (primary series) inside clip group */}
+        <g clip-path={`url(#${clipId})`}>
+          {bars.map((b) => (
+            <rect
+              class="p5-chart__bar"
+              x={b.x.toFixed(2)}
+              y={b.y.toFixed(2)}
+              width={b.w.toFixed(2)}
+              height={b.h.toFixed(2)}
+            >
+              <title>{b.titleText}</title>
+            </rect>
+          ))}
+
+          {/* Secondary dashed line */}
+          {secPath && (
+            <path class="p5-chart__line-secondary" d={secPath} fill="none" />
+          )}
+        </g>
+
+        {/* MTA red latest-print dot on the top/bottom edge of the latest bar */}
+        {lastBar && (
+          <circle
+            class="p5-chart__latest-dot"
+            cx={latestDotX.toFixed(2)}
+            cy={latestDotY.toFixed(2)}
+            r="4"
+          >
+            <title>{`Latest: ${lastBar.date}: ${fmtValue(lastBar.v * primScale, primKind)}`}</title>
+          </circle>
+        )}
+
+        {/* Hairline frame */}
+        <rect
+          class="p5-chart__frame"
+          x={PLOT_X0}
+          y={PLOT_Y0}
+          width={PLOT_W}
+          height={PLOT_H}
+        />
+
+        {/* X-axis ticks + labels */}
+        {xTicks.map((t) => (
+          <g>
+            <line
+              class="p5-chart__xtick"
+              x1={t.x.toFixed(2)}
+              y1={PLOT_Y1.toFixed(2)}
+              x2={t.x.toFixed(2)}
+              y2={(PLOT_Y1 + 4).toFixed(2)}
+            />
+            <text
+              class="p5-chart__xtick-label"
+              x={t.x.toFixed(2)}
+              y={(PLOT_Y1 + 18).toFixed(2)}
+              text-anchor="middle"
+            >{t.label}</text>
+          </g>
+        ))}
+
+        {/* Y-axis tick labels — IBM Plex Mono, topmost carries unit */}
+        {yTicks.map((v, i) => {
+          const yy = yScale(v);
+          const isTop = i === yTicks.length - 1;
+          const txt = fmtTickKind(v * primScale, primKind, isTop);
+          return (
+            <text
+              class="p5-chart__ytick-label"
+              x={(PLOT_X0 - 8).toFixed(2)}
+              y={(yy + 4).toFixed(2)}
+              text-anchor="end"
+            >{txt}</text>
+          );
+        })}
+
+        {/* Primary direct label — Manrope 600, right of latest bar */}
+        {lastBar && (
+          <text
+            class="p5-chart__direct-label"
+            x={(latestDotX + LABEL_GAP_X).toFixed(2)}
+            y={(latestDotY + 4).toFixed(2)}
+            text-anchor="start"
+          >Monthly bal.</text>
+        )}
+
+        {/* Secondary direct label — Manrope 400, right of terminus */}
+        {secPath && lastSecPt && (
+          <text
+            class="p5-chart__direct-label-secondary"
+            x={(lastSecPt.x + LABEL_GAP_X).toFixed(2)}
+            y={secLabelY.toFixed(2)}
+            text-anchor="start"
+          >YTD balance</text>
+        )}
+      </svg>
+    </div>
+  );
+})()}
+
+<style>
+  .p5-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+  .p5-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  .p5-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  .p5-chart__zero-line {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Bars: pure ink fill, no stroke. */
+  .p5-chart__bar {
+    fill: var(--ink);
+    stroke: none;
+    shape-rendering: crispEdges;
+  }
+
+  /* Secondary: 1px dashed 4 2 ink (canon secondary treatment). */
+  .p5-chart__line-secondary {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-linejoin: round;
+    stroke-linecap: butt;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* MTA red latest-print dot. */
+  .p5-chart__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  .p5-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  .p5-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p5-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+  .p5-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .p5-chart__direct-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: var(--fw-semibold);
+  }
+  .p5-chart__direct-label-secondary {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: var(--fw-regular);
+  }
+</style>
