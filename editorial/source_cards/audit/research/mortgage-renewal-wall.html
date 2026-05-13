@@ -1,0 +1,1490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Source audit · research / mortgage-renewal-wall</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: #111;
+  background: #f7f6f1;
+  margin: 0;
+}
+.wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 40px;
+  align-items: start;
+}
+header.page-head {
+  grid-column: 1 / -1;
+  border-bottom: 2px solid #111;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+header.page-head h1 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+header.page-head .breadcrumb a {
+  color: #666;
+  text-decoration: none;
+  margin-right: 16px;
+}
+header.page-head .breadcrumb a:hover { color: #000; text-decoration: underline; }
+main {
+  background: white;
+  padding: 32px;
+  border: 1px solid #ddd;
+}
+.headline-q {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #111;
+}
+.section-label {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.abstract {
+  font-size: 17px;
+  line-height: 1.6;
+  border-left: 3px solid #c00;
+  padding-left: 16px;
+  margin: 24px 0 40px 0;
+  color: #222;
+}
+.plate {
+  border-top: 1px solid #ccc;
+  padding: 24px 0;
+}
+.plate-number {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.plate-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 4px 0 10px 0;
+  color: #111;
+}
+.plate-meta {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #777;
+  margin-bottom: 12px;
+}
+.plate-blurb { font-size: 16px; line-height: 1.6; color: #222; }
+.plate-source-line {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #666;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dotted #ccc;
+}
+.claim {
+  background: #fffbcc;
+  padding: 1px 2px;
+  border-bottom: 2px solid #e6c200;
+  cursor: pointer;
+}
+.claim:hover {
+  background: #fff299;
+}
+.claim-pending {
+  background: #ffe5a0;
+  border-bottom: 2px solid #c83a00;
+}
+.claim-pending:hover {
+  background: #ffd680;
+}
+.claim-anchor {
+  color: inherit;
+  text-decoration: none;
+}
+.ledger-ref-link {
+  text-decoration: none;
+}
+.ledger-ref-link:hover .ledger-ref {
+  filter: brightness(1.1);
+  outline: 2px solid #006699;
+}
+/* Flash the target when the user clicks a cross-link, both directions. */
+.claim:target,
+.claim-pending:target {
+  animation: flash-yellow 1.5s ease-out;
+  scroll-margin-top: 80px;
+}
+.ledger-item:target {
+  animation: flash-blue 1.5s ease-out;
+  scroll-margin-top: 80px;
+}
+@keyframes flash-yellow {
+  0% { background: #ff8c00; outline: 3px solid #ff8c00; outline-offset: 2px; }
+  100% { background: inherit; outline: none; }
+}
+@keyframes flash-blue {
+  0% { background: #b3d9ff; outline: 3px solid #006699; outline-offset: 2px; }
+  100% { background: inherit; outline: none; }
+}
+.verify-toolbar {
+  background: #fbe8e8;
+  border: 1px solid #c83a00;
+  padding: 12px 16px;
+  margin-top: 14px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.verify-toolbar .nav-btn {
+  background: white;
+  color: #c83a00;
+  border: 1px solid #c83a00;
+  padding: 6px 12px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  margin-right: 6px;
+}
+.verify-toolbar .nav-btn:hover { background: #c83a00; color: white; }
+.verify-toolbar-counts { line-height: 1.5; }
+.verify-toolbar-counts .amber { color: #c83a00; font-weight: 600; }
+.verify-toolbar-counts .green { color: #2a7a30; font-weight: 600; }
+.verify-toolbar-counts .red { color: #c33; font-weight: 600; }
+.export-btn {
+  background: #006699;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.export-btn:hover { background: #00557e; }
+.export-btn:disabled { background: #888; cursor: not-allowed; }
+.export-toast {
+  font-size: 12px;
+  color: #2a7a30;
+  font-weight: 600;
+  margin-left: 8px;
+  display: none;
+}
+.export-toast.show { display: inline; }
+.ledger-item-pending {
+  border-left: 4px solid #c83a00;
+  padding-left: 8px;
+  background: #fff7e6;
+  margin-top: 8px;
+}
+.ledger-item-pending.decision-approve { border-left-color: #2a7a30; background: #f0f8f0; }
+.ledger-item-pending.decision-reject { border-left-color: #c33; background: #fbe8e8; }
+.ledger-item-pending.flash-target {
+  animation: flash-amber 1.5s ease-out;
+}
+@keyframes flash-amber {
+  0% { background: #ff8c00; outline: 3px solid #ff8c00; outline-offset: 2px; }
+  100% { background: #fff7e6; outline: none; }
+}
+.pending-decision-block { margin-top: 10px; }
+.pending-values, .pending-triangulation, .pending-card-notes {
+  margin: 8px 0;
+  font-size: 12px;
+}
+.pending-triangulation.muted { color: #888; font-style: italic; }
+.secondaries { list-style: none; padding: 0; margin: 4px 0 0 0; }
+.secondary { padding: 6px 8px; background: #f8f7ec; border-left: 2px solid #999; margin-bottom: 4px; font-size: 12px; }
+.secondary-credibility { font-size: 11px; color: #555; margin-top: 2px; }
+.secondary-excerpt { margin: 4px 0 0 0; padding: 4px 8px; background: white; font-style: italic; color: #444; font-size: 11px; line-height: 1.4; }
+.verified-values { list-style: none; padding: 0; margin: 4px 0; }
+.verified-values li { padding: 3px 6px; background: #f3f3ef; margin-bottom: 2px; font-family: var(--font-mono, monospace); font-size: 11px; }
+.verified-values code { background: transparent; font-size: 10px; color: #444; }
+fieldset.decision {
+  border: 1px solid #c83a00;
+  padding: 10px 14px;
+  margin-top: 8px;
+  background: white;
+}
+fieldset.decision legend {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #c83a00;
+  padding: 0 6px;
+}
+fieldset.decision label {
+  display: block;
+  margin: 4px 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+fieldset.decision label input { margin-right: 6px; }
+.comment-row { margin-top: 8px; }
+.comment-row label { font-size: 10px; color: #555; }
+.comment-row textarea {
+  width: 100%;
+  font-family: Georgia, serif;
+  font-size: 11px;
+  padding: 4px 6px;
+  border: 1px solid #c8c0a0;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.claim-fuzzy {
+  /* Fuzzy match — same yellow as a literal phrase match, but with a dashed
+     underline to flag that the citation's phrase: didn't match verbatim and
+     the sidecar should be tightened on the next editorial pass. */
+  border-bottom-style: dashed;
+}
+.claim-sup {
+  color: #b07b00;
+  font-weight: 700;
+  font-size: 0.8em;
+  margin-left: 1px;
+}
+.claim-uncovered {
+  /* No citation matches this token at all — true gap. The audit page surfaces
+     it so the user can either tighten a sidecar phrase or add a new citation. */
+  background: #fbe8e8;
+  padding: 1px 2px;
+  border-bottom: 2px solid #c33;
+  cursor: help;
+}
+.claim-uncovered-sup {
+  color: #c33;
+  font-weight: 700;
+  font-size: 0.85em;
+  margin-left: 1px;
+}
+aside.ledger {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 16px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+}
+aside.ledger h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+.ledger-group { margin-bottom: 20px; }
+.ledger-group-h {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #555;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ddd;
+}
+.ledger-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.ledger-ref {
+  display: inline-block;
+  background: #e6c200;
+  color: white;
+  padding: 1px 6px;
+  font-weight: 700;
+  font-size: 11px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+.ledger-ref.pipeline { background: #2a7a30; }
+.ledger-ref.derived { background: #888; }
+.ledger-ref.unknown, .ledger-ref.card-missing, .ledger-ref.other { background: #c33; }
+.ledger-phrase {
+  font-style: italic;
+  color: #333;
+  display: block;
+  margin: 4px 0;
+}
+.ledger-source-label { font-weight: 600; color: #222; font-size: 12px; }
+.tier-badge {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  margin-left: 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.tier-pipeline { background: #2a7a30; color: white; }
+.tier-a { background: #2a7a30; color: white; }
+.tier-b { background: #b07b00; color: white; }
+.tier-c { background: #c47000; color: white; }
+.tier-mode3 { background: #8a3a4a; color: white; }
+.tier-pending { background: #c33; color: white; }
+.tier-untagged { background: #777; color: white; }
+.tier-error { background: #c33; color: white; }
+.tier-other { background: #888; color: white; font-style: italic; }
+.no-inline-match {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  margin-left: 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+  background: #c33;
+  color: white;
+  cursor: help;
+}
+.ledger-excerpt {
+  margin: 6px 0;
+  padding: 8px 10px;
+  background: #f3f3ef;
+  color: #444;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 2px solid #999;
+}
+.ledger-meta { font-size: 11px; color: #777; }
+.ledger-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: #006699;
+  text-decoration: none;
+  font-weight: 600;
+}
+.ledger-link:hover { text-decoration: underline; }
+.freshness {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #eef5f3;
+  border-left: 3px solid #2a7a30;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #2a4f30;
+}
+.freshness-label { font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
+.freshness-stamp { font-family: var(--font-mono, monospace); margin-left: 6px; }
+.freshness-meta { color: #555; margin-left: 12px; }
+.freshness-hint { display: block; margin-top: 4px; color: #555; font-style: italic; }
+.note-line { font-size: 11px; color: #888; margin-top: 4px; font-style: italic; }
+footer.audit-foot {
+  grid-column: 1 / -1;
+  border-top: 1px solid #ccc;
+  padding: 20px 0;
+  font-size: 12px;
+  color: #777;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.edit-btn {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #006699;
+  background: transparent;
+  border: 1px solid #006699;
+  padding: 3px 8px;
+  margin-left: 8px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.edit-btn:hover { background: #006699; color: white; }
+.edit-form {
+  margin-top: 12px;
+  padding: 14px;
+  background: #f8f7ec;
+  border: 1px solid #d8c773;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  display: none;
+}
+.edit-form.open { display: block; }
+.edit-form label {
+  display: block;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+  margin: 8px 0 4px 0;
+}
+.edit-form textarea, .edit-form input[type="text"] {
+  width: 100%;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #c8c0a0;
+  background: white;
+  box-sizing: border-box;
+}
+.edit-form textarea { min-height: 80px; line-height: 1.5; resize: vertical; }
+.edit-form .row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.edit-form .row .primary {
+  background: #006699;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.edit-form .row .primary:hover { background: #00557e; }
+.edit-form .row .toast {
+  font-size: 12px;
+  color: #2a7a30;
+  font-weight: 600;
+  margin-left: 8px;
+  display: none;
+}
+.edit-form .row .toast.show { display: inline; }
+.edit-form .hint {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+  margin-top: 4px;
+}
+.tile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 32px;
+}
+.tile {
+  border: 1px solid #ddd;
+  padding: 16px;
+  background: #fbfaf5;
+}
+.tile-section-label {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 6px;
+}
+.tile-line {
+  font-size: 15px;
+  line-height: 1.5;
+  color: #222;
+}
+.dive-body {
+  font-size: 16px;
+  line-height: 1.65;
+  color: #222;
+}
+.dive-body h1, .dive-body h2, .dive-body h3 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  color: #111;
+  margin-top: 32px;
+}
+.dive-body h1 { font-size: 22px; }
+.dive-body h2 { font-size: 18px; }
+.dive-body h3 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.1em; color: #444; }
+.dive-body p { margin: 12px 0; }
+.dive-body ul, .dive-body ol { margin: 12px 0; padding-left: 24px; }
+.dive-body code { font-family: var(--font-mono, monospace); font-size: 0.92em; background: #f0efe8; padding: 1px 4px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <div class="breadcrumb">
+        <a href="../index.html">← All audits</a>
+        <span style="color:#999">·</span>
+        <span style="color:#c83a00;font-weight:600">DRAFT — not yet published</span>
+      </div>
+      <h1>Source audit · research / mortgage-renewal-wall</h1>
+      
+      <div class="verify-toolbar">
+        <div class="verify-toolbar-counts">
+          <strong>25 claims awaiting your verification.</strong>
+          <span class="amber">25 pending</span> ·
+          <span class="green" id="approved-count">0 approved</span> ·
+          <span class="red" id="rejected-count">0 rejected</span>
+        </div>
+        <div>
+          <button class="nav-btn" onclick="jumpToNextPending()">Next pending ↓</button>
+          <button class="export-btn" id="export-btn" onclick="exportDecisions('mortgage-renewal-wall')" disabled>Copy decisions to clipboard</button>
+          <span class="export-toast" id="export-toast">Copied — paste into PowerShell</span>
+        </div>
+      </div>
+    </header>
+    <main>
+      <h2 class="headline-q">The mortgage renewal wall has peaked</h2>
+      <div class="abstract">The 2026 renewal cohort is the largest single tranche in the stack. We map where the residual transmission lands through 2027.</div>
+      <div class="dive-body"><p>The mortgage renewal wall has peaked. The fixed-rate stock booked at <span class="claim claim-fuzzy" data-ref="28" id="ref-28"><a href="#ledger-28" class="claim-anchor">2020-21<sup class="claim-sup">[28]</sup></a></span> contract rates -- the cohort that carried the bulk of the renewal-payment-shock distribution -- has now mostly rolled, and the mechanical pulse on household cash flows has begun to fade. Mortgage interest cost in the CPI tells the story most cleanly: at <span class="claim" id="ref-2" data-ref="2"><a href="#ledger-2" class="claim-anchor">0.28% Y/Y in March 2026<sup class="claim-sup">[2]</sup></a></span>, its contribution to inflation is essentially extinguished, after running near double digits at the <span class="claim claim-fuzzy" data-ref="3"><a href="#ledger-3" class="claim-anchor">2023<sup class="claim-sup">[3]</sup></a></span>-<span class="claim claim-fuzzy" data-ref="3" id="ref-3"><a href="#ledger-3" class="claim-anchor">2024<sup class="claim-sup">[3]</sup></a></span> peak.</p>
+<p>The <span class="claim" id="ref-6" data-ref="6"><a href="#ledger-6" class="claim-anchor">BoC held the overnight rate at 2.25% on April 29, 2026<sup class="claim-sup">[6]</sup></a></span> -- the <span class="claim" id="ref-7" data-ref="7"><a href="#ledger-7" class="claim-anchor">fourth consecutive hold since the October 29, 2025 cut<sup class="claim-sup">[7]</sup></a></span>. The floor on the renewal-rate spread is now stable; the residual transmission is about the height and persistence of that floor, not about how much further it falls.</p>
+<p>Peaked is not over, and what has peaked is narrower than the renewal-wall framing of 2024 implied. The BoC's Staff Analytical Paper <span class="claim-uncovered">2026-12<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> (March 24, <span class="claim claim-fuzzy" data-ref="68"><a href="#ledger-68" class="claim-anchor">2026<sup class="claim-sup">[68]</sup></a></span>) decomposes the historical drivers of Canadian mortgage arrears into a labour-market channel and a rate channel, and finds the labour market is the central force. The implied incremental arrears from a +<span class="claim-uncovered">300 bps<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> tightening cycle is 10 to <span class="claim-uncovered">15 bps<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> over two years; each <span class="claim-uncovered">1 pp<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> rise in the unemployment rate adds roughly <span class="claim-uncovered">10 bps<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> to the arrears rate within a year. The <span class="claim claim-fuzzy" data-ref="14" id="ref-14"><a href="#ledger-14" class="claim-anchor">2022<sup class="claim-sup">[14]</sup></a></span>-2023 tightening has now mostly passed through the arrears series. The forward risk is no longer the renewal wall.</p>
+<p>This piece argues three things. First, the count of renewers facing a step-up in payment has peaked and the rate-channel pass-through is largely realized. Second, the household-side response has rotated from amortization extensions to discretionary-consumption compression -- a slower-burn channel that does not show up in any single monthly print. Third, the forward residual arrears risk has rotated with it: from the renewal-cohort tail, where the marginal incremental damage is small, to the labour-market channel, where the marginal lever is roughly <span class="claim" id="ref-15" data-ref="15"><a href="#ledger-15" class="claim-anchor">2 to 3 times larger per unit of shock<sup class="claim-sup">[15]</sup></a></span>.</p>
+<p>![Mortgage interest cost, year-over-year percent change, monthly, last 48 months ending <span class="claim-uncovered">March 2026<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>. Latest print <span class="claim claim-fuzzy" data-ref="66" id="ref-66"><a href="#ledger-66" class="claim-anchor">0.28%<sup class="claim-sup">[66]</sup></a></span>, down <span class="claim" id="ref-4" data-ref="4"><a href="#ledger-4" class="claim-anchor">from a 2023-2024 peak above 25%<sup class="claim-sup">[4]</sup></a></span>.](/charts/pillar-a/mic_yoy.svg)</p>
+<p><em>CPI mortgage interest cost, Y/Y % change. Monthly, <span class="claim" id="ref-5" data-ref="5"><a href="#ledger-5" class="claim-anchor">April 2022 through March 2026<sup class="claim-sup">[5]</sup></a></span>. Source: Statistics Canada, Table 18-10-0004-01, CPI sub-component indexes (Mortgage interest cost); author calculations. Vintage: March 2026 release.</em></p>
+<p>---</p>
+<h2>The rate channel and the labour channel</h2>
+<p>BoC SAP 2026-12 quantifies the rate channel and the labour channel as separate drivers of Canadian mortgage arrears: a full +300 bps tightening cycle adds 10 to 15 bps to the arrears rate over two years; a +1 pp rise in unemployment adds roughly 10 bps within a year. The 2022-2023 tightening has now mostly transmitted -- the observed +<span class="claim-uncovered">8 bps<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> move from the mid-2022 trough (<span class="claim claim-fuzzy" data-ref="66"><a href="#ledger-66" class="claim-anchor">0.14%<sup class="claim-sup">[66]</sup></a></span>) to the <span class="claim-uncovered">Q2 2025<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> reading (<span class="claim claim-fuzzy" data-ref="66"><a href="#ledger-66" class="claim-anchor">0.22%<sup class="claim-sup">[66]</sup></a></span>) sits inside the 10 to 15 bps range. The marginal lever from the labour channel is comparable to the entire 2022-2023 tightening on a per-pp basis. Canadian mortgage arrears are now mostly a labour-market story on the forward path; the renewal-wall mechanic is no longer the frame that anchors forward credit risk.</p>
+<p>---</p>
+<h2>The stock</h2>
+<p>Federally-regulated banks hold C$1,952 billion of residential mortgage debt as of February 28, 2026, per OSFI's M4 Consolidated Balance Sheet: C$433 billion insured, C$1,508 billion uninsured, C$11 billion reverse. The all-lender total reported by CMHC for Q2 <span class="claim claim-fuzzy" data-ref="7"><a href="#ledger-7" class="claim-anchor">2025<sup class="claim-sup">[7]</sup></a></span> is C$2.3 trillion, so the chartered-bank book is approximately <span class="claim claim-fuzzy" data-ref="22" id="ref-22"><a href="#ledger-22" class="claim-anchor">84%<sup class="claim-sup">[22]</sup></a></span> of the total, with credit unions, MICs, and other non-federally- regulated lenders carrying the remaining <span class="claim claim-fuzzy" data-ref="23" id="ref-23"><a href="#ledger-23" class="claim-anchor">16%<sup class="claim-sup">[23]</sup></a></span>. Y/Y growth in the chartered-bank uninsured book is +<span class="claim-uncovered">1.5%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> (from C$1,484 billion in <span class="claim-uncovered">February 2025<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>); the insured book is <span class="claim-uncovered">-0.2%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> Y/Y. The Big-Six aggregate mortgage book sits at roughly C$1.76 trillion per Q1 FY2026 institutional filings.</p>
+<p>Within that stock, five-year fixed remains the dominant contract. BoC Staff Analytical Note 2025-1 (<span class="claim-uncovered">January 2025<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>; data vintage <span class="claim-uncovered">September 2024<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>) reports fixed-rate at roughly <span class="claim-uncovered">80%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> of the stock and variable-rate at roughly <span class="claim-uncovered">20%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>; five-year fixed alone is about <span class="claim claim-fuzzy" data-ref="27" id="ref-27"><a href="#ledger-27" class="claim-anchor">40%<sup class="claim-sup">[27]</sup></a></span> of the total. The cohorts that framed the renewal-wall narrative since 2023 are those originated near the policy-rate floor of the 2020-21 pandemic window.</p>
+<p>The renewal schedule from here is the variable that matters. Per BoC Staff Analytical Note <span class="claim claim-fuzzy" data-ref="34"><a href="#ledger-34" class="claim-anchor">2025-21<sup class="claim-sup">[34]</sup></a></span> (<span class="claim-uncovered">July 2025<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>), <span class="claim-uncovered">60%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> of all outstanding mortgages renew during 2025 or 2026. CMHC Residential Mortgage Industry Report Fall 2025 puts roughly <span class="claim-uncovered">1.15 million<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> households renewing in 2026 specifically; CMHC's broader <span class="claim-uncovered">January 2026<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> framing places about <span class="claim-uncovered">3.1 million<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> mortgages (<span class="claim-uncovered">52%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> of total) renewing during 2026. The rolling-cohort distribution implies <span class="claim" id="ref-33" data-ref="33"><a href="#ledger-33" class="claim-anchor">approximately 20 to <span class="claim" id="ref-44" data-ref="44"><a href="#ledger-44" class="claim-anchor">30%<sup class="claim-sup">[44]</sup></a></span> of stock rolls in <span class="claim-uncovered">2027<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span><sup class="claim-sup">[33]</sup></a></span>. After 2027, the wave smooths.</p>
+<p>---</p>
+<h2>The stress</h2>
+<p>Payment shock at renewal is the cohort change in scheduled monthly mortgage payment when a contract resets, holding amortization constant. <span class="claim" id="ref-34" data-ref="34"><a href="#ledger-34" class="claim-anchor">BoC SAN 2025-21 frames this as a distribution<sup class="claim-sup">[34]</sup></a></span> rather than a single number: the median renewer's experience differs sharply from the tail's. The BoC's preferred denominator is the Mortgage Debt Service ratio -- mortgage-only debt service as a share of gross income -- not full DSR.</p>
+<p>The central estimate has been revised lower as rates have fallen. The BoC's 2024-vintage central case put the median 5-year fixed renewer in the 30 to 40% payment-increase band; that vintage is now outdated. The most recent BoC work (FSR <span class="claim-uncovered">May 2025<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>; SAN 2025-21, July 2025) places the central estimate at 15 to 20% for 5-year fixed renewers in 2025 or 2026, and 6 to <span class="claim claim-fuzzy" data-ref="37" id="ref-37"><a href="#ledger-37" class="claim-anchor">10%<sup class="claim-sup">[37]</sup></a></span> across all renewing mortgages. Average monthly payment for 2025 renewers is roughly 10% above the pre-renewal level; for 2026 renewers, roughly <span class="claim-uncovered">6%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>. Across payment increasers, median MDS rises <span class="claim-uncovered">2.7 pp<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> (<span class="claim-uncovered">15.3%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> to <span class="claim-uncovered">18.0%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>); among payment decreasers -- primarily short-term fixed and some variable-rate cohorts -- median MDS falls <span class="claim-uncovered">1.1 pp<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> (<span class="claim-uncovered">19.7%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> to <span class="claim-uncovered">18.6%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>).</p>
+<p>The distribution is the read that matters. The top 10% of 2026 renewers face a payment increase of more than 40%; the bottom <span class="claim-uncovered">25%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> see at least a <span class="claim-uncovered">7%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> decrease. Five-year fixed mortgages account for roughly 40% of all outstanding mortgages but about <span class="claim-uncovered">75%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> of those facing payment increases at renewal. About one-third of all Canadian mortgage holders will see payment increases by end-2026; close to 25% see decreases. CIBC disclosed in its Q1 FY2026 earnings supplement that roughly 6% of its mortgage portfolio faces a payment shock of 40% or more in 2026 -- a clean read on the tail's concentration at one chartered bank.</p>
+<p>Three characteristics define the residual tail: original amortizations at or near 30 years (a feature of 2020-21 originations in expensive markets, not a fluke), uninsured loan- to-value ratios that leave little room to refinance into longer- amortization products without re-qualification under tighter B-20 stress-test conventions, and concentration in the Toronto and Vancouver CMAs where original nominal loan sizes were largest. CMHC Residential Mortgage Industry Report Fall 2025 reports the flow share of new uninsured mortgages at chartered banks with amortizations longer than 25 years remained above 60% in <span class="claim-uncovered">Q2 2025<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> for the fourth consecutive year.</p>
+<p>---</p>
+<h2>The response and the channel</h2>
+<p>The consumer-side response has rotated. In 2023-2024, the dominant margin of adjustment was structural: lenders extended amortizations -- in some cases past the contractual maximum at the cost of a future re-amortization at re-qualification -- to spread the renewal shock across a longer schedule. That margin has now largely been used. The current margin of adjustment is discretionary consumption.</p>
+<p>StatCan's quarterly expenditure cut shows household consumption at +<span class="claim claim-fuzzy" data-ref="66"><a href="#ledger-66" class="claim-anchor">0.4%<sup class="claim-sup">[66]</sup></a></span> Q/Q in <span class="claim-uncovered">Q4 2025<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> (+<span class="claim-uncovered">2.3%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> on the year), with the household saving rate at <span class="claim claim-fuzzy" data-ref="66"><a href="#ledger-66" class="claim-anchor">4.4%<sup class="claim-sup">[66]</sup></a></span> in Q4 2025 and <span class="claim claim-fuzzy" data-ref="66"><a href="#ledger-66" class="claim-anchor">4.9%<sup class="claim-sup">[66]</sup></a></span> for 2025 annual. Both numbers sit inside the post-COVID range: aggregate consumption is positive but soft, and the saving rate is normalizing downward from the 2023-2024 highs as households absorb the cash-flow imprint of higher debt service. <span class="claim-uncovered">Q1 2026<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> retail-trade prints confirm the shape: core retail ran +<span class="claim claim-fuzzy" data-ref="66"><a href="#ledger-66" class="claim-anchor">0.9%<sup class="claim-sup">[66]</sup></a></span> M/M in January and +<span class="claim claim-fuzzy" data-ref="66"><a href="#ledger-66" class="claim-anchor">0.6%<sup class="claim-sup">[66]</sup></a></span> M/M in February; March's advance estimate is +0.6% M/M. Positive but not strong. The renewal channel does not show up as a single month's collapse in retail sales; it shows up as a multi-quarter drag on the discretionary-services side, partly offsetting the mechanical fade of mortgage interest cost in the inflation print.</p>
+<p>SAP 2026-12's section heading is direct: "The labour market is the key driver of arrears." The arrears rate ran at <span class="claim claim-fuzzy" data-ref="66"><a href="#ledger-66" class="claim-anchor">0.2%<sup class="claim-sup">[66]</sup></a></span> before the pandemic and reached <span class="claim claim-fuzzy" data-ref="66"><a href="#ledger-66" class="claim-anchor">0.5%<sup class="claim-sup">[66]</sup></a></span> at the GFC peak; SAP 2026-12 frames forward stress as potentially surpassing the GFC peak but not the 1990s peaks, conditional on the labour market. House price growth, core inflation, and the output gap are less significant contributors.</p>
+<p>CBA's chartered-bank monthly arrears series for <span class="claim-uncovered">February 2026<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> reads 0.28% nationally (13,749 mortgages in arrears out of 4,937,235 covered) -- up from the <span class="claim claim-pending" id="ref-54" data-ref="54"><a href="#ledger-54" class="claim-anchor">0.14% mid-2022 trough<sup class="claim-sup">[54]</sup></a></span>. The <span class="claim" id="ref-55" data-ref="55"><a href="#ledger-55" class="claim-anchor">+14 bps move sits inside the SAP 2026-12 range<sup class="claim-sup">[55]</sup></a></span> for the realized rate-channel pass-through; the level remains well below the 0.5% GFC peak. Q1 FY2026 chartered-bank filings show combined writeoffs of C$38 million on the <span class="claim claim-pending" id="ref-25" data-ref="25"><a href="#ledger-25" class="claim-anchor">C$1.76 trillion combined mortgage portfolio<sup class="claim-sup">[25]</sup></a></span>; trailing four quarters, C$168 million in writeoffs, equivalent to <span class="claim" id="ref-58" data-ref="58"><a href="#ledger-58" class="claim-anchor">0.01% of holdings<sup class="claim-sup">[58]</sup></a></span>. The build is real but concentrated; the system-level loss read remains near a cyclical floor.</p>
+<p>!<a href="/charts/pillar-a/cba_arrears.svg" target="_blank" rel="noopener">CBA chartered-bank national mortgage arrears rate, monthly, last 36 months ending February 2026. Latest print 0.28%, up from a 0.14% mid-2022 trough.</a></p>
+<p><em>CBA chartered-bank national mortgage arrears rate (90+ days in arrears), % of covered mortgages. Monthly, <span class="claim-uncovered">March 2023<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> through February 2026. Source: Canadian Bankers Association, Number of Residential Mortgages in Arrears, February 2026 release.</em></p>
+<p>The remaining renewal-rate spread for the 2026H2 and 2027 cohorts is materially narrower than the 2024-2025 cohorts faced -- perhaps a quarter of the size, with the BoC having cut <span class="claim-uncovered">275 bps<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> from the mid-2024 peak and held at <span class="claim-uncovered">2.25%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> for four meetings. The residual incremental rate-channel arrears contribution is therefore small. What matters for the next leg is whether the labour market turns.</p>
+<p>---</p>
+<h2>What would change our view</h2>
+<p>Three triggers fire against this view; the falsification thresholds have been re-cast around the labour channel as the larger forward lever.</p>
+<p><strong>The wall peaks earlier than this piece claims if</strong>: CMHC's mortgage arrears rate (90+ days) stalls or rolls over within the next two Residential Mortgage Industry Report releases; CBA's chartered-bank monthly arrears falls below <span class="claim claim-fuzzy" data-ref="66"><a href="#ledger-66" class="claim-anchor">0.25%<sup class="claim-sup">[66]</sup></a></span> for three consecutive months from the current 0.28% reading; and Big-Six writeoffs on residential mortgages trail below the <span class="claim claim-pending" id="ref-59" data-ref="59"><a href="#ledger-59" class="claim-anchor">current C$168 million four-quarter baseline<sup class="claim-sup">[59]</sup></a></span> in the Q2 FY2026 earnings cycle. The combination would say the 2024-2025 stress has begun to dissipate faster than the cohort-mechanics model predicts.</p>
+<p><strong>The wall extends past 2027 if</strong>: Canadian unemployment moves above <span class="claim claim-fuzzy" data-ref="61" id="ref-61"><a href="#ledger-61" class="claim-anchor">7.5%<sup class="claim-sup">[61]</sup></a></span> on a sustained basis (two consecutive quarters), or the Labour Force Survey prints <span class="claim" id="ref-62" data-ref="62"><a href="#ledger-62" class="claim-anchor">back-to-back monthly increases of 0.2 pp or more<sup class="claim-sup">[62]</sup></a></span>. This is the central trigger after the SAP 2026-12 reframe: a +1 pp rise in unemployment adds roughly 10 bps to the arrears rate within a year, comparable in magnitude to the entirety of the 2022-2023 rate-channel pass-through. The <span class="claim-uncovered">April 2026<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> LFS print has unemployment at <span class="claim-uncovered">6.9%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>; a <span class="claim" id="ref-64" data-ref="64"><a href="#ledger-64" class="claim-anchor">50 bps move above that<sup class="claim-sup">[64]</sup></a></span>, sustained, puts the arrears trajectory on a path worse than renewal-channel modelling alone predicts. CMHC arrears continuing to rise through 2026H2 and into 2027 -- with the Toronto sub-aggregate moving above CMHC's own <span class="claim-uncovered">Q4 2026<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> projection of <span class="claim claim-fuzzy" data-ref="66"><a href="#ledger-66" class="claim-anchor">0.34%<sup class="claim-sup">[66]</sup></a></span> -- would be supporting. A 5-year GoC yield above <span class="claim claim-fuzzy" data-ref="66"><a href="#ledger-66" class="claim-anchor">4.0%<sup class="claim-sup">[66]</sup></a></span> would re-widen the renewal-rate spread, but the marginal arrears impact is small relative to the labour channel.</p>
+<p>The cheapest test that would resolve the labour-channel reframe is <span class="claim" id="ref-67" data-ref="67"><a href="#ledger-67" class="claim-anchor">the next LFS release (June 6, 2026 for May 2026 data)<sup class="claim-sup">[67]</sup></a></span>. Labour- market deterioration shows up in the LFS first, in the CBA arrears series with roughly a one-year lag per SAP 2026-12. If the next LFS holds unemployment at or below 6.9% and the <span class="claim claim-pending" id="ref-68" data-ref="68"><a href="#ledger-68" class="claim-anchor">Spring 2026 Residential Mortgage Industry Report<sup class="claim-sup">[68]</sup></a></span> shows the regional arrears geography stable, the renewal-wall residual is the backward-looking story this piece claims it is. If the LFS prints a <span class="claim claim-fuzzy" data-ref="64"><a href="#ledger-64" class="claim-anchor">50 bps<sup class="claim-sup">[64]</sup></a></span> deterioration, the forward read flips to the labour channel even faster than this piece anticipates.</p>
+<p>![Canada unemployment rate (headline) with prime-age (25-54) overlay, monthly, last 60 months ending April 2026. <span class="claim" id="ref-70" data-ref="70"><a href="#ledger-70" class="claim-anchor">Headline at 6.9%; prime-age at 6.0%<sup class="claim-sup">[70]</sup></a></span>.](/charts/pillar-a/unemployment.svg)</p>
+<p><em>Canada unemployment rate, headline (15+) and prime-age (25-54) overlay, %. Monthly, <span class="claim" id="ref-71" data-ref="71"><a href="#ledger-71" class="claim-anchor">April 2021 through April 2026<sup class="claim-sup">[71]</sup></a></span>. Source: Statistics Canada, Labour Force Survey, Table 14-10-0287-01. <span class="claim" id="ref-72" data-ref="72"><a href="#ledger-72" class="claim-anchor">Vintage: April 2026 release (May 9, 2026)<sup class="claim-sup">[72]</sup></a></span>.</em></p></div>
+    </main>
+    <aside class="ledger">
+    <h2>Claims ledger</h2>
+    <div class="ledger-group">
+      <div class="ledger-group-h">The mortgage renewal wall has peaked (72)</div>
+      <div class="ledger-item" id="ledger-1">
+      <span class="ledger-ref derived ledger-ref-orphan">[1]</span>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"the cohort that carried the bulk of
+      the renewal-payment-shock distribution -- has now mostly rolled"</div>
+      <div class="note-line">Narrative framing, no numeric claim.</div>
+    </div><div class="ledger-item" id="ledger-2">
+      <a href="#ref-2" class="ledger-ref-link"><span class="ledger-ref pipeline">[2]</span></a>
+      <span class="ledger-source-label">StatCan Table 18-10-0004-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"0.28% Y/Y in March 2026"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">CPI mortgage interest cost, Y/Y % change, March 2026 release. Pulled by daily pipeline.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-3">
+      <a href="#ref-3" class="ledger-ref-link"><span class="ledger-ref pipeline">[3]</span></a>
+      <span class="ledger-source-label">StatCan Table 18-10-0004-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"after running near double digits at the
+      2023-2024 peak"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Same series; 2023-2024 peak well above double digits (chart caption notes &gt;25%).</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-4">
+      <a href="#ref-4" class="ledger-ref-link"><span class="ledger-ref pipeline">[4]</span></a>
+      <span class="ledger-source-label">StatCan Table 18-10-0004-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"from a 2023-2024 peak above 25%"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Chart-caption reading of MIC Y/Y series, Statistics Canada Table 18-10-0004-01, May 13, 2026.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-5">
+      <a href="#ref-5" class="ledger-ref-link"><span class="ledger-ref pipeline">[5]</span></a>
+      <span class="ledger-source-label">StatCan Table 18-10-0004-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"April 2022
+through March 2026"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Chart window for MIC plate, May 13, 2026.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-6">
+      <a href="#ref-6" class="ledger-ref-link"><span class="ledger-ref card">[6]</span></a>
+      <span class="ledger-source-label">BoC Fixed Announcement Date press release — April 29, 2026</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+      <div class="ledger-phrase">"BoC held the overnight rate at 2.25% on April 29, 2026"</div>
+      <div class="ledger-excerpt">The Bank of Canada today held its target for the overnight rate at 2.25%, with the Bank Rate at 2.5% and the deposit rate at 2.20%.</div><div class="ledger-meta">April 29, 2026 FAD · verified 2026-05-13 · next 2026-06-10</div><a class="ledger-link" href="https://www.bankofcanada.ca/2026/04/fad-press-release-2026-04-29/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-7">
+      <a href="#ref-7" class="ledger-ref-link"><span class="ledger-ref derived">[7]</span></a>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+      <div class="ledger-phrase">"fourth consecutive hold since the October 29, 2025 cut"</div>
+      <div class="note-line">Enumeration of BoC FAD outcomes from Oct 29 2025 cut through Apr 29 2026 hold: Dec 10 2025 hold, Jan 28 2026 hold, Mar 11 2026 hold, Apr 29 2026 hold = 4 consecutive holds. Source: BoC FAD schedule and press releases.</div>
+    </div><div class="ledger-item" id="ledger-8">
+      <span class="ledger-ref derived ledger-ref-orphan">[8]</span>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"BoC having cut 275 bps from the
+      mid-2024 peak and held at 2.25% for four meetings"</div>
+      <div class="note-line">Peak overnight rate 5.00% (Jul 2023 - Jun 2024) less current 2.25% = 275 bps of cumulative cuts. BoC FAD press release series.</div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-9">
+      <span class="ledger-ref card ledger-ref-orphan">[9]</span>
+      <span class="ledger-source-label">BoC Staff Analytical Paper 2026-12 — Examining the macro drivers of mortgage arrears in Canada</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"Staff Analytical
+      Paper 2026-12 (March 24, 2026) decomposes the historical drivers
+      of Canadian mortgage arrears"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION — PDF body is binary-encoded to WebFetch. Landing page confirms title, authors (Pugh, Wang, Webley), and March 2026 vintage. Coefficients (10-15 bps incremental arrears per +300 bps cycle; ~10 bps per +1 pp UR; pre-pandemic 0.2%; GFC peak 0.5%) require manual PDF read.]</div><div class="ledger-meta">March 24, 2026 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2026/03/staff-analytical-paper-2026-12/" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>tightening_coef_bps_per_300bps_2yr_low</code>: <strong>10</strong></li><li><code>tightening_coef_bps_per_300bps_2yr_high</code>: <strong>15</strong></li><li><code>unemployment_coef_bps_per_pp_1yr</code>: <strong>10</strong></li><li><code>pre_pandemic_arrears_pct</code>: <strong>0.2</strong></li><li><code>gfc_peak_arrears_pct</code>: <strong>0.5</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">User verified these coefficients on 2026-05-13 and confirmed match to PDF.</div>
+          <fieldset class="decision" data-claim-id="boc_sap_2026_12_mortgage_arrears">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-boc_sap_2026_12_mortgage_arrears">Comment (required if rejecting):</label>
+              <textarea id="comment-boc_sap_2026_12_mortgage_arrears" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-10">
+      <span class="ledger-ref card ledger-ref-orphan">[10]</span>
+      <span class="ledger-source-label">BoC Staff Analytical Paper 2026-12 — Examining the macro drivers of mortgage arrears in Canada</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"implied incremental arrears from a +300 bps tightening cycle
+      is 10 to 15 bps over two years"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION — PDF body is binary-encoded to WebFetch. Landing page confirms title, authors (Pugh, Wang, Webley), and March 2026 vintage. Coefficients (10-15 bps incremental arrears per +300 bps cycle; ~10 bps per +1 pp UR; pre-pandemic 0.2%; GFC peak 0.5%) require manual PDF read.]</div><div class="ledger-meta">March 24, 2026 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2026/03/staff-analytical-paper-2026-12/" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>tightening_coef_bps_per_300bps_2yr_low</code>: <strong>10</strong></li><li><code>tightening_coef_bps_per_300bps_2yr_high</code>: <strong>15</strong></li><li><code>unemployment_coef_bps_per_pp_1yr</code>: <strong>10</strong></li><li><code>pre_pandemic_arrears_pct</code>: <strong>0.2</strong></li><li><code>gfc_peak_arrears_pct</code>: <strong>0.5</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">User verified these coefficients on 2026-05-13 and confirmed match to PDF.</div>
+          <fieldset class="decision" data-claim-id="boc_sap_2026_12_mortgage_arrears">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-boc_sap_2026_12_mortgage_arrears">Comment (required if rejecting):</label>
+              <textarea id="comment-boc_sap_2026_12_mortgage_arrears" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-11">
+      <span class="ledger-ref card ledger-ref-orphan">[11]</span>
+      <span class="ledger-source-label">BoC Staff Analytical Paper 2026-12 — Examining the macro drivers of mortgage arrears in Canada</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"each 1 pp rise in the unemployment
+      rate adds roughly 10 bps to the arrears rate within a year"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION — PDF body is binary-encoded to WebFetch. Landing page confirms title, authors (Pugh, Wang, Webley), and March 2026 vintage. Coefficients (10-15 bps incremental arrears per +300 bps cycle; ~10 bps per +1 pp UR; pre-pandemic 0.2%; GFC peak 0.5%) require manual PDF read.]</div><div class="ledger-meta">March 24, 2026 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2026/03/staff-analytical-paper-2026-12/" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>tightening_coef_bps_per_300bps_2yr_low</code>: <strong>10</strong></li><li><code>tightening_coef_bps_per_300bps_2yr_high</code>: <strong>15</strong></li><li><code>unemployment_coef_bps_per_pp_1yr</code>: <strong>10</strong></li><li><code>pre_pandemic_arrears_pct</code>: <strong>0.2</strong></li><li><code>gfc_peak_arrears_pct</code>: <strong>0.5</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">User verified these coefficients on 2026-05-13 and confirmed match to PDF.</div>
+          <fieldset class="decision" data-claim-id="boc_sap_2026_12_mortgage_arrears">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-boc_sap_2026_12_mortgage_arrears">Comment (required if rejecting):</label>
+              <textarea id="comment-boc_sap_2026_12_mortgage_arrears" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-12">
+      <span class="ledger-ref card ledger-ref-orphan">[12]</span>
+      <span class="ledger-source-label">BoC Staff Analytical Paper 2026-12 — Examining the macro drivers of mortgage arrears in Canada</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"a full +300 bps
+      tightening cycle adds 10 to 15 bps to the arrears rate over two
+      years; a +1 pp rise in unemployment adds roughly 10 bps within a
+      year"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION — PDF body is binary-encoded to WebFetch. Landing page confirms title, authors (Pugh, Wang, Webley), and March 2026 vintage. Coefficients (10-15 bps incremental arrears per +300 bps cycle; ~10 bps per +1 pp UR; pre-pandemic 0.2%; GFC peak 0.5%) require manual PDF read.]</div><div class="ledger-meta">March 24, 2026 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2026/03/staff-analytical-paper-2026-12/" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>tightening_coef_bps_per_300bps_2yr_low</code>: <strong>10</strong></li><li><code>tightening_coef_bps_per_300bps_2yr_high</code>: <strong>15</strong></li><li><code>unemployment_coef_bps_per_pp_1yr</code>: <strong>10</strong></li><li><code>pre_pandemic_arrears_pct</code>: <strong>0.2</strong></li><li><code>gfc_peak_arrears_pct</code>: <strong>0.5</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">User verified these coefficients on 2026-05-13 and confirmed match to PDF.</div>
+          <fieldset class="decision" data-claim-id="boc_sap_2026_12_mortgage_arrears">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-boc_sap_2026_12_mortgage_arrears">Comment (required if rejecting):</label>
+              <textarea id="comment-boc_sap_2026_12_mortgage_arrears" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-13">
+      <span class="ledger-ref card ledger-ref-orphan">[13]</span>
+      <span class="ledger-source-label">Canadian Bankers Association — Number of Residential Mortgages in Arrears</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"observed +8 bps move from the mid-2022 trough (0.14%) to the Q2
+      2025 reading (0.22%)"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION: WebFetch returned HTTP 307. Secondary sources confirm February 2026 reading of 0.28% national arrears rate.]</div><div class="ledger-meta">February 2026 monthly release · verified 2026-05-13</div><a class="ledger-link" href="https://cba.ca/mortgages-in-arrears" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>arrears_rate_feb_2026_pct</code>: <strong>0.28</strong></li><li><code>mortgages_in_arrears_feb_2026</code>: <strong>13749</strong></li><li><code>mortgages_covered_feb_2026</code>: <strong>4937235</strong></li><li><code>trough_mid_2022_pct</code>: <strong>0.14</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Recommendation: promote to pipeline:cba:arrears series.</div>
+          <fieldset class="decision" data-claim-id="cba_residential_mortgage_arrears">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-cba_residential_mortgage_arrears" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-cba_residential_mortgage_arrears" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-cba_residential_mortgage_arrears" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-cba_residential_mortgage_arrears">Comment (required if rejecting):</label>
+              <textarea id="comment-cba_residential_mortgage_arrears" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item" id="ledger-14">
+      <a href="#ref-14" class="ledger-ref-link"><span class="ledger-ref derived">[14]</span></a>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+      <div class="ledger-phrase">"the
+      marginal lever from the labour channel is comparable to the entire
+      2022-2023 tightening on a per-pp basis"</div>
+      <div class="note-line">Comparison of SAP 2026-12 rate-channel coefficient (10-15 bps per 300 bps cycle) vs labour-channel coefficient (~10 bps per 1pp UR). Same source: BoC SAP 2026-12.</div>
+    </div><div class="ledger-item" id="ledger-15">
+      <a href="#ref-15" class="ledger-ref-link"><span class="ledger-ref derived">[15]</span></a>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+      <div class="ledger-phrase">"2 to 3 times larger per unit of shock"</div>
+      <div class="note-line">10 bps per 1pp UR vs ~10-15 bps spread over a full 300 bps cycle, normalized per unit-shock. SAP 2026-12.</div>
+    </div><div class="ledger-item" id="ledger-16">
+      <span class="ledger-ref derived ledger-ref-orphan">[16]</span>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"marginal lever is roughly 2 to 3 times larger"</div>
+      <div class="note-line">Per-shock comparison from SAP 2026-12 coefficients (see above).</div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-17">
+      <span class="ledger-ref card ledger-ref-orphan">[17]</span>
+      <span class="ledger-source-label">OSFI M4 Consolidated Monthly Balance Sheet — banks (Open Government dataset)</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"Federally-regulated banks hold C$1,952 billion of residential
+      mortgage debt as of February 28, 2026, per OSFI's M4 Consolidated
+      Balance Sheet"</div>
+      <div class="ledger-excerpt">Banks - Monthly M4 Consolidated Balance Sheet. CSV resource: banks_monthly_m4.csv. Residential mortgage debt reported by insurance status. [NEEDS HUMAN VERIFICATION of Feb 2026 and Feb 2025 absolute levels: C$1,952bn total, C$433bn insured, C$1,508bn uninsured, C$11bn reverse for Feb 2026; C$1,484bn uninsured for Feb 2025.]</div><div class="ledger-meta">February 2026 monthly file · verified 2026-05-13</div><a class="ledger-link" href="https://open.canada.ca/data/en/dataset/91ed76b4-a1a2-4f87-9c4c-59cd64f7a9de" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>total_residential_feb_2026_cad_bn</code>: <strong>1952</strong></li><li><code>insured_feb_2026_cad_bn</code>: <strong>433</strong></li><li><code>uninsured_feb_2026_cad_bn</code>: <strong>1508</strong></li><li><code>reverse_feb_2026_cad_bn</code>: <strong>11</strong></li><li><code>uninsured_feb_2025_cad_bn</code>: <strong>1484</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Recommendation: promote to pipeline:osfi:m4_* series (machine-readable monthly CSV).</div>
+          <fieldset class="decision" data-claim-id="osfi_m4_consolidated_balance_sheet">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-osfi_m4_consolidated_balance_sheet" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-osfi_m4_consolidated_balance_sheet" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-osfi_m4_consolidated_balance_sheet" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-osfi_m4_consolidated_balance_sheet">Comment (required if rejecting):</label>
+              <textarea id="comment-osfi_m4_consolidated_balance_sheet" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-18">
+      <span class="ledger-ref card ledger-ref-orphan">[18]</span>
+      <span class="ledger-source-label">OSFI M4 Consolidated Monthly Balance Sheet — banks (Open Government dataset)</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"C$433 billion insured, C$1,508 billion uninsured,
+      C$11 billion reverse"</div>
+      <div class="ledger-excerpt">Banks - Monthly M4 Consolidated Balance Sheet. CSV resource: banks_monthly_m4.csv. Residential mortgage debt reported by insurance status. [NEEDS HUMAN VERIFICATION of Feb 2026 and Feb 2025 absolute levels: C$1,952bn total, C$433bn insured, C$1,508bn uninsured, C$11bn reverse for Feb 2026; C$1,484bn uninsured for Feb 2025.]</div><div class="ledger-meta">February 2026 monthly file · verified 2026-05-13</div><a class="ledger-link" href="https://open.canada.ca/data/en/dataset/91ed76b4-a1a2-4f87-9c4c-59cd64f7a9de" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>total_residential_feb_2026_cad_bn</code>: <strong>1952</strong></li><li><code>insured_feb_2026_cad_bn</code>: <strong>433</strong></li><li><code>uninsured_feb_2026_cad_bn</code>: <strong>1508</strong></li><li><code>reverse_feb_2026_cad_bn</code>: <strong>11</strong></li><li><code>uninsured_feb_2025_cad_bn</code>: <strong>1484</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Recommendation: promote to pipeline:osfi:m4_* series (machine-readable monthly CSV).</div>
+          <fieldset class="decision" data-claim-id="osfi_m4_consolidated_balance_sheet">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-osfi_m4_consolidated_balance_sheet" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-osfi_m4_consolidated_balance_sheet" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-osfi_m4_consolidated_balance_sheet" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-osfi_m4_consolidated_balance_sheet">Comment (required if rejecting):</label>
+              <textarea id="comment-osfi_m4_consolidated_balance_sheet" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-19">
+      <span class="ledger-ref card ledger-ref-orphan">[19]</span>
+      <span class="ledger-source-label">OSFI M4 Consolidated Monthly Balance Sheet — banks (Open Government dataset)</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"C$1,484 billion in
+      February 2025"</div>
+      <div class="ledger-excerpt">Banks - Monthly M4 Consolidated Balance Sheet. CSV resource: banks_monthly_m4.csv. Residential mortgage debt reported by insurance status. [NEEDS HUMAN VERIFICATION of Feb 2026 and Feb 2025 absolute levels: C$1,952bn total, C$433bn insured, C$1,508bn uninsured, C$11bn reverse for Feb 2026; C$1,484bn uninsured for Feb 2025.]</div><div class="ledger-meta">February 2026 monthly file · verified 2026-05-13</div><a class="ledger-link" href="https://open.canada.ca/data/en/dataset/91ed76b4-a1a2-4f87-9c4c-59cd64f7a9de" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>total_residential_feb_2026_cad_bn</code>: <strong>1952</strong></li><li><code>insured_feb_2026_cad_bn</code>: <strong>433</strong></li><li><code>uninsured_feb_2026_cad_bn</code>: <strong>1508</strong></li><li><code>reverse_feb_2026_cad_bn</code>: <strong>11</strong></li><li><code>uninsured_feb_2025_cad_bn</code>: <strong>1484</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Recommendation: promote to pipeline:osfi:m4_* series (machine-readable monthly CSV).</div>
+          <fieldset class="decision" data-claim-id="osfi_m4_consolidated_balance_sheet">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-osfi_m4_consolidated_balance_sheet" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-osfi_m4_consolidated_balance_sheet" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-osfi_m4_consolidated_balance_sheet" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-osfi_m4_consolidated_balance_sheet">Comment (required if rejecting):</label>
+              <textarea id="comment-osfi_m4_consolidated_balance_sheet" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item" id="ledger-20">
+      <span class="ledger-ref derived ledger-ref-orphan">[20]</span>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"Y/Y growth in the
+      chartered-bank uninsured book is +1.5% (from C$1,484 billion in
+      February 2025); the insured book is -0.2% Y/Y"</div>
+      <div class="note-line">Computed from OSFI M4 Feb 2026 vs Feb 2025 stocks; underlying levels in OSFI M4 entries.</div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-21">
+      <span class="ledger-ref card ledger-ref-orphan">[21]</span>
+      <span class="ledger-source-label">CMHC Residential Mortgage Industry Report — Fall 2025 Edition</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"all-lender total reported by CMHC for Q2
+      2025 is C$2.3 trillion"</div>
+      <div class="ledger-excerpt">In August 2025, residential mortgage debt reached $2.3 trillion, up 4.8% from a year earlier. ... the national mortgage delinquency rate dropped slightly in the second quarter of 2025 for the first time in 3 years to 0.22%. ... The Big 6 banks and credit unions increased their market share of originated mortgages over the past year to 59% and 18%, respectively.</div><div class="ledger-meta">Fall 2025 (released November 19, 2025) · verified 2026-05-13 · next Spring 2026 already superseded</div><a class="ledger-link" href="https://www.cmhc-schl.gc.ca/professionals/housing-markets-data-and-research/housing-research/research-reports/housing-finance/residential-mortgage-industry-report" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>all_lender_total_aug_2025_cad_tn</code>: <strong>2.3</strong></li><li><code>yoy_growth_aug_2025_pct</code>: <strong>4.8</strong></li><li><code>national_delinquency_q2_2025_pct</code>: <strong>0.22</strong></li><li><code>big6_origination_share_pct</code>: <strong>59</strong></li><li><code>credit_union_origination_share_pct</code>: <strong>18</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">[NEEDS HUMAN VERIFICATION] Specific dive numbers (1.15M households renewing 2026; uninsured &gt;25-yr above 60% fourth consecutive year; Toronto Q4 2026 arrears projection 0.34%) not verified from the Fall 2025 PDF body.</div>
+          <fieldset class="decision" data-claim-id="cmhc_rmir_fall_2025">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-cmhc_rmir_fall_2025">Comment (required if rejecting):</label>
+              <textarea id="comment-cmhc_rmir_fall_2025" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item" id="ledger-22">
+      <a href="#ref-22" class="ledger-ref-link"><span class="ledger-ref derived">[22]</span></a>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+      <div class="ledger-phrase">"chartered-bank book is approximately
+      84% of the total"</div>
+      <div class="note-line">C$1,952bn / C$2,300bn = 0.849; OSFI M4 Feb 2026 over CMHC Q2 2025.</div>
+    </div><div class="ledger-item" id="ledger-23">
+      <a href="#ref-23" class="ledger-ref-link"><span class="ledger-ref derived">[23]</span></a>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+      <div class="ledger-phrase">"credit unions, MICs, and other non-federally-
+      regulated lenders carrying the remaining 16%"</div>
+      <div class="note-line">Complement of 84% chartered-bank share.</div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-24">
+      <span class="ledger-ref card ledger-ref-orphan">[24]</span>
+      <span class="ledger-source-label">Big-Six chartered-bank Q1 FY2026 quarterly earnings supplements</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"Big-Six
+      aggregate mortgage book sits at roughly C$1.76 trillion per Q1
+      FY2026 institutional filings"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION — bank supplementary financial information PDFs are binary; WebFetch cannot extract tabular disclosures. Per CIBC Q1 FY2026 reporting: combined Big-Six residential mortgage portfolio ~C$1.76 trillion; CIBC disclosed ~6% of its portfolio facing 40%+ payment shock in 2026; trailing-four-quarter mortgage writeoffs across the Big Six ~C$168 million.]</div><div class="ledger-meta">Q1 FY2026 (reported late Feb 2026) · verified 2026-05-13 · next Q2 FY2026 results late May 2026</div><a class="ledger-link" href="https://www.cibc.com/en/about-cibc/investor-relations/quarterly-results.html" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>bigsix_aggregate_mortgage_cad_tn</code>: <strong>1.76</strong></li><li><code>bigsix_quarterly_writeoffs_cad_mn</code>: <strong>38</strong></li><li><code>bigsix_trailing_4q_writeoffs_cad_mn</code>: <strong>168</strong></li><li><code>cibc_pct_portfolio_40pct_plus_shock</code>: <strong>6</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Aggregation across RBC, TD, BMO, Scotia, CIBC, NBC supplements. Author-aggregated.</div>
+          <fieldset class="decision" data-claim-id="bigsix_q1_fy2026_earnings_supplements">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-bigsix_q1_fy2026_earnings_supplements" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-bigsix_q1_fy2026_earnings_supplements" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-bigsix_q1_fy2026_earnings_supplements" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-bigsix_q1_fy2026_earnings_supplements">Comment (required if rejecting):</label>
+              <textarea id="comment-bigsix_q1_fy2026_earnings_supplements" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-25">
+      <a href="#ref-25" class="ledger-ref-link"><span class="ledger-ref card">[25]</span></a>
+      <span class="ledger-source-label">Big-Six chartered-bank Q1 FY2026 quarterly earnings supplements</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span>
+      <div class="ledger-phrase">"C$1.76 trillion combined mortgage portfolio"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION — bank supplementary financial information PDFs are binary; WebFetch cannot extract tabular disclosures. Per CIBC Q1 FY2026 reporting: combined Big-Six residential mortgage portfolio ~C$1.76 trillion; CIBC disclosed ~6% of its portfolio facing 40%+ payment shock in 2026; trailing-four-quarter mortgage writeoffs across the Big Six ~C$168 million.]</div><div class="ledger-meta">Q1 FY2026 (reported late Feb 2026) · verified 2026-05-13 · next Q2 FY2026 results late May 2026</div><a class="ledger-link" href="https://www.cibc.com/en/about-cibc/investor-relations/quarterly-results.html" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>bigsix_aggregate_mortgage_cad_tn</code>: <strong>1.76</strong></li><li><code>bigsix_quarterly_writeoffs_cad_mn</code>: <strong>38</strong></li><li><code>bigsix_trailing_4q_writeoffs_cad_mn</code>: <strong>168</strong></li><li><code>cibc_pct_portfolio_40pct_plus_shock</code>: <strong>6</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Aggregation across RBC, TD, BMO, Scotia, CIBC, NBC supplements. Author-aggregated.</div>
+          <fieldset class="decision" data-claim-id="bigsix_q1_fy2026_earnings_supplements">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-bigsix_q1_fy2026_earnings_supplements" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-bigsix_q1_fy2026_earnings_supplements" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-bigsix_q1_fy2026_earnings_supplements" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-bigsix_q1_fy2026_earnings_supplements">Comment (required if rejecting):</label>
+              <textarea id="comment-bigsix_q1_fy2026_earnings_supplements" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item" id="ledger-26">
+      <span class="ledger-ref card ledger-ref-orphan">[26]</span>
+      <span class="ledger-source-label">BoC Staff Analytical Note 2025-1 — Using new loan data to better understand mortgage holders</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"BoC Staff Analytical Note 2025-1 (January 2025; data vintage
+      September 2024) reports fixed-rate at roughly 80% of the stock and
+      variable-rate at roughly 20%"</div>
+      <div class="ledger-excerpt">Fixed-rate mortgages are the most popular mortgage product, representing around 80% of all outstanding mortgages. ... Fixed rate, term of 5 years or more: 42% of all mortgages.</div><div class="ledger-meta">January 2025 (data vintage September 2024) · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2025/01/staff-analytical-note-2025-1/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-27">
+      <a href="#ref-27" class="ledger-ref-link"><span class="ledger-ref card">[27]</span></a>
+      <span class="ledger-source-label">BoC Staff Analytical Note 2025-1 — Using new loan data to better understand mortgage holders</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+      <div class="ledger-phrase">"five-year fixed alone is about 40%
+      of the total"</div>
+      <div class="ledger-excerpt">Fixed-rate mortgages are the most popular mortgage product, representing around 80% of all outstanding mortgages. ... Fixed rate, term of 5 years or more: 42% of all mortgages.</div><div class="ledger-meta">January 2025 (data vintage September 2024) · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2025/01/staff-analytical-note-2025-1/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-28">
+      <a href="#ref-28" class="ledger-ref-link"><span class="ledger-ref pipeline">[28]</span></a>
+      <span class="ledger-source-label">BoC Valet V39079 (pipeline slot V39079) — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"originated near the policy-rate floor of the
+      2020-21 pandemic window"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Reference period: May 13, 2026.</div><a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/V39079/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-29">
+      <span class="ledger-ref card ledger-ref-orphan">[29]</span>
+      <span class="ledger-source-label">BoC 5-year conventional mortgage rate (Valet series V80691335)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"fixed-rate stock booked
+      at 2020-21 contract rates"</div>
+      <div class="ledger-excerpt">Latest 15 weekly observations from 2026-01-28 through 2026-05-06 all print 6.09%.</div><div class="ledger-meta">Weekly print 2026-05-06 · verified 2026-05-13 · next 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/V80691335/json?recent=15" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-30">
+      <span class="ledger-ref card ledger-ref-orphan">[30]</span>
+      <span class="ledger-source-label">BoC Staff Analytical Note 2025-21 — How will mortgage payments change at renewal? An updated analysis</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"BoC Staff Analytical Note 2025-21 (July 2025), 60% of all
+      outstanding mortgages renew during 2025 or 2026"</div>
+      <div class="ledger-excerpt">About 60% of all outstanding mortgages in Canada are expected to renew in 2025 or 2026. ... the average monthly mortgage payment could be 10% higher for those renewing in 2025 and 6% higher for those renewing in 2026. ... Holders of these mortgages renewing in 2026 are likely to see an average increase in payments of 20%. ... the median MDS ratio will rise by 2.7 percentage points from 15.3% in December 2024 to 18.0% by the end of 2026. ... 10% of borrowers renewing in 2026 will see an increase of more than 40%. ... a quarter of borrowers renewing in 2026 will see a decrease of at least 7%. ... Five-year, fixed-rate mortgages make up around 40% of all mortgages in Canada ... Around 75% of those facing payment increases hold a five-year, fixed-rate mortgage.</div><div class="ledger-meta">July 2025 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2025/07/staff-analytical-note-2025-21/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-31">
+      <span class="ledger-ref card ledger-ref-orphan">[31]</span>
+      <span class="ledger-source-label">CMHC Residential Mortgage Industry Report — Fall 2025 Edition</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"CMHC Residential
+      Mortgage Industry Report Fall 2025 puts roughly 1.15 million
+      households renewing in 2026 specifically"</div>
+      <div class="ledger-excerpt">In August 2025, residential mortgage debt reached $2.3 trillion, up 4.8% from a year earlier. ... the national mortgage delinquency rate dropped slightly in the second quarter of 2025 for the first time in 3 years to 0.22%. ... The Big 6 banks and credit unions increased their market share of originated mortgages over the past year to 59% and 18%, respectively.</div><div class="ledger-meta">Fall 2025 (released November 19, 2025) · verified 2026-05-13 · next Spring 2026 already superseded</div><a class="ledger-link" href="https://www.cmhc-schl.gc.ca/professionals/housing-markets-data-and-research/housing-research/research-reports/housing-finance/residential-mortgage-industry-report" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>all_lender_total_aug_2025_cad_tn</code>: <strong>2.3</strong></li><li><code>yoy_growth_aug_2025_pct</code>: <strong>4.8</strong></li><li><code>national_delinquency_q2_2025_pct</code>: <strong>0.22</strong></li><li><code>big6_origination_share_pct</code>: <strong>59</strong></li><li><code>credit_union_origination_share_pct</code>: <strong>18</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">[NEEDS HUMAN VERIFICATION] Specific dive numbers (1.15M households renewing 2026; uninsured &gt;25-yr above 60% fourth consecutive year; Toronto Q4 2026 arrears projection 0.34%) not verified from the Fall 2025 PDF body.</div>
+          <fieldset class="decision" data-claim-id="cmhc_rmir_fall_2025">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-cmhc_rmir_fall_2025">Comment (required if rejecting):</label>
+              <textarea id="comment-cmhc_rmir_fall_2025" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-32">
+      <span class="ledger-ref card ledger-ref-orphan">[32]</span>
+      <span class="ledger-source-label">CMHC Residential Mortgage Industry Report — Fall 2025 Edition</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"CMHC's broader January
+      2026 framing places about 3.1 million mortgages (52% of total)
+      renewing during 2026"</div>
+      <div class="ledger-excerpt">In August 2025, residential mortgage debt reached $2.3 trillion, up 4.8% from a year earlier. ... the national mortgage delinquency rate dropped slightly in the second quarter of 2025 for the first time in 3 years to 0.22%. ... The Big 6 banks and credit unions increased their market share of originated mortgages over the past year to 59% and 18%, respectively.</div><div class="ledger-meta">Fall 2025 (released November 19, 2025) · verified 2026-05-13 · next Spring 2026 already superseded</div><a class="ledger-link" href="https://www.cmhc-schl.gc.ca/professionals/housing-markets-data-and-research/housing-research/research-reports/housing-finance/residential-mortgage-industry-report" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>all_lender_total_aug_2025_cad_tn</code>: <strong>2.3</strong></li><li><code>yoy_growth_aug_2025_pct</code>: <strong>4.8</strong></li><li><code>national_delinquency_q2_2025_pct</code>: <strong>0.22</strong></li><li><code>big6_origination_share_pct</code>: <strong>59</strong></li><li><code>credit_union_origination_share_pct</code>: <strong>18</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">[NEEDS HUMAN VERIFICATION] Specific dive numbers (1.15M households renewing 2026; uninsured &gt;25-yr above 60% fourth consecutive year; Toronto Q4 2026 arrears projection 0.34%) not verified from the Fall 2025 PDF body.</div>
+          <fieldset class="decision" data-claim-id="cmhc_rmir_fall_2025">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-cmhc_rmir_fall_2025">Comment (required if rejecting):</label>
+              <textarea id="comment-cmhc_rmir_fall_2025" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item" id="ledger-33">
+      <a href="#ref-33" class="ledger-ref-link"><span class="ledger-ref card">[33]</span></a>
+      <span class="ledger-source-label">BoC Staff Analytical Note 2025-21 — How will mortgage payments change at renewal? An updated analysis</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+      <div class="ledger-phrase">"approximately 20 to 30% of stock rolls in 2027"</div>
+      <div class="ledger-excerpt">About 60% of all outstanding mortgages in Canada are expected to renew in 2025 or 2026. ... the average monthly mortgage payment could be 10% higher for those renewing in 2025 and 6% higher for those renewing in 2026. ... Holders of these mortgages renewing in 2026 are likely to see an average increase in payments of 20%. ... the median MDS ratio will rise by 2.7 percentage points from 15.3% in December 2024 to 18.0% by the end of 2026. ... 10% of borrowers renewing in 2026 will see an increase of more than 40%. ... a quarter of borrowers renewing in 2026 will see a decrease of at least 7%. ... Five-year, fixed-rate mortgages make up around 40% of all mortgages in Canada ... Around 75% of those facing payment increases hold a five-year, fixed-rate mortgage.</div><div class="ledger-meta">July 2025 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2025/07/staff-analytical-note-2025-21/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-34">
+      <a href="#ref-34" class="ledger-ref-link"><span class="ledger-ref card">[34]</span></a>
+      <span class="ledger-source-label">BoC Staff Analytical Note 2025-21 — How will mortgage payments change at renewal? An updated analysis</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+      <div class="ledger-phrase">"BoC SAN 2025-21 frames this as a distribution"</div>
+      <div class="ledger-excerpt">About 60% of all outstanding mortgages in Canada are expected to renew in 2025 or 2026. ... the average monthly mortgage payment could be 10% higher for those renewing in 2025 and 6% higher for those renewing in 2026. ... Holders of these mortgages renewing in 2026 are likely to see an average increase in payments of 20%. ... the median MDS ratio will rise by 2.7 percentage points from 15.3% in December 2024 to 18.0% by the end of 2026. ... 10% of borrowers renewing in 2026 will see an increase of more than 40%. ... a quarter of borrowers renewing in 2026 will see a decrease of at least 7%. ... Five-year, fixed-rate mortgages make up around 40% of all mortgages in Canada ... Around 75% of those facing payment increases hold a five-year, fixed-rate mortgage.</div><div class="ledger-meta">July 2025 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2025/07/staff-analytical-note-2025-21/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-35">
+      <span class="ledger-ref card ledger-ref-orphan">[35]</span>
+      <span class="ledger-source-label">BoC Financial Stability Report — 2025</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"BoC's 2024-vintage central case put the median 5-year fixed
+      renewer in the 30 to 40% payment-increase band"</div>
+      <div class="ledger-excerpt">Based on current market expectations for interest rates, approximately 60% of mortgages in this group will see an increase in their payments at renewal. ... more than 90% of mortgage holders with a five-year fixed-rate mortgage will face payment increases at renewal that are smaller than they were stress-tested for.</div><div class="ledger-meta">May 2025 · verified 2026-05-13 · next 2026-05</div><a class="ledger-link" href="https://www.bankofcanada.ca/2025/05/financial-stability-report-2025/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-36">
+      <span class="ledger-ref card ledger-ref-orphan">[36]</span>
+      <span class="ledger-source-label">BoC Staff Analytical Note 2025-21 — How will mortgage payments change at renewal? An updated analysis</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"FSR May 2025; SAN 2025-21,
+      July 2025) places the central estimate at 15 to 20% for 5-year
+      fixed renewers in 2025 or 2026"</div>
+      <div class="ledger-excerpt">About 60% of all outstanding mortgages in Canada are expected to renew in 2025 or 2026. ... the average monthly mortgage payment could be 10% higher for those renewing in 2025 and 6% higher for those renewing in 2026. ... Holders of these mortgages renewing in 2026 are likely to see an average increase in payments of 20%. ... the median MDS ratio will rise by 2.7 percentage points from 15.3% in December 2024 to 18.0% by the end of 2026. ... 10% of borrowers renewing in 2026 will see an increase of more than 40%. ... a quarter of borrowers renewing in 2026 will see a decrease of at least 7%. ... Five-year, fixed-rate mortgages make up around 40% of all mortgages in Canada ... Around 75% of those facing payment increases hold a five-year, fixed-rate mortgage.</div><div class="ledger-meta">July 2025 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2025/07/staff-analytical-note-2025-21/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-37">
+      <a href="#ref-37" class="ledger-ref-link"><span class="ledger-ref card">[37]</span></a>
+      <span class="ledger-source-label">BoC Staff Analytical Note 2025-21 — How will mortgage payments change at renewal? An updated analysis</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+      <div class="ledger-phrase">"6 to 10% across all renewing
+      mortgages"</div>
+      <div class="ledger-excerpt">About 60% of all outstanding mortgages in Canada are expected to renew in 2025 or 2026. ... the average monthly mortgage payment could be 10% higher for those renewing in 2025 and 6% higher for those renewing in 2026. ... Holders of these mortgages renewing in 2026 are likely to see an average increase in payments of 20%. ... the median MDS ratio will rise by 2.7 percentage points from 15.3% in December 2024 to 18.0% by the end of 2026. ... 10% of borrowers renewing in 2026 will see an increase of more than 40%. ... a quarter of borrowers renewing in 2026 will see a decrease of at least 7%. ... Five-year, fixed-rate mortgages make up around 40% of all mortgages in Canada ... Around 75% of those facing payment increases hold a five-year, fixed-rate mortgage.</div><div class="ledger-meta">July 2025 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2025/07/staff-analytical-note-2025-21/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-38">
+      <span class="ledger-ref card ledger-ref-orphan">[38]</span>
+      <span class="ledger-source-label">BoC Staff Analytical Note 2025-21 — How will mortgage payments change at renewal? An updated analysis</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"Average monthly payment for 2025 renewers is roughly
+      10% above the pre-renewal level; for 2026 renewers, roughly 6%"</div>
+      <div class="ledger-excerpt">About 60% of all outstanding mortgages in Canada are expected to renew in 2025 or 2026. ... the average monthly mortgage payment could be 10% higher for those renewing in 2025 and 6% higher for those renewing in 2026. ... Holders of these mortgages renewing in 2026 are likely to see an average increase in payments of 20%. ... the median MDS ratio will rise by 2.7 percentage points from 15.3% in December 2024 to 18.0% by the end of 2026. ... 10% of borrowers renewing in 2026 will see an increase of more than 40%. ... a quarter of borrowers renewing in 2026 will see a decrease of at least 7%. ... Five-year, fixed-rate mortgages make up around 40% of all mortgages in Canada ... Around 75% of those facing payment increases hold a five-year, fixed-rate mortgage.</div><div class="ledger-meta">July 2025 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2025/07/staff-analytical-note-2025-21/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-39">
+      <span class="ledger-ref card ledger-ref-orphan">[39]</span>
+      <span class="ledger-source-label">BoC Staff Analytical Note 2025-21 — How will mortgage payments change at renewal? An updated analysis</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"Across payment increasers, median MDS rises 2.7 pp (15.3% to
+      18.0%); among payment decreasers -- primarily short-term fixed and
+      some variable-rate cohorts -- median MDS falls 1.1 pp (19.7% to
+      18.6%)"</div>
+      <div class="ledger-excerpt">About 60% of all outstanding mortgages in Canada are expected to renew in 2025 or 2026. ... the average monthly mortgage payment could be 10% higher for those renewing in 2025 and 6% higher for those renewing in 2026. ... Holders of these mortgages renewing in 2026 are likely to see an average increase in payments of 20%. ... the median MDS ratio will rise by 2.7 percentage points from 15.3% in December 2024 to 18.0% by the end of 2026. ... 10% of borrowers renewing in 2026 will see an increase of more than 40%. ... a quarter of borrowers renewing in 2026 will see a decrease of at least 7%. ... Five-year, fixed-rate mortgages make up around 40% of all mortgages in Canada ... Around 75% of those facing payment increases hold a five-year, fixed-rate mortgage.</div><div class="ledger-meta">July 2025 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2025/07/staff-analytical-note-2025-21/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-40">
+      <span class="ledger-ref card ledger-ref-orphan">[40]</span>
+      <span class="ledger-source-label">BoC Staff Analytical Note 2025-21 — How will mortgage payments change at renewal? An updated analysis</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"top 10% of 2026
+      renewers face a payment increase of more than 40%"</div>
+      <div class="ledger-excerpt">About 60% of all outstanding mortgages in Canada are expected to renew in 2025 or 2026. ... the average monthly mortgage payment could be 10% higher for those renewing in 2025 and 6% higher for those renewing in 2026. ... Holders of these mortgages renewing in 2026 are likely to see an average increase in payments of 20%. ... the median MDS ratio will rise by 2.7 percentage points from 15.3% in December 2024 to 18.0% by the end of 2026. ... 10% of borrowers renewing in 2026 will see an increase of more than 40%. ... a quarter of borrowers renewing in 2026 will see a decrease of at least 7%. ... Five-year, fixed-rate mortgages make up around 40% of all mortgages in Canada ... Around 75% of those facing payment increases hold a five-year, fixed-rate mortgage.</div><div class="ledger-meta">July 2025 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2025/07/staff-analytical-note-2025-21/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-41">
+      <span class="ledger-ref card ledger-ref-orphan">[41]</span>
+      <span class="ledger-source-label">BoC Staff Analytical Note 2025-21 — How will mortgage payments change at renewal? An updated analysis</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"bottom 25%
+      see at least a 7% decrease"</div>
+      <div class="ledger-excerpt">About 60% of all outstanding mortgages in Canada are expected to renew in 2025 or 2026. ... the average monthly mortgage payment could be 10% higher for those renewing in 2025 and 6% higher for those renewing in 2026. ... Holders of these mortgages renewing in 2026 are likely to see an average increase in payments of 20%. ... the median MDS ratio will rise by 2.7 percentage points from 15.3% in December 2024 to 18.0% by the end of 2026. ... 10% of borrowers renewing in 2026 will see an increase of more than 40%. ... a quarter of borrowers renewing in 2026 will see a decrease of at least 7%. ... Five-year, fixed-rate mortgages make up around 40% of all mortgages in Canada ... Around 75% of those facing payment increases hold a five-year, fixed-rate mortgage.</div><div class="ledger-meta">July 2025 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2025/07/staff-analytical-note-2025-21/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-42">
+      <span class="ledger-ref card ledger-ref-orphan">[42]</span>
+      <span class="ledger-source-label">BoC Staff Analytical Note 2025-21 — How will mortgage payments change at renewal? An updated analysis</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"Five-year fixed mortgages account for
+      roughly 40% of all outstanding mortgages but about 75% of those
+      facing payment increases at renewal"</div>
+      <div class="ledger-excerpt">About 60% of all outstanding mortgages in Canada are expected to renew in 2025 or 2026. ... the average monthly mortgage payment could be 10% higher for those renewing in 2025 and 6% higher for those renewing in 2026. ... Holders of these mortgages renewing in 2026 are likely to see an average increase in payments of 20%. ... the median MDS ratio will rise by 2.7 percentage points from 15.3% in December 2024 to 18.0% by the end of 2026. ... 10% of borrowers renewing in 2026 will see an increase of more than 40%. ... a quarter of borrowers renewing in 2026 will see a decrease of at least 7%. ... Five-year, fixed-rate mortgages make up around 40% of all mortgages in Canada ... Around 75% of those facing payment increases hold a five-year, fixed-rate mortgage.</div><div class="ledger-meta">July 2025 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2025/07/staff-analytical-note-2025-21/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-43">
+      <span class="ledger-ref card ledger-ref-orphan">[43]</span>
+      <span class="ledger-source-label">BoC Staff Analytical Note 2025-21 — How will mortgage payments change at renewal? An updated analysis</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"About one-third of all
+      Canadian mortgage holders will see payment increases by end-2026;
+      close to 25% see decreases"</div>
+      <div class="ledger-excerpt">About 60% of all outstanding mortgages in Canada are expected to renew in 2025 or 2026. ... the average monthly mortgage payment could be 10% higher for those renewing in 2025 and 6% higher for those renewing in 2026. ... Holders of these mortgages renewing in 2026 are likely to see an average increase in payments of 20%. ... the median MDS ratio will rise by 2.7 percentage points from 15.3% in December 2024 to 18.0% by the end of 2026. ... 10% of borrowers renewing in 2026 will see an increase of more than 40%. ... a quarter of borrowers renewing in 2026 will see a decrease of at least 7%. ... Five-year, fixed-rate mortgages make up around 40% of all mortgages in Canada ... Around 75% of those facing payment increases hold a five-year, fixed-rate mortgage.</div><div class="ledger-meta">July 2025 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2025/07/staff-analytical-note-2025-21/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-44">
+      <a href="#ref-44" class="ledger-ref-link"><span class="ledger-ref card">[44]</span></a>
+      <span class="ledger-source-label">BoC Staff Analytical Note 2025-21 — How will mortgage payments change at renewal? An updated analysis</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+      <div class="ledger-phrase">"30%"</div>
+      <div class="ledger-excerpt">About 60% of all outstanding mortgages in Canada are expected to renew in 2025 or 2026. ... the average monthly mortgage payment could be 10% higher for those renewing in 2025 and 6% higher for those renewing in 2026. ... Holders of these mortgages renewing in 2026 are likely to see an average increase in payments of 20%. ... the median MDS ratio will rise by 2.7 percentage points from 15.3% in December 2024 to 18.0% by the end of 2026. ... 10% of borrowers renewing in 2026 will see an increase of more than 40%. ... a quarter of borrowers renewing in 2026 will see a decrease of at least 7%. ... Five-year, fixed-rate mortgages make up around 40% of all mortgages in Canada ... Around 75% of those facing payment increases hold a five-year, fixed-rate mortgage.</div><div class="ledger-meta">July 2025 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2025/07/staff-analytical-note-2025-21/" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-45">
+      <span class="ledger-ref card ledger-ref-orphan">[45]</span>
+      <span class="ledger-source-label">Big-Six chartered-bank Q1 FY2026 quarterly earnings supplements</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"CIBC disclosed in its Q1 FY2026
+      earnings supplement that roughly 6% of its mortgage portfolio
+      faces a payment shock of 40% or more in 2026"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION — bank supplementary financial information PDFs are binary; WebFetch cannot extract tabular disclosures. Per CIBC Q1 FY2026 reporting: combined Big-Six residential mortgage portfolio ~C$1.76 trillion; CIBC disclosed ~6% of its portfolio facing 40%+ payment shock in 2026; trailing-four-quarter mortgage writeoffs across the Big Six ~C$168 million.]</div><div class="ledger-meta">Q1 FY2026 (reported late Feb 2026) · verified 2026-05-13 · next Q2 FY2026 results late May 2026</div><a class="ledger-link" href="https://www.cibc.com/en/about-cibc/investor-relations/quarterly-results.html" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>bigsix_aggregate_mortgage_cad_tn</code>: <strong>1.76</strong></li><li><code>bigsix_quarterly_writeoffs_cad_mn</code>: <strong>38</strong></li><li><code>bigsix_trailing_4q_writeoffs_cad_mn</code>: <strong>168</strong></li><li><code>cibc_pct_portfolio_40pct_plus_shock</code>: <strong>6</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Aggregation across RBC, TD, BMO, Scotia, CIBC, NBC supplements. Author-aggregated.</div>
+          <fieldset class="decision" data-claim-id="bigsix_q1_fy2026_earnings_supplements">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-bigsix_q1_fy2026_earnings_supplements" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-bigsix_q1_fy2026_earnings_supplements" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-bigsix_q1_fy2026_earnings_supplements" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-bigsix_q1_fy2026_earnings_supplements">Comment (required if rejecting):</label>
+              <textarea id="comment-bigsix_q1_fy2026_earnings_supplements" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-46">
+      <span class="ledger-ref card ledger-ref-orphan">[46]</span>
+      <span class="ledger-source-label">CMHC Residential Mortgage Industry Report — Fall 2025 Edition</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"CMHC Residential Mortgage Industry Report Fall 2025 reports the flow share of new uninsured
+      mortgages at chartered banks with amortizations longer than 25
+      years remained above 60% in Q2 2025 for the fourth consecutive
+      year"</div>
+      <div class="ledger-excerpt">In August 2025, residential mortgage debt reached $2.3 trillion, up 4.8% from a year earlier. ... the national mortgage delinquency rate dropped slightly in the second quarter of 2025 for the first time in 3 years to 0.22%. ... The Big 6 banks and credit unions increased their market share of originated mortgages over the past year to 59% and 18%, respectively.</div><div class="ledger-meta">Fall 2025 (released November 19, 2025) · verified 2026-05-13 · next Spring 2026 already superseded</div><a class="ledger-link" href="https://www.cmhc-schl.gc.ca/professionals/housing-markets-data-and-research/housing-research/research-reports/housing-finance/residential-mortgage-industry-report" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>all_lender_total_aug_2025_cad_tn</code>: <strong>2.3</strong></li><li><code>yoy_growth_aug_2025_pct</code>: <strong>4.8</strong></li><li><code>national_delinquency_q2_2025_pct</code>: <strong>0.22</strong></li><li><code>big6_origination_share_pct</code>: <strong>59</strong></li><li><code>credit_union_origination_share_pct</code>: <strong>18</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">[NEEDS HUMAN VERIFICATION] Specific dive numbers (1.15M households renewing 2026; uninsured &gt;25-yr above 60% fourth consecutive year; Toronto Q4 2026 arrears projection 0.34%) not verified from the Fall 2025 PDF body.</div>
+          <fieldset class="decision" data-claim-id="cmhc_rmir_fall_2025">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-cmhc_rmir_fall_2025">Comment (required if rejecting):</label>
+              <textarea id="comment-cmhc_rmir_fall_2025" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item" id="ledger-47">
+      <span class="ledger-ref derived ledger-ref-orphan">[47]</span>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"fourth consecutive
+      year"</div>
+      <div class="note-line">Enumeration of CMHC RMIR quarterly flow-share readings: amortization-over-25yr share above 60% in 2022, 2023, 2024, and 2025 = four consecutive years. Source: CMHC RMIR Fall 2025 + prior RMIR vintages.</div>
+    </div><div class="ledger-item" id="ledger-48">
+      <span class="ledger-ref pipeline ledger-ref-orphan">[48]</span>
+      <span class="ledger-source-label">StatCan Table 36-10-0104-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"household consumption at
+      +0.4% Q/Q in Q4 2025 (+2.3% on the year)"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Quarterly final consumption expenditure (households), StatCan Income and Expenditure Accounts Q4 2025 release.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3610010401" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-49">
+      <span class="ledger-ref pipeline ledger-ref-orphan">[49]</span>
+      <span class="ledger-source-label">StatCan Table 36-10-0112-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"household
+      saving rate at 4.4% in Q4 2025 and 4.9% for 2025 annual"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Household sector saving rate, StatCan Income and Expenditure Accounts Q4 2025 release.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3610011201" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-50">
+      <span class="ledger-ref pipeline ledger-ref-orphan">[50]</span>
+      <span class="ledger-source-label">StatCan Table 20-10-0008-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"Q1 2026 retail-trade prints confirm the
+      shape: core retail ran +0.9% M/M in January and +0.6% M/M in
+      February; March's advance estimate is +0.6% M/M"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Retail trade, monthly, by industry — Q1 2026 (Jan/Feb/Mar) readings, March = advance flash.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=2010000801" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-51">
+      <span class="ledger-ref card ledger-ref-orphan">[51]</span>
+      <span class="ledger-source-label">BoC Staff Analytical Paper 2026-12 — Examining the macro drivers of mortgage arrears in Canada</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"arrears rate ran at 0.2% before the
+      pandemic and reached 0.5% at the GFC peak"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION — PDF body is binary-encoded to WebFetch. Landing page confirms title, authors (Pugh, Wang, Webley), and March 2026 vintage. Coefficients (10-15 bps incremental arrears per +300 bps cycle; ~10 bps per +1 pp UR; pre-pandemic 0.2%; GFC peak 0.5%) require manual PDF read.]</div><div class="ledger-meta">March 24, 2026 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2026/03/staff-analytical-paper-2026-12/" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>tightening_coef_bps_per_300bps_2yr_low</code>: <strong>10</strong></li><li><code>tightening_coef_bps_per_300bps_2yr_high</code>: <strong>15</strong></li><li><code>unemployment_coef_bps_per_pp_1yr</code>: <strong>10</strong></li><li><code>pre_pandemic_arrears_pct</code>: <strong>0.2</strong></li><li><code>gfc_peak_arrears_pct</code>: <strong>0.5</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">User verified these coefficients on 2026-05-13 and confirmed match to PDF.</div>
+          <fieldset class="decision" data-claim-id="boc_sap_2026_12_mortgage_arrears">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-boc_sap_2026_12_mortgage_arrears">Comment (required if rejecting):</label>
+              <textarea id="comment-boc_sap_2026_12_mortgage_arrears" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-52">
+      <span class="ledger-ref card ledger-ref-orphan">[52]</span>
+      <span class="ledger-source-label">BoC Staff Analytical Paper 2026-12 — Examining the macro drivers of mortgage arrears in Canada</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"potentially surpassing the GFC peak but not the
+      1990s peaks"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION — PDF body is binary-encoded to WebFetch. Landing page confirms title, authors (Pugh, Wang, Webley), and March 2026 vintage. Coefficients (10-15 bps incremental arrears per +300 bps cycle; ~10 bps per +1 pp UR; pre-pandemic 0.2%; GFC peak 0.5%) require manual PDF read.]</div><div class="ledger-meta">March 24, 2026 · verified 2026-05-13</div><a class="ledger-link" href="https://www.bankofcanada.ca/2026/03/staff-analytical-paper-2026-12/" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>tightening_coef_bps_per_300bps_2yr_low</code>: <strong>10</strong></li><li><code>tightening_coef_bps_per_300bps_2yr_high</code>: <strong>15</strong></li><li><code>unemployment_coef_bps_per_pp_1yr</code>: <strong>10</strong></li><li><code>pre_pandemic_arrears_pct</code>: <strong>0.2</strong></li><li><code>gfc_peak_arrears_pct</code>: <strong>0.5</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">User verified these coefficients on 2026-05-13 and confirmed match to PDF.</div>
+          <fieldset class="decision" data-claim-id="boc_sap_2026_12_mortgage_arrears">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-boc_sap_2026_12_mortgage_arrears" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-boc_sap_2026_12_mortgage_arrears">Comment (required if rejecting):</label>
+              <textarea id="comment-boc_sap_2026_12_mortgage_arrears" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-53">
+      <span class="ledger-ref card ledger-ref-orphan">[53]</span>
+      <span class="ledger-source-label">Canadian Bankers Association — Number of Residential Mortgages in Arrears</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"CBA's chartered-bank monthly arrears series for February 2026
+      reads 0.28% nationally (13,749 mortgages in arrears out of
+      4,937,235 covered)"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION: WebFetch returned HTTP 307. Secondary sources confirm February 2026 reading of 0.28% national arrears rate.]</div><div class="ledger-meta">February 2026 monthly release · verified 2026-05-13</div><a class="ledger-link" href="https://cba.ca/mortgages-in-arrears" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>arrears_rate_feb_2026_pct</code>: <strong>0.28</strong></li><li><code>mortgages_in_arrears_feb_2026</code>: <strong>13749</strong></li><li><code>mortgages_covered_feb_2026</code>: <strong>4937235</strong></li><li><code>trough_mid_2022_pct</code>: <strong>0.14</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Recommendation: promote to pipeline:cba:arrears series.</div>
+          <fieldset class="decision" data-claim-id="cba_residential_mortgage_arrears">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-cba_residential_mortgage_arrears" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-cba_residential_mortgage_arrears" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-cba_residential_mortgage_arrears" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-cba_residential_mortgage_arrears">Comment (required if rejecting):</label>
+              <textarea id="comment-cba_residential_mortgage_arrears" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-54">
+      <a href="#ref-54" class="ledger-ref-link"><span class="ledger-ref card">[54]</span></a>
+      <span class="ledger-source-label">Canadian Bankers Association — Number of Residential Mortgages in Arrears</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span>
+      <div class="ledger-phrase">"0.14% mid-2022 trough"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION: WebFetch returned HTTP 307. Secondary sources confirm February 2026 reading of 0.28% national arrears rate.]</div><div class="ledger-meta">February 2026 monthly release · verified 2026-05-13</div><a class="ledger-link" href="https://cba.ca/mortgages-in-arrears" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>arrears_rate_feb_2026_pct</code>: <strong>0.28</strong></li><li><code>mortgages_in_arrears_feb_2026</code>: <strong>13749</strong></li><li><code>mortgages_covered_feb_2026</code>: <strong>4937235</strong></li><li><code>trough_mid_2022_pct</code>: <strong>0.14</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Recommendation: promote to pipeline:cba:arrears series.</div>
+          <fieldset class="decision" data-claim-id="cba_residential_mortgage_arrears">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-cba_residential_mortgage_arrears" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-cba_residential_mortgage_arrears" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-cba_residential_mortgage_arrears" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-cba_residential_mortgage_arrears">Comment (required if rejecting):</label>
+              <textarea id="comment-cba_residential_mortgage_arrears" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item" id="ledger-55">
+      <a href="#ref-55" class="ledger-ref-link"><span class="ledger-ref derived">[55]</span></a>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+      <div class="ledger-phrase">"+14 bps move sits inside the SAP 2026-12 range"</div>
+      <div class="note-line">0.28% (Feb 2026) less 0.14% (mid-2022 trough) = 14 bps. CBA series.</div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-56">
+      <span class="ledger-ref card ledger-ref-orphan">[56]</span>
+      <span class="ledger-source-label">Canadian Bankers Association — Number of Residential Mortgages in Arrears</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"March 2023 through
+      February 2026"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION: WebFetch returned HTTP 307. Secondary sources confirm February 2026 reading of 0.28% national arrears rate.]</div><div class="ledger-meta">February 2026 monthly release · verified 2026-05-13</div><a class="ledger-link" href="https://cba.ca/mortgages-in-arrears" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>arrears_rate_feb_2026_pct</code>: <strong>0.28</strong></li><li><code>mortgages_in_arrears_feb_2026</code>: <strong>13749</strong></li><li><code>mortgages_covered_feb_2026</code>: <strong>4937235</strong></li><li><code>trough_mid_2022_pct</code>: <strong>0.14</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Recommendation: promote to pipeline:cba:arrears series.</div>
+          <fieldset class="decision" data-claim-id="cba_residential_mortgage_arrears">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-cba_residential_mortgage_arrears" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-cba_residential_mortgage_arrears" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-cba_residential_mortgage_arrears" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-cba_residential_mortgage_arrears">Comment (required if rejecting):</label>
+              <textarea id="comment-cba_residential_mortgage_arrears" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-57">
+      <span class="ledger-ref card ledger-ref-orphan">[57]</span>
+      <span class="ledger-source-label">Big-Six chartered-bank Q1 FY2026 quarterly earnings supplements</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"Q1 FY2026 chartered-bank filings show combined writeoffs
+      of C$38 million on the C$1.76 trillion combined mortgage portfolio;
+      trailing four quarters, C$168 million in writeoffs, equivalent to
+      0.01% of holdings"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION — bank supplementary financial information PDFs are binary; WebFetch cannot extract tabular disclosures. Per CIBC Q1 FY2026 reporting: combined Big-Six residential mortgage portfolio ~C$1.76 trillion; CIBC disclosed ~6% of its portfolio facing 40%+ payment shock in 2026; trailing-four-quarter mortgage writeoffs across the Big Six ~C$168 million.]</div><div class="ledger-meta">Q1 FY2026 (reported late Feb 2026) · verified 2026-05-13 · next Q2 FY2026 results late May 2026</div><a class="ledger-link" href="https://www.cibc.com/en/about-cibc/investor-relations/quarterly-results.html" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>bigsix_aggregate_mortgage_cad_tn</code>: <strong>1.76</strong></li><li><code>bigsix_quarterly_writeoffs_cad_mn</code>: <strong>38</strong></li><li><code>bigsix_trailing_4q_writeoffs_cad_mn</code>: <strong>168</strong></li><li><code>cibc_pct_portfolio_40pct_plus_shock</code>: <strong>6</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Aggregation across RBC, TD, BMO, Scotia, CIBC, NBC supplements. Author-aggregated.</div>
+          <fieldset class="decision" data-claim-id="bigsix_q1_fy2026_earnings_supplements">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-bigsix_q1_fy2026_earnings_supplements" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-bigsix_q1_fy2026_earnings_supplements" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-bigsix_q1_fy2026_earnings_supplements" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-bigsix_q1_fy2026_earnings_supplements">Comment (required if rejecting):</label>
+              <textarea id="comment-bigsix_q1_fy2026_earnings_supplements" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item" id="ledger-58">
+      <a href="#ref-58" class="ledger-ref-link"><span class="ledger-ref derived">[58]</span></a>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+      <div class="ledger-phrase">"0.01% of holdings"</div>
+      <div class="note-line">C$168M trailing-4Q writeoffs / C$1.76T combined portfolio = 0.0095%.</div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-59">
+      <a href="#ref-59" class="ledger-ref-link"><span class="ledger-ref card">[59]</span></a>
+      <span class="ledger-source-label">Big-Six chartered-bank Q1 FY2026 quarterly earnings supplements</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span>
+      <div class="ledger-phrase">"current C$168 million four-quarter baseline"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION — bank supplementary financial information PDFs are binary; WebFetch cannot extract tabular disclosures. Per CIBC Q1 FY2026 reporting: combined Big-Six residential mortgage portfolio ~C$1.76 trillion; CIBC disclosed ~6% of its portfolio facing 40%+ payment shock in 2026; trailing-four-quarter mortgage writeoffs across the Big Six ~C$168 million.]</div><div class="ledger-meta">Q1 FY2026 (reported late Feb 2026) · verified 2026-05-13 · next Q2 FY2026 results late May 2026</div><a class="ledger-link" href="https://www.cibc.com/en/about-cibc/investor-relations/quarterly-results.html" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>bigsix_aggregate_mortgage_cad_tn</code>: <strong>1.76</strong></li><li><code>bigsix_quarterly_writeoffs_cad_mn</code>: <strong>38</strong></li><li><code>bigsix_trailing_4q_writeoffs_cad_mn</code>: <strong>168</strong></li><li><code>cibc_pct_portfolio_40pct_plus_shock</code>: <strong>6</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Aggregation across RBC, TD, BMO, Scotia, CIBC, NBC supplements. Author-aggregated.</div>
+          <fieldset class="decision" data-claim-id="bigsix_q1_fy2026_earnings_supplements">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-bigsix_q1_fy2026_earnings_supplements" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-bigsix_q1_fy2026_earnings_supplements" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-bigsix_q1_fy2026_earnings_supplements" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-bigsix_q1_fy2026_earnings_supplements">Comment (required if rejecting):</label>
+              <textarea id="comment-bigsix_q1_fy2026_earnings_supplements" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-60">
+      <span class="ledger-ref card ledger-ref-orphan">[60]</span>
+      <span class="ledger-source-label">Canadian Bankers Association — Number of Residential Mortgages in Arrears</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"falls
+      below 0.25% for three consecutive months from the current 0.28%
+      reading"</div>
+      <div class="ledger-excerpt">[NEEDS HUMAN VERIFICATION: WebFetch returned HTTP 307. Secondary sources confirm February 2026 reading of 0.28% national arrears rate.]</div><div class="ledger-meta">February 2026 monthly release · verified 2026-05-13</div><a class="ledger-link" href="https://cba.ca/mortgages-in-arrears" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>arrears_rate_feb_2026_pct</code>: <strong>0.28</strong></li><li><code>mortgages_in_arrears_feb_2026</code>: <strong>13749</strong></li><li><code>mortgages_covered_feb_2026</code>: <strong>4937235</strong></li><li><code>trough_mid_2022_pct</code>: <strong>0.14</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Recommendation: promote to pipeline:cba:arrears series.</div>
+          <fieldset class="decision" data-claim-id="cba_residential_mortgage_arrears">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-cba_residential_mortgage_arrears" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-cba_residential_mortgage_arrears" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-cba_residential_mortgage_arrears" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-cba_residential_mortgage_arrears">Comment (required if rejecting):</label>
+              <textarea id="comment-cba_residential_mortgage_arrears" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item" id="ledger-61">
+      <a href="#ref-61" class="ledger-ref-link"><span class="ledger-ref derived">[61]</span></a>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+      <div class="ledger-phrase">"Canadian unemployment moves
+      above 7.5% on a sustained basis (two consecutive quarters)"</div>
+      
+    </div><div class="ledger-item" id="ledger-62">
+      <a href="#ref-62" class="ledger-ref-link"><span class="ledger-ref derived">[62]</span></a>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+      <div class="ledger-phrase">"back-to-back monthly increases of 0.2 pp or more"</div>
+      
+    </div><div class="ledger-item" id="ledger-63">
+      <span class="ledger-ref pipeline ledger-ref-orphan">[63]</span>
+      <span class="ledger-source-label">StatCan Table 14-10-0287-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"April 2026 LFS print has unemployment
+      at 6.9%"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">LFS headline unemployment rate, April 2026 release (May 9, 2026 vintage).</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1410028701" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-64">
+      <a href="#ref-64" class="ledger-ref-link"><span class="ledger-ref derived">[64]</span></a>
+      <span class="ledger-source-label">Derived (arithmetic from other tagged claims)</span>
+      <div class="ledger-phrase">"50 bps move above that"</div>
+      
+    </div><div class="ledger-item ledger-item-pending" id="ledger-65">
+      <span class="ledger-ref card ledger-ref-orphan">[65]</span>
+      <span class="ledger-source-label">CMHC Residential Mortgage Industry Report — Fall 2025 Edition</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"Toronto sub-aggregate moving above CMHC's own Q4
+      2026 projection of 0.34%"</div>
+      <div class="ledger-excerpt">In August 2025, residential mortgage debt reached $2.3 trillion, up 4.8% from a year earlier. ... the national mortgage delinquency rate dropped slightly in the second quarter of 2025 for the first time in 3 years to 0.22%. ... The Big 6 banks and credit unions increased their market share of originated mortgages over the past year to 59% and 18%, respectively.</div><div class="ledger-meta">Fall 2025 (released November 19, 2025) · verified 2026-05-13 · next Spring 2026 already superseded</div><a class="ledger-link" href="https://www.cmhc-schl.gc.ca/professionals/housing-markets-data-and-research/housing-research/research-reports/housing-finance/residential-mortgage-industry-report" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>all_lender_total_aug_2025_cad_tn</code>: <strong>2.3</strong></li><li><code>yoy_growth_aug_2025_pct</code>: <strong>4.8</strong></li><li><code>national_delinquency_q2_2025_pct</code>: <strong>0.22</strong></li><li><code>big6_origination_share_pct</code>: <strong>59</strong></li><li><code>credit_union_origination_share_pct</code>: <strong>18</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">[NEEDS HUMAN VERIFICATION] Specific dive numbers (1.15M households renewing 2026; uninsured &gt;25-yr above 60% fourth consecutive year; Toronto Q4 2026 arrears projection 0.34%) not verified from the Fall 2025 PDF body.</div>
+          <fieldset class="decision" data-claim-id="cmhc_rmir_fall_2025">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-cmhc_rmir_fall_2025">Comment (required if rejecting):</label>
+              <textarea id="comment-cmhc_rmir_fall_2025" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item" id="ledger-66">
+      <a href="#ref-66" class="ledger-ref-link"><span class="ledger-ref pipeline">[66]</span></a>
+      <span class="ledger-source-label">BoC Valet BD.CDN.5YR.DQ.YLD (pipeline slot yield_5yr) — recent 24 observations</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"5-year GoC yield
+      above 4.0% would re-widen the renewal-rate spread"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Reference period: May 13, 2026.</div><a class="ledger-link" href="https://www.bankofcanada.ca/valet/observations/BD.CDN.5YR.DQ.YLD/json?recent=24" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-67">
+      <a href="#ref-67" class="ledger-ref-link"><span class="ledger-ref card">[67]</span></a>
+      <span class="ledger-source-label">Statistics Canada — Labour Force Survey release schedule</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+      <div class="ledger-phrase">"the next LFS release (June 6, 2026 for May 2026 data)"</div>
+      <div class="ledger-excerpt">Labour Force Survey, April 2026 reference month released May 9, 2026. Next release: May 2026 reference month, June 6, 2026.</div><div class="ledger-meta">2026 LFS schedule · verified 2026-05-13</div><a class="ledger-link" href="https://www150.statcan.gc.ca/n1/dai-quo/ssi/release-publication-eng.htm?subj=8" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item ledger-item-pending" id="ledger-68">
+      <a href="#ref-68" class="ledger-ref-link"><span class="ledger-ref card">[68]</span></a>
+      <span class="ledger-source-label">CMHC Residential Mortgage Industry Report — Fall 2025 Edition</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span>
+      <div class="ledger-phrase">"Spring 2026 Residential Mortgage Industry Report"</div>
+      <div class="ledger-excerpt">In August 2025, residential mortgage debt reached $2.3 trillion, up 4.8% from a year earlier. ... the national mortgage delinquency rate dropped slightly in the second quarter of 2025 for the first time in 3 years to 0.22%. ... The Big 6 banks and credit unions increased their market share of originated mortgages over the past year to 59% and 18%, respectively.</div><div class="ledger-meta">Fall 2025 (released November 19, 2025) · verified 2026-05-13 · next Spring 2026 already superseded</div><a class="ledger-link" href="https://www.cmhc-schl.gc.ca/professionals/housing-markets-data-and-research/housing-research/research-reports/housing-finance/residential-mortgage-industry-report" target="_blank" rel="noopener">Open source ↗</a>
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>all_lender_total_aug_2025_cad_tn</code>: <strong>2.3</strong></li><li><code>yoy_growth_aug_2025_pct</code>: <strong>4.8</strong></li><li><code>national_delinquency_q2_2025_pct</code>: <strong>0.22</strong></li><li><code>big6_origination_share_pct</code>: <strong>59</strong></li><li><code>credit_union_origination_share_pct</code>: <strong>18</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">[NEEDS HUMAN VERIFICATION] Specific dive numbers (1.15M households renewing 2026; uninsured &gt;25-yr above 60% fourth consecutive year; Toronto Q4 2026 arrears projection 0.34%) not verified from the Fall 2025 PDF body.</div>
+          <fieldset class="decision" data-claim-id="cmhc_rmir_fall_2025">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-cmhc_rmir_fall_2025" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-cmhc_rmir_fall_2025">Comment (required if rejecting):</label>
+              <textarea id="comment-cmhc_rmir_fall_2025" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+    </div><div class="ledger-item" id="ledger-69">
+      <span class="ledger-ref pipeline ledger-ref-orphan">[69]</span>
+      <span class="ledger-source-label">StatCan Table 14-10-0287-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span><span class="no-inline-match" title="The citation phrase does not appear in the published prose. Either tighten the phrase to match verbatim, or the citation is orphaned (no longer referenced).">no inline match</span>
+      <div class="ledger-phrase">"Canada unemployment rate, headline (15+) and prime-age (25-54)
+      overlay"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">LFS Table 14-10-0287-01, headline and prime-age unemployment rates, May 13, 2026.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1410028701" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-70">
+      <a href="#ref-70" class="ledger-ref-link"><span class="ledger-ref pipeline">[70]</span></a>
+      <span class="ledger-source-label">StatCan Table 14-10-0287-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"Headline at 6.9%; prime-age at 6.0%"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">LFS April 2026 release (May 9, 2026 vintage), headline + prime-age unemployment.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1410028701" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-71">
+      <a href="#ref-71" class="ledger-ref-link"><span class="ledger-ref pipeline">[71]</span></a>
+      <span class="ledger-source-label">StatCan Table 14-10-0287-01</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+      <div class="ledger-phrase">"April 2021 through April 2026"</div>
+      <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div><div class="note-line">Chart window for unemployment plate, May 13, 2026.</div><a class="ledger-link" href="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1410028701" target="_blank" rel="noopener">Open source ↗</a>
+    </div><div class="ledger-item" id="ledger-72">
+      <a href="#ref-72" class="ledger-ref-link"><span class="ledger-ref card">[72]</span></a>
+      <span class="ledger-source-label">Statistics Canada — Labour Force Survey release schedule</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+      <div class="ledger-phrase">"Vintage: April 2026 release (May 9, 2026)"</div>
+      <div class="ledger-excerpt">Labour Force Survey, April 2026 reference month released May 9, 2026. Next release: May 2026 reference month, June 6, 2026.</div><div class="ledger-meta">2026 LFS schedule · verified 2026-05-13</div><a class="ledger-link" href="https://www150.statcan.gc.ca/n1/dai-quo/ssi/release-publication-eng.htm?subj=8" target="_blank" rel="noopener">Open source ↗</a>
+    </div>
+    </div>
+  </aside>
+    <footer class="audit-foot">
+      Generated 2026-05-13 23:22 · 72 tagged claims · body source: draft (not yet on site) (editorial/drafts/_holding/mortgage-renewal-wall.md) · sidecar: editorial/source_cards/research/mortgage-renewal-wall.yaml.
+    </footer>
+  </div>
+  <script>
+    function updateVerifyTally() {
+      const approved = document.querySelectorAll('input[type=radio][value=approve]:checked').length;
+      const rejected = document.querySelectorAll('input[type=radio][value=reject]:checked').length;
+      const total = document.querySelectorAll('.pending-decision-block fieldset.decision').length;
+      const pending = total - approved - rejected;
+      const pendEl = document.querySelector('.verify-toolbar-counts .amber');
+      const apprEl = document.getElementById('approved-count');
+      const rejEl = document.getElementById('rejected-count');
+      if (pendEl) pendEl.textContent = pending + ' pending';
+      if (apprEl) apprEl.textContent = approved + ' approved';
+      if (rejEl) rejEl.textContent = rejected + ' rejected';
+      document.querySelectorAll('.ledger-item-pending').forEach(function (el) {
+        const fs = el.querySelector('.decision');
+        if (!fs) return;
+        const id = fs.dataset.claimId;
+        const choice = document.querySelector('input[name="decision-' + id + '"]:checked')?.value;
+        el.classList.toggle('decision-approve', choice === 'approve');
+        el.classList.toggle('decision-reject', choice === 'reject');
+      });
+      const btn = document.getElementById('export-btn');
+      if (btn) btn.disabled = (approved + rejected) === 0;
+    }
+    function exportDecisions(surfaceSlug) {
+      const lines = ['# Generated ' + new Date().toISOString().slice(0, 16).replace('T', ' ') + ', surface: ' + surfaceSlug, ''];
+      document.querySelectorAll('.pending-decision-block fieldset.decision').forEach(function (fs) {
+        const id = fs.dataset.claimId;
+        const choice = document.querySelector('input[name="decision-' + id + '"]:checked')?.value;
+        if (choice === 'approve') {
+          lines.push('npm run approve-claim ' + surfaceSlug + ':' + id);
+        } else if (choice === 'reject') {
+          const comment = (document.getElementById('comment-' + id)?.value || '').replace(/"/g, '\\"');
+          lines.push('npm run reject-claim ' + surfaceSlug + ':' + id + (comment ? ' -- --reason "' + comment + '"' : ''));
+        }
+      });
+      const text = lines.join('\n');
+      navigator.clipboard.writeText(text).then(function () {
+        const toast = document.getElementById('export-toast');
+        if (toast) {
+          toast.classList.add('show');
+          setTimeout(function () { toast.classList.remove('show'); }, 2500);
+        }
+      });
+    }
+    function jumpToNextPending() {
+      // Find the first pending card that hasn't been decided yet.
+      const pendingCards = document.querySelectorAll('.ledger-item-pending');
+      for (const card of pendingCards) {
+        const fs = card.querySelector('.decision');
+        if (!fs) continue;
+        const id = fs.dataset.claimId;
+        const approved = document.querySelector('input[name="decision-' + id + '"][value="approve"]:checked');
+        const rejected = document.querySelector('input[name="decision-' + id + '"][value="reject"]:checked');
+        if (!approved && !rejected) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          card.classList.add('flash-target');
+          setTimeout(function () { card.classList.remove('flash-target'); }, 1500);
+          return;
+        }
+      }
+      // All decided — alert.
+      alert('All pending claims on this surface have been marked. Hit "Copy decisions to clipboard" to export.');
+    }
+    document.addEventListener('change', function (e) {
+      if (e.target.matches('input[type=radio]')) updateVerifyTally();
+    });
+    updateVerifyTally();
+  </script>
+</body>
+</html>

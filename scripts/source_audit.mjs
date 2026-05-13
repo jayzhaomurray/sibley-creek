@@ -664,7 +664,11 @@ const LENGTH_BUDGETS = {
   "tile-line":        { sentenceMin: 1, sentenceMax: 1, sentenceHardCap: 1, wordMin: 8,  wordMax: 16, wordHardCap: 20, charHardCap: 90 },
   "plate-title":      { sentenceMin: 1, sentenceMax: 1, sentenceHardCap: 2, wordMin: 6,  wordMax: 14, wordHardCap: 22, charHardCap: 110 },
   "plate-blurb":      { sentenceMin: 2, sentenceMax: 4, sentenceHardCap: 6, wordMin: 40, wordMax: 70, wordHardCap: 110 },
-  "splash-hero":      { sentenceMin: 3, sentenceMax: 5, sentenceHardCap: 7, wordMin: 70, wordMax: 110, wordHardCap: 150 },
+  // Splash hero: equalized with section-abstract budget. The hero answers
+  // a question with a take + 1-2 grounding numerics, same as a section
+  // abstract — just at the whole-economy scope. A heavier hero pushes the
+  // tile lines below it down and changes the splash's center of gravity.
+  "splash-hero":      { sentenceMin: 2, sentenceMax: 3, sentenceHardCap: 5, wordMin: 45, wordMax: 75, wordHardCap: 105 },
 };
 
 function stripHtmlToText(html) {

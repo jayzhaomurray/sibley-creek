@@ -1371,9 +1371,13 @@ need a Big-Six intermediary to describe a BoC surprise:
 ### What the hero abstract is
 
 **A take on the Canadian macro picture as a whole — not a status
-report.** Three to five declarative sentences that state the editorial
-argument about where the cycle is and what's driving it. Numbers earn
-their place ONLY when they ARE the take (a level crossing, a regime
+report.** Two to three declarative sentences (hard cap five) that state
+the editorial argument about where the cycle is and what's driving it.
+**Length budget matches the topic-page section abstract** — the hero
+answers a question with a take at the whole-economy scope, same shape
+as a section answers at section scope. A heavier hero pushes the splash
+tile lines below it down and unbalances the page. Numbers earn their
+place ONLY when they ARE the take (a level crossing, a regime
 shift, a structural fact that anchors the argument). Most data belongs
 in the section tiles below where readers can scan it directly.
 

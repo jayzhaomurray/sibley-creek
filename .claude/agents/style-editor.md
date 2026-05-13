@@ -60,7 +60,7 @@ Budgets per surface (from `editorial/writing-style.md` and project memory):
 
 | Surface | Sentences | Word target | Hard cap | Char cap |
 |---|---|---|---|---|
-| Splash hero abstract | 3-5 declarative | 70-110 | 130 | — |
+| Splash hero abstract | 2-3 declarative | 45-75 | 105 | — |
 | Section abstract (under the question header) | 2-3 | 45-75 | 90 | — |
 | Plate blurb (`interpretationHtml`) | 2-4 | 40-70 | 95 | — |
 | Plate title | 1 | 6-14 | 18 | 90 |

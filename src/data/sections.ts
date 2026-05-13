@@ -912,17 +912,15 @@ export const splashHero: {
   citations: import("../layouts/SectionLayout.astro").ClaimCitation[];
 } = {
   abstract:
-    "Stuck below potential, on two fronts at once. Cyclically, growth is running at 1.0% year-over-year against a near-term potential the Bank of Canada places near 1.2%; inflation sits at 2.3% with core measures right beside it, and unemployment is 6.9%. Structurally, the population is no longer growing — year-over-year growth has swung from 3.2% in mid-2024 to roughly flat this quarter — and the US share of merchandise exports has fallen from about three quarters in 2024 to two thirds in March. Per-capita output is scarcely above its 2019 level. The overnight rate sits at 2.25% after the April hold; the question is whether disinflation's last mile and a tariff-bruised export book leave room to ease further.",
+    "Stuck below its potential, on two fronts at once. Cyclically, growth is running at 1% as the job market slackens and inflation continues to settle. Structurally, immigration reforms and tariffs are forcing a realignment. Population growth has levelled off, which is showing up clearly in the housing market, while new exports are redirecting away from the US.",
   citations: [
-    { phrase: "1.0% year-over-year", source: "pipeline:statcan:36-10-0434-01", note: "Real GDP by industry, Y/Y, Feb 2026 monthly print." },
-    { phrase: "near 1.2%", source: "card:boc_mpr_potential_growth" },
-    { phrase: "2.3%", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI Y/Y, March 2026." },
-    { phrase: "core measures right beside it", source: "pipeline:boc:cpi_trim", note: "CPI-trim 2.2% and CPI-median 2.3% Y/Y, March 2026, via BoC Valet preferred-core series." },
-    { phrase: "6.9%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, April 2026." },
-    { phrase: "3.2% in mid-2024 to roughly flat this quarter", source: "derived", note: "Quarterly population Y/Y peaked at 3.18% in Q2 2024 and printed -0.25% in Q1 2026, per StatCan 17-10-0009-01." },
-    { phrase: "three quarters in 2024 to two thirds in March", source: "derived", note: "US share of Canadian merchandise exports moved from ~76% (2024 avg) to ~66% (March 2026) per StatCan 12-10-0121-01." },
-    { phrase: "scarcely above its 2019 level", source: "pipeline:statcan:36-10-0104-01", note: "Per-capita real GDP indexed to 2019Q4." },
-    { phrase: "2.25% after the April hold", source: "pipeline:boc:V39079", note: "BoC overnight target rate, April 29 2026 FAD hold, via Valet V39079." },
+    { phrase: "1%", source: "pipeline:statcan:36-10-0434-01", note: "Real GDP by industry, Y/Y, latest monthly print." },
+    { phrase: "the job market slackens", source: "derived", note: "LFS data: unemployment rate has drifted up to 6.9% (April 2026) with aggregate hours worked negative year-over-year; intensive margin is leading the loosening." },
+    { phrase: "inflation continues to settle", source: "derived", note: "Headline CPI at 2.3% Y/Y in March 2026; preferred cores (CPI-trim 2.2%, CPI-median 2.3%) near the 2% target; expectations moderating per CSCE and BOS." },
+    { phrase: "immigration reforms", source: "derived", note: "IRCC 2026-2028 Immigration Levels Plan (announced November 2025) caps permanent residents at 380,000 per year with sub-caps on international students and temporary workers; PR card in editorial/source_cards/_pending/per-capita-output/ pending user verification." },
+    { phrase: "tariffs", source: "card:pp_section_232_steel_alum_50pct", note: "US Section 232 measures (50% steel and aluminum since June 2025, copper added April 2026); broader tariff stack and USMCA review covered in trade section." },
+    { phrase: "Population growth has levelled off", source: "pipeline:statcan:17-10-0009-01", note: "Quarterly population Y/Y peaked at 3.18% in Q2 2024 and printed -0.25% in Q1 2026 per StatCan demographic estimates." },
+    { phrase: "new exports are redirecting away from the US", source: "derived", note: "US share of Canadian merchandise exports moved from ~76% (2024 average) to ~66% (March 2026) per StatCan 12-10-0121-01." },
   ],
 };
 
