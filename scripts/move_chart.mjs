@@ -475,42 +475,70 @@ if (hasManifest(fromDir)) {
 // 3) Destination manifest — only when destination is a holding zone.
 let destManifestUpdate = null;
 if ((toZone === "alternatives" || toZone === "archive") && hasManifest(toDir)) {
-  if (!extracted) {
-    console.log(
-      `  destination manifest: ${rel(manifestPath(toDir))} — no source entry to transfer; manifest will need manual entry`,
-    );
-  } else {
-    const destManifestText = fs.readFileSync(manifestPath(toDir), "utf-8");
-    const toSection = path.basename(toDir);
-    const newFileSubpath = `${toSection}/${path.basename(toAbs)}`;
+  const destManifestText = fs.readFileSync(manifestPath(toDir), "utf-8");
+  const toSection = path.basename(toDir);
+  const newFileSubpath = `${toSection}/${path.basename(toAbs)}`;
+  const nameNoExt = path.basename(toAbs);
+  const componentName =
+    extracted?.importedName ??
+    // Synthesize from the basename when source had no manifest.
+    // "Panel4BalanceSheet.astro" -> "Panel4BalanceSheet"
+    path.basename(toAbs).replace(/\.astro$/, "");
 
-    // Compute the new import line. The component name stays the same;
-    // the path becomes `./<basename-without-ext>` relative to the
-    // destination manifest.
-    let importLine = extracted.importLine;
+  let block;
+  let importLine;
+  let synthesized = false;
+
+  if (extracted) {
+    // Standard path: source had a manifest, transfer the block verbatim.
+    block = extracted.block;
+    importLine = extracted.importLine;
     if (importLine) {
-      const nameNoExt = path.basename(toAbs);
       importLine = importLine.replace(
         /from\s+"([^"]+)"/,
         `from "./${nameNoExt}"`,
       );
     } else {
-      // No prior import — synthesize one from the component name.
-      const componentName = extracted.importedName ?? "MovedChart";
-      const nameNoExt = path.basename(toAbs);
       importLine = `import ${componentName} from "./${nameNoExt}";`;
     }
+  } else {
+    // No source manifest (typically a live -> archive move). Synthesize
+    // a minimal entry. The prose fields are placeholders the user fills
+    // in by hand; the file/import wiring is correct so the manifest
+    // compiles and the chart-archive page renders.
+    synthesized = true;
+    const today = new Date().toISOString().slice(0, 10);
+    importLine = `import ${componentName} from "./${nameNoExt}";`;
+    block = [
+      `  {`,
+      `    Component: ${componentName},`,
+      `    file: "${newFileSubpath}",`,
+      `    title: "${componentName} (retired from production — TODO describe)",`,
+      `    whatDifferent:`,
+      `      "TODO: describe what made this version distinct.",`,
+      `    whyBetter:`,
+      `      "TODO: describe what won out and why this was parked.",`,
+      `    dataFields: "TODO: list source panel_data slot or CSV file(s).",`,
+      `    addedAt: "${today}",`,
+      `  }`,
+    ].join("\n");
+  }
 
-    const newDestText = insertEntryIntoManifest(
-      destManifestText,
-      extracted.block,
-      importLine,
-      newFileSubpath,
+  const newDestText = insertEntryIntoManifest(
+    destManifestText,
+    block,
+    importLine,
+    newFileSubpath,
+  );
+  destManifestUpdate = {
+    path: manifestPath(toDir),
+    newText: newDestText,
+  };
+  if (synthesized) {
+    console.log(
+      `  destination manifest: ${rel(manifestPath(toDir))} (synthesized entry — EDIT title/whatDifferent/whyBetter/dataFields by hand)`,
     );
-    destManifestUpdate = {
-      path: manifestPath(toDir),
-      newText: newDestText,
-    };
+  } else {
     console.log(
       `  destination manifest: ${rel(manifestPath(toDir))} (insert entry with file "${newFileSubpath}" + import)`,
     );

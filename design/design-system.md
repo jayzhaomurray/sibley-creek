@@ -893,10 +893,43 @@ Across all tiers:
 
 ### Small multiples
 
-When a story needs multiples (e.g. CPI headline / core trim / core
-median), the chartbook unit renders a 2-up or 3-up grid. Each panel:
-- Identical y-axis range (forced) so eye-comparison is honest.
+When a story needs multiples, the chartbook unit renders a 2-up, 3-up,
+or grid layout. **Two modes exist — pick the right one for the data,
+and always tick every panel that has its own scale.**
+
+**Mode A — peer comparison (shared y-axis).** Use when the panels carry
+comparable magnitudes that the reader is meant to read against each
+other. Examples: CPI headline / core trim / core median; provincial
+unemployment rates; per-CMA HPI Y/Y. Every panel scales identically so
+eye-comparison is honest.
+- Identical y-axis range (forced).
 - Identical x-axis range (forced).
+- Y-tick labels appear in the **leftmost column only**; other columns
+  read off the shared scale.
+- Topmost tick of the leftmost column's top cell carries the unit.
+
+**Mode B — component decomposition (per-panel y-axis).** Use when the
+panels carry **disparate magnitudes** (e.g. balance-sheet components
+where one is $220bn and another is $0; aggregate vs.\ thin sub-series)
+and shared scaling would flatten the smaller series into invisibility.
+Each panel reads on its own scale.
+- Per-panel y-axis range, fitted to that panel's data.
+- Identical x-axis range (forced) — time anchor stays shared.
+- **Every panel gets its own y-tick labels.** Reader cannot infer the
+  scale by transitive lookup; without per-panel ticks the smaller
+  panels become unreadable. This is the non-negotiable for Mode B.
+- Unit suffix on the topmost tick of the leftmost-column cells only
+  (since units are uniform); other panels' topmost ticks are numbers
+  alone.
+- Column gap must be wide enough (~36-40px in a 720-wide viewBox) to
+  fit the per-panel y-tick labels in the gutter between cells.
+
+**When in doubt, ask: would the reader compare values across panels by
+eye?** If yes (CPI 2.1% vs 2.4%): Mode A. If no, because the values
+live on different scales (Total assets $219bn vs Advances $0bn):
+Mode B.
+
+**Shared across both modes:**
 - A 1px ink hairline separates the panels.
 - Each panel's title in `label` size, pure ink, 600 weight, sits above.
 - One source line at the bottom of the whole grid, not per panel.

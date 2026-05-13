@@ -84,6 +84,12 @@ References you study: Tufte's *Visual Display of Quantitative Information* chart
 
 1. Read `design/design-system.md` + `design/canon_reference_panel.md` first for the chart visual rules and the no-overlap label canon
 2. Follow the PanelLiveChart pattern for line charts and PanelBarChart (when it lands) for bar charts; only escalate to bespoke per-panel SVG when canon shared components genuinely can't carry the editorial treatment
+
+**Small-multiples y-axis rule (non-negotiable).** Before building any small-multiples grid, classify the chart against `design/design-system.md` § "Small multiples":
+- **Mode A — peer comparison** (panels carry comparable magnitudes, e.g. CPI core trim vs median, provincial UR): shared y-axis, leftmost-column ticks only.
+- **Mode B — component decomposition** (panels carry disparate magnitudes, e.g. balance-sheet components $0 to $220bn, aggregate vs.\ thin sub-series): per-panel y-axis, **every panel gets its own y-tick labels**. Without per-panel ticks the smaller panels become unreadable.
+
+If the brief says "per-panel y-axis" or the data has order-of-magnitude differences across series, that is Mode B — never apply Mode A's leftmost-column-only tick treatment. Widen GAP_X (~36-40px in a 720-wide viewBox) so per-panel labels fit in the gutter.
 3. Charts must hit the editorial bar — typography aligned with site, annotations purposeful, white space respected, gridlines minimal and intentional
 4. Hero charts get individual visual specs from `art-director` before implementation begins
 

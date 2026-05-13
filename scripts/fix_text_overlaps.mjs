@@ -606,14 +606,30 @@ async function main() {
       const url = `${BASE_URL}${route}`;
       let resp;
       try {
-        resp = await page.goto(url, { waitUntil: "load", timeout: 20_000 });
+        resp = await page.goto(url, { waitUntil: "networkidle", timeout: 20_000 });
       } catch (err) {
         console.error(`[fix-text-overlaps] navigation failed for ${route}: ${err.message}`);
         continue;
       }
       if (!resp || resp.status() !== 200) continue;
 
-      const svgEntries = await extractFromPage(page, lineSrcs, barSrcs, nonLineSrcs);
+      // Defensive: belt-and-suspenders against late navigations on CI. If
+      // extractFromPage races a navigation triggered by deferred scripts or
+      // font reflow, the execution-context-destroyed error fires. Retry once
+      // after re-settling.
+      let svgEntries;
+      try {
+        svgEntries = await extractFromPage(page, lineSrcs, barSrcs, nonLineSrcs);
+      } catch (err) {
+        if (/Execution context was destroyed/i.test(err.message)) {
+          try {
+            await page.waitForLoadState("networkidle", { timeout: 10_000 });
+          } catch {}
+          svgEntries = await extractFromPage(page, lineSrcs, barSrcs, nonLineSrcs);
+        } else {
+          throw err;
+        }
+      }
 
       const distFile = routeToDistFile(route);
       if (!existsSync(distFile)) {

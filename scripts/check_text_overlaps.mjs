@@ -494,7 +494,7 @@ async function main() {
       const url = `${BASE_URL}${route}`;
       let resp;
       try {
-        resp = await page.goto(url, { waitUntil: "load", timeout: 20_000 });
+        resp = await page.goto(url, { waitUntil: "networkidle", timeout: 20_000 });
       } catch (err) {
         console.error(`[check-text-overlaps] navigation failed for ${route}: ${err.message}`);
         continue;

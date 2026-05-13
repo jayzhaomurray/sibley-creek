@@ -107,7 +107,7 @@ const GRID_H = VB_H - M_T - M_B;   // 337
 // 3-col layout; bottom row uses leftmost 2 cells
 const NUM_COLS = 3;
 const NUM_ROWS = 2;
-const GAP_X = 18;
+const GAP_X = 38;
 const GAP_Y = 20;
 
 const CELL_W = (GRID_W - GAP_X * (NUM_COLS - 1)) / NUM_COLS;   // ~206
@@ -384,13 +384,14 @@ const latestValStr  = totalAssetsLatest
               y={(g.y0 - 7).toFixed(2)}
             >{g.label}</text>
 
-            {/* Y-axis tick labels — left column only */}
-            {showYAxis && g.yTicks.map((v, i) => {
+            {/* Y-axis tick labels — per-panel (every sub-panel has its own y-scale) */}
+            {g.yTicks.map((v, i) => {
               const yyv = g.y0 + CELL_H - ((v - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
               const isTop = i === g.yTicks.length - 1;
               const numStr = fmtYTick(v);
-              // Topmost tick of leftmost column carries "$bn" unit
-              const txt = isTop ? `${numStr} $bn` : numStr;
+              // Unit suffix "$bn" only on the topmost tick of leftmost-column cells,
+              // since units are uniform across all five sub-panels.
+              const txt = isTop && g.isLeftmostCol ? `${numStr} $bn` : numStr;
               return (
                 <text
                   class="p4sm-chart__ytick-label"
