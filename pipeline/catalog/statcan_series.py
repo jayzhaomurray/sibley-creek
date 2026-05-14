@@ -580,29 +580,321 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
                                        "C$ millions", "monthly", "trade", sa=True),
     "trade_imports_us":    StatcanSpec("trade_imports_us", 87008782, "12-10-0119-01",
                                        "C$ millions", "monthly", "trade", sa=True),
-    # By-partner: China, UK, Japan, Mexico, Germany. Table 12-10-0119-01, country-coded vectors.
-    # Vectors are probe-pending: WDS country-code dimension lookup would resolve these; in absence
-    # of getCubeMetadata access, registered as best-guess sequential vectors and marked probe-pending.
-    "trade_exports_china":   StatcanSpec("trade_exports_china", 1001135501, "12-10-0119-01",
-                                         "C$ millions", "monthly", "trade", sa=True, notes="China exports (probe-pending)."),
-    "trade_imports_china":   StatcanSpec("trade_imports_china", 1001135502, "12-10-0119-01",
-                                         "C$ millions", "monthly", "trade", sa=True, notes="China imports (probe-pending)."),
-    "trade_exports_uk":      StatcanSpec("trade_exports_uk", 1001135503, "12-10-0119-01",
-                                         "C$ millions", "monthly", "trade", sa=True, notes="UK exports (probe-pending)."),
-    "trade_imports_uk":      StatcanSpec("trade_imports_uk", 1001135504, "12-10-0119-01",
-                                         "C$ millions", "monthly", "trade", sa=True, notes="UK imports (probe-pending)."),
-    "trade_exports_japan":   StatcanSpec("trade_exports_japan", 1001135505, "12-10-0119-01",
-                                         "C$ millions", "monthly", "trade", sa=True, notes="Japan exports (probe-pending)."),
-    "trade_imports_japan":   StatcanSpec("trade_imports_japan", 1001135506, "12-10-0119-01",
-                                         "C$ millions", "monthly", "trade", sa=True, notes="Japan imports (probe-pending)."),
-    "trade_exports_mexico":  StatcanSpec("trade_exports_mexico", 1001135507, "12-10-0119-01",
-                                         "C$ millions", "monthly", "trade", sa=True, notes="Mexico exports (probe-pending)."),
-    "trade_imports_mexico":  StatcanSpec("trade_imports_mexico", 1001135508, "12-10-0119-01",
-                                         "C$ millions", "monthly", "trade", sa=True, notes="Mexico imports (probe-pending)."),
-    "trade_exports_germany": StatcanSpec("trade_exports_germany", 1001135509, "12-10-0119-01",
-                                         "C$ millions", "monthly", "trade", sa=True, notes="Germany exports (probe-pending)."),
-    "trade_imports_germany": StatcanSpec("trade_imports_germany", 1001135510, "12-10-0119-01",
-                                         "C$ millions", "monthly", "trade", sa=True, notes="Germany imports (probe-pending)."),
+    # ---------------------------------------------------------------------------
+    # By-partner bilateral flows: Table 12-10-0011-01
+    # ---------------------------------------------------------------------------
+    # "International merchandise trade for all countries and by Principal Trading
+    # Partners, monthly" (CANSIM 228-0069). Customs basis, unadjusted. Starts
+    # 1997-01. Latest available: 2026-03 (released 2026-05-05).
+    #
+    # DIMENSION STRUCTURE (verified 2026-05-14 via bulk CSV download):
+    #   Dim1: Geography        (1=Canada -- only value)
+    #   Dim2: Trade            (1=Import, 2=Export, 3=Trade Balance)
+    #   Dim3: Basis            (1=Customs, 2=Balance of payments)
+    #   Dim4: Seasonal adjust  (1=Unadjusted, 2=Seasonally adjusted)
+    #   Dim5: Partner country  (member IDs below)
+    #
+    # All vectors registered here are Customs basis, Unadjusted (dim3=1, dim4=1)
+    # so series are strictly comparable across countries. SA variant exists only
+    # on the BOP basis; for SA bilateral data use the BOP-basis table 12-10-0119-01
+    # (the trade_exports_us / trade_imports_us entries already in catalog above).
+    #
+    # COVERAGE GAPS -- countries NOT in this table's 27-partner list:
+    #   Vietnam, Thailand (ASEAN), UAE, Qatar, Kuwait, Bahrain, Oman (GCC).
+    # The table covers "top 27 principal trading partners based on annual 2012
+    # total merchandise trade data." UAE/GCC partners were below the 2012 cutoff.
+    # For these missing countries, no StatCan vector-based alternative exists
+    # in the WDS; they would require manual import from UN Comtrade or bulk CSV
+    # filtering on the all-countries (dim5=1) aggregate (not per-country).
+    # Flag surfaced; frontend can render "data not available" for GCC except
+    # Saudi Arabia.
+    #
+    # SA BOP-basis counterparts also exist in Table 12-10-0011-01 (dim3=2,
+    # dim4=2) for all 27 countries; not registered here to avoid doubling the
+    # catalog. The SA US vectors already registered above under 12-10-0119-01
+    # are the canonical SA headline series.
+    #
+    # Vector IDs resolved from primary source bulk CSV download 2026-05-14.
+    # No placeholder IDs -- all verified.
+    # Coordinates listed in notes as: geo.trade.basis.sa.partner (dim1-5).
+
+    # --- United States ---
+    "trade_exports_us_customs": StatcanSpec(
+        "trade_exports_us_customs", 87008869, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Exports to United States, customs basis, unadjusted. "
+            "Coord 1.2.1.1.2. Mar-2026: C$49,494M. "
+            "Companion BOP SA: trade_exports_us (v87008898 in Table 12-10-0119-01). "
+            "Resolved 2026-05-14 via bulk CSV."
+        ),
+    ),
+    "trade_imports_us_customs": StatcanSpec(
+        "trade_imports_us_customs", 87008753, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Imports from United States, customs basis, unadjusted. "
+            "Coord 1.1.1.1.2. Mar-2026: C$33,930M. "
+            "Resolved 2026-05-14 via bulk CSV."
+        ),
+    ),
+
+    # --- China ---
+    "trade_exports_chn": StatcanSpec(
+        "trade_exports_chn", 87008878, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Exports to China, customs basis, unadjusted. "
+            "Coord 1.2.1.1.11. Mar-2026: C$3,687M. "
+            "Resolved 2026-05-14 via bulk CSV."
+        ),
+    ),
+    "trade_imports_chn": StatcanSpec(
+        "trade_imports_chn", 87008762, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Imports from China, customs basis, unadjusted. "
+            "Coord 1.1.1.1.11. Mar-2026: C$7,152M. "
+            "Resolved 2026-05-14 via bulk CSV."
+        ),
+    ),
+
+    # --- United Kingdom ---
+    "trade_exports_gbr": StatcanSpec(
+        "trade_exports_gbr", 87008871, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Exports to United Kingdom, customs basis, unadjusted. "
+            "Coord 1.2.1.1.4. "
+            "Note: UK was part of EU aggregate (dim5=3) through Dec-2020; "
+            "from Jan-2021 UK flows are counted separately. "
+            "Resolved 2026-05-14 via bulk CSV."
+        ),
+    ),
+    "trade_imports_gbr": StatcanSpec(
+        "trade_imports_gbr", 87008755, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Imports from United Kingdom, customs basis, unadjusted. "
+            "Coord 1.1.1.1.4. UK left EU aggregate Jan-2021. "
+            "Resolved 2026-05-14 via bulk CSV."
+        ),
+    ),
+
+    # --- Germany ---
+    "trade_exports_deu": StatcanSpec(
+        "trade_exports_deu", 87008872, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Exports to Germany, customs basis, unadjusted. Coord 1.2.1.1.5. Resolved 2026-05-14.",
+    ),
+    "trade_imports_deu": StatcanSpec(
+        "trade_imports_deu", 87008756, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Imports from Germany, customs basis, unadjusted. Coord 1.1.1.1.5. Resolved 2026-05-14.",
+    ),
+
+    # --- France ---
+    "trade_exports_fra": StatcanSpec(
+        "trade_exports_fra", 87008874, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Exports to France, customs basis, unadjusted. Coord 1.2.1.1.7. Resolved 2026-05-14.",
+    ),
+    "trade_imports_fra": StatcanSpec(
+        "trade_imports_fra", 87008758, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Imports from France, customs basis, unadjusted. Coord 1.1.1.1.7. Resolved 2026-05-14.",
+    ),
+
+    # --- Netherlands ---
+    "trade_exports_nld": StatcanSpec(
+        "trade_exports_nld", 87008873, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Exports to Netherlands, customs basis, unadjusted. Coord 1.2.1.1.6. Resolved 2026-05-14.",
+    ),
+    "trade_imports_nld": StatcanSpec(
+        "trade_imports_nld", 87008757, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Imports from Netherlands, customs basis, unadjusted. Coord 1.1.1.1.6. Resolved 2026-05-14.",
+    ),
+
+    # --- Japan ---
+    "trade_exports_jpn": StatcanSpec(
+        "trade_exports_jpn", 87008880, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Exports to Japan, customs basis, unadjusted. "
+            "Coord 1.2.1.1.13. Mar-2026: C$1,216M. "
+            "Resolved 2026-05-14 via bulk CSV."
+        ),
+    ),
+    "trade_imports_jpn": StatcanSpec(
+        "trade_imports_jpn", 87008764, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Imports from Japan, customs basis, unadjusted. "
+            "Coord 1.1.1.1.13. Mar-2026: C$2,007M. "
+            "Resolved 2026-05-14 via bulk CSV."
+        ),
+    ),
+
+    # --- Mexico ---
+    "trade_exports_mex": StatcanSpec(
+        "trade_exports_mex", 87008879, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Exports to Mexico, customs basis, unadjusted. Coord 1.2.1.1.12. Resolved 2026-05-14.",
+    ),
+    "trade_imports_mex": StatcanSpec(
+        "trade_imports_mex", 87008763, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Imports from Mexico, customs basis, unadjusted. Coord 1.1.1.1.12. Resolved 2026-05-14.",
+    ),
+
+    # --- South Korea ---
+    "trade_exports_kor": StatcanSpec(
+        "trade_exports_kor", 87008881, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Exports to South Korea, customs basis, unadjusted. Coord 1.2.1.1.14. Resolved 2026-05-14.",
+    ),
+    "trade_imports_kor": StatcanSpec(
+        "trade_imports_kor", 87008765, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Imports from South Korea, customs basis, unadjusted. Coord 1.1.1.1.14. Resolved 2026-05-14.",
+    ),
+
+    # --- India ---
+    "trade_exports_ind": StatcanSpec(
+        "trade_exports_ind", 87008886, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Exports to India, customs basis, unadjusted. "
+            "Coord 1.2.1.1.19. Mar-2026: C$503M. "
+            "Carney diplomatic-focus target. Resolved 2026-05-14."
+        ),
+    ),
+    "trade_imports_ind": StatcanSpec(
+        "trade_imports_ind", 87008770, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Imports from India, customs basis, unadjusted. "
+            "Coord 1.1.1.1.19. Mar-2026: C$897M. "
+            "Carney diplomatic-focus target. Resolved 2026-05-14."
+        ),
+    ),
+
+    # --- Australia ---
+    "trade_exports_aus": StatcanSpec(
+        "trade_exports_aus", 87008892, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Exports to Australia, customs basis, unadjusted. "
+            "Coord 1.2.1.1.25. Carney diplomatic-focus target. Resolved 2026-05-14."
+        ),
+    ),
+    "trade_imports_aus": StatcanSpec(
+        "trade_imports_aus", 87008776, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Imports from Australia, customs basis, unadjusted. Coord 1.1.1.1.25. Resolved 2026-05-14.",
+    ),
+
+    # --- Indonesia ---
+    "trade_exports_idn": StatcanSpec(
+        "trade_exports_idn", 87008894, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Exports to Indonesia, customs basis, unadjusted. "
+            "Coord 1.2.1.1.27. ASEAN; Carney diplomatic-focus target. Resolved 2026-05-14."
+        ),
+    ),
+    "trade_imports_idn": StatcanSpec(
+        "trade_imports_idn", 87008778, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Imports from Indonesia, customs basis, unadjusted. Coord 1.1.1.1.27. Resolved 2026-05-14.",
+    ),
+
+    # --- Singapore ---
+    "trade_exports_sgp": StatcanSpec(
+        "trade_exports_sgp", 87008895, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Exports to Singapore, customs basis, unadjusted. "
+            "Coord 1.2.1.1.28. ASEAN hub; Carney diplomatic-focus target. Resolved 2026-05-14."
+        ),
+    ),
+    "trade_imports_sgp": StatcanSpec(
+        "trade_imports_sgp", 87008779, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Imports from Singapore, customs basis, unadjusted. Coord 1.1.1.1.28. Resolved 2026-05-14.",
+    ),
+
+    # --- Saudi Arabia (only available GCC member in table) ---
+    "trade_exports_sau": StatcanSpec(
+        "trade_exports_sau", 87008888, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Exports to Saudi Arabia, customs basis, unadjusted. "
+            "Coord 1.2.1.1.21. Only GCC member in Table 12-10-0011-01 (UAE, Qatar, "
+            "Kuwait, Bahrain, Oman not in the 27-partner list). Resolved 2026-05-14."
+        ),
+    ),
+    "trade_imports_sau": StatcanSpec(
+        "trade_imports_sau", 87008772, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Imports from Saudi Arabia, customs basis, unadjusted. "
+            "Coord 1.1.1.1.21. Resolved 2026-05-14."
+        ),
+    ),
+
+    # --- Additional partners with regional relevance ---
+    # Taiwan: tech/semiconductor supply chain; Hong Kong: China re-export proxy
+    "trade_exports_twn": StatcanSpec(
+        "trade_exports_twn", 87008890, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Exports to Taiwan, customs basis, unadjusted. Coord 1.2.1.1.23. Resolved 2026-05-14.",
+    ),
+    "trade_imports_twn": StatcanSpec(
+        "trade_imports_twn", 87008774, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Imports from Taiwan, customs basis, unadjusted. Coord 1.1.1.1.23. Resolved 2026-05-14.",
+    ),
+    "trade_exports_hkg": StatcanSpec(
+        "trade_exports_hkg", 87008882, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Exports to Hong Kong, customs basis, unadjusted. Coord 1.2.1.1.15. "
+            "Useful as China re-export proxy. Resolved 2026-05-14."
+        ),
+    ),
+    "trade_imports_hkg": StatcanSpec(
+        "trade_imports_hkg", 87008766, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes="Imports from Hong Kong, customs basis, unadjusted. Coord 1.1.1.1.15. Resolved 2026-05-14.",
+    ),
+
+    # --- All-countries aggregate (customs basis, unadjusted total) ---
+    # Note: the catalog already has BOP-SA totals (trade_exports_total,
+    # trade_imports_total) from Table 12-10-0119-01 (v87008897, v87008781).
+    # These customs-basis totals are the matching denominators for computing
+    # per-country shares on a customs basis.
+    "trade_exports_all_customs": StatcanSpec(
+        "trade_exports_all_customs", 87008868, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Total exports, all countries, customs basis, unadjusted. "
+            "Coord 1.2.1.1.1. Denominator for customs-basis partner-share computation. "
+            "Distinct from trade_exports_total (BOP SA, Table 12-10-0119-01). "
+            "Resolved 2026-05-14 via bulk CSV."
+        ),
+    ),
+    "trade_imports_all_customs": StatcanSpec(
+        "trade_imports_all_customs", 87008752, "12-10-0011-01",
+        "C$ millions", "monthly", "trade", sa=False,
+        notes=(
+            "Total imports, all countries, customs basis, unadjusted. "
+            "Coord 1.1.1.1.1. Denominator for customs-basis partner-share computation. "
+            "Resolved 2026-05-14 via bulk CSV."
+        ),
+    ),
     # Current account balances (Table 36-10-0014, annual). Resolved 2026-05-11
     # (research/wave2_vector_resolutions.md). Dim2 = 3 returns the BALANCE (net = receipts -
     # payments), not just receipts. Series labels: Canada; Balances; {Goods | Services |
@@ -853,6 +1145,266 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
         notes=(
             "CDIA — Wholesale trade (NAICS 41). "
             "Coord 1.31.1.1.0.0.0.0.0.0. Annual. Resolved 2026-05-13."
+        ),
+    ),
+
+    # -----------------------------------------------------------------------
+    # Sectoral merchandise exports by destination (US vs non-US) — tariff-
+    # exposed sectors: steel, aluminum, softwood lumber, autos.
+    #
+    # SOURCE: StatCan Table 12-10-0182-01
+    #   "Canadian international merchandise trade for total exports, domestic
+    #    exports and re-exports, monthly"
+    # Title as returned by WDS: same. Current through 2026-03-01.
+    # Start date: 1997-01-01 (351 monthly observations to 2026-03).
+    #
+    # DIMENSIONS
+    #   Dim 1 (Geography)      : 1 = Canada
+    #   Dim 2 (NAPCS)          : commodity, 113 members (sub-chapter granularity)
+    #   Dim 3 (Trade)          : 1=Export, 2=Domestic exports, 3=Re-exports
+    #   Dim 4 (Partner dest.)  : 1=All countries, 2=US, ...29 total
+    #   Dim 5 (Partner origin) : 1=All countries origin (not used editorially)
+    #
+    # UNIT / SCALE
+    #   scalarFactorCode=3 (thousands), UOM=81 (C$).
+    #   Raw values are in C$ thousands; scale=0.001 normalises to C$ millions
+    #   for unit-consistency with the existing trade_exports_us / trade_exports_total
+    #   series (scalarFactorCode=6, already in C$M).
+    #
+    # HS-CODE / NAPCS MAPPING
+    #   The WDS vector API (getDataFromVectorsAndLatestNPeriods) does NOT expose
+    #   data from the CIMT tables (12100147/12100148) which have native HS-chapter
+    #   structure. Those tables return vid=0 for all coordinates (confirmed via
+    #   POST getSeriesInfoFromCubePidCoord 2026-05-14). Table 12-10-0182-01 is the
+    #   finest-grained WDS-accessible trade table with a partner-country dimension
+    #   that is current (end=2026-03). Its NAPCS commodity classification maps to
+    #   HS chapters at the sub-chapter level as follows:
+    #
+    #   STEEL (HS 72 — Iron and steel):
+    #     NAPCS 30 = Unwrought iron, steel and ferro-alloys   (HS 7201-7206)
+    #     NAPCS 31 = Basic and semi-finished iron/steel products (HS 7207-7229)
+    #     Pipeline sums NAPCS 30 + NAPCS 31 to produce a Steel aggregate.
+    #     Caveat: NAPCS 30+31 excludes downstream fabricated steel products
+    #     (HS 73xx, fabricated metal products), which fall under NAPCS 39.
+    #     For the Section 232 tariff scope (primary steel mill products), this
+    #     is the editorially correct boundary.
+    #
+    #   ALUMINUM (HS 76 — Aluminum and articles thereof):
+    #     NAPCS 32 = Unwrought aluminum and aluminum alloys   (HS 7601)
+    #     NAPCS 38 = Basic and semi-finished products of aluminum (HS 7602-7616)
+    #     Pipeline sums NAPCS 32 + NAPCS 38. Excludes fabricated aluminum
+    #     articles under NAPCS 39 (fabricated metal products) — consistent with
+    #     Section 232 tariff scope (primary aluminum).
+    #
+    #   SOFTWOOD LUMBER (HS 4407.10 — Sawn coniferous wood):
+    #     NAPCS 55 = Lumber and other sawmill products
+    #     This is a single NAPCS sub-chapter. It bundles coniferous and
+    #     non-coniferous sawn lumber; there is no finer NAPCS cut at this
+    #     granularity. Editorially acceptable: >95% of Canadian lumber exports
+    #     are softwood (BC interior spruce-pine-fir, Quebec SPF, etc.).
+    #     The US CVD/AD duties target "softwood lumber products" as defined
+    #     by the US International Trade Commission; NAPCS 55 is the
+    #     closest publicly available aggregate.
+    #
+    #   AUTOS (HS 8703 + HS 8708 — Motor cars + Vehicle parts):
+    #     NAPCS 81 = Passenger cars and light trucks   (HS 8703 + 8704 light)
+    #     NAPCS 84 = Motor vehicle engines and motor vehicle parts (HS 8707-8708)
+    #     Pipeline sums NAPCS 81 + NAPCS 84. This covers the two sub-sectors
+    #     that dominate Canada-US automotive trade flows (assembled vehicles
+    #     and CUSMA-qualifying parts). Excludes NAPCS 82 (medium/heavy trucks)
+    #     and NAPCS 83 (tires) which are not the primary Section 232 / IEEPA
+    #     auto-tariff scope. Add NAPCS 82 if editorial scope widens to
+    #     all motor vehicles.
+    #
+    # DERIVATION ARCHITECTURE
+    #   The pipeline stores the 14 raw vectors below (2 NAPCS sub-components ×
+    #   2 destinations × 3 sectors, plus 1 NAPCS × 2 destinations for softwood).
+    #   A single derivation step (derive_sectoral_exports_by_destination() in
+    #   pipeline/build.py) sums sub-components per sector and computes non-US
+    #   as (total - US) for each of the four sectors. Output slugs:
+    #
+    #     data/processed/exports_steel_us.csv         (NAPCS 30+31 → US)
+    #     data/processed/exports_steel_nonus.csv       (total - US)
+    #     data/processed/exports_aluminum_us.csv       (NAPCS 32+38 → US)
+    #     data/processed/exports_aluminum_nonus.csv
+    #     data/processed/exports_softwood_us.csv       (NAPCS 55 → US)
+    #     data/processed/exports_softwood_nonus.csv
+    #     data/processed/exports_autos_us.csv          (NAPCS 81+84 → US)
+    #     data/processed/exports_autos_nonus.csv
+    #
+    #   All outputs in C$ millions. Monthly, NSA (Table 12-10-0182 publishes
+    #   NSA only at NAPCS sub-chapter level; SA is not available at this
+    #   commodity granularity).
+    #
+    # VECTOR RESOLUTION (2026-05-14 via POST getSeriesInfoFromCubePidCoord)
+    #   Coord format: 1.{napcs}.1.{partner}.1.0.0.0.0.0 (10-part, trailing 0s)
+    #   responseStatusCode=0 for all resolved vectors (confirmed data available).
+    # -----------------------------------------------------------------------
+
+    # Steel sub-component A: Unwrought iron, steel and ferro-alloys (NAPCS 30)
+    "exports_steel_unwrought_all": StatcanSpec(
+        "exports_steel_unwrought_all",
+        vector_id=1863612523, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought iron, steel and ferro-alloys (NAPCS 30), total exports, "
+            "all countries of destination. Table 12-10-0182-01 coord "
+            "1.30.1.1.1.0.0.0.0.0. scalarFactorCode=3; scale=0.001 -> C$M. "
+            "Start 1997-01-01; NSA only at this NAPCS granularity. "
+            "Resolved 2026-05-14. See catalog comment block for HS-NAPCS mapping."
+        ),
+    ),
+    "exports_steel_unwrought_us": StatcanSpec(
+        "exports_steel_unwrought_us",
+        vector_id=1863612553, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought iron, steel and ferro-alloys (NAPCS 30), total exports, "
+            "United States destination. Coord 1.30.1.2.1.0.0.0.0.0. "
+            "Resolved 2026-05-14."
+        ),
+    ),
+    # Steel sub-component B: Basic and semi-finished iron/steel products (NAPCS 31)
+    "exports_steel_semifin_all": StatcanSpec(
+        "exports_steel_semifin_all",
+        vector_id=1863615133, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Basic and semi-finished iron or steel products (NAPCS 31), total "
+            "exports, all countries. Coord 1.31.1.1.1.0.0.0.0.0. "
+            "Resolved 2026-05-14."
+        ),
+    ),
+    "exports_steel_semifin_us": StatcanSpec(
+        "exports_steel_semifin_us",
+        vector_id=1863615163, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Basic and semi-finished iron or steel products (NAPCS 31), total "
+            "exports, United States. Coord 1.31.1.2.1.0.0.0.0.0. "
+            "Resolved 2026-05-14."
+        ),
+    ),
+
+    # Aluminum sub-component A: Unwrought aluminum and alloys (NAPCS 32)
+    "exports_aluminum_unwrought_all": StatcanSpec(
+        "exports_aluminum_unwrought_all",
+        vector_id=1863617743, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought aluminum and aluminum alloys (NAPCS 32), total exports, "
+            "all countries. Coord 1.32.1.1.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_unwrought_us": StatcanSpec(
+        "exports_aluminum_unwrought_us",
+        vector_id=1863617773, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought aluminum and aluminum alloys (NAPCS 32), total exports, "
+            "United States. Coord 1.32.1.2.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    # Aluminum sub-component B: Semi-finished aluminum products (NAPCS 38)
+    "exports_aluminum_semifin_all": StatcanSpec(
+        "exports_aluminum_semifin_all",
+        vector_id=1863633403, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Basic and semi-finished products of aluminum and aluminum alloys "
+            "(NAPCS 38), total exports, all countries. "
+            "Coord 1.38.1.1.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_semifin_us": StatcanSpec(
+        "exports_aluminum_semifin_us",
+        vector_id=1863633433, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Basic and semi-finished products of aluminum and aluminum alloys "
+            "(NAPCS 38), total exports, United States. "
+            "Coord 1.38.1.2.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+
+    # Softwood lumber: Lumber and other sawmill products (NAPCS 55)
+    # Single sub-chapter; no further split available in WDS-accessible tables.
+    "exports_softwood_all": StatcanSpec(
+        "exports_softwood_all",
+        vector_id=1863677773, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Lumber and other sawmill products (NAPCS 55), total exports, all "
+            "countries. Coord 1.55.1.1.1.0.0.0.0.0. Closest WDS-accessible "
+            "proxy for HS 4407.10 (sawn coniferous wood). >95pct of Canadian "
+            "lumber exports are softwood; the NAPCS aggregate is the correct "
+            "editorial boundary for the US CVD/AD duty scope. "
+            "Resolved 2026-05-14."
+        ),
+    ),
+    "exports_softwood_us": StatcanSpec(
+        "exports_softwood_us",
+        vector_id=1863677803, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Lumber and other sawmill products (NAPCS 55), total exports, "
+            "United States. Coord 1.55.1.2.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+
+    # Autos sub-component A: Passenger cars and light trucks (NAPCS 81)
+    "exports_autos_cars_all": StatcanSpec(
+        "exports_autos_cars_all",
+        vector_id=1863745633, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Passenger cars and light trucks (NAPCS 81), total exports, all "
+            "countries. Coord 1.81.1.1.1.0.0.0.0.0. Covers assembled vehicles "
+            "under HS 8703 and light commercial (8704). Resolved 2026-05-14."
+        ),
+    ),
+    "exports_autos_cars_us": StatcanSpec(
+        "exports_autos_cars_us",
+        vector_id=1863745663, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Passenger cars and light trucks (NAPCS 81), total exports, United "
+            "States. Coord 1.81.1.2.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    # Autos sub-component B: Motor vehicle engines and parts (NAPCS 84)
+    "exports_autos_parts_all": StatcanSpec(
+        "exports_autos_parts_all",
+        vector_id=1863753463, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Motor vehicle engines and motor vehicle parts (NAPCS 84), total "
+            "exports, all countries. Coord 1.84.1.1.1.0.0.0.0.0. Covers "
+            "HS 8707-8708. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_autos_parts_us": StatcanSpec(
+        "exports_autos_parts_us",
+        vector_id=1863753493, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Motor vehicle engines and motor vehicle parts (NAPCS 84), total "
+            "exports, United States. Coord 1.84.1.2.1.0.0.0.0.0. "
+            "Resolved 2026-05-14."
         ),
     ),
 }

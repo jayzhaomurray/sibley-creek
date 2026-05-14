@@ -95,6 +95,58 @@ Headline series follow the published release calendar at
 checker resolves the data through StatCan's public-facing table page.
 `source_id` is `v<vector_id>`.
 
+### Table 12-10-0011-01: International merchandise trade by country (customs basis)
+
+**CANSIM id:** 228-0069
+**Coverage:** Monthly, 1997-01 to present. 27 principal trading partners
+(selected based on annual 2012 total merchandise trade ranks).
+**Basis:** Customs (physical border crossing). Also contains Balance of Payments
+(BOP) variants in the same table, distinguished by Dim3 (Basis dimension).
+**Seasonal adjustment:** Unadjusted only for partner-country series registered
+here. SA BOP variant exists in the table but is only used for the existing
+BOP-SA totals in Table 12-10-0119-01 (already in catalog separately).
+
+**Dimension structure (verified 2026-05-14 via bulk CSV download):**
+- Dim1: Geography (1=Canada -- single value)
+- Dim2: Trade (1=Import, 2=Export, 3=Trade Balance)
+- Dim3: Basis (1=Customs, 2=Balance of payments)
+- Dim4: Seasonal adjustment (1=Unadjusted, 2=Seasonally adjusted)
+- Dim5: Principal trading partners (1=All, 2=US, 4=UK, 11=China, ...)
+
+**WDS quirk:** `getCubeMetadata` returns HTTP 404 for this table (same quirk
+documented for Table 11-10-0065-01). The `getSeriesInfoFromVector` endpoint
+also 404s. The `getDataFromVectorsAndLatestNPeriods` batch POST endpoint works
+normally. Vector IDs were resolved by downloading the bulk CSV zip from
+`https://www150.statcan.gc.ca/n1/tbl/csv/12100011-eng.zip` and reading the
+VECTOR column.
+
+**Release schedule:** Monthly, approximately 30 days after reference month.
+Released alongside the BOP trade figures (same StatCan Daily release).
+
+**Coverage gaps (not in the 27-partner list):**
+- Vietnam, Thailand (ASEAN)
+- UAE, Qatar, Kuwait, Bahrain, Oman (GCC -- only Saudi Arabia is present)
+The 27-partner list was fixed at 2012 trade weights. Future updates to the
+partner list would require a new table or WDS bulk refresh.
+
+**Structural break:** The EU aggregate (Dim5=3) included the UK through
+December 2020. From January 2021, the UK is counted separately (Dim5=4)
+and excluded from the EU aggregate. The UK-specific vector (dim5=4) runs
+unbroken from 1997-01 -- use the UK-specific vector, not the EU aggregate,
+for any UK-focused analysis.
+
+**Units:** C$ millions. `SCALAR_FACTOR=millions` (scalarFactorCode=6 in WDS
+terms). Values arrive in millions as-is; no pipeline scaling applied.
+
+**Registered series (all Customs basis, Unadjusted):**
+Exports (dim2=2) and Imports (dim2=1) for 17 partners + all-countries total.
+Partners: US, China, UK, Germany, France, Netherlands, Japan, Mexico,
+South Korea, India, Australia, Indonesia, Singapore, Saudi Arabia,
+Taiwan, Hong Kong, All countries.
+Slug pattern: `trade_exports_{iso3}` / `trade_imports_{iso3}`.
+US uses `_us_customs` suffix to distinguish from the existing BOP-SA
+`trade_exports_us` (v87008898, Table 12-10-0119-01).
+
 ---
 
 ## Bank of Canada — Valet API
@@ -561,3 +613,122 @@ Bulk Excel / CSV / PDF; lighter-weight Python clients. CMHC arrears and
 Rental Market Survey deferred to a future wave; OSFI Bank Financial Data
 M4 and PBO Economic and Fiscal Outlook deferred to Wave 3 (bank stability
 + fiscal deep-dive content per canon 4.5b).
+
+---
+
+## IMF World Economic Outlook (WEO) -- DataMapper API
+
+**API base:** `https://www.imf.org/external/datamapper/api/v1/`
+**Pipeline module:** `pipeline/fetch/imf_weo.py`
+**Catalog:** `pipeline/catalog/imf_series.py`
+**Endpoint used:** `/<indicator>/<iso3_country>` (GET)
+**Authentication:** none required. No documented rate limit; standard
+User-Agent headers accepted.
+
+### What this source provides
+
+Annual time series from the IMF World Economic Outlook database, accessed
+via the DataMapper public API. We use two indicators for the Policy section
+ALT fiscal-stance chart (panel-7-alt):
+
+- **GGXCNL_NGDP** -- General government net lending/borrowing, % of nominal
+  GDP. Negative = deficit (net borrowing); positive = surplus. 1980-present
+  plus IMF forward projections through ~2029-2031.
+- **GGXWDG_NGDP** -- General government gross debt, % of nominal GDP.
+  Same vintage and horizon as GGXCNL_NGDP.
+
+### CRITICAL SCOPE CAVEAT
+
+**Both series are GENERAL GOVERNMENT (consolidated federal + provincial +
+local + social-security funds), not federal-only.** They are NOT substitutes
+for the federal-only series in the DoF Fiscal Reference Tables or Public
+Accounts of Canada. Typical magnitudes:
+
+- GGXCNL_NGDP: -10.9% GDP at COVID trough (2020), 0% at 1997 balanced
+  budget. These values include provincial balances and therefore look
+  worse than the federal headline when provinces also run deficits.
+- GGXWDG_NGDP: ~44% GDP in 1980, peak ~118% GDP in 2020 (COVID),
+  ~110% GDP in 2024. GROSS financial liabilities; does not net out
+  financial assets. Far higher than the DoF-published federal net
+  debt (~30-40% GDP).
+
+Use these series only when:
+  1. The editorial framing is "general government" or "all levels of
+     government" (acceptable for international comparisons).
+  2. Long-history context (1980+) is the editorial rationale, and the
+     general-government scope is noted in the chart caption.
+
+For federal-only net debt or deficit, see: DoF Fiscal Reference Tables
+(PDF, annual). Extraction deferred to v1.5.
+
+### Addressing
+
+URL format: `https://www.imf.org/external/datamapper/api/v1/<indicator>/<iso3>`
+
+Example for Canada deficit:
+`https://www.imf.org/external/datamapper/api/v1/GGXCNL_NGDP/CAN`
+
+Response JSON shape:
+```json
+{
+  "values": {
+    "GGXCNL_NGDP": {
+      "CAN": {
+        "1980": -4.0,
+        "1981": -1.5,
+        ...
+        "2024": -2.1,
+        "2025": null
+      }
+    }
+  }
+}
+```
+
+Null values (years not yet in the WEO database for this country) are
+dropped at the boundary. Year keys are strings; we convert to int.
+
+### Release schedule
+
+The IMF publishes WEO twice per year:
+- **April WEO** -- released alongside the IMF Spring Meetings (~April).
+- **October WEO** -- released alongside the Annual Meetings (~October).
+
+The DataMapper API serves the current-vintage values at all times;
+prior vintages are not accessible via the API (they require downloading
+the WEO database Excel file published on imf.org). The pipeline pulls
+the current vintage on each build run.
+
+### Vintage / revision conventions
+
+- **Actuals vs projections:** The DataMapper response does not distinguish
+  actuals from forward projections. By convention, data from the current
+  calendar year onward should be treated as IMF projections. The
+  `.meta.json` notes field documents this; chart-builder must distinguish
+  projected years visually (e.g. dashed line or faded fill).
+- **Revisions:** IMF revises prior-year actuals between WEO vintages,
+  though usually only the most recent 1-2 years. We do not preserve
+  vintage history; the on-disk CSV always reflects the current WEO vintage.
+- **Projection horizon:** typically extends ~6 years forward from the
+  publication date. The series on disk runs through 2031 as of the
+  May 2026 WEO vintage.
+
+### Gotchas
+
+- **Net debt (GGXWNG_NGDP) returns null for Canada.** As of May 2026
+  probe, this indicator has no data for CAN. We use gross debt
+  (GGXWDG_NGDP) instead. If the IMF begins publishing GGXWNG_NGDP for
+  Canada, add it to the catalog and demote gross debt to secondary.
+- **API user-agent matters.** The IMF server 403s certain automated
+  user-agent strings. We use `macro-research-department/0.1 (...)` per
+  the standard USER_AGENT constant in `pipeline/fetch/_http.py`.
+- **No rate limit documented.** Single-country pulls are fast (~200ms).
+  At two series per build the pipeline does not approach any limit.
+
+### What we record in .meta.json
+
+`source_url` = `https://www.imf.org/external/datamapper/api/v1/<indicator>/CAN`
+`source_id` = `IMF-WEO/<indicator>/CAN`
+`units` = as defined in the ImfSpec catalog entry.
+
+---

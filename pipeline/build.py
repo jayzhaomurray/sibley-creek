@@ -58,10 +58,11 @@ def datetime_now_iso() -> str:
     """ISO-formatted current UTC timestamp; isolated so tests can monkeypatch."""
     return datetime.now(timezone.utc).isoformat()
 
-from pipeline.catalog import BOC_VALET_SERIES, STATCAN_SERIES
+from pipeline.catalog import BOC_VALET_SERIES, IMF_SERIES, STATCAN_SERIES
 from pipeline.catalog.boc_series import BocSpec
+from pipeline.catalog.imf_series import ImfSpec
 from pipeline.catalog.statcan_series import StatcanSpec, get_url as statcan_url
-from pipeline.fetch import alberta, boc, cba_arrears, cpi_basket, crea, dof_fiscal, statcan
+from pipeline.fetch import alberta, boc, cba_arrears, cpi_basket, crea, dof_fiscal, imf_weo, statcan
 from pipeline.io import SeriesMeta, build_site_data, write_series
 from pipeline.io.panel_data import build_all_panel_data
 from pipeline.transform import yoy_pct
@@ -222,6 +223,41 @@ def run_boc_catalog_non_daily(failed: list[str]) -> None:
         if spec.cadence == "daily":
             continue
         _safe(f"boc:{name}", lambda s=spec: _boc_fetch_one(s), failed)
+
+
+# --------------------------------------------------------------------------- #
+# IMF WEO DataMapper catalog
+# --------------------------------------------------------------------------- #
+
+def _imf_fetch_one(spec: ImfSpec) -> Optional[pd.DataFrame]:
+    """Fetch one IMF WEO DataMapper series and write raw CSV + .meta.json.
+
+    Returns the raw DataFrame for downstream callers, or None if the API
+    returns no data for this indicator/country combination.
+    """
+    result = imf_weo.fetch_indicator(spec.indicator_id, country=spec.country)
+    df = result.data.copy()
+    if df.empty:
+        logger.warning("imf_weo: %s/%s returned empty DataFrame", spec.indicator_id, spec.country)
+        return None
+
+    meta = SeriesMeta(
+        name=spec.name,
+        source="IMF World Economic Outlook (DataMapper API)",
+        source_url=imf_weo.observations_url(spec.indicator_id, spec.country),
+        source_id=f"IMF-WEO/{spec.indicator_id}/{spec.country}",
+        units=spec.units,
+        frequency=spec.frequency,
+        notes=spec.notes or None,
+    )
+    write_series(df, meta, DATA_RAW)
+    return df
+
+
+def run_imf_catalog(failed: list[str]) -> None:
+    """Fetch all IMF WEO series registered in pipeline/catalog/imf_series.py."""
+    for name, spec in IMF_SERIES.items():
+        _safe(f"imf:{name}", lambda s=spec: _imf_fetch_one(s), failed)
 
 
 # --------------------------------------------------------------------------- #
@@ -1334,32 +1370,56 @@ def derive_trade_views() -> None:
         )
         write_series(ma3, meta, DATA_PROCESSED)
 
-    # Partner shares: US is the structural-shift line per canon 4.7 element 3.
-    # Other partners' shares are derived too, when their raw fetches succeeded.
-    exports_total = _read_raw("trade_exports_total")
-    imports_total = _read_raw("trade_imports_total")
-    partner_targets = [
-        ("us", "United States"),
-        ("china", "China"),
-        ("uk", "United Kingdom"),
-        ("japan", "Japan"),
-        ("mexico", "Mexico"),
-        ("germany", "Germany"),
+    # Partner shares: customs-basis, unadjusted. Table 12-10-0011-01.
+    # Denominator = all-countries customs total (trade_exports/imports_all_customs).
+    # Slug pattern: trade_{exports|imports}_{iso3} / trade_{exports|imports}_all_customs.
+    # The old probe-pending slugs (trade_exports_china, trade_exports_uk, etc.)
+    # pointed at wrong-table placeholder IDs; they have been replaced in the
+    # catalog by the verified 12-10-0011-01 entries with ISO-3 suffixes.
+    exports_total_customs = _read_raw("trade_exports_all_customs")
+    imports_total_customs = _read_raw("trade_imports_all_customs")
+    partner_targets_iso3 = [
+        ("us_customs", "United States"),
+        ("chn", "China"),
+        ("gbr", "United Kingdom"),
+        ("jpn", "Japan"),
+        ("mex", "Mexico"),
+        ("deu", "Germany"),
+        ("fra", "France"),
+        ("nld", "Netherlands"),
+        ("kor", "South Korea"),
+        ("ind", "India"),
+        ("aus", "Australia"),
+        ("idn", "Indonesia"),
+        ("sgp", "Singapore"),
+        ("sau", "Saudi Arabia"),
+        ("twn", "Taiwan"),
+        ("hkg", "Hong Kong"),
     ]
-    for slug, label in partner_targets:
-        for side, total in (("exports", exports_total), ("imports", imports_total)):
-            partner = _read_raw(f"trade_{side}_{slug}")
+    for iso_slug, label in partner_targets_iso3:
+        for side, total in (
+            ("exports", exports_total_customs),
+            ("imports", imports_total_customs),
+        ):
+            partner = _read_raw(f"trade_{side}_{iso_slug}")
             if partner is None or total is None:
                 continue
             share = partner_share_trajectory(partner, total, label_partner=label)
             meta = SeriesMeta(
-                name=f"trade_{side}_share_{slug}",
+                name=f"trade_{side}_share_{iso_slug}",
                 source="Statistics Canada Web Data Service (derived)",
-                source_url=statcan_url(STATCAN_SERIES["trade_balance_total"]),
-                source_id=f"share-of-total-{side}-by-partner-{slug}",
+                source_url=statcan_url(STATCAN_SERIES["trade_exports_all_customs"]),
+                source_id=(
+                    f"trade_{side}_{iso_slug}/trade_{side}_all_customs "
+                    "(customs basis, unadjusted, Table 12-10-0011-01)"
+                ),
                 units="% share",
                 frequency="monthly",
-                notes=f"{label} share of total Canadian {side}. Derived from per-partner / total.",
+                notes=(
+                    f"{label} share of total Canadian {side} (customs basis, "
+                    "unadjusted). Derived: per-country series / all-countries "
+                    "customs total. Source: Table 12-10-0011-01. Resolved 2026-05-14."
+                ),
                 transform="partner_share_trajectory",
             )
             write_series(share, meta, DATA_PROCESSED)
@@ -1594,6 +1654,143 @@ def derive_boc_fed_spread_monthly() -> None:
         transform="boc_fed_spread_monthly: (overnight_rate_target - fed_funds) * 100",
     )
     write_series(out, meta, DATA_PROCESSED)
+
+
+def derive_sectoral_exports_by_destination() -> None:
+    """Sum NAPCS sub-components per tariff-exposed sector; compute non-US residual.
+
+    Inputs (data/raw/):
+        exports_steel_unwrought_all / _us   (NAPCS 30, C$M)
+        exports_steel_semifin_all   / _us   (NAPCS 31, C$M)
+        exports_aluminum_unwrought_all / _us (NAPCS 32, C$M)
+        exports_aluminum_semifin_all   / _us (NAPCS 38, C$M)
+        exports_softwood_all / _us           (NAPCS 55, C$M)
+        exports_autos_cars_all / _us         (NAPCS 81, C$M)
+        exports_autos_parts_all / _us        (NAPCS 84, C$M)
+
+    All raw series: Table 12-10-0182-01, NSA monthly, C$ millions.
+
+    Outputs (data/processed/):
+        exports_steel_us.csv          exports_steel_nonus.csv
+        exports_aluminum_us.csv       exports_aluminum_nonus.csv
+        exports_softwood_us.csv       exports_softwood_nonus.csv
+        exports_autos_us.csv          exports_autos_nonus.csv
+
+    All outputs: C$ millions, NSA monthly, date/value.
+
+    Architecture note:
+      Non-US = total (all countries) - US. The non-US residual is derived
+      rather than fetched because WDS does not publish a "rest-of-world"
+      partner aggregate at the NAPCS sub-chapter level. The derivation is
+      exact for any month where both total and US series are non-null.
+    """
+    _TABLE_URL = "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1210018201"
+
+    def _sum_components(slugs: list[str]) -> Optional[pd.DataFrame]:
+        """Align multiple raw C$M series on date and return their monthly sum."""
+        series_list = []
+        for slug in slugs:
+            df = _read_raw(slug)
+            if df is None:
+                return None
+            series_list.append(df.set_index("date")["value"].sort_index().rename(slug))
+        aligned = pd.concat(series_list, axis=1)
+        total = aligned.sum(axis=1, min_count=len(slugs)).dropna()
+        out = total.reset_index()
+        out.columns = ["date", "value"]
+        return out
+
+    def _nonus(all_df: pd.DataFrame, us_df: pd.DataFrame) -> pd.DataFrame:
+        """Non-US = total minus US, inner-joined on date."""
+        a = all_df.set_index("date")["value"].sort_index()
+        u = us_df.set_index("date")["value"].sort_index()
+        joined = pd.concat([a.rename("all"), u.rename("us")], axis=1).dropna()
+        residual = (joined["all"] - joined["us"]).rename("value")
+        out = residual.reset_index()
+        out.columns = ["date", "value"]
+        return out
+
+    def _write_pair(
+        sector: str,
+        us_df: pd.DataFrame,
+        nonus_df: pd.DataFrame,
+        source_ids: str,
+    ) -> None:
+        base_meta = dict(
+            source="Statistics Canada Web Data Service (derived)",
+            source_url=_TABLE_URL,
+            units="C$ millions",
+            frequency="monthly",
+        )
+        write_series(
+            us_df,
+            SeriesMeta(
+                name=f"exports_{sector}_us",
+                notes=(
+                    f"Canadian merchandise exports of {sector}, to United States, "
+                    "NSA monthly, C$ millions. Summed from NAPCS sub-components and "
+                    "scaled from C$ thousands (scalarFactorCode=3). "
+                    f"Source vectors: {source_ids}. Table 12-10-0182-01. "
+                    "Derived 2026-05-14."
+                ),
+                source_id=f"{source_ids}:US",
+                **base_meta,
+            ),
+            DATA_PROCESSED,
+        )
+        write_series(
+            nonus_df,
+            SeriesMeta(
+                name=f"exports_{sector}_nonus",
+                notes=(
+                    f"Canadian merchandise exports of {sector}, to non-US destinations, "
+                    "NSA monthly, C$ millions. Derived as (all-countries total) minus "
+                    "(United States). "
+                    f"Source vectors: {source_ids}. Table 12-10-0182-01. "
+                    "Derived 2026-05-14."
+                ),
+                source_id=f"{source_ids}:non-US",
+                transform="all_countries_total - united_states",
+                **base_meta,
+            ),
+            DATA_PROCESSED,
+        )
+
+    # --- Steel (NAPCS 30 + NAPCS 31) ---
+    steel_all = _sum_components(["exports_steel_unwrought_all", "exports_steel_semifin_all"])
+    steel_us = _sum_components(["exports_steel_unwrought_us", "exports_steel_semifin_us"])
+    if steel_all is not None and steel_us is not None:
+        _write_pair("steel", steel_us, _nonus(steel_all, steel_us),
+                    "v1863612523+v1863615133 (all) / v1863612553+v1863615163 (US)")
+    else:
+        logger.warning("derive_sectoral_exports: steel components missing from raw/")
+
+    # --- Aluminum (NAPCS 32 + NAPCS 38) ---
+    alum_all = _sum_components(["exports_aluminum_unwrought_all", "exports_aluminum_semifin_all"])
+    alum_us = _sum_components(["exports_aluminum_unwrought_us", "exports_aluminum_semifin_us"])
+    if alum_all is not None and alum_us is not None:
+        _write_pair("aluminum", alum_us, _nonus(alum_all, alum_us),
+                    "v1863617743+v1863633403 (all) / v1863617773+v1863633433 (US)")
+    else:
+        logger.warning("derive_sectoral_exports: aluminum components missing from raw/")
+
+    # --- Softwood lumber (NAPCS 55, single sub-chapter) ---
+    softwood_all = _read_raw("exports_softwood_all")
+    softwood_us = _read_raw("exports_softwood_us")
+    if softwood_all is not None and softwood_us is not None:
+        _write_pair("softwood", softwood_us, _nonus(softwood_all, softwood_us),
+                    "v1863677773 (all) / v1863677803 (US)")
+    else:
+        logger.warning("derive_sectoral_exports: softwood components missing from raw/")
+
+    # --- Autos (NAPCS 81 + NAPCS 84) ---
+    autos_all = _sum_components(["exports_autos_cars_all", "exports_autos_parts_all"])
+    autos_us = _sum_components(["exports_autos_cars_us", "exports_autos_parts_us"])
+    if autos_all is not None and autos_us is not None:
+        _write_pair("autos", autos_us, _nonus(autos_all, autos_us),
+                    "v1863745633+v1863753463 (all) / v1863745663+v1863753493 (US)")
+    else:
+        logger.warning("derive_sectoral_exports: autos components missing from raw/")
 
 
 def derive_tariff_state_fixture() -> None:
@@ -1837,15 +2034,22 @@ def main(argv: Optional[list[str]] = None) -> int:
     logger.info("--- BoC Valet (non-daily) ---")
     run_boc_catalog_non_daily(failed)
 
-    # 3) DoF Fiscal Monitor (monthly, ~2-month lag).
+    # 3) IMF WEO DataMapper (annual, general-government fiscal stance).
+    #    Policy panel-7-alt: fed_deficit_to_gdp + fed_net_debt_to_gdp slots.
+    #    Scope caveat: general government (federal + provincial + local),
+    #    NOT federal-only. Noted in .meta.json and data/SOURCES.md.
+    logger.info("--- IMF WEO DataMapper ---")
+    run_imf_catalog(failed)
+
+    # 4) DoF Fiscal Monitor (monthly, ~2-month lag).
     logger.info("--- DoF Fiscal Monitor ---")
     _safe("dof_fiscal_monitor", fetch_dof_fiscal_monitor, failed)
 
-    # 4) CREA MLS HPI (monthly XLSX bulk). Per-geography isolation inside.
+    # 5) CREA MLS HPI (monthly XLSX bulk). Per-geography isolation inside.
     logger.info("--- CREA MLS HPI ---")
     _safe("crea_mls_hpi", fetch_crea_mls_hpi, failed)
 
-    # 4b) CBA mortgage arrears (PDF, monthly, ~2.5-month lag). Powers the
+    # 5b) CBA mortgage arrears (PDF, monthly, ~2.5-month lag). Powers the
     #     housing supporting print `cmhc-arrears` (renamed to "Bank mortgage
     #     arrears" because CBA != CMHC; CBA is the chartered-bank slice).
     logger.info("--- CBA mortgage arrears ---")
@@ -1878,6 +2082,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     _safe("derive_federal_fiscal_ytd", derive_federal_fiscal_ytd, failed)
     _safe("derive_labour_force_ex_npr", derive_labour_force_ex_npr, failed)
     _safe("derive_boc_fed_spread_monthly", derive_boc_fed_spread_monthly, failed)
+    _safe("derive_sectoral_exports_by_destination", derive_sectoral_exports_by_destination, failed)
     _safe("derive_tariff_state_fixture", derive_tariff_state_fixture, failed)
 
     # 6b) Snapshot the PRIOR vintage of data/site/* before step 7

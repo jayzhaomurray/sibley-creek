@@ -654,6 +654,40 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
                 "service indexed to FY19/20 derivable from the YTD summary."
             ),
         ),
+        # panel-7-alt: Fiscal stance (long-history). NOT a live plate yet.
+        # Source: IMF WEO DataMapper API (annual, general government).
+        # Scope caveat: both series are GENERAL GOVERNMENT (all levels),
+        # not federal-only. Document in caption before any live promotion.
+        # IMF GGXWNG_NGDP (net debt) returns null for Canada; gross debt
+        # (GGXWDG_NGDP) is used as the secondary slot with the label
+        # "Gross debt (% GDP, general govt)" to avoid implying net-debt.
+        PanelSpec(
+            panel_id="panel-7-alt", section="policy", panel_num=7,
+            file="policy/Panel7AltFiscalStance.astro",
+            primary=SlotSpec(
+                "imf_can_gg_balance_pct_gdp", "raw",
+                label="Fiscal balance (% GDP, general govt)",
+                unit_override="% of GDP",
+            ),
+            secondary=SlotSpec(
+                "imf_can_gg_gross_debt_pct_gdp", "raw",
+                label="Gross debt (% GDP, general govt)",
+                unit_override="% of GDP",
+            ),
+            notes=(
+                "ALT chart -- NOT a live plate. Fiscal stance long-history view "
+                "(1980-present, annual). Source: IMF World Economic Outlook "
+                "DataMapper API. SCOPE CAVEAT: both series are general government "
+                "(federal + provincial + local + social-security), not federal-only. "
+                "Primary = net lending/borrowing % GDP (negative = deficit). "
+                "Secondary = gross debt % GDP (NOT net debt; IMF does not publish "
+                "Canada net debt; label must say 'gross' in any chart caption). "
+                "WEO vintages include IMF forward projections; chart-builder should "
+                "visually distinguish projected years (from current year onward). "
+                "For federal-only framing, DoF Fiscal Reference Tables (PDF annual) "
+                "are the authoritative source -- extraction deferred to v1.5."
+            ),
+        ),
     ],
     "markets": [
         PanelSpec(
@@ -836,6 +870,159 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
                 "PanelEmpty; needs to be replaced with a side-by-side bar or stacked-bar "
                 "decomposition using primary/secondary totals + extras sector splits. "
                 "Annual cadence means window_override is not needed (annual default = 60 years)."
+            ),
+        ),
+        # panel-7-alt: Sectoral exports by destination (US vs non-US).
+        # NOT a live plate yet — alt channel only.
+        # Sources all from StatCan Table 12-10-0182-01, NSA monthly.
+        # Non-US series are derived (total - US); stored in data/processed/.
+        # See derive_sectoral_exports_by_destination() in pipeline/build.py
+        # for the full NAPCS-to-HS mapping rationale and unit notes.
+        PanelSpec(
+            panel_id="panel-7-alt", section="trade", panel_num=7,
+            file="trade/Panel7AltSectoralExports.astro",
+            primary=SlotSpec(
+                "exports_steel_us", "processed",
+                label="Steel exports to US (C$M, NSA)",
+                unit_override="C$ millions",
+            ),
+            secondary=SlotSpec(
+                "exports_steel_nonus", "processed",
+                label="Steel exports to non-US (C$M, NSA)",
+                unit_override="C$ millions",
+            ),
+            extras=(
+                SlotSpec("exports_aluminum_us", "processed",
+                         label="Aluminum exports to US (C$M, NSA)",
+                         unit_override="C$ millions"),
+                SlotSpec("exports_aluminum_nonus", "processed",
+                         label="Aluminum exports to non-US (C$M, NSA)",
+                         unit_override="C$ millions"),
+                SlotSpec("exports_softwood_us", "processed",
+                         label="Softwood lumber exports to US (C$M, NSA)",
+                         unit_override="C$ millions"),
+                SlotSpec("exports_softwood_nonus", "processed",
+                         label="Softwood lumber exports to non-US (C$M, NSA)",
+                         unit_override="C$ millions"),
+                SlotSpec("exports_autos_us", "processed",
+                         label="Autos+parts exports to US (C$M, NSA)",
+                         unit_override="C$ millions"),
+                SlotSpec("exports_autos_nonus", "processed",
+                         label="Autos+parts exports to non-US (C$M, NSA)",
+                         unit_override="C$ millions"),
+            ),
+            expected_status="MISSING",
+            notes=(
+                "ALT chart — NOT a live plate. Sectoral merchandise exports by "
+                "destination (US vs non-US), four tariff-exposed sectors: steel, "
+                "aluminum, softwood lumber, autos+parts. Monthly NSA, C$ millions, "
+                "back to 1997-01. Source: StatCan Table 12-10-0182-01 (NAPCS "
+                "sub-chapter level, 113 commodities x 29 partners). "
+                "NAPCS-to-HS mapping: Steel = NAPCS 30+31 (HS 72); "
+                "Aluminum = NAPCS 32+38 (HS 76); "
+                "Softwood = NAPCS 55 (HS 4407, no coniferous/deciduous split); "
+                "Autos = NAPCS 81+84 (HS 8703+8708). "
+                "Non-US = all-countries total minus US (derived). "
+                "MISSING: chart component Panel7AltSectoralExports.astro does "
+                "not exist yet; frontend dispatch required before live promotion. "
+                "Data is present in data/processed/ after any build that includes "
+                "the trade section."
+            ),
+        ),
+        PanelSpec(
+            panel_id="panel-8", section="trade", panel_num=8,
+            file="trade/Panel8BilateralFlows.astro",
+            # Primary = exports to US (highest volume; anchors the panel scale).
+            # Secondary = imports from US. All per-country extras listed in ISO-
+            # alpha-3 slug order so the chart layer can iterate them uniformly.
+            # The customs-basis unadjusted series (Table 12-10-0011-01) are used
+            # here rather than the BOP-SA series (12-10-0119-01) because:
+            #   (a) Customs basis covers all 27 named partners; BOP-SA partner
+            #       breakdown is more limited.
+            #   (b) Frontend is computing partner shares (country / all_customs);
+            #       unadjusted is correct for share computations where seasonality
+            #       largely cancels in numerator / denominator.
+            # For trend analysis the chart layer should apply a trailing-3-month
+            # average to smooth unadjusted monthly noise before display.
+            # GCC gap: UAE, Qatar, Kuwait, Bahrain, Oman are NOT in Table
+            # 12-10-0011-01 (not in the 27-principal-partner list based on 2012
+            # trade weights). Only Saudi Arabia is available. Frontend should
+            # render "data not available" for missing GCC members.
+            primary=SlotSpec("trade_exports_us_customs", "raw",
+                             label="Exports to United States (customs, NSA)"),
+            secondary=SlotSpec("trade_imports_us_customs", "raw",
+                               label="Imports from United States (customs, NSA)"),
+            tertiary=SlotSpec("trade_exports_all_customs", "raw",
+                              label="Total exports, all countries (denominator)"),
+            extras=(
+                SlotSpec("trade_imports_all_customs", "raw",
+                         label="Total imports, all countries (denominator)"),
+                # China
+                SlotSpec("trade_exports_chn", "raw", label="Exports to China"),
+                SlotSpec("trade_imports_chn", "raw", label="Imports from China"),
+                # United Kingdom
+                SlotSpec("trade_exports_gbr", "raw", label="Exports to United Kingdom"),
+                SlotSpec("trade_imports_gbr", "raw", label="Imports from United Kingdom"),
+                # Germany
+                SlotSpec("trade_exports_deu", "raw", label="Exports to Germany"),
+                SlotSpec("trade_imports_deu", "raw", label="Imports from Germany"),
+                # France
+                SlotSpec("trade_exports_fra", "raw", label="Exports to France"),
+                SlotSpec("trade_imports_fra", "raw", label="Imports from France"),
+                # Netherlands
+                SlotSpec("trade_exports_nld", "raw", label="Exports to Netherlands"),
+                SlotSpec("trade_imports_nld", "raw", label="Imports from Netherlands"),
+                # Japan
+                SlotSpec("trade_exports_jpn", "raw", label="Exports to Japan"),
+                SlotSpec("trade_imports_jpn", "raw", label="Imports from Japan"),
+                # Mexico
+                SlotSpec("trade_exports_mex", "raw", label="Exports to Mexico"),
+                SlotSpec("trade_imports_mex", "raw", label="Imports from Mexico"),
+                # South Korea
+                SlotSpec("trade_exports_kor", "raw", label="Exports to South Korea"),
+                SlotSpec("trade_imports_kor", "raw", label="Imports from South Korea"),
+                # India (Carney diplomatic-focus)
+                SlotSpec("trade_exports_ind", "raw", label="Exports to India"),
+                SlotSpec("trade_imports_ind", "raw", label="Imports from India"),
+                # Australia (Carney diplomatic-focus)
+                SlotSpec("trade_exports_aus", "raw", label="Exports to Australia"),
+                SlotSpec("trade_imports_aus", "raw", label="Imports from Australia"),
+                # Indonesia (ASEAN, Carney diplomatic-focus)
+                SlotSpec("trade_exports_idn", "raw", label="Exports to Indonesia"),
+                SlotSpec("trade_imports_idn", "raw", label="Imports from Indonesia"),
+                # Singapore (ASEAN hub, Carney diplomatic-focus)
+                SlotSpec("trade_exports_sgp", "raw", label="Exports to Singapore"),
+                SlotSpec("trade_imports_sgp", "raw", label="Imports from Singapore"),
+                # Saudi Arabia (only available GCC member in the 27-partner table)
+                SlotSpec("trade_exports_sau", "raw", label="Exports to Saudi Arabia"),
+                SlotSpec("trade_imports_sau", "raw", label="Imports from Saudi Arabia"),
+                # Taiwan + Hong Kong (supply-chain + re-export proxy)
+                SlotSpec("trade_exports_twn", "raw", label="Exports to Taiwan"),
+                SlotSpec("trade_imports_twn", "raw", label="Imports from Taiwan"),
+                SlotSpec("trade_exports_hkg", "raw", label="Exports to Hong Kong"),
+                SlotSpec("trade_imports_hkg", "raw", label="Imports from Hong Kong"),
+            ),
+            expected_status="WIRED",
+            notes=(
+                "Bilateral merchandise trade flows, customs basis, unadjusted. "
+                "Source: StatCan Table 12-10-0011-01 (CANSIM 228-0069). Monthly, "
+                "1997-01 to present (latest: 2026-03). 27 principal trading partners "
+                "based on 2012 annual trade weights. Vectors resolved 2026-05-14 via "
+                "bulk CSV download (getCubeMetadata returns 404 for this table -- "
+                "same WDS quirk as Table 11-10-0065-01; data fetch works via "
+                "getDataFromVectorsAndLatestNPeriods batch endpoint). "
+                "COVERAGE GAPS: Vietnam, Thailand (ASEAN) and UAE, Qatar, Kuwait, "
+                "Bahrain, Oman (GCC) are NOT in the 27-partner list -- no StatCan "
+                "vector-based alternative exists for these countries within this "
+                "table. Only Saudi Arabia is available from the GCC. Frontend should "
+                "render 'data not available' for missing partners. "
+                "STRUCTURAL BREAK: UK series (dim5=4) runs unbroken 1997+, but "
+                "the EU aggregate (dim5=3) excluded UK from Jan-2021 onward. "
+                "Chart-builder notes: "
+                "(1) Partner share = country series / all_customs total x 100. "
+                "(2) Apply 3-month trailing average to smooth NSA monthly noise. "
+                "(3) Bucket logic (Carney targets, GCC, ASEAN) is chart-internal. "
+                "See panel-7-alt for sectoral US-vs-non-US breakdown."
             ),
         ),
     ],
