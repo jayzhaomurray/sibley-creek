@@ -4,14 +4,24 @@
  */
 
 import type { ChartShelfEntry } from "../_shared/shelfEntry";
+import tradePanelData from "../../../../../data/site/panel_data/trade.json";
+import { pickPanel } from "../../_shared/panelData";
 
 import Alt1_ExportsImports from "./Alt1_ExportsImports.astro";
 import Alt2_UsExportShare from "./Alt2_UsExportShare.astro";
 import Alt3_BalanceSmoothing from "./Alt3_BalanceSmoothing.astro";
 import Alt4_TermsTradeVsWti from "./Alt4_TermsTradeVsWti.astro";
-import Alt_TariffSectorPivot from "./Alt_TariffSectorPivot.astro";
-import Alt_GoldExportsAndPrice from "./Alt_GoldExportsAndPrice.astro";
-import Alt_AluminumByDestination from "./Alt_AluminumByDestination.astro";
+
+// Demoted-from-production: kept on the alt shelf for reference.
+import TradePanel1TradeBalance from "../../trade/Panel1TradeBalance.astro";
+import TradePanel2CurrentAccount from "../../trade/Panel2CurrentAccountV2.astro";
+import TradePanel5TermsOfTrade from "../../trade/Panel5TermsOfTradeV2.astro";
+import TradePanel6FDIBySector from "../../trade/Panel6FDIBySector.astro";
+
+const tradePanel1Data = pickPanel(tradePanelData, 1);
+const tradePanel2Data = pickPanel(tradePanelData, 2);
+const tradePanel5Data = pickPanel(tradePanelData, 5);
+const tradePanel6Data = pickPanel(tradePanelData, 6);
 
 export const entries: ChartShelfEntry[] = [
   {
@@ -60,39 +70,51 @@ export const entries: ChartShelfEntry[] = [
     addedAt: "2026-05-12",
   },
   {
-    Component: Alt_TariffSectorPivot,
-    file: "trade/Alt_TariffSectorPivot.astro",
-    title: "Are tariff-exposed sectors pivoting? — 4-panel sector export diversification",
+    Component: TradePanel1TradeBalance,
+    file: "trade/Panel1TradeBalance.astro",
+    title: "Goods trade balance, monthly + 3mma (V1 — retired from production)",
     whatDifferent:
-      "Four 2x2 panels (steel, aluminum, softwood, autos); each shows US and non-US exports as 12mma indexed to Jan 2020 = 100. Divergence between the two lines is the editorial signal.",
+      "Headline merchandise balance with monthly bar + 3-month moving average line. Standard cycle anchor.",
     whyBetter:
-      "The 'pivot question' is the most live trade story in Canadian macro. Raw level panels obscure non-US movement because US flows dwarf them by 6-10x. Indexing surfaces whether non-US is actually rising to offset US losses — the question no raw-level chart can answer.",
-    dataFields:
-      "trade.json panel-7-alt (primary + secondary + extras[0-5]), 12mma indexed to Jan 2020 = 100",
+      "Demoted on 2026-05-14: too high-level for the 'is the pivot working?' editorial frame the trade section is now organized around. Reads well as a cycle anchor but doesn't speak to the section's central question.",
+    dataFields: "trade.json panel-1 (trade balance, exports, imports)",
+    data: tradePanel1Data,
     addedAt: "2026-05-14",
   },
   {
-    Component: Alt_GoldExportsAndPrice,
-    file: "trade/Alt_GoldExportsAndPrice.astro",
-    title: "Gold exports surge — price-driven bullion flow, not industrial demand",
+    Component: TradePanel2CurrentAccount,
+    file: "trade/Panel2CurrentAccountV2.astro",
+    title: "Current account: goods, services, primary income (V1 — retired from production)",
     whatDifferent:
-      "Two-panel composite (720x405): left shows total and UK-destination gold/PGM exports in CAD millions; right shows gold price in USD/oz. Same x-axis window (2020 to present). UK share ~97% of total in March 2026 — the two left-panel lines nearly overlap, which is the editorial signal.",
+      "Quarterly current-account decomposition with goods, services, and primary-income components.",
     whyBetter:
-      "The gold-export surge is the single largest anomaly in the 2025-26 Canadian trade data. Pairing the price chart is the fastest way to establish price-driven causality: both series climb in lockstep, ruling out a structural industrial-export shift.",
-    dataFields:
-      "exports_gold_total.csv + exports_gold_uk.csv (StatCan 12-10-0182-01 NAPCS 35) + gold_price_monthly.csv",
+      "Demoted on 2026-05-14: too aggregated for the pivot-question framing; primary-income surplus is editorially interesting but orthogonal to the trade-reorientation story.",
+    dataFields: "trade.json panel-2 (current account components)",
+    data: tradePanel2Data,
     addedAt: "2026-05-14",
   },
   {
-    Component: Alt_AluminumByDestination,
-    file: "trade/Alt_AluminumByDestination.astro",
-    title: "Canadian aluminum exports by destination — 4-panel level chart",
+    Component: TradePanel5TermsOfTrade,
+    file: "trade/Panel5TermsOfTradeV2.astro",
+    title: "Terms of trade, national accounts (V1 — retired from production)",
     whatDifferent:
-      "Four 2x2 panels (US / Netherlands / Mexico / all other non-US) showing 12mma level in CAD millions with per-panel y-axes. US at ~772M dwarfs everything else.",
+      "Quarterly terms-of-trade index (2017 = 100). Export prices relative to import prices.",
     whyBetter:
-      "Makes the geographic concentration visceral: the 'pivot' from the US is essentially one corridor (Netherlands rising to 141M); Mexico is flat at 22M and all other non-US is flat at 42M. The sector-pivot chart (Alt_TariffSectorPivot) asks 'is there a pivot?'; this chart answers 'to exactly where.'",
-    dataFields:
-      "exports_aluminum_us/nld/mex/nonus.csv — 12mma, CAD millions, 2020+",
+      "Demoted on 2026-05-14: flat at ~105 with little cycle movement; doesn't speak to whether the pivot is working. Better suited to a macro-cycle deep dive than the trade topic page.",
+    dataFields: "trade.json panel-5 (terms_of_trade)",
+    data: tradePanel5Data,
+    addedAt: "2026-05-14",
+  },
+  {
+    Component: TradePanel6FDIBySector,
+    file: "trade/Panel6FDIBySector.astro",
+    title: "FDI by sector: inward and outward (V1 — retired from production)",
+    whatDifferent:
+      "Sectoral foreign direct-investment flows from StatCan 36-10-0659-01.",
+    whyBetter:
+      "Demoted on 2026-05-14: annual frequency, disconnected from the current tariff cycle. Chart component was placeholder when promoted to alts.",
+    dataFields: "trade.json panel-6 (fdi_inward + fdi_outward by industry)",
+    data: tradePanel6Data,
     addedAt: "2026-05-14",
   },
 ];

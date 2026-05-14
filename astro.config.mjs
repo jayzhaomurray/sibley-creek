@@ -37,7 +37,6 @@ export default defineConfig({
   },
   redirects: {
     '/chart-improvements': '/chart-alternatives',
-    '/chart-improvements/': '/chart-alternatives/',
   },
   integrations: [
     sitemap({
