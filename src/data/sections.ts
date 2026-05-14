@@ -632,15 +632,14 @@ export const sections: Section[] = [
       kind: "last",
       date: "May 6, 2026",
       body:
-        "The goods trade balance narrowed to -$2.2B on a 3mma basis in March, per Statistics Canada, an $876M improvement from February. The US export share fell 2.5pp to 66.1%, the lowest reading in the available window and a continuation of the year-long drift down from the 76 to 80% range that held through 2024. The Q4 2025 current account narrowed to -$706M, a $4.6B improvement; terms of trade ticked up 0.6 to 105.5.",
+        "Not really. The US export share dropped from three quarters to two thirds in a year, but most of that is gold being routed to London at record prices; strip it out and the underlying share is down about three percentage points. Among the tariffed sectors, only aluminum has meaningfully diversified — autos lost over a billion dollars in US sales with almost no offset elsewhere.",
     },
     abstractCitations: [
-      { phrase: "narrowed to -$2.2B on a 3mma basis in March", source: "pipeline:statcan:12-10-0119-01", note: "Goods trade balance, 3-month moving average, March 2026." },
-      { phrase: "$876M improvement from February", source: "derived", note: "March 2026 3mma minus February 2026 3mma goods balance, StatCan 12-10-0119-01." },
-      { phrase: "US export share fell 2.5pp to 66.1%", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, March 2026; 2.5pp drop vs prior month." },
-      { phrase: "76 to 80% range that held through 2024", source: "pipeline:statcan:12-10-0121-01", note: "Enumerated US export share monthly series: trailing 12-month band sat in the 76-80% range across 2024." },
-      { phrase: "Q4 2025 current account narrowed to -$706M", source: "pipeline:statcan:36-10-0014-01", note: "Current account balance, Q4 2025." },
-      { phrase: "$4.6B improvement", source: "derived", note: "Q4 2025 current account (-$706M) minus Q3 2025 current account, StatCan 36-10-0014-01." },
+      { phrase: "from three quarters to two thirds in a year", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports: 74.4% (Mar 2025) ≈ three quarters; 66.1% (Mar 2026) ≈ two thirds." },
+      { phrase: "gold being routed to London at record prices", source: "derived", note: "NAPCS 35 (unwrought gold, silver, PGM) total exports March 2026: C$8.0B, of which C$7.8B (97.4%) to UK. Gold futures (GC=F) May 2026 monthly close ~$4,676/oz, a record. Sources: StatCan 12-10-0182-01 + Yahoo Finance GC=F." },
+      { phrase: "the underlying share is down about three percentage points", source: "derived", note: "Ex-gold US share: Mar 2025 = 77.7%; Mar 2026 = 74.6%; Δ = -3.1pp. NAPCS 35 stripped from both numerator and denominator. Sources: StatCan 12-10-0121-01 + 12-10-0182-01." },
+      { phrase: "only aluminum has meaningfully diversified", source: "derived", note: "Aluminum (NAPCS 32+38) US share: Mar 2025 = 96.9%; Mar 2026 = 86.0%; Δ = -10.9pp. Steel, softwood, cars each shed under 5pp. Source: StatCan 12-10-0182-01." },
+      { phrase: "autos lost over a billion dollars in US sales with almost no offset elsewhere", source: "derived", note: "NAPCS 81 (passenger cars and light trucks) Δ exports Mar 2026 vs Mar 2025: US -C$1,247M; non-US +C$42M. Source: StatCan 12-10-0182-01." },
     ],
   },
   {
