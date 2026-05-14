@@ -9,6 +9,7 @@ import Alt1_HpiMultiCity from "./Alt1_HpiMultiCity.astro";
 import Alt2_StartsSmoothing from "./Alt2_StartsSmoothing.astro";
 import Alt3_MortgageVsHpi from "./Alt3_MortgageVsHpi.astro";
 import Alt4_SnlrVsHpi from "./Alt4_SnlrVsHpi.astro";
+import Alt5_HpiCmaLevels from "./Alt5_HpiCmaLevels.astro";
 import Panel5MortgageStack from "./Panel5MortgageStack.astro";
 import Panel6PopulationStock from "./Panel6PopulationStock.astro";
 
@@ -57,6 +58,18 @@ export const entries: ChartShelfEntry[] = [
       "SNLR > 60 leads HPI acceleration by 3-6 months; the overlay makes the lead visible.",
     dataFields: "crea_snlr.csv + crea_mls_hpi.csv (Y/Y)",
     addedAt: "2026-05-12",
+  },
+  {
+    Component: Alt5_HpiCmaLevels,
+    file: "housing/Alt5_HpiCmaLevels.astro",
+    title: "Six-CMA MLS HPI in levels (companion to plate-1 Y/Y)",
+    whatDifferent:
+      "Series is index levels (Jan 2005 = 100) rather than Y/Y percent change. Window extends to 180 months (~15 years) so the full structural arc — pre-pandemic run-up, 2022 peak, correction — is visible in one frame.",
+    whyBetter:
+      "Y/Y is cyclical-state: it answers 'what is the momentum?' Levels are structural-state: they answer 'how far have prices come from the base?' A reader comparing Toronto 292 to Edmonton 241 to Vancouver 306 in index terms grasps affordability dispersion in one scan that the Y/Y chart cannot deliver.",
+    dataFields:
+      "crea_hpi_canada.csv, crea_hpi_toronto.csv, crea_hpi_vancouver.csv, crea_hpi_montreal.csv, crea_hpi_calgary.csv, crea_hpi_ottawa.csv, crea_hpi_edmonton.csv — levels direct (no transform)",
+    addedAt: "2026-05-13",
   },
   {
     Component: Panel5MortgageStack,
