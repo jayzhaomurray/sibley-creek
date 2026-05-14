@@ -1,0 +1,658 @@
+---
+/*
+ * Alt_GoldExportsAndPrice — "Gold exports surge with price."
+ *
+ * Two-panel composite, side-by-side, 720x405 (16:9).
+ *
+ * LEFT PANEL — GOLD EXPORTS
+ *   Primary:   total gold/PGM exports, monthly, CAD millions.
+ *              1.5px solid pure ink, MTA red 4px terminal dot.
+ *   Secondary: UK-destination exports, 1px dashed "4 2" pure ink, 0.65 opacity.
+ *   The UK line nearly overlaps total at the right edge (UK share ~97.4% in
+ *   Mar 2026). That visual coincidence is the editorial signal.
+ *   Y-axis: CAD millions, topmost tick carries "M" suffix.
+ *   Direct labels: "Total" (Manrope 600) and "UK" (Manrope 400).
+ *
+ * RIGHT PANEL — GOLD PRICE
+ *   Single line: monthly close, USD/oz.
+ *   1.5px solid pure ink, MTA red 4px terminal dot.
+ *   Y-axis: USD, topmost tick carries "$" prefix.
+ *   Direct label: "USD/oz" (Manrope 600).
+ *
+ * Window: 2020-01 through latest available for exports (2026-03);
+ * gold price through 2026-05.
+ *
+ * Mode B per-panel y-axis (units differ: CAD M vs USD/oz).
+ * Left panel y-ticks in left gutter (M_OUT_L).
+ * Right panel y-ticks in GAP_X gutter between panels.
+ *
+ * Data source: data/processed/ CSVs
+ *   exports_gold_total.csv — StatCan 12-10-0182-01, NAPCS 35
+ *   exports_gold_uk.csv    — same table, UK destination
+ *   gold_price_monthly.csv — monthly close, USD/oz
+ *
+ * Canon compliance (design/canon_reference_panel.md):
+ *   1.  Primary line: pure ink 1.5px solid. MTA red 4px terminal dot.
+ *   2.  Secondary line: pure ink 1px dashed "4 2", 0.65 opacity. No terminal dot.
+ *   3.  Y-axis: IBM Plex Mono 400 12px, per-panel (Mode B).
+ *   4.  X-axis: Manrope 400 12px, 3-4 ticks, bottom row only.
+ *   5.  1px pure ink hairline plot frame per panel.
+ *   6.  3 horizontal gridlines per panel, stroke-opacity 0.18.
+ *   7.  No legend. Direct end-of-line labels only.
+ *   8.  Native SVG <title> on hit areas. Zero client JS.
+ *   9.  viewBox 720x405.
+ *  10.  No __source paragraph below SVG (spec request).
+ *
+ * Methodology note (direct series, no derivation):
+ *   Both export series are direct pulls from StatCan 12-10-0182-01,
+ *   NAPCS chapter 35 (precious metals and non-monetary gold). Backend
+ *   caveat: ~85-90% of chapter-35 value is gold; silver and PGM
+ *   constitute the balance. Stated in caption.
+ *   Gold price is a monthly close series in USD/oz. No derivation,
+ *   no smoothing, no indexing.
+ */
+
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+// ---- Types -------------------------------------------------------------------
+type RawPoint = { date: string; value: number };
+
+// ---- CSV reader --------------------------------------------------------------
+function readProcessedCsv(slug: string): RawPoint[] {
+  const p = resolve(process.cwd(), "data", "processed", `${slug}.csv`);
+  let txt: string;
+  try {
+    txt = readFileSync(p, "utf-8");
+  } catch {
+    return [];
+  }
+  const lines = txt.split(/\r?\n/).filter((l) => l.length > 0);
+  const out: RawPoint[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i]!;
+    const idx = line.indexOf(",");
+    if (idx < 0) continue;
+    const date = line.slice(0, idx).trim();
+    const raw = line.slice(idx + 1).trim();
+    if (!date) continue;
+    const v = raw === "" || raw === "NA" || raw === "null" ? null : Number(raw);
+    if (typeof v === "number" && !Number.isNaN(v)) {
+      out.push({ date, value: v });
+    }
+  }
+  return out;
+}
+
+// ---- Load data ---------------------------------------------------------------
+const rawTotal = readProcessedCsv("exports_gold_total");
+const rawUk    = readProcessedCsv("exports_gold_uk");
+const rawPrice = readProcessedCsv("gold_price_monthly");
+
+// ---- Window: 2020-01 onward --------------------------------------------------
+const WIN_START = "2020-01-01";
+function win(pts: RawPoint[]): RawPoint[] {
+  return pts.filter((p) => p.date >= WIN_START);
+}
+
+const total = win(rawTotal);
+const uk    = win(rawUk);
+const price = win(rawPrice);
+
+// ---- decYear helper ----------------------------------------------------------
+function decYear(dateStr: string): number {
+  const [ys, ms] = dateStr.split("-");
+  const y = parseInt(ys ?? "2020", 10);
+  const m = parseInt(ms ?? "1", 10);
+  return y + (m - 0.5) / 12;
+}
+
+// ---- Y-scale helpers ---------------------------------------------------------
+function niceStep(lo: number, hi: number, target = 4): number {
+  const span = hi - lo;
+  if (span <= 0) return 1;
+  const raw = span / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  for (const f of [1, 2, 2.5, 5, 10]) {
+    const c = f * mag;
+    const n = Math.floor(span / c);
+    if (n >= 2 && n <= 6) return c;
+  }
+  return 10 * mag;
+}
+
+function computeAxisScale(
+  vals: number[],
+  target = 4,
+): { yLo: number; yHi: number; ticks: number[] } {
+  if (vals.length === 0) return { yLo: 0, yHi: 1, ticks: [0, 1] };
+  const dMin = Math.min(...vals);
+  const dMax = Math.max(...vals);
+  const span = dMax - dMin || 1;
+  const pad = span * 0.06;
+  const lo = dMin - pad;
+  const hi = dMax + pad;
+  const step = niceStep(lo, hi, target);
+  const tStart = Math.ceil(lo / step) * step;
+  const ticks: number[] = [];
+  for (let v = tStart; v <= hi + 1e-9; v += step) {
+    ticks.push(parseFloat(v.toFixed(6)));
+  }
+  // Clamp to 2-5 ticks
+  while (ticks.length > 5) ticks.splice(Math.floor(ticks.length / 2), 1);
+  if (ticks.length < 2) return { yLo: lo, yHi: hi, ticks: [lo, hi] };
+  const finalLo = ticks[0]! - step * 0.1;
+  const finalHi = ticks[ticks.length - 1]! + step * 0.1;
+  return { yLo: finalLo, yHi: finalHi, ticks };
+}
+
+// ---- Left panel (exports) y-axis ---------------------------------------------
+const totalVals = total.map((p) => p.value);
+const ukVals    = uk.map((p) => p.value);
+const leftAxis  = computeAxisScale([...totalVals, ...ukVals], 4);
+
+// ---- Right panel (price) y-axis ----------------------------------------------
+const priceVals  = price.map((p) => p.value);
+const rightAxis  = computeAxisScale(priceVals, 4);
+
+// ---- Tick formatter ----------------------------------------------------------
+function fmtLeftTick(v: number, isTop: boolean): string {
+  const n = Math.round(v);
+  return isTop ? `${n}M` : String(n);
+}
+
+function fmtRightTick(v: number, isTop: boolean): string {
+  const n = Math.round(v / 100) * 100;
+  return isTop ? `$${n}` : String(n);
+}
+
+// ---- Shared x-domain ---------------------------------------------------------
+// Covers both panels: 2020-01 to max of both latest dates
+const allDates = [...total, ...price].map((p) => decYear(p.date));
+const xMin = Math.min(...allDates);
+const xMax = Math.max(...allDates);
+
+// ---- Geometry ----------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+
+// Outer margins
+const M_OUT_L = 46;   // left outer gutter — left panel y-ticks
+const M_R     = 12;   // right outer margin — right panel label room
+const M_T     = 28;   // top
+const M_B     = 36;   // bottom — x-tick labels
+
+// Gap between panels — right panel y-ticks live here
+const GAP_X = 52;
+
+// Total plot area
+const TOTAL_W = VB_W - M_OUT_L - M_R;
+const TOTAL_H = VB_H - M_T - M_B;
+
+// Panel widths: left gets slightly more since UK/Total label needs room
+const LEFT_W  = Math.round(TOTAL_W * 0.50);
+const RIGHT_W = TOTAL_W - LEFT_W - GAP_X;
+
+// Panel boundaries
+const LP_X0 = M_OUT_L;
+const LP_X1 = LP_X0 + LEFT_W;
+const LP_Y0 = M_T;
+const LP_Y1 = LP_Y0 + TOTAL_H;
+
+const RP_X0 = LP_X1 + GAP_X;
+const RP_X1 = RP_X0 + RIGHT_W;
+const RP_Y0 = M_T;
+const RP_Y1 = RP_Y0 + TOTAL_H;
+
+// ---- Scale factories ---------------------------------------------------------
+function makeXScale(x0: number, x1: number): (xv: number) => number {
+  return (xv: number) => x0 + ((xv - xMin) / (xMax - xMin || 1)) * (x1 - x0);
+}
+
+function makeYScale(
+  yLo: number,
+  yHi: number,
+  y0: number,
+  y1: number,
+): (v: number) => number {
+  return (v: number) => y0 + (y1 - y0) - ((v - yLo) / (yHi - yLo || 1)) * (y1 - y0);
+}
+
+const leftXScale  = makeXScale(LP_X0, LP_X1);
+const leftYScale  = makeYScale(leftAxis.yLo, leftAxis.yHi, LP_Y0, LP_Y1);
+const rightXScale = makeXScale(RP_X0, RP_X1);
+const rightYScale = makeYScale(rightAxis.yLo, rightAxis.yHi, RP_Y0, RP_Y1);
+
+// ---- Path builder ------------------------------------------------------------
+function buildPath(
+  pts: RawPoint[],
+  xScale: (x: number) => number,
+  yScale: (v: number) => number,
+): string {
+  let d = "";
+  let started = false;
+  for (const pt of pts) {
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) { started = false; continue; }
+    const px = xScale(xv).toFixed(2);
+    const py = yScale(pt.value).toFixed(2);
+    d += started ? `L${px} ${py} ` : `M${px} ${py} `;
+    started = true;
+  }
+  return d.trim();
+}
+
+// ---- Paths -------------------------------------------------------------------
+const totalPath = buildPath(total, leftXScale, leftYScale);
+const ukPath    = buildPath(uk,    leftXScale, leftYScale);
+const pricePath = buildPath(price, rightXScale, rightYScale);
+
+// ---- Terminal points ---------------------------------------------------------
+const totalLast = total[total.length - 1]!;
+const ukLast    = uk[uk.length - 1]!;
+const priceLast = price[price.length - 1]!;
+
+const totalLastX = leftXScale(decYear(totalLast.date));
+const totalLastY = leftYScale(totalLast.value);
+const ukLastX    = leftXScale(decYear(ukLast.date));
+const ukLastY    = leftYScale(ukLast.value);
+const priceLastX = rightXScale(decYear(priceLast.date));
+const priceLastY = rightYScale(priceLast.value);
+
+// ---- Direct label positions --------------------------------------------------
+// "Total" label — right of terminal dot, clamped within right margin of left panel
+const LABEL_GAP = 8;
+const totalLabelX = Math.min(totalLastX + LABEL_GAP, LP_X1 - 2);
+const totalLabelY = totalLastY + 4;
+
+// "UK" label — same logic; separate vertically if close
+const ukLabelX = Math.min(ukLastX + LABEL_GAP, LP_X1 - 2);
+const rawUkLabelY = ukLastY + 4;
+// UK is nearly coincident with total — if within 12px, push down
+const ukLabelY = Math.abs(rawUkLabelY - totalLabelY) < 12
+  ? totalLabelY + 14
+  : rawUkLabelY;
+
+// "USD/oz" label for right panel
+const priceLabelX = Math.min(priceLastX + LABEL_GAP, RP_X1 + 50);
+const priceLabelY = priceLastY + 4;
+
+// ---- X-ticks — shared (same date domain for both panels) --------------------
+// 4 ticks: 2020, 2022, 2024, 2026
+const X_TICK_YEARS = [2020, 2022, 2024, 2026];
+
+interface XTick { xLeft: number; xRight: number; label: string }
+const xTicks: XTick[] = X_TICK_YEARS
+  .map((yr) => {
+    const xv = yr + 0.5 / 12;
+    if (xv < xMin - 0.1 || xv > xMax + 0.1) return null;
+    return {
+      xLeft:  leftXScale(xv),
+      xRight: rightXScale(xv),
+      label:  String(yr),
+    };
+  })
+  .filter((t): t is XTick => t !== null);
+
+// ---- Latest values (for aria-label) -----------------------------------------
+const latestTotalFmt = Math.round(totalLast.value).toLocaleString();
+const latestPriceFmt = Math.round(priceLast.value).toLocaleString();
+const latestDate = totalLast.date.slice(0, 7);
+---
+
+<div class="gep-chart" data-panel="alt-trade-gold">
+  <svg
+    class="gep-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={`Two-panel composite: left panel shows Canadian gold and PGM exports to all countries and to the UK, monthly CAD millions, January 2020 to March 2026; total exports reached ${latestTotalFmt} million in March 2026 with the UK absorbing 97 percent. Right panel shows gold price in USD per ounce through May 2026 at ${latestPriceFmt}.`}
+  >
+
+    <!-- =====================================================================
+         LEFT PANEL — GOLD EXPORTS
+         ===================================================================== -->
+
+    <!-- Panel label -->
+    <text
+      class="gep-chart__panel-label"
+      x={LP_X0}
+      y={LP_Y0 - 10}
+    >GOLD EXPORTS</text>
+
+    <!-- Gridlines — left panel -->
+    {leftAxis.ticks.map((v) => {
+      const yv = leftYScale(v);
+      if (yv < LP_Y0 - 0.5 || yv > LP_Y1 + 0.5) return null;
+      return (
+        <line
+          class="gep-chart__gridline"
+          x1={LP_X0}
+          y1={yv.toFixed(2)}
+          x2={LP_X1}
+          y2={yv.toFixed(2)}
+        />
+      );
+    })}
+
+    <!-- UK line (secondary: dashed 1px, 0.65 opacity) — behind total -->
+    {ukPath && (
+      <path class="gep-chart__line--secondary" d={ukPath} />
+    )}
+
+    <!-- Total line (primary: solid 1.5px) -->
+    {totalPath && (
+      <path class="gep-chart__line--primary" d={totalPath} />
+    )}
+
+    <!-- Hit areas — total (every 3rd point) -->
+    {total.filter((_p, i) => i % 3 === 0).map((pt) => {
+      const cx = leftXScale(decYear(pt.date));
+      const cy = leftYScale(pt.value);
+      return (
+        <circle class="gep-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="5">
+          <title>{`Gold exports (total) — ${pt.date}: CAD ${Math.round(pt.value).toLocaleString()}M`}</title>
+        </circle>
+      );
+    })}
+
+    <!-- Hit areas — UK (every 3rd point) -->
+    {uk.filter((_p, i) => i % 3 === 0).map((pt) => {
+      const cx = leftXScale(decYear(pt.date));
+      const cy = leftYScale(pt.value);
+      return (
+        <circle class="gep-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="5">
+          <title>{`Gold exports (UK) — ${pt.date}: CAD ${Math.round(pt.value).toLocaleString()}M`}</title>
+        </circle>
+      );
+    })}
+
+    <!-- MTA red terminal dot — total only -->
+    <circle
+      class="gep-chart__latest-dot"
+      cx={totalLastX.toFixed(2)}
+      cy={totalLastY.toFixed(2)}
+      r="4"
+    >
+      <title>{`Latest — ${totalLast.date}: CAD ${Math.round(totalLast.value).toLocaleString()}M total gold exports`}</title>
+    </circle>
+
+    <!-- Plot frame — left panel -->
+    <rect
+      class="gep-chart__frame"
+      x={LP_X0}
+      y={LP_Y0}
+      width={LP_X1 - LP_X0}
+      height={LP_Y1 - LP_Y0}
+    />
+
+    <!-- Y-axis tick labels — left panel (in left gutter) -->
+    {leftAxis.ticks.map((v, i) => {
+      const yv = leftYScale(v);
+      if (yv < LP_Y0 - 2 || yv > LP_Y1 + 2) return null;
+      const isTop = i === leftAxis.ticks.length - 1;
+      return (
+        <text
+          class="gep-chart__ytick-label"
+          x={(LP_X0 - 6).toFixed(1)}
+          y={(yv + 4).toFixed(1)}
+          text-anchor="end"
+        >
+          {fmtLeftTick(v, isTop)}
+        </text>
+      );
+    })}
+
+    <!-- Direct end-of-line labels — left panel -->
+    <text
+      class="gep-chart__direct-label--primary"
+      x={totalLabelX.toFixed(1)}
+      y={totalLabelY.toFixed(1)}
+    >Total</text>
+
+    <text
+      class="gep-chart__direct-label--secondary"
+      x={ukLabelX.toFixed(1)}
+      y={ukLabelY.toFixed(1)}
+    >UK</text>
+
+    <!-- X-axis ticks — left panel (bottom) -->
+    {xTicks.map((t) => {
+      if (t.xLeft < LP_X0 - 1 || t.xLeft > LP_X1 + 1) return null;
+      return (
+        <text
+          class="gep-chart__xtick-label"
+          x={t.xLeft.toFixed(1)}
+          y={(LP_Y1 + 16).toFixed(1)}
+          text-anchor="middle"
+        >
+          {t.label}
+        </text>
+      );
+    })}
+
+
+    <!-- =====================================================================
+         RIGHT PANEL — GOLD PRICE
+         ===================================================================== -->
+
+    <!-- Panel label -->
+    <text
+      class="gep-chart__panel-label"
+      x={RP_X0}
+      y={RP_Y0 - 10}
+    >GOLD PRICE</text>
+
+    <!-- Gridlines — right panel -->
+    {rightAxis.ticks.map((v) => {
+      const yv = rightYScale(v);
+      if (yv < RP_Y0 - 0.5 || yv > RP_Y1 + 0.5) return null;
+      return (
+        <line
+          class="gep-chart__gridline"
+          x1={RP_X0}
+          y1={yv.toFixed(2)}
+          x2={RP_X1}
+          y2={yv.toFixed(2)}
+        />
+      );
+    })}
+
+    <!-- Price line (primary: solid 1.5px) -->
+    {pricePath && (
+      <path class="gep-chart__line--primary" d={pricePath} />
+    )}
+
+    <!-- Hit areas — price (every 3rd point) -->
+    {price.filter((_p, i) => i % 3 === 0).map((pt) => {
+      const cx = rightXScale(decYear(pt.date));
+      const cy = rightYScale(pt.value);
+      return (
+        <circle class="gep-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="5">
+          <title>{`Gold price — ${pt.date}: USD ${Math.round(pt.value).toLocaleString()}/oz`}</title>
+        </circle>
+      );
+    })}
+
+    <!-- MTA red terminal dot — price -->
+    <circle
+      class="gep-chart__latest-dot"
+      cx={priceLastX.toFixed(2)}
+      cy={priceLastY.toFixed(2)}
+      r="4"
+    >
+      <title>{`Latest — ${priceLast.date}: USD ${Math.round(priceLast.value).toLocaleString()}/oz`}</title>
+    </circle>
+
+    <!-- Plot frame — right panel -->
+    <rect
+      class="gep-chart__frame"
+      x={RP_X0}
+      y={RP_Y0}
+      width={RP_X1 - RP_X0}
+      height={RP_Y1 - RP_Y0}
+    />
+
+    <!-- Y-axis tick labels — right panel (in GAP_X gutter, left-aligned) -->
+    {rightAxis.ticks.map((v, i) => {
+      const yv = rightYScale(v);
+      if (yv < RP_Y0 - 2 || yv > RP_Y1 + 2) return null;
+      const isTop = i === rightAxis.ticks.length - 1;
+      return (
+        <text
+          class="gep-chart__ytick-label"
+          x={(RP_X0 - 6).toFixed(1)}
+          y={(yv + 4).toFixed(1)}
+          text-anchor="end"
+        >
+          {fmtRightTick(v, isTop)}
+        </text>
+      );
+    })}
+
+    <!-- Direct end-of-line label — right panel -->
+    <text
+      class="gep-chart__direct-label--primary"
+      x={priceLabelX.toFixed(1)}
+      y={priceLabelY.toFixed(1)}
+    >USD/oz</text>
+
+    <!-- X-axis ticks — right panel (bottom) -->
+    {xTicks.map((t) => {
+      if (t.xRight < RP_X0 - 1 || t.xRight > RP_X1 + 1) return null;
+      return (
+        <text
+          class="gep-chart__xtick-label"
+          x={t.xRight.toFixed(1)}
+          y={(RP_Y1 + 16).toFixed(1)}
+          text-anchor="middle"
+        >
+          {t.label}
+        </text>
+      );
+    })}
+
+  </svg>
+
+  <p class="gep-chart__caption">
+    Gold and PGM exports, NAPCS 35 (gold + silver + PGM, ~85-90% gold by value). UK destination
+    share: {(ukLast.value / totalLast.value * 100).toFixed(1)}% ({latestDate}).
+    Gold price: monthly close, USD/oz.
+    Sources: Statistics Canada 12-10-0182-01; gold price series.
+  </p>
+</div>
+
+<style>
+  .gep-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: var(--paper);
+  }
+
+  .gep-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans);
+  }
+
+  /* Panel label: Manrope 600, 11px micro-caps, pure ink */
+  .gep-chart__panel-label {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    fill: var(--ink);
+  }
+
+  /* Gridlines: pure ink at 0.18 opacity */
+  .gep-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    fill: none;
+  }
+
+  /* Primary data line: 1.5px solid pure ink */
+  .gep-chart__line--primary {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Secondary data line: 1px dashed pure ink, 0.65 opacity */
+  .gep-chart__line--secondary {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-opacity: 0.65;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* MTA red terminal dot */
+  .gep-chart__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  /* Hit areas: invisible, hover via native <title> */
+  .gep-chart__hit {
+    fill: transparent;
+    stroke: none;
+    cursor: default;
+  }
+
+  /* Plot frame: 1px pure ink hairline */
+  .gep-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+  }
+
+  /* Y-axis tick labels: IBM Plex Mono 400 12px */
+  .gep-chart__ytick-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    fill: var(--ink);
+  }
+
+  /* X-axis tick labels: Manrope 400 12px */
+  .gep-chart__xtick-label {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+    fill: var(--ink);
+  }
+
+  /* Direct end-of-line label, primary: Manrope 600 13px */
+  .gep-chart__direct-label--primary {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: var(--fw-semibold);
+    fill: var(--ink);
+  }
+
+  /* Direct end-of-line label, secondary: Manrope 400 13px */
+  .gep-chart__direct-label--secondary {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 400;
+    fill: var(--ink);
+  }
+
+  /* Caption beneath SVG */
+  .gep-chart__caption {
+    margin: 6px 0 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink);
+    opacity: 0.55;
+    line-height: 1.4;
+  }
+</style>

@@ -1,0 +1,562 @@
+---
+/*
+ * Alt_AluminumByDestination — "Where does Canadian aluminum go?"
+ *
+ * Four 2x2 small-multiples panels: United States / Netherlands / Mexico /
+ * All other non-US (non-US total minus Netherlands minus Mexico).
+ *
+ * Each panel carries a single 12mma level line in CAD millions.
+ *
+ * Visual rationale (Option A over B/C):
+ *   US 12mma ≈ 772M, Netherlands ≈ 141M, Mexico ≈ 22M, all-other ≈ 42M.
+ *   Small-multiples with per-panel y-axes (Mode B) makes the concentration
+ *   visceral: one large panel, one meaningfully rising panel, two flat
+ *   panels near zero. A single-chart layout (Option B) compresses the
+ *   non-US lines unreadably against the US scale; a stacked-area of non-US
+ *   only (Option C) hides the US context that motivates the question.
+ *   Four panels tell the story without indexes or dual axes.
+ *
+ * Smoothing: 12-month moving average on NSA monthly data.
+ *   NSA rationale: NAPCS sub-chapter aluminum export data carries
+ *   seasonal patterns (infrastructure procurement cycles, smelter
+ *   maintenance windows). 12mma removes seasonal noise while preserving
+ *   the trend that matters editorially — whether non-US destinations are
+ *   structurally absorbing volume that used to go south. Raw monthly
+ *   dots are not included (panel size too small; adds clutter without
+ *   editorial payoff).
+ *
+ * Mode B y-axis: US (~200–900M) vs Netherlands (0–200M) vs Mexico/other
+ *   (0–60M) are order-of-magnitude apart. Per design-system.md "Small
+ *   multiples" Mode B rule: each panel carries its own y-tick labels.
+ *   Shared axis (Mode A) would compress smaller panels to flat lines
+ *   identical in shape to the "all other" flat.
+ *
+ * "All other non-US" construction: exports_aluminum_nonus minus
+ *   exports_aluminum_nld minus exports_aluminum_mex. These three
+ *   (NLD + MEX + other) sum to total non-US aluminum exports per
+ *   the StatCan NAPCS 32+38 aggregation. The residual "other" bucket
+ *   covers GBR, CHN, JPN, DEU, KOR, FRA, BEL, IND, SGP — each under
+ *   $2M/month on raw basis, collectively flat ~42M 12mma at Mar 2026.
+ *
+ * Data source: StatCan Table 12-10-0182-01 (NAPCS 32+38 summed),
+ *   monthly NSA, CAD millions.
+ *   Processed CSVs: data/processed/exports_aluminum_*.csv
+ *
+ * Window: 2020-01 onward. 2020 start captures both the pandemic demand
+ *   shock and the two post-2025 tariff cycles. Pre-2020 is stable and
+ *   editorially inert for the concentration question.
+ *
+ * Latest 12mma values (2026-03):
+ *   United States: 772.4 M CAD
+ *   Netherlands:   141.0 M CAD
+ *   Mexico:         21.8 M CAD
+ *   All other:      42.4 M CAD
+ *
+ * Canon compliance (design/canon_reference_panel.md):
+ *   1. Single solid 1.5px pure ink line per panel.
+ *   2. MTA red 4px terminal dot on each panel's line terminus.
+ *   3. 1px pure ink hairline frame per sub-panel.
+ *   4. 2-3 horizontal gridlines per panel.
+ *   5. Y-axis: IBM Plex Mono 11px, right-aligned per-panel ticks.
+ *   6. X-axis: Manrope 11px, bottom row only.
+ *   7. Sub-panel headings: Manrope 600, 11px, micro-caps, above frame.
+ *   8. No legend. No color on data line. No client JS.
+ *   9. Native SVG <title> per sampled data point.
+ *  10. viewBox 720x405.
+ */
+
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+// ---- Type helpers -------------------------------------------------------------
+type RawPoint = { date: string; value: number };
+
+function readProcessedCsv(slug: string): RawPoint[] {
+  const p = resolve(process.cwd(), "data", "processed", `${slug}.csv`);
+  let txt: string;
+  try {
+    txt = readFileSync(p, "utf-8");
+  } catch {
+    return [];
+  }
+  const lines = txt.split(/\r?\n/).filter((l) => l.length > 0);
+  const out: RawPoint[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i]!;
+    const idx = line.indexOf(",");
+    if (idx < 0) continue;
+    const date = line.slice(0, idx).trim();
+    const raw = line.slice(idx + 1).trim();
+    if (!date) continue;
+    const v = raw === "" || raw === "NA" || raw === "null" ? NaN : Number(raw);
+    if (!Number.isNaN(v)) out.push({ date, value: v });
+  }
+  return out;
+}
+
+// ---- 12-month moving average -------------------------------------------------
+function mma12(pts: RawPoint[]): RawPoint[] {
+  const out: RawPoint[] = [];
+  for (let i = 11; i < pts.length; i++) {
+    let sum = 0;
+    for (let j = i - 11; j <= i; j++) sum += pts[j]!.value;
+    out.push({ date: pts[i]!.date, value: sum / 12 });
+  }
+  return out;
+}
+
+// ---- Load raw series ----------------------------------------------------------
+const rawUs    = readProcessedCsv("exports_aluminum_us");
+const rawNld   = readProcessedCsv("exports_aluminum_nld");
+const rawMex   = readProcessedCsv("exports_aluminum_mex");
+const rawNonUs = readProcessedCsv("exports_aluminum_nonus");
+
+// Compute "all other non-US" = nonus - nld - mex (date-aligned)
+function subtractSeries(base: RawPoint[], ...subs: RawPoint[][]): RawPoint[] {
+  const maps = subs.map((s) => new Map(s.map((p) => [p.date, p.value])));
+  return base.map((p) => {
+    let v = p.value;
+    for (const m of maps) v -= (m.get(p.date) ?? 0);
+    return { date: p.date, value: v };
+  });
+}
+
+const rawOther = subtractSeries(rawNonUs, rawNld, rawMex);
+
+// ---- Apply 12mma then window 2020+ ------------------------------------------
+const WIN_START = "2020-01-01";
+
+function win(pts: RawPoint[]): RawPoint[] {
+  return pts.filter((p) => p.date >= WIN_START);
+}
+
+const usData    = win(mma12(rawUs));
+const nldData   = win(mma12(rawNld));
+const mexData   = win(mma12(rawMex));
+const otherData = win(mma12(rawOther));
+
+// ---- Sub-panel definitions ---------------------------------------------------
+const subPanels = [
+  { label: "UNITED STATES", data: usData },
+  { label: "NETHERLANDS",   data: nldData },
+  { label: "MEXICO",        data: mexData },
+  { label: "ALL OTHER NON-US", data: otherData },
+] as const;
+
+// ---- Geometry ----------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+
+const M_L = 46;   // left margin for y-tick labels
+const M_R = 12;
+const M_T = 32;   // top room for sub-panel labels
+const M_B = 36;   // bottom room for x-tick labels
+
+const GRID_W = VB_W - M_L - M_R;   // 662
+const GRID_H = VB_H - M_T - M_B;   // 337
+
+const NUM_COLS = 2;
+const NUM_ROWS = 2;
+const GAP_X = 40;  // wide gutter — per-panel y-ticks on right column need room
+const GAP_Y = 22;
+
+const CELL_W = (GRID_W - GAP_X * (NUM_COLS - 1)) / NUM_COLS;   // ~311
+const CELL_H = (GRID_H - GAP_Y * (NUM_ROWS - 1)) / NUM_ROWS;   // ~157.5
+
+const GRID_POSITIONS = [
+  [0, 0], // United States
+  [1, 0], // Netherlands
+  [0, 1], // Mexico
+  [1, 1], // All other
+] as const;
+
+function cellOrigin(col: number, row: number): [number, number] {
+  const x0 = M_L + col * (CELL_W + GAP_X);
+  const y0 = M_T + row * (CELL_H + GAP_Y);
+  return [x0, y0];
+}
+
+// ---- decYear helper ----------------------------------------------------------
+function decYear(dateStr: string): number {
+  const [ys, ms] = dateStr.split("-");
+  const y = parseInt(ys ?? "2000", 10);
+  const m = parseInt(ms ?? "1", 10);
+  return y + (m - 0.5) / 12;
+}
+
+// ---- Y-scale helpers ---------------------------------------------------------
+function niceStep(lo: number, hi: number, target = 3): number {
+  const span = hi - lo;
+  if (span <= 0) return 10;
+  const raw = span / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  for (const f of [1, 2, 2.5, 5, 10]) {
+    const c = f * mag;
+    const n = Math.floor(span / c);
+    if (n >= 2 && n <= 5) return c;
+  }
+  return 10 * mag;
+}
+
+function computeYDomain(pts: RawPoint[]): [number, number] {
+  const vals = pts.map((p) => p.value);
+  if (vals.length === 0) return [0, 100];
+  const lo = Math.min(...vals);
+  const hi = Math.max(...vals);
+  const span = hi - lo || 10;
+  const pad = span * 0.08;
+  // Always include 0 in the domain for absolute level charts
+  return [Math.min(0, lo - pad), hi + pad];
+}
+
+function buildYTicks(yLo: number, yHi: number): number[] {
+  const stride = niceStep(yLo, yHi, 3);
+  const start = Math.ceil(yLo / stride) * stride;
+  const ticks: number[] = [];
+  for (let v = start; v <= yHi + 1e-9; v += stride) {
+    ticks.push(parseFloat(v.toFixed(6)));
+  }
+  if (ticks.length > 4) {
+    const mid = Math.floor(ticks.length / 2);
+    return [ticks[0]!, ticks[mid]!, ticks[ticks.length - 1]!];
+  }
+  return ticks.length >= 2 ? ticks : [Math.round(yLo / 10) * 10, Math.round(yHi / 10) * 10];
+}
+
+function fmtTick(v: number, isTop: boolean): string {
+  // Top tick carries "M" unit suffix (CAD millions)
+  const rounded = Math.round(v);
+  return isTop ? `${rounded}M` : `${rounded}`;
+}
+
+// ---- X-ticks ----------------------------------------------------------------
+function buildXTicks(
+  xMinV: number,
+  xMaxV: number,
+  xScale: (x: number) => number,
+): Array<{ x: number; label: string }> {
+  const years = [2020, 2022, 2024];
+  return years
+    .map((yr) => {
+      const dv = yr + 0.5 / 12;
+      if (dv < xMinV || dv > xMaxV) return null;
+      return { x: xScale(dv), label: String(yr) };
+    })
+    .filter((t): t is { x: number; label: string } => t !== null);
+}
+
+// ---- Path builder ------------------------------------------------------------
+function buildPath(
+  pts: RawPoint[],
+  xScale: (x: number) => number,
+  yScale: (v: number) => number,
+): string {
+  let d = "";
+  let started = false;
+  for (const pt of pts) {
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) { started = false; continue; }
+    const px = xScale(xv).toFixed(2);
+    const py = yScale(pt.value).toFixed(2);
+    d += started ? `L${px} ${py} ` : `M${px} ${py} `;
+    started = true;
+  }
+  return d.trim();
+}
+
+// ---- Shared x-domain ---------------------------------------------------------
+let xMin = Infinity;
+let xMax = -Infinity;
+for (const sp of subPanels) {
+  for (const pt of sp.data) {
+    const v = decYear(pt.date);
+    if (!Number.isNaN(v)) {
+      if (v < xMin) xMin = v;
+      if (v > xMax) xMax = v;
+    }
+  }
+}
+if (!Number.isFinite(xMin)) { xMin = 2020; xMax = 2026.5; }
+
+// ---- Per-panel computed geometry --------------------------------------------
+interface PanelGeom {
+  label: string;
+  col: number;
+  row: number;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  yLo: number;
+  yHi: number;
+  yTicks: number[];
+  path: string;
+  pts: RawPoint[];
+  latest: RawPoint | null;
+  latestX: number;
+  latestY: number;
+  xTicks: Array<{ x: number; label: string }>;
+  isBottomRow: boolean;
+}
+
+const geoms: PanelGeom[] = subPanels.map((sp, idx) => {
+  const pos = GRID_POSITIONS[idx]!;
+  const col = pos[0];
+  const row = pos[1];
+  const [x0, y0] = cellOrigin(col, row);
+  const x1 = x0 + CELL_W;
+  const y1 = y0 + CELL_H;
+
+  const [yLo, yHi] = computeYDomain(sp.data as RawPoint[]);
+  const yTicks = buildYTicks(yLo, yHi);
+
+  const xScale = (xv: number) => x0 + ((xv - xMin) / (xMax - xMin || 1)) * CELL_W;
+  const yScale = (v: number)  => y1 - ((v - yLo) / (yHi - yLo || 1)) * CELL_H;
+
+  const pts = sp.data as RawPoint[];
+  const path = buildPath(pts, xScale, yScale);
+
+  const latest = pts.length > 0 ? pts[pts.length - 1]! : null;
+  const latestX = latest ? xScale(decYear(latest.date)) : 0;
+  const latestY = latest ? yScale(latest.value) : 0;
+
+  const xTicks = buildXTicks(xMin, xMax, xScale);
+
+  return {
+    label: sp.label,
+    col, row,
+    x0, y0, x1, y1,
+    yLo, yHi, yTicks,
+    path, pts,
+    latest, latestX, latestY,
+    xTicks,
+    isBottomRow: row === NUM_ROWS - 1,
+  };
+});
+
+const latestDate = geoms[0]?.latest?.date ?? "2026-03-01";
+const latestYear = latestDate.slice(0, 4);
+---
+
+<div class="abd-chart" data-panel="alt-trade-aluminum-dest">
+  <svg
+    class="abd-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={`Canadian aluminum exports by destination: four panels showing United States, Netherlands, Mexico, and all other non-US markets, 12-month moving average in CAD millions, 2020 to ${latestYear}.`}
+  >
+    {geoms.map((g) => {
+      return (
+        <g class="abd-chart__cell" data-series={g.label}>
+
+          {/* --- Horizontal gridlines --- */}
+          {g.yTicks.map((v) => {
+            const yv = g.y1 - ((v - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
+            if (yv < g.y0 - 1 || yv > g.y1 + 1) return null;
+            return (
+              <line
+                class="abd-chart__gridline"
+                x1={g.x0}
+                y1={yv.toFixed(2)}
+                x2={g.x1}
+                y2={yv.toFixed(2)}
+              />
+            );
+          })}
+
+          {/* --- Data line (solid 1.5px ink) --- */}
+          {g.path && (
+            <path class="abd-chart__line" d={g.path} />
+          )}
+
+          {/* --- Hit areas for native SVG title tooltips --- */}
+          {g.pts.filter((_: RawPoint, i: number) => i % 3 === 0).map((pt: RawPoint) => {
+            const xv = g.x0 + ((decYear(pt.date) - xMin) / (xMax - xMin || 1)) * CELL_W;
+            const yv = g.y1 - ((pt.value - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
+            return (
+              <circle class="abd-chart__hit" cx={xv.toFixed(2)} cy={yv.toFixed(2)} r="5">
+                <title>{`${g.label} — ${pt.date}: ${pt.value.toFixed(1)} M CAD (12mma)`}</title>
+              </circle>
+            );
+          })}
+
+          {/* --- MTA red terminal dot --- */}
+          {g.latest && (
+            <circle
+              class="abd-chart__latest-dot"
+              cx={g.latestX.toFixed(2)}
+              cy={g.latestY.toFixed(2)}
+              r="4"
+            >
+              <title>{`${g.label} latest — ${g.latest.date}: ${g.latest.value.toFixed(1)} M CAD (12mma)`}</title>
+            </circle>
+          )}
+
+          {/* --- Plot frame (1px hairline, drawn on top) --- */}
+          <rect
+            class="abd-chart__frame"
+            x={g.x0}
+            y={g.y0}
+            width={CELL_W.toFixed(2)}
+            height={CELL_H.toFixed(2)}
+          />
+
+          {/* --- Sub-panel heading (micro-caps) --- */}
+          <text
+            class="abd-chart__panel-label"
+            x={(g.x0 + 5).toFixed(2)}
+            y={(g.y0 - 7).toFixed(2)}
+          >{g.label}</text>
+
+          {/* --- Y-axis tick labels (Mode B — every panel) --- */}
+          {g.yTicks.map((v, i) => {
+            const yv = g.y1 - ((v - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
+            if (yv < g.y0 - 2 || yv > g.y1 + 2) return null;
+            const isTop = i === g.yTicks.length - 1;
+            const txt = fmtTick(v, isTop);
+            return (
+              <text
+                class="abd-chart__ytick-label"
+                x={(g.x0 - 5).toFixed(2)}
+                y={(yv + 4).toFixed(2)}
+                text-anchor="end"
+              >{txt}</text>
+            );
+          })}
+
+          {/* --- X-axis ticks + labels (bottom row only) --- */}
+          {g.isBottomRow && g.xTicks.map((t) => (
+            <g>
+              <line
+                class="abd-chart__xtick"
+                x1={t.x.toFixed(2)}
+                y1={g.y1.toFixed(2)}
+                x2={t.x.toFixed(2)}
+                y2={(g.y1 + 4).toFixed(2)}
+              />
+              <text
+                class="abd-chart__xtick-label"
+                x={t.x.toFixed(2)}
+                y={(g.y1 + 16).toFixed(2)}
+                text-anchor="middle"
+              >{t.label}</text>
+            </g>
+          ))}
+
+        </g>
+      );
+    })}
+
+    {/* --- Bottom subtitle --- */}
+    <text
+      class="abd-chart__subtitle"
+      x={M_L}
+      y={(VB_H - 8).toFixed(2)}
+    >12-month moving average, CAD millions. StatCan 12-10-0182-01 (NAPCS 32+38).</text>
+
+  </svg>
+</div>
+
+<style>
+  /*
+   * Alt_AluminumByDestination — Vignelli canon small-multiples.
+   * Single series per panel: solid 1.5px ink line + MTA red terminal dot.
+   * Mode B per-panel y-axis (US ~200-900M vs others 0-200M — disparate magnitudes).
+   */
+
+  .abd-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper, #fff);
+    overflow: visible;
+  }
+
+  .abd-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans, 'Manrope', sans-serif);
+  }
+
+  .abd-chart__gridline {
+    stroke: var(--ink, #000);
+    stroke-width: 1;
+    stroke-opacity: 0.12;
+    shape-rendering: crispEdges;
+  }
+
+  /* Data line — solid 1.5px pure ink */
+  .abd-chart__line {
+    stroke: var(--ink, #000);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Invisible hit-areas for native SVG <title> hover */
+  .abd-chart__hit {
+    fill: transparent;
+    pointer-events: all;
+  }
+
+  /* Latest-print dot — MTA red */
+  .abd-chart__latest-dot {
+    fill: var(--accent, #E63946);
+    stroke: none;
+  }
+
+  /* Plot frame — 1px pure ink hairline */
+  .abd-chart__frame {
+    fill: none;
+    stroke: var(--ink, #000);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Sub-panel heading — Manrope 600, micro-caps, 11px */
+  .abd-chart__panel-label {
+    fill: var(--ink, #000);
+    font-family: var(--font-sans, 'Manrope', sans-serif);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+
+  /* Y-axis tick labels — IBM Plex Mono 400, 11px */
+  .abd-chart__ytick-label {
+    fill: var(--ink-faint, #555);
+    font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+    font-size: 11px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* X-axis tick marks */
+  .abd-chart__xtick {
+    stroke: var(--ink, #000);
+    stroke-width: 1;
+    stroke-opacity: 0.4;
+    shape-rendering: crispEdges;
+  }
+
+  /* X-axis tick labels — Manrope 400, 11px */
+  .abd-chart__xtick-label {
+    fill: var(--ink-faint, #555);
+    font-family: var(--font-sans, 'Manrope', sans-serif);
+    font-size: 11px;
+    font-weight: 400;
+  }
+
+  /* Bottom subtitle */
+  .abd-chart__subtitle {
+    fill: var(--ink-faint, #555);
+    font-family: var(--font-sans, 'Manrope', sans-serif);
+    font-size: 10px;
+    font-weight: 400;
+  }
+</style>
