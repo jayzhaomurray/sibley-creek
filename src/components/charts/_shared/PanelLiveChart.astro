@@ -96,6 +96,14 @@ interface Props {
    *  leftmost x (i.e., the line starts above the band on the historical
    *  side, like inflation core measures during the 2022-23 spike). */
   bandLabelPosition?: "above" | "below";
+  /**
+   * Override the y-axis tick stride (data-space units). When set, the
+   * auto-computed nice stride from pickStride() is replaced with this exact
+   * value. Use when the auto stride produces aesthetically wrong results
+   * for a specific domain (e.g. 2.5pp ticks on a 65-80% range instead of
+   * the editorially cleaner 5pp). Default null (auto).
+   */
+  yTickStride?: number | null;
   /** data-panel attribute for QA / theming hooks. */
   dataPanelAttr?: string;
 }
@@ -118,6 +126,7 @@ const {
   referenceLabelSecondary = null,
   referenceBand = null,
   bandLabelPosition = "above",
+  yTickStride = null,
   dataPanelAttr,
 } = Astro.props;
 
@@ -330,7 +339,9 @@ function pickStride(lo: number, hi: number, targetTicks = 5): number {
   else nice = 10;
   return nice * mag;
 }
-const yStride = pickStride(yLo, yHi);
+const yStride = (yTickStride !== null && yTickStride !== undefined && yTickStride > 0)
+  ? yTickStride
+  : pickStride(yLo, yHi);
 const yTicks: number[] = [];
 const start = Math.ceil(yLo / yStride) * yStride;
 for (let v = start; v <= yHi + 1e-9; v += yStride) {

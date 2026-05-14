@@ -336,7 +336,9 @@ export function fmtTick(value: number, kind: ValueKind, isTop: boolean): string 
 function pickPercentDec(v: number): number {
   const a = Math.abs(v);
   if (a >= 100) return 0;
-  if (a >= 10) return 1;
+  // Drop the decimal when the value is a whole number (e.g. stride lands on
+  // 65, 70, 75 -> render "65%" not "65.0%"). Fractional ticks keep 1 decimal.
+  if (Number.isInteger(v)) return 0;
   return 1;
 }
 

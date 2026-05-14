@@ -15,6 +15,7 @@ import Alt4_TermsTradeVsWti from "./Alt4_TermsTradeVsWti.astro";
 // Demoted-from-production: kept on the alt shelf for reference.
 import TradePanel1TradeBalance from "../../trade/Panel1TradeBalance.astro";
 import TradePanel2CurrentAccount from "../../trade/Panel2CurrentAccountV2.astro";
+import TradePanel4TariffState from "../../trade/Panel4TariffState.astro";
 import TradePanel5TermsOfTrade from "../../trade/Panel5TermsOfTradeV2.astro";
 import TradePanel6FDIBySector from "../../trade/Panel6FDIBySector.astro";
 
@@ -68,6 +69,17 @@ export const entries: ChartShelfEntry[] = [
     dataFields:
       "trade.json panel-5 (terms_of_trade) + wti.csv indexed",
     addedAt: "2026-05-12",
+  },
+  {
+    Component: TradePanel4TariffState,
+    file: "trade/Panel4TariffState.astro",
+    title: "Tariff state: US trade actions affecting Canada (V2 — retired from production)",
+    whatDifferent:
+      "Horizontal-bar tracker filtered to in-force tariff actions only, deduped by sector to the most recent proclamation, with under-review actions in a footer line. Successor to V1 (Alt_Panel4TariffState_V1) which mixed in-force and superseded rows.",
+    whyBetter:
+      "Demoted on 2026-05-14: source-card-driven content carries staleness risk that we just got bit by (the IEEPA cards were three months stale when the underlying authority was struck down by SCOTUS in Feb 2026). The other four trade plates are all StatCan + Yahoo data-driven, no manual maintenance required. The tariff tracker would belong in a Tariff page or methodology page with explicit verification cadence, not on a trade topic page where data-driven plates already carry the pivot thesis.",
+    dataFields: "data/derived/tariff_state.json (filtered to status === 'in_force')",
+    addedAt: "2026-05-14",
   },
   {
     Component: TradePanel1TradeBalance,

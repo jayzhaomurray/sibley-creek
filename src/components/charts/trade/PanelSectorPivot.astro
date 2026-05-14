@@ -145,7 +145,7 @@ function win(pts: RawPoint[]): RawPoint[] {
 // ---- Sub-panel definitions ---------------------------------------------------
 // Order per spec: steel, aluminum, softwood, autos (Section 232 stack ordering)
 const subPanels = [
-  { label: "STEEL",    usData: win(steelUsIdx),    nonData: win(steelNonIdx)    },
+  { label: "STEEL EXPORTS", usData: win(steelUsIdx),    nonData: win(steelNonIdx)    },
   { label: "ALUMINUM", usData: win(alumUsIdx),     nonData: win(alumNonIdx)     },
   { label: "SOFTWOOD", usData: win(softwoodUsIdx), nonData: win(softwoodNonIdx) },
   { label: "AUTOS",    usData: win(autosUsIdx),    nonData: win(autosNonIdx)    },
@@ -157,7 +157,7 @@ const VB_H = 405;
 
 // Outer margins — left gutter for y-tick labels (left column only, Mode A)
 const M_L = 46;
-const M_R = 10;
+const M_R = 52;  // right gutter: holds Non-US EOL label + pad
 const M_T = 32;   // room for panel labels above each cell
 const M_B = 36;   // bottom row x-tick labels
 
@@ -507,17 +507,17 @@ const latestYear = latestDate.slice(0, 4);
           {g.nonLatest && (
             <text
               class="tsp-chart__eol-label"
-              x={(g.x1 - 4).toFixed(2)}
+              x={(g.x1 + 5).toFixed(2)}
               y={(finalNonLblY + 4).toFixed(2)}
-              text-anchor="end"
+              text-anchor="start"
             >Non-US</text>
           )}
           {g.usLatest && (
             <text
               class="tsp-chart__eol-label tsp-chart__eol-label--secondary"
-              x={(g.x1 - 4).toFixed(2)}
+              x={(g.x1 + 5).toFixed(2)}
               y={(usLblY + 4).toFixed(2)}
-              text-anchor="end"
+              text-anchor="start"
             >US</text>
           )}
 
@@ -525,22 +525,15 @@ const latestYear = latestDate.slice(0, 4);
           {g.refY >= g.y0 && g.refY <= g.y1 && (
             <text
               class="tsp-chart__ref-label"
-              x={(g.x0 + 4).toFixed(2)}
+              x={(g.x0 - 4).toFixed(2)}
               y={(g.refY - 3).toFixed(2)}
-              text-anchor="start"
+              text-anchor="end"
             >100</text>
           )}
 
         </g>
       );
     })}
-
-    {/* --- Global chart subtitle (bottom-left) --- */}
-    <text
-      class="tsp-chart__subtitle"
-      x={M_L}
-      y={(VB_H - 8).toFixed(2)}
-    >12-month moving average, indexed Jan 2020 = 100. Solid = non-US, dashed = US.</text>
 
   </svg>
 </div>
@@ -685,11 +678,4 @@ const latestYear = latestDate.slice(0, 4);
     fill-opacity: 0.45;
   }
 
-  /* Bottom subtitle line */
-  .tsp-chart__subtitle {
-    fill: var(--ink-faint, #555);
-    font-family: var(--font-sans, 'Manrope', sans-serif);
-    font-size: 10px;
-    font-weight: 400;
-  }
 </style>

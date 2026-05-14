@@ -151,9 +151,13 @@ const totalVals = total.map((p) => p.value);
 const ukVals    = uk.map((p) => p.value);
 const leftAxis  = computeAxisScale([...totalVals, ...ukVals], 4);
 
-// ---- Right panel (price) y-axis ----------------------------------------------
-const priceVals  = price.map((p) => p.value);
-const rightAxis  = computeAxisScale(priceVals, 4);
+// ---- Right panel (price) y-axis — fixed floor at $1000, explicit ticks ------
+// Floor fixed at 1000 so the 2020 values (~$1564) sit comfortably above the
+// base and the top tick at $5000 gives headroom above the May-2026 ~$4676 read.
+const RP_Y_LO = 1000;
+const RP_Y_HI = 5200; // headroom above May-2026 reading of ~4676
+const RP_TICKS = [1000, 2000, 3000, 4000, 5000];
+const rightAxis = { yLo: RP_Y_LO, yHi: RP_Y_HI, ticks: RP_TICKS };
 
 // ---- Tick formatter ----------------------------------------------------------
 function fmtLeftTick(v: number, isTop: boolean): string {
@@ -162,8 +166,9 @@ function fmtLeftTick(v: number, isTop: boolean): string {
 }
 
 function fmtRightTick(v: number, isTop: boolean): string {
-  const n = Math.round(v / 100) * 100;
-  return isTop ? `$${n}` : String(n);
+  // Ticks are exact multiples of 1000; $ prefix on topmost only
+  const n = Math.round(v);
+  return isTop ? `$${n.toLocaleString()}` : n.toLocaleString();
 }
 
 // ---- Shared x-domain ---------------------------------------------------------
@@ -260,18 +265,21 @@ const priceLastX = rightXScale(decYear(priceLast.date));
 const priceLastY = rightYScale(priceLast.value);
 
 // ---- Direct label positions --------------------------------------------------
-// "Total" label — right of terminal dot, clamped within right margin of left panel
-const LABEL_GAP = 8;
-const totalLabelX = Math.min(totalLastX + LABEL_GAP, LP_X1 - 2);
+// Labels anchor text-anchor="start" in the right gutter of the left panel —
+// i.e., to the right of LP_X1, inside the GAP_X zone. This ensures they
+// never touch the data lines inside the plot area and never collide with the
+// right-panel y-ticks (which anchor text-anchor="end" at RP_X0 - 6).
+const LABEL_GAP = 7;           // horizontal gap from frame right edge to label
+const LABEL_MIN_SEP = 14;      // minimum vertical separation between stacked labels
+
+const totalLabelX = LP_X1 + LABEL_GAP;
 const totalLabelY = totalLastY + 4;
 
-// "UK" label — same logic; separate vertically if close
-const ukLabelX = Math.min(ukLastX + LABEL_GAP, LP_X1 - 2);
-const rawUkLabelY = ukLastY + 4;
-// UK is nearly coincident with total — if within 12px, push down
-const ukLabelY = Math.abs(rawUkLabelY - totalLabelY) < 12
-  ? totalLabelY + 14
-  : rawUkLabelY;
+// UK terminal is nearly coincident with total — stack down by LABEL_MIN_SEP if needed
+const ukLabelX = LP_X1 + LABEL_GAP;
+const ukLabelY = Math.abs(ukLastY - totalLastY) < LABEL_MIN_SEP
+  ? totalLabelY + LABEL_MIN_SEP
+  : ukLastY + 4;
 
 // "USD/oz" label for right panel
 const priceLabelX = Math.min(priceLastX + LABEL_GAP, RP_X1 + 50);
@@ -379,13 +387,12 @@ const latestDate = totalLast.date.slice(0, 7);
       );
     })}
 
-    <!-- MTA red terminal dot — total only -->
+    <!-- MTA red terminal dot — total only (no clip-path: dot must always be visible) -->
     <circle
       class="gep-chart__latest-dot"
       cx={totalLastX.toFixed(2)}
       cy={totalLastY.toFixed(2)}
       r="4"
-      clip-path="url(#clip-left)"
     >
       <title>{`Latest — ${totalLast.date}: CAD ${Math.round(totalLast.value).toLocaleString()}M total gold exports`}</title>
     </circle>
@@ -416,17 +423,19 @@ const latestDate = totalLast.date.slice(0, 7);
       );
     })}
 
-    <!-- Direct end-of-line labels — left panel -->
+    <!-- Direct end-of-line labels — right gutter of left panel, clear of lines -->
     <text
       class="gep-chart__direct-label--primary"
       x={totalLabelX.toFixed(1)}
       y={totalLabelY.toFixed(1)}
+      text-anchor="start"
     >Total</text>
 
     <text
       class="gep-chart__direct-label--secondary"
       x={ukLabelX.toFixed(1)}
       y={ukLabelY.toFixed(1)}
+      text-anchor="start"
     >UK</text>
 
     <!-- X-axis ticks — left panel (bottom) -->
@@ -448,13 +457,6 @@ const latestDate = totalLast.date.slice(0, 7);
     <!-- =====================================================================
          RIGHT PANEL — GOLD PRICE
          ===================================================================== -->
-
-    <!-- Panel label -->
-    <text
-      class="gep-chart__panel-label"
-      x={RP_X0}
-      y={RP_Y0 - 10}
-    >GOLD PRICE</text>
 
     <!-- Gridlines — right panel -->
     {rightAxis.ticks.map((v) => {
@@ -487,13 +489,12 @@ const latestDate = totalLast.date.slice(0, 7);
       );
     })}
 
-    <!-- MTA red terminal dot — price -->
+    <!-- MTA red terminal dot — price (no clip-path: dot must always be visible) -->
     <circle
       class="gep-chart__latest-dot"
       cx={priceLastX.toFixed(2)}
       cy={priceLastY.toFixed(2)}
       r="4"
-      clip-path="url(#clip-right)"
     >
       <title>{`Latest — ${priceLast.date}: USD ${Math.round(priceLast.value).toLocaleString()}/oz`}</title>
     </circle>
