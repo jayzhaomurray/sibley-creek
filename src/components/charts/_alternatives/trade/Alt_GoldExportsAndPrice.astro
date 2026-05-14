@@ -189,9 +189,9 @@ const GAP_X = 52;
 const TOTAL_W = VB_W - M_OUT_L - M_R;
 const TOTAL_H = VB_H - M_T - M_B;
 
-// Panel widths: left gets slightly more since UK/Total label needs room
-const LEFT_W  = Math.round(TOTAL_W * 0.50);
-const RIGHT_W = TOTAL_W - LEFT_W - GAP_X;
+// Panel widths: equal — GAP_X sits between them, not inside either panel.
+const LEFT_W  = Math.round((TOTAL_W - GAP_X) / 2);
+const RIGHT_W = TOTAL_W - GAP_X - LEFT_W;
 
 // Panel boundaries
 const LP_X0 = M_OUT_L;
@@ -310,6 +310,18 @@ const latestDate = totalLast.date.slice(0, 7);
   >
 
     <!-- =====================================================================
+         CLIP PATHS — one per panel so lines never escape the plot frame
+         ===================================================================== -->
+    <defs>
+      <clipPath id="clip-left">
+        <rect x={LP_X0} y={LP_Y0} width={LEFT_W} height={TOTAL_H} />
+      </clipPath>
+      <clipPath id="clip-right">
+        <rect x={RP_X0} y={RP_Y0} width={RIGHT_W} height={TOTAL_H} />
+      </clipPath>
+    </defs>
+
+    <!-- =====================================================================
          LEFT PANEL — GOLD EXPORTS
          ===================================================================== -->
 
@@ -337,12 +349,12 @@ const latestDate = totalLast.date.slice(0, 7);
 
     <!-- UK line (secondary: dashed 1px, 0.65 opacity) — behind total -->
     {ukPath && (
-      <path class="gep-chart__line--secondary" d={ukPath} />
+      <path class="gep-chart__line--secondary" d={ukPath} clip-path="url(#clip-left)" />
     )}
 
     <!-- Total line (primary: solid 1.5px) -->
     {totalPath && (
-      <path class="gep-chart__line--primary" d={totalPath} />
+      <path class="gep-chart__line--primary" d={totalPath} clip-path="url(#clip-left)" />
     )}
 
     <!-- Hit areas — total (every 3rd point) -->
@@ -350,7 +362,7 @@ const latestDate = totalLast.date.slice(0, 7);
       const cx = leftXScale(decYear(pt.date));
       const cy = leftYScale(pt.value);
       return (
-        <circle class="gep-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="5">
+        <circle class="gep-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="5" clip-path="url(#clip-left)">
           <title>{`Gold exports (total) — ${pt.date}: CAD ${Math.round(pt.value).toLocaleString()}M`}</title>
         </circle>
       );
@@ -361,7 +373,7 @@ const latestDate = totalLast.date.slice(0, 7);
       const cx = leftXScale(decYear(pt.date));
       const cy = leftYScale(pt.value);
       return (
-        <circle class="gep-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="5">
+        <circle class="gep-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="5" clip-path="url(#clip-left)">
           <title>{`Gold exports (UK) — ${pt.date}: CAD ${Math.round(pt.value).toLocaleString()}M`}</title>
         </circle>
       );
@@ -373,6 +385,7 @@ const latestDate = totalLast.date.slice(0, 7);
       cx={totalLastX.toFixed(2)}
       cy={totalLastY.toFixed(2)}
       r="4"
+      clip-path="url(#clip-left)"
     >
       <title>{`Latest — ${totalLast.date}: CAD ${Math.round(totalLast.value).toLocaleString()}M total gold exports`}</title>
     </circle>
@@ -460,7 +473,7 @@ const latestDate = totalLast.date.slice(0, 7);
 
     <!-- Price line (primary: solid 1.5px) -->
     {pricePath && (
-      <path class="gep-chart__line--primary" d={pricePath} />
+      <path class="gep-chart__line--primary" d={pricePath} clip-path="url(#clip-right)" />
     )}
 
     <!-- Hit areas — price (every 3rd point) -->
@@ -468,7 +481,7 @@ const latestDate = totalLast.date.slice(0, 7);
       const cx = rightXScale(decYear(pt.date));
       const cy = rightYScale(pt.value);
       return (
-        <circle class="gep-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="5">
+        <circle class="gep-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="5" clip-path="url(#clip-right)">
           <title>{`Gold price — ${pt.date}: USD ${Math.round(pt.value).toLocaleString()}/oz`}</title>
         </circle>
       );
@@ -480,6 +493,7 @@ const latestDate = totalLast.date.slice(0, 7);
       cx={priceLastX.toFixed(2)}
       cy={priceLastY.toFixed(2)}
       r="4"
+      clip-path="url(#clip-right)"
     >
       <title>{`Latest — ${priceLast.date}: USD ${Math.round(priceLast.value).toLocaleString()}/oz`}</title>
     </circle>
@@ -545,14 +559,13 @@ const latestDate = totalLast.date.slice(0, 7);
 <style>
   .gep-chart {
     width: 100%;
-    aspect-ratio: 16 / 9;
     background: var(--paper);
   }
 
   .gep-chart__svg {
     display: block;
     width: 100%;
-    height: 100%;
+    height: auto;
     font-family: var(--font-sans);
   }
 
