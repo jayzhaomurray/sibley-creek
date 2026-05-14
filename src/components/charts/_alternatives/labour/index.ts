@@ -24,6 +24,7 @@ import Alt4_VacanciesVsEI from "./Alt4_VacanciesVsEI.astro";
 import Alt5_URDecompIdentity from "./Alt5_URDecompIdentity.astro";
 import Alt6_ShimerDecomp from "./Alt6_ShimerDecomp.astro";
 import Alt7_PopulationDecomposition from "./Alt7_PopulationDecomposition.astro";
+import Alt8_PopulationDemand from "./Alt8_PopulationDemand.astro";
 import Alt_Panel2LabourSharesOfPop from "./Alt_Panel2LabourSharesOfPop.astro";
 import Alt_Panel2LabourStocksYoY from "./Alt_Panel2LabourStocksYoY.astro";
 
@@ -96,6 +97,17 @@ export const entries: ChartShelfEntry[] = [
     dataFields:
       "unemployment_level.csv + unemployment_rate.csv + unemployment_1_to_4_weeks.csv (E derived from LFS identity)",
     addedAt: "2026-05-12",
+  },
+  {
+    Component: Alt8_PopulationDemand,
+    file: "labour/Alt8_PopulationDemand.astro",
+    title: "Population level and Y/Y growth, two-panel composite",
+    whatDifferent:
+      "Two-panel chart: left = total Canadian population level (quarterly, since 2010); right = Y/Y growth rate computed in-component from the same level series. Built for the housing section's demand-fundamentals slot but moved to labour alts — population is a people story, not a housing story.",
+    whyBetter:
+      "Cleaner than the full decomposition: just shows the shape (surge to ~3% Y/Y in 2023-24, collapse to -0.25% Y/Y in 2026 Q1 — first negative print in over a decade) without the noise of stacked components. Editorial focus on direction rather than composition.",
+    dataFields: "pop_total.csv (StatCan 17-10-0009-01, quarterly).",
+    addedAt: "2026-05-13",
   },
   {
     Component: Alt7_PopulationDecomposition,

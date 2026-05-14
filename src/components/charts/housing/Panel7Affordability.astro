@@ -1,34 +1,43 @@
 ---
 /*
- * Panel7Affordability - BoC Housing Affordability index.
+ * Panel7Affordability — BoC qualifying-mortgage-payment-to-income ratio.
+ * Tier-3 single-panel chart, housing section.
  *
- * Wave 5 addition. Section 4.4 Housing, Panel 7. The flow-side
- * complement to Panel 5's stock-side mortgage snapshot: Panel 5 says
- * "what is the existing book paying," Panel 7 says "what would a new
- * borrower pay against current income." The series is the BoC's
- * qualifying-mortgage-payment-to-income ratio, quarterly, with long
- * history (BoC publishes from 1981).
+ * Series: INDINF_AFFORD_Q via BoC Valet (pipeline slot housing_affordability).
+ * Values arrive as decimals (0.427 = 42.7%); multiply by 100 for % display.
+ * Window: full pipeline history (2000 Q1 – present, 104 quarters as of refresh
+ * 2026-05-13). BoC Valet availability starts 2000; 1981 history not in Valet.
+ * Frequency: quarterly. Series is already smooth — no moving average needed.
  *
- * Pipeline emits `housing_affordability` (primary), quarterly, as an
- * index. No transform toggle in v1 - the index is already the
- * transformation per Wave 5 brief 2. Vintage stamp handled in panel
- * meta (last-refreshed footer); standard pattern.
+ * Single annotation band: pandemic 2020-03 to 2022-03 only.
+ * Band fill: rgba(21, 23, 26, 0.08) — canon rule 9 ink wash (~8% opacity).
+ * Band label: "PANDEMIC" uppercase micro-caps, near top of plot area.
  *
- * Annotation overlays (shaded tightening-episode bands for 1989-1991,
- * 2007-2008, 2022-2024) are deferred until researcher supplies exact
- * band start / end dates; until then, render-clean default.
+ * Y-axis: integer % ticks at step 10 (range auto-fitted to data).
+ *   Topmost tick carries "%" suffix.
+ * X-axis: 5 decade-spaced ticks across the 25-year window.
  *
- * Default window: max history (1981 onward). PanelLiveChart's
- * windowMonths default is 60 months (5 years); we widen to 600 (50
- * years) so the long-history framing the editorial brief calls for
- * actually surfaces. Quarterly frequency adjusts the tailWindow stride
- * (~8-tick floor preserves the early years even at long windows).
+ * No source paragraph below SVG — source attribution on the plate metadata
+ * strip (housing.astro plate.source). Per chart-builder.md rule 2026-05-13.
  *
- * No synthetic-data fallback. PanelEmpty when data has not landed.
+ * Canon compliance (Tier-3 single panel):
+ *  #1  1.5px solid pure ink line.
+ *  #2  MTA red terminal dot, 4px radius.
+ *  #3  1px pure-ink hairline plot frame.
+ *  #4  Horizontal gridlines at 0.18 ink opacity.
+ *  #5  Y-tick labels IBM Plex Mono 11px, in M_OUT_L gutter; topmost tick "%" suffix.
+ *  #6  X-tick labels Manrope 11px, 5 ticks.
+ *  #9  Single pandemic band, ink wash 0.08, PANDEMIC label micro-caps.
+ *  #13 viewBox 720x405, preserveAspectRatio xMidYMid meet.
+ *  #14 aspect-ratio 16/9 on wrapper.
+ *  #15 SVG role="img" aria-label.
+ *  #17 No section-accent, no series-color tokens.
+ *  #18 var(--paper) background.
+ *  No direct end-of-line label — single unambiguous series needs none.
  */
 
-import type { PanelData } from "../_shared/panelData";
-import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import type { PanelData, SeriesPoint } from "../_shared/panelData";
+import { decYear } from "../_shared/panelData";
 import PanelEmpty from "../_shared/PanelEmpty.astro";
 
 interface Props {
@@ -36,16 +45,371 @@ interface Props {
 }
 
 const { data = null } = Astro.props;
+
+// ---------------------------------------------------------------------------
+// Data prep — multiply decimal ratio by 100 to get percent
+// ---------------------------------------------------------------------------
+
+const rawSeries: SeriesPoint[] = (data?.primary?.data ?? []).map((pt) => ({
+  date: pt.date,
+  value: typeof pt.value === "number" && !Number.isNaN(pt.value)
+    ? pt.value * 100
+    : null,
+}));
+
+const hasData = rawSeries.length > 0;
+
+// ---------------------------------------------------------------------------
+// Scales
+// ---------------------------------------------------------------------------
+
+const allX: number[] = rawSeries
+  .map((pt) => decYear(pt.date))
+  .filter((v) => !Number.isNaN(v));
+const xMin = allX.length > 0 ? Math.min(...allX) : 2000;
+const xMax = allX.length > 0 ? Math.max(...allX) : 2026;
+
+const allY: number[] = rawSeries
+  .filter((pt): pt is SeriesPoint & { value: number } =>
+    typeof pt.value === "number" && !Number.isNaN(pt.value)
+  )
+  .map((pt) => pt.value);
+const yDataMin = allY.length > 0 ? Math.min(...allY) : 20;
+const yDataMax = allY.length > 0 ? Math.max(...allY) : 60;
+
+// Nice integer ticks at step 10.
+// Floor data min to the nearest step below (no extra pad — the step already
+// gives one full tick of breathing room below the data).
+// Ceil data max to the nearest step above similarly.
+const Y_STEP = 10;
+const Y_LO = Math.floor(yDataMin / Y_STEP) * Y_STEP;
+const Y_HI = Math.ceil(yDataMax / Y_STEP) * Y_STEP;
+const Y_RANGE = Y_HI - Y_LO;
+
+const Y_TICKS: number[] = [];
+for (let v = Y_LO; v <= Y_HI; v += Y_STEP) Y_TICKS.push(v);
+
+// ---------------------------------------------------------------------------
+// Layout constants (M_OUT_L gutter pattern, same as Panel2Activity)
+// ---------------------------------------------------------------------------
+
+const VB_W = 720;
+const VB_H = 405;
+const M_OUT_L = 36;   // y-tick label gutter (3-digit "%" values at 11px mono)
+const M_R = 16;       // right margin — no direct label for single series
+const M_T = 28;       // top
+const M_B = 36;       // bottom for x-ticks
+const PLOT_X0 = M_OUT_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_OUT_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+const xScale = (xv: number): number =>
+  PLOT_X0 + ((xv - xMin) / (xMax - xMin || 1)) * PLOT_W;
+
+const yScale = (v: number): number =>
+  PLOT_Y0 + PLOT_H - ((v - Y_LO) / (Y_RANGE || 1)) * PLOT_H;
+
+// ---------------------------------------------------------------------------
+// X-ticks: 5 decade-spaced anchors across the ~25-year window
+// 2000, 2005, 2010, 2015, 2020, 2025 → pick 5 that fit (drop 2000 if crowded)
+// ---------------------------------------------------------------------------
+
+const X_TICK_YEARS = [2000, 2005, 2010, 2015, 2020, 2025];
+const xTicks: Array<{ x: number; label: string }> = [];
+for (const yr of X_TICK_YEARS) {
+  const dy = yr + (1 - 0.5) / 12; // mid-January anchor
+  if (dy >= xMin - 0.5 && dy <= xMax + 0.5) {
+    xTicks.push({ x: xScale(dy), label: String(yr) });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Data path
+// ---------------------------------------------------------------------------
+
+function buildPath(
+  series: SeriesPoint[],
+  xs: (xv: number) => number,
+  ys: (v: number) => number,
+): string {
+  let p = "";
+  let started = false;
+  for (const pt of series) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) {
+      started = false;
+      continue;
+    }
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    if (!started) {
+      p += "M" + xs(xv).toFixed(2) + " " + ys(pt.value).toFixed(2) + " ";
+      started = true;
+    } else {
+      p += "L" + xs(xv).toFixed(2) + " " + ys(pt.value).toFixed(2) + " ";
+    }
+  }
+  return p.trim();
+}
+
+const mainPath = buildPath(rawSeries, xScale, yScale);
+
+// ---------------------------------------------------------------------------
+// Terminal dot
+// ---------------------------------------------------------------------------
+
+let dotX: number | null = null;
+let dotY: number | null = null;
+let latestValue: number | null = null;
+let latestDate: string | null = null;
+
+for (let i = rawSeries.length - 1; i >= 0; i--) {
+  const pt = rawSeries[i]!;
+  if (typeof pt.value === "number" && !Number.isNaN(pt.value)) {
+    const xv = decYear(pt.date);
+    if (!Number.isNaN(xv)) {
+      dotX = xScale(xv);
+      dotY = yScale(pt.value);
+      latestValue = pt.value;
+      latestDate = pt.date;
+    }
+    break;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pandemic annotation band: 2020-03 to 2022-03
+// Quarterly dates: 2020-03-01 (Q1 2020) through 2022-03-01 (Q1 2022 inclusive)
+// ---------------------------------------------------------------------------
+
+const PANDEMIC_START = 2020 + (3 - 0.5) / 12; // mid-March 2020
+const PANDEMIC_END   = 2022 + (3 - 0.5) / 12; // mid-March 2022
+
+const bandX0 = xScale(PANDEMIC_START);
+const bandX1 = xScale(PANDEMIC_END);
+const bandW  = bandX1 - bandX0;
+
+// Label sits near top of plot (PLOT_Y0 + 14px down)
+const bandLabelX = bandX0 + bandW / 2;
+const bandLabelY = PLOT_Y0 + 14;
+
+// ---------------------------------------------------------------------------
+// Aria label
+// ---------------------------------------------------------------------------
+
+const ariaLabel =
+  "BoC qualifying-mortgage-payment-to-income ratio, quarterly, 2000 to present. " +
+  (latestValue !== null && latestDate !== null
+    ? `Latest ${latestDate.slice(0, 7)}: ${latestValue.toFixed(1)}%.`
+    : "");
 ---
-{data && data.primary ? (
-  <PanelLiveChart
-    primary={data.primary}
-    secondary={data.secondary}
-    primaryLabel="Affordability"
-    windowMonths={600}
-    dataPanelAttr="housing-7"
-    ariaLabel="BoC housing affordability index, qualifying mortgage payment to income, quarterly."
-  />
+
+{hasData ? (
+  <div class="p7aff" data-panel="housing-panel-7">
+    <svg
+      class="p7aff__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {/* Pandemic annotation band — behind gridlines and data */}
+      <rect
+        class="p7aff__band"
+        x={bandX0.toFixed(2)}
+        y={PLOT_Y0.toFixed(2)}
+        width={bandW.toFixed(2)}
+        height={PLOT_H.toFixed(2)}
+      />
+      <text
+        class="p7aff__band-label"
+        x={bandLabelX.toFixed(2)}
+        y={bandLabelY.toFixed(2)}
+        text-anchor="middle"
+      >PANDEMIC</text>
+
+      {/* Horizontal gridlines at every y-tick */}
+      {Y_TICKS.map((v) => {
+        const yy = yScale(v);
+        return (
+          <line
+            class="p7aff__gridline"
+            x1={PLOT_X0.toFixed(2)} y1={yy.toFixed(2)}
+            x2={PLOT_X1.toFixed(2)} y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      {/* Main data line */}
+      <path
+        class="p7aff__line"
+        d={mainPath}
+        fill="none"
+      />
+
+      {/* Plot frame: 1px hairline */}
+      <rect
+        class="p7aff__frame"
+        x={PLOT_X0} y={PLOT_Y0}
+        width={PLOT_W} height={PLOT_H}
+      />
+
+      {/* X-axis ticks and labels */}
+      {xTicks.map((t) => (
+        <g>
+          <line
+            class="p7aff__xtick"
+            x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="p7aff__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 16).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* Y-axis tick labels in M_OUT_L gutter; topmost carries "%" suffix */}
+      {Y_TICKS.map((v, idx) => {
+        const yy = yScale(v);
+        const isTop = idx === Y_TICKS.length - 1;
+        const txt = v.toFixed(0) + (isTop ? "%" : "");
+        return (
+          <text
+            class="p7aff__ytick-label"
+            x={(PLOT_X0 - 5).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{txt}</text>
+        );
+      })}
+
+      {/* MTA red terminal dot */}
+      {dotX !== null && dotY !== null && (
+        <circle
+          class="p7aff__latest-dot"
+          cx={dotX.toFixed(2)}
+          cy={dotY.toFixed(2)}
+          r="4"
+        >
+          <title>{`${latestDate?.slice(0, 7) ?? ""}: ${latestValue !== null ? latestValue.toFixed(1) : ""}%`}</title>
+        </circle>
+      )}
+
+      {/* Hit-area circles for tooltip text on each data point */}
+      {rawSeries.map((pt) => {
+        if (typeof pt.value !== "number" || Number.isNaN(pt.value)) return null;
+        const xv = decYear(pt.date);
+        if (Number.isNaN(xv)) return null;
+        return (
+          <circle
+            cx={xScale(xv).toFixed(2)}
+            cy={yScale(pt.value).toFixed(2)}
+            r="4"
+            fill="transparent"
+            stroke="none"
+          >
+            <title>{`${pt.date.slice(0, 7)}: ${(pt.value).toFixed(1)}%`}</title>
+          </circle>
+        );
+      })}
+    </svg>
+  </div>
 ) : (
-  <PanelEmpty reason="Pipeline did not emit panel-7 data." />
+  <PanelEmpty reason="Panel-7 primary data absent." />
 )}
+
+<style>
+  .p7aff {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+
+  .p7aff__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  /* Pandemic annotation band */
+  .p7aff__band {
+    fill: rgba(21, 23, 26, 0.08);
+    stroke: none;
+  }
+
+  /* Band label: micro-caps Manrope 600, ink at reduced opacity */
+  .p7aff__band-label {
+    fill: var(--ink);
+    fill-opacity: 0.45;
+    font-family: var(--font-sans);
+    font-size: 9px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  /* Horizontal gridlines */
+  .p7aff__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+
+  /* Main data line: 1.5px solid pure ink */
+  .p7aff__line {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Plot frame: 1px pure-ink hairline */
+  .p7aff__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* X-axis tick marks */
+  .p7aff__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* X-axis tick labels: Manrope 400 11px */
+  .p7aff__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Y-axis tick labels: IBM Plex Mono 400 11px */
+  .p7aff__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* MTA red terminal dot */
+  .p7aff__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+</style>

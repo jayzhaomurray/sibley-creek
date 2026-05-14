@@ -1,0 +1,696 @@
+---
+/*
+ * Panel2Activity - Housing starts + units under construction, composite 2-panel.
+ *
+ * Layout: 2 sub-panels side-by-side within a 720x405 viewBox.
+ *   Left panel:  HOUSING STARTS       (data.primary,   housing_starts, monthly SAAR)
+ *   Right panel: UNITS UNDER CONSTRUCTION (data.secondary, units_under_construction, quarterly SAAR)
+ *
+ * Each panel shows:
+ *   - Raw monthly/quarterly level (1px dashed 4-2, no terminal dot) — the comparator
+ *   - 12-month moving average (1.5px solid, MTA red terminal dot) — the main line
+ *
+ * 12mma computation (in-component, build time):
+ *   - Starts (monthly):  rolling arithmetic mean of the last 12 monthly observations.
+ *   - UC (quarterly):    rolling arithmetic mean of the last 4 quarterly observations
+ *                        (= 12-month equivalent for a quarterly series).
+ *   Both computed from the windowed (2016+) raw series at each observation index.
+ *   This is a simplification vs a full calendar-year rolling window; the quarterly UC
+ *   series has ~4 obs/year so 4-period mean tracks the 12-month concept adequately.
+ *
+ *   Future materialization: flag in editorial/_derived_slot_queue.yaml.
+ *
+ * Shared y-axis (Mode A): both series in "Units (thousands), SAAR". Window data
+ * ranges ~150-320k; shared domain computed from both series + 12mma lines.
+ *
+ * Reference band: 430-480 (thousands SAAR) — CMHC affordability-restoring supply
+ * target range. Label appears above the upper edge in the left panel only.
+ *
+ * Canon compliance (Tier-3, two-panel composite):
+ *  #1  Data lines: 1.5px solid ink (12mma primary). Comparator: 1px dashed 4-2 ink.
+ *  #2  MTA red dot on 12mma terminus only. No dot on raw comparator.
+ *  #3  1px pure-ink hairline plot frame per sub-panel.
+ *  #4  Horizontal gridlines at 0.18 ink opacity, shared y-scale.
+ *  #5  Y-axis tick labels: IBM Plex Mono 11px. Leftmost sub-panel only (Mode A).
+ *      Topmost tick carries "k" unit suffix.
+ *  #6  X-axis tick labels: Manrope 11px. Both sub-panels (one x-axis row).
+ *  #13 viewBox 720x405, preserveAspectRatio xMidYMid meet.
+ *  #15 SVG role="img" aria-label.
+ *  #17 No section-accent, no series-color tokens on data marks.
+ *  Mode A (shared y-axis): leftmost sub-panel y-ticks only.
+ *
+ * Source: Statistics Canada Table 34-10-0158 (starts and units under construction).
+ *
+ * NOTE: The 12mma and 4qma are derived in-component. These slots are queued for
+ * materialization in editorial/_derived_slot_queue.yaml (entry: housing_starts_12mma,
+ * units_under_construction_4qma).
+ */
+
+import type { PanelData, SeriesPoint } from "../../_shared/panelData";
+import { decYear } from "../../_shared/panelData";
+import PanelEmpty from "../../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Filter points to window: 2016-01-01 and later. */
+function windowFrom2016(series: SeriesPoint[]): SeriesPoint[] {
+  return series.filter((pt) => {
+    if (!pt.date || typeof pt.value !== "number" || Number.isNaN(pt.value)) return false;
+    return pt.date >= "2016-01-01";
+  });
+}
+
+/** Rolling mean of last `n` valid values at each index. Returns same-length array. */
+function rollingMean(series: SeriesPoint[], n: number): SeriesPoint[] {
+  const result: SeriesPoint[] = [];
+  for (let i = 0; i < series.length; i++) {
+    const pt = series[i]!;
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) {
+      result.push({ date: pt.date, value: null });
+      continue;
+    }
+    // collect up to n valid points ending at i
+    const window: number[] = [];
+    for (let j = i; j >= 0 && window.length < n; j--) {
+      const v = series[j]!.value;
+      if (typeof v === "number" && !Number.isNaN(v)) window.push(v);
+    }
+    if (window.length < n) {
+      result.push({ date: pt.date, value: null });
+    } else {
+      const mean = window.reduce((a, b) => a + b, 0) / window.length;
+      result.push({ date: pt.date, value: mean });
+    }
+  }
+  return result;
+}
+
+/** Last non-null, non-NaN point. */
+function lastReal(series: SeriesPoint[]): SeriesPoint | null {
+  for (let i = series.length - 1; i >= 0; i--) {
+    const pt = series[i]!;
+    if (typeof pt.value === "number" && !Number.isNaN(pt.value)) return pt;
+  }
+  return null;
+}
+
+/** Build an SVG polyline path string from a series using x/y scale functions. */
+function buildPath(
+  series: SeriesPoint[],
+  xScale: (xv: number) => number,
+  yScale: (v: number) => number,
+): string {
+  let p = "";
+  let started = false;
+  for (const pt of series) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) {
+      started = false; // lift the pen on a gap
+      continue;
+    }
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    if (!started) {
+      p += "M" + xScale(xv).toFixed(2) + " " + yScale(pt.value).toFixed(2) + " ";
+      started = true;
+    } else {
+      p += "L" + xScale(xv).toFixed(2) + " " + yScale(pt.value).toFixed(2) + " ";
+    }
+  }
+  return p.trim();
+}
+
+// ---------------------------------------------------------------------------
+// Data preparation
+// ---------------------------------------------------------------------------
+
+const startsSeries = data?.primary?.data ?? [];
+const ucSeries = data?.secondary?.data ?? [];
+
+const hasData = startsSeries.length > 0 && ucSeries.length > 0;
+
+// Window to 2016+
+const startsRaw = windowFrom2016(startsSeries);
+const ucRaw = windowFrom2016(ucSeries);
+
+// 12mma (starts: 12 monthly periods; UC: 4 quarterly periods = 12 month equiv)
+const startsMma = rollingMean(startsRaw, 12);
+const ucMma = rollingMean(ucRaw, 4);
+
+// Filter mma to only valid (non-null) points for path building
+const startsMmaValid = startsMma.filter(
+  (pt): pt is SeriesPoint & { value: number } =>
+    typeof pt.value === "number" && !Number.isNaN(pt.value),
+);
+const ucMmaValid = ucMma.filter(
+  (pt): pt is SeriesPoint & { value: number } =>
+    typeof pt.value === "number" && !Number.isNaN(pt.value),
+);
+
+// Shared x domain: all 2016+ points from both series
+const allDates: number[] = [
+  ...startsRaw.map((d) => decYear(d.date)),
+  ...ucRaw.map((d) => decYear(d.date)),
+].filter((v) => !Number.isNaN(v));
+const xMin = allDates.length > 0 ? Math.min(...allDates) : 2016;
+const xMax = allDates.length > 0 ? Math.max(...allDates) : 2026;
+
+// Shared y domain (Mode A): from all series values with ceiling for the CMHC band
+// We want to include the reference band top (480) in the domain — and leave a bit
+// of headroom above it. Use a fixed max of at least 520 to give the band label room.
+const allValues: number[] = [
+  ...startsRaw.filter((d) => typeof d.value === "number").map((d) => d.value as number),
+  ...ucRaw.filter((d) => typeof d.value === "number").map((d) => d.value as number),
+  ...startsMmaValid.map((d) => d.value),
+  ...ucMmaValid.map((d) => d.value),
+];
+const dataMin = allValues.length > 0 ? Math.min(...allValues) : 100;
+const dataMax = allValues.length > 0 ? Math.max(...allValues) : 320;
+
+// Nice round domain: floor to nearest 50 below dataMin, ceil to nearest 50 above max(dataMax, 500)
+const BAND_TOP = 480;
+const BAND_BOTTOM = 430;
+const Y_MAX_FLOOR = Math.max(dataMax, BAND_TOP + 40); // ensure band + label space
+const Y_LO = Math.floor(Math.max(dataMin - 30, 0) / 50) * 50;
+const Y_HI = Math.ceil(Y_MAX_FLOOR / 50) * 50;
+const Y_RANGE = Y_HI - Y_LO;
+
+// Y ticks: ~4-5 ticks, step = 50 or 100
+const Y_STEP = Y_RANGE <= 200 ? 50 : 100;
+const Y_TICKS: number[] = [];
+for (let v = Y_LO; v <= Y_HI; v += Y_STEP) Y_TICKS.push(v);
+
+// ---------------------------------------------------------------------------
+// Geometry
+// ---------------------------------------------------------------------------
+
+const VB_W = 720;
+const VB_H = 405;
+
+// Outer margins.
+// M_OUT_L hosts y-tick labels so both panels share identical plot widths (Mode A).
+// 28px fits 3-digit "500k" at 11px mono + 5px gap — mirrors Panel1Prices pattern.
+const M_OUT_L = 28; // left outer gutter: y-tick labels live here
+const M_R = 14;     // right margin
+const M_T = 36;     // top margin: outer title area + Pandemic label
+const M_B = 38;     // bottom margin: x-tick labels
+
+const GRID_W = VB_W - M_OUT_L - M_R;  // 678
+const GRID_H = VB_H - M_T - M_B;      // 331
+
+const NUM_COLS = 2;
+const GAP_X = 36; // gutter between panels
+
+const CELL_W = (GRID_W - GAP_X * (NUM_COLS - 1)) / NUM_COLS; // (678 - 36) / 2 = 321
+const CELL_H = GRID_H;                                         // 331
+
+// Sub-panel inner margins (uniform across both panels).
+// SUB_M_L: 4px passive gap; y-tick labels live in M_OUT_L gutter, not in-panel.
+// SUB_M_R: 8px passive right gap (end-of-line "12mma" label renders outside the frame).
+const SUB_M_L = 4;
+const SUB_M_R = 8;
+
+// Sub-panel inner top margin (sub-panel heading)
+const SUB_M_T = 16;
+
+// Per-panel origin: x starts at M_OUT_L (not M_L)
+function panelOrigin(col: number): { px0: number; py0: number } {
+  return {
+    px0: M_OUT_L + col * (CELL_W + GAP_X),
+    py0: M_T,
+  };
+}
+
+// Scale functions: x maps across [plotX0, plotX1] = [px0+SUB_M_L, px0+CELL_W-SUB_M_R]
+const PLOT_W = CELL_W - SUB_M_L - SUB_M_R; // uniform plot width for all panels
+
+function xScaleFn(px0: number): (xv: number) => number {
+  const plotX0 = px0 + SUB_M_L;
+  return (xv: number) => plotX0 + ((xv - xMin) / (xMax - xMin || 1)) * PLOT_W;
+}
+
+function yScaleFn(py0: number): (v: number) => number {
+  const plotY0 = py0 + SUB_M_T;
+  const plotH = CELL_H - SUB_M_T;
+  return (v: number) => plotY0 + plotH - ((v - Y_LO) / Y_RANGE) * plotH;
+}
+
+// Per-panel computed geometry
+interface PanelGeom {
+  col: number;
+  px0: number; py0: number;
+  plotX0: number; plotX1: number; plotW: number;
+  plotY0: number; plotY1: number; plotH: number;
+  xTicks: Array<{ x: number; label: string }>;
+  rawPath: string;
+  mmaPath: string;
+  mmaDotX: number | null;
+  mmaDotY: number | null;
+  mmaLastValue: number | null;
+  mmaLastDate: string | null;
+  bandY1: number;  // top edge of CMHC band (higher value = lower SVG y)
+  bandY2: number;  // bottom edge
+  bandH: number;
+  pandemicX1: number;
+  pandemicX2: number;
+}
+
+function buildXTicks(px0: number): Array<{ x: number; label: string }> {
+  const xScale = xScaleFn(px0);
+  const yearStart = Math.ceil(xMin);
+  const yearEnd = Math.floor(xMax);
+  const allTicks: Array<{ x: number; label: string }> = [];
+  for (let yr = yearStart; yr <= yearEnd; yr++) {
+    // Place tick at Feb 1 of that year (decimal year approx)
+    const dy = yr + (2 - 0.5) / 12;
+    if (dy < xMin || dy > xMax) continue;
+    allTicks.push({ x: xScale(dy), label: String(yr) });
+  }
+  // Stride to ~4-5 ticks
+  const stride = Math.max(1, Math.ceil(allTicks.length / 5));
+  return allTicks.filter((_, i) => i % stride === 0);
+}
+
+function buildPanelGeom(
+  col: number,
+  rawSeries: SeriesPoint[],
+  mmaSeries: SeriesPoint[],
+): PanelGeom {
+  const { px0, py0 } = panelOrigin(col);
+  const plotX0 = px0 + SUB_M_L;
+  const plotX1 = px0 + CELL_W - SUB_M_R;
+  const plotY0 = py0 + SUB_M_T;
+  const plotY1 = py0 + CELL_H;
+  const plotW = PLOT_W; // uniform across both panels
+  const plotH = plotY1 - plotY0;
+
+  const xScale = xScaleFn(px0);
+  const yScale = yScaleFn(py0);
+
+  const rawPath = buildPath(rawSeries, xScale, yScale);
+  const mmaPath = buildPath(mmaSeries, xScale, yScale);
+
+  const lastMma = lastReal(mmaSeries);
+  let mmaDotX: number | null = null;
+  let mmaDotY: number | null = null;
+  let mmaLastValue: number | null = null;
+  let mmaLastDate: string | null = null;
+  if (lastMma) {
+    const xv = decYear(lastMma.date);
+    if (!Number.isNaN(xv)) {
+      mmaDotX = xScale(xv);
+      mmaDotY = yScale(lastMma.value as number);
+      mmaLastValue = lastMma.value as number;
+      mmaLastDate = lastMma.date;
+    }
+  }
+
+  // CMHC reference band y-coordinates
+  const bandY1 = yScale(BAND_TOP);    // SVG y for 480k (upper boundary)
+  const bandY2 = yScale(BAND_BOTTOM); // SVG y for 430k (lower boundary)
+  const bandH = bandY2 - bandY1;      // positive (bandY2 > bandY1 in SVG)
+
+  // Pandemic period x-coordinates: 2020-03 to 2022-03
+  const pandemicX1 = xScale(2020 + (3 - 0.5) / 12);
+  const pandemicX2 = xScale(2022 + (3 - 0.5) / 12);
+
+  const xTicks = buildXTicks(px0);
+
+  return {
+    col,
+    px0, py0,
+    plotX0, plotX1, plotW,
+    plotY0, plotY1, plotH,
+    xTicks,
+    rawPath, mmaPath,
+    mmaDotX, mmaDotY,
+    mmaLastValue, mmaLastDate,
+    bandY1, bandY2, bandH,
+    pandemicX1, pandemicX2,
+  };
+}
+
+const panelDefs = hasData ? [
+  {
+    col: 0,
+    label: "HOUSING STARTS",
+    rawSeries: startsRaw,
+    mmaSeries: startsMmaValid,
+    geom: buildPanelGeom(0, startsRaw, startsMmaValid),
+  },
+  {
+    col: 1,
+    label: "UNITS UNDER CONSTRUCTION",
+    rawSeries: ucRaw,
+    mmaSeries: ucMmaValid,
+    geom: buildPanelGeom(1, ucRaw, ucMmaValid),
+  },
+] : [];
+
+// Pandemic label x position (centered in the pandemic band, using the left panel)
+const leftGeom = panelDefs[0]?.geom;
+const pandemicLabelX = leftGeom
+  ? (leftGeom.pandemicX1 + leftGeom.pandemicX2) / 2
+  : VB_W / 2;
+// Pandemic label y: sits in the M_T margin just above the plot frame
+const pandemicLabelY = M_T - 4;
+
+const ariaLabel =
+  "Two-panel composite: housing starts (left) and units under construction (right), Canada, 2016 to present. " +
+  "Each panel shows the raw monthly level (dashed) and the 12-month moving average (solid). " +
+  "CMHC affordability-restoring supply target range 430,000 to 480,000 units shaded in both panels.";
+---
+
+{hasData ? (
+  <div class="p2act" data-panel="housing-panel-2">
+    <svg
+      class="p2act__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {panelDefs.map((pd) => {
+        const g = pd.geom;
+        const isLeft = pd.col === 0;
+
+        return (
+          <g>
+            {/* Pandemic vertical band (behind everything) */}
+            <rect
+              class="p2act__pandemic-band"
+              x={g.pandemicX1.toFixed(2)}
+              y={g.plotY0.toFixed(2)}
+              width={(g.pandemicX2 - g.pandemicX1).toFixed(2)}
+              height={g.plotH.toFixed(2)}
+            />
+
+            {/* CMHC reference band (430-480k) */}
+            <rect
+              class="p2act__ref-band"
+              x={g.plotX0.toFixed(2)}
+              y={g.bandY1.toFixed(2)}
+              width={g.plotW.toFixed(2)}
+              height={g.bandH.toFixed(2)}
+            />
+
+            {/* Gridlines at every Y_TICK */}
+            {Y_TICKS.map((v) => {
+              const yy = g.plotY0 + g.plotH - ((v - Y_LO) / Y_RANGE) * g.plotH;
+              return (
+                <line
+                  class="p2act__gridline"
+                  x1={g.plotX0.toFixed(2)} y1={yy.toFixed(2)}
+                  x2={g.plotX1.toFixed(2)} y2={yy.toFixed(2)}
+                />
+              );
+            })}
+
+            {/* Raw level comparator line (dashed, drawn first — behind 12mma) */}
+            <path
+              class="p2act__line--raw"
+              d={g.rawPath}
+              fill="none"
+            />
+
+            {/* 12mma main line */}
+            <path
+              class="p2act__line--mma"
+              d={g.mmaPath}
+              fill="none"
+            />
+
+            {/* Plot frame */}
+            <rect
+              class="p2act__frame"
+              x={g.plotX0} y={g.plotY0}
+              width={g.plotW} height={g.plotH}
+            />
+
+            {/* Sub-panel heading */}
+            <text
+              class="p2act__subhead"
+              x={(g.plotX0 + 4).toFixed(2)}
+              y={(g.py0 + 12).toFixed(2)}
+              text-anchor="start"
+            >{pd.label}</text>
+
+            {/* X-axis ticks */}
+            {g.xTicks.map((t) => (
+              <g>
+                <line
+                  class="p2act__xtick"
+                  x1={t.x.toFixed(2)} y1={g.plotY1.toFixed(2)}
+                  x2={t.x.toFixed(2)} y2={(g.plotY1 + 4).toFixed(2)}
+                />
+                <text
+                  class="p2act__xtick-label"
+                  x={t.x.toFixed(2)}
+                  y={(g.plotY1 + 16).toFixed(2)}
+                  text-anchor="middle"
+                >{t.label}</text>
+              </g>
+            ))}
+
+            {/* Y-axis tick labels — left panel only (Mode A).
+                Labels render in M_OUT_L gutter at x = plotX0 - 5 (right-anchored).
+                This keeps both panels at identical plot widths. */}
+            {isLeft && Y_TICKS.map((v, idx) => {
+              const yy = g.plotY0 + g.plotH - ((v - Y_LO) / Y_RANGE) * g.plotH;
+              const isTop = idx === Y_TICKS.length - 1;
+              const txt = isTop ? v.toFixed(0) + "k" : v.toFixed(0);
+              return (
+                <text
+                  class="p2act__ytick-label"
+                  x={(g.plotX0 - 5).toFixed(2)}
+                  y={(yy + 4).toFixed(2)}
+                  text-anchor="end"
+                >{txt}</text>
+              );
+            })}
+
+            {/* MTA red terminal dot on 12mma only */}
+            {g.mmaDotX !== null && g.mmaDotY !== null && (
+              <circle
+                class="p2act__latest-dot"
+                cx={g.mmaDotX.toFixed(2)}
+                cy={g.mmaDotY.toFixed(2)}
+                r="4"
+              >
+                <title>{`${pd.label} 12mma ${g.mmaLastDate?.slice(0, 7) ?? ""}: ${g.mmaLastValue !== null ? g.mmaLastValue.toFixed(1) : ""}k SAAR`}</title>
+              </circle>
+            )}
+
+            {/* End-of-line label "12mma" — right of 12mma terminus */}
+            {g.mmaDotX !== null && g.mmaDotY !== null && (
+              <text
+                class="p2act__line-label"
+                x={(g.mmaDotX + 6).toFixed(2)}
+                y={(g.mmaDotY + 4).toFixed(2)}
+                text-anchor="start"
+              >12mma</text>
+            )}
+
+            {/* CMHC band label — left panel only, above band upper edge */}
+            {isLeft && (
+              <text
+                class="p2act__ref-band-label"
+                x={(g.plotX0 + 4).toFixed(2)}
+                y={(g.bandY1 - 3).toFixed(2)}
+                text-anchor="start"
+              >CMHC affordability-restoring supply</text>
+            )}
+
+            {/* Hit areas for raw series data points */}
+            {pd.rawSeries.map((pt) => {
+              if (typeof pt.value !== "number" || Number.isNaN(pt.value)) return null;
+              const xv = decYear(pt.date);
+              if (Number.isNaN(xv)) return null;
+              const xs = xScaleFn(g.px0);
+              const ys = yScaleFn(g.py0);
+              return (
+                <circle
+                  cx={xs(xv).toFixed(2)}
+                  cy={ys(pt.value).toFixed(2)}
+                  r="4"
+                  fill="transparent"
+                  stroke="none"
+                >
+                  <title>{`${pd.label} raw ${pt.date.slice(0, 7)}: ${(pt.value as number).toFixed(1)}k SAAR`}</title>
+                </circle>
+              );
+            })}
+          </g>
+        );
+      })}
+
+      {/* Pandemic vertical band label — centered over left panel, in top margin */}
+      {hasData && (
+        <text
+          class="p2act__pandemic-label"
+          x={pandemicLabelX.toFixed(2)}
+          y={pandemicLabelY.toFixed(2)}
+          text-anchor="middle"
+        >Pandemic</text>
+      )}
+    </svg>
+
+    {/* Source line */}
+    <p class="p2act__source">Statistics Canada Table 34-10-0158 (starts and units under construction).</p>
+  </div>
+) : (
+  <PanelEmpty reason="Panel-2 primary or secondary data absent." />
+)}
+
+<style>
+  .p2act {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+  .p2act__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  /* Sub-panel headings: micro-caps Manrope 600 */
+  .p2act__subhead {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+
+  /* Plot frame: 1px pure-ink hairline */
+  .p2act__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Gridlines: 0.18 ink opacity */
+  .p2act__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+
+  /* 12mma main line: 1.5px solid pure ink */
+  .p2act__line--mma {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Raw level comparator: 1px dashed 4-2 pure ink, 0.65 opacity */
+  .p2act__line--raw {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-opacity: 0.65;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* MTA red terminal dot */
+  .p2act__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  /* End-of-line "12mma" label: Manrope 600 13px */
+  .p2act__line-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+  }
+
+  /* X-tick marks */
+  .p2act__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* X-tick labels: Manrope 11px */
+  .p2act__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Y-tick labels: IBM Plex Mono 11px */
+  .p2act__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* CMHC reference band: ~10% ink fill */
+  .p2act__ref-band {
+    fill: var(--ink);
+    fill-opacity: 0.08;
+    stroke: var(--ink);
+    stroke-width: 0.5;
+    stroke-opacity: 0.25;
+  }
+
+  /* CMHC band label: Manrope 600 9px, ink-faint */
+  .p2act__ref-band-label {
+    fill: var(--ink);
+    fill-opacity: 0.55;
+    font-family: var(--font-sans);
+    font-size: 9px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.05em;
+  }
+
+  /* Pandemic vertical band: slightly different shade from reference band */
+  .p2act__pandemic-band {
+    fill: var(--ink);
+    fill-opacity: 0.05;
+  }
+
+  /* Pandemic label: Manrope 600 9px, in margin above plot */
+  .p2act__pandemic-label {
+    fill: var(--ink);
+    fill-opacity: 0.50;
+    font-family: var(--font-sans);
+    font-size: 9px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* Source line: Plex Mono 9px ink-faint */
+  .p2act__source {
+    margin-top: 4px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--ink-faint, #999);
+    line-height: 1.3;
+  }
+</style>

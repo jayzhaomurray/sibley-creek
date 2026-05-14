@@ -532,6 +532,40 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
                                         "Dwellings", "annual", "housing", sa=False,
                                         notes="Canada-wide housing stock (probe-pending; placeholder vector — verify via getCubeMetadata)."),
 
+    # Household debt service ratio (Table 11-10-0065-01). Quarterly, SA.
+    # Resolved 2026-05-13 via bulk CSV download (11100065-eng.zip). The WDS
+    # getCubeMetadata endpoint returns 404 for this product ID -- a known quirk
+    # of post-2020 NBSA-revision tables in the WDS REST API. The batch POST
+    # endpoint (getDataFromVectorsAndLatestNPeriods) works normally.
+    #
+    # Series: coord 1.1.22 = "Debt service ratio"; Seasonally adjusted at annual
+    # rates; Canada; UOM=Ratio; SCALAR=units (no scaling); Decimals=2.
+    # "Ratio" is StatCan's UOM label for percent of disposable income --
+    # values are already in percent (14.57 = 14.57% of income). Date range:
+    # 1990-Q1 through 2025-Q4 (144 obs; latest refPer 2025-10-01).
+    #
+    # Companion series available in the same table if needed later:
+    #   v1001696814 = Mortgage DSR (SA)             coord 1.1.23
+    #   v1001696815 = Non-mortgage DSR (SA)         coord 1.1.24
+    #   v1001696816 = DSR interest only (SA)        coord 1.1.25
+    "household_dsr": StatcanSpec(
+        name="household_dsr",
+        vector_id=1001696813, table_id="11-10-0065-01",
+        units="% of disposable income (SA)",
+        frequency="quarterly", section="housing",
+        sa=True,
+        notes=(
+            "Household total debt service ratio (principal + interest payments as "
+            "a share of disposable income before interest), Canada, seasonally "
+            "adjusted at annual rates. StatCan Table 11-10-0065-01 coordinate 1.1.22. "
+            "Resolved 2026-05-13 via bulk CSV download (getCubeMetadata returns 404 "
+            "for this post-2020 NBSA-revision table; vector fetch works normally). "
+            "Values already in percent units (14.57 = 14.57%); no scaling required. "
+            "Backfill: 1990-Q1 to present (~144 quarterly obs). "
+            "Companion mortgage-only DSR = v1001696814."
+        ),
+    ),
+
     # ----- Trade (Section 4.7) --------------------------------------------
     "trade_balance_total": StatcanSpec("trade_balance_total", 87008984, "12-10-0119-01",
                                        "C$ millions", "monthly", "trade", sa=True,
@@ -688,9 +722,139 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
     "energy_supply_disposition": StatcanSpec("energy_supply_disposition", 5000044, "25-10-0044-01",
                                               "Cubic metres", "monthly", "trade", sa=False,
                                               notes="Energy supply and disposition headline series (probe-pending)."),
-    # FDI by industry (Table 36-10-0008-01) — quarterly.
-    "fdi_total": StatcanSpec("fdi_total", 62800001, "36-10-0008-01", "C$ millions", "quarterly", "trade", sa=True,
-                              notes="FDI total inflows by industry headline (probe-pending)."),
+    # FDI by industry, inward (FDIC) and outward (CDIA) — annual, C$ millions.
+    # Source: StatCan Table 36-10-0659-01 ("International investment position,
+    # Canadian direct investment abroad and foreign direct investment in Canada,
+    # by industry and select countries"). Annual. scalarFactorCode=6 (millions);
+    # values arrive already in C$ millions — no additional scale needed.
+    # Dimension structure: Geo(1=Canada) . Industry . Country(1=All) . Direction
+    #   Direction dim4=1 = CDIA (Canadian direct investment abroad, outward)
+    #   Direction dim4=2 = FDIC (Foreign direct investment in Canada, inward)
+    # Resolved 2026-05-13 via POST getSeriesInfoFromCubePidCoord on productId=36100659.
+    # Full industry enumeration: d2=1..40; key top-level NAICS aggregates registered here.
+    # NOTE: The previously-cataloged fdi_total stub (62800001 in Table 36-10-0008-01)
+    # was pointing at the by-COUNTRY table (not by industry); replaced by the correct
+    # Table 36-10-0659-01 entries below.
+    #
+    # --- Inward (FDIC) total and key sectors ---
+    "fdi_inward_total": StatcanSpec(
+        "fdi_inward_total", 1271722443, "36-10-0659-01",
+        "C$ millions", "annual", "trade", sa=False,
+        notes=(
+            "Foreign direct investment in Canada (FDIC) — total, all industries. "
+            "Coord 1.1.1.2.0.0.0.0.0.0 (Canada; Total all industries; All countries; FDIC total book value). "
+            "Annual. 2025 value: C$1,600,470M. Resolved 2026-05-13."
+        ),
+    ),
+    "fdi_inward_mining_oil_gas": StatcanSpec(
+        "fdi_inward_mining_oil_gas", 1271722563, "36-10-0659-01",
+        "C$ millions", "annual", "trade", sa=False,
+        notes=(
+            "FDIC — Mining, quarrying, and oil and gas extraction. "
+            "Coord 1.3.1.2.0.0.0.0.0.0. Annual. 2025: C$183,153M. Resolved 2026-05-13."
+        ),
+    ),
+    "fdi_inward_manufacturing": StatcanSpec(
+        "fdi_inward_manufacturing", 1271722923, "36-10-0659-01",
+        "C$ millions", "annual", "trade", sa=False,
+        notes=(
+            "FDIC — Manufacturing (NAICS 31-33 aggregate). "
+            "Coord 1.9.1.2.0.0.0.0.0.0. Annual. 2025: C$258,253M. Resolved 2026-05-13."
+        ),
+    ),
+    "fdi_inward_finance_insurance": StatcanSpec(
+        "fdi_inward_finance_insurance", 1271724483, "36-10-0659-01",
+        "C$ millions", "annual", "trade", sa=False,
+        notes=(
+            "FDIC — Finance and insurance (NAICS 52). "
+            "Coord 1.35.1.2.0.0.0.0.0.0. Annual. 2025: C$205,577M. Resolved 2026-05-13."
+        ),
+    ),
+    "fdi_inward_real_estate": StatcanSpec(
+        "fdi_inward_real_estate", 1271724543, "36-10-0659-01",
+        "C$ millions", "annual", "trade", sa=False,
+        notes=(
+            "FDIC — Real estate and rental and leasing (NAICS 53). "
+            "Coord 1.36.1.2.0.0.0.0.0.0. Annual. Resolved 2026-05-13."
+        ),
+    ),
+    "fdi_inward_professional_services": StatcanSpec(
+        "fdi_inward_professional_services", 1271724603, "36-10-0659-01",
+        "C$ millions", "annual", "trade", sa=False,
+        notes=(
+            "FDIC — Professional, scientific and technical services (NAICS 54). "
+            "Coord 1.37.1.2.0.0.0.0.0.0. Annual. Resolved 2026-05-13."
+        ),
+    ),
+    "fdi_inward_wholesale_trade": StatcanSpec(
+        "fdi_inward_wholesale_trade", 1271724243, "36-10-0659-01",
+        "C$ millions", "annual", "trade", sa=False,
+        notes=(
+            "FDIC — Wholesale trade (NAICS 41). "
+            "Coord 1.31.1.2.0.0.0.0.0.0. Annual. Resolved 2026-05-13."
+        ),
+    ),
+    #
+    # --- Outward (CDIA) total and key sectors ---
+    "fdi_outward_total": StatcanSpec(
+        "fdi_outward_total", 1271722442, "36-10-0659-01",
+        "C$ millions", "annual", "trade", sa=False,
+        notes=(
+            "Canadian direct investment abroad (CDIA) — total, all industries. "
+            "Coord 1.1.1.1.0.0.0.0.0.0 (Canada; Total all industries; All countries; CDIA total book value). "
+            "Annual. 2025 value: C$2,428,900M. Resolved 2026-05-13."
+        ),
+    ),
+    "fdi_outward_mining_oil_gas": StatcanSpec(
+        "fdi_outward_mining_oil_gas", 1271722562, "36-10-0659-01",
+        "C$ millions", "annual", "trade", sa=False,
+        notes=(
+            "CDIA — Mining, quarrying, and oil and gas extraction. "
+            "Coord 1.3.1.1.0.0.0.0.0.0. Annual. 2025: C$225,065M. Resolved 2026-05-13."
+        ),
+    ),
+    "fdi_outward_manufacturing": StatcanSpec(
+        "fdi_outward_manufacturing", 1271722922, "36-10-0659-01",
+        "C$ millions", "annual", "trade", sa=False,
+        notes=(
+            "CDIA — Manufacturing (NAICS 31-33 aggregate). "
+            "Coord 1.9.1.1.0.0.0.0.0.0. Annual. 2025: C$137,095M. Resolved 2026-05-13."
+        ),
+    ),
+    "fdi_outward_finance_insurance": StatcanSpec(
+        "fdi_outward_finance_insurance", 1271724482, "36-10-0659-01",
+        "C$ millions", "annual", "trade", sa=False,
+        notes=(
+            "CDIA — Finance and insurance (NAICS 52). "
+            "Coord 1.35.1.1.0.0.0.0.0.0. Annual. 2025: C$845,069M. "
+            "Finance is by far the largest outward FDI sector (35% of CDIA total). "
+            "Resolved 2026-05-13."
+        ),
+    ),
+    "fdi_outward_real_estate": StatcanSpec(
+        "fdi_outward_real_estate", 1271724542, "36-10-0659-01",
+        "C$ millions", "annual", "trade", sa=False,
+        notes=(
+            "CDIA — Real estate and rental and leasing (NAICS 53). "
+            "Coord 1.36.1.1.0.0.0.0.0.0. Annual. Resolved 2026-05-13."
+        ),
+    ),
+    "fdi_outward_professional_services": StatcanSpec(
+        "fdi_outward_professional_services", 1271724602, "36-10-0659-01",
+        "C$ millions", "annual", "trade", sa=False,
+        notes=(
+            "CDIA — Professional, scientific and technical services (NAICS 54). "
+            "Coord 1.37.1.1.0.0.0.0.0.0. Annual. Resolved 2026-05-13."
+        ),
+    ),
+    "fdi_outward_wholesale_trade": StatcanSpec(
+        "fdi_outward_wholesale_trade", 1271724242, "36-10-0659-01",
+        "C$ millions", "annual", "trade", sa=False,
+        notes=(
+            "CDIA — Wholesale trade (NAICS 41). "
+            "Coord 1.31.1.1.0.0.0.0.0.0. Annual. Resolved 2026-05-13."
+        ),
+    ),
 }
 
 

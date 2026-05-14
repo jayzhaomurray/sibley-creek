@@ -1,166 +1,148 @@
 ---
 /*
- * Panel1Prices - CREA MLS HPI Y/Y, six-CMA small multiples.
+ * Panel1Prices — CREA MLS HPI index levels, six-CMA small-multiples.
+ * Live plate-1, housing section.
  *
- * Revised 2026-05-13: geometry unified with Panel4AssetCompositionSmallMults
- * (balance-sheet sibling). Mode A shared y-axis (-20% to +30%), no direct
- * right-side labels, footnote line identifies Canada comparator.
+ * Promoted from _alternatives/housing/Alt5_HpiCmaLevels.astro on 2026-05-13.
+ * The Y/Y small-multiples view (former plate-1) moved to
+ * _alternatives/housing/Panel1Prices_YoY_SmallMults.astro.
  *
- * Layout: 3 columns x 2 rows within 720x405 viewBox.
- *   Row 0: Toronto | Montreal  | Vancouver
- *   Row 1: Calgary | Ottawa    | Edmonton
+ * What this shows: index levels (Jan 2005 = 100) for six CMAs + Canada
+ * national comparator. Window 180 months (~15 years, 2011–2026). Answers
+ * the structural-state question: "how far have prices come from the base?"
+ * Y/Y erases the cumulative run-up; levels carry it.
  *
- * Editorial argument: the national line is the baseline comparator
- * (1px dashed pure ink, no terminal dot); each CMA line is the entity
- * (1.5px solid pure ink, MTA red terminal dot). Reader knows which
- * panel is which from the sub-panel heading (TORONTO, MONTREAL, etc).
- * A footnote line identifies the dashed comparator.
+ * Layout: 3 cols x 2 rows.
+ *   Row 0: Toronto | Vancouver | Montreal
+ *   Row 1: Calgary | Edmonton  | Ottawa
+ *   (Ordered by CMA economic weight: largest three metros, then next tier.)
  *
- * Canon-compliance notes:
- *  #1  Data lines: solid 1.5px ink (CMA primary). Comparator: 1px dashed 4-2 ink.
- *  #2  MTA red dot on CMA terminus only. No dot on the Canada line.
+ * Mode A unified y-axis: [100, 400], ticks at 100 / 200 / 300 / 400.
+ * Y-tick labels appear on the leftmost column only (Mode A convention).
+ * Per-panel direct end-of-line labels identify the CMA + Canada comparator.
+ *
+ * X-axis: 3 ticks — 2015, 2020, 2025 — clean cycle anchors across the
+ * 15-year window. Bottom row only.
+ *
+ * Canon-compliance:
+ *  #1  CMA line: 1.5px solid pure ink.
+ *      Canada comparator: 1px dashed 4-2 pure ink, stroke-opacity 0.65.
+ *  #2  MTA red terminal dot on CMA series only. No dot on Canada line.
  *  #3  1px pure-ink hairline plot frame per sub-panel.
  *  #4  Horizontal gridlines at 0.18 ink opacity.
- *  #5  Y-axis tick labels: IBM Plex Mono 11px. Topmost tick of leftmost-column
- *      cells carries % suffix (Mode A: leftmost col only).
- *  #6  X-axis tick labels: Manrope 11px. Bottom row only.
- *  #7  Zero line at 1px pure ink 100% opacity.
+ *  #5  Y-tick labels: IBM Plex Mono 400 10px, leftmost col only.
+ *      No unit suffix on index levels (Jan 2005 = 100; source line carries it).
+ *  #6  X-tick labels: Manrope 400 10px, bottom row only.
+ *  #7  No zero line (index levels stay well above zero).
+ *  #10 Word-only direct labels at line termini.
  *  #13 viewBox 720x405, preserveAspectRatio xMidYMid meet.
  *  #15 SVG role="img" aria-label.
  *  #17 No section-accent, no series-color tokens.
- *  Mode A (shared y-axis): fixed -20% to +30%. Leftmost-column y-ticks only.
  *
- * Data shape consumed:
- *   data.primary = crea_hpi_canada_yoy (used as comparator in ALL panels)
- *   data.extras[] = crea_hpi_{toronto,vancouver,montreal,calgary,ottawa,edmonton}_yoy
+ * Data: data/raw/crea_hpi_*.csv at build time via altUtils.readCsv.
+ *   crea_hpi_canada.csv   — Canada composite (comparator)
+ *   crea_hpi_toronto.csv  — Toronto CMA
+ *   crea_hpi_vancouver.csv — Vancouver CMA
+ *   crea_hpi_montreal.csv — Montreal CMA
+ *   crea_hpi_calgary.csv  — Calgary CMA
+ *   crea_hpi_edmonton.csv — Edmonton CMA
+ *   crea_hpi_ottawa.csv   — Ottawa CMA
+ * All files are tracked in git (force-added). Source: CREA MLS HPI bulk
+ * file, April 2026 release. Index, Jan 2005 = 100.
  */
 
-import type { PanelData, SeriesPoint } from "../_shared/panelData";
-import { decYear, tailWindow } from "../_shared/panelData";
-import PanelEmpty from "../_shared/PanelEmpty.astro";
+import { readCsv, decYear, tail, type AltPoint } from "../_alternatives/_shared/altUtils";
 
+// --- Props (data ignored: this component reads from CSV at build time) --------
 interface Props {
-  data?: PanelData | null;
+  data?: unknown;
 }
 const { data = null } = Astro.props;
+void data;
 
-const WINDOW_MONTHS = 60;
+// --- data load ---------------------------------------------------------------
 
-// --- helpers ----------------------------------------------------------------
+const WINDOW = 180; // 15-year arc
 
-function findExtra(key: string): SeriesPoint[] {
-  if (!data || !Array.isArray((data as any).extras)) return [];
-  const extras = (data as any).extras as Array<{ key: string; data: SeriesPoint[] }>;
-  return extras.find((e) => e.key === key)?.data ?? [];
-}
+const caRaw = readCsv("crea_hpi_canada.csv");
+const caData = tail(caRaw, WINDOW);
 
-function lastReal(series: SeriesPoint[]): { date: string; value: number } | null {
-  for (let i = series.length - 1; i >= 0; i--) {
-    const pt = series[i]!;
-    if (typeof pt.value === "number" && !Number.isNaN(pt.value)) {
-      return { date: pt.date, value: pt.value };
-    }
+// Panel order: TO | VAN | MTL (row 0), CAL | EDM | OTT (row 1)
+const CMA_DEFS = [
+  { label: "TORONTO",   file: "crea_hpi_toronto.csv" },
+  { label: "VANCOUVER", file: "crea_hpi_vancouver.csv" },
+  { label: "MONTREAL",  file: "crea_hpi_montreal.csv" },
+  { label: "CALGARY",   file: "crea_hpi_calgary.csv" },
+  { label: "EDMONTON",  file: "crea_hpi_edmonton.csv" },
+  { label: "OTTAWA",    file: "crea_hpi_ottawa.csv" },
+];
+
+const panelSeries = CMA_DEFS.map((d) => ({
+  ...d,
+  data: tail(readCsv(d.file), WINDOW),
+}));
+
+// --- helpers -----------------------------------------------------------------
+
+function lastReal(s: AltPoint[]): AltPoint | null {
+  for (let i = s.length - 1; i >= 0; i--) {
+    const p = s[i]!;
+    if (typeof p.value === "number" && !Number.isNaN(p.value)) return p;
   }
   return null;
 }
 
-// --- data pulls -------------------------------------------------------------
+// --- shared x-domain ---------------------------------------------------------
 
-const caSeries = data?.primary?.data ?? [];
-const caTail = tailWindow(caSeries, WINDOW_MONTHS, "monthly");
+const allX: number[] = [];
+for (const p of caData) { const x = decYear(p.date); if (!Number.isNaN(x)) allX.push(x); }
+for (const ps of panelSeries) for (const p of ps.data) { const x = decYear(p.date); if (!Number.isNaN(x)) allX.push(x); }
+const xMin = allX.length > 0 ? Math.min(...allX) : 2011;
+const xMax = allX.length > 0 ? Math.max(...allX) : 2026;
 
-// Panel order: Toronto | Montreal | Vancouver (row 0), Calgary | Ottawa | Edmonton (row 1)
-const panels = [
-  { label: "TORONTO",   key: "crea_hpi_toronto_yoy" },
-  { label: "MONTREAL",  key: "crea_hpi_montreal_yoy" },
-  { label: "VANCOUVER", key: "crea_hpi_vancouver_yoy" },
-  { label: "CALGARY",   key: "crea_hpi_calgary_yoy" },
-  { label: "OTTAWA",    key: "crea_hpi_ottawa_yoy" },
-  { label: "EDMONTON",  key: "crea_hpi_edmonton_yoy" },
-];
+// --- Mode A unified y-domain -------------------------------------------------
+// Fixed: [100, 400], 4 ticks every 100 index points.
+// No unit suffix on tick labels — source line carries "Jan 2005 = 100".
+const Y_LO = 100;
+const Y_HI = 400;
+const Y_TICKS = [100, 200, 300, 400];
+const Y_RANGE = Y_HI - Y_LO; // 300
 
-const panelSeries = panels.map((p) => ({
-  ...p,
-  data: tailWindow(findExtra(p.key), WINDOW_MONTHS, "monthly"),
-}));
-
-const hasData =
-  caTail.length > 0 &&
-  panelSeries.every((p) => p.data.length > 0);
-
-// --- shared x-domain --------------------------------------------------------
-
-const allPts = hasData
-  ? [...caTail, ...panelSeries.flatMap((p) => p.data)]
-  : [];
-const allX = allPts
-  .map((d) => decYear(d.date))
-  .filter((v) => !Number.isNaN(v));
-const xMin = allX.length > 0 ? Math.min(...allX) : 0;
-const xMax = allX.length > 0 ? Math.max(...allX) : 1;
-
-// --- geometry (matches Panel4AssetCompositionSmallMults exactly) ------------
+// --- layout constants --------------------------------------------------------
 
 const VB_W = 720;
 const VB_H = 405;
+// M_OUT_L hosts y-tick labels so all three column plots share identical width.
+// 28px fits 3-digit "400" at 10px mono + 5px gap.
+const M_OUT_L = 28;
+const M_OUT_R = 6;
+const M_T = 10;
+const M_B = 22;
+const GAP_X = 16;
+const GAP_Y = 28;
+const COLS = 3;
+const ROWS = 2;
 
-// Outer margins — identical to balance-sheet chart
-const M_L = 52;   // left gutter for y-axis labels
-const M_R = 14;   // right margin
-const M_T = 30;   // top margin
-const M_B = 38;   // bottom margin (x-tick labels on bottom row)
+const COL_W = (VB_W - M_OUT_L - M_OUT_R - GAP_X * (COLS - 1)) / COLS;
+// COL_W = (720 - 28 - 6 - 32) / 3 = 654 / 3 = 218
+const ROW_H = (VB_H - M_T - M_B - GAP_Y * (ROWS - 1)) / ROWS;
+// ROW_H = (405 - 10 - 22 - 28) / 2 = 345 / 2 = 172.5
 
-const GRID_W = VB_W - M_L - M_R;   // 654
-const GRID_H = VB_H - M_T - M_B;   // 337
+// Sub-panel inner margins (uniform across all columns).
+// SUB_M_L: 4px passive gap; y-tick labels live in M_OUT_L gutter, not in-panel.
+// SUB_M_R: 60px right gutter for direct labels "Vancouver\nCanada" (longest).
+// SUB_M_T: subpanel heading height.
+// SUB_M_B: x-tick space (bottom row) / passive gap (top row).
+const SUB_M_L = 4;
+const SUB_M_R = 60;
+const SUB_M_T = 16;
+const SUB_M_B = 18;
 
-const NUM_COLS = 3;
-const NUM_ROWS = 2;
-const GAP_X = 38;   // matches balance-sheet
-const GAP_Y = 20;   // matches balance-sheet
+// --- X-ticks: exactly 3 anchors across the 15-year window -------------------
+// 2015, 2020, 2025 — evenly spaced cycle anchors readable at any render size.
+const X_TICK_YEARS = [2015, 2020, 2025];
 
-const CELL_W = (GRID_W - GAP_X * (NUM_COLS - 1)) / NUM_COLS;   // ~206
-const CELL_H = (GRID_H - GAP_Y * (NUM_ROWS - 1)) / NUM_ROWS;   // ~158.5
-
-// Inner sub-panel margins (plot area within each cell)
-// No right gutter needed — direct labels dropped.
-const SUB_M_T = 14;   // sub-panel heading clearance
-
-function cellOrigin(col: number, row: number): { cx0: number; cy0: number } {
-  return {
-    cx0: M_L + col * (CELL_W + GAP_X),
-    cy0: M_T + row * (CELL_H + GAP_Y),
-  };
-}
-
-// --- shared y-domain (Mode A) -----------------------------------------------
-// Fixed: -20 to +30 percent, 6 ticks every 10pp.
-const Y_LO = -20;
-const Y_HI = 30;
-const Y_TICKS = [-20, -10, 0, 10, 20, 30];
-const Y_RANGE = Y_HI - Y_LO; // 50
-
-// --- x-ticks builder --------------------------------------------------------
-function buildXTicks(
-  xMinVal: number,
-  xMaxVal: number,
-  cx0: number,
-  cellW: number,
-): Array<{ x: number; label: string }> {
-  const xScale = (xv: number) =>
-    cx0 + ((xv - xMinVal) / (xMaxVal - xMinVal || 1)) * cellW;
-  const yearStart = Math.ceil(xMinVal);
-  const yearEnd = Math.floor(xMaxVal);
-  const allYearTicks: Array<{ x: number; label: string }> = [];
-  for (let yr = yearStart; yr <= yearEnd; yr++) {
-    const dy = yr + (1 - 0.5) / 12;
-    if (dy < xMinVal || dy > xMaxVal) continue;
-    allYearTicks.push({ x: xScale(dy), label: String(yr) });
-  }
-  const stride = Math.max(1, Math.ceil(allYearTicks.length / 3));
-  return allYearTicks.filter((_, i) => i % stride === 0);
-}
-
-// --- per-panel geometry builder ---------------------------------------------
+// --- per-panel geometry builder ----------------------------------------------
 
 interface SubGeom {
   col: number; row: number;
@@ -170,43 +152,42 @@ interface SubGeom {
   xTicks: Array<{ x: number; label: string }>;
   cmaPath: string;
   caPath: string;
-  zeroY: number;
   lastX: number | null; lastY: number | null;
   lastValue: number | null; lastDate: string | null;
-  isBottomRow: boolean;
-  isLeftmostCol: boolean;
-}
-
-function yScaleFn(plotY0: number, plotH: number) {
-  return (v: number) => plotY0 + plotH - ((v - Y_LO) / Y_RANGE) * plotH;
-}
-
-function xScaleFn(cx0: number, cellW: number) {
-  return (xv: number) =>
-    cx0 + ((xv - xMin) / (xMax - xMin || 1)) * cellW;
+  caLastX: number | null; caLastY: number | null;
 }
 
 function buildSubPanel(
   col: number,
   row: number,
-  cmaData: SeriesPoint[],
-  caData: SeriesPoint[],
+  cmaData: AltPoint[],
+  caDataSeries: AltPoint[],
 ): SubGeom {
-  const { cx0, cy0 } = cellOrigin(col, row);
-
-  // Plot area occupies the full cell minus sub-panel heading clearance.
-  // No right or bottom inner margin — balance-sheet pattern.
-  const plotX0 = cx0;
-  const plotX1 = cx0 + CELL_W;
+  const cx0 = M_OUT_L + col * (COL_W + GAP_X);
+  const cy0 = M_T + row * (ROW_H + GAP_Y);
+  const plotX0 = cx0 + SUB_M_L;
+  const plotX1 = cx0 + COL_W - SUB_M_R;
   const plotY0 = cy0 + SUB_M_T;
-  const plotY1 = cy0 + CELL_H;
-  const plotW = CELL_W;
+  const plotY1 = cy0 + ROW_H - SUB_M_B;
+  const plotW = plotX1 - plotX0;
   const plotH = plotY1 - plotY0;
 
-  const xScale = xScaleFn(cx0, CELL_W);
-  const yScale = yScaleFn(plotY0, plotH);
+  const xScale = (yr: number): number =>
+    xMax === xMin ? plotX0 + plotW / 2 : plotX0 + ((yr - xMin) / (xMax - xMin)) * plotW;
+  // Mode A: shared y-scale using Y_LO / Y_HI / Y_RANGE
+  const yScale = (v: number): number =>
+    plotY0 + plotH - ((v - Y_LO) / Y_RANGE) * plotH;
 
-  function buildPath(s: SeriesPoint[]): string {
+  // x-ticks: exactly the 3 specified years
+  const xTicks: Array<{ x: number; label: string }> = [];
+  for (const yr of X_TICK_YEARS) {
+    const dy = yr + (1 - 0.5) / 12; // mid-January
+    if (dy >= xMin && dy <= xMax) {
+      xTicks.push({ x: xScale(dy), label: String(yr) });
+    }
+  }
+
+  function buildPath(s: AltPoint[]): string {
     let p = "";
     let started = false;
     for (const pt of s) {
@@ -220,28 +201,35 @@ function buildSubPanel(
   }
 
   const cmaPath = buildPath(cmaData);
-  const caPath = buildPath(caData);
+  const caPath = buildPath(caDataSeries);
 
   // latest CMA point
   let lastX: number | null = null;
   let lastY: number | null = null;
   let lastValue: number | null = null;
   let lastDate: string | null = null;
-  const lastCma = lastReal(cmaData);
-  if (lastCma) {
-    const xv = decYear(lastCma.date);
+  const lCma = lastReal(cmaData);
+  if (lCma && typeof lCma.value === "number") {
+    const xv = decYear(lCma.date);
     if (!Number.isNaN(xv)) {
       lastX = xScale(xv);
-      lastY = yScale(lastCma.value);
-      lastValue = lastCma.value;
-      lastDate = lastCma.date;
+      lastY = yScale(lCma.value);
+      lastValue = lCma.value;
+      lastDate = lCma.date;
     }
   }
 
-  // zero line y (always in domain since Y_LO=-20, Y_HI=30)
-  const zeroY = yScale(0);
-
-  const xTicks = buildXTicks(xMin, xMax, cx0, CELL_W);
+  // latest Canada point (for direct label position)
+  let caLastX: number | null = null;
+  let caLastY: number | null = null;
+  const lCa = lastReal(caDataSeries);
+  if (lCa && typeof lCa.value === "number") {
+    const xv = decYear(lCa.date);
+    if (!Number.isNaN(xv)) {
+      caLastX = xScale(xv);
+      caLastY = yScale(lCa.value);
+    }
+  }
 
   return {
     col, row,
@@ -250,169 +238,190 @@ function buildSubPanel(
     plotY0, plotY1, plotH,
     xTicks,
     cmaPath, caPath,
-    zeroY,
     lastX, lastY, lastValue, lastDate,
-    isBottomRow: row === NUM_ROWS - 1,
-    isLeftmostCol: col === 0,
+    caLastX, caLastY,
   };
 }
 
-const cells = hasData
-  ? panelSeries.map((p, i) => ({
-      label: p.label,
-      key: p.key,
-      geom: buildSubPanel(i % NUM_COLS, Math.floor(i / NUM_COLS), p.data, caTail),
-    }))
-  : [];
+const cells = panelSeries.map((p, i) => ({
+  label: p.label,
+  geom: buildSubPanel(i % COLS, Math.floor(i / COLS), p.data, caData),
+}));
+
+// direct-label y stacking: push apart if within 12px
+function stackedLabelY(
+  cmaY: number | null,
+  caY: number | null,
+  plotY0: number,
+  plotY1: number,
+): { cmaLabelY: number; caLabelY: number } {
+  const MIN_GAP = 12;
+  let cy = cmaY ?? 0;
+  let ny = caY ?? 0;
+  if (Math.abs(cy - ny) < MIN_GAP) {
+    if (cy <= ny) ny = cy + MIN_GAP;
+    else ny = cy - MIN_GAP;
+    ny = Math.max(plotY0 + 4, Math.min(plotY1 - 4, ny));
+  }
+  return { cmaLabelY: cy, caLabelY: ny };
+}
+
+// aria-label string (best-effort)
+const latest = cells.map((c) => {
+  const v = c.geom.lastValue;
+  const d = c.geom.lastDate;
+  if (v === null || d === null) return `${c.label} n/a`;
+  const mo = d.slice(0, 7).replace("-", " ");
+  return `${c.label.charAt(0) + c.label.slice(1).toLowerCase()} ${mo}: ${v.toFixed(1)}`;
+});
+const caLast = lastReal(caData);
+const caStr = caLast && typeof caLast.value === "number"
+  ? `Canada ${caLast.date.slice(0, 7)}: ${caLast.value.toFixed(1)}`
+  : "Canada n/a";
 
 const ariaLabel =
-  "Six-CMA small multiples: CREA MLS HPI year-over-year for Toronto, Montreal, Vancouver, Calgary, Ottawa, and Edmonton versus the national Canada dashed line, 60-month window. Shared scale -20% to +30%.";
+  "Six-CMA small multiples: CREA MLS HPI index levels (Jan 2005 = 100). " +
+  latest.join(", ") +
+  ". " + caStr + ". Shared scale 100 to 400.";
 ---
-{hasData ? (
-  <div class="panel-1-hpi-sm" data-panel="housing-panel-1">
-    <svg
-      class="panel-1-hpi-sm__svg"
-      viewBox={`0 0 ${VB_W} ${VB_H}`}
-      preserveAspectRatio="xMidYMid meet"
-      role="img"
-      aria-label={ariaLabel}
-    >
-      {cells.map((c) => {
-        const g = c.geom;
 
-        return (
-          <g>
-            {/* subpanel heading — top-left of cell, above plot area */}
+<div class="p1-hpi-lvl" data-panel="housing-panel-1">
+  <svg
+    class="p1-hpi-lvl__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    {cells.map((c) => {
+      const g = c.geom;
+      const isBottomRow = g.row === ROWS - 1;
+      const isLeftmostCol = g.col === 0;
+      const labelX = g.plotX1 + 5;
+      const { cmaLabelY, caLabelY } = stackedLabelY(
+        g.lastY, g.caLastY, g.plotY0, g.plotY1
+      );
+
+      return (
+        <g>
+          {/* subpanel heading: CMA name micro-caps, above plot area */}
+          <text
+            class="p1-hpi-lvl__subhead"
+            x={(g.plotX0).toFixed(2)}
+            y={(g.cy0 + 11).toFixed(2)}
+            text-anchor="start"
+          >{c.label}</text>
+
+          {/* horizontal gridlines at every Y_TICK */}
+          {Y_TICKS.map((v) => {
+            const yy = g.plotY0 + g.plotH - ((v - Y_LO) / Y_RANGE) * g.plotH;
+            return (
+              <line
+                class="p1-hpi-lvl__gridline"
+                x1={g.plotX0.toFixed(2)} y1={yy.toFixed(2)}
+                x2={g.plotX1.toFixed(2)} y2={yy.toFixed(2)}
+              />
+            );
+          })}
+
+          {/* Canada comparator: drawn first (behind CMA line) */}
+          <path
+            class="p1-hpi-lvl__line p1-hpi-lvl__line--canada"
+            d={g.caPath}
+            fill="none"
+          />
+
+          {/* CMA primary line */}
+          <path
+            class="p1-hpi-lvl__line"
+            d={g.cmaPath}
+            fill="none"
+          />
+
+          {/* plot frame: 1px hairline */}
+          <rect
+            class="p1-hpi-lvl__frame"
+            x={g.plotX0} y={g.plotY0}
+            width={g.plotW} height={g.plotH}
+          />
+
+          {/* x-ticks: bottom row only */}
+          {isBottomRow && g.xTicks.map((t) => (
+            <g>
+              <line
+                class="p1-hpi-lvl__xtick"
+                x1={t.x.toFixed(2)} y1={g.plotY1.toFixed(2)}
+                x2={t.x.toFixed(2)} y2={(g.plotY1 + 3).toFixed(2)}
+              />
+              <text
+                class="p1-hpi-lvl__xtick-label"
+                x={t.x.toFixed(2)}
+                y={(g.plotY1 + 13).toFixed(2)}
+                text-anchor="middle"
+              >{t.label}</text>
+            </g>
+          ))}
+
+          {/* y-tick labels: leftmost column only (Mode A shared scale).
+              No unit suffix — index levels; source line carries "Jan 2005 = 100". */}
+          {isLeftmostCol && Y_TICKS.map((v) => {
+            const yy = g.plotY0 + g.plotH - ((v - Y_LO) / Y_RANGE) * g.plotH;
+            return (
+              <text
+                class="p1-hpi-lvl__ytick-label"
+                x={(g.plotX0 - 5).toFixed(2)}
+                y={(yy + 4).toFixed(2)}
+                text-anchor="end"
+              >{v.toFixed(0)}</text>
+            );
+          })}
+
+          {/* direct end-of-line labels: CMA name + Canada comparator */}
+          <text
+            class="p1-hpi-lvl__direct-label"
+            x={labelX.toFixed(2)}
+            y={(cmaLabelY + 4).toFixed(2)}
+            text-anchor="start"
+          >{c.label.charAt(0) + c.label.slice(1).toLowerCase()}</text>
+          {g.caLastY !== null && (
             <text
-              class="panel-1-hpi-sm__subhead"
-              x={(g.cx0 + 2).toFixed(2)}
-              y={(g.cy0 + 11).toFixed(2)}
+              class="p1-hpi-lvl__direct-label p1-hpi-lvl__direct-label--canada"
+              x={labelX.toFixed(2)}
+              y={(caLabelY + 4).toFixed(2)}
               text-anchor="start"
-            >{c.label}</text>
+            >Canada</text>
+          )}
 
-            {/* gridlines at every Y_TICK */}
-            {Y_TICKS.map((v) => {
-              const yy = g.plotY0 + g.plotH - ((v - Y_LO) / Y_RANGE) * g.plotH;
-              return (
-                <line
-                  class="panel-1-hpi-sm__gridline"
-                  x1={g.plotX0.toFixed(2)} y1={yy.toFixed(2)}
-                  x2={g.plotX1.toFixed(2)} y2={yy.toFixed(2)}
-                />
-              );
-            })}
+          {/* MTA red terminal dot on CMA series only */}
+          {g.lastX !== null && g.lastY !== null && (
+            <circle
+              class="p1-hpi-lvl__latest-dot"
+              cx={g.lastX.toFixed(2)}
+              cy={g.lastY.toFixed(2)}
+              r="3.5"
+            >
+              <title>{`${c.label} ${g.lastDate!.slice(0, 7)}: ${g.lastValue!.toFixed(1)} (Jan 2005 = 100)`}</title>
+            </circle>
+          )}
+        </g>
+      );
+    })}
+  </svg>
 
-            {/* zero line — full opacity */}
-            <line
-              class="panel-1-hpi-sm__zeroline"
-              x1={g.plotX0.toFixed(2)} y1={g.zeroY.toFixed(2)}
-              x2={g.plotX1.toFixed(2)} y2={g.zeroY.toFixed(2)}
-            />
-
-            {/* Canada comparator (dashed, drawn first — behind CMA line) */}
-            <path
-              class="panel-1-hpi-sm__line panel-1-hpi-sm__line--canada"
-              d={g.caPath}
-              fill="none"
-            />
-
-            {/* CMA primary line */}
-            <path
-              class="panel-1-hpi-sm__line"
-              d={g.cmaPath}
-              fill="none"
-            />
-
-            {/* plot frame */}
-            <rect
-              class="panel-1-hpi-sm__frame"
-              x={g.plotX0} y={g.plotY0}
-              width={g.plotW} height={g.plotH}
-            />
-
-            {/* x-ticks — bottom row only */}
-            {g.isBottomRow && g.xTicks.map((t) => (
-              <g>
-                <line
-                  class="panel-1-hpi-sm__xtick"
-                  x1={t.x.toFixed(2)} y1={g.plotY1.toFixed(2)}
-                  x2={t.x.toFixed(2)} y2={(g.plotY1 + 4).toFixed(2)}
-                />
-                <text
-                  class="panel-1-hpi-sm__xtick-label"
-                  x={t.x.toFixed(2)}
-                  y={(g.plotY1 + 16).toFixed(2)}
-                  text-anchor="middle"
-                >{t.label}</text>
-              </g>
-            ))}
-
-            {/* y-tick labels — leftmost column only (Mode A) */}
-            {g.isLeftmostCol && Y_TICKS.map((v, i) => {
-              const yy = g.plotY0 + g.plotH - ((v - Y_LO) / Y_RANGE) * g.plotH;
-              const isTop = i === Y_TICKS.length - 1;
-              const txt = v.toFixed(0) + (isTop ? "%" : "");
-              return (
-                <text
-                  class="panel-1-hpi-sm__ytick-label"
-                  x={(g.plotX0 - 6).toFixed(2)}
-                  y={(yy + 4).toFixed(2)}
-                  text-anchor="end"
-                >{txt}</text>
-              );
-            })}
-
-            {/* MTA red terminal dot on CMA series only */}
-            {g.lastX !== null && g.lastY !== null && (
-              <circle
-                class="panel-1-hpi-sm__latest-dot"
-                cx={g.lastX.toFixed(2)}
-                cy={g.lastY.toFixed(2)}
-                r="4"
-              >
-                <title>{`${c.label} ${g.lastDate}: ${g.lastValue!.toFixed(1)}% Y/Y`}</title>
-              </circle>
-            )}
-
-            {/* hit areas for data points */}
-            {c.key && (() => {
-              const panelIdx = panelSeries.findIndex(p => p.key === c.key);
-              const pts = panelIdx >= 0 ? panelSeries[panelIdx]!.data : [];
-              return pts.map((pt) => {
-                if (typeof pt.value !== "number" || Number.isNaN(pt.value)) return null;
-                const xv = decYear(pt.date);
-                if (Number.isNaN(xv)) return null;
-                const yScale2 = yScaleFn(g.plotY0, g.plotH);
-                const xScale2 = xScaleFn(g.cx0, CELL_W);
-                const px = xScale2(xv);
-                const py = yScale2(pt.value);
-                return (
-                  <circle cx={px.toFixed(2)} cy={py.toFixed(2)} r="4" fill="transparent" stroke="none">
-                    <title>{`${c.label} ${pt.date.slice(0,7)}: ${pt.value.toFixed(1)}% Y/Y`}</title>
-                  </circle>
-                );
-              });
-            })()}
-          </g>
-        );
-      })}
-    </svg>
-
-    {/* footnote: identifies the dashed Canada comparator */}
-    <p class="panel-1-hpi-sm__footnote">Dashed line in each panel: Canada national index.</p>
-  </div>
-) : (
-  <PanelEmpty reason="CMA series not yet present (need Canada + six CMAs in panel-1 extras)." />
-)}
+  {/* source line */}
+  <p class="p1-hpi-lvl__source">
+    CREA MLS HPI national + six-CMA bulk file (April 2026 release). Index, Jan 2005 = 100.
+  </p>
+</div>
 
 <style>
-  .panel-1-hpi-sm {
+  .p1-hpi-lvl {
     width: 100%;
     aspect-ratio: 16 / 9;
     background-color: var(--paper);
     overflow: visible;
   }
-  .panel-1-hpi-sm__svg {
+  .p1-hpi-lvl__svg {
     display: block;
     width: 100%;
     height: 100%;
@@ -420,34 +429,26 @@ const ariaLabel =
     font-family: var(--font-sans);
   }
 
-  /* subpanel heading: micro-caps Manrope 600 — matches balance-sheet chart */
-  .panel-1-hpi-sm__subhead {
+  /* subpanel heading: micro-caps Manrope 600 */
+  .p1-hpi-lvl__subhead {
     fill: var(--ink);
     font-family: var(--font-sans);
-    font-size: 11px;
+    font-size: 9px;
     font-weight: var(--fw-semibold);
-    letter-spacing: 0.10em;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
   }
 
   /* gridlines: 0.18 ink opacity */
-  .panel-1-hpi-sm__gridline {
+  .p1-hpi-lvl__gridline {
     stroke: var(--ink);
     stroke-width: 1;
     stroke-opacity: 0.18;
     shape-rendering: crispEdges;
   }
 
-  /* zero line: full opacity */
-  .panel-1-hpi-sm__zeroline {
-    stroke: var(--ink);
-    stroke-width: 1;
-    stroke-opacity: 1;
-    shape-rendering: crispEdges;
-  }
-
   /* CMA primary line: 1.5px solid pure ink */
-  .panel-1-hpi-sm__line {
+  .p1-hpi-lvl__line {
     stroke: var(--ink);
     stroke-width: 1.5;
     stroke-linejoin: round;
@@ -457,10 +458,7 @@ const ariaLabel =
   }
 
   /* Canada comparator: 1px dashed 4-2 pure ink, 0.65 opacity */
-  /* 0.65 is the site-canonical comparator opacity — sourced from
-     Panel1Prices (prior revision) and Alt5_HpiCmaLevels.astro,
-     both housing-section charts with the same Canada comparator role. */
-  .panel-1-hpi-sm__line--canada {
+  .p1-hpi-lvl__line--canada {
     stroke: var(--ink);
     stroke-width: 1;
     stroke-dasharray: 4 2;
@@ -468,14 +466,14 @@ const ariaLabel =
     vector-effect: non-scaling-stroke;
   }
 
-  /* MTA red terminal dot */
-  .panel-1-hpi-sm__latest-dot {
+  /* MTA red terminal dot on CMA only */
+  .p1-hpi-lvl__latest-dot {
     fill: var(--accent);
     stroke: none;
   }
 
   /* plot frame: 1px pure-ink hairline */
-  .panel-1-hpi-sm__frame {
+  .p1-hpi-lvl__frame {
     fill: none;
     stroke: var(--ink);
     stroke-width: 1;
@@ -483,32 +481,46 @@ const ariaLabel =
   }
 
   /* x-tick marks */
-  .panel-1-hpi-sm__xtick {
+  .p1-hpi-lvl__xtick {
     stroke: var(--ink);
     stroke-width: 1;
     shape-rendering: crispEdges;
   }
 
-  /* x-tick labels: Manrope 11px — matches balance-sheet chart */
-  .panel-1-hpi-sm__xtick-label {
+  /* x-tick labels: Manrope 400 10px */
+  .p1-hpi-lvl__xtick-label {
     fill: var(--ink);
     font-family: var(--font-sans);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: var(--fw-regular);
     font-variant-numeric: tabular-nums;
   }
 
-  /* y-tick labels: IBM Plex Mono 11px — matches balance-sheet chart */
-  .panel-1-hpi-sm__ytick-label {
+  /* y-tick labels: IBM Plex Mono 400 10px */
+  .p1-hpi-lvl__ytick-label {
     fill: var(--ink);
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: var(--fw-regular);
     font-variant-numeric: tabular-nums;
   }
 
-  /* footnote line: Plex Mono 9px ink-faint — matches source line register */
-  .panel-1-hpi-sm__footnote {
+  /* direct CMA label: Manrope 600 10px */
+  .p1-hpi-lvl__direct-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: var(--fw-semibold);
+  }
+
+  /* Canada comparator label: Manrope 400 9px (recedes vs CMA name) */
+  .p1-hpi-lvl__direct-label--canada {
+    font-weight: var(--fw-regular);
+    font-size: 9px;
+  }
+
+  /* source line: IBM Plex Mono 9px ink-faint */
+  .p1-hpi-lvl__source {
     margin-top: 4px;
     font-family: var(--font-mono);
     font-size: 9px;

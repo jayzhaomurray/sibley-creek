@@ -9,11 +9,37 @@ import Alt1_HpiMultiCity from "./Alt1_HpiMultiCity.astro";
 import Alt2_StartsSmoothing from "./Alt2_StartsSmoothing.astro";
 import Alt3_MortgageVsHpi from "./Alt3_MortgageVsHpi.astro";
 import Alt4_SnlrVsHpi from "./Alt4_SnlrVsHpi.astro";
-import Alt5_HpiCmaLevels from "./Alt5_HpiCmaLevels.astro";
 import Panel5MortgageStack from "./Panel5MortgageStack.astro";
 import Panel6PopulationStock from "./Panel6PopulationStock.astro";
+import Panel1Prices_YoY_SmallMults from "./Panel1Prices_YoY_SmallMults.astro";
+import Alt7_HousingActivityUC from "./Alt7_HousingActivityUC.astro";
+import Panel3Inventory_V1 from "./Panel3Inventory_V1.astro";
 
 export const entries: ChartShelfEntry[] = [
+  {
+    Component: Panel3Inventory_V1,
+    file: "housing/Panel3Inventory_V1.astro",
+    title: "Panel3Inventory V1 (retired — single-series SNLR via PanelLiveChart)",
+    whatDifferent:
+      "Single-series SNLR line via shared PanelLiveChart. Secondary slot wired to crea_resales (indexed) as a comparator overlay. No balanced-market band. No 12mma treatment on the sales series.",
+    whyBetter:
+      "Replaced by Panel3SalesComposite (two-panel, per-panel y-axis): left panel carries CREA sales index with 12mma + raw comparator; right panel carries SNLR with 40-60 balanced-market band. More editorial information per plate.",
+    dataFields:
+      "data/site/panel_data/housing.json panel-3 (crea_snlr primary, crea_resales secondary).",
+    addedAt: "2026-05-13",
+  },
+  {
+    Component: Alt7_HousingActivityUC,
+    file: "housing/Alt7_HousingActivityUC.astro",
+    title: "Housing starts + units under construction composite (V1 — retired from production)",
+    whatDifferent:
+      "Two-panel composite, shared y-axis. Left: housing starts (12mma main + raw comparator). Right: units under construction (4qma main + raw comparator). CMHC 430-480k band in left panel. Pandemic vertical band 2020-03 to 2022-03 in both panels.",
+    whyBetter:
+      "Editorial pivot to a per-capita lens — UC shows pipeline drainage but says nothing about per-person supply adequacy.",
+    dataFields:
+      "data/site/panel_data/housing.json panel-2 (housing_starts monthly, units_under_construction quarterly).",
+    addedAt: "2026-05-13",
+  },
   {
     Component: Alt1_HpiMultiCity,
     file: "housing/Alt1_HpiMultiCity.astro",
@@ -60,18 +86,6 @@ export const entries: ChartShelfEntry[] = [
     addedAt: "2026-05-12",
   },
   {
-    Component: Alt5_HpiCmaLevels,
-    file: "housing/Alt5_HpiCmaLevels.astro",
-    title: "Six-CMA MLS HPI in levels (companion to plate-1 Y/Y)",
-    whatDifferent:
-      "Series is index levels (Jan 2005 = 100) rather than Y/Y percent change. Window extends to 180 months (~15 years) so the full structural arc — pre-pandemic run-up, 2022 peak, correction — is visible in one frame.",
-    whyBetter:
-      "Y/Y is cyclical-state: it answers 'what is the momentum?' Levels are structural-state: they answer 'how far have prices come from the base?' A reader comparing Toronto 292 to Edmonton 241 to Vancouver 306 in index terms grasps affordability dispersion in one scan that the Y/Y chart cannot deliver.",
-    dataFields:
-      "crea_hpi_canada.csv, crea_hpi_toronto.csv, crea_hpi_vancouver.csv, crea_hpi_montreal.csv, crea_hpi_calgary.csv, crea_hpi_ottawa.csv, crea_hpi_edmonton.csv — levels direct (no transform)",
-    addedAt: "2026-05-13",
-  },
-  {
     Component: Panel5MortgageStack,
     file: "housing/Panel5MortgageStack.astro",
     title: "Panel5MortgageStack (retired from production — TODO describe)",
@@ -91,6 +105,18 @@ export const entries: ChartShelfEntry[] = [
     whyBetter:
       "TODO: describe what won out and why this was parked.",
     dataFields: "TODO: list source panel_data slot or CSV file(s).",
+    addedAt: "2026-05-13",
+  },
+  {
+    Component: Panel1Prices_YoY_SmallMults,
+    file: "housing/Panel1Prices_YoY_SmallMults.astro",
+    title: "Six-CMA MLS HPI Y/Y, small-multiples (alternative to plate-1 levels view)",
+    whatDifferent:
+      "Y/Y % change view. Shows cyclical direction (decline / rise) directly; levels view shows structural distance from 2005 baseline.",
+    whyBetter:
+      "Same chart, complementary view; reader can compare. Y/Y answers the momentum question; levels answer the structural-state question. Both are valid depending on editorial purpose.",
+    dataFields:
+      "panel_data housing panel-1: primary crea_hpi_canada_yoy, extras crea_hpi_{toronto,vancouver,montreal,calgary,ottawa,edmonton}_yoy",
     addedAt: "2026-05-13",
   },
 ];

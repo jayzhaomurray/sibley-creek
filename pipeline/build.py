@@ -1596,6 +1596,191 @@ def derive_boc_fed_spread_monthly() -> None:
     write_series(out, meta, DATA_PROCESSED)
 
 
+def derive_tariff_state_fixture() -> None:
+    """Emit a static JSON fixture for the Trade Panel 4 tariff-state visualization.
+
+    The tariff stack is an editorially-maintained log, not a time series. The
+    source cards that document each US trade action affecting Canada already live
+    in `editorial/source_cards/registry.yaml`; this step extracts the tariff-
+    relevant cards and serializes them into a structured JSON at
+    `data/derived/tariff_state.json` so the Panel4TariffState chart component
+    can consume a machine-readable payload rather than hard-coding rows inline.
+
+    The fixture schema:
+
+        {
+          "generated_at": "...",
+          "as_of": "YYYY-MM-DD",
+          "rows": [
+            {
+              "id":             <registry card id>,
+              "label":          <short human label>,
+              "rate_pct":       <primary rate as number>,
+              "rate_label":     <display string, e.g. "50%">,
+              "sector":         <sector string, e.g. "Steel & aluminum">,
+              "mechanism":      <"Section 232" | "IEEPA" | "USMCA" | ...>,
+              "effective_date": "YYYY-MM-DD",
+              "status":         "in_force" | "suspended" | "under_review",
+              "source_url":     <card url>,
+              "excerpt":        <verbatim excerpt from primary source>,
+              "notes":          <optional string>
+            },
+            ...
+          ]
+        }
+
+    Panel4TariffState.astro will be built by chart-builder to consume this
+    fixture via the panel's `metadata` key (wired through metadata_path in
+    the PanelSpec). When the chart component is built it should render a
+    ranked-row table or stack visualization from `data.metadata.rows`.
+    """
+    import json as _json
+
+    registry_path = ROOT / "editorial" / "source_cards" / "registry.yaml"
+    if not registry_path.exists():
+        logger.warning("derive_tariff_state_fixture skipped: registry.yaml not found at %s", registry_path)
+        return
+
+    try:
+        from ruamel.yaml import YAML as _YAML
+        _yaml = _YAML()
+        _yaml.preserve_quotes = True
+        registry = _yaml.load(registry_path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("derive_tariff_state_fixture: failed to parse registry.yaml: %s", exc)
+        return
+
+    sources = registry.get("sources", [])
+
+    # Card IDs that represent tariff/trade-action entries for the plate.
+    TARIFF_CARD_MAP = {
+        "eo_14193_ieepa_canada_2025": {
+            "label": "IEEPA — general goods 25%, energy 10%",
+            "sector": "All goods (USMCA non-compliant)",
+            "mechanism": "IEEPA",
+            "rate_pct": 35,           # as-amended by eo_14193_amendment_35pct below
+            "rate_label": "25% -> 35%",
+            "status": "in_force",
+        },
+        "eo_14193_amendment_35pct": {
+            "label": "IEEPA amendment — general goods raised to 35%",
+            "sector": "All goods (USMCA non-compliant)",
+            "mechanism": "IEEPA",
+            "rate_pct": 35,
+            "rate_label": "35%",
+            "status": "in_force",
+        },
+        "pp_section_232_steel_alum_50pct": {
+            "label": "Section 232 — steel & aluminum 50%",
+            "sector": "Steel & aluminum",
+            "mechanism": "Section 232",
+            "rate_pct": 50,
+            "rate_label": "50%",
+            "status": "in_force",
+        },
+        "pp_section_232_metals_copper_2026": {
+            "label": "Section 232 — steel, aluminum, copper reinforced at 50%",
+            "sector": "Steel, aluminum & copper",
+            "mechanism": "Section 232",
+            "rate_pct": 50,
+            "rate_label": "50% (core); 25% (derivatives)",
+            "status": "in_force",
+        },
+        "pp_10908_section_232_autos": {
+            "label": "Section 232 — autos & parts 25%",
+            "sector": "Autos & auto parts",
+            "mechanism": "Section 232",
+            "rate_pct": 25,
+            "rate_label": "25%",
+            "status": "in_force",
+        },
+        "pp_10976_section_232_lumber": {
+            "label": "Section 232 — softwood lumber 10%, furniture/cabinets 25%",
+            "sector": "Lumber & wood products",
+            "mechanism": "Section 232",
+            "rate_pct": 10,
+            "rate_label": "10% lumber; 25% furniture/cabinets",
+            "status": "in_force",
+        },
+        "usmca_article_34_7": {
+            "label": "USMCA Article 34.7 — joint review July 1, 2026",
+            "sector": "All USMCA-compliant goods",
+            "mechanism": "USMCA",
+            "rate_pct": None,
+            "rate_label": "Review pending",
+            "status": "under_review",
+        },
+    }
+
+    # Index registry cards by id for O(1) lookup.
+    card_index = {c.get("id"): c for c in sources if isinstance(c, dict)}
+
+    rows = []
+    display_order = [
+        "pp_section_232_metals_copper_2026",   # most recent steel/alum/copper update
+        "pp_section_232_steel_alum_50pct",
+        "pp_10908_section_232_autos",
+        "pp_10976_section_232_lumber",
+        "eo_14193_amendment_35pct",
+        "eo_14193_ieepa_canada_2025",
+        "usmca_article_34_7",
+    ]
+    for card_id in display_order:
+        card = card_index.get(card_id)
+        if card is None:
+            logger.warning("derive_tariff_state_fixture: card id=%s not found in registry", card_id)
+            continue
+        meta = TARIFF_CARD_MAP.get(card_id, {})
+        verified_value = card.get("verified_value", {}) or {}
+        # For autos (pp_10908), effective_date_autos is the autos effective date.
+        effective_date = (
+            str(verified_value.get("effective_date", ""))
+            or str(verified_value.get("effective_date_autos", ""))
+            or str(verified_value.get("signed_date", ""))
+            or ""
+        )
+        rows.append({
+            "id": card_id,
+            "label": meta.get("label", card.get("title", card_id)),
+            "rate_pct": meta.get("rate_pct"),
+            "rate_label": meta.get("rate_label", ""),
+            "sector": meta.get("sector", ""),
+            "mechanism": meta.get("mechanism", ""),
+            "effective_date": effective_date,
+            "status": meta.get("status", "in_force"),
+            "source_url": card.get("url", ""),
+            "excerpt": card.get("excerpt", ""),
+            "verified_at": str(card.get("verified_at", "")),
+            "verification_tier": card.get("verification_tier", ""),
+        })
+
+    # Most-recent effective_date among in-force rows as the fixture as_of.
+    in_force_dates = [
+        r["effective_date"] for r in rows
+        if r["status"] == "in_force" and r["effective_date"]
+    ]
+    as_of = max(in_force_dates) if in_force_dates else datetime_now_iso()[:10]
+
+    fixture = {
+        "name": "tariff_state",
+        "generated_at": datetime_now_iso(),
+        "as_of": as_of,
+        "source": "editorial/source_cards/registry.yaml (tariff-action cards)",
+        "notes": (
+            "Editorially-maintained tariff-state log derived from verified source cards. "
+            "Each row corresponds to a primary-verified US trade action affecting Canada. "
+            "Update registry.yaml to add new actions; this fixture re-generates on each build. "
+            "Chart component: src/components/charts/trade/Panel4TariffState.astro."
+        ),
+        "rows": rows,
+    }
+
+    DATA_DERIVED.mkdir(parents=True, exist_ok=True)
+    out_path = DATA_DERIVED / "tariff_state.json"
+    out_path.write_text(_json.dumps(fixture, indent=2, default=str) + "\n", encoding="utf-8")
+    logger.info("tariff_state fixture: %d rows -> %s", len(rows), out_path)
+
+
 # --------------------------------------------------------------------------- #
 # Orchestrator
 # --------------------------------------------------------------------------- #
@@ -1693,6 +1878,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     _safe("derive_federal_fiscal_ytd", derive_federal_fiscal_ytd, failed)
     _safe("derive_labour_force_ex_npr", derive_labour_force_ex_npr, failed)
     _safe("derive_boc_fed_spread_monthly", derive_boc_fed_spread_monthly, failed)
+    _safe("derive_tariff_state_fixture", derive_tariff_state_fixture, failed)
 
     # 6b) Snapshot the PRIOR vintage of data/site/* before step 7
     #     overwrites it. This feeds the diff-aware writer brief (see

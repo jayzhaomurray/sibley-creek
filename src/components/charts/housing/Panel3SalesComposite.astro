@@ -1,0 +1,817 @@
+---
+/*
+ * Panel3SalesComposite — CREA national sales + sales-to-new-listings, two-panel composite.
+ *
+ * Layout: 2 sub-panels side-by-side, 720x405 viewBox, shared x-axis 2016-01-01 to latest.
+ *
+ *   Left panel — "SALES"
+ *     Primary (main):  12-month moving average of crea_resales (1.5px solid + MTA red dot)
+ *     Comparator:      raw monthly crea_resales (1px dashed 4-2, 0.65 opacity)
+ *     Direct labels:   "12m avg." at 12mma terminus, "Sales" at raw terminus
+ *     Y-axis:          per-panel, index values (2019=100); topmost tick carries "idx" suffix
+ *
+ *   Right panel — "SALES TO NEW LISTINGS"
+ *     Primary (main):  CREA sales-to-new-listings ratio (1.5px solid + MTA red dot)
+ *     Reference band:  40–60 balanced-market range (CREA) at 0.07 ink opacity behind line
+ *     Direct label:    "Ratio" at terminus
+ *     Y-axis:          per-panel, %; range includes band fully; topmost tick carries "%" suffix
+ *
+ * Data inputs (from housing.json panel-3):
+ *   data.secondary  — crea_resales (FVI_CREA_HOUSE_RESALE_INDEXED_CANADA, Index 2019=100)
+ *   data.primary    — crea_snlr    (FVI_CREA_HOUSE_SALES_TO_NEW_LISTINGS_CANADA, %)
+ *
+ * Note on sales series: BoC Valet does not publish CREA sales in absolute unit counts
+ * (V41804 returned 404; FVI namespace has only the indexed series). The indexed series
+ * (2019=100) tracks the same underlying signal and is the only BoC-published CREA sales
+ * proxy. Backend may add an absolute-count series later; this component will need a
+ * minor update to switch the y-axis suffix from "idx" to "k" and drop the "*100" note.
+ *
+ * 12mma: rolling arithmetic mean of 12 prior monthly observations.
+ *   Derived in-component at build time (no extra pipeline materialization).
+ *   SNLR right panel: no smoothing applied (SNLR is already low-noise, editorial
+ *   convention for SNLR is the raw monthly ratio).
+ *
+ * Per-panel y-axis (Mode B): disparate magnitudes across panels (index ~70-120 vs
+ * ratio ~35-65). Both panels carry their own y-tick labels. GAP_X = 40px so labels fit.
+ *
+ * Canon compliance (Tier-3, two-panel composite):
+ *  #1  Main lines 1.5px solid pure ink. Comparator 1px dashed 4-2, 0.65 opacity.
+ *  #2  MTA red terminal dot on main line only.
+ *  #3  1px pure-ink hairline plot frame per sub-panel.
+ *  #4  Horizontal gridlines at 0.18 ink opacity, per-panel y-scale.
+ *  #5  Y-tick labels IBM Plex Mono 11px. Per-panel (Mode B). Top tick carries unit suffix.
+ *  #6  X-tick labels Manrope 11px. Shared x-axis, one label row under both panels.
+ *  #13 viewBox 720x405, preserveAspectRatio xMidYMid meet.
+ *  #15 SVG role="img" aria-label.
+ *  #17 No section-accent, no series-color tokens on data marks.
+ *  Mode B (per-panel y-axis): every panel gets its own y-tick labels.
+ *
+ * Source: Bank of Canada Valet (CREA monthly sales; sales-to-new-listings ratio, Canada).
+ */
+
+import type { PanelData, SeriesPoint } from "../_shared/panelData";
+import { decYear } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function windowFrom2016(series: SeriesPoint[]): SeriesPoint[] {
+  return series.filter((pt) => {
+    if (!pt.date || typeof pt.value !== "number" || Number.isNaN(pt.value)) return false;
+    return pt.date >= "2016-01-01";
+  });
+}
+
+function rollingMean(series: SeriesPoint[], n: number): SeriesPoint[] {
+  const result: SeriesPoint[] = [];
+  for (let i = 0; i < series.length; i++) {
+    const pt = series[i]!;
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) {
+      result.push({ date: pt.date, value: null });
+      continue;
+    }
+    const win: number[] = [];
+    for (let j = i; j >= 0 && win.length < n; j--) {
+      const v = series[j]!.value;
+      if (typeof v === "number" && !Number.isNaN(v)) win.push(v);
+    }
+    if (win.length < n) {
+      result.push({ date: pt.date, value: null });
+    } else {
+      result.push({ date: pt.date, value: win.reduce((a, b) => a + b, 0) / win.length });
+    }
+  }
+  return result;
+}
+
+function lastReal(series: SeriesPoint[]): SeriesPoint | null {
+  for (let i = series.length - 1; i >= 0; i--) {
+    const pt = series[i]!;
+    if (typeof pt.value === "number" && !Number.isNaN(pt.value)) return pt;
+  }
+  return null;
+}
+
+function buildPath(
+  series: SeriesPoint[],
+  xScale: (xv: number) => number,
+  yScale: (v: number) => number,
+): string {
+  let p = "";
+  let started = false;
+  for (const pt of series) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) {
+      started = false;
+      continue;
+    }
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    if (!started) {
+      p += "M" + xScale(xv).toFixed(2) + " " + yScale(pt.value).toFixed(2) + " ";
+      started = true;
+    } else {
+      p += "L" + xScale(xv).toFixed(2) + " " + yScale(pt.value).toFixed(2) + " ";
+    }
+  }
+  return p.trim();
+}
+
+/** Compute nice tick values for a y range.
+ *  Returns { lo, hi, step, ticks[] } rounded to a tidy step. */
+function niceYAxis(
+  dataMin: number,
+  dataMax: number,
+  targetTicks: number = 5,
+): { lo: number; hi: number; step: number; ticks: number[] } {
+  const span = dataMax - dataMin || 10;
+  // Candidate steps: nice round numbers
+  const candidates = [0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 100, 200];
+  const rawStep = span / targetTicks;
+  let step = candidates.find((c) => c >= rawStep) ?? 100;
+  // If no candidate fits, use a multiple of 10
+  if (!candidates.includes(step)) {
+    step = Math.ceil(rawStep / 10) * 10;
+  }
+  const lo = Math.floor(dataMin / step) * step;
+  const hi = Math.ceil(dataMax / step) * step;
+  const ticks: number[] = [];
+  for (let v = lo; v <= hi + step * 0.01; v += step) {
+    ticks.push(Math.round(v * 1000) / 1000);
+  }
+  return { lo, hi, step, ticks };
+}
+
+// ---------------------------------------------------------------------------
+// Data wiring
+// ---------------------------------------------------------------------------
+// Left panel:  sales (crea_resales, data.secondary)
+// Right panel: SNLR  (crea_snlr,   data.primary)
+
+const salesAllRaw: SeriesPoint[] = data?.secondary?.data ?? [];
+const snlrAllRaw: SeriesPoint[] = data?.primary?.data ?? [];
+
+const hasData = salesAllRaw.length > 0 && snlrAllRaw.length > 0;
+
+const salesRaw = windowFrom2016(salesAllRaw);
+const snlrRaw  = windowFrom2016(snlrAllRaw);
+
+// 12mma for the sales left panel
+const salesMma = rollingMean(salesRaw, 12);
+const salesMmaValid = salesMma.filter(
+  (pt): pt is SeriesPoint & { value: number } =>
+    typeof pt.value === "number" && !Number.isNaN(pt.value),
+);
+
+// No smoothing on SNLR (main line is the raw monthly ratio)
+const snlrMain = snlrRaw.filter(
+  (pt): pt is SeriesPoint & { value: number } =>
+    typeof pt.value === "number" && !Number.isNaN(pt.value),
+);
+
+// ---------------------------------------------------------------------------
+// Shared x domain
+// ---------------------------------------------------------------------------
+
+const allDates: number[] = [
+  ...salesRaw.map((d) => decYear(d.date)),
+  ...snlrRaw.map((d) => decYear(d.date)),
+].filter((v) => !Number.isNaN(v));
+
+const xMin = allDates.length > 0 ? Math.min(...allDates) : 2016;
+const xMax = allDates.length > 0 ? Math.max(...allDates) : 2026;
+
+// ---------------------------------------------------------------------------
+// Per-panel y domains (Mode B)
+// ---------------------------------------------------------------------------
+
+// Left: sales index (2019=100); window data typically ~60-130
+const salesValues: number[] = [
+  ...salesRaw.filter((d) => typeof d.value === "number").map((d) => d.value as number),
+  ...salesMmaValid.map((d) => d.value),
+];
+const salesDMin = salesValues.length > 0 ? Math.min(...salesValues) : 60;
+const salesDMax = salesValues.length > 0 ? Math.max(...salesValues) : 130;
+// Add ~8% padding above/below
+const salesPad = (salesDMax - salesDMin) * 0.08;
+const salesAxis = niceYAxis(salesDMin - salesPad, salesDMax + salesPad, 5);
+
+// Right: SNLR %; balanced band is 40-60, ensure it's fully visible
+const BAND_LO = 40;
+const BAND_HI = 60;
+const snlrValues: number[] = snlrMain.map((d) => d.value);
+const snlrDMin = snlrValues.length > 0 ? Math.min(...snlrValues) : 35;
+const snlrDMax = snlrValues.length > 0 ? Math.max(...snlrValues) : 70;
+// Domain must contain band; add small pad
+const snlrAxisMin = Math.min(snlrDMin * 0.97, BAND_LO - 2);
+const snlrAxisMax = Math.max(snlrDMax * 1.03, BAND_HI + 2);
+const snlrAxis = niceYAxis(snlrAxisMin, snlrAxisMax, 5);
+
+// ---------------------------------------------------------------------------
+// Geometry (Mode B: each panel gets own y-tick labels, GAP_X = 40)
+// ---------------------------------------------------------------------------
+
+const VB_W = 720;
+const VB_H = 405;
+
+// Left outer gutter: y-tick labels for left panel
+// Right outer gutter: right-panel y-tick labels + right-panel direct labels
+const M_L  = 36;   // left outer: y-tick labels for panel 0
+const M_R  = 48;   // right outer: y-tick labels for panel 1 + direct labels
+const M_T  = 36;   // top: sub-panel heading
+const M_B  = 38;   // bottom: x-tick labels
+
+const GRID_W = VB_W - M_L - M_R;  // 720 - 36 - 48 = 636
+const GRID_H = VB_H - M_T - M_B;  // 405 - 36 - 38 = 331
+
+const NUM_COLS = 2;
+const GAP_X = 40; // wider gutter so per-panel y-labels don't crowd the frame
+
+const CELL_W = (GRID_W - GAP_X * (NUM_COLS - 1)) / NUM_COLS; // (636 - 40) / 2 = 298
+const CELL_H = GRID_H;
+
+// Inner sub-panel margins (uniform across both)
+const SUB_M_L = 4;    // passive gap; labels are in M_L / inter-panel gutter
+const SUB_M_R = 8;    // passive right
+const SUB_M_T = 16;   // space below the sub-panel heading
+
+const PLOT_W = CELL_W - SUB_M_L - SUB_M_R;  // uniform plot width
+
+function panelOrigin(col: number): { px0: number; py0: number } {
+  return {
+    px0: M_L + col * (CELL_W + GAP_X),
+    py0: M_T,
+  };
+}
+
+// Scale factories per-panel
+function xScaleFn(px0: number): (xv: number) => number {
+  const plotX0 = px0 + SUB_M_L;
+  return (xv: number) => plotX0 + ((xv - xMin) / (xMax - xMin || 1)) * PLOT_W;
+}
+
+function yScaleFn(
+  py0: number,
+  lo: number,
+  range: number,
+): (v: number) => number {
+  const plotY0 = py0 + SUB_M_T;
+  const plotH  = CELL_H - SUB_M_T;
+  return (v: number) => plotY0 + plotH - ((v - lo) / range) * plotH;
+}
+
+// ---------------------------------------------------------------------------
+// Build x-tick list (shared, positioned per-panel)
+// ---------------------------------------------------------------------------
+
+function buildXTicks(px0: number): Array<{ x: number; label: string }> {
+  const xScale = xScaleFn(px0);
+  const yearStart = Math.ceil(xMin);
+  const yearEnd   = Math.floor(xMax);
+  const all: Array<{ x: number; label: string }> = [];
+  for (let yr = yearStart; yr <= yearEnd; yr++) {
+    const dy = yr + (2 - 0.5) / 12; // anchor at mid-Feb
+    if (dy < xMin || dy > xMax) continue;
+    all.push({ x: xScale(dy), label: String(yr) });
+  }
+  const stride = Math.max(1, Math.ceil(all.length / 5));
+  return all.filter((_, i) => i % stride === 0);
+}
+
+// ---------------------------------------------------------------------------
+// Per-panel geometry objects
+// ---------------------------------------------------------------------------
+
+// Compute geometry for one panel.
+interface PanelGeom {
+  col: number;
+  px0: number; py0: number;
+  plotX0: number; plotX1: number; plotW: number;
+  plotY0: number; plotY1: number; plotH: number;
+  xTicks: Array<{ x: number; label: string }>;
+  // Sales panel extras
+  mainPath: string;
+  comparatorPath: string;
+  mainDotX: number | null;
+  mainDotY: number | null;
+  mainLastValue: number | null;
+  mainLastDate: string | null;
+  rawLastX: number | null;
+  rawLastY: number | null;
+  // SNLR panel extras
+  bandY1: number;
+  bandY2: number;
+  bandH: number;
+  // Y-axis
+  yTicks: number[];
+  yLo: number;
+  yRange: number;
+}
+
+function buildSalesGeom(): PanelGeom {
+  const { px0, py0 } = panelOrigin(0);
+  const xScale = xScaleFn(px0);
+  const { lo, ticks } = salesAxis;
+  const range = salesAxis.hi - lo || 1;
+  const yScale = yScaleFn(py0, lo, range);
+
+  const plotX0 = px0 + SUB_M_L;
+  const plotX1 = px0 + CELL_W - SUB_M_R;
+  const plotY0 = py0 + SUB_M_T;
+  const plotY1 = py0 + CELL_H;
+  const plotH  = plotY1 - plotY0;
+
+  const comparatorPath = buildPath(salesRaw, xScale, yScale);
+  const mainPath       = buildPath(salesMmaValid, xScale, yScale);
+
+  const lastMma = lastReal(salesMmaValid);
+  let mainDotX: number | null = null;
+  let mainDotY: number | null = null;
+  let mainLastValue: number | null = null;
+  let mainLastDate: string | null = null;
+  if (lastMma) {
+    const xv = decYear(lastMma.date);
+    if (!Number.isNaN(xv)) {
+      mainDotX = xScale(xv);
+      mainDotY = yScale(lastMma.value as number);
+      mainLastValue = lastMma.value as number;
+      mainLastDate = lastMma.date;
+    }
+  }
+
+  const lastRaw = lastReal(salesRaw);
+  let rawLastX: number | null = null;
+  let rawLastY: number | null = null;
+  if (lastRaw) {
+    const xv = decYear(lastRaw.date);
+    if (!Number.isNaN(xv)) {
+      rawLastX = xScale(xv);
+      rawLastY = yScale(lastRaw.value as number);
+    }
+  }
+
+  return {
+    col: 0,
+    px0, py0,
+    plotX0, plotX1, plotW: PLOT_W,
+    plotY0, plotY1, plotH,
+    xTicks: buildXTicks(px0),
+    mainPath, comparatorPath,
+    mainDotX, mainDotY, mainLastValue, mainLastDate,
+    rawLastX, rawLastY,
+    bandY1: 0, bandY2: 0, bandH: 0, // unused for left panel
+    yTicks: ticks, yLo: lo, yRange: range,
+  };
+}
+
+function buildSnlrGeom(): PanelGeom {
+  const { px0, py0 } = panelOrigin(1);
+  const xScale = xScaleFn(px0);
+  const { lo, ticks } = snlrAxis;
+  const range = snlrAxis.hi - lo || 1;
+  const yScale = yScaleFn(py0, lo, range);
+
+  const plotX0 = px0 + SUB_M_L;
+  const plotX1 = px0 + CELL_W - SUB_M_R;
+  const plotY0 = py0 + SUB_M_T;
+  const plotY1 = py0 + CELL_H;
+  const plotH  = plotY1 - plotY0;
+
+  const mainPath = buildPath(snlrMain, xScale, yScale);
+
+  const lastSnlr = lastReal(snlrMain);
+  let mainDotX: number | null = null;
+  let mainDotY: number | null = null;
+  let mainLastValue: number | null = null;
+  let mainLastDate: string | null = null;
+  if (lastSnlr) {
+    const xv = decYear(lastSnlr.date);
+    if (!Number.isNaN(xv)) {
+      mainDotX = xScale(xv);
+      mainDotY = yScale(lastSnlr.value as number);
+      mainLastValue = lastSnlr.value as number;
+      mainLastDate = lastSnlr.date;
+    }
+  }
+
+  // Balanced-market band y-coords (band spans BAND_LO to BAND_HI)
+  const bandY1 = yScale(BAND_HI); // SVG y for upper value (60) — smaller SVG y
+  const bandY2 = yScale(BAND_LO); // SVG y for lower value (40) — larger SVG y
+  const bandH  = bandY2 - bandY1;
+
+  return {
+    col: 1,
+    px0, py0,
+    plotX0, plotX1, plotW: PLOT_W,
+    plotY0, plotY1, plotH,
+    xTicks: buildXTicks(px0),
+    mainPath, comparatorPath: "", // no comparator on SNLR panel
+    mainDotX, mainDotY, mainLastValue, mainLastDate,
+    rawLastX: null, rawLastY: null,
+    bandY1, bandY2, bandH,
+    yTicks: ticks, yLo: lo, yRange: range,
+  };
+}
+
+const salesGeom = hasData ? buildSalesGeom() : null;
+const snlrGeom  = hasData ? buildSnlrGeom()  : null;
+
+// ---------------------------------------------------------------------------
+// Label collision guard for Sales panel
+// Nudge raw-terminus label away from 12mma label if they overlap.
+// ---------------------------------------------------------------------------
+let salesMmaLabelY  = salesGeom?.mainDotY ?? null;
+let salesRawLabelY  = salesGeom?.rawLastY ?? null;
+if (salesMmaLabelY !== null && salesRawLabelY !== null) {
+  const MIN_GAP = 12;
+  if (Math.abs(salesMmaLabelY - salesRawLabelY) < MIN_GAP) {
+    if (salesMmaLabelY <= salesRawLabelY) {
+      salesRawLabelY = salesMmaLabelY + MIN_GAP;
+    } else {
+      salesRawLabelY = salesMmaLabelY - MIN_GAP;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Latest values for aria-label
+// ---------------------------------------------------------------------------
+const latestSnlr   = snlrGeom?.mainLastValue?.toFixed(1) ?? "–";
+const latestSnlrDt = snlrGeom?.mainLastDate?.slice(0, 7) ?? "";
+const latestMma    = salesGeom?.mainLastValue?.toFixed(1) ?? "–";
+const latestMmaDt  = salesGeom?.mainLastDate?.slice(0, 7) ?? "";
+
+const ariaLabel =
+  "Two-panel composite: national CREA sales index with 12-month moving average (left) " +
+  "and sales-to-new-listings ratio (right), Canada, 2016 to present. " +
+  `Latest 12-month average sales index: ${latestMma} (${latestMmaDt}). ` +
+  `Latest sales-to-new-listings ratio: ${latestSnlr}% (${latestSnlrDt}).`;
+---
+
+{hasData && salesGeom && snlrGeom ? (
+  <div class="p3sc" data-panel="housing-panel-3">
+    <svg
+      class="p3sc__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+
+      {/* =========================================================
+          LEFT PANEL — SALES
+          ========================================================= */}
+      <g>
+        {/* Gridlines */}
+        {salesGeom.yTicks.map((v) => {
+          const yy = salesGeom.plotY0 + salesGeom.plotH - ((v - salesGeom.yLo) / salesGeom.yRange) * salesGeom.plotH;
+          return (
+            <line
+              class="p3sc__gridline"
+              x1={salesGeom.plotX0.toFixed(2)} y1={yy.toFixed(2)}
+              x2={salesGeom.plotX1.toFixed(2)} y2={yy.toFixed(2)}
+            />
+          );
+        })}
+
+        {/* Raw monthly comparator (dashed, behind main) */}
+        <path
+          class="p3sc__line--raw"
+          d={salesGeom.comparatorPath}
+          fill="none"
+        />
+
+        {/* 12mma main line */}
+        <path
+          class="p3sc__line--main"
+          d={salesGeom.mainPath}
+          fill="none"
+        />
+
+        {/* Plot frame */}
+        <rect
+          class="p3sc__frame"
+          x={salesGeom.plotX0} y={salesGeom.plotY0}
+          width={salesGeom.plotW} height={salesGeom.plotH}
+        />
+
+        {/* Sub-panel heading */}
+        <text
+          class="p3sc__subhead"
+          x={(salesGeom.plotX0 + 4).toFixed(2)}
+          y={(salesGeom.py0 + 12).toFixed(2)}
+          text-anchor="start"
+        >SALES</text>
+
+        {/* X-axis ticks and labels */}
+        {salesGeom.xTicks.map((t) => (
+          <g>
+            <line
+              class="p3sc__xtick"
+              x1={t.x.toFixed(2)} y1={salesGeom.plotY1.toFixed(2)}
+              x2={t.x.toFixed(2)} y2={(salesGeom.plotY1 + 4).toFixed(2)}
+            />
+            <text
+              class="p3sc__xtick-label"
+              x={t.x.toFixed(2)}
+              y={(salesGeom.plotY1 + 16).toFixed(2)}
+              text-anchor="middle"
+            >{t.label}</text>
+          </g>
+        ))}
+
+        {/* Y-tick labels — left outer gutter (Mode B: left panel) */}
+        {salesGeom.yTicks.map((v, idx) => {
+          const yy = salesGeom.plotY0 + salesGeom.plotH - ((v - salesGeom.yLo) / salesGeom.yRange) * salesGeom.plotH;
+          const isTop = idx === salesGeom.yTicks.length - 1;
+          const txt = isTop ? v.toFixed(0) + " idx" : v.toFixed(0);
+          return (
+            <text
+              class="p3sc__ytick-label"
+              x={(salesGeom.plotX0 - 5).toFixed(2)}
+              y={(yy + 4).toFixed(2)}
+              text-anchor="end"
+            >{txt}</text>
+          );
+        })}
+
+        {/* MTA red terminal dot on 12mma */}
+        {salesGeom.mainDotX !== null && salesGeom.mainDotY !== null && (
+          <circle
+            class="p3sc__latest-dot"
+            cx={salesGeom.mainDotX.toFixed(2)}
+            cy={salesGeom.mainDotY.toFixed(2)}
+            r="4"
+          >
+            <title>{`Sales 12m avg. ${latestMmaDt}: ${latestMma} (index 2019=100)`}</title>
+          </circle>
+        )}
+
+        {/* Direct labels at termini */}
+        {salesGeom.mainDotX !== null && salesMmaLabelY !== null && (
+          <text
+            class="p3sc__direct-label"
+            x={(salesGeom.mainDotX + 6).toFixed(2)}
+            y={(salesMmaLabelY + 4).toFixed(2)}
+            text-anchor="start"
+          >12m avg.</text>
+        )}
+        {salesGeom.rawLastX !== null && salesRawLabelY !== null && (
+          <text
+            class="p3sc__direct-label p3sc__direct-label--faint"
+            x={(salesGeom.rawLastX + 6).toFixed(2)}
+            y={(salesRawLabelY + 4).toFixed(2)}
+            text-anchor="start"
+          >Sales</text>
+        )}
+      </g>
+
+      {/* =========================================================
+          RIGHT PANEL — SALES TO NEW LISTINGS
+          ========================================================= */}
+      <g>
+        {/* Balanced-market band (40-60) behind the line */}
+        <rect
+          class="p3sc__balance-band"
+          x={snlrGeom.plotX0.toFixed(2)}
+          y={snlrGeom.bandY1.toFixed(2)}
+          width={snlrGeom.plotW.toFixed(2)}
+          height={snlrGeom.bandH.toFixed(2)}
+        />
+
+        {/* Gridlines */}
+        {snlrGeom.yTicks.map((v) => {
+          const yy = snlrGeom.plotY0 + snlrGeom.plotH - ((v - snlrGeom.yLo) / snlrGeom.yRange) * snlrGeom.plotH;
+          return (
+            <line
+              class="p3sc__gridline"
+              x1={snlrGeom.plotX0.toFixed(2)} y1={yy.toFixed(2)}
+              x2={snlrGeom.plotX1.toFixed(2)} y2={yy.toFixed(2)}
+            />
+          );
+        })}
+
+        {/* SNLR main line */}
+        <path
+          class="p3sc__line--main"
+          d={snlrGeom.mainPath}
+          fill="none"
+        />
+
+        {/* Plot frame */}
+        <rect
+          class="p3sc__frame"
+          x={snlrGeom.plotX0} y={snlrGeom.plotY0}
+          width={snlrGeom.plotW} height={snlrGeom.plotH}
+        />
+
+        {/* Sub-panel heading */}
+        <text
+          class="p3sc__subhead"
+          x={(snlrGeom.plotX0 + 4).toFixed(2)}
+          y={(snlrGeom.py0 + 12).toFixed(2)}
+          text-anchor="start"
+        >SALES TO NEW LISTINGS</text>
+
+        {/* Balanced-market band label — sits just inside upper edge of band */}
+        <text
+          class="p3sc__band-label"
+          x={(snlrGeom.plotX0 + 4).toFixed(2)}
+          y={(snlrGeom.bandY1 + 11).toFixed(2)}
+          text-anchor="start"
+        >Balanced market (40–60)</text>
+
+        {/* X-axis ticks and labels */}
+        {snlrGeom.xTicks.map((t) => (
+          <g>
+            <line
+              class="p3sc__xtick"
+              x1={t.x.toFixed(2)} y1={snlrGeom.plotY1.toFixed(2)}
+              x2={t.x.toFixed(2)} y2={(snlrGeom.plotY1 + 4).toFixed(2)}
+            />
+            <text
+              class="p3sc__xtick-label"
+              x={t.x.toFixed(2)}
+              y={(snlrGeom.plotY1 + 16).toFixed(2)}
+              text-anchor="middle"
+            >{t.label}</text>
+          </g>
+        ))}
+
+        {/* Y-tick labels — right of right panel (Mode B: right panel) */}
+        {snlrGeom.yTicks.map((v, idx) => {
+          const yy = snlrGeom.plotY0 + snlrGeom.plotH - ((v - snlrGeom.yLo) / snlrGeom.yRange) * snlrGeom.plotH;
+          const isTop = idx === snlrGeom.yTicks.length - 1;
+          const txt = isTop ? v.toFixed(0) + "%" : v.toFixed(0);
+          return (
+            <text
+              class="p3sc__ytick-label"
+              x={(snlrGeom.plotX1 + 5).toFixed(2)}
+              y={(yy + 4).toFixed(2)}
+              text-anchor="start"
+            >{txt}</text>
+          );
+        })}
+
+        {/* MTA red terminal dot */}
+        {snlrGeom.mainDotX !== null && snlrGeom.mainDotY !== null && (
+          <circle
+            class="p3sc__latest-dot"
+            cx={snlrGeom.mainDotX.toFixed(2)}
+            cy={snlrGeom.mainDotY.toFixed(2)}
+            r="4"
+          >
+            <title>{`Sales to listings ${latestSnlrDt}: ${latestSnlr}%`}</title>
+          </circle>
+        )}
+
+        {/* Direct label "Ratio" at terminus */}
+        {snlrGeom.mainDotX !== null && snlrGeom.mainDotY !== null && (
+          <text
+            class="p3sc__direct-label"
+            x={(snlrGeom.mainDotX + 6).toFixed(2)}
+            y={(snlrGeom.mainDotY + 4).toFixed(2)}
+            text-anchor="start"
+          >Ratio</text>
+        )}
+      </g>
+
+    </svg>
+  </div>
+) : (
+  <PanelEmpty reason="Panel-3 primary (crea_snlr) or secondary (crea_resales) data absent." />
+)}
+
+<style>
+  .p3sc {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+  .p3sc__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  /* Sub-panel headings */
+  .p3sc__subhead {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+
+  /* Plot frame: 1px pure-ink hairline */
+  .p3sc__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Gridlines: 0.18 ink opacity */
+  .p3sc__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+
+  /* Main line: 1.5px solid pure ink */
+  .p3sc__line--main {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Raw monthly comparator: 1px dashed 4-2, 0.65 opacity */
+  .p3sc__line--raw {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-opacity: 0.65;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* MTA red terminal dot */
+  .p3sc__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  /* Balanced-market band (40-60): low-opacity ink fill */
+  .p3sc__balance-band {
+    fill: var(--ink);
+    fill-opacity: 0.07;
+    stroke: var(--ink);
+    stroke-width: 0.5;
+    stroke-opacity: 0.20;
+  }
+
+  /* Band label: Manrope 600 9px, ink-faint */
+  .p3sc__band-label {
+    fill: var(--ink);
+    fill-opacity: 0.50;
+    font-family: var(--font-sans);
+    font-size: 9px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.04em;
+  }
+
+  /* X-tick marks */
+  .p3sc__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* X-tick labels: Manrope 11px */
+  .p3sc__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Y-tick labels: IBM Plex Mono 11px, ink-faint */
+  .p3sc__ytick-label {
+    fill: var(--ink);
+    fill-opacity: 0.65;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Direct end-of-line labels */
+  .p3sc__direct-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: var(--fw-semibold);
+  }
+
+  /* Raw terminus label: faint weight */
+  .p3sc__direct-label--faint {
+    fill-opacity: 0.65;
+    font-weight: var(--fw-regular);
+  }
+</style>

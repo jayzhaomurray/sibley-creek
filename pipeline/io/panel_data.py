@@ -528,11 +528,28 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         ),
         PanelSpec(
             panel_id="panel-6", section="housing", panel_num=6,
-            file="housing/Panel6PopulationStock.astro",
-            primary=SlotSpec("pop_immigrants", "raw", label="Immigrants flow proxy"),
-            secondary=SlotSpec("housing_starts", "raw", label="Housing starts (stock additions)"),
-            expected_status="NEAR",
-            notes="Panel expects persons-per-housing-unit ratios by CMA. Both numerator (population by CMA) and denominator (housing stock by CMA) are MISSING for cross-CMA comparison. pop_cma_toronto.csv exists in raw/ as a Sibley-fetched stub; full set: MISSING (S/M effort).",
+            file="housing/Panel6FinancialStress.astro",
+            primary=SlotSpec(
+                "cba_mortgage_arrears_national", "raw",
+                label="Mortgage arrears rate (CBA, national)",
+            ),
+            secondary=SlotSpec(
+                "household_dsr", "raw",
+                label="Household debt service ratio (% of disposable income, SA)",
+            ),
+            expected_status="WIRED",
+            notes=(
+                "Financial-stress plate (plate-6). Two household-stress series: "
+                "primary = CBA residential mortgage arrears rate, national, monthly, "
+                "% of total mortgages 3+ months past due. Chartered banks + "
+                "Manulife/Laurentian/Equitable (~75% of stock). Back to ~1995. "
+                "~2.5-month publication lag. Source: CBA DB50 PUBLIC table (PDF). "
+                "secondary = StatCan Table 11-10-0065-01 v1001696813, total household "
+                "debt service ratio (principal + interest / disposable income), Canada SA, "
+                "quarterly. Back to 1990-Q1. Latest: Q4 2025 = 14.57%. "
+                "Chart-builder note: two different cadences (monthly vs quarterly); "
+                "DSR points should be displayed step-wise on the same axis as arrears."
+            ),
         ),
         # Wave 5 add: Housing Affordability (Housing Panel 7). Single-series
         # quarterly line, max history (1981 onward). BoC qualifying-mortgage-
@@ -742,8 +759,27 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             panel_id="panel-4", section="trade", panel_num=4,
             file="trade/Panel4TariffState.astro",
             primary=None,
-            expected_status="MISSING",
-            notes="Tariff state is editorial / written content, not a time series. Chart accepts a `rows` prop authored by researcher. No backend data needed; backend may emit a static JSON fixture later.",
+            # metadata_path points at data/derived/tariff_state.json, emitted by
+            # pipeline.build.derive_tariff_state_fixture() on each build.
+            # The fixture is built from the verified source cards in
+            # editorial/source_cards/registry.yaml; rows carry id, label,
+            # rate_pct, rate_label, sector, mechanism, effective_date, status,
+            # source_url, excerpt, verified_at, verification_tier.
+            # Chart-builder work required: Panel4TariffState.astro currently
+            # renders PanelEmpty; needs to be replaced with a table or stack
+            # visualization that consumes data.metadata.rows from this fixture.
+            metadata_path="tariff_state.json",
+            expected_status="NEAR",
+            notes=(
+                "Tariff state is editorial/maintained content, not a time series. "
+                "The pipeline emits data/derived/tariff_state.json from the "
+                "verified source cards in editorial/source_cards/registry.yaml "
+                "(tariff-action cards: eo_14193_*, pp_section_232_*, pp_10908_*, "
+                "pp_10976_*, usmca_article_34_7). The JSON is surfaced under "
+                "panel.metadata in the per-section panel_data JSON. "
+                "NEAR because the fixture is emitted but the chart component "
+                "still renders PanelEmpty -- frontend build required."
+            ),
         ),
         PanelSpec(
             panel_id="panel-5", section="trade", panel_num=5,
@@ -766,9 +802,41 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         PanelSpec(
             panel_id="panel-6", section="trade", panel_num=6,
             file="trade/Panel6FDIBySector.astro",
-            primary=None,
-            expected_status="MISSING",
-            notes="FDI inward/outward by sector is annual, multi-sector. Source: StatCan Table 36-10-0008. MISSING from catalog. M effort (one quarterly table, multiple coordinates).",
+            # Inward (FDIC) total as primary; outward (CDIA) total as secondary.
+            # Key sectors wired as extras for the by-sector decomposition.
+            # Source: StatCan Table 36-10-0659-01 (by industry and select countries),
+            # annual, C$ millions. Vectors resolved 2026-05-13.
+            primary=SlotSpec("fdi_inward_total", "raw",
+                             label="FDIC inward (total all industries, C$ millions)"),
+            secondary=SlotSpec("fdi_outward_total", "raw",
+                               label="CDIA outward (total all industries, C$ millions)"),
+            extras=(
+                SlotSpec("fdi_inward_finance_insurance", "raw", label="Inward: Finance & insurance"),
+                SlotSpec("fdi_inward_mining_oil_gas", "raw", label="Inward: Mining, oil & gas"),
+                SlotSpec("fdi_inward_manufacturing", "raw", label="Inward: Manufacturing"),
+                SlotSpec("fdi_inward_real_estate", "raw", label="Inward: Real estate"),
+                SlotSpec("fdi_inward_professional_services", "raw", label="Inward: Professional services"),
+                SlotSpec("fdi_inward_wholesale_trade", "raw", label="Inward: Wholesale trade"),
+                SlotSpec("fdi_outward_finance_insurance", "raw", label="Outward: Finance & insurance"),
+                SlotSpec("fdi_outward_mining_oil_gas", "raw", label="Outward: Mining, oil & gas"),
+                SlotSpec("fdi_outward_manufacturing", "raw", label="Outward: Manufacturing"),
+                SlotSpec("fdi_outward_real_estate", "raw", label="Outward: Real estate"),
+                SlotSpec("fdi_outward_professional_services", "raw", label="Outward: Professional services"),
+                SlotSpec("fdi_outward_wholesale_trade", "raw", label="Outward: Wholesale trade"),
+            ),
+            expected_status="WIRED",
+            notes=(
+                "FDI by industry, inward and outward. StatCan Table 36-10-0659-01 "
+                "(not 36-10-0008-01, which is by country). Annual, C$ millions, "
+                "scalarFactorCode=6 (values arrive in millions — no pipeline scaling needed). "
+                "The 36-10-0008-01 stub (fdi_total, v62800001) in the prior catalog was "
+                "pointing at the wrong table; removed. Vectors resolved 2026-05-13 via POST "
+                "getSeriesInfoFromCubePidCoord on productId=36100659. "
+                "Chart-builder work required: Panel6FDIBySector.astro currently renders "
+                "PanelEmpty; needs to be replaced with a side-by-side bar or stacked-bar "
+                "decomposition using primary/secondary totals + extras sector splits. "
+                "Annual cadence means window_override is not needed (annual default = 60 years)."
+            ),
         ),
     ],
 }

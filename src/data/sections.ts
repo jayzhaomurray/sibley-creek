@@ -513,7 +513,7 @@ export const sections: Section[] = [
     accentVar: "--section-accent-housing",
     kicker: "Starts, sales, prices, and household leverage.",
     headlineQuestion:
-      "Is the rate-sensitive sector amplifying or dampening policy?",
+      "What's the state of Canada's housing market?",
     cadence: "Monthly",
     // CREA April release (March reference period) landed Apr 15, 2026.
     updatedAt: Date.UTC(2026, 3, 15, 9, 0),

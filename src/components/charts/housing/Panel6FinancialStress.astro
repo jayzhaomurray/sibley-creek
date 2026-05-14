@@ -1,0 +1,544 @@
+---
+/*
+ * Panel6FinancialStress — Housing financial-stress composite.
+ * Two panels, side-by-side, 720x405. Housing section, plate-6.
+ *
+ * Left panel  — "MORTGAGE ARREARS": CBA national mortgage arrears rate,
+ *   % of mortgages 90+ days past due. Monthly.
+ *   Latest: 0.28%, Feb 2026.
+ *
+ * Right panel — "DEBT-SERVICE RATIO": Household aggregate debt-service
+ *   ratio, % of disposable income. Quarterly.
+ *   Latest: 14.57%, Q4 2025 (2025-10-01).
+ *
+ * Window: 2010-01-01 through latest available observation.
+ *
+ * Data: data/site/panel_data/housing.json panel-6.
+ *   primary  = cba_mortgage_arrears_national  (monthly)
+ *   secondary = household_dsr                 (quarterly)
+ *
+ * Layout (Mode B two-panel — disparate units, each panel owns its y-axis):
+ *   M_OUT_L = 36  — left y-tick gutter (left panel)
+ *   GAP_X   = 40  — inter-panel gutter (right-panel y-tick labels live here)
+ *   M_R     = 12  — right outer margin
+ *   COL_W   = (720 - 36 - 40 - 12) / 2 = 316 per panel
+ *
+ * Canon-compliance:
+ *  #1  1.5px solid pure ink line per panel.
+ *  #2  MTA red terminal dot per panel, r=4.
+ *  #3  1px pure-ink hairline plot frame per panel.
+ *  #4  Horizontal gridlines at 0.18 ink opacity.
+ *  #5  Y-tick labels: IBM Plex Mono 11px; topmost tick carries "%" suffix.
+ *  #6  X-tick labels: Manrope 11px, shared bottom x-axis.
+ *  #13 viewBox 720x405, preserveAspectRatio xMidYMid meet.
+ *  #14 aspect-ratio 16/9 on wrapper.
+ *  #15 SVG role="img" aria-label.
+ *  #17 No section-accent, no series-color tokens, no legend.
+ *  #18 var(--paper) background.
+ *  No source paragraph — source on plate metadata strip.
+ *
+ * No derived-rate methodology note: both series are direct published
+ * values. Arrears is the CBA published national arrears rate (% of
+ * mortgages 90+ dpd). DSR is StatCan Table 38-10-0235-01 household
+ * debt-service ratio as published, % of disposable income.
+ * No transformation applied in-component.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+
+interface Props {
+  data?: PanelData | null;
+}
+const { data = null } = Astro.props;
+
+// --- Extract series from panel data ------------------------------------------
+
+type DataPoint = { date: string; value: number | null };
+
+const WIN_START = "2010-01-01";
+
+const arrearsRaw: DataPoint[] =
+  (data?.primary?.data as DataPoint[] | undefined)
+    ?.filter((p) => p.date >= WIN_START) ?? [];
+
+const dsrRaw: DataPoint[] =
+  (data?.secondary?.data as DataPoint[] | undefined)
+    ?.filter((p) => p.date >= WIN_START) ?? [];
+
+// --- Helpers -----------------------------------------------------------------
+
+function decYear(date: string): number {
+  // Convert YYYY-MM-DD to decimal year anchored to mid-month.
+  const y = parseInt(date.slice(0, 4), 10);
+  const m = parseInt(date.slice(5, 7), 10);
+  return y + (m - 0.5) / 12;
+}
+
+function lastReal(s: DataPoint[]): DataPoint | null {
+  for (let i = s.length - 1; i >= 0; i--) {
+    const p = s[i]!;
+    if (typeof p.value === "number" && !Number.isNaN(p.value)) return p;
+  }
+  return null;
+}
+
+// --- Shared x-domain ---------------------------------------------------------
+
+const allX: number[] = [];
+for (const p of arrearsRaw) {
+  const x = decYear(p.date);
+  if (!Number.isNaN(x)) allX.push(x);
+}
+for (const p of dsrRaw) {
+  const x = decYear(p.date);
+  if (!Number.isNaN(x)) allX.push(x);
+}
+const xMin = allX.length > 0 ? Math.min(...allX) : 2010;
+const xMax = allX.length > 0 ? Math.max(...allX) : 2026;
+
+// --- Y-domain: arrears (% mortgages 90+ dpd) ----------------------------------
+// Data range 2010+: 0.14 to 0.45%. Tight zoom as spec.
+// Nice step 0.1; ticks: 0.1, 0.2, 0.3, 0.4, 0.5.
+// Floor/ceil to 0.1-step boundaries, with a small buffer.
+
+const arrearsVals: number[] = arrearsRaw
+  .filter((p): p is DataPoint & { value: number } =>
+    typeof p.value === "number" && !Number.isNaN(p.value)
+  )
+  .map((p) => p.value);
+
+const ARR_STEP = 0.1;
+const _arrDataMin = arrearsVals.length > 0 ? Math.min(...arrearsVals) : 0.1;
+const _arrDataMax = arrearsVals.length > 0 ? Math.max(...arrearsVals) : 0.5;
+const ARR_LO_NICE = parseFloat((Math.floor(_arrDataMin / ARR_STEP) * ARR_STEP).toFixed(2));
+const ARR_HI_NICE = parseFloat((Math.ceil(_arrDataMax / ARR_STEP) * ARR_STEP).toFixed(2));
+
+const ARR_TICKS: number[] = [];
+for (let v = ARR_LO_NICE; v <= ARR_HI_NICE + 0.0001; v += ARR_STEP) {
+  ARR_TICKS.push(parseFloat(v.toFixed(2)));
+}
+
+// --- Y-domain: DSR (% of disposable income) -----------------------------------
+// Data range 2010+: 12.56 to 15.17%. Tight zoom as spec.
+// Nice step 1; ticks: 12, 13, 14, 15, 16.
+
+const dsrVals: number[] = dsrRaw
+  .filter((p): p is DataPoint & { value: number } =>
+    typeof p.value === "number" && !Number.isNaN(p.value)
+  )
+  .map((p) => p.value);
+
+const DSR_STEP = 1;
+const _dsrDataMin = dsrVals.length > 0 ? Math.min(...dsrVals) : 12;
+const _dsrDataMax = dsrVals.length > 0 ? Math.max(...dsrVals) : 16;
+const DSR_LO = Math.floor(_dsrDataMin / DSR_STEP) * DSR_STEP;
+const DSR_HI = Math.ceil(_dsrDataMax / DSR_STEP) * DSR_STEP;
+
+const DSR_TICKS: number[] = [];
+for (let v = DSR_LO; v <= DSR_HI; v += DSR_STEP) DSR_TICKS.push(v);
+
+// --- Layout constants --------------------------------------------------------
+
+const VB_W = 720;
+const VB_H = 405;
+const M_OUT_L = 36;   // left y-tick gutter
+const M_R     = 12;   // right outer margin
+const M_T     = 30;   // top (subheading)
+const M_B     = 36;   // bottom (x-ticks + labels)
+const GAP_X   = 40;   // inter-panel gutter (right-panel y-ticks live here)
+const COLS    = 2;
+
+const COL_W  = (VB_W - M_OUT_L - GAP_X - M_R) / COLS;   // 316
+const PLOT_H = VB_H - M_T - M_B;                          // 339
+
+const SUB_M_L = 4;
+const SUB_M_R = 8;
+
+// Panel 0 (left: arrears)
+const P0_CX      = M_OUT_L;
+const P0_PLOT_X0 = P0_CX + SUB_M_L;
+const P0_PLOT_X1 = P0_CX + COL_W - SUB_M_R;
+const P0_PLOT_W  = P0_PLOT_X1 - P0_PLOT_X0;
+const P0_PLOT_Y0 = M_T;
+const P0_PLOT_Y1 = M_T + PLOT_H;
+
+// Panel 1 (right: DSR)
+const P1_CX      = M_OUT_L + COL_W + GAP_X;
+const P1_PLOT_X0 = P1_CX + SUB_M_L;
+const P1_PLOT_X1 = P1_CX + COL_W - SUB_M_R;
+const P1_PLOT_W  = P1_PLOT_X1 - P1_PLOT_X0;
+const P1_PLOT_Y0 = M_T;
+const P1_PLOT_Y1 = M_T + PLOT_H;
+
+// --- Scale functions ---------------------------------------------------------
+
+const xScale = (xv: number, plotX0: number, plotW: number): number =>
+  plotX0 + ((xv - xMin) / (xMax - xMin || 1)) * plotW;
+
+const yScaleArr = (v: number): number =>
+  P0_PLOT_Y0 + PLOT_H -
+  ((v - ARR_LO_NICE) / ((ARR_HI_NICE - ARR_LO_NICE) || 1)) * PLOT_H;
+
+const yScaleDSR = (v: number): number =>
+  P1_PLOT_Y0 + PLOT_H -
+  ((v - DSR_LO) / ((DSR_HI - DSR_LO) || 1)) * PLOT_H;
+
+// --- X-ticks: 2010, 2013, 2016, 2019, 2022, 2025 ----------------------------
+
+const X_TICK_YEARS = [2010, 2013, 2016, 2019, 2022, 2025];
+const xTicksLeft:  Array<{ x: number; label: string }> = [];
+const xTicksRight: Array<{ x: number; label: string }> = [];
+for (const yr of X_TICK_YEARS) {
+  const dy = yr + 0.5 / 12;
+  if (dy >= xMin - 0.1 && dy <= xMax + 0.1) {
+    xTicksLeft.push({  x: xScale(dy, P0_PLOT_X0, P0_PLOT_W), label: String(yr) });
+    xTicksRight.push({ x: xScale(dy, P1_PLOT_X0, P1_PLOT_W), label: String(yr) });
+  }
+}
+
+// --- Path builders -----------------------------------------------------------
+
+function buildPath(
+  series: DataPoint[],
+  plotX0: number,
+  plotW: number,
+  ys: (v: number) => number,
+): string {
+  let d = "";
+  let started = false;
+  for (const pt of series) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) {
+      started = false;
+      continue;
+    }
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    const sx = xScale(xv, plotX0, plotW);
+    const sy = ys(pt.value);
+    d += (started ? "L" : "M") + sx.toFixed(2) + " " + sy.toFixed(2) + " ";
+    started = true;
+  }
+  return d.trim();
+}
+
+const arrearsPath = buildPath(arrearsRaw, P0_PLOT_X0, P0_PLOT_W, yScaleArr);
+const dsrPath     = buildPath(dsrRaw,     P1_PLOT_X0, P1_PLOT_W, yScaleDSR);
+
+// --- Terminal dots -----------------------------------------------------------
+
+function terminalDot(
+  series: DataPoint[],
+  plotX0: number,
+  plotW: number,
+  ys: (v: number) => number,
+): { x: number; y: number; value: number; date: string } | null {
+  const last = lastReal(series);
+  if (!last || typeof last.value !== "number") return null;
+  const xv = decYear(last.date);
+  if (Number.isNaN(xv)) return null;
+  return {
+    x: xScale(xv, plotX0, plotW),
+    y: ys(last.value),
+    value: last.value,
+    date: last.date,
+  };
+}
+
+const arrDot = terminalDot(arrearsRaw, P0_PLOT_X0, P0_PLOT_W, yScaleArr);
+const dsrDot = terminalDot(dsrRaw,     P1_PLOT_X0, P1_PLOT_W, yScaleDSR);
+
+// --- End-of-line label positions ---------------------------------------------
+// "Arrears" label right of the terminal dot on the left panel.
+// "DSR" label right of the terminal dot on the right panel.
+// Offset 8px to the right of dot, vertically centered on dot.
+
+const ARR_LABEL_X = arrDot ? (arrDot.x + 8).toFixed(2) : "0";
+const ARR_LABEL_Y = arrDot ? (arrDot.y + 4).toFixed(2) : "0";
+const DSR_LABEL_X = dsrDot ? (dsrDot.x + 8).toFixed(2) : "0";
+const DSR_LABEL_Y = dsrDot ? (dsrDot.y + 4).toFixed(2) : "0";
+
+// --- Aria label --------------------------------------------------------------
+
+const ariaLabel =
+  "Two-panel chart: Housing financial-stress indicators, 2010 to present. " +
+  "Left panel: CBA national mortgage arrears rate, % of mortgages 90+ days past due. " +
+  (arrDot ? `Latest ${arrDot.date.slice(0, 7)}: ${arrDot.value.toFixed(2)}%. ` : "") +
+  "Right panel: Household debt-service ratio, % of disposable income. " +
+  (dsrDot ? `Latest ${dsrDot.date.slice(0, 7)}: ${dsrDot.value.toFixed(2)}%.` : "");
+---
+
+<div class="p6fs" data-panel="housing-panel-6">
+  <svg
+    class="p6fs__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+
+    {/* -------- LEFT PANEL: MORTGAGE ARREARS -------------------------------- */}
+
+    {/* subpanel heading */}
+    <text
+      class="p6fs__subhead"
+      x={P0_PLOT_X0.toFixed(2)}
+      y={(M_T - 8).toFixed(2)}
+      text-anchor="start"
+    >MORTGAGE ARREARS</text>
+
+    {/* horizontal gridlines */}
+    {ARR_TICKS.map((v) => {
+      const yy = yScaleArr(v);
+      return (
+        <line
+          class="p6fs__gridline"
+          x1={P0_PLOT_X0.toFixed(2)} y1={yy.toFixed(2)}
+          x2={P0_PLOT_X1.toFixed(2)} y2={yy.toFixed(2)}
+        />
+      );
+    })}
+
+    {/* data line */}
+    <path class="p6fs__line" d={arrearsPath} fill="none" />
+
+    {/* plot frame */}
+    <rect
+      class="p6fs__frame"
+      x={P0_PLOT_X0} y={P0_PLOT_Y0}
+      width={P0_PLOT_W} height={PLOT_H}
+    />
+
+    {/* x-ticks — left panel */}
+    {xTicksLeft.map((t) => (
+      <g>
+        <line
+          class="p6fs__xtick"
+          x1={t.x.toFixed(2)} y1={P0_PLOT_Y1.toFixed(2)}
+          x2={t.x.toFixed(2)} y2={(P0_PLOT_Y1 + 4).toFixed(2)}
+        />
+        <text
+          class="p6fs__xtick-label"
+          x={t.x.toFixed(2)}
+          y={(P0_PLOT_Y1 + 16).toFixed(2)}
+          text-anchor="middle"
+        >{t.label}</text>
+      </g>
+    ))}
+
+    {/* y-tick labels: left panel — in M_OUT_L gutter */}
+    {ARR_TICKS.map((v, idx) => {
+      const yy = yScaleArr(v);
+      const isTop = idx === ARR_TICKS.length - 1;
+      const txt = v.toFixed(1) + (isTop ? "%" : "");
+      return (
+        <text
+          class="p6fs__ytick-label"
+          x={(P0_PLOT_X0 - 5).toFixed(2)}
+          y={(yy + 4).toFixed(2)}
+          text-anchor="end"
+        >{txt}</text>
+      );
+    })}
+
+    {/* MTA red terminal dot */}
+    {arrDot && (
+      <circle
+        class="p6fs__latest-dot"
+        cx={arrDot.x.toFixed(2)}
+        cy={arrDot.y.toFixed(2)}
+        r="4"
+      >
+        <title>{`${arrDot.date.slice(0, 7)}: ${arrDot.value.toFixed(2)}%`}</title>
+      </circle>
+    )}
+
+    {/* End-of-line label */}
+    {arrDot && (
+      <text
+        class="p6fs__eol-label"
+        x={ARR_LABEL_X}
+        y={ARR_LABEL_Y}
+        text-anchor="start"
+      >Arrears</text>
+    )}
+
+    {/* -------- RIGHT PANEL: DEBT-SERVICE RATIO ----------------------------- */}
+
+    {/* subpanel heading */}
+    <text
+      class="p6fs__subhead"
+      x={P1_PLOT_X0.toFixed(2)}
+      y={(M_T - 8).toFixed(2)}
+      text-anchor="start"
+    >DEBT-SERVICE RATIO</text>
+
+    {/* horizontal gridlines */}
+    {DSR_TICKS.map((v) => {
+      const yy = yScaleDSR(v);
+      return (
+        <line
+          class="p6fs__gridline"
+          x1={P1_PLOT_X0.toFixed(2)} y1={yy.toFixed(2)}
+          x2={P1_PLOT_X1.toFixed(2)} y2={yy.toFixed(2)}
+        />
+      );
+    })}
+
+    {/* data line */}
+    <path class="p6fs__line" d={dsrPath} fill="none" />
+
+    {/* plot frame */}
+    <rect
+      class="p6fs__frame"
+      x={P1_PLOT_X0} y={P1_PLOT_Y0}
+      width={P1_PLOT_W} height={PLOT_H}
+    />
+
+    {/* x-ticks — right panel */}
+    {xTicksRight.map((t) => (
+      <g>
+        <line
+          class="p6fs__xtick"
+          x1={t.x.toFixed(2)} y1={P1_PLOT_Y1.toFixed(2)}
+          x2={t.x.toFixed(2)} y2={(P1_PLOT_Y1 + 4).toFixed(2)}
+        />
+        <text
+          class="p6fs__xtick-label"
+          x={t.x.toFixed(2)}
+          y={(P1_PLOT_Y1 + 16).toFixed(2)}
+          text-anchor="middle"
+        >{t.label}</text>
+      </g>
+    ))}
+
+    {/* y-tick labels: right panel — in GAP_X gutter (left of right panel) */}
+    {DSR_TICKS.map((v, idx) => {
+      const yy = yScaleDSR(v);
+      const isTop = idx === DSR_TICKS.length - 1;
+      const txt = v.toFixed(0) + (isTop ? "%" : "");
+      return (
+        <text
+          class="p6fs__ytick-label"
+          x={(P1_PLOT_X0 - 5).toFixed(2)}
+          y={(yy + 4).toFixed(2)}
+          text-anchor="end"
+        >{txt}</text>
+      );
+    })}
+
+    {/* MTA red terminal dot */}
+    {dsrDot && (
+      <circle
+        class="p6fs__latest-dot"
+        cx={dsrDot.x.toFixed(2)}
+        cy={dsrDot.y.toFixed(2)}
+        r="4"
+      >
+        <title>{`${dsrDot.date.slice(0, 7)}: ${dsrDot.value.toFixed(2)}%`}</title>
+      </circle>
+    )}
+
+    {/* End-of-line label */}
+    {dsrDot && (
+      <text
+        class="p6fs__eol-label"
+        x={DSR_LABEL_X}
+        y={DSR_LABEL_Y}
+        text-anchor="start"
+      >DSR</text>
+    )}
+
+  </svg>
+</div>
+
+<style>
+  .p6fs {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+
+  .p6fs__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  /* Subpanel headings: micro-caps Manrope 600 */
+  .p6fs__subhead {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 9px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  /* Horizontal gridlines: 0.18 ink opacity */
+  .p6fs__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+
+  /* Data line: 1.5px solid pure ink */
+  .p6fs__line {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Plot frame: 1px pure-ink hairline */
+  .p6fs__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* X-axis tick marks */
+  .p6fs__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* X-axis tick labels: Manrope 400 11px */
+  .p6fs__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Y-axis tick labels: IBM Plex Mono 400 11px */
+  .p6fs__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* MTA red terminal dot */
+  .p6fs__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  /* End-of-line label: Manrope 400 10px, ink-faint */
+  .p6fs__eol-label {
+    fill: var(--ink-faint, #666);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: var(--fw-regular);
+  }
+</style>

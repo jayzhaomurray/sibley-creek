@@ -21,8 +21,8 @@
  *
  * Canon compliance:
  *   1. Pure ink fill bars (var(--ink)); no stroke. Zero-anchored.
- *   2. 4px MTA red latest-print dot, one per panel (top edge surplus,
- *      bottom edge deficit).
+ *   2. MTA red latest-print bar: the most-recent bar in each panel fills
+ *      var(--accent). No dot circle — dot is line-chart canon only.
  *   3. 1px pure ink hairline frame per cell (shape-rendering: crispEdges).
  *   4. Zero line 1px full opacity — both series cross or sit at zero.
  *   5. 2-3 horizontal gridlines per cell, stroke-opacity 0.18.
@@ -80,7 +80,7 @@ const B_Y1 = B_Y0 + CELL_H;
 type SeriesPoint = { date: string; value: number | null };
 type BarRect = {
   x: number; y: number; w: number; h: number;
-  v: number; date: string; titleText: string;
+  v: number; date: string; titleText: string; isLatest: boolean;
 };
 type YTick = { value: number; yPos: number; label: string };
 type XTick = { x: number; label: string };
@@ -177,12 +177,7 @@ let zeroYA       = 0;
 let crossesZeroB = false;
 let zeroYB       = 0;
 
-let latestDotAX = 0;
-let latestDotAY = 0;
 let lastBarA: BarRect | null = null;
-
-let latestDotBX = 0;
-let latestDotBY = 0;
 let lastBarB: BarRect | null = null;
 
 let ariaLabel =
@@ -219,10 +214,10 @@ if (hasPrimary) {
   const xMax   = xMidMax + monthFrac / 2;
   const xRange = xMax - xMin || 1;
 
-  // Bar width: exactly one month slot in the padded domain, minus a small gap.
+  // Bar width: 75% of the per-month slot, leaving 25% as inter-bar gap.
+  // This produces a cleanly spaced histogram look (not a continuous block).
   const slotWidth   = (monthFrac / xRange) * CELL_W;
-  const BAR_GAP     = Math.max(1, slotWidth * 0.08);
-  const barWidth    = Math.max(2, slotWidth - BAR_GAP);
+  const barWidth    = Math.max(2, slotWidth * 0.75);
 
   // Per-cell x-scales (same domain ratio, different origins)
   const xScaleA = (xv: number): number =>
@@ -285,14 +280,11 @@ if (hasPrimary) {
       x, y: bTop, w: barWidth, h, v,
       date: pt.date,
       titleText: `${pt.date}: ${fmtValue(v * scale, kind)}`,
+      isLatest: false,
     });
   }
   lastBarA = barsA.length > 0 ? barsA[barsA.length - 1]! : null;
-  if (lastBarA) {
-    latestDotAX = lastBarA.x + lastBarA.w / 2;
-    // Dot on top edge for surplus, bottom edge for deficit
-    latestDotAY = lastBarA.v >= 0 ? lastBarA.y : lastBarA.y + lastBarA.h;
-  }
+  if (lastBarA) lastBarA.isLatest = true;
 
   // ---- Panel B bars (monthly — primary) ------------------------------------
   for (const pt of primRaw) {
@@ -309,13 +301,11 @@ if (hasPrimary) {
       x, y: bTop, w: barWidth, h, v,
       date: pt.date,
       titleText: `${pt.date}: ${fmtValue(v * scale, kind)}`,
+      isLatest: false,
     });
   }
   lastBarB = barsB.length > 0 ? barsB[barsB.length - 1]! : null;
-  if (lastBarB) {
-    latestDotBX = lastBarB.x + lastBarB.w / 2;
-    latestDotBY = lastBarB.v >= 0 ? lastBarB.y : lastBarB.y + lastBarB.h;
-  }
+  if (lastBarB) lastBarB.isLatest = true;
 
   // ---- Y-ticks (per-panel) -------------------------------------------------
   yTicksA = buildYTicks(aYLo, aYHi, yScaleA, kind, scale, true);   // leftmost cell
@@ -388,11 +378,11 @@ const clipIdB = "p6s-clip-b";
         />
       )}
 
-      {/* Panel A bars */}
+      {/* Panel A bars — latest bar fills MTA red (bar-chart latest-print accent) */}
       <g clip-path={`url(#${clipIdA})`}>
         {barsA.map((b) => (
           <rect
-            class="p6s-chart__bar"
+            class={b.isLatest ? "p6s-chart__bar p6s-chart__bar--latest" : "p6s-chart__bar"}
             x={b.x.toFixed(2)}
             y={b.y.toFixed(2)}
             width={b.w.toFixed(2)}
@@ -402,18 +392,6 @@ const clipIdB = "p6s-clip-b";
           </rect>
         ))}
       </g>
-
-      {/* Panel A latest-print dot */}
-      {lastBarA && (
-        <circle
-          class="p6s-chart__latest-dot"
-          cx={latestDotAX.toFixed(2)}
-          cy={latestDotAY.toFixed(2)}
-          r="4"
-        >
-          <title>{`Latest YTD: ${lastBarA.titleText}`}</title>
-        </circle>
-      )}
 
       {/* Panel A hairline frame */}
       <rect
@@ -489,11 +467,11 @@ const clipIdB = "p6s-clip-b";
         />
       )}
 
-      {/* Panel B bars */}
+      {/* Panel B bars — latest bar fills MTA red (bar-chart latest-print accent) */}
       <g clip-path={`url(#${clipIdB})`}>
         {barsB.map((b) => (
           <rect
-            class="p6s-chart__bar"
+            class={b.isLatest ? "p6s-chart__bar p6s-chart__bar--latest" : "p6s-chart__bar"}
             x={b.x.toFixed(2)}
             y={b.y.toFixed(2)}
             width={b.w.toFixed(2)}
@@ -503,18 +481,6 @@ const clipIdB = "p6s-clip-b";
           </rect>
         ))}
       </g>
-
-      {/* Panel B latest-print dot */}
-      {lastBarB && (
-        <circle
-          class="p6s-chart__latest-dot"
-          cx={latestDotBX.toFixed(2)}
-          cy={latestDotBY.toFixed(2)}
-          r="4"
-        >
-          <title>{`Latest monthly: ${lastBarB.titleText}`}</title>
-        </circle>
-      )}
 
       {/* Panel B hairline frame */}
       <rect
@@ -609,10 +575,9 @@ const clipIdB = "p6s-clip-b";
     shape-rendering: crispEdges;
   }
 
-  /* Latest-print dot — MTA red, the only non-ink mark */
-  .p6s-chart__latest-dot {
+  /* Latest-print bar — MTA red accent; the bar IS the moment-of-attention */
+  .p6s-chart__bar--latest {
     fill: var(--accent);
-    stroke: none;
   }
 
   /* Hairline frame — 1px pure ink per cell */

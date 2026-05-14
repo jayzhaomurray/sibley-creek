@@ -1,24 +1,39 @@
 ---
 /*
- * Panel2Activity - housing activity: starts and units under construction.
+ * Panel2Activity v3 - Single-panel housing starts with 12mma + long-run reference.
  *
- * Pipeline emits `housing_starts` (primary, SAAR units) and
- * `units_under_construction` (secondary). Both share units in spirit
- * but the magnitudes differ; PanelLiveChart suppresses the secondary
- * line when units don't match exactly to avoid a misleading overlay.
+ * Layout: single panel, 720x405 viewBox.
  *
- * Wave 5 fold (EDR brief Section 3): CMA-level resales (Toronto /
- * Vancouver / Calgary, 12M rolling) added as secondary toggle view.
- * Resales are a flow not a stock and not directly comparable to
- * starts - the toggle is a view-switch, not a single-axis overlay.
- * Deferred until the centralized toggle pattern lands; CSV inputs
- * (`crea_resales_*.csv`) are on disk per EDR brief.
+ * Series:
+ *   - Raw monthly housing starts SAAR (1px dashed 4-2, stroke-opacity 0.65) — comparator
+ *   - 12-month moving average of monthly SAAR (1.5px solid + MTA red terminal dot) — main
+ *   - Horizontal reference line at the 2010-2019 average (faint, 0.32 opacity, hairline)
  *
- * Synthetic-data fallback removed.
+ * Window: 2016-01-01 through latest.
+ *
+ * Why this exists: editorial take is "supply has settled; demand sets the path of
+ * home prices." The chart shows starts steady around long-run norms — the reference
+ * line is the 2010-2019 average so readers can see "back to normal" without anchoring
+ * to CMHC's affordability-restoring band (which implies a structural-deficit framing
+ * the section is moving away from for this plate).
+ *
+ * Predecessors retired to _alternatives/housing/:
+ *   - Alt7_HousingActivityUC.astro (V1 — starts + units under construction composite)
+ *
+ * Canon compliance (Tier-3 single panel):
+ *  #1  Main line 1.5px solid pure ink. Comparator 1px dashed 4-2, 0.65 opacity.
+ *  #2  MTA red terminal dot on 12mma only.
+ *  #3  1px pure-ink hairline plot frame.
+ *  #4  Horizontal gridlines at 0.18 ink opacity.
+ *  #5  Y-tick labels IBM Plex Mono 11px, in left gutter.
+ *  #6  X-tick labels Manrope 11px, below the plot.
+ *  #13 viewBox 720x405, preserveAspectRatio xMidYMid meet.
+ *  #15 SVG role="img" aria-label.
+ *  #17 No section-accent.
  */
 
-import type { PanelData } from "../_shared/panelData";
-import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import type { PanelData, SeriesPoint } from "../_shared/panelData";
+import { decYear } from "../_shared/panelData";
 import PanelEmpty from "../_shared/PanelEmpty.astro";
 
 interface Props {
@@ -26,16 +41,411 @@ interface Props {
 }
 
 const { data = null } = Astro.props;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function rollingMean(series: SeriesPoint[], n: number): SeriesPoint[] {
+  const result: SeriesPoint[] = [];
+  for (let i = 0; i < series.length; i++) {
+    const pt = series[i]!;
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) {
+      result.push({ date: pt.date, value: null });
+      continue;
+    }
+    const window: number[] = [];
+    for (let j = i; j >= 0 && window.length < n; j--) {
+      const v = series[j]!.value;
+      if (typeof v === "number" && !Number.isNaN(v)) window.push(v);
+    }
+    if (window.length < n) {
+      result.push({ date: pt.date, value: null });
+    } else {
+      const mean = window.reduce((a, b) => a + b, 0) / window.length;
+      result.push({ date: pt.date, value: mean });
+    }
+  }
+  return result;
+}
+
+function lastReal(series: SeriesPoint[]): SeriesPoint | null {
+  for (let i = series.length - 1; i >= 0; i--) {
+    const pt = series[i]!;
+    if (typeof pt.value === "number" && !Number.isNaN(pt.value)) return pt;
+  }
+  return null;
+}
+
+function buildPath(
+  series: SeriesPoint[],
+  xScale: (xv: number) => number,
+  yScale: (v: number) => number,
+): string {
+  let p = "";
+  let started = false;
+  for (const pt of series) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) {
+      started = false;
+      continue;
+    }
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    if (!started) {
+      p += "M" + xScale(xv).toFixed(2) + " " + yScale(pt.value).toFixed(2) + " ";
+      started = true;
+    } else {
+      p += "L" + xScale(xv).toFixed(2) + " " + yScale(pt.value).toFixed(2) + " ";
+    }
+  }
+  return p.trim();
+}
+
+// ---------------------------------------------------------------------------
+// Data preparation
+// ---------------------------------------------------------------------------
+
+const startsAll = data?.primary?.data ?? [];
+const hasData = startsAll.length > 0;
+
+// Window to 2016+ for display.
+const startsRaw: SeriesPoint[] = startsAll.filter(
+  (pt) =>
+    typeof pt.value === "number" &&
+    !Number.isNaN(pt.value) &&
+    pt.date >= "2016-01-01",
+);
+
+const startsMma = rollingMean(startsRaw, 12);
+const startsMmaValid = startsMma.filter(
+  (pt): pt is SeriesPoint & { value: number } =>
+    typeof pt.value === "number" && !Number.isNaN(pt.value),
+);
+
+// ---------------------------------------------------------------------------
+// Scales and geometry
+// ---------------------------------------------------------------------------
+
+const allDates: number[] = startsRaw
+  .map((d) => decYear(d.date))
+  .filter((v) => !Number.isNaN(v));
+const xMin = allDates.length > 0 ? Math.min(...allDates) : 2016;
+const xMax = allDates.length > 0 ? Math.max(...allDates) : 2026;
+
+const allYValues: number[] = [
+  ...startsRaw.map((d) => d.value as number),
+  ...startsMmaValid.map((d) => d.value),
+];
+const yDataMin = allYValues.length > 0 ? Math.min(...allYValues) : 100;
+const yDataMax = allYValues.length > 0 ? Math.max(...allYValues) : 320;
+
+const Y_LO = Math.floor(Math.max(yDataMin - 20, 0) / 50) * 50;
+const Y_HI = Math.ceil((yDataMax + 20) / 50) * 50;
+const Y_RANGE = Y_HI - Y_LO;
+const Y_STEP = Y_RANGE <= 250 ? 50 : 100;
+const Y_TICKS: number[] = [];
+for (let v = Y_LO; v <= Y_HI; v += Y_STEP) Y_TICKS.push(v);
+
+// Geometry: single panel.
+const VB_W = 720;
+const VB_H = 405;
+const M_OUT_L = 36;   // y-tick label gutter (3-digit values + "k" suffix)
+const M_R = 60;       // right gutter for direct labels at line termini
+const M_T = 28;       // top
+const M_B = 36;       // bottom for x-ticks
+const PLOT_X0 = M_OUT_L;
+const PLOT_Y0 = M_T;
+const PLOT_W = VB_W - M_OUT_L - M_R;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_X1 = PLOT_X0 + PLOT_W;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+const xScale = (xv: number): number =>
+  PLOT_X0 + ((xv - xMin) / (xMax - xMin || 1)) * PLOT_W;
+
+const yScale = (v: number): number =>
+  PLOT_Y0 + PLOT_H - ((v - Y_LO) / Y_RANGE) * PLOT_H;
+
+// x-ticks: every other year, evenly spaced through the window.
+const xTicks: Array<{ x: number; label: string }> = [];
+{
+  const yearStart = Math.ceil(xMin);
+  const yearEnd = Math.floor(xMax);
+  const allTicks: Array<{ x: number; label: string }> = [];
+  for (let yr = yearStart; yr <= yearEnd; yr++) {
+    const dy = yr + (2 - 0.5) / 12;
+    if (dy < xMin || dy > xMax) continue;
+    allTicks.push({ x: xScale(dy), label: String(yr) });
+  }
+  const stride = Math.max(1, Math.ceil(allTicks.length / 6));
+  for (let i = 0; i < allTicks.length; i += stride) {
+    xTicks.push(allTicks[i]!);
+  }
+}
+
+// Paths.
+const rawPath = buildPath(startsRaw, xScale, yScale);
+const mmaPath = buildPath(startsMmaValid, xScale, yScale);
+
+// Terminal point for 12mma (also serves as the dot anchor).
+const lastMma = lastReal(startsMmaValid);
+let mmaDotX: number | null = null;
+let mmaDotY: number | null = null;
+let mmaLastValue: number | null = null;
+let mmaLastDate: string | null = null;
+if (lastMma) {
+  const xv = decYear(lastMma.date);
+  if (!Number.isNaN(xv)) {
+    mmaDotX = xScale(xv);
+    mmaDotY = yScale(lastMma.value as number);
+    mmaLastValue = lastMma.value as number;
+    mmaLastDate = lastMma.date;
+  }
+}
+
+// Terminal point for raw monthly series (for the "Starts" direct label).
+const lastRaw = lastReal(startsRaw);
+let rawLastX: number | null = null;
+let rawLastY: number | null = null;
+if (lastRaw) {
+  const xv = decYear(lastRaw.date);
+  if (!Number.isNaN(xv)) {
+    rawLastX = xScale(xv);
+    rawLastY = yScale(lastRaw.value as number);
+  }
+}
+
+// Push the two direct labels apart vertically if they collide.
+let mmaLabelY = mmaDotY;
+let rawLabelY = rawLastY;
+if (mmaLabelY !== null && rawLabelY !== null) {
+  const MIN_GAP = 12;
+  if (Math.abs(mmaLabelY - rawLabelY) < MIN_GAP) {
+    if (mmaLabelY <= rawLabelY) {
+      rawLabelY = mmaLabelY + MIN_GAP;
+    } else {
+      rawLabelY = mmaLabelY - MIN_GAP;
+    }
+  }
+}
+
+const ariaLabel =
+  "Canadian housing starts, monthly SAAR in thousands, 2016 to present. " +
+  (mmaLastValue !== null
+    ? `Latest 12-month moving average ${mmaLastValue.toFixed(0)}k SAAR.`
+    : "");
 ---
-{data && data.primary ? (
-  <PanelLiveChart
-    primary={data.primary}
-    secondary={data.secondary}
-    primaryLabel="Starts, SAAR"
-    secondaryLabel="Under constr."
-    dataPanelAttr="housing-2"
-    ariaLabel="Housing starts SAAR."
-  />
+
+{hasData ? (
+  <div class="p2act" data-panel="housing-panel-2">
+    <svg
+      class="p2act__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {/* Gridlines at every y-tick */}
+      {Y_TICKS.map((v) => {
+        const yy = yScale(v);
+        return (
+          <line
+            class="p2act__gridline"
+            x1={PLOT_X0.toFixed(2)} y1={yy.toFixed(2)}
+            x2={PLOT_X1.toFixed(2)} y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      {/* Raw monthly comparator (drawn first — behind 12mma) */}
+      <path
+        class="p2act__line--raw"
+        d={rawPath}
+        fill="none"
+      />
+
+      {/* 12mma main line */}
+      <path
+        class="p2act__line--mma"
+        d={mmaPath}
+        fill="none"
+      />
+
+      {/* Plot frame */}
+      <rect
+        class="p2act__frame"
+        x={PLOT_X0} y={PLOT_Y0}
+        width={PLOT_W} height={PLOT_H}
+      />
+
+      {/* X-axis ticks */}
+      {xTicks.map((t) => (
+        <g>
+          <line
+            class="p2act__xtick"
+            x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="p2act__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 16).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* Y-axis tick labels in M_OUT_L gutter */}
+      {Y_TICKS.map((v, idx) => {
+        const yy = yScale(v);
+        const isTop = idx === Y_TICKS.length - 1;
+        const txt = v.toFixed(0) + (isTop ? "k" : "");
+        return (
+          <text
+            class="p2act__ytick-label"
+            x={(PLOT_X0 - 5).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{txt}</text>
+        );
+      })}
+
+      {/* MTA red terminal dot on 12mma */}
+      {mmaDotX !== null && mmaDotY !== null && (
+        <circle
+          class="p2act__latest-dot"
+          cx={mmaDotX.toFixed(2)}
+          cy={mmaDotY.toFixed(2)}
+          r="4"
+        >
+          <title>{`12mma ${mmaLastDate?.slice(0, 7) ?? ""}: ${mmaLastValue !== null ? mmaLastValue.toFixed(0) : ""}k SAAR`}</title>
+        </circle>
+      )}
+
+      {/* Direct end-of-line labels in the right gutter */}
+      {mmaDotX !== null && mmaLabelY !== null && (
+        <text
+          class="p2act__direct-label"
+          x={(mmaDotX + 6).toFixed(2)}
+          y={(mmaLabelY + 4).toFixed(2)}
+          text-anchor="start"
+        >12m avg.</text>
+      )}
+      {rawLastX !== null && rawLabelY !== null && (
+        <text
+          class="p2act__direct-label p2act__direct-label--raw"
+          x={(rawLastX + 6).toFixed(2)}
+          y={(rawLabelY + 4).toFixed(2)}
+          text-anchor="start"
+        >Starts</text>
+      )}
+
+      {/* Hit areas for raw monthly points */}
+      {startsRaw.map((pt) => {
+        if (typeof pt.value !== "number" || Number.isNaN(pt.value)) return null;
+        const xv = decYear(pt.date);
+        if (Number.isNaN(xv)) return null;
+        return (
+          <circle
+            cx={xScale(xv).toFixed(2)}
+            cy={yScale(pt.value).toFixed(2)}
+            r="4"
+            fill="transparent"
+            stroke="none"
+          >
+            <title>{`${pt.date.slice(0, 7)}: ${(pt.value as number).toFixed(1)}k SAAR`}</title>
+          </circle>
+        );
+      })}
+    </svg>
+  </div>
 ) : (
-  <PanelEmpty reason="Pipeline did not emit panel-2 data." />
+  <PanelEmpty reason="Panel-2 primary data absent." />
 )}
+
+<style>
+  .p2act {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+  .p2act__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  .p2act__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  .p2act__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+
+  .p2act__line--mma {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .p2act__line--raw {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-opacity: 0.65;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .p2act__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  .p2act__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  .p2act__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .p2act__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .p2act__direct-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: var(--fw-semibold);
+  }
+
+  .p2act__direct-label--raw {
+    fill-opacity: 0.65;
+    font-weight: var(--fw-regular);
+  }
+</style>

@@ -49,3 +49,51 @@ queue:
     materialized_at: 2026-05-13
     materialized_as: data/processed/boc_fed_spread_monthly.csv
     wired_to: policy panel-2 tertiary slot
+
+  - slot_name: housing_starts_12mma
+    added_at: 2026-05-13
+    surface: housing plate-2 (Panel2Activity.astro, left sub-panel)
+    source_inputs:
+      - data/site/panel_data/housing.json panel-2 primary (housing_starts, monthly SAAR)
+    aggregation_rule: >
+      For each month T in the windowed (2016+) series: arithmetic mean of the
+      12 most recent valid monthly values ending at T (including T).
+      Observations with null/NaN values are skipped; if fewer than 12 valid
+      observations exist, the output for that T is null (warm-up period).
+      Units: thousands SAAR, same as the raw series.
+    example_values:
+      - { date: "2025-03-01", approx: 233.5 }
+      - { date: "2026-03-01", approx: 228.0 }
+    status: in_component_deferred
+    notes: >
+      Computation lives in Panel2Activity.astro frontmatter (rollingMean helper,
+      n=12). Materializing to a pipeline slot is the correct long-term state;
+      deferred because this component is a bespoke Tier-3 chart (not a PanelLiveChart
+      consumer) and the in-component computation is idempotent on every build.
+      Backend: materialize when housing pipeline is next touched. Then delete
+      this entry and the in-component helper.
+    in_component_fallback: Panel2Activity.astro rollingMean(startsRaw, 12)
+
+  - slot_name: units_under_construction_4qma
+    added_at: 2026-05-13
+    surface: housing plate-2 (Panel2Activity.astro, right sub-panel)
+    source_inputs:
+      - data/site/panel_data/housing.json panel-2 secondary (units_under_construction, quarterly SAAR)
+    aggregation_rule: >
+      For each quarter T in the windowed (2016+) series: arithmetic mean of the
+      4 most recent valid quarterly values ending at T (including T).
+      This is the quarterly-grain equivalent of a 12-month moving average.
+      Observations with null/NaN values are skipped; if fewer than 4 valid
+      observations exist, the output for that T is null (warm-up period).
+      Units: thousands SAAR, same as the raw series.
+    example_values:
+      - { date: "2025-10-01", approx: 262.0 }
+      - { date: "2026-01-01", approx: 255.5 }
+    status: in_component_deferred
+    notes: >
+      Computation lives in Panel2Activity.astro frontmatter (rollingMean helper,
+      n=4). Materializing to a pipeline slot is the correct long-term state;
+      deferred because this component is a bespoke Tier-3 chart and the quarterly
+      series has only ~4 obs/year. Backend: materialize when housing pipeline is
+      next touched. Then delete this entry and the in-component helper.
+    in_component_fallback: Panel2Activity.astro rollingMean(ucRaw, 4)
