@@ -8,6 +8,7 @@ import type { ChartShelfEntry } from "../_shared/shelfEntry";
 import Alt1_GoCUstSpread from "./Alt1_GoCUstSpread.astro";
 import Alt2_OilTriple from "./Alt2_OilTriple.astro";
 import Alt3_WcsDiscount from "./Alt3_WcsDiscount.astro";
+import Panel3CanadaUS2ySpread from "./Panel3CanadaUS2ySpread.astro";
 import Panel3CreditSpreads from "./Panel3CreditSpreads.astro";
 import Panel5BankStability from "./Panel5BankStability.astro";
 import Panel6FCI from "./Panel6FCI.astro";
@@ -44,6 +45,17 @@ export const entries: ChartShelfEntry[] = [
       "Wide differential = pipeline constraints; tight = relief. One line, one signal.",
     dataFields: "wti.csv - wcs.csv",
     addedAt: "2026-05-12",
+  },
+  {
+    Component: Panel3CanadaUS2ySpread,
+    file: "markets/Panel3CanadaUS2ySpread.astro",
+    title: "Canada-US 2y spread (retired from production 2026-05-14)",
+    whatDifferent:
+      "Front-end Canada-US 2y basis with percentile bands. Was plate-4 on the markets section.",
+    whyBetter:
+      "Retired: the FX channel is no longer the binding constraint on BoC policy, so the chart's editorial weight on the section page didn't justify the slot. Lives on as a reference signal alongside Alt1_GoCUstSpread.",
+    dataFields: "yield_2yr.csv + us_2yr.csv (distribution constructed).",
+    addedAt: "2026-05-14",
   },
   {
     Component: Panel3CreditSpreads,

@@ -715,17 +715,18 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "May 8, 2026",
+      date: "May 13, 2026",
       body:
-        "USDCAD closed May 8 at 1.369, up 0.8% on the week, per Bank of Canada noon rates. The 10y GoC yield closed at 3.53% on May 7, two basis points firmer. WTI rose to $109.76 by May 4, a 9.9% move that put crude back above $100 after dipping briefly below; the TSX Composite closed near 34.1k, flat on the session.",
+        "USDCAD has spent the past month inside a 1.36 to 1.38 band, closing at 1.3686 on May 8. The 10y GoC yield is at 3.53%, with the front end up roughly 10 bps over the past two weeks. WTI round-tripped to a US$109.76 peak on May 4 and settled at US$101.12 on May 13; the TSX Composite is near 34,000.",
     },
     abstractCitations: [
-      { phrase: "up 0.8% on the week", source: "derived", note: "USDCAD week-over-week change: 1.3576 (May 1) -> 1.3686 (May 8) = +0.81%, rounds to 0.8%. Per BoC Valet FXUSDCAD." },
-      { phrase: "10y GoC yield closed at 3.53% on May 7", source: "pipeline:boc:yield_10yr", note: "GoC 10y benchmark yield, May 7 2026 daily close." },
-      { phrase: "WTI rose to $109.76 by May 4", source: "pipeline:fred:DCOILWTICO", note: "WTI spot, May 4 2026 daily close." },
-      { phrase: "a 9.9% move", source: "derived", note: "WTI week-over-week change: 99.89 (Apr 27) -> 109.76 (May 4) = +9.88%, rounds to 9.9%. Per FRED DCOILWTICO." },
-      { phrase: "back above $100 after dipping briefly below", source: "pipeline:fred:DCOILWTICO", note: "WTI closed at 98.07 on May 1, dipping below $100 between Apr 27 (99.89) and May 4 (109.76)." },
-      { phrase: "TSX Composite closed near 34.1k", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close, May 8 2026 (34,077.76), via Yahoo Finance ^GSPTSE." },
+      { phrase: "USDCAD has spent the past month inside a 1.36 to 1.38 band", source: "pipeline:boc:fxusdcad", note: "USDCAD daily-close range across April 13 to May 12, 2026: 1.357 to 1.388 per BoC Valet FXUSDCAD." },
+      { phrase: "closing at 1.3686 on May 8", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close, May 8, 2026 per BoC Valet FXUSDCAD." },
+      { phrase: "10y GoC yield is at 3.53%", source: "pipeline:boc:yield_10yr", note: "GoC 10y benchmark yield, latest daily close." },
+      { phrase: "front end up roughly 10 bps over the past two weeks", source: "pipeline:boc:yield_2yr", note: "GoC 2y up roughly 10 bps over the trailing 2-week window (~2.83 to 2.93)." },
+      { phrase: "WTI round-tripped to a US$109.76 peak on May 4", source: "pipeline:fred:DCOILWTICO", note: "WTI spot daily-close peak in early May 2026: 109.76 on May 4. Subsequent close on May 13 at 101.12 returned the price to early-month levels." },
+      { phrase: "settled at US$101.12 on May 13", source: "pipeline:fred:DCOILWTICO", note: "WTI spot, May 13, 2026 daily close." },
+      { phrase: "TSX Composite is near 34,000", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close, May 12 2026 (33,994.87), via Yahoo Finance ^GSPTSE." },
     ],
   },
 ];
@@ -878,7 +879,7 @@ export const deepDives: DeepDive[] = [
     section: "trade",
     title: "Canada's trade pivot that wasn't",
     deck:
-      "Strip out gold and most of the apparent pivot is gone. Among the tariffed sectors, only aluminum managed to diversify; steel and softwood have become more US-dependent. Across the broader economy, many industries reduced their reliance on the US by a couple percentage points — collectively a broad but subtle reorientation, but nothing as drastic as the headline implies.",
+      "Strip out gold and most of the apparent pivot is gone. Among the tariffed sectors, only aluminum managed to meaningfully diversify. Autos haven't dodged the hit at all.",
     publishedAt: "2026-05-11",
     lastUpdated: "2026-05-11",
     dataVintage: "2026-05-11",

@@ -21,7 +21,6 @@ const latestReleaseLabel = deriveLatestReleaseLabel(
 const panel1Data = pickPanel(panelDataFile, 1);
 const panel2Data = pickPanel(panelDataFile, 2);
 const panel3Data = pickPanel(panelDataFile, 3);
-const panel4Data = pickPanel(panelDataFile, 4);
 const panel6Data = pickPanel(panelDataFile, 6);
 
 const plates: Plate[] = [
@@ -33,9 +32,8 @@ const plates: Plate[] = [
     plateIndexLabel: "CAD",
     title: "The loonie has settled into a range well below last fall's stress reach.",
     interpretationHtml:
-      "USDCAD closed the week at 1.3686, weaker by about a cent from 1.3576 on May 1 as the early-May CAD rally reversed. " +
-      "The pair has spent the past month inside a 1.36 to 1.38 band, well below the 1.42 stress reach of late 2025. " +
-      "The BoC effective exchange rate (CEER) overlay is not yet wired in the data pipeline.",
+      "USDCAD closed the week at 1.3686, weaker by about a cent from 1.3576 on May 1. " +
+      "The pair has spent the past month inside a 1.36 to 1.38 band, well below the 1.42 stress reach of late 2025.",
     callout: {
       value: "1.3686",
       unitPrefix: "USDCAD spot",
@@ -79,11 +77,10 @@ const plates: Plate[] = [
     chartKey: "markets-panel-3",
     indicator: "GoC yield curve",
     plateIndexLabel: "GoC curve",
-    title: "The front end has repriced on firmer inflation while the long end stayed anchored.",
+    title: "The curve has steepened from the front end.",
     interpretationHtml:
       "The GoC 10y sits at 3.53%, with the 2y at 2.94%, the 5y at 3.18%, and the 30y at 3.90%. " +
-      "The 2s10s spread of 59 bps marks the steepest reading in months, driven by a 12 bps lift at the 2y over the past two weeks as front-end repricing absorbed firmer near-term inflation prints. " +
-      "The long end held steady through the same window, consistent with anchored term premium.",
+      "The 2s10s spread of 59 bps marks the steepest reading in months, with the 2y up roughly 10 bps over the past two weeks while the long end held steady.",
     callout: {
       value: "3.53%",
       unitPrefix: "GoC 10y",
@@ -99,64 +96,34 @@ const plates: Plate[] = [
       { phrase: "5y at 3.18%", source: "pipeline:boc:yield_5yr", note: "GoC 5y benchmark yield, latest daily close." },
       { phrase: "30y at 3.90%", source: "pipeline:boc:yield_30yr", note: "GoC long (~30y) benchmark yield, latest daily close." },
       { phrase: "2s10s spread of 59 bps", source: "derived", note: "10y (3.53%) - 2y (2.94%) = 59 bps." },
-      { phrase: "12 bps lift at the 2y over the past two weeks", source: "pipeline:boc:yield_2yr", note: "Change in GoC 2y yield over the trailing ~2-week window." },
+      { phrase: "the 2y up roughly 10 bps over the past two weeks", source: "pipeline:boc:yield_2yr", note: "Change in GoC 2y yield over the trailing ~2-week window; ~10 bps lift." },
     ],
   },
   {
     id: "plate-4",
     number: "04",
-    chartKey: "markets-panel-4",
-    indicator: "Canada 2y minus US 2y",
-    plateIndexLabel: "GoC-UST 2y spread",
-    title: "The cross-border spread is deep but no longer the binding constraint on the BoC.",
-    interpretationHtml:
-      "GoC 2y at 2.94% against UST 2y at 3.92% leaves the Canada-US 2y spread at minus 98 bps. " +
-      "On daily data since 2001, that reading sits at the 5th percentile of the distribution -- deep, but roughly 70 bps off the all-time minus 170 bps trough reached on February 3, 2025. " +
-      "USDCAD has stayed inside a 1.36 to 1.39 range through the spring, which is why the FX channel is not currently the binding constraint on the Bank's hold.",
-    callout: {
-      value: "-98 bps",
-      unit: "Canada 2y minus US 2y",
-      delta: "5th percentile, post-2001",
-      direction: "neutral",
-    },
-    source: "BoC Valet (Canada 2y); FRED DGS2 (US 2y); distribution constructed.",
-    data: panel4Data,
-    citations: [
-      { phrase: "GoC 2y at 2.94%", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, latest daily close, via BoC Valet." },
-      { phrase: "UST 2y at 3.92%", source: "pipeline:fred:DGS2", note: "US 2y Treasury constant-maturity yield, latest daily close, FRED DGS2." },
-      { phrase: "minus 98 bps", source: "derived", note: "2.94% (GoC 2y) - 3.92% (UST 2y) = -0.98 pp = -98 bps." },
-      { phrase: "daily data since 2001", source: "pipeline:fred:DGS2", note: "FRED DGS2 history begins June 1976; Canada 2y daily history via BoC Valet covers post-2001 window used for the distribution." },
-      { phrase: "5th percentile of the distribution", source: "derived", note: "Verified 2026-05-13 against raw CSVs (data/raw/yield_2yr.csv + data/raw/us_2yr.csv): 6,219 daily observations since 2001-01-02; -98 bps sits at the 5.07th percentile. Median spread over the period = +11 bps. 5th-percentile threshold = -98 bps exactly." },
-      { phrase: "70 bps off the all-time minus 170 bps trough reached on February 3, 2025", source: "derived", note: "Distribution minimum reached -170 bps on Feb 3, 2025; current -98 bps is ~72 bps off that floor. Source: pipeline yield_2yr and FRED DGS2." },
-      { phrase: "1.36 to 1.39 range", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close range across spring 2026 per BoC Valet FXUSDCAD; series traded 1.357-1.395 across March-May 2026, May 8 close 1.369." },
-    ],
-  },
-  {
-    id: "plate-5",
-    number: "05",
     chartKey: "markets-panel-6",
     indicator: "WTI, Brent, and WCS oil prices",
     plateIndexLabel: "Energy",
-    asOf: "May 4, 2026 (WTI, Brent); March 2026 (WCS)",
-    title: "Crude has broken higher and the Canadian heavy differential has compressed sharply.",
+    asOf: "May 13, 2026 (WTI, Brent); March 2026 (WCS)",
+    title: "Oil prices are elevated; the Canadian heavy discount has narrowed.",
     interpretationHtml:
-      "WTI closed at US$109.76 on May 4, up nearly US$10 from US$99.89 a week earlier, with Brent at US$104.21 (May 1) sitting roughly five dollars below WTI. " +
-      "WCS averaged US$75.85 in March, well above the US$50 range that held through late 2025 and a sharply narrower differential to WTI than the typical post-2018 discount. " +
-      "AECO gas is not in the current data feed.",
+      "WTI closed at US$101.12 on May 13, off a US$109.76 peak on May 4. Brent is at US$106.90, roughly five dollars above WTI. " +
+      "WCS averaged US$75.85 in March, well above the US$50 range that held through late 2025 and a sharply narrower differential to WTI than the typical post-2018 discount.",
     callout: {
-      value: "US$109.76",
+      value: "US$101.12",
       unitPrefix: "WTI spot",
-      delta: "+US$9.87 w/w",
+      delta: "May 13 close",
       direction: "neutral",
     },
     source:
       "FRED (DCOILWTICO, DCOILBRENTEU); Government of Alberta Economic Dashboard (WCS monthly).",
     data: panel6Data,
     citations: [
-      { phrase: "WTI closed at US$109.76 on May 4", source: "pipeline:fred:DCOILWTICO", note: "WTI spot, May 4, 2026 daily close." },
-      { phrase: "up nearly US$10", source: "derived", note: "$109.76 - $99.89 = $9.87, rounds to ~$10." },
-      { phrase: "from US$99.89 a week earlier", source: "pipeline:fred:DCOILWTICO", note: "WTI spot, ~one week before May 4, 2026." },
-      { phrase: "Brent at US$104.21 (May 1)", source: "pipeline:fred:DCOILBRENTEU", note: "Brent spot, May 1, 2026 daily close per FRED DCOILBRENTEU." },
+      { phrase: "WTI closed at US$101.12 on May 13", source: "pipeline:fred:DCOILWTICO", note: "WTI spot, May 13, 2026 daily close." },
+      { phrase: "off a US$109.76 peak on May 4", source: "pipeline:fred:DCOILWTICO", note: "WTI spot, May 4, 2026 daily close — the early-May high." },
+      { phrase: "Brent is at US$106.90", source: "pipeline:fred:DCOILBRENTEU", note: "Brent spot, May 13, 2026 daily close per FRED DCOILBRENTEU." },
+      { phrase: "roughly five dollars above WTI", source: "derived", note: "$106.90 (Brent) - $101.12 (WTI) = $5.78 on May 13, 2026." },
       { phrase: "WCS averaged US$75.85 in March", source: "pipeline:gov_ab:wcs", note: "Western Canadian Select monthly average, March 2026, Government of Alberta Economic Dashboard." },
       { phrase: "US$50 range that held through late 2025", source: "pipeline:gov_ab:wcs", note: "WCS monthly averages held in the ~US$50 range through late 2025; year token covered here." },
       { phrase: "typical post-2018 discount", source: "pipeline:gov_ab:wcs", note: "Historical WCS-WTI differential context; post-2018 anchor reflects the structural widening era following the Alberta production curtailment regime." },
