@@ -1,11 +1,11 @@
 ---
 /*
- * Panel4Energy - WTI and Brent.
+ * Panel4Energy - WTI only.
  *
- * Pipeline emits `wti` (primary, USD/barrel) and `brent` (secondary).
- * Both USD/barrel; rendered as overlay.
- *
- * Synthetic-data fallback removed.
+ * Pipeline emits `wti` (primary, USD/barrel). Brent overlay removed
+ * 2026-05-14: it duplicated the WTI signal and added clutter; WCS
+ * lives in monthly data so a second daily line wasn't the right
+ * companion.
  */
 
 import type { PanelData } from "../_shared/panelData";
@@ -21,11 +21,9 @@ const { data = null } = Astro.props;
 {data && data.primary ? (
   <PanelLiveChart
     primary={data.primary}
-    secondary={data.secondary}
     primaryLabel="WTI"
-    secondaryLabel="Brent"
     dataPanelAttr="markets-4"
-    ariaLabel="WTI and Brent oil prices, USD per barrel."
+    ariaLabel="WTI oil price, USD per barrel."
   />
 ) : (
   <PanelEmpty reason="Pipeline did not emit panel-4 data." />
