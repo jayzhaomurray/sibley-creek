@@ -161,8 +161,11 @@ const rightAxis = { yLo: RP_Y_LO, yHi: RP_Y_HI, ticks: RP_TICKS };
 
 // ---- Tick formatter ----------------------------------------------------------
 function fmtLeftTick(v: number, isTop: boolean): string {
-  const n = Math.round(v);
-  return isTop ? `${n}M` : String(n);
+  // Display in CAD billions. Input v is in CAD millions.
+  const b = v / 1000;
+  // Whole-number billions if integer; one decimal otherwise.
+  const txt = Number.isInteger(b) ? String(b) : b.toFixed(1);
+  return isTop ? `$${txt}B` : txt;
 }
 
 function fmtRightTick(v: number, isTop: boolean): string {
@@ -179,7 +182,7 @@ const xMax = Math.max(...allDates);
 
 // ---- Geometry ----------------------------------------------------------------
 const VB_W = 720;
-const VB_H = 405;
+const VB_H = 440;
 
 // Outer margins
 const M_OUT_L = 46;   // left outer gutter — left panel y-ticks
@@ -188,7 +191,7 @@ const M_T     = 28;   // top
 const M_B     = 36;   // bottom — x-tick labels
 
 // Gap between panels — right panel y-ticks live here
-const GAP_X = 52;
+const GAP_X = 96;
 
 // Total plot area
 const TOTAL_W = VB_W - M_OUT_L - M_R;
@@ -458,6 +461,13 @@ const latestDate = totalLast.date.slice(0, 7);
          RIGHT PANEL — GOLD PRICE
          ===================================================================== -->
 
+    <!-- Sub-panel label -->
+    <text
+      class="gep-chart__panel-label"
+      x={RP_X0 + 4}
+      y={RP_Y0 - 8}
+    >GOLD PRICE PER OZ</text>
+
     <!-- Gridlines — right panel -->
     {rightAxis.ticks.map((v) => {
       const yv = rightYScale(v);
@@ -525,13 +535,6 @@ const latestDate = totalLast.date.slice(0, 7);
       );
     })}
 
-    <!-- Direct end-of-line label — right panel -->
-    <text
-      class="gep-chart__direct-label--primary"
-      x={priceLabelX.toFixed(1)}
-      y={priceLabelY.toFixed(1)}
-    >USD/oz</text>
-
     <!-- X-axis ticks — right panel (bottom) -->
     {xTicks.map((t) => {
       if (t.xRight < RP_X0 - 1 || t.xRight > RP_X1 + 1) return null;
@@ -548,13 +551,6 @@ const latestDate = totalLast.date.slice(0, 7);
     })}
 
   </svg>
-
-  <p class="gep-chart__caption">
-    Gold and PGM exports, NAPCS 35 (gold + silver + PGM, ~85-90% gold by value). UK destination
-    share: {(ukLast.value / totalLast.value * 100).toFixed(1)}% ({latestDate}).
-    Gold price: monthly close, USD/oz.
-    Sources: Statistics Canada 12-10-0182-01; gold price series.
-  </p>
 </div>
 
 <style>

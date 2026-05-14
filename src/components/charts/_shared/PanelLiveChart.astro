@@ -104,6 +104,13 @@ interface Props {
    * the editorially cleaner 5pp). Default null (auto).
    */
   yTickStride?: number | null;
+  /**
+   * Hard override on the y-axis lower bound (data-space units). When set,
+   * clamps the auto-computed yLo down to this value. Use when the auto-floor
+   * crops the latest data point (e.g. percent series approaching the lower
+   * end of the auto-computed range). Default null (auto).
+   */
+  yDomainMin?: number | null;
   /** data-panel attribute for QA / theming hooks. */
   dataPanelAttr?: string;
 }
@@ -127,6 +134,7 @@ const {
   referenceBand = null,
   bandLabelPosition = "above",
   yTickStride = null,
+  yDomainMin = null,
   dataPanelAttr,
 } = Astro.props;
 
@@ -256,6 +264,10 @@ if (sharedSeries.length > 0) {
     if (referenceBand.lower < yLo) yLo = referenceBand.lower - span * 0.05;
     if (referenceBand.upper > yHi) yHi = referenceBand.upper + span * 0.05;
   }
+}
+// Hard floor override: extend y-domain down to yDomainMin when set.
+if (yDomainMin !== null && yDomainMin !== undefined && yDomainMin < yLo) {
+  yLo = yDomainMin;
 }
 const yRange = yHi - yLo || 1;
 const crossesZero = yLo < 0 && yHi > 0;

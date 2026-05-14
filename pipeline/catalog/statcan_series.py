@@ -1216,12 +1216,20 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
     #     auto-tariff scope. Add NAPCS 82 if editorial scope widens to
     #     all motor vehicles.
     #
+    #   COPPER (HS 7401-7403 — Unwrought copper and copper alloys):
+    #     NAPCS 33 = Unwrought copper and copper alloys (HS 7401-7403)
+    #     Single sub-chapter; no finer copper-only NAPCS cut available.
+    #     Section 232 tariff exposure since April 2026 copper proclamation.
+    #     US share ~82% (March 2026); reflects Horne smelter (QC) + Trail (BC)
+    #     refinery exports concentrated to US buyers.
+    #
     # DERIVATION ARCHITECTURE
-    #   The pipeline stores the 14 raw vectors below (2 NAPCS sub-components ×
-    #   2 destinations × 3 sectors, plus 1 NAPCS × 2 destinations for softwood).
-    #   A single derivation step (derive_sectoral_exports_by_destination() in
-    #   pipeline/build.py) sums sub-components per sector and computes non-US
-    #   as (total - US) for each of the four sectors. Output slugs:
+    #   The pipeline stores the 16 raw vectors below (2 NAPCS sub-components ×
+    #   2 destinations × 3 sectors, plus 1 NAPCS × 2 destinations each for
+    #   softwood and copper). A single derivation step
+    #   (derive_sectoral_exports_by_destination() in pipeline/build.py) sums
+    #   sub-components per sector and computes non-US as (total - US) for each
+    #   of the five sectors. Output slugs:
     #
     #     data/processed/exports_steel_us.csv         (NAPCS 30+31 → US)
     #     data/processed/exports_steel_nonus.csv       (total - US)
@@ -1231,6 +1239,8 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
     #     data/processed/exports_softwood_nonus.csv
     #     data/processed/exports_autos_us.csv          (NAPCS 81+84 → US)
     #     data/processed/exports_autos_nonus.csv
+    #     data/processed/exports_copper_us.csv         (NAPCS 33 → US)
+    #     data/processed/exports_copper_nonus.csv      (total - US)
     #
     #   All outputs in C$ millions. Monthly, NSA (Table 12-10-0182 publishes
     #   NSA only at NAPCS sub-chapter level; SA is not available at this
@@ -1239,6 +1249,8 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
     # VECTOR RESOLUTION (2026-05-14 via POST getSeriesInfoFromCubePidCoord)
     #   Coord format: 1.{napcs}.1.{partner}.1.0.0.0.0.0 (10-part, trailing 0s)
     #   responseStatusCode=0 for all resolved vectors (confirmed data available).
+    #   NOTE: correct WDS body format is [{productId: int, coordinate: str}]
+    #   (array-wrapped, 'productId' key — not 'pid').
     # -----------------------------------------------------------------------
 
     # Steel sub-component A: Unwrought iron, steel and ferro-alloys (NAPCS 30)
@@ -1404,6 +1416,70 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
         notes=(
             "Motor vehicle engines and motor vehicle parts (NAPCS 84), total "
             "exports, United States. Coord 1.84.1.2.1.0.0.0.0.0. "
+            "Resolved 2026-05-14."
+        ),
+    ),
+
+    # -----------------------------------------------------------------------
+    # Copper exports by destination (NAPCS 33)
+    #
+    # NAPCS 33 = "Unwrought copper and copper alloys" (HS 7401-7403).
+    # Confirmed 2026-05-14 via POST getSeriesInfoFromCubePidCoord on
+    # productId=12100182, coord 1.33.1.1.1.0.0.0.0.0.
+    # SeriesTitleEn: "Canada;Unwrought copper and copper alloys;Export;
+    # All countries, country of destination;All countries, country of origin"
+    #
+    # This is a single NAPCS sub-chapter covering primary copper — refined
+    # copper cathodes (HS 7403.11-7403.19), wire bar (HS 7403.21-7403.29),
+    # and blister copper (HS 7402). This is the correct scope for Section 232
+    # tariff exposure (April 2026 copper proclamation).
+    #
+    # Coverage: NAPCS 33 covers unwrought copper only. It does not include:
+    #   - Copper wire/rod (HS 7408) — falls under NAPCS 37 (basic/semi-finished
+    #     non-ferrous metals, except aluminum)
+    #   - Copper tubes and fittings (HS 7411-7412) — also NAPCS 37
+    #   - Fabricated copper articles (HS 7419) — NAPCS 39
+    # For the Section 232 tariff scope (primary copper mill products), NAPCS 33
+    # is the editorially correct boundary, consistent with the aluminum and
+    # steel sub-chapter treatment.
+    #
+    # Data characteristics:
+    #   - 351 monthly observations, 1997-01-01 to 2026-03-01
+    #   - scalarFactorCode=3 (C$ thousands); scale=0.001 -> C$M
+    #   - NSA only (no SA available at NAPCS sub-chapter granularity in this table)
+    #   - March 2026: all-countries C$346.2M, US C$282.8M (US share ~82%)
+    #     The high US share reflects Canada's concentrated copper refining
+    #     exports via Glencore's Horne smelter (QC) and Teck's Trail ops (BC).
+    #
+    # Coord format: 1.{napcs}.1.{partner}.1.0.0.0.0.0 (10-part, trailing 0s)
+    # Vectors resolved 2026-05-14 via POST getSeriesInfoFromCubePidCoord
+    # (productId key, array-wrapped body).
+    # -----------------------------------------------------------------------
+
+    # Copper: Unwrought copper and copper alloys (NAPCS 33)
+    # Single sub-chapter; no finer copper-only NAPCS cut available in WDS at
+    # partner-country granularity. Coord 1.33.1.1.1.0.0.0.0.0 (all countries).
+    "exports_copper_all": StatcanSpec(
+        "exports_copper_all",
+        vector_id=1863620353, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought copper and copper alloys (NAPCS 33, HS 7401-7403), total "
+            "exports, all countries of destination. Coord 1.33.1.1.1.0.0.0.0.0. "
+            "scalarFactorCode=3; scale=0.001 -> C$M. Start 1997-01-01; NSA only "
+            "at this NAPCS granularity. Section 232 tariff scope (April 2026 "
+            "copper proclamation). Resolved 2026-05-14."
+        ),
+    ),
+    "exports_copper_us": StatcanSpec(
+        "exports_copper_us",
+        vector_id=1863620383, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought copper and copper alloys (NAPCS 33, HS 7401-7403), total "
+            "exports, United States destination. Coord 1.33.1.2.1.0.0.0.0.0. "
             "Resolved 2026-05-14."
         ),
     ),

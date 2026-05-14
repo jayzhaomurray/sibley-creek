@@ -878,7 +878,7 @@ export const deepDives: DeepDive[] = [
     section: "trade",
     title: "Canada's trade pivot that wasn't",
     deck:
-      "Canada's US export share has dropped ten percentage points in fourteen months. Strip out gold to London and aluminum to a couple of non-traditional buyers, and the manufacturing base looks essentially unmoved.",
+      "Strip out gold and most of the apparent pivot is gone. Among the tariffed sectors, only aluminum managed to diversify; steel and softwood have become more US-dependent. Across the broader economy, many industries reduced their reliance on the US by a couple percentage points — collectively a broad but subtle reorientation, but nothing as drastic as the headline implies.",
     publishedAt: "2026-05-11",
     lastUpdated: "2026-05-11",
     dataVintage: "2026-05-11",

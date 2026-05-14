@@ -18,6 +18,7 @@ import TradePanel2CurrentAccount from "../../trade/Panel2CurrentAccountV2.astro"
 import TradePanel4TariffState from "../../trade/Panel4TariffState.astro";
 import TradePanel5TermsOfTrade from "../../trade/Panel5TermsOfTradeV2.astro";
 import TradePanel6FDIBySector from "../../trade/Panel6FDIBySector.astro";
+import TradePanelAluminumDestinations from "../../trade/PanelAluminumDestinations.astro";
 
 const tradePanel1Data = pickPanel(tradePanelData, 1);
 const tradePanel2Data = pickPanel(tradePanelData, 2);
@@ -69,6 +70,17 @@ export const entries: ChartShelfEntry[] = [
     dataFields:
       "trade.json panel-5 (terms_of_trade) + wti.csv indexed",
     addedAt: "2026-05-12",
+  },
+  {
+    Component: TradePanelAluminumDestinations,
+    file: "trade/PanelAluminumDestinations.astro",
+    title: "Aluminum exports by destination — 4-panel small-mults (retired from production)",
+    whatDifferent:
+      "Four 2x2 panels (US / Netherlands / Mexico / All other non-US) showing aluminum exports in CAD millions over time. Mode A shared y-axis (0-1200M) makes the concentration visible — US dominates, Netherlands is the only meaningful non-US destination.",
+    whyBetter:
+      "Demoted on 2026-05-14: the trade-reorientation scatter (plate-4 live) carries the broader story across all sectors; this aluminum-only zoom is a 'where did the one diversifier go' detail that earned attention while aluminum was THE pivot story. With copper added to the slopegraph and the scatter showing the full sector distribution, this chart is editorially redundant. Retained on alts for reference.",
+    dataFields: "exports_aluminum_us/nld/mex/nonus.csv — 12mma, CAD millions, 2018+",
+    addedAt: "2026-05-14",
   },
   {
     Component: TradePanel4TariffState,

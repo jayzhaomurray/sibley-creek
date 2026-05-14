@@ -1,16 +1,17 @@
 ---
 /*
- * Panel3PartnerSharesV2 - editorial audit 2026-05-11 item #2.
+ * Panel3PartnerSharesV2 - plate-1, US export share.
  *
- * Original (Panel3PartnerShares.astro) renders two raw export levels
- * (US + total). The editorial argument is the structural-shift narrative -
- * the rolling US share trajectory. V2 derives:
+ * Primary line:
+ *   us_share[t] = (exports_us[t] / exports_total[t]) * 100
  *
- *   us_share[t] = (trade_exports_us[t] / trade_exports_total[t]) * 100
+ * Source series:
+ *   panel-3 primary   = trade_exports_total  (StatCan 12-10-0121-01)
+ *   panel-3 secondary = trade_exports_us     (StatCan 12-10-0121-01)
  *
- * Single % line. Unit = "%". Frequency monthly. The pipeline emits both
- * underlying series in CAD millions on the same monthly grid; we align by
- * date and emit a single derived PanelSeries to PanelLiveChart.
+ * The ex-gold comparator was dropped on 2026-05-13 to preserve the gold
+ * reveal on plate-3. If a future iteration brings it back, see git history
+ * for the original two-line implementation.
  */
 
 import type { PanelData, PanelSeries, SeriesPoint } from "../_shared/panelData";
@@ -23,31 +24,30 @@ interface Props {
 
 const { data = null } = Astro.props;
 
-// Build the derived US-share series when both source series are present.
-let derived: PanelSeries | null = null;
+let primaryDerived: PanelSeries | null = null;
+
 if (data && data.primary && data.secondary) {
   const total = data.primary.data;
   const us = data.secondary.data;
-  // Index US series by date for an O(N) join.
+
   const usByDate = new Map<string, number | null>();
   for (const p of us) usByDate.set(p.date, p.value);
+
   const shareData: SeriesPoint[] = [];
   for (const p of total) {
     const usV = usByDate.get(p.date);
     const totalV = p.value;
     if (
-      typeof usV !== "number" ||
-      typeof totalV !== "number" ||
-      Number.isNaN(usV) ||
-      Number.isNaN(totalV) ||
-      totalV === 0
+      typeof usV !== "number" || typeof totalV !== "number" ||
+      Number.isNaN(usV) || Number.isNaN(totalV) || totalV === 0
     ) {
       shareData.push({ date: p.date, value: null });
     } else {
       shareData.push({ date: p.date, value: (usV / totalV) * 100 });
     }
   }
-  derived = {
+
+  primaryDerived = {
     key: "us_share_of_exports",
     label: "US share",
     data: shareData,
@@ -61,14 +61,15 @@ if (data && data.primary && data.secondary) {
   };
 }
 ---
-{derived ? (
+{primaryDerived ? (
   <PanelLiveChart
-    primary={derived}
+    primary={primaryDerived}
     primaryLabel="US share"
     dataPanelAttr="trade-3-v2"
-    ariaLabel="US share of total Canadian merchandise exports, % of total."
+    ariaLabel="US share of total Canadian merchandise exports, percent of total."
     yTickStride={5}
+    yDomainMin={63}
   />
 ) : (
-  <PanelEmpty reason="US-share derivation requires both export series." />
+  <PanelEmpty reason="US-share derivation requires the export series." />
 )}

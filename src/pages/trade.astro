@@ -18,7 +18,7 @@ const latestReleaseLabel = deriveLatestReleaseLabel(
   "trade",
 );
 
-const panel3Data = pickPanel(panelDataFile, 3);
+const plate1Data = pickPanel(panelDataFile, 3);
 
 const plates: Plate[] = [
   {
@@ -27,11 +27,10 @@ const plates: Plate[] = [
     chartKey: "trade-panel-3",
     indicator: "US export share of total goods exports",
     plateIndexLabel: "US export share",
-    title: "Canadian exports are reorienting away from the US at the fastest peacetime pace in decades.",
+    title: "The share of US-bound exports has fallen to two thirds.",
     interpretationHtml:
-      "The US absorbed 66.1% of Canadian goods exports in March 2026, down from 74.4% in March 2025 and a 2024 calendar average near 76.3%. " +
-      "Total exports rose to a record $68.8 billion over the same window, so the share decline reflects geographic redirection rather than an export contraction. " +
-      "A ten-percentage-point move in fourteen months is the largest peacetime reorientation of Canadian trade in decades.",
+      "Canada's US-bound export share dropped from 74.4% in March 2025 to 66.1% in March 2026 — an eight-point move in a year that, on its face, would read as the sharpest reorientation of Canadian trade in decades. " +
+      "The disaggregated picture tells a different story.",
     callout: {
       value: "66.1%",
       unitPrefix: "US share of goods exports",
@@ -39,38 +38,29 @@ const plates: Plate[] = [
       direction: "neg",
     },
     source: "Statistics Canada Table 12-10-0121-01 (exports by country).",
-    data: panel3Data,
+    data: plate1Data,
     citations: [
-      { phrase: "66.1% of Canadian goods exports in March 2026", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, March 2026." },
+      { phrase: "66.1% in March 2026", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, March 2026." },
       { phrase: "74.4% in March 2025", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, March 2025." },
-      { phrase: "2024 calendar average near 76.3%", source: "derived", note: "Mean of monthly US export share over Jan-Dec 2024, computed from 12-10-0121-01." },
-      { phrase: "record $68.8 billion", source: "pipeline:statcan:12-10-0121-01", note: "Total goods exports, March 2026; record vs full series back to 1997." },
-      { phrase: "ten-percentage-point move in fourteen months", source: "derived", note: "74.4% (Mar 2025) minus 66.1% (Mar 2026) = -8.3pp y/y; 2024 calendar average 76.3% minus 66.1% (Mar 2026) = ~10pp over fourteen months." },
+      { phrase: "an eight-point move in a year", source: "derived", note: "74.4% (Mar 2025) minus 66.1% (Mar 2026) = -8.3pp y/y." },
     ],
   },
   {
     id: "plate-2",
     number: "02",
-    chartKey: "trade-panel-sector-pivot",
-    indicator: "Tariff-exposed sectors: US vs non-US exports, 12mma indexed Jan 2020 = 100",
-    plateIndexLabel: "Sector diagnostic",
-    title: "Only one of the four tariff-exposed sectors has actually pivoted.",
+    chartKey: "trade-panel-reorientation-scatter",
+    indicator: "Δ exports to US vs Δ exports to non-US, by NAPCS sub-chapter, March 2025 to March 2026",
+    plateIndexLabel: "Sector-by-sector shift",
+    title: "Trade diversification is extremely limited.",
     interpretationHtml:
-      "Indexed to January 2020, the non-US 12-month moving average sits at 236 for aluminum, 226 for softwood, 202 for steel, and 116 for autos, but only aluminum's pivot represents real reorientation in dollar terms. " +
-      "Steel's non-US index reads at 82 with US at 86, both below baseline — the sector is shrinking on both sides, not pivoting. " +
-      "Softwood non-US has collapsed to 68 while US sits at 110, the inverse of a pivot. " +
-      "Autos non-US rose to 115 from baseline but US flows are roughly five times larger, so the relative shift is small in absolute terms.",
+      "One sub-chapter — gold — accounts for nearly all the non-US export growth Canada saw this year. " +
+      "Every other product cluster sits near zero on the non-US axis. " +
+      "Strip out the gold channel and there would be no pivot.",
     source: "Statistics Canada Table 12-10-0182-01 (NAPCS sub-chapter exports by partner country).",
     data: null,
     citations: [
-      { phrase: "Indexed to January 2020", source: "derived", note: "All four sector index series rebased to the single 12mma observation at January 2020 = 100 (pre-pandemic baseline)." },
-      { phrase: "236 for aluminum", source: "derived", note: "Non-US aluminum exports 12mma indexed to Jan 2020 = 100; latest reading at March 2026." },
-      { phrase: "202 for steel", source: "derived", note: "Non-US steel exports 12mma indexed to Jan 2020 = 100; latest reading at March 2026." },
-      { phrase: "226 for softwood", source: "derived", note: "Non-US softwood exports 12mma indexed to Jan 2020 = 100; latest reading at March 2026." },
-      { phrase: "116 for autos", source: "derived", note: "Non-US autos exports 12mma indexed to Jan 2020 = 100; latest reading at March 2026." },
-      { phrase: "Steel's non-US index reads at 82 with US at 86", source: "derived", note: "Steel sector indexed values to Jan 2020 = 100, both US and non-US below baseline at the March 2026 12mma." },
-      { phrase: "Softwood non-US has collapsed to 68 while US sits at 110", source: "derived", note: "Softwood sector indexed values Jan 2020 = 100; non-US fell to 68 while US rose to 110 at March 2026 12mma." },
-      { phrase: "US flows are roughly five times larger", source: "derived", note: "Autos US exports March 2026 = C$5,596M; non-US = C$577M (ratio ~9.7x; '~5x' phrasing covers the broader cycle average)." },
+      { phrase: "gold — accounts for nearly all the non-US export growth Canada saw this year", source: "derived", note: "NAPCS 35 (gold/silver/PGM) Δ non-US exports March 2026 vs March 2025: roughly +C$4,784M — roughly 6x the next-largest non-US gain (oil at +C$816M). Sum of all positive non-US Δs across NAPCS sub-chapters is dominated by NAPCS 35. Source: StatCan 12-10-0182-01." },
+      { phrase: "Every other product cluster sits near zero on the non-US axis", source: "derived", note: "Visible from the scatter: outside NAPCS 35, no sub-chapter exceeds ~C$1B Δ non-US between March 2025 and March 2026. Source: StatCan 12-10-0182-01." },
     ],
   },
   {
@@ -79,11 +69,11 @@ const plates: Plate[] = [
     chartKey: "trade-panel-gold",
     indicator: "Gold and PGM exports: total and UK destination, with gold price",
     plateIndexLabel: "Gold corridor",
-    title: "The UK takes 97% of Canadian gold — but the gold price is doing the work.",
+    title: "London is buying all of Canada's gold — prices hit record highs.",
     interpretationHtml:
-      "Canadian gold and platinum-group-metal exports hit C$8.0 billion in March 2026, of which C$7.8 billion (97%) went to the UK. " +
-      "Volume rose roughly 8% year-on-year through September 2025; export value rose 58% — the corridor is the same architecture it's been since 1934, amplified by a gold price near a record $4,676 per ounce. " +
-      "Canadian mined gold gets refined into 400-ounce Good Delivery bars and physically shipped to London because LBMA accreditation requires it. The UK destination is a wholesale market routing, not an industrial buyer.",
+      "For decades, gold has been mined in Ontario and Quebec and sent straight to London's bullion banks, who store much of it in the Bank of England's vaults. " +
+      "The story is old; what's new is the price. " +
+      "With spot nearly at $4,700, Canada sold C$8 billion of precious metals in March — more than twice as much as last year.",
     callout: {
       value: "97%",
       unitPrefix: "UK share of gold/PGM exports",
@@ -93,36 +83,31 @@ const plates: Plate[] = [
     source: "Statistics Canada Table 12-10-0182-01 (NAPCS 35: unwrought gold, silver, and PGM by partner country); Yahoo Finance (gold futures, USD/oz).",
     data: null,
     citations: [
-      { phrase: "C$8.0 billion in March 2026", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 gold/silver/PGM total exports, all countries, March 2026." },
-      { phrase: "C$7.8 billion (97%) went to the UK", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 exports to United Kingdom, March 2026; share = 7,819 / 8,026 = 97.4%." },
-      { phrase: "Volume rose roughly 8% year-on-year through September 2025", source: "derived", note: "Per The Deep Dive citing StatCan IMTS: gold export quantity up ~8% Jan-Sep 2025 y/y." },
-      { phrase: "export value rose 58%", source: "derived", note: "Per The Deep Dive citing StatCan IMTS: gold export value up ~58% Jan-Sep 2025 y/y; gap vs volume reflects price." },
-      { phrase: "near a record $4,676 per ounce", source: "derived", note: "Gold futures (GC=F), monthly close, May 2026, via Yahoo Finance." },
-      { phrase: "1934", source: "derived", note: "Royal Canadian Mint named on the original LBMA Good Delivery List in 1934." },
+      { phrase: "gold has been mined in Ontario and Quebec", source: "derived", note: "Natural Resources Canada: Ontario and Quebec are the two largest gold-producing provinces, together accounting for roughly three-quarters of Canadian gold production." },
+      { phrase: "sent straight to London's bullion banks, who store much of it in the Bank of England's vaults", source: "derived", note: "Royal Canadian Mint named on the original LBMA Good Delivery List in 1934; Canadian refined gold flows to LBMA-member bullion banks (HSBC, JPM, ICBC Standard) in London, who custody a substantial portion of their bullion at the Bank of England. BoE vaults hold ~5,000 tonnes of gold, of which only ~300 tonnes is UK reserves; the balance is custody for foreign central banks and commercial bullion banks." },
+      { phrase: "spot nearly at $4,700", source: "derived", note: "Gold futures (GC=F), monthly close, May 2026, ~$4,676 per ounce. Source: Yahoo Finance." },
+      { phrase: "Canada sold C$8 billion of precious metals in March", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 (unwrought gold, silver, and platinum group metals) total exports, all countries, March 2026: C$8,026M ≈ C$8 billion." },
+      { phrase: "more than twice as much as last year", source: "derived", note: "NAPCS 35 total exports: Mar 2026 = C$8,026M; Mar 2025 = C$3,651M. Ratio = 2.20x = +120% y/y. Source: StatCan 12-10-0182-01." },
     ],
   },
   {
     id: "plate-4",
     number: "04",
-    chartKey: "trade-panel-aluminum",
-    indicator: "Aluminum exports by destination, 12mma",
-    plateIndexLabel: "Aluminum corridor",
-    title: "Non-US aluminum is essentially one port hub.",
+    chartKey: "trade-panel-sector-pivot",
+    indicator: "Tariff-exposed sectors: US share of total exports, March 2025 vs March 2026",
+    plateIndexLabel: "Tariff-exposed sectors",
+    title: "Of the tariff-exposed sectors, only aluminum has diversified meaningfully.",
     interpretationHtml:
-      "Canadian aluminum exports run at a 12-month average of C$772 million to the US and C$141 million to the Netherlands — Rotterdam alone carries 77% of all non-US aluminum flow. " +
-      "Mexico, the next-largest non-US destination, takes only C$22 million; every other partner is under C$2 million. " +
-      "The Rotterdam corridor is real but narrow: it's tariff-arbitrage flow that emerged in 2025 when the US 50% Section 232 rate made the Atlantic crossing pencil out. " +
-      "It works while the tariff holds. One negotiated rollback and the corridor reverses.",
-    source: "Statistics Canada Table 12-10-0182-01 (NAPCS 32+38: aluminum unwrought + semi-finished, by partner country).",
+      "Of the four Section 232-tariffed sectors charted, only aluminum's US share moved by more than a few points between March 2025 and March 2026. " +
+      "Steel, softwood, and cars each shed under five points — within the noise of a tariff cycle. " +
+      "Aluminum dropped almost 11 points and routed real volume to non-US buyers. One sector adapted; the rest stayed locked in.",
+    source: "Statistics Canada Table 12-10-0182-01 (NAPCS sub-chapter exports by partner country).",
     data: null,
     citations: [
-      { phrase: "C$772 million to the US", source: "derived", note: "12-month moving average of aluminum exports (NAPCS 32+38) to US, March 2026." },
-      { phrase: "C$141 million to the Netherlands", source: "derived", note: "12-month moving average of aluminum exports (NAPCS 32+38) to Netherlands, March 2026." },
-      { phrase: "77% of all non-US aluminum flow", source: "derived", note: "Netherlands C$141M / total non-US aluminum 12mma; ratio approximately 0.77." },
-      { phrase: "C$22 million", source: "derived", note: "12-month moving average of aluminum exports (NAPCS 32+38) to Mexico, March 2026." },
-      { phrase: "every other partner is under C$2 million", source: "derived", note: "Aluminum exports to UK, China, Japan, Germany, Korea, France, Netherlands, Belgium, India, Singapore — each under C$2M at March 2026 monthly value per StatCan 12-10-0182-01." },
-      { phrase: "emerged in 2025", source: "card:pp_section_232_steel_alum_50pct", note: "Rotterdam corridor expanded only after the Feb 2025 Section 232 tariff (doubled to 50% in June 2025); Quebec aluminum to Europe was negligible pre-2025." },
-      { phrase: "US 50% Section 232 rate", source: "card:pp_section_232_steel_alum_50pct", note: "Section 232 tariff on Canadian aluminum: 25% Feb 2025, doubled to 50% June 2025." },
+      { phrase: "the four Section 232-tariffed sectors charted", source: "derived", note: "Chart panel renders four sectors: steel (NAPCS 30+31), aluminum (NAPCS 32+38), softwood (NAPCS 55), cars (NAPCS 81). Source: StatCan 12-10-0182-01." },
+      { phrase: "between March 2025 and March 2026", source: "pipeline:statcan:12-10-0182-01", note: "Window of analysis for all sector-share computations." },
+      { phrase: "Steel, softwood, and cars each shed under five points", source: "derived", note: "Steel Δ = -4.8pp (91.1% → 86.3%); softwood Δ = -1.8pp (90.5% → 88.7%); cars Δ = -1.5pp (92.2% → 90.7%). All under 5pp. Source: StatCan 12-10-0182-01." },
+      { phrase: "Aluminum dropped almost 11 points", source: "derived", note: "Aluminum (NAPCS 32+38) US share: Mar 2025 = 96.9%; Mar 2026 = 86.0%; Δ = -10.9pp ≈ 11pp. Source: StatCan 12-10-0182-01." },
     ],
   },
 ];

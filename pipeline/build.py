@@ -1667,6 +1667,7 @@ def derive_sectoral_exports_by_destination() -> None:
         exports_softwood_all / _us           (NAPCS 55, C$M)
         exports_autos_cars_all / _us         (NAPCS 81, C$M)
         exports_autos_parts_all / _us        (NAPCS 84, C$M)
+        exports_copper_all / _us             (NAPCS 33, C$M)
 
     All raw series: Table 12-10-0182-01, NSA monthly, C$ millions.
 
@@ -1675,6 +1676,7 @@ def derive_sectoral_exports_by_destination() -> None:
         exports_aluminum_us.csv       exports_aluminum_nonus.csv
         exports_softwood_us.csv       exports_softwood_nonus.csv
         exports_autos_us.csv          exports_autos_nonus.csv
+        exports_copper_us.csv         exports_copper_nonus.csv
 
     All outputs: C$ millions, NSA monthly, date/value.
 
@@ -1791,6 +1793,18 @@ def derive_sectoral_exports_by_destination() -> None:
                     "v1863745633+v1863753463 (all) / v1863745663+v1863753493 (US)")
     else:
         logger.warning("derive_sectoral_exports: autos components missing from raw/")
+
+    # --- Copper (NAPCS 33, single sub-chapter) ---
+    # NAPCS 33 = "Unwrought copper and copper alloys" (HS 7401-7403).
+    # Confirmed 2026-05-14 via POST getSeriesInfoFromCubePidCoord.
+    # Section 232 tariff exposure since April 2026 copper proclamation.
+    copper_all = _read_raw("exports_copper_all")
+    copper_us = _read_raw("exports_copper_us")
+    if copper_all is not None and copper_us is not None:
+        _write_pair("copper", copper_us, _nonus(copper_all, copper_us),
+                    "v1863620353 (all) / v1863620383 (US)")
+    else:
+        logger.warning("derive_sectoral_exports: copper components missing from raw/")
 
 
 def derive_gold_exports() -> None:
