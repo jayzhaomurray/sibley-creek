@@ -655,7 +655,7 @@ export const sections: Section[] = [
     accentVar: "--section-accent-markets",
     kicker: "Yields, spreads, the loonie, and the cost of capital.",
     headlineQuestion:
-      "What external winds are pushing on Canadian inflation, growth, and the CAD?",
+      "How are financial markets affecting Canada?",
     cadence: "Daily (light) + weekly synthesis",
     // Markets data refreshes daily; latest BoC noon-rate stamp May 8, 2026.
     updatedAt: Date.UTC(2026, 4, 8, 21, 0),
