@@ -5,11 +5,23 @@
 
 import type { ChartShelfEntry } from "../_shared/shelfEntry";
 
+import Alt_FiscalStanceRatios from "./Alt_FiscalStanceRatios.astro";
 import Alt2_BalanceSheetOverlay from "./Alt2_BalanceSheetOverlay.astro";
 import Alt3_YieldCurveTriple from "./Alt3_YieldCurveTriple.astro";
 import Alt4_TwosTensSlope from "./Alt4_TwosTensSlope.astro";
 
 export const entries: ChartShelfEntry[] = [
+  {
+    Component: Alt_FiscalStanceRatios,
+    file: "policy/Alt_FiscalStanceRatios.astro",
+    title: "Fiscal stance ratios: general-government balance and gross debt to GDP",
+    whatDifferent:
+      "Two-panel composite: left panel shows general-government net lending/borrowing (flow) as % GDP; right panel shows general-government gross debt (stock) as % GDP. Both panels carry 1980-2024 observed (solid) + 2025-2031 IMF WEO projections (dashed). MTA red dot at the last observed point (2024) in each panel. Zero line in the balance panel.",
+    whyBetter:
+      "Production policy section carries no fiscal panel. The balance-and-debt pair is the canonical fiscal-stance read: balance shows the flow, debt shows the stock trajectory. The dashed projection extension makes the IMF's forward outlook legible without a separate chart.",
+    dataFields: "imf_can_gg_balance_pct_gdp + imf_can_gg_gross_debt_pct_gdp (IMF WEO).",
+    addedAt: "2026-05-14",
+  },
   {
     Component: Alt2_BalanceSheetOverlay,
     file: "policy/Alt2_BalanceSheetOverlay.astro",

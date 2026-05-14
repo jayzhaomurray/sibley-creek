@@ -1,0 +1,382 @@
+---
+/*
+ * Alt_FiscalStanceRatios — general-government balance and gross debt, % GDP.
+ *
+ * What's different. Two-panel composite: left shows GG net lending/borrowing
+ * as % GDP, right shows GG gross debt as % GDP. Both run 1980-2024 (observed,
+ * 1.5px solid) + 2025-2031 (IMF WEO projection, 1px dashed 4-2). MTA red dot
+ * at last observed point (2024) in each panel. Zero line in balance panel.
+ *
+ * Why it might be better. Production policy section carries no fiscal panel.
+ * The balance-vs-debt pair is the canonical fiscal-stance read: balance shows
+ * the flow (adding to or subtracting from debt); debt shows the stock
+ * trajectory. Together they anchor conversations about fiscal space and
+ * sustainability without requiring a separate multiplier chart.
+ *
+ * Methodology note (direct series, no derivation required).
+ * - Primary: IMF WEO Table "GGXCNL_NGDP" — general government net lending/
+ *   borrowing as % of nominal GDP. Sign convention: positive = surplus,
+ *   negative = deficit. This is the flow concept.
+ * - Secondary: IMF WEO Table "GGXWDG_NGDP" — general government gross debt
+ *   as % of nominal GDP. Gross, NOT net; IMF does not publish Canadian net
+ *   debt on the WEO vintage used here.
+ * - GENERAL government = federal + provincial + local + social-security funds.
+ *   NOT federal-only. The distinction matters for Canada because provincial
+ *   borrowing is large relative to GDP.
+ * - Historical 1980-2024; IMF WEO projections 2025-2031.
+ * Source: IMF World Economic Outlook database (April WEO vintage),
+ *   https://www.imf.org/en/Publications/WEO.
+ *
+ * Data. data/site/panel_data/policy.json panel-7-alt
+ *   primary:   imf_can_gg_balance_pct_gdp
+ *   secondary: imf_can_gg_gross_debt_pct_gdp
+ */
+
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import { decYear, VB, pickStride, fmtTick, yearTicksFromX } from "../_shared/altUtils";
+import type { AltPoint } from "../_shared/altUtils";
+
+// ── load data ──────────────────────────────────────────────────────────────
+const rawJson = JSON.parse(
+  readFileSync(resolve(process.cwd(), "data/site/panel_data/policy.json"), "utf-8")
+);
+const panel = (rawJson.panels?.["panel-7-alt"] ?? null) as {
+  primary: { data: AltPoint[] };
+  secondary: { data: AltPoint[] };
+} | null;
+
+if (!panel?.primary?.data || !panel?.secondary?.data) {
+  throw new Error(
+    "Alt_FiscalStanceRatios: panel-7-alt not found in policy.json — run the pipeline to generate fiscal stance data."
+  );
+}
+
+const balSeries: AltPoint[] = panel.primary.data;
+const debtSeries: AltPoint[] = panel.secondary.data;
+
+// Split observed (≤ 2024) vs projection (≥ 2025) at the 2024-boundary.
+const OBS_CUTOFF = "2024-12-31";
+const balObs  = balSeries.filter((p) => p.date <= OBS_CUTOFF);
+const balProj = balSeries.filter((p) => p.date >  OBS_CUTOFF);
+const debtObs  = debtSeries.filter((p) => p.date <= OBS_CUTOFF);
+const debtProj = debtSeries.filter((p) => p.date >  OBS_CUTOFF);
+
+// ── layout constants ────────────────────────────────────────────────────────
+// viewBox 720 x 405
+const W = VB.W;   // 720
+const H = VB.H;   // 405
+
+// Margins (outer)
+const M_OUT_L  = 56;   // left outer gutter (y-tick labels)
+const M_OUT_R  = 12;   // right outer gutter
+const M_T      = 48;   // top (panel titles)
+const M_B      = 40;   // bottom (x-tick labels)
+
+// Inter-panel gap — 40px gives room for right-panel y-tick labels
+const GAP_X    = 40;
+
+// Each panel occupies equal share of the inner width
+const INNER_W  = W - M_OUT_L - M_OUT_R - GAP_X;
+const PANEL_W  = Math.floor(INNER_W / 2);  // 306px each
+const PANEL_H  = H - M_T - M_B;            // 317px
+
+// Panel x origins (left edge of the plot area)
+const PX_L = M_OUT_L;
+const PX_R = M_OUT_L + PANEL_W + GAP_X;
+
+// ── scale builders ──────────────────────────────────────────────────────────
+function niceYDomain(lo: number, hi: number, includeZero = false): [number, number] {
+  if (includeZero) {
+    lo = Math.min(lo, 0);
+    hi = Math.max(hi, 0);
+  }
+  const span = hi - lo || 1;
+  const pad   = span * 0.08;
+  return [lo - pad, hi + pad];
+}
+
+function makeYScale(yLo: number, yHi: number) {
+  return (v: number) => M_T + PANEL_H - ((v - yLo) / (yHi - yLo || 1)) * PANEL_H;
+}
+
+function makeXScale(xMin: number, xMax: number, panelX: number) {
+  return (yr: number) => panelX + ((yr - xMin) / (xMax - xMin || 1)) * PANEL_W;
+}
+
+// Shared x domain (both panels same time span)
+const allDates = [...balSeries, ...debtSeries]
+  .map((p) => decYear(p.date))
+  .filter((v) => !Number.isNaN(v));
+const xMin = Math.min(...allDates);
+const xMax = Math.max(...allDates);
+
+// ── balance panel scales ────────────────────────────────────────────────────
+const balValues = balSeries.map((p) => p.value as number).filter((v) => typeof v === "number");
+const [balYLo, balYHi] = niceYDomain(
+  Math.min(...balValues),
+  Math.max(...balValues),
+  true // include zero line
+);
+const balYScale = makeYScale(balYLo, balYHi);
+const balXScale = makeXScale(xMin, xMax, PX_L);
+
+// ── debt panel scales ───────────────────────────────────────────────────────
+const debtValues = debtSeries.map((p) => p.value as number).filter((v) => typeof v === "number");
+const [debtYLo, debtYHi] = niceYDomain(Math.min(...debtValues), Math.max(...debtValues), false);
+const debtYScale = makeYScale(debtYLo, debtYHi);
+const debtXScale = makeXScale(xMin, xMax, PX_R);
+
+// ── path builder ────────────────────────────────────────────────────────────
+function buildPath(
+  series: AltPoint[],
+  xScale: (yr: number) => number,
+  yScale: (v: number) => number,
+): string {
+  let d = "";
+  let started = false;
+  for (const p of series) {
+    if (typeof p.value !== "number") { started = false; continue; }
+    const xv = decYear(p.date);
+    if (Number.isNaN(xv)) continue;
+    d += `${started ? "L" : "M"}${xScale(xv).toFixed(2)} ${yScale(p.value).toFixed(2)} `;
+    started = true;
+  }
+  return d.trim();
+}
+
+// Observed paths (solid 1.5px)
+const balObsPath  = buildPath(balObs,  balXScale,  balYScale);
+const debtObsPath = buildPath(debtObs, debtXScale, debtYScale);
+
+// Projection paths start from last observed point for visual continuity
+const balLastObs  = [...balObs].reverse().find((p) => typeof p.value === "number");
+const debtLastObs = [...debtObs].reverse().find((p) => typeof p.value === "number");
+
+const balProjFull  = balLastObs  ? [balLastObs,  ...balProj]  : balProj;
+const debtProjFull = debtLastObs ? [debtLastObs, ...debtProj] : debtProj;
+
+const balProjPath  = buildPath(balProjFull,  balXScale,  balYScale);
+const debtProjPath = buildPath(debtProjFull, debtXScale, debtYScale);
+
+// MTA red terminal dots (last observed = 2024)
+const balDot  = balLastObs  ? { cx: balXScale(decYear(balLastObs.date)),   cy: balYScale(balLastObs.value   as number), v: balLastObs.value   as number } : null;
+const debtDot = debtLastObs ? { cx: debtXScale(decYear(debtLastObs.date)), cy: debtYScale(debtLastObs.value as number), v: debtLastObs.value as number } : null;
+
+// ── y-ticks ─────────────────────────────────────────────────────────────────
+function makeTicks(lo: number, hi: number): number[] {
+  const stride = pickStride(lo, hi);
+  const ticks: number[] = [];
+  const start = Math.ceil(lo / stride) * stride;
+  for (let v = start; v <= hi + 1e-9; v += stride) ticks.push(parseFloat(v.toFixed(10)));
+  return ticks;
+}
+
+const balTicks  = makeTicks(balYLo, balYHi);
+const debtTicks = makeTicks(debtYLo, debtYHi);
+
+// ── x-ticks ─────────────────────────────────────────────────────────────────
+const xTicksL = yearTicksFromX(xMin, xMax, balXScale);
+const xTicksR = yearTicksFromX(xMin, xMax, debtXScale);
+
+// Zero line for balance panel
+const zeroY = balYScale(0);
+---
+
+<div class="alt-chart" data-panel="alt-policy-fiscal">
+  <svg
+    class="alt-chart__svg"
+    viewBox={`0 0 ${W} ${H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label="Canadian general-government balance and gross debt as percent of GDP, 1980-2031. IMF WEO data; 2025-2031 are projections."
+  >
+
+    <!-- ══ LEFT PANEL: GG BALANCE / GDP ══════════════════════════════════════ -->
+    <g aria-label="General-government balance panel">
+
+      <!-- gridlines -->
+      {balTicks.map((v) => (
+        <line
+          class="alt-chart__gridline"
+          x1={PX_L.toFixed(2)} y1={balYScale(v).toFixed(2)}
+          x2={(PX_L + PANEL_W).toFixed(2)} y2={balYScale(v).toFixed(2)}
+        />
+      ))}
+
+      <!-- zero line (full opacity, same weight as gridline) -->
+      <line
+        class="alt-chart__zero-line"
+        x1={PX_L.toFixed(2)} y1={zeroY.toFixed(2)}
+        x2={(PX_L + PANEL_W).toFixed(2)} y2={zeroY.toFixed(2)}
+      />
+
+      <!-- observed solid line -->
+      {balObsPath && (
+        <path class="alt-chart__line" d={balObsPath} fill="none" />
+      )}
+
+      <!-- projection dashed line -->
+      {balProjPath && (
+        <path
+          class="alt-chart__line"
+          d={balProjPath}
+          fill="none"
+          stroke-dasharray="4 2"
+          stroke-width="1"
+        />
+      )}
+
+      <!-- MTA red terminal dot (last observed 2024) -->
+      {balDot && (
+        <circle
+          class="alt-chart__latest-dot"
+          cx={balDot.cx.toFixed(2)}
+          cy={balDot.cy.toFixed(2)}
+          r="4"
+        >
+          <title>{`GG balance 2024: ${balDot.v.toFixed(1)}% of GDP`}</title>
+        </circle>
+      )}
+
+      <!-- hairline plot frame -->
+      <rect
+        class="alt-chart__frame"
+        x={PX_L.toFixed(2)} y={M_T.toFixed(2)}
+        width={PANEL_W.toFixed(2)} height={PANEL_H.toFixed(2)}
+      />
+
+      <!-- panel title -->
+      <text class="alt-chart__small-multiple-title" x={PX_L.toFixed(2)} y={(M_T - 14).toFixed(2)}>
+        GG BALANCE / GDP
+      </text>
+
+      <!-- x-tick labels -->
+      {xTicksL.map((t) => (
+        <g>
+          <line
+            class="alt-chart__xtick"
+            x1={t.x.toFixed(2)} y1={(M_T + PANEL_H).toFixed(2)}
+            x2={t.x.toFixed(2)} y2={(M_T + PANEL_H + 4).toFixed(2)}
+          />
+          <text
+            class="alt-chart__xtick-label"
+            x={t.x.toFixed(2)} y={(M_T + PANEL_H + 16).toFixed(2)}
+            text-anchor="middle"
+          >
+            {t.label}
+          </text>
+        </g>
+      ))}
+
+      <!-- y-tick labels (left side of left panel) -->
+      {balTicks.map((v, i) => {
+        const isTop = i === balTicks.length - 1;
+        const label = isTop ? `${fmtTick(v, 1)}%` : fmtTick(v, 1);
+        return (
+          <text
+            class="alt-chart__ytick-label"
+            x={(PX_L - 6).toFixed(2)}
+            y={(balYScale(v) + 4).toFixed(2)}
+            text-anchor="end"
+          >
+            {label}
+          </text>
+        );
+      })}
+
+    </g>
+
+    <!-- ══ RIGHT PANEL: GG GROSS DEBT / GDP ══════════════════════════════════ -->
+    <g aria-label="General-government gross debt panel">
+
+      <!-- gridlines -->
+      {debtTicks.map((v) => (
+        <line
+          class="alt-chart__gridline"
+          x1={PX_R.toFixed(2)} y1={debtYScale(v).toFixed(2)}
+          x2={(PX_R + PANEL_W).toFixed(2)} y2={debtYScale(v).toFixed(2)}
+        />
+      ))}
+
+      <!-- observed solid line -->
+      {debtObsPath && (
+        <path class="alt-chart__line" d={debtObsPath} fill="none" />
+      )}
+
+      <!-- projection dashed line -->
+      {debtProjPath && (
+        <path
+          class="alt-chart__line"
+          d={debtProjPath}
+          fill="none"
+          stroke-dasharray="4 2"
+          stroke-width="1"
+        />
+      )}
+
+      <!-- MTA red terminal dot (last observed 2024) -->
+      {debtDot && (
+        <circle
+          class="alt-chart__latest-dot"
+          cx={debtDot.cx.toFixed(2)}
+          cy={debtDot.cy.toFixed(2)}
+          r="4"
+        >
+          <title>{`GG gross debt 2024: ${debtDot.v.toFixed(1)}% of GDP`}</title>
+        </circle>
+      )}
+
+      <!-- hairline plot frame -->
+      <rect
+        class="alt-chart__frame"
+        x={PX_R.toFixed(2)} y={M_T.toFixed(2)}
+        width={PANEL_W.toFixed(2)} height={PANEL_H.toFixed(2)}
+      />
+
+      <!-- panel title -->
+      <text class="alt-chart__small-multiple-title" x={PX_R.toFixed(2)} y={(M_T - 14).toFixed(2)}>
+        GG GROSS DEBT / GDP
+      </text>
+
+      <!-- x-tick labels -->
+      {xTicksR.map((t) => (
+        <g>
+          <line
+            class="alt-chart__xtick"
+            x1={t.x.toFixed(2)} y1={(M_T + PANEL_H).toFixed(2)}
+            x2={t.x.toFixed(2)} y2={(M_T + PANEL_H + 4).toFixed(2)}
+          />
+          <text
+            class="alt-chart__xtick-label"
+            x={t.x.toFixed(2)} y={(M_T + PANEL_H + 16).toFixed(2)}
+            text-anchor="middle"
+          >
+            {t.label}
+          </text>
+        </g>
+      ))}
+
+      <!-- y-tick labels (right side of left panel / left side of right panel gutter) -->
+      {debtTicks.map((v, i) => {
+        const isTop = i === debtTicks.length - 1;
+        const label = isTop ? `${fmtTick(v, 0)}%` : fmtTick(v, 0);
+        return (
+          <text
+            class="alt-chart__ytick-label"
+            x={(PX_R - 6).toFixed(2)}
+            y={(debtYScale(v) + 4).toFixed(2)}
+            text-anchor="end"
+          >
+            {label}
+          </text>
+        );
+      })}
+
+    </g>
+
+  </svg>
+</div>
+
+<AltChartStyle />

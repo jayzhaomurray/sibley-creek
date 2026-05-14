@@ -10,6 +10,7 @@ Currently wired:
     crea       - CREA MLS HPI XLSX bulk (CMA-level housing)
     dof_fiscal - Department of Finance Fiscal Monitor HTML scraper
     alberta    - Alberta Economic Dashboard (monthly natural gas / WCS-ready)
+    imf_weo    - IMF World Economic Outlook DataMapper (annual macro indicators)
 
 To be added later (deferred to Wave 3 / v1.5):
     bis      - BIS bulk downloads (peer central bank policy rates)
@@ -32,6 +33,7 @@ from pipeline.fetch import (
     crea,
     dof_fiscal,
     fred,
+    imf_weo,
     indeed_hiring_lab,
     statcan,
     yahoo,
@@ -44,6 +46,7 @@ __all__ = [
     "crea",
     "dof_fiscal",
     "fred",
+    "imf_weo",
     "indeed_hiring_lab",
     "statcan",
     "yahoo",

@@ -1407,6 +1407,322 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
             "Resolved 2026-05-14."
         ),
     ),
+
+    # -----------------------------------------------------------------------
+    # Gold / precious-metals exports by destination (NAPCS 35)
+    #
+    # NAPCS 35 = "Unwrought gold, silver, and platinum group metals, and
+    # their alloys" (HS 7106 silver + HS 7108 gold + HS 7110 platinum group).
+    # This is the editorially-correct sub-chapter for Canadian gold bullion
+    # export flows. No finer gold-only NAPCS cut is available in the WDS-
+    # accessible tables at this partner-country granularity.
+    #
+    # Editorial note: UK (London Bullion Market) absorbs ~95-97% of Canadian
+    # precious-metals exports in most months. US is a minor destination.
+    # The spike in Canada-UK merchandise trade flows in early 2026 is almost
+    # entirely explained by gold/PGM re-routing through the London market
+    # away from NY (COMEX) as US tariff risk rose.
+    #
+    # scalarFactorCode=3 (C$ thousands); scale=0.001 -> C$M, consistent with
+    # all other 12-10-0182-01 entries.
+    # Vectors resolved 2026-05-14 via POST getSeriesInfoFromCubePidCoord.
+    # -----------------------------------------------------------------------
+    "exports_gold_total": StatcanSpec(
+        "exports_gold_total",
+        vector_id=1863625573, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought gold, silver, and platinum group metals, and their alloys "
+            "(NAPCS 35), total exports, all countries of destination. "
+            "Coord 1.35.1.1.1.0.0.0.0.0. scalarFactorCode=3; scale=0.001 -> C$M. "
+            "Start 1997-01-01; NSA only at this NAPCS granularity. "
+            "Resolved 2026-05-14."
+        ),
+    ),
+    "exports_gold_us": StatcanSpec(
+        "exports_gold_us",
+        vector_id=1863625603, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought gold, silver, and platinum group metals, and their alloys "
+            "(NAPCS 35), total exports, United States of destination. "
+            "Coord 1.35.1.2.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_gold_uk": StatcanSpec(
+        "exports_gold_uk",
+        vector_id=1863625693, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought gold, silver, and platinum group metals, and their alloys "
+            "(NAPCS 35), total exports, United Kingdom of destination. "
+            "Coord 1.35.1.5.1.0.0.0.0.0. Resolved 2026-05-14. "
+            "UK (London Bullion Market) is consistently the dominant destination; "
+            "typically absorbs 90-97% of all-countries total."
+        ),
+    ),
+
+    # -----------------------------------------------------------------------
+    # Aluminum exports by partner country (NAPCS 32 + NAPCS 38)
+    #
+    # These are the per-partner raw sub-components feeding the
+    # derive_aluminum_by_partner() derivation in pipeline/build.py. That
+    # function sums NAPCS 32 (unwrought) + NAPCS 38 (semi-finished) per
+    # partner to produce the editorial "aluminum exports to <country>" series.
+    #
+    # Partners available in 12-10-0182-01 (29-member list, different from
+    # Table 12-10-0011-01's 27-member list): All, US, China, Mexico, UK,
+    # Japan, Germany, South Korea, Italy, France, Netherlands, Belgium,
+    # Norway, Algeria, Hong Kong, Brazil, India, Switzerland, Saudi Arabia,
+    # Turkey, Taiwan, Peru, Australia, Iraq, Indonesia, Singapore,
+    # Russian Federation, Other countries.
+    #
+    # COVERAGE GAP: UAE, Qatar, Kuwait, Bahrain, Oman are NOT in this table's
+    # partner dimension (same gap as 12-10-0011-01). No StatCan WDS alternative.
+    # Data confirms aluminum flows to UAE/GCC are negligible in any case (the
+    # editorial non-US story is Netherlands >> Mexico >> everyone else).
+    #
+    # All: scalarFactorCode=3; scale=0.001 -> C$M. Resolved 2026-05-14.
+    # -----------------------------------------------------------------------
+
+    # --- NAPCS 32: Unwrought aluminum and aluminum alloys ---
+    "exports_aluminum_unwrought_gbr": StatcanSpec(
+        "exports_aluminum_unwrought_gbr",
+        vector_id=1863617863, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought aluminum and aluminum alloys (NAPCS 32), total exports, "
+            "United Kingdom destination. Coord 1.32.1.5.1.0.0.0.0.0. "
+            "Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_unwrought_chn": StatcanSpec(
+        "exports_aluminum_unwrought_chn",
+        vector_id=1863617803, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought aluminum and aluminum alloys (NAPCS 32), total exports, "
+            "China destination. Coord 1.32.1.3.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_unwrought_jpn": StatcanSpec(
+        "exports_aluminum_unwrought_jpn",
+        vector_id=1863617893, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought aluminum and aluminum alloys (NAPCS 32), total exports, "
+            "Japan destination. Coord 1.32.1.6.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_unwrought_deu": StatcanSpec(
+        "exports_aluminum_unwrought_deu",
+        vector_id=1863617923, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought aluminum and aluminum alloys (NAPCS 32), total exports, "
+            "Germany destination. Coord 1.32.1.7.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_unwrought_kor": StatcanSpec(
+        "exports_aluminum_unwrought_kor",
+        vector_id=1863617953, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought aluminum and aluminum alloys (NAPCS 32), total exports, "
+            "South Korea destination. Coord 1.32.1.8.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_unwrought_fra": StatcanSpec(
+        "exports_aluminum_unwrought_fra",
+        vector_id=1863618013, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought aluminum and aluminum alloys (NAPCS 32), total exports, "
+            "France destination. Coord 1.32.1.10.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_unwrought_nld": StatcanSpec(
+        "exports_aluminum_unwrought_nld",
+        vector_id=1863618043, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought aluminum and aluminum alloys (NAPCS 32), total exports, "
+            "Netherlands destination. Coord 1.32.1.11.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_unwrought_bel": StatcanSpec(
+        "exports_aluminum_unwrought_bel",
+        vector_id=1863618073, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought aluminum and aluminum alloys (NAPCS 32), total exports, "
+            "Belgium destination. Coord 1.32.1.12.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_unwrought_mex": StatcanSpec(
+        "exports_aluminum_unwrought_mex",
+        vector_id=1863617833, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought aluminum and aluminum alloys (NAPCS 32), total exports, "
+            "Mexico destination. Coord 1.32.1.4.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_unwrought_ind": StatcanSpec(
+        "exports_aluminum_unwrought_ind",
+        vector_id=1863618253, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought aluminum and aluminum alloys (NAPCS 32), total exports, "
+            "India destination. Coord 1.32.1.18.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_unwrought_sgp": StatcanSpec(
+        "exports_aluminum_unwrought_sgp",
+        vector_id=1863618523, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Unwrought aluminum and aluminum alloys (NAPCS 32), total exports, "
+            "Singapore destination. Coord 1.32.1.27.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+
+    # --- NAPCS 38: Semi-finished aluminum products (by partner) ---
+    "exports_aluminum_semifin_gbr": StatcanSpec(
+        "exports_aluminum_semifin_gbr",
+        vector_id=1863633523, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Basic and semi-finished products of aluminum and aluminum alloys "
+            "(NAPCS 38), total exports, United Kingdom destination. "
+            "Coord 1.38.1.5.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_semifin_chn": StatcanSpec(
+        "exports_aluminum_semifin_chn",
+        vector_id=1863633463, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Basic and semi-finished products of aluminum and aluminum alloys "
+            "(NAPCS 38), total exports, China destination. "
+            "Coord 1.38.1.3.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_semifin_jpn": StatcanSpec(
+        "exports_aluminum_semifin_jpn",
+        vector_id=1863633553, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Basic and semi-finished products of aluminum and aluminum alloys "
+            "(NAPCS 38), total exports, Japan destination. "
+            "Coord 1.38.1.6.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_semifin_deu": StatcanSpec(
+        "exports_aluminum_semifin_deu",
+        vector_id=1863633583, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Basic and semi-finished products of aluminum and aluminum alloys "
+            "(NAPCS 38), total exports, Germany destination. "
+            "Coord 1.38.1.7.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_semifin_kor": StatcanSpec(
+        "exports_aluminum_semifin_kor",
+        vector_id=1863633613, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Basic and semi-finished products of aluminum and aluminum alloys "
+            "(NAPCS 38), total exports, South Korea destination. "
+            "Coord 1.38.1.8.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_semifin_fra": StatcanSpec(
+        "exports_aluminum_semifin_fra",
+        vector_id=1863633673, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Basic and semi-finished products of aluminum and aluminum alloys "
+            "(NAPCS 38), total exports, France destination. "
+            "Coord 1.38.1.10.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_semifin_nld": StatcanSpec(
+        "exports_aluminum_semifin_nld",
+        vector_id=1863633703, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Basic and semi-finished products of aluminum and aluminum alloys "
+            "(NAPCS 38), total exports, Netherlands destination. "
+            "Coord 1.38.1.11.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_semifin_bel": StatcanSpec(
+        "exports_aluminum_semifin_bel",
+        vector_id=1863633733, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Basic and semi-finished products of aluminum and aluminum alloys "
+            "(NAPCS 38), total exports, Belgium destination. "
+            "Coord 1.38.1.12.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_semifin_mex": StatcanSpec(
+        "exports_aluminum_semifin_mex",
+        vector_id=1863633493, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Basic and semi-finished products of aluminum and aluminum alloys "
+            "(NAPCS 38), total exports, Mexico destination. "
+            "Coord 1.38.1.4.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_semifin_ind": StatcanSpec(
+        "exports_aluminum_semifin_ind",
+        vector_id=1863633913, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Basic and semi-finished products of aluminum and aluminum alloys "
+            "(NAPCS 38), total exports, India destination. "
+            "Coord 1.38.1.18.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
+    "exports_aluminum_semifin_sgp": StatcanSpec(
+        "exports_aluminum_semifin_sgp",
+        vector_id=1863634183, table_id="12-10-0182-01",
+        units="C$ millions", frequency="monthly", section="trade",
+        scale=0.001, sa=False,
+        notes=(
+            "Basic and semi-finished products of aluminum and aluminum alloys "
+            "(NAPCS 38), total exports, Singapore destination. "
+            "Coord 1.38.1.27.1.0.0.0.0.0. Resolved 2026-05-14."
+        ),
+    ),
 }
 
 

@@ -1793,6 +1793,260 @@ def derive_sectoral_exports_by_destination() -> None:
         logger.warning("derive_sectoral_exports: autos components missing from raw/")
 
 
+def derive_gold_exports() -> None:
+    """Write editorial-labelled gold/PGM export series from NAPCS 35 raw vectors.
+
+    Inputs (data/raw/):
+        exports_gold_total  (NAPCS 35, all countries, C$M)
+        exports_gold_us     (NAPCS 35, US, C$M)
+        exports_gold_uk     (NAPCS 35, UK, C$M)
+
+    NAPCS 35 = "Unwrought gold, silver, and platinum group metals, and their
+    alloys" (HS 7106 + 7108 + 7110). No finer gold-only NAPCS cut exists in
+    the WDS-accessible trade tables.
+
+    Outputs (data/processed/):
+        exports_gold_total.csv
+        exports_gold_us.csv
+        exports_gold_uk.csv
+
+    All in C$ millions, NSA monthly. The raw vectors already land in data/raw/
+    via run_statcan_catalog; this derivation copies them to processed/ with
+    editorial metadata (source_id with the HS/NAPCS mapping note, editorially
+    accurate units label). This allows the panel_data layer to reference the
+    processed/ tier consistently with all other sectoral export outputs.
+    """
+    _TABLE_URL = "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1210018201"
+
+    for slug, label, vid in [
+        ("exports_gold_total", "all countries", "v1863625573"),
+        ("exports_gold_us",    "United States", "v1863625603"),
+        ("exports_gold_uk",    "United Kingdom", "v1863625693"),
+    ]:
+        df = _read_raw(slug)
+        if df is None:
+            logger.warning("derive_gold_exports: %s missing from raw/", slug)
+            continue
+        meta = SeriesMeta(
+            name=slug,
+            source="Statistics Canada Web Data Service",
+            source_url=_TABLE_URL,
+            source_id=(
+                f"{vid} — NAPCS 35 (Unwrought gold, silver, and platinum group "
+                f"metals), {label}, Table 12-10-0182-01. scalarFactorCode=3 "
+                "(C$ thousands in raw; scale=0.001 applied at fetch -> C$M)."
+            ),
+            units="C$ millions",
+            frequency="monthly",
+            notes=(
+                f"Canadian merchandise exports of unwrought gold, silver, and "
+                f"platinum group metals (NAPCS 35, HS 7106/7108/7110), to "
+                f"{label}. NSA monthly, C$ millions. Table 12-10-0182-01. "
+                "No finer gold-only sub-chapter available in WDS at this "
+                "partner-country granularity. UK (London Bullion Market) "
+                "typically absorbs 90-97% of Canada's all-countries total."
+            ),
+        )
+        write_series(df, meta, DATA_PROCESSED)
+
+
+def derive_aluminum_by_partner() -> None:
+    """Sum NAPCS 32 + NAPCS 38 per partner country; write aluminum export series.
+
+    Inputs (data/raw/):
+        exports_aluminum_unwrought_{iso3}  (NAPCS 32, per partner, C$M)
+        exports_aluminum_semifin_{iso3}    (NAPCS 38, per partner, C$M)
+
+    Partners: usa (existing), gbr, chn, jpn, deu, kor, fra, nld, bel, mex, ind, sgp.
+    The US totals (unwrought_all / _us, semifin_all / _us) already feed
+    derive_sectoral_exports_by_destination; this function adds the per-partner
+    split for the non-US distribution view.
+
+    Output (data/processed/):
+        exports_aluminum_{iso3}.csv   for each partner above
+
+    All in C$ millions, NSA monthly.
+
+    Coverage gap: UAE, Qatar, Kuwait, Bahrain, Oman are NOT in Table
+    12-10-0182-01's partner dimension (same 29-partner list as Table
+    12-10-0011-01 minus a few swaps). Data confirms aluminum flows to these
+    markets are negligible (<$1M/month typically).
+    """
+    _TABLE_URL = "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1210018201"
+
+    # iso3 -> (napcs32_slug, napcs38_slug, vector_pair_label)
+    # Note: "usa" is intentionally omitted. exports_aluminum_us is already
+    # produced by derive_sectoral_exports_by_destination() in processed/.
+    # Adding a duplicate exports_aluminum_usa would create a confusing
+    # split in the catalog. Panel-9-alt references exports_aluminum_us directly.
+    partners: dict[str, tuple[str, str, str]] = {
+        "gbr": (
+            "exports_aluminum_unwrought_gbr",
+            "exports_aluminum_semifin_gbr",
+            "v1863617863+v1863633523",
+        ),
+        "chn": (
+            "exports_aluminum_unwrought_chn",
+            "exports_aluminum_semifin_chn",
+            "v1863617803+v1863633463",
+        ),
+        "jpn": (
+            "exports_aluminum_unwrought_jpn",
+            "exports_aluminum_semifin_jpn",
+            "v1863617893+v1863633553",
+        ),
+        "deu": (
+            "exports_aluminum_unwrought_deu",
+            "exports_aluminum_semifin_deu",
+            "v1863617923+v1863633583",
+        ),
+        "kor": (
+            "exports_aluminum_unwrought_kor",
+            "exports_aluminum_semifin_kor",
+            "v1863617953+v1863633613",
+        ),
+        "fra": (
+            "exports_aluminum_unwrought_fra",
+            "exports_aluminum_semifin_fra",
+            "v1863618013+v1863633673",
+        ),
+        "nld": (
+            "exports_aluminum_unwrought_nld",
+            "exports_aluminum_semifin_nld",
+            "v1863618043+v1863633703",
+        ),
+        "bel": (
+            "exports_aluminum_unwrought_bel",
+            "exports_aluminum_semifin_bel",
+            "v1863618073+v1863633733",
+        ),
+        "mex": (
+            "exports_aluminum_unwrought_mex",
+            "exports_aluminum_semifin_mex",
+            "v1863617833+v1863633493",
+        ),
+        "ind": (
+            "exports_aluminum_unwrought_ind",
+            "exports_aluminum_semifin_ind",
+            "v1863618253+v1863633913",
+        ),
+        "sgp": (
+            "exports_aluminum_unwrought_sgp",
+            "exports_aluminum_semifin_sgp",
+            "v1863618523+v1863634183",
+        ),
+    }
+
+    country_labels = {
+        "gbr": "United Kingdom",
+        "chn": "China",            "jpn": "Japan",
+        "deu": "Germany",          "kor": "South Korea",
+        "fra": "France",           "nld": "Netherlands",
+        "bel": "Belgium",          "mex": "Mexico",
+        "ind": "India",            "sgp": "Singapore",
+    }
+
+    for iso3, (slug32, slug38, vids) in partners.items():
+        df32 = _read_raw(slug32)
+        df38 = _read_raw(slug38)
+        if df32 is None or df38 is None:
+            logger.warning(
+                "derive_aluminum_by_partner: %s components missing from raw/ "
+                "(slug32=%s present=%s, slug38=%s present=%s)",
+                iso3, slug32, df32 is not None, slug38, df38 is not None,
+            )
+            continue
+
+        s32 = df32.set_index("date")["value"].sort_index().rename("napcs32")
+        s38 = df38.set_index("date")["value"].sort_index().rename("napcs38")
+        aligned = pd.concat([s32, s38], axis=1)
+        total = aligned.sum(axis=1, min_count=2).dropna().rename("value")
+        out = total.reset_index()
+        out.columns = ["date", "value"]
+
+        country_name = country_labels[iso3]
+        slug_out = f"exports_aluminum_{iso3}"
+        meta = SeriesMeta(
+            name=slug_out,
+            source="Statistics Canada Web Data Service (derived)",
+            source_url=_TABLE_URL,
+            source_id=(
+                f"{vids} — NAPCS 32+38 (aluminum), {country_name}, "
+                "Table 12-10-0182-01."
+            ),
+            units="C$ millions",
+            frequency="monthly",
+            notes=(
+                f"Canadian merchandise exports of aluminum (NAPCS 32 unwrought + "
+                f"NAPCS 38 semi-finished), to {country_name}. NSA monthly, "
+                f"C$ millions. Derived as sum of sub-components. "
+                f"Source vectors: {vids}. Table 12-10-0182-01."
+            ),
+            transform="napcs32 + napcs38",
+        )
+        write_series(out, meta, DATA_PROCESSED)
+
+
+def derive_gold_price_monthly() -> None:
+    """Resample daily gold futures closes to monthly (last trading day of month).
+
+    Input:  data/raw/gold_futures.csv  (GC=F daily close, USD/oz)
+    Output: data/processed/gold_price_monthly.csv  (USD/oz, monthly)
+
+    The daily series is fetched by pipeline.build_financial (Yahoo GC=F).
+    This derivation produces the monthly companion for the Trade panel-9 chart,
+    which wants gold price on the same time axis as the monthly StatCan trade
+    series. Using month-end last observation is standard for commodity price
+    time-series alignment with monthly trade data.
+
+    We read from raw/ directly (not via _read_raw which defaults to the statcan
+    catalog) because gold_futures is a Yahoo series, not a StatCan series.
+    """
+    raw_path = DATA_RAW / "gold_futures.csv"
+    if not raw_path.exists():
+        logger.warning("derive_gold_price_monthly: gold_futures.csv not found in raw/")
+        return
+
+    try:
+        df = pd.read_csv(raw_path, parse_dates=["date"])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("derive_gold_price_monthly: failed to read gold_futures.csv: %s", exc)
+        return
+
+    if df.empty or "date" not in df.columns or "value" not in df.columns:
+        logger.warning("derive_gold_price_monthly: gold_futures.csv empty or missing columns")
+        return
+
+    df = df.sort_values("date").dropna(subset=["value"])
+    # Resample to monthly using last observation in each calendar month
+    df = df.set_index("date")
+    monthly = df["value"].resample("ME").last().dropna()
+    # Shift index from month-end to first of month for consistent date keying
+    # with StatCan monthly series (which use YYYY-MM-01 convention)
+    monthly.index = monthly.index.to_period("M").to_timestamp()
+    out = monthly.reset_index()
+    out.columns = ["date", "value"]
+
+    meta = SeriesMeta(
+        name="gold_price_monthly",
+        source="Yahoo Finance (v8 chart API) — GC=F (COMEX gold futures front month)",
+        source_url="https://finance.yahoo.com/quote/GC%3DF",
+        source_id="GC=F (COMEX gold futures front month), monthly last-obs resample",
+        units="USD/oz",
+        frequency="monthly",
+        notes=(
+            "COMEX gold futures (GC=F) front-month price, monthly, USD per troy ounce. "
+            "Derived from daily close series (data/raw/gold_futures.csv) by taking the "
+            "last trading-day close of each calendar month. Date keyed to first of "
+            "month for alignment with StatCan monthly trade series. Replaces FRED LBMA "
+            "series (GOLDAMGBD228NLBM) which was discontinued by ICE Benchmark "
+            "Administration. Acceptable proxy at the monthly editorial cadence."
+        ),
+        transform="last_obs_per_calendar_month(gold_futures daily)",
+    )
+    write_series(out, meta, DATA_PROCESSED)
+
+
 def derive_tariff_state_fixture() -> None:
     """Emit a static JSON fixture for the Trade Panel 4 tariff-state visualization.
 
@@ -2083,6 +2337,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     _safe("derive_labour_force_ex_npr", derive_labour_force_ex_npr, failed)
     _safe("derive_boc_fed_spread_monthly", derive_boc_fed_spread_monthly, failed)
     _safe("derive_sectoral_exports_by_destination", derive_sectoral_exports_by_destination, failed)
+    _safe("derive_gold_exports", derive_gold_exports, failed)
+    _safe("derive_aluminum_by_partner", derive_aluminum_by_partner, failed)
+    _safe("derive_gold_price_monthly", derive_gold_price_monthly, failed)
     _safe("derive_tariff_state_fixture", derive_tariff_state_fixture, failed)
 
     # 6b) Snapshot the PRIOR vintage of data/site/* before step 7

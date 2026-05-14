@@ -16,6 +16,7 @@ from pipeline.catalog.boc_series import BOC_VALET_SERIES
 from pipeline.catalog.fred_series import FRED_SERIES
 from pipeline.catalog.indeed_series import INDEED_SERIES
 from pipeline.catalog.yahoo_series import YAHOO_SERIES
+from pipeline.catalog.imf_series import IMF_SERIES
 
 __all__ = [
     "STATCAN_SERIES",
@@ -23,4 +24,5 @@ __all__ = [
     "FRED_SERIES",
     "INDEED_SERIES",
     "YAHOO_SERIES",
+    "IMF_SERIES",
 ]

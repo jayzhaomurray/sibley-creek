@@ -9,6 +9,7 @@ import Alt1_ExportsImports from "./Alt1_ExportsImports.astro";
 import Alt2_UsExportShare from "./Alt2_UsExportShare.astro";
 import Alt3_BalanceSmoothing from "./Alt3_BalanceSmoothing.astro";
 import Alt4_TermsTradeVsWti from "./Alt4_TermsTradeVsWti.astro";
+import Alt_TariffSectorPivot from "./Alt_TariffSectorPivot.astro";
 
 export const entries: ChartShelfEntry[] = [
   {
@@ -55,5 +56,17 @@ export const entries: ChartShelfEntry[] = [
     dataFields:
       "trade.json panel-5 (terms_of_trade) + wti.csv indexed",
     addedAt: "2026-05-12",
+  },
+  {
+    Component: Alt_TariffSectorPivot,
+    file: "trade/Alt_TariffSectorPivot.astro",
+    title: "Are tariff-exposed sectors pivoting? — 4-panel sector export diversification",
+    whatDifferent:
+      "Four 2x2 panels (steel, aluminum, softwood, autos); each shows US and non-US exports as 12mma indexed to Jan 2020 = 100. Divergence between the two lines is the editorial signal.",
+    whyBetter:
+      "The 'pivot question' is the most live trade story in Canadian macro. Raw level panels obscure non-US movement because US flows dwarf them by 6-10x. Indexing surfaces whether non-US is actually rising to offset US losses — the question no raw-level chart can answer.",
+    dataFields:
+      "trade.json panel-7-alt (primary + secondary + extras[0-5]), 12mma indexed to Jan 2020 = 100",
+    addedAt: "2026-05-14",
   },
 ];

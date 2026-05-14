@@ -1,0 +1,720 @@
+---
+/*
+ * Alt_TariffSectorPivot — "Are tariff-exposed sectors pivoting?"
+ *
+ * Four 2x2 small-multiples panels: steel, aluminum, softwood, autos.
+ * Each panel carries two lines:
+ *   - US exports (12mma, solid 1.5px ink)
+ *   - Non-US exports (12mma, 1px dashed ink)
+ * Both indexed to Jan 2020 = 100 (pre-pandemic baseline, captures
+ * Trump-1 and current tariff cycles).
+ *
+ * Indexing rationale: raw levels are incommensurable within each panel
+ * (autos US ~5.6bn vs non-US ~577m). Putting both on a raw y-axis
+ * compresses non-US to a flat sliver and destroys the editorial story
+ * (whether non-US is rising or falling relative to baseline). Indexing
+ * resolves this without dual-axis distortion.
+ *
+ * Smoothing: 12-month moving average applied to both series per panel.
+ * NSA data carries strong seasonal patterns (softwood spring peak,
+ * autos model-year). 12mma removes seasonal noise cleanly. Raw monthly
+ * dropped (adds clutter without editorial payoff at this panel size).
+ *
+ * Small-multiples mode: Mode B per-panel y-axis. Each sector has a
+ * different indexed range (steel [~67, ~202], autos [~28, ~116]),
+ * confirming disparate magnitudes — per design-system.md "Small
+ * multiples" Mode B rule.
+ *
+ * Data source: data/processed/ CSVs (pipeline/io/panel_data.py panel-7-alt spec)
+ *   exports_steel_us.csv / exports_steel_nonus.csv
+ *   exports_aluminum_us.csv / exports_aluminum_nonus.csv
+ *   exports_softwood_us.csv / exports_softwood_nonus.csv
+ *   exports_autos_us.csv / exports_autos_nonus.csv
+ * Monthly NSA, CAD millions, 2006-04 through 2026-03.
+ * Source: StatCan Table 12-10-0182-01 (NAPCS sub-chapter level).
+ * Note: reads from data/processed/ directly (trade.json panel-7-alt may not
+ * be present in all builds; processed CSVs are always on disk after pipeline run).
+ *
+ * Baseline: Jan 2020 = 100 (applied to 12mma, not raw).
+ *
+ * Canon compliance (design/canon_reference_panel.md):
+ *   1. US line: pure ink 1.5px solid. Non-US: pure ink 1px dashed 4 2.
+ *   2. MTA red 4px terminal dot on US 12mma terminus per panel only.
+ *   3. 1px pure ink hairline frame per sub-panel.
+ *   4. 2 horizontal gridlines per panel + 1px reference rule at 100.
+ *   5. Y-axis: IBM Plex Mono 12px, right-aligned, per-panel ticks.
+ *   6. X-axis: Manrope 12px, bottom row only.
+ *   7. End-of-line labels "US" and "Non-US", Manrope 600 13px.
+ *   8. No legend. No section-accent on data. No client JS.
+ *   9. Native SVG <title> per data point.
+ *  10. viewBox 720x405.
+ */
+
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+// ---- Type helpers -------------------------------------------------------------
+type RawPoint = { date: string; value: number | null };
+
+/** Read a two-column date,value CSV from data/processed/. */
+function readProcessedCsv(slug: string): RawPoint[] {
+  const p = resolve(process.cwd(), "data", "processed", `${slug}.csv`);
+  let txt: string;
+  try {
+    txt = readFileSync(p, "utf-8");
+  } catch {
+    return [];
+  }
+  const lines = txt.split(/\r?\n/).filter((l) => l.length > 0);
+  const out: RawPoint[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i]!;
+    const idx = line.indexOf(",");
+    if (idx < 0) continue;
+    const date = line.slice(0, idx).trim();
+    const raw = line.slice(idx + 1).trim();
+    if (!date) continue;
+    const v = raw === "" || raw === "NA" || raw === "null" ? null : Number(raw);
+    out.push({ date, value: typeof v === "number" && !Number.isNaN(v) ? v : null });
+  }
+  // Filter nulls for computation
+  return out.filter((p): p is RawPoint & { value: number } => p.value !== null);
+}
+
+// ---- Load the eight sectoral-export series from data/processed/ ---------------
+const rawSteelUs     = readProcessedCsv("exports_steel_us");
+const rawSteelNon    = readProcessedCsv("exports_steel_nonus");
+const rawAlumUs      = readProcessedCsv("exports_aluminum_us");
+const rawAlumNon     = readProcessedCsv("exports_aluminum_nonus");
+const rawSoftwoodUs  = readProcessedCsv("exports_softwood_us");
+const rawSoftwoodNon = readProcessedCsv("exports_softwood_nonus");
+const rawAutosUs     = readProcessedCsv("exports_autos_us");
+const rawAutosNon    = readProcessedCsv("exports_autos_nonus");
+
+// ---- 12-month moving average -------------------------------------------------
+function mma12(pts: RawPoint[]): RawPoint[] {
+  const out: RawPoint[] = [];
+  for (let i = 11; i < pts.length; i++) {
+    let sum = 0;
+    for (let j = i - 11; j <= i; j++) sum += pts[j]!.value as number;
+    out.push({ date: pts[i]!.date, value: sum / 12 });
+  }
+  return out;
+}
+
+// ---- Index to Jan 2020 = 100 (on 12mma series) ------------------------------
+const BASELINE_DATE = "2020-01-01";
+
+function indexTo100(pts: RawPoint[], basePts: RawPoint[]): RawPoint[] {
+  const base = basePts.find((p) => p.date === BASELINE_DATE);
+  if (!base || typeof base.value !== "number" || base.value === 0) return [];
+  return pts.map((p) => ({
+    date: p.date,
+    value: ((p.value as number) / (base.value as number)) * 100,
+  }));
+}
+
+// Apply 12mma then index
+const smaUs    = (raw: RawPoint[]) => mma12(raw);
+const smaNon   = (raw: RawPoint[]) => mma12(raw);
+
+const steelUsMma     = smaUs(rawSteelUs);
+const steelNonMma    = smaNon(rawSteelNon);
+const alumUsMma      = smaUs(rawAlumUs);
+const alumNonMma     = smaNon(rawAlumNon);
+const softwoodUsMma  = smaUs(rawSoftwoodUs);
+const softwoodNonMma = smaNon(rawSoftwoodNon);
+const autosUsMma     = smaUs(rawAutosUs);
+const autosNonMma    = smaNon(rawAutosNon);
+
+const steelUsIdx     = indexTo100(steelUsMma, steelUsMma);
+const steelNonIdx    = indexTo100(steelNonMma, steelNonMma);
+const alumUsIdx      = indexTo100(alumUsMma, alumUsMma);
+const alumNonIdx     = indexTo100(alumNonMma, alumNonMma);
+const softwoodUsIdx  = indexTo100(softwoodUsMma, softwoodUsMma);
+const softwoodNonIdx = indexTo100(softwoodNonMma, softwoodNonMma);
+const autosUsIdx     = indexTo100(autosUsMma, autosUsMma);
+const autosNonIdx    = indexTo100(autosNonMma, autosNonMma);
+
+// ---- Window: 2018-01 onward (captures Trump-1 tariff cycle) -----------------
+const WIN_START = "2018-01-01";
+function win(pts: RawPoint[]): RawPoint[] {
+  return pts.filter((p) => p.date >= WIN_START);
+}
+
+// ---- Sub-panel definitions ---------------------------------------------------
+// Order per spec: steel, aluminum, softwood, autos (Section 232 stack ordering)
+const subPanels = [
+  { label: "STEEL",    usData: win(steelUsIdx),    nonData: win(steelNonIdx)    },
+  { label: "ALUMINUM", usData: win(alumUsIdx),     nonData: win(alumNonIdx)     },
+  { label: "SOFTWOOD", usData: win(softwoodUsIdx), nonData: win(softwoodNonIdx) },
+  { label: "AUTOS",    usData: win(autosUsIdx),    nonData: win(autosNonIdx)    },
+] as const;
+
+// ---- Geometry ----------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+
+// Outer margins — left gutter wider for y-tick labels on both columns
+const M_L = 46;
+const M_R = 10;
+const M_T = 32;   // room for panel labels above each cell
+const M_B = 36;   // bottom row x-tick labels
+
+const GRID_W = VB_W - M_L - M_R;   // 664
+const GRID_H = VB_H - M_T - M_B;   // 337
+
+const NUM_COLS = 2;
+const NUM_ROWS = 2;
+const GAP_X = 40;  // wide gutter for per-panel y-tick labels on right column
+const GAP_Y = 22;
+
+const CELL_W = (GRID_W - GAP_X * (NUM_COLS - 1)) / NUM_COLS;   // ~312
+const CELL_H = (GRID_H - GAP_Y * (NUM_ROWS - 1)) / NUM_ROWS;   // ~157.5
+
+// 2x2 grid positions [col, row]
+const GRID_POSITIONS = [
+  [0, 0], // steel
+  [1, 0], // aluminum
+  [0, 1], // softwood
+  [1, 1], // autos
+] as const;
+
+function cellOrigin(col: number, row: number): [number, number] {
+  const x0 = M_L + col * (CELL_W + GAP_X);
+  const y0 = M_T + row * (CELL_H + GAP_Y);
+  return [x0, y0];
+}
+
+// ---- decYear helper ----------------------------------------------------------
+function decYear(dateStr: string): number {
+  const [ys, ms] = dateStr.split("-");
+  const y = parseInt(ys ?? "2000", 10);
+  const m = parseInt(ms ?? "1", 10);
+  return y + (m - 0.5) / 12;
+}
+
+// ---- Y-scale helpers ---------------------------------------------------------
+function niceStep(lo: number, hi: number, target = 3): number {
+  const span = hi - lo;
+  if (span <= 0) return 10;
+  const raw = span / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  for (const f of [1, 2, 2.5, 5, 10]) {
+    const c = f * mag;
+    const n = Math.floor(span / c);
+    if (n >= 2 && n <= 5) return c;
+  }
+  return 10 * mag;
+}
+
+function computeYDomain(us: RawPoint[], non: RawPoint[]): [number, number] {
+  const vals = [...us, ...non].map((p) => p.value as number);
+  if (vals.length === 0) return [60, 140];
+  const lo = Math.min(...vals);
+  const hi = Math.max(...vals);
+  const span = hi - lo || 10;
+  const pad = span * 0.07;
+  return [lo - pad, hi + pad];
+}
+
+function buildYTicks(yLo: number, yHi: number): number[] {
+  const stride = niceStep(yLo, yHi, 3);
+  const start = Math.ceil(yLo / stride) * stride;
+  const ticks: number[] = [];
+  for (let v = start; v <= yHi + 1e-9; v += stride) {
+    ticks.push(parseFloat(v.toFixed(6)));
+  }
+  // Keep 2–4 ticks
+  if (ticks.length > 4) {
+    const mid = Math.floor(ticks.length / 2);
+    return [ticks[0]!, ticks[mid]!, ticks[ticks.length - 1]!];
+  }
+  return ticks.length >= 2 ? ticks : [Math.round(yLo / 10) * 10, Math.round(yHi / 10) * 10];
+}
+
+function fmtIdx(v: number): string {
+  return v.toFixed(0);
+}
+
+// ---- X-ticks ----------------------------------------------------------------
+function buildXTicks(
+  xMinV: number,
+  xMaxV: number,
+  xScale: (x: number) => number,
+): Array<{ x: number; label: string }> {
+  // 3 ticks: ~2018, ~2021, ~2025
+  const years = [2018, 2021, 2025];
+  return years
+    .map((yr) => {
+      const decY = yr + 0.5 / 12;
+      if (decY < xMinV || decY > xMaxV) return null;
+      return { x: xScale(decY), label: String(yr) };
+    })
+    .filter((t): t is { x: number; label: string } => t !== null);
+}
+
+// ---- Build path from points --------------------------------------------------
+function buildPath(
+  pts: RawPoint[],
+  xScale: (x: number) => number,
+  yScale: (v: number) => number,
+): string {
+  let d = "";
+  let started = false;
+  for (const pt of pts) {
+    if (pt.value === null) { started = false; continue; }
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) { started = false; continue; }
+    const px = xScale(xv).toFixed(2);
+    const py = yScale(pt.value as number).toFixed(2);
+    d += started ? `L${px} ${py} ` : `M${px} ${py} `;
+    started = true;
+  }
+  return d.trim();
+}
+
+// ---- Shared x-domain across all panels --------------------------------------
+let xMin = Infinity;
+let xMax = -Infinity;
+for (const sp of subPanels) {
+  for (const pts of [sp.usData, sp.nonData]) {
+    for (const pt of pts) {
+      const v = decYear(pt.date);
+      if (!Number.isNaN(v)) {
+        if (v < xMin) xMin = v;
+        if (v > xMax) xMax = v;
+      }
+    }
+  }
+}
+if (!Number.isFinite(xMin)) { xMin = 2018; xMax = 2026.5; }
+
+// ---- Per-panel computed geometry --------------------------------------------
+interface PanelGeom {
+  label: string;
+  col: number;
+  row: number;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  yLo: number;
+  yHi: number;
+  yTicks: number[];
+  usPath: string;
+  nonPath: string;
+  usData: RawPoint[];
+  nonData: RawPoint[];
+  usLatest: RawPoint | null;
+  nonLatest: RawPoint | null;
+  usLatestX: number;
+  usLatestY: number;
+  nonLatestX: number;
+  nonLatestY: number;
+  refY: number;         // y-coord of the 100-baseline rule
+  xTicks: Array<{ x: number; label: string }>;
+  isBottomRow: boolean;
+  // End-of-line label positions
+  usLabelX: number;
+  usLabelY: number;
+  nonLabelX: number;
+  nonLabelY: number;
+}
+
+const geoms: PanelGeom[] = subPanels.map((sp, idx) => {
+  const pos = GRID_POSITIONS[idx]!;
+  const col = pos[0];
+  const row = pos[1];
+  const [x0, y0] = cellOrigin(col, row);
+  const x1 = x0 + CELL_W;
+  const y1 = y0 + CELL_H;
+
+  const [yLo, yHi] = computeYDomain(sp.usData as RawPoint[], sp.nonData as RawPoint[]);
+  const yTicks = buildYTicks(yLo, yHi);
+
+  const xScale = (xv: number) => x0 + ((xv - xMin) / (xMax - xMin || 1)) * CELL_W;
+  const yScale = (v: number)  => y0 + CELL_H - ((v - yLo) / (yHi - yLo || 1)) * CELL_H;
+
+  const usPath  = buildPath(sp.usData  as RawPoint[], xScale, yScale);
+  const nonPath = buildPath(sp.nonData as RawPoint[], xScale, yScale);
+
+  const usData  = sp.usData  as RawPoint[];
+  const nonData = sp.nonData as RawPoint[];
+
+  const usLatest  = usData.length  > 0 ? usData[usData.length - 1]!   : null;
+  const nonLatest = nonData.length > 0 ? nonData[nonData.length - 1]! : null;
+
+  const usLatestX  = usLatest  ? xScale(decYear(usLatest.date))  : 0;
+  const usLatestY  = usLatest  ? yScale(usLatest.value as number)  : 0;
+  const nonLatestX = nonLatest ? xScale(decYear(nonLatest.date)) : 0;
+  const nonLatestY = nonLatest ? yScale(nonLatest.value as number) : 0;
+
+  const refY = yScale(100);
+
+  const xTicks = buildXTicks(xMin, xMax, xScale);
+
+  // End-of-line labels — place to the right of each terminus
+  // Clamp within cell + small right margin
+  const LABEL_PAD = 4;
+  const usLabelX  = Math.min(usLatestX  + LABEL_PAD, x1 - 2);
+  const nonLabelX = Math.min(nonLatestX + LABEL_PAD, x1 - 2);
+  const usLabelY  = usLatestY;
+  const nonLabelY = nonLatestY;
+
+  return {
+    label: sp.label,
+    col, row,
+    x0, y0, x1, y1,
+    yLo, yHi, yTicks,
+    usPath, nonPath,
+    usData, nonData,
+    usLatest, nonLatest,
+    usLatestX, usLatestY,
+    nonLatestX, nonLatestY,
+    refY,
+    xTicks,
+    isBottomRow: row === NUM_ROWS - 1,
+    usLabelX, usLabelY,
+    nonLabelX, nonLabelY,
+  };
+});
+
+// ---- aria-label dates --------------------------------------------------------
+const latestDate = geoms[0]?.usLatest?.date ?? "2026-03-01";
+const latestYear = latestDate.slice(0, 4);
+---
+
+<div class="tsp-chart" data-panel="alt-trade-pivot">
+  <svg
+    class="tsp-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={`Tariff-exposed sector export pivot: four panels showing steel, aluminum, softwood, and autos exports to US and non-US markets, both indexed to January 2020 = 100, 12-month moving average, 2018 to ${latestYear}.`}
+  >
+    {geoms.map((g) => {
+      // Both y-tick sets show (Mode B — per panel)
+      const showXAxis = g.isBottomRow;
+
+      // Clamp label positions so they don't overflow the cell bottom/top
+      const usLblY  = Math.max(g.y0 + 8, Math.min(g.y1 - 2, g.usLabelY));
+      const nonLblY = Math.max(g.y0 + 8, Math.min(g.y1 - 2, g.nonLabelY));
+
+      // Separate labels if too close
+      const MIN_LABEL_SEP = 12;
+      const labelSep = Math.abs(usLblY - nonLblY);
+      const finalNonLblY = labelSep < MIN_LABEL_SEP
+        ? (usLblY > nonLblY ? nonLblY - MIN_LABEL_SEP : nonLblY + MIN_LABEL_SEP)
+        : nonLblY;
+
+      return (
+        <g class="tsp-chart__cell" data-series={g.label}>
+
+          {/* --- Reference rule at 100 (baseline) --- */}
+          {g.refY >= g.y0 && g.refY <= g.y1 && (
+            <line
+              class="tsp-chart__ref-rule"
+              x1={g.x0}
+              y1={g.refY.toFixed(2)}
+              x2={g.x1}
+              y2={g.refY.toFixed(2)}
+            />
+          )}
+
+          {/* --- Horizontal gridlines (y-tick positions, excluding 100-ref overlap) --- */}
+          {g.yTicks.map((v) => {
+            const yv = g.y0 + CELL_H - ((v - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
+            // Skip the gridline if it's within 2px of the reference rule
+            if (Math.abs(yv - g.refY) < 2) return null;
+            return (
+              <line
+                class="tsp-chart__gridline"
+                x1={g.x0}
+                y1={yv.toFixed(2)}
+                x2={g.x1}
+                y2={yv.toFixed(2)}
+              />
+            );
+          })}
+
+          {/* --- Non-US line (dashed 1px) — behind US line --- */}
+          {g.nonPath && (
+            <path class="tsp-chart__line--secondary" d={g.nonPath} />
+          )}
+
+          {/* --- US line (solid 1.5px) --- */}
+          {g.usPath && (
+            <path class="tsp-chart__line--primary" d={g.usPath} />
+          )}
+
+          {/* --- Hit areas (invisible) for native SVG <title> --- */}
+          {g.usData.filter((_pt: RawPoint, i: number) => i % 3 === 0).map((pt: RawPoint) => {
+            if (pt.value === null) return null;
+            const xv = g.x0 + ((decYear(pt.date) - xMin) / (xMax - xMin || 1)) * CELL_W;
+            const yv = g.y0 + CELL_H - (((pt.value as number) - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
+            return (
+              <circle class="tsp-chart__hit" cx={xv.toFixed(2)} cy={yv.toFixed(2)} r="5">
+                <title>{`${g.label} US — ${pt.date}: ${(pt.value as number).toFixed(1)} (Jan 2020 = 100)`}</title>
+              </circle>
+            );
+          })}
+          {g.nonData.filter((_pt: RawPoint, i: number) => i % 3 === 0).map((pt: RawPoint) => {
+            if (pt.value === null) return null;
+            const xv = g.x0 + ((decYear(pt.date) - xMin) / (xMax - xMin || 1)) * CELL_W;
+            const yv = g.y0 + CELL_H - (((pt.value as number) - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
+            return (
+              <circle class="tsp-chart__hit" cx={xv.toFixed(2)} cy={yv.toFixed(2)} r="5">
+                <title>{`${g.label} Non-US — ${pt.date}: ${(pt.value as number).toFixed(1)} (Jan 2020 = 100)`}</title>
+              </circle>
+            );
+          })}
+
+          {/* --- MTA red terminal dot — US line only --- */}
+          {g.usLatest && (
+            <circle
+              class="tsp-chart__latest-dot"
+              cx={g.usLatestX.toFixed(2)}
+              cy={g.usLatestY.toFixed(2)}
+              r="4"
+            >
+              <title>{`${g.label} US latest — ${g.usLatest.date}: ${(g.usLatest.value as number).toFixed(1)} (Jan 2020 = 100)`}</title>
+            </circle>
+          )}
+
+          {/* --- Plot frame (hairline, drawn last so it sits above gridlines) --- */}
+          <rect
+            class="tsp-chart__frame"
+            x={g.x0}
+            y={g.y0}
+            width={CELL_W.toFixed(2)}
+            height={CELL_H.toFixed(2)}
+          />
+
+          {/* --- Sub-panel heading (micro-caps) --- */}
+          <text
+            class="tsp-chart__panel-label"
+            x={(g.x0 + 5).toFixed(2)}
+            y={(g.y0 - 7).toFixed(2)}
+          >{g.label}</text>
+
+          {/* --- Y-axis tick labels — per-panel (Mode B) --- */}
+          {g.yTicks.map((v, i) => {
+            const yv = g.y0 + CELL_H - ((v - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
+            const isTop = i === g.yTicks.length - 1;
+            // Topmost tick carries unit suffix on every panel (Mode B — all panels independent)
+            const txt = isTop ? `${fmtIdx(v)}` : fmtIdx(v);
+            return (
+              <text
+                class="tsp-chart__ytick-label"
+                x={(g.x0 - 5).toFixed(2)}
+                y={(yv + 4).toFixed(2)}
+                text-anchor="end"
+              >{txt}</text>
+            );
+          })}
+
+          {/* --- X-axis ticks + labels (bottom row only) --- */}
+          {showXAxis && g.xTicks.map((t) => (
+            <g>
+              <line
+                class="tsp-chart__xtick"
+                x1={t.x.toFixed(2)}
+                y1={g.y1.toFixed(2)}
+                x2={t.x.toFixed(2)}
+                y2={(g.y1 + 4).toFixed(2)}
+              />
+              <text
+                class="tsp-chart__xtick-label"
+                x={t.x.toFixed(2)}
+                y={(g.y1 + 16).toFixed(2)}
+                text-anchor="middle"
+              >{t.label}</text>
+            </g>
+          ))}
+
+          {/* --- End-of-line labels: "US" and "Non-US" ---
+               Anchored just inside the right edge of each cell,
+               right-aligned to avoid overflow into the gutter/margin.  */}
+          {g.usLatest && (
+            <text
+              class="tsp-chart__eol-label"
+              x={(g.x1 - 4).toFixed(2)}
+              y={(usLblY + 4).toFixed(2)}
+              text-anchor="end"
+            >US</text>
+          )}
+          {g.nonLatest && (
+            <text
+              class="tsp-chart__eol-label"
+              x={(g.x1 - 4).toFixed(2)}
+              y={(finalNonLblY + 4).toFixed(2)}
+              text-anchor="end"
+            >Non-US</text>
+          )}
+
+          {/* --- "100" label on baseline ref rule (top-left inside cell) --- */}
+          {g.refY >= g.y0 && g.refY <= g.y1 && (
+            <text
+              class="tsp-chart__ref-label"
+              x={(g.x0 + 4).toFixed(2)}
+              y={(g.refY - 3).toFixed(2)}
+              text-anchor="start"
+            >100</text>
+          )}
+
+        </g>
+      );
+    })}
+
+    {/* --- Global chart subtitle (bottom-left) --- */}
+    <text
+      class="tsp-chart__subtitle"
+      x={M_L}
+      y={(VB_H - 8).toFixed(2)}
+    >12-month moving average, indexed Jan 2020 = 100. Solid = US, dashed = non-US.</text>
+
+  </svg>
+</div>
+
+<style>
+  /*
+   * Alt_TariffSectorPivot — Vignelli canon small-multiples.
+   * Two-series per panel: US (solid 1.5px ink) + non-US (1px dashed ink).
+   * MTA red terminal dot on US line only. 1px ref-rule at 100 per panel.
+   */
+
+  .tsp-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper, #fff);
+    overflow: visible;
+  }
+
+  .tsp-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans, 'Manrope', sans-serif);
+  }
+
+  /* Reference rule at 100 — 1px pure ink, slight opacity to not compete with data */
+  .tsp-chart__ref-rule {
+    stroke: var(--ink, #000);
+    stroke-width: 1;
+    stroke-opacity: 0.35;
+    stroke-dasharray: 3 3;
+    shape-rendering: crispEdges;
+  }
+
+  /* Gridlines — pure ink, low opacity */
+  .tsp-chart__gridline {
+    stroke: var(--ink, #000);
+    stroke-width: 1;
+    stroke-opacity: 0.15;
+    shape-rendering: crispEdges;
+  }
+
+  /* US line — solid 1.5px pure ink */
+  .tsp-chart__line--primary {
+    stroke: var(--ink, #000);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Non-US line — 1px dashed pure ink (multi-series canon rule 17) */
+  .tsp-chart__line--secondary {
+    stroke: var(--ink, #000);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Invisible hit-areas for native SVG <title> hover */
+  .tsp-chart__hit {
+    fill: transparent;
+    pointer-events: all;
+  }
+
+  /* Latest-print dot — MTA red, US line only */
+  .tsp-chart__latest-dot {
+    fill: var(--accent, #E63946);
+    stroke: none;
+  }
+
+  /* Plot frame — 1px pure ink hairline per sub-panel */
+  .tsp-chart__frame {
+    fill: none;
+    stroke: var(--ink, #000);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Sub-panel heading — Manrope 600 micro-caps, 11px */
+  .tsp-chart__panel-label {
+    fill: var(--ink, #000);
+    font-family: var(--font-sans, 'Manrope', sans-serif);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+
+  /* Y-axis tick labels — IBM Plex Mono 400, 11px, right-aligned */
+  .tsp-chart__ytick-label {
+    fill: var(--ink-faint, #555);
+    font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+    font-size: 11px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* X-axis tick marks */
+  .tsp-chart__xtick {
+    stroke: var(--ink, #000);
+    stroke-width: 1;
+    stroke-opacity: 0.5;
+    shape-rendering: crispEdges;
+  }
+
+  /* X-axis tick labels — Manrope 400, 11px */
+  .tsp-chart__xtick-label {
+    fill: var(--ink-faint, #555);
+    font-family: var(--font-sans, 'Manrope', sans-serif);
+    font-size: 11px;
+    font-weight: 400;
+  }
+
+  /* End-of-line labels "US" / "Non-US" — Manrope 600, 11px */
+  .tsp-chart__eol-label {
+    fill: var(--ink, #000);
+    font-family: var(--font-sans, 'Manrope', sans-serif);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* "100" baseline ref label */
+  .tsp-chart__ref-label {
+    fill: var(--ink, #000);
+    font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+    font-size: 10px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    fill-opacity: 0.45;
+  }
+
+  /* Bottom subtitle line */
+  .tsp-chart__subtitle {
+    fill: var(--ink-faint, #555);
+    font-family: var(--font-sans, 'Manrope', sans-serif);
+    font-size: 10px;
+    font-weight: 400;
+  }
+</style>

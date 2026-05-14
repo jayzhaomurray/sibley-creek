@@ -575,7 +575,7 @@ export const sections: Section[] = [
     accentVar: "--section-accent-trade",
     kicker: "Exports, imports, and the terms by which Canada sells its work.",
     headlineQuestion:
-      "Is Canada's external position structurally shifting under US repricing?",
+      "Is Canada's trade pivot working?",
     cadence: "Monthly + event",
     // March merch-trade release landed May 5, 2026.
     updatedAt: Date.UTC(2026, 4, 5, 8, 30),
@@ -876,9 +876,9 @@ export const deepDives: DeepDive[] = [
   {
     slug: "us-tariff-repricing",
     section: "trade",
-    title: "The reorientation has already happened",
+    title: "Canada's trade pivot that wasn't",
     deck:
-      "Canada's US export share has dropped ten percentage points in fourteen months. The argument over USMCA is happening on top of a structural break, not in advance of one.",
+      "Canada's US export share has dropped ten percentage points in fourteen months. Strip out gold to London and aluminum to a couple of non-traditional buyers, and the manufacturing base looks essentially unmoved.",
     publishedAt: "2026-05-11",
     lastUpdated: "2026-05-11",
     dataVintage: "2026-05-11",

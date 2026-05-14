@@ -1025,6 +1025,102 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
                 "See panel-7-alt for sectoral US-vs-non-US breakdown."
             ),
         ),
+        PanelSpec(
+            panel_id="panel-9", section="trade", panel_num=9,
+            file="trade/Panel9GoldExports.astro",
+            # Primary slot: gold/PGM exports level (total all countries)
+            # Secondary: gold to UK (London Bullion Market — typically 90-97% of total)
+            # Tertiary: gold to US
+            # Extras: gold spot price (USD/oz, monthly, right-axis companion)
+            # Chart-builder note: two-panel composite recommended —
+            #   Left panel: gold exports level (C$M) with UK and total series
+            #   Right panel: gold price (USD/oz) on shared time axis
+            # Do NOT use dual-axis on a single panel; the unit mismatch (C$M vs USD/oz)
+            # is visually deceptive at the scale involved. Two adjacent panels with
+            # a shared x-axis (synchronized zoom) is the correct form.
+            # NAPCS 35 editorial caveat: includes silver and PGM alongside gold.
+            # No finer gold-only sub-chapter available in WDS at this granularity.
+            primary=SlotSpec("exports_gold_total", "processed",
+                             label="Gold/PGM exports, all countries (C$M)"),
+            secondary=SlotSpec("exports_gold_uk", "processed",
+                               label="Gold/PGM exports to UK (C$M)"),
+            tertiary=SlotSpec("exports_gold_us", "processed",
+                              label="Gold/PGM exports to US (C$M)"),
+            extras=(
+                SlotSpec("gold_price_monthly", "processed",
+                         label="Gold price (USD/oz, monthly last-obs)"),
+            ),
+            expected_status="WIRED",
+            notes=(
+                "Gold/PGM exports (NAPCS 35) by destination + COMEX gold price. "
+                "Source: StatCan Table 12-10-0182-01 (exports) and Yahoo GC=F (price). "
+                "NSA monthly, 1997-01 to present. "
+                "Key editorial finding: UK absorbs ~90-97% of all Canadian gold/PGM "
+                "exports in most months (London Bullion Market clearing). The March 2026 "
+                "spike in Canada-UK merchandise trade is almost entirely this series "
+                "re-routing gold through London as COMEX US tariff risk rose. "
+                "NAPCS 35 caveat: bundles gold + silver + PGM; no finer cut available "
+                "in 12-10-0182-01. For context, gold is ~85-90% of NAPCS 35 value "
+                "based on historical HS 7108 share of HS 71xx (not directly verifiable "
+                "in this table -- editorial should note the bundling). "
+                "Vectors: v1863625573 (total), v1863625693 (UK), v1863625603 (US). "
+                "Resolved 2026-05-14."
+            ),
+        ),
+        PanelSpec(
+            panel_id="panel-9-alt", section="trade", panel_num=9,
+            file="trade/Panel9AltAluminumByPartner.astro",
+            # Aluminum (NAPCS 32+38) by destination. The non-US story:
+            # Netherlands >> Mexico >> everyone else (see coverage gap note).
+            # Primary = USA (anchors the scale; US is ~86% of total in 2026)
+            # Secondary = Netherlands (dominant non-US destination)
+            # Tertiary = Mexico
+            # Extras = remaining partners with non-trivial flows (all near zero
+            # at current rates; included for completeness and chart flexibility)
+            primary=SlotSpec("exports_aluminum_us", "processed",
+                             label="Aluminum exports to US (C$M)"),
+            secondary=SlotSpec("exports_aluminum_nld", "processed",
+                               label="Aluminum exports to Netherlands (C$M)"),
+            tertiary=SlotSpec("exports_aluminum_mex", "processed",
+                              label="Aluminum exports to Mexico (C$M)"),
+            extras=(
+                SlotSpec("exports_aluminum_gbr", "processed",
+                         label="Aluminum exports to UK (C$M)"),
+                SlotSpec("exports_aluminum_chn", "processed",
+                         label="Aluminum exports to China (C$M)"),
+                SlotSpec("exports_aluminum_jpn", "processed",
+                         label="Aluminum exports to Japan (C$M)"),
+                SlotSpec("exports_aluminum_deu", "processed",
+                         label="Aluminum exports to Germany (C$M)"),
+                SlotSpec("exports_aluminum_kor", "processed",
+                         label="Aluminum exports to South Korea (C$M)"),
+                SlotSpec("exports_aluminum_fra", "processed",
+                         label="Aluminum exports to France (C$M)"),
+                SlotSpec("exports_aluminum_bel", "processed",
+                         label="Aluminum exports to Belgium (C$M)"),
+                SlotSpec("exports_aluminum_ind", "processed",
+                         label="Aluminum exports to India (C$M)"),
+                SlotSpec("exports_aluminum_sgp", "processed",
+                         label="Aluminum exports to Singapore (C$M)"),
+            ),
+            expected_status="WIRED",
+            notes=(
+                "Aluminum (NAPCS 32+38) exports by partner country. "
+                "Derived: NAPCS 32 (unwrought) + NAPCS 38 (semi-finished) per partner. "
+                "Source: StatCan Table 12-10-0182-01. NSA monthly, 1997-01 to present. "
+                "COVERAGE GAP: UAE, Qatar, Kuwait, Bahrain, Oman NOT in the 29-partner "
+                "dimension of this table. No StatCan WDS alternative exists for these "
+                "countries. Data confirms flows are negligible in any case. "
+                "Key finding (March 2026): US = C$1,016M (~86% of total C$1,181M). "
+                "Non-US is heavily concentrated: Netherlands C$118M >> Mexico C$38M >> "
+                "all others <$2M. Non-US aluminum diversification is shallow — "
+                "almost no meaningful non-US flow exists except Rotterdam-hub routing. "
+                "Chart-builder note: stacked area or multi-line; if stacked, exclude "
+                "the USA series and show non-US partners only against the non-US total "
+                "(use exports_aluminum_nonus from panel-7-alt as the reference total). "
+                "Resolved 2026-05-14."
+            ),
+        ),
     ],
 }
 
