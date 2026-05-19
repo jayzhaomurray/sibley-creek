@@ -62,7 +62,7 @@ from pipeline.catalog import BOC_VALET_SERIES, IMF_SERIES, STATCAN_SERIES
 from pipeline.catalog.boc_series import BocSpec
 from pipeline.catalog.imf_series import ImfSpec
 from pipeline.catalog.statcan_series import StatcanSpec, get_url as statcan_url
-from pipeline.fetch import alberta, boc, cba_arrears, cpi_basket, crea, dof_fiscal, imf_weo, statcan
+from pipeline.fetch import alberta, boc, cba_arrears, cpi_basket, cpi_components, crea, dof_fiscal, imf_weo, statcan
 from pipeline.io import SeriesMeta, build_site_data, write_series
 from pipeline.io.panel_data import build_all_panel_data
 from pipeline.transform import yoy_pct
@@ -558,6 +558,39 @@ def fetch_cpi_basket_weights() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# CPI components (60-vector wide-format pull for breadth derivations)
+# --------------------------------------------------------------------------- #
+
+def fetch_and_write_cpi_components() -> None:
+    """Fetch 60 per-component NSA CPI levels and write the wide-format CSV.
+
+    Replaces the one-time boc-tracker lift (2026-05-11) with a daily fetch
+    keyed off the same 60-vector mapping. Output shape is unchanged so the
+    two breadth derivations (`derive_cpi_breadth_gt3`,
+    `derive_cpi_breadth_band`) consume it without modification.
+    """
+    result = cpi_components.fetch_cpi_components()
+
+    meta = SeriesMeta(
+        name="cpi_components",
+        source="Statistics Canada Web Data Service",
+        source_url=cpi_components.TABLE_URL,
+        source_id=result.source_id,
+        units="Index, 2002=100 (per-component)",
+        frequency="monthly",
+        release_date=result.release_date,
+        notes=(
+            "Wide-format CSV: date x component for the 60-series CPI breadth "
+            "basket. Per-component vector IDs in boc-tracker/data/"
+            "cpi_breadth_mapping.json. Fetched daily via StatCan WDS (replaces "
+            "the one-time 2026-05-11 lift from boc-tracker)."
+        ),
+        transform=None,
+    )
+    write_series(result.wide, meta, DATA_RAW)
+
+
+# --------------------------------------------------------------------------- #
 # Alberta Economic Dashboard -- AECO-equivalent natural gas (monthly)
 # --------------------------------------------------------------------------- #
 
@@ -645,6 +678,27 @@ def derive_cpi_views() -> None:
             transform="yoy_pct(periods_per_year=12)",
         )
         write_series(yoy, meta, DATA_PROCESSED)
+
+    # m/m derivation for NSA headline only. Same input as Y/Y but periods=1.
+    # Matches the m/m number StatCan publishes in The Daily commentary; used
+    # in inflation plate-1 prose ("0.4% unadjusted" April 2026).
+    raw_nsa = _read_raw("cpi_all_items_nsa")
+    if raw_nsa is not None:
+        ss = raw_nsa.set_index("date")["value"].sort_index()
+        mm = (ss.pct_change(1) * 100).dropna().reset_index()
+        mm.columns = ["date", "value"]
+        spec_nsa = STATCAN_SERIES["cpi_all_items_nsa"]
+        meta_mm = SeriesMeta(
+            name="cpi_all_items_nsa_mm",
+            source="Statistics Canada Web Data Service",
+            source_url=statcan_url(spec_nsa),
+            source_id=f"v{spec_nsa.vector_id}",
+            units="%",
+            frequency="monthly",
+            notes="Month-over-month % change in headline CPI (NSA). Matches the StatCan-published m/m print on each CPI release.",
+            transform="pct_change(periods=1)*100",
+        )
+        write_series(mm, meta_mm, DATA_PROCESSED)
 
 
 def derive_cpi_services_ex_shelter_yoy() -> None:
@@ -2333,6 +2387,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     #     StatCan catalog; this step writes the consolidated cross-aggregate view.
     logger.info("--- CPI basket weights ---")
     _safe("cpi_basket_weights", fetch_cpi_basket_weights, failed)
+
+    # 5c) CPI components (60-vector wide-format) -- must run BEFORE derivations,
+    #     which consume data/raw/cpi_components.csv. Replaces the one-time
+    #     boc-tracker lift with a daily StatCan fetch (2026-05-19).
+    logger.info("--- CPI components ---")
+    _safe("cpi_components", fetch_and_write_cpi_components, failed)
 
     # 6) Cross-series derivations. Run AFTER fetches so the disk cache is
     #    populated. Each derivation is isolated; failures don't cascade.

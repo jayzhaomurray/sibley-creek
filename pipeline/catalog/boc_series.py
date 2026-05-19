@@ -81,10 +81,9 @@ BOC_VALET_SERIES: dict[str, BocSpec] = {
     "overnight_rate_daily": BocSpec("overnight_rate_daily", "V39079", "2009-04-21", "%", "daily", "policy", "daily"),
 
     # ----- CPI core (Section 4.2 element 2) -------------------------------
-    "cpi_trim":   BocSpec("cpi_trim", "CPI_TRIM", "1990-01-01", "% Y/Y", "monthly", "inflation", "monthly"),
-    "cpi_median": BocSpec("cpi_median", "CPI_MEDIAN", "1990-01-01", "% Y/Y", "monthly", "inflation", "monthly"),
-    "cpi_common": BocSpec("cpi_common", "CPI_COMMON", "1990-01-01", "% Y/Y", "monthly", "inflation", "monthly",
-                          notes="BoC has deprioritized common since late 2022; included for historical anchor."),
+    # cpi_trim, cpi_median, cpi_common moved to StatCan catalog 2026-05-19
+    # (Table 18-10-0256-01) so they refresh at the 8:30 ET CPI release rather
+    # than waiting for BoC Valet's afternoon update.
     "cpix":       BocSpec("cpix", "ATOM_V41693242", "1990-01-01", "% Y/Y", "monthly", "inflation", "monthly"),
     "cpixfet":    BocSpec("cpixfet", "STATIC_CPIXFET", "1990-01-01", "% Y/Y", "monthly", "inflation", "monthly"),
     # CPI ex indirect taxes — MPR-vintage rotation (researcher memo: each MPR ships a new key).

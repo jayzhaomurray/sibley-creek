@@ -74,7 +74,7 @@ def _scaffold_repo(tmp_path: Path) -> Path:
         "panels": {
             "panel-1": {
                 "primary": {
-                    "key": "cpi_all_items_yoy",
+                    "key": "cpi_all_items_nsa_yoy",
                     "data": [
                         {"date": "2026-03-01", "value": 2.32},
                     ],

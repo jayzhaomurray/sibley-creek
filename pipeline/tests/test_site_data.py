@@ -59,14 +59,14 @@ def _daily_df(values: list[float], start: str = "2026-01-02") -> pd.DataFrame:
 
 def _seed_minimal_pipeline(data_root: Path) -> None:
     """Land plausible CSVs for every canon section so a full build succeeds."""
-    # inflation -> processed/cpi_all_items_yoy
+    # inflation -> processed/cpi_all_items_nsa_yoy (NSA matches StatCan headline)
     _write_pair(
-        data_root, "processed", "cpi_all_items_yoy",
+        data_root, "processed", "cpi_all_items_nsa_yoy",
         _monthly_df([3.5, 3.3, 3.1, 2.9, 2.7, 2.6, 2.5, 2.4, 2.5, 2.3, 2.4,
                      2.3, 2.4, 2.2, 2.3, 2.1, 2.0, 2.2, 2.1, 2.3, 2.2, 2.3,
                      2.2, 2.32], start="2024-04-01"),
         {
-            "name": "cpi_all_items_yoy", "source": "Statistics Canada",
+            "name": "cpi_all_items_nsa_yoy", "source": "Statistics Canada",
             "source_url": "https://example.invalid/cpi", "source_id": "v41690914",
             "units": "%", "frequency": "monthly",
             "fetched_at": "2026-05-11T00:00:00+00:00",
@@ -168,7 +168,7 @@ def test_inflation_section_has_real_value_and_spark(tmp_path):
     inflation = payload["sections"]["inflation"]
     assert inflation["slug"] == "inflation"
     assert inflation["chartSeriesKey"] == "cpi-yoy"
-    assert inflation["primarySeries"] == "cpi_all_items_yoy"
+    assert inflation["primarySeries"] == "cpi_all_items_nsa_yoy"
     assert "error" not in inflation
 
     # Primary print at index 0 always carries the section's anchor series.
@@ -236,10 +236,10 @@ def test_missing_series_yields_error_sentinel(tmp_path):
     data_root = tmp_path / "data"
     # Seed only inflation; gdp/labour/housing/policy/markets/trade missing.
     _write_pair(
-        data_root, "processed", "cpi_all_items_yoy",
+        data_root, "processed", "cpi_all_items_nsa_yoy",
         _monthly_df([2.5, 2.6, 2.4, 2.5, 2.3, 2.4], start="2025-10-01"),
         {
-            "name": "cpi_all_items_yoy", "source": "Statistics Canada",
+            "name": "cpi_all_items_nsa_yoy", "source": "Statistics Canada",
             "source_url": "https://example.invalid/cpi", "source_id": "v41690914",
             "units": "%", "frequency": "monthly",
             "fetched_at": "2026-05-11T00:00:00+00:00",

@@ -97,3 +97,28 @@ queue:
       series has only ~4 obs/year. Backend: materialize when housing pipeline is
       next touched. Then delete this entry and the in-component helper.
     in_component_fallback: Panel2Activity.astro rollingMean(ucRaw, 4)
+
+  - slot_name: cpi_headline_mm_nsa
+    added_at: 2026-05-19
+    surface: inflation plate-1 (Headline CPI, m/m and Y/Y) — "0.4% unadjusted" claim
+    source_inputs:
+      - data/raw/cpi_all_items_nsa.csv  # StatCan headline CPI NSA index level, monthly
+    aggregation_rule: >
+      For each month T in the series: (level_T / level_{T-1} - 1) * 100,
+      expressed as a percentage with one decimal place rounding. NSA, raw
+      index. No seasonal-adjustment applied. Matches the m/m print StatCan
+      publishes in The Daily commentary on each CPI release.
+    example_values:
+      - { date: "2026-02-01", value: 0.5 }  # 165.9 / 165.0 - 1 = 0.55%
+      - { date: "2026-03-01", value: 0.9 }  # 167.4 / 165.9 - 1 = 0.90%
+      - { date: "2026-04-01", value: 0.4 }  # 168.0 / 167.4 - 1 = 0.36%
+    status: materialized
+    materialized_at: 2026-05-19
+    materialized_as: data/processed/cpi_all_items_nsa_mm.csv
+    wired_to: derive_cpi_views (pipeline/build.py)
+    notes: >
+      Cited in src/pages/inflation.astro plate-1 with `source: pipeline:statcan:18-10-0004-01`
+      and a fact-checker-flag note. Verified for the April 2026 print against
+      StatCan release commentary (0.4% NSA m/m) and Jay's published commentary
+      (cpi-2026-05-19.pdf). Computed in derive_cpi_views as periods=1 pct_change
+      on the cpi_all_items_nsa raw level.

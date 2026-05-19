@@ -208,7 +208,7 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         PanelSpec(
             panel_id="panel-1", section="inflation", panel_num=1,
             file="inflation/Panel1HeadlineCPI.astro",
-            primary=SlotSpec("cpi_all_items_yoy", "processed", label="Headline CPI Y/Y"),
+            primary=SlotSpec("cpi_all_items_nsa_yoy", "processed", label="Headline CPI Y/Y"),
             secondary=SlotSpec("cpi_all_items", "raw", label="Headline CPI level (for 3M annualized)"),
             notes="Panel needs `yoy` and optional `mom3_ar` (3-month annualized). Y/Y is in processed/; 3M-AR derives from the raw level via annualize_period_growth(period_lag=3, periods_per_year=12).",
         ),

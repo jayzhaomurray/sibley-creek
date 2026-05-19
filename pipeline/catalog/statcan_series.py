@@ -140,6 +140,20 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
                                      "Index, 2002=100", "monthly", "inflation", sa=True),
     "cpi_all_items_nsa": StatcanSpec("cpi_all_items_nsa", 41690973, "18-10-0004-01",
                                      "Index, 2002=100", "monthly", "inflation", sa=False),
+    # BoC's preferred core measures, published in StatCan Table 18-10-0256-01
+    # at the 8:30 ET CPI release (same time as headline). Moved here from
+    # BoC Valet 2026-05-19 because Valet refreshes these later on CPI
+    # Tuesdays (often afternoon ET), which blocks the inflation page from
+    # showing the day's print.
+    # Vector-to-series mapping confirmed against BoC Valet's March 2026
+    # values AND the user's April 2026 commentary: trim 2.0/2.2/2.3
+    # (Apr/Mar/Feb), median 2.1/2.3/2.4, common 2.5/2.6/2.4.
+    "cpi_trim":          StatcanSpec("cpi_trim", 108785715, "18-10-0256-01",
+                                     "% Y/Y", "monthly", "inflation", sa=False),
+    "cpi_median":        StatcanSpec("cpi_median", 108785714, "18-10-0256-01",
+                                     "% Y/Y", "monthly", "inflation", sa=False),
+    "cpi_common":        StatcanSpec("cpi_common", 108785713, "18-10-0256-01",
+                                     "% Y/Y", "monthly", "inflation", sa=False),
     "cpi_food":          StatcanSpec("cpi_food", 41690974, "18-10-0004-01",
                                      "Index, 2002=100", "monthly", "inflation", sa=False),
     "cpi_shelter":       StatcanSpec("cpi_shelter", 41691050, "18-10-0004-01",

@@ -22,7 +22,7 @@ The expected swap on the frontend side is mechanical:
 Section-to-vector mapping (audit target for editorial-director)
 ---------------------------------------------------------------
 gdp        -> data/processed/gdp_monthly_yoy.csv  (if landed)  | reference: 1.6 (potential growth midpoint, BoC MPR)
-inflation  -> data/processed/cpi_all_items_yoy.csv             | reference: 2.0 (BoC target)
+inflation  -> data/processed/cpi_all_items_nsa_yoy.csv         | reference: 2.0 (BoC target). NSA, matches StatCan headline.
 labour     -> data/raw/lfs_ca_unemployment_rate.csv            | reference: None (no consensus NAIRU on the tile)
 housing    -> data/processed/crea_hpi_canada_yoy.csv (if landed)| reference: 0.0 (nominal zero -- price level stationarity)
 policy     -> data/raw/overnight_rate_target.csv               | reference: 2.75 (BoC neutral-rate midpoint, Apr 2026 MPR)
@@ -190,7 +190,7 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
     ),
     "inflation": SectionConfig(
         slug="inflation",
-        primary_series="cpi_all_items_yoy",
+        primary_series="cpi_all_items_nsa_yoy",
         primary_dir="processed",
         unit_display="%",
         value_decimals=1,

@@ -295,17 +295,17 @@ export const sections: Section[] = [
     headlineQuestion:
       "How close is Canadian inflation to the 2% target?",
     cadence: "Monthly",
-    // Most recent CPI print released Apr 20, 2026 (March 2026 reference period).
-    // April CPI lands May 14; not yet on disk as of 2026-05-11.
-    updatedAt: Date.UTC(2026, 3, 20, 8, 30),
+    // Most recent CPI print released May 19, 2026 (April 2026 reference period).
+    updatedAt: Date.UTC(2026, 4, 19, 8, 30),
     chartSeriesKey: "cpi-yoy",
-    heroKicker: "March CPI",
+    heroKicker: "April CPI",
     heroKickerPrefix: "CPI",
     latestReleasePrefix: "Headline CPI",
     tileLine:
-      "Headline CPI at 2.3% in March; food and energy carry the above-target weight.",
+      "Headline CPI rose to 2.8% in April on gas; cores ticked down to 2.0-2.1%.",
     tileLineCitations: [
-      { phrase: "2.3%", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI Y/Y, March 2026." },
+      { phrase: "2.8%", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI NSA Y/Y, April 2026." },
+      { phrase: "2.0-2.1%", source: "pipeline:statcan:cpi_trim", note: "CPI-trim 2.0% and CPI-median 2.1% Y/Y, April 2026; BoC Valet preferred-core series." },
     ],
     prints: [
       {
@@ -352,13 +352,16 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "Apr 20, 2026",
+      date: "May 19, 2026",
       body:
-        "Headline CPI sits at 2.3% — a hair above target, with food and energy now carrying the overshoot that shelter used to. Core-trim and core-median, the measures the Bank of Canada actually reacts to, are back at 2.2-2.3%. And consumer and firm expectations have moderated together: the anchor is holding while the composition rotates.",
+        "Headline CPI rose to 2.8% in April on higher gasoline prices tied to the war in Iran, but the print landed below the 3.1% consensus expectation. Core-trim and core-median — the measures the Bank of Canada reacts to — ticked down two-tenths each, to 2.0% and 2.1%. With breadth still narrow, an energy-driven lift in headline shouldn't pull the Bank off hold.",
     },
     abstractCitations: [
-      { phrase: "Headline CPI sits at 2.3%", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI Y/Y, March 2026." },
-      { phrase: "back at 2.2-2.3%", source: "pipeline:boc:cpi_trim", note: "CPI-trim and CPI-median Y/Y range, March 2026; BoC Valet preferred-core series." },
+      { phrase: "2.8% in April", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI NSA Y/Y, April 2026." },
+      { phrase: "war in Iran", source: "card:iran_oil_conflict_2026_05", note: "Geopolitical attribution for the April energy-price lift; Tier B card pending user_confirmed_at." },
+      { phrase: "3.1% consensus expectation", source: "card:economist_consensus_april_2026_cpi", note: "Consensus expected 3.1% Y/Y headline (and 0.6% m/m NSA) for April 2026 CPI. Mode 2 aggregated consensus citation; source-card pending." },
+      { phrase: "2.0% and 2.1%", source: "pipeline:statcan:cpi_trim", note: "CPI-trim 2.0% and CPI-median 2.1% Y/Y, April 2026; BoC Valet preferred-core series." },
+      { phrase: "ticked down two-tenths each", source: "pipeline:statcan:cpi_trim", note: "CPI-trim fell from 2.2% (Mar) to 2.0% (Apr); CPI-median fell from 2.3% (Mar) to 2.1% (Apr). Both -0.2pp." },
     ],
   },
   {

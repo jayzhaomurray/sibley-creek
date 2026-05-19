@@ -186,7 +186,13 @@ def _yahoo_fetch_one(spec: YahooSpec) -> None:
     no longer returns, while still picking up new daily rows and any
     upstream-revised values for dates that do appear in the new response.
     """
-    result = yahoo.fetch_daily_close(spec.symbol, range_="max")
+    # Yahoo silently downsamples `range=max + interval=1d` to quarterly
+    # for ^GSPTSE (and likely the other indices) — verified 2026-05-19,
+    # ~167 quarterly points returned where daily was expected. Pinning to
+    # "10y" returns proper daily. write_series_merge preserves any older
+    # daily history already on disk; we only lose pre-2015 history that
+    # never landed daily anyway (see corrupted .csv state pre-2026-05-19).
+    result = yahoo.fetch_daily_close(spec.symbol, range_="10y")
     df = result.data
     meta = SeriesMeta(
         name=spec.name,
