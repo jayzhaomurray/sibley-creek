@@ -22,6 +22,7 @@ import {
   latestCommentary,
   commentaryCoverPath,
   commentaryPage2Path,
+  sections,
 } from "../data/sections";
 
 // Splash showcase 03 auto-selects the most recent commentary from the
@@ -35,32 +36,51 @@ const latest = latestCommentary();
   pageClass="splash-page"
 >
 
-  {/* ─────────────── BAND 1: LEFT-ALIGNED HERO ─────────────── */}
+  {/* ─────────────── BAND 1: TWO-COLUMN HERO (text + map animation) ─────────────── */}
   <section class="v3-hero" aria-labelledby="v3-hero-h">
     <div class="v3-hero__content">
-      <h1 id="v3-hero-h" class="v3-hero__h">Until it's obvious.</h1>
-      <p class="v3-hero__sub">
+      <h1 id="v3-hero-h" class="v3-hero__h">Canadian macro.<br/>Until it's obvious.</h1>
+      <p class="v3-hero__deck">
+        Seeing clearly comes from knowing what to ignore.
+      </p>
+      <p class="v3-hero__credit">
         Sibley Creek is an independent macroeconomic research and advisory
-        firm focused on Canada.
+        firm, focused on Canada.
       </p>
       <div class="v3-hero__cta-row">
         <a class="v3-hero__cta v3-hero__cta--primary" href="#subscribe">
           Subscribe →
         </a>
-        <a class="v3-hero__cta v3-hero__cta--secondary" href={withBase("/work-with-us/")}>
-          Work with us
+        <a class="v3-hero__cta v3-hero__cta--secondary" href={withBase("/advisory/")}>
+          Hire us
         </a>
       </div>
     </div>
+
+    {/* Hero map animation: Canada outline draws in, cities fade in by rank,
+        Sibley Creek lands as the red moment. One-shot, freezes at ~8.5s.
+        SVG layers populated by /scripts/hero-canada-anim.js using geo data
+        from /scripts/hero-canada-geo.js. */}
+    <div class="v3-hero__art" aria-hidden="true">
+      <svg id="hc-svg" viewBox="0 0 720 500" preserveAspectRatio="xMidYMid meet">
+        <g id="hc-outline"></g>
+        <g id="hc-highways"></g>
+        <g id="hc-cities"></g>
+        <g id="hc-labels"></g>
+        <g id="hc-sibley"></g>
+      </svg>
+    </div>
   </section>
+  <script is:inline src={withBase("/scripts/hero-canada-geo.js")}></script>
+  <script is:inline src={withBase("/scripts/hero-canada-anim.js")}></script>
 
   {/* ─────────── HOW WE WORK (inverted band) ─────────── */}
   <section class="v3-method" aria-labelledby="v3-method-h">
     <h2 id="v3-method-h" class="v3-method__eyebrow">How we work</h2>
     <p class="v3-method__lead">
+      Think of it as economic analysis meets investigative journalism.
       First we dig through the data. Then we get on the phone and talk to
-      the people on the ground. Think of it as economic analysis meets
-      investigative journalism.
+      the people on the ground.
     </p>
     <p class="v3-method__founder">
       Founded by <strong>Jay Zhao-Murray</strong>, former Canada economics
@@ -99,7 +119,7 @@ const latest = latestCommentary();
     </div>
   </section>
 
-  {/* ─────────── SHOWCASE 02: Chart research ─────────── */}
+  {/* ─────────── SHOWCASE 02: Chartbooks (animated carousel) ─────────── */}
   <section class="v3-row v3-row--rl" aria-labelledby="v3-row2-h">
     <div class="v3-row__visual">
       <div class="v3-frame">
@@ -107,30 +127,37 @@ const latest = latestCommentary();
           <span class="v3-frame__dot"></span>
           <span class="v3-frame__dot"></span>
           <span class="v3-frame__dot"></span>
-          <span class="v3-frame__url">sibleycreek.ca/research</span>
+          <span class="v3-frame__url" data-carousel-url>{`sibleycreek.ca/${sections[0]?.slug ?? "topics"}`}</span>
         </div>
-        <img
-          class="v3-frame__img"
-          src={withBase("/showcase/chart-research.png")}
-          alt="Sibley Creek chart research — screencap"
-          loading="lazy"
-          decoding="async"
-        />
+        <div class="v3-carousel" data-carousel>
+          {sections.map((s, i) => (
+            <img
+              class="v3-carousel__slide"
+              src={withBase(`/showcase/chartbook-${s.slug}.png`)}
+              alt={`${s.label} chartbook — Sibley Creek`}
+              data-slide={i}
+              data-slug={s.slug}
+              data-active={i === 0 ? "true" : "false"}
+              loading={i === 0 ? "eager" : "lazy"}
+              decoding="async"
+            />
+          ))}
+        </div>
       </div>
     </div>
     <div class="v3-row__copy">
-      <p class="v3-row__kicker">Chart research</p>
-      <h2 id="v3-row2-h" class="v3-row__h">Narrated chart packs on the questions that matter.</h2>
+      <p class="v3-row__kicker">Chartbooks</p>
+      <h2 id="v3-row2-h" class="v3-row__h">A chartbook for every section.</h2>
       <p class="v3-row__body">
-        Eight to twelve charts on one question, with a written argument
-        threaded through them. Mortgage renewal cohorts. Per-capita output.
-        The trade pivot away from the US that mostly didn't happen.
+        Seven sections of the Canadian economy — inflation, output, labour,
+        housing, policy, markets, trade — each its own chartbook of five to
+        six plates, threaded with a written argument.
       </p>
       <p class="v3-row__body">
         Built from the primary sources, in the house typography. The charts
         are the analysis.
       </p>
-      <a class="v3-row__cta" href={withBase("/research/")}>Read the latest →</a>
+      <a class="v3-row__cta" href={withBase("/topics/")}>Browse the chartbooks →</a>
     </div>
   </section>
 
@@ -218,10 +245,42 @@ const latest = latestCommentary();
           expertise embedded in their decision flow.
         </p>
       </div>
-      <a class="v3-adv__cta" href={withBase("/work-with-us/")}>Work with us →</a>
+      <a class="v3-adv__cta" href={withBase("/advisory/")}>Hire us →</a>
     </div>
   </section>
 
+<script>
+  /* Splash chartbook carousel — cycles slides every 3.5s. Auto-discovers
+   * the slide count at runtime so adding sections in sections.ts (e.g.
+   * the future 8th panel) requires no code change here.
+   *
+   * NOTE: Deliberately does NOT respect prefers-reduced-motion. The
+   * crossfade is gentle (600ms opacity) and the carousel is a key
+   * marketing surface; competitor sites animate regardless of the OS
+   * setting and we match that convention here. */
+  (function () {
+    const carousels = document.querySelectorAll<HTMLElement>("[data-carousel]");
+    carousels.forEach((c) => {
+      const slides = Array.from(
+        c.querySelectorAll<HTMLImageElement>(".v3-carousel__slide"),
+      );
+      if (slides.length <= 1) return;
+      const frame = c.closest(".v3-frame");
+      const urlEl = frame?.querySelector<HTMLElement>("[data-carousel-url]");
+      let i = 0;
+      const advance = () => {
+        slides[i].setAttribute("data-active", "false");
+        i = (i + 1) % slides.length;
+        slides[i].setAttribute("data-active", "true");
+        if (urlEl) {
+          const slug = slides[i].getAttribute("data-slug");
+          if (slug) urlEl.textContent = `sibleycreek.ca/${slug}`;
+        }
+      };
+      setInterval(advance, 3500);
+    });
+  })();
+</script>
 </BaseLayout>
 
 <style>
@@ -229,42 +288,82 @@ const latest = latestCommentary();
    * Splash page (promoted from v3.astro, 2026-05-20)
    * ════════════════════════════════════════════════════════════════════ */
 
-  /* ─── BAND 1: LEFT-ALIGNED HERO ─── */
+  /* ─── BAND 1: TWO-COLUMN HERO (text left, Canada-map animation right) ─── */
   .v3-hero {
-    padding-block: 88px 96px;
+    padding-block: 128px 96px;
     text-align: left;
     position: relative;
     overflow: hidden;
-    /* No border-bottom: the inverted v3-method band below has true
-     * viewport-edge full-bleed; a site-shell-width hairline above it
-     * would only render where the band extends past, creating a
-     * stepped seam at the top edge of the dark band. The dark band
-     * itself is the visual separator. */
+    display: grid;
+    /* Content gets at least 620px so the H1 lines stay un-wrapped at the
+     * 60px headline peak. The art column caps at 480px (down from the
+     * authored 720px) — minimum shrink that lets "Canadian macro." and
+     * "Until it's obvious." each render on a single line. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 480px);
+    gap: 64px;
+    align-items: center;
+  }
+  @media (max-width: 1100px) {
+    .v3-hero {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
   }
   @media (max-width: 720px) { .v3-hero { padding-block: 56px 64px; } }
 
   .v3-hero__content {
     position: relative;
+    min-width: 0;
+  }
+
+  .v3-hero__art {
+    width: 100%;
+    max-width: 480px;
+    aspect-ratio: 720 / 500;
+    justify-self: end;
+  }
+  .v3-hero__art svg { display: block; width: 100%; height: 100%; }
+  @media (max-width: 1100px) {
+    .v3-hero__art { justify-self: start; max-width: 480px; }
   }
 
   .v3-hero__h {
     margin: 0;
     max-width: 18ch;
     font-family: var(--font-sans);
-    font-weight: 800;
-    font-size: clamp(40px, 6.5vw, 76px);
-    line-height: 1.02;
-    letter-spacing: -0.03em;
+    /* Weight 600 (SemiBold), down from 800. Aligns with the boutique
+     * register H1 weight on the prose pages; less aggressive than the
+     * previous ExtraBold for the marketing surface. Comparator H1s
+     * (Variant, Capital, BCA) read confident at this weight without
+     * the heavy ink. */
+    font-weight: 600;
+    font-size: clamp(36px, 5vw, 60px);
+    line-height: 1.05;
+    letter-spacing: -0.018em;
     color: var(--ink);
   }
-  .v3-hero__sub {
+  /* Aphorism deck — the philosophical claim sitting under the H1. Larger
+   * than body, light weight, reads as the "thesis" of the firm. */
+  .v3-hero__deck {
     margin: 28px 0 0;
-    max-width: 58ch;
+    max-width: 50ch;
     font-family: var(--font-sans);
     font-weight: 300;
-    font-size: clamp(16px, 1.6vw, 19px);
-    line-height: 1.55;
+    font-size: 22px;
+    line-height: 1.4;
     color: var(--ink);
+  }
+  /* Institutional credit — names the firm. Smaller, lighter opacity so
+   * it reads as attribution / credit line rather than equal-weight body. */
+  .v3-hero__credit {
+    margin: 16px 0 0;
+    max-width: 56ch;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink);
+    opacity: 0.7;
   }
   .v3-hero__cta-row {
     margin: 36px 0 0;
@@ -401,6 +500,33 @@ const latest = latestCommentary();
     max-height: 520px;
     object-fit: cover;
     object-position: top center;
+  }
+
+  /* ─── Showcase 02 carousel — cycles through topic chartbook screencaps.
+   * Slides stack absolutely inside the frame; the JS toggles
+   * data-active="true" on the next slide every interval. Number of slides
+   * is auto-derived from the `sections` array, so adding/removing
+   * sections in sections.ts just works — no code change here needed. */
+  .v3-carousel {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 14 / 10;
+    max-height: 520px;
+    overflow: hidden;
+    background: var(--paper, #fff);
+  }
+  .v3-carousel__slide {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    opacity: 0;
+    transition: opacity 600ms linear;
+  }
+  .v3-carousel__slide[data-active="true"] {
+    opacity: 1;
   }
 
   /* ─── PDF perspective stack ─── */

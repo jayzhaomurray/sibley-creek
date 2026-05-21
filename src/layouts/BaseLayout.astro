@@ -49,6 +49,82 @@ interface Props {
   showMastheadRail?: boolean;
 }
 
+/*
+ * Site-level JSON-LD: Organization + Person.
+ *
+ * Rendered once in every page's <head> via the inline script block below.
+ * Entities are declared with @graph so crawlers see both in a single block
+ * and can resolve the cross-references (Organization.founder -> Person,
+ * Person.worksFor -> Organization).
+ *
+ * Source of authority for Jay's credentials: /about page prose + staff
+ * roster (memory: project_staff_roster_2026_05.md). LinkedIn handle
+ * https://www.linkedin.com/in/jayzhaomurray (user-confirmed 2026-05-21).
+ * X/Twitter handle deliberately omitted — user has minimal X presence
+ * and prefers LinkedIn as the primary social signal.
+ *
+ * @type NewsMediaOrganization is the most specific applicable schema.org
+ * type for a data-driven editorial publication (more specific than
+ * Organization; recognized by Google's structured-data parser and
+ * ChatGPT/Perplexity crawlers for entity resolution).
+ */
+const orgPerson = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "NewsMediaOrganization",
+      "@id": `${site.url}/#organization`,
+      "name": site.name,
+      "url": site.url,
+      "description": "Independent Canadian macroeconomic research and advisory. Daily chartbook tracking output, inflation, labour, housing, monetary policy, markets, and trade.",
+      "foundingDate": "2026-05",
+      "knowsAbout": [
+        "Canadian macroeconomics",
+        "monetary policy",
+        "economic research",
+        "Canadian labour markets",
+        "Bank of Canada",
+        "Canadian housing market",
+        "Canadian trade"
+      ],
+      "areaServed": {
+        "@type": "Country",
+        "name": "Canada"
+      },
+      "founder": {
+        "@id": `${site.url}/#jay-zhao-murray`
+      }
+    },
+    {
+      "@type": "Person",
+      "@id": `${site.url}/#jay-zhao-murray`,
+      "name": "Jay Zhao-Murray",
+      "jobTitle": "Founder / Chief Economist",
+      "url": `${site.url}/about/`,
+      "worksFor": {
+        "@id": `${site.url}/#organization`
+      },
+      "alumniOf": [
+        {
+          "@type": "CollegeOrUniversity",
+          "name": "Western University",
+          "url": "https://www.uwo.ca"
+        }
+      ],
+      "knowsAbout": [
+        "Canadian macroeconomics",
+        "monetary policy",
+        "foreign exchange",
+        "Bank of Canada",
+        "Canadian economic data"
+      ],
+      "sameAs": [
+        "https://www.linkedin.com/in/jayzhaomurray"
+      ]
+    }
+  ]
+});
+
 const {
   title,
   description,
@@ -112,6 +188,11 @@ const tabTitle = title === site.name ? site.name : `${title} | ${site.name}`;
         first @import resolves. Crossorigin is required for fonts subdomain. */}
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    {/* Site-level structured data: Organization + Person for entity resolution
+        by LLM crawlers and Google's knowledge graph. See orgPerson declaration
+        in frontmatter for source-of-authority notes. */}
+    <script type="application/ld+json" set:html={orgPerson} />
 
     <slot name="head" />
   </head>

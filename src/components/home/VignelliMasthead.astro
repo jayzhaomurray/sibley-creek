@@ -97,18 +97,17 @@ const isTopicsActive = isOverview || sections.some((s) => s.slug === firstSegmen
       <nav class="vig-mast__nav" aria-label="Primary">
         <ul role="list" class="vig-mast__nav-list">
 
-          <!-- Topics ▾ — dropdown trigger -->
+          <!-- Topics ▾ — anchor link to /topics/; hover opens the dropdown -->
           <li class="vig-mast__nav-item vig-mast__nav-item--dropdown">
-            <button
+            <a
               class:list={["vig-mast__nav-link", "vig-mast__topics-trigger", { "is-active": isTopicsActive }]}
+              href={withBase("/topics/")}
               aria-haspopup="true"
-              aria-expanded="false"
               aria-controls="topics-dropdown"
               id="topics-trigger"
-              type="button"
             >
               Topics <span class="vig-mast__caret" aria-hidden="true">&#9660;</span>
-            </button>
+            </a>
             <ul
               class="vig-mast__dropdown"
               id="topics-dropdown"
@@ -161,7 +160,7 @@ const isTopicsActive = isOverview || sections.some((s) => s.slug === firstSegmen
           <li class="vig-mast__nav-item">
             <a
               class:list={["vig-mast__nav-link", { "is-active": isAdvisory }]}
-              href={withBase("/work-with-us/")}
+              href={withBase("/advisory/")}
               aria-current={isAdvisory ? "page" : undefined}
             >
               Advisory
@@ -200,7 +199,7 @@ const isTopicsActive = isOverview || sections.some((s) => s.slug === firstSegmen
 <!-- Topics dropdown keyboard + hover logic. Zero dependency, ~50 lines. -->
 <script>
 (function () {
-  const trigger = document.getElementById("topics-trigger") as HTMLButtonElement | null;
+  const trigger = document.getElementById("topics-trigger") as HTMLAnchorElement | null;
   const dropdown = document.getElementById("topics-dropdown") as HTMLUListElement | null;
   if (!trigger || !dropdown) return;
 
@@ -231,20 +230,10 @@ const isTopicsActive = isOverview || sections.some((s) => s.slug === firstSegmen
     navItem.addEventListener("mouseleave", () => close());
   }
 
-  // Touch / click toggle (also works on desktop for keyboard-primary users
-  // who prefer explicit click rather than hover).
-  trigger.addEventListener("click", () => {
-    if (isOpen()) {
-      close();
-    } else {
-      open();
-      // Give the browser a tick to paint then focus first item.
-      requestAnimationFrame(() => {
-        const items = getItems();
-        if (items.length > 0) items[0].focus();
-      });
-    }
-  });
+  // NOTE: the trigger is now an anchor link to /topics/, so click navigates
+  // by default. Do NOT intercept click here — clicking "Topics" should go
+  // to /topics/, not open the dropdown. Hover (above) and keyboard handlers
+  // (below) carry the dropdown UX.
 
   // Keyboard navigation inside the open dropdown.
   dropdown.addEventListener("keydown", (e: KeyboardEvent) => {
@@ -270,20 +259,12 @@ const isTopicsActive = isOverview || sections.some((s) => s.slug === firstSegmen
     }
   });
 
-  // Trigger also handles ArrowDown to enter the menu directly.
+  // Keyboard: ArrowDown on the link opens the dropdown and focuses its
+  // first item, so a keyboard user can browse all sections without leaving
+  // the masthead. Enter still navigates to /topics/ via the link's default
+  // behavior. Escape closes a peeked-open dropdown.
   trigger.addEventListener("keydown", (e: KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      if (isOpen()) {
-        close();
-      } else {
-        open();
-        requestAnimationFrame(() => {
-          const items = getItems();
-          if (items.length > 0) items[0].focus();
-        });
-      }
-    } else if (e.key === "ArrowDown") {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
       if (!isOpen()) open();
       requestAnimationFrame(() => {

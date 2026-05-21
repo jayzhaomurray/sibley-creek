@@ -309,6 +309,46 @@ const plateIndex = plates.map((p) => ({
   anchor: p.id,
   label: p.plateIndexLabel,
 }));
+
+/*
+ * QAPage JSON-LD for AEO / LLM answer-engine indexing.
+ *
+ * Each section page is built around a canonical anchor question (the H1
+ * headlineQuestion) answered by the section lede. This maps directly onto
+ * schema.org QAPage / Question / Answer — the structure LLM crawlers
+ * (ChatGPT search, Perplexity, Google AI Overviews) use for answer
+ * attribution. The canonical URL comes from Astro.site + slug.
+ *
+ * acceptedAnswer.upvoteCount: 1 is schema.org's convention for "at least
+ * one accepted answer" on a QAPage (required for Google's rich-result
+ * eligibility; the count is editorial, not a user-vote count on a static
+ * publication site).
+ */
+const sectionCanonical = canonical
+  ?? (Astro.site ? new URL(`/${slug}/`, Astro.site).toString() : `/${slug}/`);
+
+const qaPageLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "QAPage",
+  "name": headlineQuestion,
+  "url": sectionCanonical,
+  "publisher": {
+    "@id": `${site.url}/#organization`
+  },
+  "mainEntity": {
+    "@type": "Question",
+    "name": headlineQuestion,
+    "answerCount": 1,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": lede,
+      "url": sectionCanonical,
+      "author": {
+        "@id": `${site.url}/#jay-zhao-murray`
+      }
+    }
+  }
+});
 ---
 <BaseLayout
   title={title}
@@ -317,6 +357,12 @@ const plateIndex = plates.map((p) => ({
   ogImage={ogImage}
   pageClass={`section-page section-page--${slug}`}
 >
+  <Fragment slot="head">
+    {/* QAPage structured data: maps the section's headline question + lede
+        onto schema.org Question/Answer for AEO indexing. */}
+    <script type="application/ld+json" set:html={qaPageLd} />
+  </Fragment>
+
   <article class="section-chartbook" data-section={slug}>
     <SectionPageHeader
       publication={site.name}

@@ -1,0 +1,293 @@
+  (function () {
+    'use strict';
+
+    const G = window.CANADA_GEO;
+    const W = 720, H = 500;
+    const INK = '#0a0a0a';
+    const RED = '#D7263D';
+    const NS  = 'http://www.w3.org/2000/svg';
+
+    // Lambert Conformal Conic — standard Canadian parameters.
+    const PHI1 = 49 * Math.PI / 180;
+    const PHI2 = 77 * Math.PI / 180;
+    const PHI0 = 49 * Math.PI / 180;
+    const LAM0 = -95 * Math.PI / 180;
+    const nC = Math.log(Math.cos(PHI1) / Math.cos(PHI2)) /
+               Math.log(Math.tan(Math.PI/4 + PHI2/2) / Math.tan(Math.PI/4 + PHI1/2));
+    const Fc = (Math.cos(PHI1) * Math.pow(Math.tan(Math.PI/4 + PHI1/2), nC)) / nC;
+    const rho0 = Fc / Math.pow(Math.tan(Math.PI/4 + PHI0/2), nC);
+    function lcc(lng, lat) {
+      const phi = lat * Math.PI / 180;
+      const lam = lng * Math.PI / 180;
+      const rho = Fc / Math.pow(Math.tan(Math.PI/4 + phi/2), nC);
+      const th = nC * (lam - LAM0);
+      return [rho * Math.sin(th), rho0 - rho * Math.cos(th)];
+    }
+
+    const allPolys = [
+      G.mainland,
+      G.newfoundland, G.vancouverIsland, G.pei,
+      G.southampton,
+      G.baffin, G.devon,
+      G.ellesmere, G.axelHeiberg,
+      G.victoriaIsland, G.banks,
+    ];
+    const projected = [];
+    for (const poly of allPolys) for (const p of poly) projected.push(lcc(p[0], p[1]));
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const p of projected) { if (p[0]<minX) minX=p[0]; if (p[0]>maxX) maxX=p[0]; if (p[1]<minY) minY=p[1]; if (p[1]>maxY) maxY=p[1]; }
+    const PAD = 38;
+    const scale = Math.min((W - 2*PAD) / (maxX - minX), (H - 2*PAD) / (maxY - minY));
+    const mapW = (maxX - minX) * scale;
+    const mapH = (maxY - minY) * scale;
+    const offX = (W - mapW) / 2;
+    const offY = (H - mapH) / 2;
+    function project(lng, lat) {
+      const [x, y] = lcc(lng, lat);
+      return [(x - minX) * scale + offX, (maxY - y) * scale + offY];
+    }
+    function projectPoly(poly) { return poly.map(p => project(p[0], p[1])); }
+
+    // Catmull-Rom → Bezier smoothing, tight tension /10
+    function smoothPath(pts, closed) {
+      const n = pts.length;
+      if (n < 2) return '';
+      let d = 'M' + pts[0][0].toFixed(1) + ' ' + pts[0][1].toFixed(1);
+      const lim = closed ? n : n - 1;
+      for (let i = 0; i < lim; i++) {
+        const p0 = (i === 0 && !closed) ? pts[0]     : pts[(i - 1 + n) % n];
+        const p1 = pts[i];
+        const p2 = pts[(i + 1) % n];
+        const p3 = (i === n - 2 && !closed) ? pts[n - 1] : pts[(i + 2) % n];
+        const c1x = p1[0] + (p2[0] - p0[0]) / 10;
+        const c1y = p1[1] + (p2[1] - p0[1]) / 10;
+        const c2x = p2[0] - (p3[0] - p1[0]) / 10;
+        const c2y = p2[1] - (p3[1] - p1[1]) / 10;
+        d += ' C' + c1x.toFixed(1) + ' ' + c1y.toFixed(1) + ' '
+                  + c2x.toFixed(1) + ' ' + c2y.toFixed(1) + ' '
+                  + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1);
+      }
+      if (closed) d += ' Z';
+      return d;
+    }
+    function ss(t) { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }
+
+    const sibleyXY = project(G.sibleyCreek.lng, G.sibleyCreek.lat);
+
+    const outlineG = document.getElementById('hc-outline');
+    const highG    = document.getElementById('hc-highways');
+    const cityG    = document.getElementById('hc-cities');
+    const labelG   = document.getElementById('hc-labels');
+    const sibleyG  = document.getElementById('hc-sibley');
+
+    function makePath(d, opts) {
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', d);
+      p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', opts.stroke || INK);
+      p.setAttribute('stroke-width', opts.w || '1');
+      if (opts.cap) p.setAttribute('stroke-linecap', opts.cap);
+      if (opts.join) p.setAttribute('stroke-linejoin', opts.join);
+      if (opts.opacity != null) p.setAttribute('opacity', opts.opacity);
+      return p;
+    }
+
+    // Mainland: split at index closest to Sibley Creek, two halves grow
+    // outward in opposite directions.
+    const mainlandPx = projectPoly(G.mainland);
+    let sibIdx = 0, sibBest = Infinity;
+    for (let i = 0; i < mainlandPx.length; i++) {
+      const dx = mainlandPx[i][0] - sibleyXY[0];
+      const dy = mainlandPx[i][1] - sibleyXY[1];
+      const d2 = dx*dx + dy*dy;
+      if (d2 < sibBest) { sibBest = d2; sibIdx = i; }
+    }
+    const N = mainlandPx.length;
+    const halfLen = Math.floor(N / 2) + 1;
+    const halfA = [], halfB = [];
+    for (let i = 0; i <= halfLen; i++) halfA.push(mainlandPx[(sibIdx - i + N) % N]);
+    for (let i = 0; i <= halfLen; i++) halfB.push(mainlandPx[(sibIdx + i) % N]);
+
+    const mainA = makePath(smoothPath(halfA, false), { w: '1.2', cap: 'round', join: 'round' });
+    const mainB = makePath(smoothPath(halfB, false), { w: '1.2', cap: 'round', join: 'round' });
+    outlineG.appendChild(mainA);
+    outlineG.appendChild(mainB);
+    const mainAL = mainA.getTotalLength();
+    const mainBL = mainB.getTotalLength();
+    mainA.setAttribute('stroke-dasharray', mainAL);  mainA.setAttribute('stroke-dashoffset', mainAL);
+    mainB.setAttribute('stroke-dasharray', mainBL);  mainB.setAttribute('stroke-dashoffset', mainBL);
+
+    const ISLANDS = [
+      { pts: G.newfoundland,    delay: 0.00, w: 1.0 },
+      { pts: G.pei,             delay: 0.10, w: 0.8 },
+      { pts: G.vancouverIsland, delay: 0.05, w: 1.0 },
+      { pts: G.southampton,     delay: 0.15, w: 0.9 },
+      { pts: G.baffin,          delay: 0.20, w: 1.0 },
+      { pts: G.victoriaIsland,  delay: 0.25, w: 1.0 },
+      { pts: G.banks,           delay: 0.30, w: 0.85 },
+      { pts: G.devon,           delay: 0.35, w: 0.85 },
+      { pts: G.ellesmere,       delay: 0.40, w: 0.95 },
+      { pts: G.axelHeiberg,     delay: 0.45, w: 0.85 },
+    ];
+    const islandPaths = ISLANDS.map(I => {
+      const p = makePath(smoothPath(projectPoly(I.pts), true), { w: String(I.w), cap: 'round', join: 'round' });
+      outlineG.appendChild(p);
+      const L = p.getTotalLength();
+      p.setAttribute('stroke-dasharray', L);
+      p.setAttribute('stroke-dashoffset', L);
+      return { el: p, L, delay: I.delay };
+    });
+
+    // Highways converge on Sibley
+    const ROADS = [];
+    function addRoad(pts, opts) {
+      const px = pts.map(p => project(p[0], p[1]));
+      const p  = makePath(smoothPath(px, false), { w: opts.w || '1', cap: 'round', join: 'round', opacity: 0 });
+      highG.appendChild(p);
+      const L = p.getTotalLength();
+      p.setAttribute('stroke-dasharray', L);
+      p.setAttribute('stroke-dashoffset', L);
+      ROADS.push({ el: p, L, delay: opts.delay || 0, dur: opts.dur || 3.6, finalOp: opts.finalOp || 0.7 });
+    }
+
+    const TCH1 = G.highways.find(h => h.name === 'TCH 1').points;
+    let tbIdx = 0, tbBest = Infinity;
+    for (let i = 0; i < TCH1.length; i++) {
+      const dx = TCH1[i][0] - G.sibleyCreek.lng, dy = TCH1[i][1] - G.sibleyCreek.lat;
+      const d2 = dx*dx + dy*dy;
+      if (d2 < tbBest) { tbBest = d2; tbIdx = i; }
+    }
+    addRoad(TCH1.slice(0, tbIdx + 1),        { w: '1.0', dur: 3.6, delay: 0.00, finalOp: 0.85 });
+    addRoad(TCH1.slice(tbIdx).reverse(),     { w: '1.0', dur: 3.6, delay: 0.05, finalOp: 0.85 });
+
+    function findRoad(name) { return G.highways.find(h => h.name === name).points; }
+    addRoad(findRoad('TCH 16'),              { w: '0.85', dur: 3.4, delay: 0.10, finalOp: 0.6 });
+    addRoad(findRoad('Hwy 401'),             { w: '0.85', dur: 3.4, delay: 0.15, finalOp: 0.6 });
+    addRoad(findRoad('Hwy 11'),              { w: '0.85', dur: 3.4, delay: 0.20, finalOp: 0.6 });
+    addRoad(findRoad('Hwy 97 / Alaska').slice().reverse(), { w: '0.85', dur: 3.4, delay: 0.25, finalOp: 0.55 });
+    addRoad(findRoad('Mackenzie Hwy').slice().reverse(),   { w: '0.85', dur: 3.4, delay: 0.30, finalOp: 0.55 });
+
+    // Cities
+    const cityNodes = [];
+    G.cities.forEach((c, i) => {
+      const [x, y] = project(c.lng, c.lat);
+      const labeled = i < 6;
+      const r = labeled ? 3.0 : 1.8;
+      const dot = document.createElementNS(NS, 'circle');
+      dot.setAttribute('cx', x.toFixed(1));
+      dot.setAttribute('cy', y.toFixed(1));
+      dot.setAttribute('r', r);
+      dot.setAttribute('fill', INK);
+      dot.setAttribute('opacity', '0');
+      cityG.appendChild(dot);
+      cityNodes.push({ el: dot, rank: i });
+
+      if (labeled) {
+        const placements = {
+          'TORONTO':   [  9,  10, 'start' ],
+          'MONTRÉAL':  [ 11,   0, 'start' ],
+          'VANCOUVER': [-11,   3, 'end'   ],
+          'CALGARY':   [ 11,   3, 'start' ],
+          'EDMONTON':  [ 11,  -3, 'start' ],
+          'OTTAWA':    [ -8, -10, 'end'   ],
+        };
+        const [dx, dy, anch] = placements[c.name] || [10, 4, 'start'];
+        const tx = document.createElementNS(NS, 'text');
+        tx.setAttribute('x', (x + dx).toFixed(1));
+        tx.setAttribute('y', (y + dy).toFixed(1));
+        tx.setAttribute('text-anchor', anch);
+        tx.setAttribute('dominant-baseline', 'middle');
+        tx.setAttribute('style', 'font-size:9.5px;letter-spacing:0.18em;font-weight:600;fill:#0a0a0a');
+        tx.setAttribute('opacity', '0');
+        tx.textContent = c.name;
+        labelG.appendChild(tx);
+        cityNodes[cityNodes.length - 1].label = tx;
+      }
+    });
+
+    // Sibley Creek
+    const sibRing = document.createElementNS(NS, 'circle');
+    sibRing.setAttribute('cx', sibleyXY[0].toFixed(1));
+    sibRing.setAttribute('cy', sibleyXY[1].toFixed(1));
+    sibRing.setAttribute('r', '8');
+    sibRing.setAttribute('fill', 'none');
+    sibRing.setAttribute('stroke', RED);
+    sibRing.setAttribute('stroke-width', '1');
+    sibRing.setAttribute('opacity', '0');
+    sibleyG.appendChild(sibRing);
+
+    const sibDot = document.createElementNS(NS, 'circle');
+    sibDot.setAttribute('cx', sibleyXY[0].toFixed(1));
+    sibDot.setAttribute('cy', sibleyXY[1].toFixed(1));
+    sibDot.setAttribute('r', '3.8');
+    sibDot.setAttribute('fill', RED);
+    sibDot.setAttribute('opacity', '0');
+    sibleyG.appendChild(sibDot);
+
+    const sibLabel = document.createElementNS(NS, 'text');
+    sibLabel.setAttribute('x', sibleyXY[0].toFixed(1));
+    sibLabel.setAttribute('y', (sibleyXY[1] - 28).toFixed(1));
+    sibLabel.setAttribute('text-anchor', 'middle');
+    sibLabel.setAttribute('dominant-baseline', 'middle');
+    sibLabel.setAttribute('style', 'font-size:11px;letter-spacing:0.24em;font-weight:700;fill:#D7263D');
+    sibLabel.setAttribute('opacity', '0');
+    sibLabel.textContent = 'SIBLEY CREEK';
+    sibleyG.appendChild(sibLabel);
+
+    const sibTick = document.createElementNS(NS, 'line');
+    sibTick.setAttribute('x1', sibleyXY[0].toFixed(1));
+    sibTick.setAttribute('y1', (sibleyXY[1] - 6).toFixed(1));
+    sibTick.setAttribute('x2', sibleyXY[0].toFixed(1));
+    sibTick.setAttribute('y2', (sibleyXY[1] - 20).toFixed(1));
+    sibTick.setAttribute('stroke', RED);
+    sibTick.setAttribute('stroke-width', '0.8');
+    sibTick.setAttribute('opacity', '0');
+    sibleyG.appendChild(sibTick);
+
+    // One-shot timeline, freezes at static frame
+    const t0 = performance.now();
+    function frame(now) {
+      const tSec = (now - t0) / 1000;
+
+      cityNodes.forEach(c => {
+        const start = c.rank * 0.12;
+        const dotP = ss((tSec - start) / 0.35);
+        c.el.setAttribute('opacity', dotP.toFixed(2));
+        if (c.label) {
+          const labP = ss((tSec - start - 0.30) / 0.45);
+          c.label.setAttribute('opacity', labP.toFixed(2));
+        }
+      });
+
+      const sibP = ss((tSec - 3.0) / 0.5);
+      sibDot.setAttribute('opacity', sibP.toFixed(2));
+      sibTick.setAttribute('opacity', (sibP * 0.7).toFixed(2));
+      const labP2 = ss((tSec - 3.3) / 0.5);
+      sibLabel.setAttribute('opacity', labP2.toFixed(2));
+      const pulseAmp = Math.max(0, 1 - Math.max(0, tSec - 6.5) / 1.8);
+      const pulse = pulseAmp * (tSec > 3.0 ? (0.5 + 0.5 * Math.sin((tSec - 3.0) * 1.6)) : 0);
+      sibRing.setAttribute('r', (6 + pulse * 6).toFixed(1));
+      sibRing.setAttribute('opacity', ((0.45 - pulse * 0.35) * sibP * pulseAmp).toFixed(2));
+
+      ROADS.forEach(r => {
+        const start = 3.6 + r.delay;
+        const local = ss((tSec - start) / r.dur);
+        r.el.setAttribute('stroke-dashoffset', (r.L * (1 - local)).toFixed(1));
+        r.el.setAttribute('opacity', (r.finalOp * Math.min(1, local * 2)).toFixed(2));
+      });
+
+      const oP = ss((tSec - 3.6) / 3.2);
+      mainA.setAttribute('stroke-dashoffset', (mainAL * (1 - oP)).toFixed(1));
+      mainB.setAttribute('stroke-dashoffset', (mainBL * (1 - oP)).toFixed(1));
+
+      islandPaths.forEach(I => {
+        const start = 4.0 + I.delay * 1.6;
+        const p = ss((tSec - start) / 1.4);
+        I.el.setAttribute('stroke-dashoffset', (I.L * (1 - p)).toFixed(1));
+      });
+
+      if (tSec < 8.5) requestAnimationFrame(frame);
+      else sibRing.setAttribute('opacity', '0');
+    }
+    requestAnimationFrame(frame);
+  })();

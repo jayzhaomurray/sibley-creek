@@ -1,0 +1,165 @@
+---
+/*
+ * /topics/ — landing page that indexes the seven topic chartbooks.
+ *
+ * Distinct from /overview/ (the live dashboard with current numbers) —
+ * this page is the navigational landing: a card per section, each linking
+ * into that section's chartbook page. Surfaced from the splash showcase 02
+ * and from the masthead dropdown's "All topics" entry.
+ *
+ * Visual register: boutique (matches /about/, /work-with-us/, etc.) at a
+ * slightly wider container to comfortably hold the card grid.
+ */
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { sections, site } from "../data/sections";
+import { withBase } from "../lib/urls";
+
+const pageDesc =
+  "Seven sections of the Canadian economy — output, inflation, labour, " +
+  "housing, monetary policy, markets, trade. Each section is its own " +
+  "chartbook: current prints, short history, written synthesis.";
+---
+<BaseLayout
+  title={`Topics — ${site.name}`}
+  description={pageDesc}
+  pageClass="topics-page"
+>
+  <article class="topics" aria-labelledby="topics-h">
+    <header class="topics__header">
+      <h1 id="topics-h" class="topics__h">Topics</h1>
+    </header>
+
+    <p class="topics__lede">
+      Seven sections of the Canadian economy. Each one is its own
+      chartbook — current prints, short history, written synthesis.
+    </p>
+
+    <ul class="topics__grid" role="list">
+      {sections.map((s) => (
+        <li class="topics__cell">
+          <a class="topics__card" href={withBase(`/${s.slug}/`)}>
+            <p class="topics__card-eyebrow">{s.label}</p>
+            <h2 class="topics__card-question">{s.headlineQuestion}</h2>
+            {s.kicker && <p class="topics__card-kicker">{s.kicker}</p>}
+            <span class="topics__card-cta">Read the chartbook →</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </article>
+
+  <style>
+    .topics {
+      width: 100%;
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+    .topics__header {
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 24px;
+      margin-bottom: 32px;
+    }
+    .topics__h {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 42px;
+      line-height: 1.1;
+      color: var(--ink);
+    }
+    .topics__lede {
+      margin: 0 0 40px;
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 18px;
+      line-height: 1.55;
+      color: var(--ink);
+      max-width: 56ch;
+    }
+
+    /* ── Card grid ── */
+    .topics__grid {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1px;
+      background: var(--ink);          /* gap rules between cards */
+      border: 1px solid var(--ink);
+    }
+    @media (min-width: 560px) {
+      .topics__grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .topics__cell {
+      background: var(--paper, #fff);
+    }
+    .topics__card {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 22px 22px 24px;
+      color: var(--ink);
+      text-decoration: none;
+      transition: background 80ms linear;
+      height: 100%;
+    }
+    .topics__card:hover {
+      background: #FAFAFA;
+    }
+    .topics__card:hover .topics__card-cta {
+      border-bottom-color: var(--accent);
+    }
+    .topics__card:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
+    .topics__card-eyebrow {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent, #D7263D);
+    }
+    .topics__card-question {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 18px;
+      line-height: 1.25;
+      letter-spacing: -0.005em;
+      color: var(--ink);
+      max-width: 22ch;
+    }
+    .topics__card-kicker {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--ink);
+      opacity: 0.7;
+    }
+    .topics__card-cta {
+      margin-top: auto;
+      padding-top: 8px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 11px;
+      line-height: 1;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent, #D7263D);
+      border-bottom: 1px solid transparent;
+      transition: border-color 80ms linear;
+      align-self: flex-start;
+    }
+  </style>
+</BaseLayout>

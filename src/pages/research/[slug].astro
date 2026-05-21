@@ -201,8 +201,62 @@ const daysSinceVintage = ((): number | undefined => {
 const isStale =
   typeof daysSinceVintage === "number" &&
   daysSinceVintage > STALE_DAYS_THRESHOLD;
+
+/*
+ * Article JSON-LD for deep-dive research pages.
+ *
+ * Turns each published deep dive into a schema.org Article — a citable,
+ * indexable artifact for LLM crawlers and Google's rich-result parser.
+ * Cross-references Organization and Person by @id so the entities are
+ * resolved from the site-level JSON-LD in BaseLayout without re-declaring
+ * their full properties.
+ *
+ * dateModified: uses vintageResolved (the latest data vintage the prose was
+ * authored against) as the best available proxy for "last meaningfully
+ * updated." Falls back to publishedAt. Both are computed above.
+ *
+ * Note: the Article block is rendered even for draftStatus="draft" pieces.
+ * The schema.org Article type has no "draft" signal; the reader-facing
+ * draft stamp in the HTML is the credibility marker, not the structured data.
+ */
+const articleCanonical = Astro.site
+  ? new URL(`/research/${deepDive.slug}/`, Astro.site).toString()
+  : `/research/${deepDive.slug}/`;
+
+const articleLd = deepDive.publishedAt && deepDive.publishedAt !== "TK"
+  ? JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "@id": `${articleCanonical}#article`,
+      "headline": deepDive.title,
+      "description": deepDive.deck,
+      "datePublished": deepDive.publishedAt,
+      "dateModified": vintageResolved ?? deepDive.publishedAt,
+      "url": articleCanonical,
+      "mainEntityOfPage": articleCanonical,
+      "author": {
+        "@id": `${site.url}/#jay-zhao-murray`
+      },
+      "publisher": {
+        "@id": `${site.url}/#organization`
+      },
+      "about": {
+        "@type": "Thing",
+        "name": `Canadian ${sectionLabel.toLowerCase()}`
+      },
+      "inLanguage": "en-CA"
+    })
+  : null;
 ---
 <BaseLayout title={pageTitle} description={pageDesc} pageClass="deepdive-page">
+  {articleLd && (
+    <Fragment slot="head">
+      {/* Article structured data for LLM and search-engine indexing.
+          Cross-references Organization + Person from site-level JSON-LD. */}
+      <script type="application/ld+json" set:html={articleLd} />
+    </Fragment>
+  )}
+
   <article class="deepdive" aria-labelledby="deepdive-h">
     <header class="deepdive__header">
       <p class="deepdive__kicker">

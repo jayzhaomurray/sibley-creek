@@ -175,7 +175,7 @@ export interface Section {
    * time, where `derivedDate` comes from sections.json's `prints[0]`
    * (or the print matching `chartSeriesKey`).
    *
-   * Examples: "Headline CPI", "LFS", "BoC rate decision", "Daily close",
+   * Examples: "CPI", "LFS", "BoC rate decision", "Daily close",
    * "Merchandise trade", "Home prices", "Monthly GDP by industry".
    *
    * Set per section in the canon block below. The Policy section is a
@@ -300,7 +300,7 @@ export const sections: Section[] = [
     chartSeriesKey: "cpi-yoy",
     heroKicker: "April CPI",
     heroKickerPrefix: "CPI",
-    latestReleasePrefix: "Headline CPI",
+    latestReleasePrefix: "CPI",
     tileLine:
       "Headline CPI rose to 2.8% in April on gas; cores ticked down to 2.0-2.1%.",
     tileLineCitations: [
@@ -1035,5 +1035,5 @@ export const site = {
   description:
     "Sibley Creek - Canadian macroeconomic indicators and analysis. Independent research on GDP, inflation, labour, housing, monetary policy, markets, and trade.",
   locale: "en-CA",
-  url: "https://example.invalid",
+  url: "https://sibleycreek.ca",
 };

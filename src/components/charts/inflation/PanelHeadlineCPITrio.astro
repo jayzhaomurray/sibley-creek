@@ -243,11 +243,38 @@ function buildSubPanel(
     : [];
   const ys = [...ys1, ...ys2];
 
+  // For line sub-panels the y-domain uses the 5th-95th percentile of the
+  // combined series to exclude single-point NSA seasonal artifacts. The
+  // NSA CPI level series can produce 3M-AR readings of exactly 0.0% when
+  // a month's index matches the reading 3 months prior (Feb == May in the
+  // unadjusted series) — a seasonal echo, not a structural signal. Using
+  // raw min/max for domain bounds would pull the visible range down to
+  // include the artifact, wasting plot space and rendering a prominent
+  // zero-crossing baseline on a chart whose editorial argument is about
+  // 1–4% inflation dynamics.
+  //
+  // Bar sub-panels are exempt: bar domain is bounded by raw min/max so
+  // every printed value maps to a visible bar (the zero anchor guarantees
+  // bars extend from a visible baseline).
+  function percentileBounds(vals: number[], loFrac: number, hiFrac: number): [number, number] {
+    if (vals.length === 0) return [0, 1];
+    const sorted = [...vals].sort((a, b) => a - b);
+    const loIdx = Math.floor(sorted.length * loFrac);
+    const hiIdx = Math.min(sorted.length - 1, Math.ceil(sorted.length * hiFrac) - 1);
+    return [sorted[loIdx]!, sorted[Math.max(loIdx, hiIdx)]!];
+  }
+
   let yLo = 0;
   let yHi = 1;
   if (ys.length > 0) {
-    const rawMin = Math.min(...ys);
-    const rawMax = Math.max(...ys);
+    let rawMin: number;
+    let rawMax: number;
+    if (kind === "line") {
+      [rawMin, rawMax] = percentileBounds(ys, 0.05, 0.95);
+    } else {
+      rawMin = Math.min(...ys);
+      rawMax = Math.max(...ys);
+    }
     const span = (rawMax - rawMin) || Math.max(1, Math.abs(rawMax) * 0.1);
     yLo = rawMin - span * 0.12;
     yHi = rawMax + span * 0.12;
@@ -258,9 +285,15 @@ function buildSubPanel(
     if (band.lower < yLo) yLo = band.lower - span * 0.08;
     if (band.upper > yHi) yHi = band.upper + span * 0.08;
   }
-  // Always include zero to anchor the bar baseline.
-  if (yLo > 0) yLo = -Math.max(0.1, (yHi - yLo) * 0.05);
-  if (yHi < 0) yHi = Math.max(0.1, (yHi - yLo) * 0.05);
+  // Include zero to anchor the bar baseline — bars MUST start at zero.
+  // Line panels (right sub-panel: Y/Y + 3M-AR) must NOT be forced to zero:
+  // if the series never crosses zero, drawing a zero line compresses the
+  // visible signal into the upper portion of the frame and adds an
+  // uninformative baseline rule. The guard applies only for "bars".
+  if (kind === "bars") {
+    if (yLo > 0) yLo = -Math.max(0.1, (yHi - yLo) * 0.05);
+    if (yHi < 0) yHi = Math.max(0.1, (yHi - yLo) * 0.05);
+  }
   const yRange = yHi - yLo || 1;
 
   const xScale = (yr: number) => {
@@ -617,19 +650,35 @@ if (yoyLabelY !== null && arLabelY !== null) {
         />
       )}
 
+      {/* Clip-path constrains right sub-panel lines to the plot rect. Without
+          this, percentile-clipped domain bounds cause the 3M-AR path to
+          extend above/below the frame when a single NSA seasonal zero or
+          outlier spike falls outside the visible range. */}
+      <defs>
+        <clipPath id="cpitrio-right-clip">
+          <rect x={right.plotX0} y={PLOT_Y0} width={right.plotW} height={PLOT_H} />
+        </clipPath>
+      </defs>
+
       {/* 3M-AR line — 1px dashed (4-2), no terminal dot */}
       {right.path2 && (
         <path
           class="cpitrio__line--secondary"
           d={right.path2}
           fill="none"
+          clip-path="url(#cpitrio-right-clip)"
         />
       )}
 
       {/* Y/Y line — 1.5px solid */}
-      <path class="cpitrio__line--primary" d={right.path} fill="none" />
+      <path
+        class="cpitrio__line--primary"
+        d={right.path}
+        fill="none"
+        clip-path="url(#cpitrio-right-clip)"
+      />
 
-      {/* Plot frame — drawn above lines so it clips any overshoot */}
+      {/* Plot frame */}
       <rect
         class="cpitrio__frame"
         x={right.plotX0}

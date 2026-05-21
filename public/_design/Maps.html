@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sibley Creek · Map iterations</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="scenes-a.jsx"></script>
+  <script type="text/babel" src="scenes-map.jsx"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+
+    function Legend() {
+      return (
+        <div style={{ fontFamily: '"Helvetica Neue",Helvetica,Arial,sans-serif', fontSize: 11, lineHeight: 1.55, color: 'rgba(40,30,20,0.8)', maxWidth: 520 }}>
+          <strong style={{color:'rgba(40,30,20,0.95)'}}>Map iterations.</strong> Five studies that build on the
+          drainage-basin idea. Each is 720 × 500, hairlines only, single red
+          moment, faint Canada outline behind the action. The reference
+          (the original 02 drainage basin) is included on the right for
+          comparison.
+          <div style={{marginTop:14}}>
+          <strong style={{color:'rgba(40,30,20,0.95)'}}>How to read.</strong> Click any title to focus a study full-screen
+          (←/→ to step, Esc to exit). All five loop on their own clock so
+          they're easy to compare. Grip-drag to reorder. ⋯ → download.
+          </div>
+          <div style={{marginTop:14, fontSize: 10.5, color: 'rgba(40,30,20,0.6)'}}>
+          A · Watershed map · B · Transcontinental · C · Cities → mesh ·
+          D · Skeleton → flesh · E · Know what to ignore
+          </div>
+        </div>
+      );
+    }
+
+    root.render(
+      <DesignCanvas>
+        <DCSection id="maps" title="Map iterations on the drainage-basin direction"
+          subtitle="720 × 500 · ink + faint coast + one red moment per piece">
+          <DCArtboard id="A-watershed-map" label="A · Watershed map"     width={720} height={500}><SceneMapWatershed/></DCArtboard>
+          <DCArtboard id="B-rail-trunk"    label="B · Transcontinental"  width={720} height={500}><SceneMapRail/></DCArtboard>
+          <DCArtboard id="C-triangulation" label="C · Cities → mesh"     width={720} height={500}><SceneMapTriangulation/></DCArtboard>
+          <DCArtboard id="D-skeleton"      label="D · Skeleton → flesh"  width={720} height={500}><SceneMapSkeleton/></DCArtboard>
+          <DCArtboard id="E-ignore"        label="E · Know what to ignore" width={720} height={500}><SceneMapIgnore/></DCArtboard>
+          <DCArtboard id="ref-02"          label="ref · 02 Drainage basin (original)" width={720} height={500}><SceneWatershed/></DCArtboard>
+          <DCPostIt top={-120} left={60} width={440} rotate={-1}>
+            <Legend/>
+          </DCPostIt>
+        </DCSection>
+      </DesignCanvas>
+    );
+  </script>
+</body>
+</html>

@@ -111,6 +111,16 @@ interface Props {
    * end of the auto-computed range). Default null (auto).
    */
   yDomainMin?: number | null;
+  /**
+   * Hard override on the y-axis upper bound (data-space units). When set,
+   * extends the auto-computed yHi up to this value. Use when percentile
+   * clipping of a long series pushes yHi below the next nice tick that
+   * would otherwise cover the true data maximum (e.g. the breadth panel
+   * secondary series peaking at 71.6% while the auto yHi tops out at
+   * 73.4% — enough to show the data but one tick short of the 80% label
+   * that anchors the peak visually). Default null (auto).
+   */
+  yDomainMax?: number | null;
   /** data-panel attribute for QA / theming hooks. */
   dataPanelAttr?: string;
 }
@@ -135,6 +145,7 @@ const {
   bandLabelPosition = "above",
   yTickStride = null,
   yDomainMin = null,
+  yDomainMax = null,
   dataPanelAttr,
 } = Astro.props;
 
@@ -268,6 +279,10 @@ if (sharedSeries.length > 0) {
 // Hard floor override: extend y-domain down to yDomainMin when set.
 if (yDomainMin !== null && yDomainMin !== undefined && yDomainMin < yLo) {
   yLo = yDomainMin;
+}
+// Hard ceiling override: extend y-domain up to yDomainMax when set.
+if (yDomainMax !== null && yDomainMax !== undefined && yDomainMax > yHi) {
+  yHi = yDomainMax;
 }
 const yRange = yHi - yLo || 1;
 const crossesZero = yLo < 0 && yHi > 0;
