@@ -43,7 +43,7 @@
  */
 
 export type SectionSlug =
-  | "gdp"
+  | "output"
   | "inflation"
   | "labour"
   | "housing"
@@ -221,7 +221,7 @@ export interface Section {
 
 export const sections: Section[] = [
   {
-    slug: "gdp",
+    slug: "output",
     label: "Output",
     accentVar: "--section-accent-gdp",
     kicker: "Output, expenditure, and the quarterly arithmetic of growth.",
@@ -823,6 +823,94 @@ export interface DeepDive {
    * It is the one place red signals a non-data caveat in the canon.
    */
   draftStatus?: "draft";
+}
+
+/*
+ * Data commentaries — the same-day notes published as PDFs on every major
+ * Canadian macro print.
+ *
+ * Authoring source-of-truth is bylines/commentaries/<slug>.docx (Jay's
+ * working folder). The exported .pdf is copied to public/research/commentaries/
+ * so it's served at /research/commentaries/<slug>.pdf. Adding a new
+ * commentary = (a) export the .pdf, (b) drop it in public/research/commentaries/,
+ * (c) add a row to the array below.
+ *
+ * Ordering: most recent first by publishedAt.
+ */
+export interface DataCommentary {
+  /** URL slug, matches the PDF filename (without .pdf). */
+  slug: string;
+  /** Section the commentary belongs to (for the section badge and sort). */
+  section: SectionSlug;
+  /** Headline from the PDF cover. Used as the listing title. */
+  title: string;
+  /** ISO date string (YYYY-MM-DD) of publication. */
+  publishedAt: string;
+  /** Path to the served PDF, relative to site root with leading slash. */
+  pdfPath: string;
+  /**
+   * One- or two-sentence preview of the take. Pulled from page 1 of the
+   * PDF (the "THE TAKE" block). Surfaces under the row title in the
+   * research listings so readers can scan the take before clicking
+   * through to the PDF. Plain text, no markup.
+   */
+  excerpt: string;
+}
+
+export const commentaries: DataCommentary[] = [
+  {
+    slug: "cpi-april-2026",
+    section: "inflation",
+    title: "Inflation rose to 2.8% on higher gasoline prices.",
+    publishedAt: "2026-05-19",
+    pdfPath: "/research/commentaries/cpi-april-2026.pdf",
+    excerpt:
+      "Headline wasn't so bad given the energy shock. Cores ticked down two-tenths each. The Bank should be able to stay on hold.",
+  },
+];
+
+/**
+ * Slug-derived path to a commentary's cover image (page 1 of the PDF
+ * rendered as PNG). The splash showcase 03 perspective stack consumes
+ * this. Convention: `public/showcase/commentary-<slug>-cover.png`.
+ */
+export function commentaryCoverPath(c: DataCommentary): string {
+  return `/showcase/commentary-${c.slug}-cover.png`;
+}
+
+/**
+ * Slug-derived path to a commentary's page-2 image (the chart + analysis
+ * page rendered as PNG). Used as the back-sheet of the splash perspective
+ * stack. Convention: `public/showcase/commentary-<slug>-page2.png`.
+ */
+export function commentaryPage2Path(c: DataCommentary): string {
+  return `/showcase/commentary-${c.slug}-page2.png`;
+}
+
+/**
+ * Returns commentaries that belong to a given section slug, sorted
+ * newest-first. Used by section pages (when Phase 3 cross-links land)
+ * to surface "Recent commentaries on [section]" footers.
+ */
+export function getCommentariesBySection(
+  slug: SectionSlug,
+): DataCommentary[] {
+  return commentaries
+    .filter((c) => c.section === slug)
+    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+}
+
+/**
+ * The most-recently-published commentary. Splash showcase 03 consumes
+ * this so the front-page promo auto-rotates as new pieces land. Returns
+ * `null` only if the commentaries array is empty (shouldn't happen in
+ * production but guarded for safety).
+ */
+export function latestCommentary(): DataCommentary | null {
+  if (commentaries.length === 0) return null;
+  return [...commentaries].sort((a, b) =>
+    b.publishedAt.localeCompare(a.publishedAt),
+  )[0];
 }
 
 export const deepDives: DeepDive[] = [

@@ -1,121 +1,666 @@
 ---
 /*
- * Homepage - Canadian Macro Overview (Vignelli register, production canon).
+ * Homepage / splash — promoted from v3.astro 2026-05-20.
  *
- * 2026-05-11: This page now wires the pipeline payload at build time. Every
- * primary numeric on the homepage flows from
- * data/site/sections.json via src/data/site_data_loader.ts. Fields the
- * pipeline does not yet produce render as explicit placeholders so the
- * gaps are obvious at a glance:
+ * Structure:
+ *   1. Hero band (left-aligned slogan + sub + two CTAs)
+ *   2. How we work (inverted ink-on-paper band, true viewport-bleed)
+ *   3. Showcase 01 — Live tracker (link out to /overview/)
+ *   4. Showcase 02 — Chart research
+ *   5. Showcase 03 — Data commentary (PDF perspective stack)
+ *   6. Subscribe band
+ *   7. Advisory teaser
  *
- *   - real numbers           -> from JSON
- *   - missing numbers        -> "----" in mono mid-gray
- *   - missing asOf stamps    -> "[ NOT WIRED ]" in mono micro-caps
- *   - missing chart series   -> dashed-border empty box, "DATA NOT YET WIRED"
- *   - missing editorial copy -> visible Latin lorem ipsum
- *
- * Layout:
- *   1. Title Statement: eyebrow + headline ("Canadian Macro Overview" + date
- *      in signal red) + lorem-ipsum abstract + 3-cell headline-numbers stamp
- *      sourced from the pipeline.
- *   2. Indicator panel grid: 2 x 4 hairline-bordered cells. Seven section
- *      panels + an eighth "Working papers" cell.
+ * The dashboard (the previous splash content) now lives at /overview/.
+ * Screencaps in public/showcase/ render real screenshots; if files are
+ * missing the alt text shows and layout still works.
  */
 
 import BaseLayout from "../layouts/BaseLayout.astro";
-import TitleStatement from "../components/home/TitleStatement.astro";
-import SectionPanel from "../components/home/SectionPanel.astro";
-import DeepDivePanel from "../components/home/DeepDivePanel.astro";
-import { deepDives, site } from "../data/sections";
-import { enrichedSections, type EnrichedSection } from "../data/site_data_loader";
+import { withBase } from "../lib/urls";
+import {
+  latestCommentary,
+  commentaryCoverPath,
+  commentaryPage2Path,
+} from "../data/sections";
 
-// Card order = enrichedSections order = canon order in sections.ts = nav order.
-// Single source of truth: reordering sections in sections.ts reorders both
-// the masthead nav AND the splash card grid simultaneously.
-const ordered: EnrichedSection[] = enrichedSections;
-
-// Title-statement date line. Always reflects today in Canadian editorial
-// time (America/Toronto), NOT the build host's UTC. The deploy runner is
-// Ubuntu in UTC; a build kicked off after 8pm ET sees a UTC clock that
-// has already rolled to "tomorrow" while the Canadian editorial calendar
-// has not. Without the explicit timeZone the splash showed May 12 when
-// Toronto said May 11. Same gotcha the [slug].astro displayDate helper
-// guards against.
-const today = new Date();
-const longDate = new Intl.DateTimeFormat("en-CA", {
-  month: "long",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "America/Toronto",
-}).format(today);
-
-// SEO description is brand boilerplate (not a print) - keep it real.
-const pageDesc =
-  `Canadian macro overview for ${longDate}. Seven indicator domains - GDP, ` +
-  "inflation, labour, housing, monetary policy, markets, trade - each with " +
-  "an anchor chart and the latest prints. Independent research.";
+// Splash showcase 03 auto-selects the most recent commentary from the
+// registry. The cover + page-2 images are derived from the slug, so the
+// promo rotates as new commentaries land — no per-publication code change.
+const latest = latestCommentary();
 ---
 <BaseLayout
-  title={site.name}
-  description={pageDesc}
-  pageClass="home-page"
-  showMastheadRail={true}
+  title="Sibley Creek"
+  description="Independent Canadian macroeconomic research and advisory firm focused on Canada."
+  pageClass="splash-page"
 >
-  <article class="home">
-    <TitleStatement dateLine={longDate} />
 
-    <section class="home__grid" aria-label="Indicator panels">
-      <h2 class="visually-hidden">Indicator panels</h2>
-      {ordered.map((s, i) => (
-        <div class="home__cell">
-          <SectionPanel section={s} figureNum={String(i + 1)} />
-        </div>
-      ))}
-      {/* 8th cell: working papers */}
-      <div class="home__cell">
-        <DeepDivePanel deepDives={deepDives} figureNum="8" />
+  {/* ─────────────── BAND 1: LEFT-ALIGNED HERO ─────────────── */}
+  <section class="v3-hero" aria-labelledby="v3-hero-h">
+    <div class="v3-hero__content">
+      <h1 id="v3-hero-h" class="v3-hero__h">Until it's obvious.</h1>
+      <p class="v3-hero__sub">
+        Sibley Creek is an independent macroeconomic research and advisory
+        firm focused on Canada.
+      </p>
+      <div class="v3-hero__cta-row">
+        <a class="v3-hero__cta v3-hero__cta--primary" href="#subscribe">
+          Subscribe →
+        </a>
+        <a class="v3-hero__cta v3-hero__cta--secondary" href={withBase("/work-with-us/")}>
+          Work with us
+        </a>
       </div>
-    </section>
-  </article>
+    </div>
+  </section>
 
-  <style>
-    .home__grid {
-      margin-top: 28px;
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 0;
-      /* Vignelli / Knoll catalogue: panels meet at shared 1px black
-       * hairlines. We collapse the gap and use the panel borders to form a
-       * continuous grid. */
-      border-top: 1px solid var(--ink);
-      border-left: 1px solid var(--ink);
-    }
-    @media (min-width: 760px) {
-      .home__grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-    .home__cell {
-      min-width: 0;
-      display: flex;
-      border-right: 1px solid var(--ink);
-      border-bottom: 1px solid var(--ink);
-    }
-    .home__cell > :global(*) {
-      width: 100%;
-    }
+  {/* ─────────── HOW WE WORK (inverted band) ─────────── */}
+  <section class="v3-method" aria-labelledby="v3-method-h">
+    <h2 id="v3-method-h" class="v3-method__eyebrow">How we work</h2>
+    <p class="v3-method__lead">
+      First we dig through the data. Then we get on the phone and talk to
+      the people on the ground. Think of it as economic analysis meets
+      investigative journalism.
+    </p>
+    <p class="v3-method__founder">
+      Founded by <strong>Jay Zhao-Murray</strong>, former Canada economics
+      data editor at&nbsp;Bloomberg.
+    </p>
+  </section>
 
-    /* a11y utility - visually hidden but available to screen readers */
-    .visually-hidden {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-  </style>
+  {/* ─────────── SHOWCASE 01: Live tracker ─────────── */}
+  <section class="v3-row v3-row--lr" aria-labelledby="v3-row1-h">
+    <div class="v3-row__copy">
+      <p class="v3-row__kicker">Live tracker</p>
+      <h2 id="v3-row1-h" class="v3-row__h">Our reading of the Canadian economy, every day.</h2>
+      <p class="v3-row__body">
+        Eight sections — inflation, output, labour, housing, policy, markets,
+        trade — each charted and annotated. The numbers and our take,
+        refreshed as the data lands.
+      </p>
+      <a class="v3-row__cta" href={withBase("/overview/")}>See the dashboard →</a>
+    </div>
+    <div class="v3-row__visual">
+      <div class="v3-frame">
+        <div class="v3-frame__chrome" aria-hidden="true">
+          <span class="v3-frame__dot"></span>
+          <span class="v3-frame__dot"></span>
+          <span class="v3-frame__dot"></span>
+          <span class="v3-frame__url">sibleycreek.ca/overview</span>
+        </div>
+        <img
+          class="v3-frame__img"
+          src={withBase("/showcase/dashboard.png")}
+          alt="Sibley Creek dashboard — screencap"
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+    </div>
+  </section>
+
+  {/* ─────────── SHOWCASE 02: Chart research ─────────── */}
+  <section class="v3-row v3-row--rl" aria-labelledby="v3-row2-h">
+    <div class="v3-row__visual">
+      <div class="v3-frame">
+        <div class="v3-frame__chrome" aria-hidden="true">
+          <span class="v3-frame__dot"></span>
+          <span class="v3-frame__dot"></span>
+          <span class="v3-frame__dot"></span>
+          <span class="v3-frame__url">sibleycreek.ca/research</span>
+        </div>
+        <img
+          class="v3-frame__img"
+          src={withBase("/showcase/chart-research.png")}
+          alt="Sibley Creek chart research — screencap"
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+    </div>
+    <div class="v3-row__copy">
+      <p class="v3-row__kicker">Chart research</p>
+      <h2 id="v3-row2-h" class="v3-row__h">Narrated chart packs on the questions that matter.</h2>
+      <p class="v3-row__body">
+        Eight to twelve charts on one question, with a written argument
+        threaded through them. Mortgage renewal cohorts. Per-capita output.
+        The trade pivot away from the US that mostly didn't happen.
+      </p>
+      <p class="v3-row__body">
+        Built from the primary sources, in the house typography. The charts
+        are the analysis.
+      </p>
+      <a class="v3-row__cta" href={withBase("/research/")}>Read the latest →</a>
+    </div>
+  </section>
+
+  {/* ─────────── SHOWCASE 03: Data commentary (PDF stack) ─────────── */}
+  <section class="v3-row v3-row--lr" aria-labelledby="v3-row3-h">
+    <div class="v3-row__copy">
+      <p class="v3-row__kicker">Data commentary</p>
+      <h2 id="v3-row3-h" class="v3-row__h">Same-day analysis of every major Canadian print.</h2>
+      <p class="v3-row__body">
+        Every major Canadian print — CPI, jobs, BoC decisions, trade,
+        monthly GDP — gets a one-page note within hours: the take, the
+        chart, and a forward look at next month's watch-item.
+      </p>
+      <p class="v3-row__body">
+        Distributed as PDFs to subscribers. Visible here as they ship.
+      </p>
+      {latest && (
+        <a class="v3-row__cta" href={withBase(latest.pdfPath)}>Read the latest note →</a>
+      )}
+    </div>
+    <div class="v3-row__visual">
+      {latest && (
+        <div class="v3-pdf-stack" aria-hidden="true">
+          <img
+            class="v3-pdf-stack__back"
+            src={withBase(commentaryPage2Path(latest))}
+            alt=""
+            loading="lazy"
+            decoding="async"
+          />
+          <img
+            class="v3-pdf-stack__cover"
+            src={withBase(commentaryCoverPath(latest))}
+            alt={`Sibley Creek — ${latest.title}`}
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+      )}
+    </div>
+  </section>
+
+  {/* ─────────── SUBSCRIBE ─────────── */}
+  <section id="subscribe" class="v3-sub" aria-labelledby="v3-sub-h">
+    <div class="v3-sub__inner">
+      <p class="v3-sub__eyebrow">Subscribe</p>
+      <h2 id="v3-sub-h" class="v3-sub__h">Get our research in your inbox.</h2>
+      <p class="v3-sub__body">
+        Same-day commentary on every major Canadian print. Chart packs as
+        they ship. A paid tier with forward-looking research is in
+        development.
+      </p>
+
+      <form class="v3-sub__form" action="#" method="post" novalidate>
+        <label for="v3-sub-email" class="v3-sub__lbl">Email address</label>
+        <input
+          id="v3-sub-email"
+          class="v3-sub__input"
+          type="email"
+          placeholder="you@firm.ca"
+          autocomplete="email"
+          required
+        />
+        <button class="v3-sub__btn" type="submit">Subscribe →</button>
+      </form>
+
+      <ul class="v3-sub__bullets">
+        <li><span class="v3-sub__bullet-mk">·</span> No spam. Cancel any time.</li>
+        <li><span class="v3-sub__bullet-mk">·</span> Free during founding-subscriber phase.</li>
+        <li><span class="v3-sub__bullet-mk">·</span> First access to the paid tier when it launches.</li>
+      </ul>
+    </div>
+  </section>
+
+  {/* ─────────── ADVISORY ─────────── */}
+  <section class="v3-adv" aria-labelledby="v3-adv-h">
+    <div class="v3-adv__inner">
+      <div class="v3-adv__copy">
+        <p class="v3-adv__eyebrow">Advisory</p>
+        <h2 id="v3-adv-h" class="v3-adv__h">
+          Custom research for CFOs, allocators, and policy teams.
+        </h2>
+        <p class="v3-adv__body">
+          We also work on retainer for institutions that need Canadian macro
+          expertise embedded in their decision flow.
+        </p>
+      </div>
+      <a class="v3-adv__cta" href={withBase("/work-with-us/")}>Work with us →</a>
+    </div>
+  </section>
+
 </BaseLayout>
+
+<style>
+  /* ════════════════════════════════════════════════════════════════════
+   * Splash page (promoted from v3.astro, 2026-05-20)
+   * ════════════════════════════════════════════════════════════════════ */
+
+  /* ─── BAND 1: LEFT-ALIGNED HERO ─── */
+  .v3-hero {
+    padding-block: 88px 96px;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+    /* No border-bottom: the inverted v3-method band below has true
+     * viewport-edge full-bleed; a site-shell-width hairline above it
+     * would only render where the band extends past, creating a
+     * stepped seam at the top edge of the dark band. The dark band
+     * itself is the visual separator. */
+  }
+  @media (max-width: 720px) { .v3-hero { padding-block: 56px 64px; } }
+
+  .v3-hero__content {
+    position: relative;
+  }
+
+  .v3-hero__h {
+    margin: 0;
+    max-width: 18ch;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: clamp(40px, 6.5vw, 76px);
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+  }
+  .v3-hero__sub {
+    margin: 28px 0 0;
+    max-width: 58ch;
+    font-family: var(--font-sans);
+    font-weight: 300;
+    font-size: clamp(16px, 1.6vw, 19px);
+    line-height: 1.55;
+    color: var(--ink);
+  }
+  .v3-hero__cta-row {
+    margin: 36px 0 0;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .v3-hero__cta {
+    display: inline-block;
+    padding: 14px 26px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border: 1px solid var(--ink);
+    transition: background 80ms linear, color 80ms linear;
+  }
+  .v3-hero__cta--primary { background: var(--ink); color: var(--paper, #fff); }
+  .v3-hero__cta--primary:hover { background: var(--paper, #fff); color: var(--ink); }
+  .v3-hero__cta--secondary { background: var(--paper, #fff); color: var(--ink); }
+  .v3-hero__cta--secondary:hover { background: var(--ink); color: var(--paper, #fff); }
+  .v3-hero__cta:focus-visible {
+    outline: 2px solid var(--accent, #D7263D);
+    outline-offset: 3px;
+  }
+
+  /* ─── SHOWCASE ROWS ─── */
+  .v3-row {
+    padding-block: 72px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+    align-items: center;
+    border-bottom: 1px solid var(--ink);
+  }
+  @media (min-width: 880px) {
+    .v3-row {
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+      padding-block: 88px;
+    }
+    .v3-row--rl .v3-row__copy   { grid-column: 2; grid-row: 1; }
+    .v3-row--rl .v3-row__visual { grid-column: 1; grid-row: 1; }
+  }
+
+  .v3-row__copy { max-width: 52ch; }
+  .v3-row__kicker {
+    margin: 0 0 18px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent, #D7263D);
+  }
+  .v3-row__h {
+    margin: 0 0 18px;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: clamp(26px, 3.4vw, 38px);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    max-width: 18ch;
+  }
+  .v3-row__body {
+    margin: 0 0 14px;
+    font-family: var(--font-sans);
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--ink);
+  }
+  .v3-row__cta {
+    display: inline-block;
+    margin-top: 10px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent, #D7263D);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 80ms linear;
+  }
+  .v3-row__cta:hover { border-bottom-color: var(--accent, #D7263D); }
+
+  .v3-row__visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ─── Faux-browser frame containing the real screencap ─── */
+  .v3-frame {
+    width: 100%;
+    max-width: 560px;
+    border: 1px solid var(--ink);
+    background: var(--paper, #fff);
+    box-shadow: 0 24px 48px -16px rgba(0,0,0,0.18);
+    overflow: hidden;
+  }
+  .v3-frame__chrome {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--ink);
+    background: #F5F5F5;
+  }
+  .v3-frame__dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--ink);
+    opacity: 0.25;
+  }
+  .v3-frame__url {
+    margin-left: 14px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink);
+    opacity: 0.65;
+  }
+  .v3-frame__img {
+    width: 100%;
+    height: auto;
+    display: block;
+    max-height: 520px;
+    object-fit: cover;
+    object-position: top center;
+  }
+
+  /* ─── PDF perspective stack ─── */
+  .v3-pdf-stack {
+    position: relative;
+    width: 100%;
+    max-width: 440px;
+    aspect-ratio: 6 / 7;
+    perspective: 1400px;
+  }
+  .v3-pdf-stack__back,
+  .v3-pdf-stack__cover {
+    position: absolute;
+    width: 78%;
+    height: auto;
+    aspect-ratio: 7 / 9;
+    object-fit: cover;
+    object-position: top center;
+    border: 1px solid var(--ink);
+    background: var(--paper, #fff);
+    transform-style: preserve-3d;
+  }
+  .v3-pdf-stack__back {
+    top: 14px;
+    left: 22%;
+    transform: rotateY(-6deg) rotateZ(2.5deg);
+    box-shadow: 0 30px 60px -18px rgba(0,0,0,0.18);
+    z-index: 1;
+  }
+  .v3-pdf-stack__cover {
+    top: 38px;
+    left: 0;
+    transform: rotateY(-4deg) rotateZ(-2deg);
+    box-shadow: 0 36px 64px -20px rgba(0,0,0,0.28);
+    z-index: 2;
+  }
+
+  /* ─── BAND: HOW WE WORK (inverted ink-on-paper, true full-bleed) ─── */
+  .v3-method {
+    padding-block: 84px 92px;
+    background: var(--ink);
+    color: var(--paper, #fff);
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    padding-left: calc(50vw - 50%);
+    padding-right: calc(50vw - 50%);
+  }
+
+  .v3-method__eyebrow {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--paper, #fff);
+    opacity: 0.9;
+  }
+  .v3-method__lead {
+    margin: 32px 0 0;
+    /* Wider max-width + smaller display size: the prior clamp peaked at
+     * 42px which makes a 3-sentence block hard to track. Smaller display
+     * size + slightly wider line gives the eye natural rest points. */
+    max-width: 40ch;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: clamp(22px, 2.8vw, 32px);
+    line-height: 1.3;
+    letter-spacing: -0.008em;
+    color: var(--paper, #fff);
+  }
+  .v3-method__founder {
+    margin: 56px 0 0;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255,255,255,0.3);
+    max-width: 56ch;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--paper, #fff);
+    opacity: 0.9;
+  }
+  .v3-method__founder strong {
+    font-weight: 700;
+  }
+
+  /* ─── BAND: SUBSCRIBE ─── */
+  .v3-sub {
+    padding-block: 96px 100px;
+    border-bottom: 1px solid var(--ink);
+    background: #FAFAFA;
+  }
+  .v3-sub__inner {
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .v3-sub__eyebrow {
+    margin: 0 0 16px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent, #D7263D);
+  }
+  .v3-sub__h {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: clamp(32px, 4.5vw, 52px);
+    line-height: 1.05;
+    letter-spacing: -0.022em;
+    color: var(--ink);
+  }
+  .v3-sub__body {
+    margin: 22px auto 0;
+    max-width: 56ch;
+    font-family: var(--font-sans);
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--ink);
+  }
+  .v3-sub__form {
+    margin: 32px auto 0;
+    max-width: 460px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  @media (min-width: 560px) {
+    .v3-sub__form { grid-template-columns: 1fr auto; }
+  }
+  .v3-sub__lbl {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    border: 0;
+  }
+  .v3-sub__input {
+    padding: 14px 16px;
+    border: 1px solid var(--ink);
+    background: var(--paper, #fff);
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 15px;
+    color: var(--ink);
+    min-width: 0;
+  }
+  .v3-sub__input:focus-visible {
+    outline: 2px solid var(--accent, #D7263D);
+    outline-offset: 1px;
+  }
+  .v3-sub__btn {
+    padding: 14px 22px;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: var(--paper, #fff);
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 12px;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 80ms linear, color 80ms linear;
+    white-space: nowrap;
+  }
+  .v3-sub__btn:hover { background: var(--paper, #fff); color: var(--ink); }
+  .v3-sub__bullets {
+    list-style: none;
+    margin: 24px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+  }
+  .v3-sub__bullets li {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 12.5px;
+    line-height: 1.4;
+    color: var(--ink);
+    opacity: 0.7;
+  }
+  .v3-sub__bullet-mk {
+    font-weight: 800;
+    color: var(--accent, #D7263D);
+    opacity: 1;
+    margin-right: 4px;
+  }
+
+  /* ─── BAND: ADVISORY ─── */
+  .v3-adv { padding-block: 42px 48px; border-bottom: 0; }
+  .v3-adv__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+  @media (min-width: 880px) {
+    .v3-adv__inner {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 48px;
+    }
+  }
+  .v3-adv__copy { flex: 1; max-width: 64ch; }
+  .v3-adv__eyebrow {
+    margin: 0 0 10px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+    opacity: 0.7;
+  }
+  .v3-adv__h {
+    margin: 0 0 8px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: clamp(18px, 2vw, 22px);
+    line-height: 1.3;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+    max-width: 36ch;
+  }
+  .v3-adv__body {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 300;
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: var(--ink);
+    max-width: 56ch;
+  }
+  .v3-adv__cta {
+    padding: 12px 22px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--paper, #fff);
+    background: var(--ink);
+    text-decoration: none;
+    border: 1px solid var(--ink);
+    transition: background 80ms linear, color 80ms linear;
+    white-space: nowrap;
+  }
+  .v3-adv__cta:hover { background: var(--paper, #fff); color: var(--ink); }
+</style>

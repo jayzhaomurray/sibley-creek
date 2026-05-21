@@ -1,0 +1,194 @@
+---
+/*
+ * /subscribe — dedicated signup page.
+ *
+ * Destination for both the v2 footer "Subscribe" link and the eventual
+ * persistent masthead Subscribe button. Focused signup, no other content
+ * competing for attention. Mirrors the modal pitch but lives at a real
+ * URL so it can be linked from anywhere.
+ *
+ * DRAFT v0. Iterate freely. When the paid product launches, this page
+ * evolves into a tier-selection page (Free / Standard / Anchor) with
+ * pricing. For now it's a single signup form for the email waitlist.
+ *
+ * Form action is currently a placeholder. To wire up to Kit:
+ *   1. Set up the form in Kit's admin
+ *   2. Replace REPLACE_WITH_KIT_FORM_ACTION_URL with Kit's form action
+ *   3. Adjust the name attribute if Kit expects something other than "email_address"
+ */
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { site } from "../data/sections";
+
+const pageDesc =
+  "Subscribe to Sibley Creek's independent Canadian macroeconomic research.";
+---
+<BaseLayout
+  title={`Subscribe — ${site.name}`}
+  description={pageDesc}
+  pageClass="subscribe-page"
+  showMastheadRail={true}
+>
+  <article class="sub">
+    <header class="sub__header">
+      <h1 class="sub__title">Subscribe.</h1>
+    </header>
+
+    <section class="sub__intro">
+      <p>
+        Get Sibley Creek's research in your inbox. Independent Canadian macroeconomic analysis from a team that combines journalism, data discipline, and source-driven reporting.
+      </p>
+      <p>
+        We're building toward a paid subscription product. For now, the list is free to join — we'll keep you in the loop on what we publish, and you'll have first access when the paid tiers launch.
+      </p>
+    </section>
+
+    <section class="sub__form-section">
+      <form
+        class="sub__form"
+        action="REPLACE_WITH_KIT_FORM_ACTION_URL"
+        method="post"
+        target="_blank"
+      >
+        <label for="subscribe-email" class="visually-hidden">Email address</label>
+        <input
+          type="email"
+          id="subscribe-email"
+          name="email_address"
+          placeholder="you@example.com"
+          required
+          class="sub__input"
+        />
+        <button type="submit" class="sub__submit">Subscribe</button>
+      </form>
+    </section>
+
+    <section class="sub__founding">
+      <h2 class="sub__section-title">Founding subscribers</h2>
+      <p>
+        When the paid product launches, the first cohort of paying subscribers — the Anchors — will receive a Sibley Creek hat or mug (your choice), lifetime founders pricing locked in, and their name on a permanent founding-supporter list.
+      </p>
+      <p>
+        You don't need to do anything now to qualify. Just be on the list when the paid tiers open.
+      </p>
+    </section>
+  </article>
+
+  <style>
+    .sub {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 32px 24px 64px 24px;
+    }
+    .sub__header {
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 24px;
+      margin-bottom: 32px;
+    }
+    .sub__eyebrow {
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: var(--fw-semibold);
+      line-height: 1;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin: 0 0 12px 0;
+      color: var(--ink);
+      opacity: 0.7;
+    }
+    .sub__title {
+      font-family: var(--font-sans);
+      font-size: 42px;
+      font-weight: var(--fw-semibold);
+      line-height: 1.1;
+      margin: 0;
+      color: var(--ink);
+    }
+
+    .sub__intro {
+      margin-bottom: 32px;
+    }
+    .sub__intro p {
+      font-family: var(--font-sans);
+      font-size: 18px;
+      line-height: 1.55;
+      color: var(--ink);
+      margin: 0 0 16px 0;
+    }
+
+    .sub__form-section {
+      margin-bottom: 40px;
+    }
+    .sub__form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    @media (min-width: 480px) {
+      .sub__form {
+        flex-direction: row;
+      }
+    }
+    .sub__input {
+      flex: 1;
+      padding: 13px 14px;
+      border: 1px solid var(--ink);
+      font-family: var(--font-sans);
+      font-size: 16px;
+      background-color: var(--paper);
+      color: var(--ink);
+    }
+    .sub__input:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+    .sub__submit {
+      padding: 13px 28px;
+      background-color: var(--ink);
+      color: var(--paper);
+      border: 1px solid var(--ink);
+      font-family: var(--font-sans);
+      font-size: 16px;
+      font-weight: var(--fw-semibold);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .sub__submit:hover {
+      background-color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .sub__section-title {
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: var(--fw-semibold);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin: 0 0 16px 0;
+      color: var(--ink);
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--ink);
+    }
+
+    .sub__founding p {
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 18px;
+      line-height: 1.55;
+      color: var(--ink);
+      margin: 0 0 16px 0;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+</BaseLayout>

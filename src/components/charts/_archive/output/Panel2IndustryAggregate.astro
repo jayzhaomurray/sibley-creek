@@ -1,0 +1,88 @@
+---
+/*
+ * Panel2IndustryAggregate - GDP by industry, broad split.
+ *
+ * Renders services Y/Y (primary) vs goods Y/Y (secondary) on a
+ * 36-month window. The editorial argument: services has been the
+ * steady ~1% backbone of growth; goods has been roughly the same
+ * at the aggregate level (~+0.8% Y/Y Feb 2026), and the cyclical
+ * action is INSIDE goods — surfaced in Panel6IndustryCyclical.
+ *
+ * Pipeline pulls both monthly real GDP industry levels (StatCan
+ * 36-10-0434-01) into panel-2's primary/secondary slots; this
+ * wrapper derives Y/Y % and passes to PanelLiveChart.
+ */
+
+import type { PanelData, PanelSeries, SeriesPoint } from "../../_shared/panelData";
+import PanelLiveChart from "../../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+function pctYoY(series: SeriesPoint[]): SeriesPoint[] {
+  const out: SeriesPoint[] = [];
+  for (let i = 0; i < series.length; i++) {
+    const here = series[i]!;
+    const prev = series[i - 12];
+    if (
+      !prev ||
+      typeof prev.value !== "number" ||
+      typeof here.value !== "number" ||
+      prev.value === 0
+    ) {
+      out.push({ date: here.date, value: null });
+    } else {
+      out.push({ date: here.date, value: (here.value / prev.value - 1) * 100 });
+    }
+  }
+  return out;
+}
+
+let primDerived: PanelSeries | null = null;
+let secDerived: PanelSeries | null = null;
+if (data && data.primary) {
+  primDerived = {
+    key: "gdp_industry_services_yoy",
+    label: "Services",
+    data: pctYoY(data.primary.data),
+    unit: "%",
+    kind: "percent",
+    frequency: "monthly",
+    asOfISO: data.primary.asOfISO ?? null,
+    source: data.primary.source ?? null,
+    sourceUrl: data.primary.sourceUrl ?? null,
+    sourceId: data.primary.sourceId ?? null,
+  };
+}
+if (data && data.secondary) {
+  secDerived = {
+    key: "gdp_industry_goods_yoy",
+    label: "Goods",
+    data: pctYoY(data.secondary.data),
+    unit: "%",
+    kind: "percent",
+    frequency: "monthly",
+    asOfISO: data.secondary.asOfISO ?? null,
+    source: data.secondary.source ?? null,
+    sourceUrl: data.secondary.sourceUrl ?? null,
+    sourceId: data.secondary.sourceId ?? null,
+  };
+}
+---
+{primDerived ? (
+  <PanelLiveChart
+    primary={primDerived}
+    secondary={secDerived}
+    primaryLabel="Services"
+    secondaryLabel="Goods"
+    windowMonths={36}
+    dataPanelAttr="gdp-2-industry-aggregate"
+    ariaLabel="GDP by industry, Y/Y: services vs goods, last 36 months."
+  />
+) : (
+  <PanelEmpty reason="Industry GDP level series not available for Y/Y derivation." />
+)}

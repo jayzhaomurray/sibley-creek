@@ -1,0 +1,39 @@
+---
+/*
+ * Panel3Contributions - contributions to quarterly growth.
+ *
+ * Editorial argument is a diverging horizontal bar chart by component
+ * (consumption, government, GFCF, inventories, exports, less imports)
+ * with a Q-1 reference marker. The pipeline currently emits a single
+ * `gdp_total_contribution` total-pp series, not the per-component
+ * breakdown. Until the per-component series land we fall back to
+ * PanelEmpty rather than ship synthetic component bars.
+ *
+ * Synthetic-data fallback removed.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// The pipeline-emitted primary here is a single total-pp time series, not
+// a per-component breakdown. We render it as a single line until per-
+// component data lands; honest but reduced.
+---
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    primaryLabel="Total contrib."
+    dataPanelAttr="gdp-3"
+    ariaLabel="Total contribution to quarterly Q/Q SAAR growth, percentage points."
+  />
+) : (
+  <PanelEmpty reason="Per-component contributions not yet emitted by pipeline." />
+)}

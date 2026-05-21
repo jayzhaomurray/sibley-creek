@@ -1,36 +1,48 @@
 ---
 /*
- * VignelliMasthead - site-wide page header for the production canon.
+ * VignelliMasthead - site-wide page header, production canon.
  *
- * Adapted from src/components/experiments/academic-vignelli/Masthead.astro,
- * promoted out of the experiments dir. Differences from the splash version:
+ * Structure (left to right on desktop):
  *
- *   - Reads from `site` + `sections` (data/sections.ts) so the wordmark and
- *     primary nav are sourced from data, not props.
- *   - Replaces the "Return to production homepage" link (a splash affordance)
- *     with the production primary section nav. Section links are routed to
- *     `/{slug}/`; active section is detected from `Astro.url.pathname`.
+ *   [SLEEPING GIANT MARK] SIBLEY CREEK           Topics ▾ | Research | Advisory | About    [ Subscribe ]
+ *                         Macro research & advisory
  *
- * Rail (showRail prop):
- *   The institutional rail previously rendered "Series / As of / Edition"
- *   filler. It was removed (2026-05-11) because the rail content was not
- *   informational - we will not ship placeholder eyebrows. The `showRail`
- *   prop is preserved at the call sites (BaseLayout's `showMastheadRail`)
- *   so we can wire content back in if a genuinely informational rail
- *   (e.g. an "As of" date stamp tied to data freshness) is decided. While
- *   no rail content is defined, the prop is accepted but renders nothing.
+ * Wordmark area (left)
+ *   The Sleeping Giant sigil + "SIBLEY CREEK" wordmark + a small sub-line
+ *   "Macro research & advisory". The whole wordmark block links to home.
+ *   The sub-line is a separate 9.5px Manrope SemiBold micro-caps label.
+ *
+ * Primary nav (middle/right)
+ *   Four items separated by Vignelli pipe glyphs:
+ *     1. Topics ▾ — dropdown trigger. Hover on desktop, click on touch.
+ *        Lists the 7 section routes (sourced from sections.ts so the slug
+ *        list stays canonical). Keyboard: Enter/Space opens, ArrowDown
+ *        focuses first item, ArrowUp/Down navigates, Escape closes and
+ *        returns focus to trigger. On mobile the dropdown expands inline.
+ *     2. Research   → /research/
+ *     3. Advisory   → /work-with-us/
+ *     4. About      → /about/
+ *
+ * Subscribe CTA (rightmost)
+ *   Filled ink button, separated from the nav by a gap (not a pipe).
+ *   Links to /subscribe/. Hover invert.
+ *
+ * Rail (showRail prop)
+ *   The institutional rail was removed (2026-05-11). The prop is preserved
+ *   so call sites do not break. While no rail content is defined, the prop
+ *   is accepted but renders nothing.
  *
  * Aesthetic discipline (Vignelli register):
- *   - Manrope Black (900) wordmark, all caps, tight tracking.
- *   - Manrope SemiBold (600) micro-caps for section nav labels.
- *   - Tight ink-faint pipe separators between nav labels (Vignelli chrome).
- *   - Pure black hairline rule underneath.
- *   - Signal red used only on focus rings / hover transition target.
+ *   - Manrope Black (900) wordmark, 16px, 0.16em tracking, uppercase.
+ *   - Manrope SemiBold (600) sub-line, 9.5px, 0.18em tracking, uppercase.
+ *   - Manrope SemiBold (600) nav links, 11px, 0.12em tracking, uppercase.
+ *   - Subscribe button: 11px SemiBold, uppercase, 0.18em tracking.
+ *   - Dropdown panel: white background, 1px ink border, 12px padding.
+ *   - All transitions 80ms linear.
+ *   - Accent red ONLY on hover/focus rings + the caret rotation indicator.
  *
- * Layout:
- *   Wordmark and primary nav share a single flex row with `space-between`
- *   on desktop so the whole header sits on one line at 1440 viewport.
- *   The row wraps on mobile (<= 720px) to stack the nav below the mark.
+ * Bilingual readiness: no hardcoded English strings outside of content that
+ * belongs in the data layer; sub-line could become a site.tagline token.
  */
 
 import { site, sections } from "../../data/sections";
@@ -41,142 +53,370 @@ interface Props {
   /**
    * Reserved for a future informational rail (date stamp, edition marker,
    * etc.). Currently unused at render - the prop survives so call sites
-   * (BaseLayout `showMastheadRail`) keep working without churn the day we
-   * reintroduce a rail. Accepted via the Props interface; not destructured
-   * because nothing in the template reads it yet.
+   * (BaseLayout `showMastheadRail`) keep working without churn. Accepted
+   * via the Props interface; not destructured because nothing in the
+   * template reads it yet.
    */
   showRail?: boolean;
 }
 
 // Props.showRail is intentionally not consumed at render; see interface doc
-// above. We destructure it into `_showRail` so the Props interface is
-// referenced (silencing ts(6196) "declared but never used") while making the
-// "intentionally unread" intent visible at the call site.
+// above. We destructure into `_showRail` to silence ts(6196).
 const { showRail: _showRail } = Astro.props as Props;
 
 const pathname = Astro.url.pathname;
 const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
+
+// Active-state helpers
+const isOverview = firstSegment === "overview";
+const isResearch = firstSegment === "research";
+const isAdvisory = firstSegment === "work-with-us";
+const isAbout = firstSegment === "about";
+const isTopicsActive = isOverview || sections.some((s) => s.slug === firstSegment);
 ---
+
 <header class="vig-mast" role="banner">
   <div class="vig-mast__row">
-    <a class="vig-mast__mark-link" href={withBase("/")} aria-label={`${site.name} home`}>
+
+    <!-- Wordmark block: sigil + "SIBLEY CREEK" + sub-line -->
+    <a
+      class="vig-mast__mark-link"
+      href={withBase("/")}
+      aria-label={`${site.name} home`}
+    >
       <SleepingGiantMark size={88} variant="inline" class="vig-mast__sigil" />
-      <span class="vig-mast__mark">{site.name}</span>
+      <span class="vig-mast__mark-text">
+        <span class="vig-mast__wordmark">{site.name}</span>
+        <span class="vig-mast__subline" aria-hidden="true">Macro research &amp; advisory</span>
+      </span>
     </a>
 
-    <nav class="vig-mast__nav" aria-label="Primary">
-      <ul role="list" class="vig-mast__nav-list">
-        {sections.map((section) => {
-          const isActive = firstSegment === section.slug;
-          return (
-            <li class="vig-mast__nav-item">
-              <a
-                class:list={["vig-mast__nav-link", { "is-active": isActive }]}
-                href={withBase(`/${section.slug}/`)}
-                aria-current={isActive ? "page" : undefined}
-              >
-                {section.label}
-              </a>
-            </li>
-          );
-        })}
-        <li class="vig-mast__nav-item">
-          <a
-            class:list={["vig-mast__nav-link", { "is-active": firstSegment === "research" }]}
-            href={withBase("/research/")}
-            aria-current={firstSegment === "research" ? "page" : undefined}
-          >
-            Research
-          </a>
-        </li>
-      </ul>
-    </nav>
+    <!-- Right side: primary nav + subscribe CTA -->
+    <div class="vig-mast__right">
+
+      <nav class="vig-mast__nav" aria-label="Primary">
+        <ul role="list" class="vig-mast__nav-list">
+
+          <!-- Topics ▾ — dropdown trigger -->
+          <li class="vig-mast__nav-item vig-mast__nav-item--dropdown">
+            <button
+              class:list={["vig-mast__nav-link", "vig-mast__topics-trigger", { "is-active": isTopicsActive }]}
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-controls="topics-dropdown"
+              id="topics-trigger"
+              type="button"
+            >
+              Topics <span class="vig-mast__caret" aria-hidden="true">&#9660;</span>
+            </button>
+            <ul
+              class="vig-mast__dropdown"
+              id="topics-dropdown"
+              role="menu"
+              aria-labelledby="topics-trigger"
+              hidden
+            >
+              <li role="none">
+                <a
+                  class:list={["vig-mast__dropdown-item", { "is-active": isOverview }]}
+                  href={withBase("/overview/")}
+                  role="menuitem"
+                  tabindex="-1"
+                  aria-current={isOverview ? "page" : undefined}
+                >
+                  Overview
+                </a>
+              </li>
+              {sections.map((section) => {
+                const sectionActive = firstSegment === section.slug;
+                return (
+                  <li role="none">
+                    <a
+                      class:list={["vig-mast__dropdown-item", { "is-active": sectionActive }]}
+                      href={withBase(`/${section.slug}/`)}
+                      role="menuitem"
+                      tabindex="-1"
+                      aria-current={sectionActive ? "page" : undefined}
+                    >
+                      {section.label}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </li>
+
+          <!-- Research -->
+          <li class="vig-mast__nav-item">
+            <a
+              class:list={["vig-mast__nav-link", { "is-active": isResearch }]}
+              href={withBase("/research/")}
+              aria-current={isResearch ? "page" : undefined}
+            >
+              Research
+            </a>
+          </li>
+
+          <!-- Advisory -->
+          <li class="vig-mast__nav-item">
+            <a
+              class:list={["vig-mast__nav-link", { "is-active": isAdvisory }]}
+              href={withBase("/work-with-us/")}
+              aria-current={isAdvisory ? "page" : undefined}
+            >
+              Advisory
+            </a>
+          </li>
+
+          <!-- About -->
+          <li class="vig-mast__nav-item">
+            <a
+              class:list={["vig-mast__nav-link", { "is-active": isAbout }]}
+              href={withBase("/about/")}
+              aria-current={isAbout ? "page" : undefined}
+            >
+              About
+            </a>
+          </li>
+
+        </ul>
+      </nav>
+
+      <!-- Subscribe CTA — gap-separated, not pipe-separated -->
+      <a
+        class="vig-mast__subscribe"
+        href={withBase("/subscribe/")}
+        aria-label="Subscribe to Sibley Creek"
+      >
+        Subscribe
+      </a>
+
+    </div>
   </div>
 
   <hr class="vig-mast__rule" aria-hidden="true" />
 </header>
 
+<!-- Topics dropdown keyboard + hover logic. Zero dependency, ~50 lines. -->
+<script>
+(function () {
+  const trigger = document.getElementById("topics-trigger") as HTMLButtonElement | null;
+  const dropdown = document.getElementById("topics-dropdown") as HTMLUListElement | null;
+  if (!trigger || !dropdown) return;
+
+  // All focusable menu items
+  function getItems(): HTMLAnchorElement[] {
+    return Array.from(dropdown!.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]'));
+  }
+
+  function open() {
+    trigger!.setAttribute("aria-expanded", "true");
+    dropdown!.removeAttribute("hidden");
+  }
+
+  function close() {
+    trigger!.setAttribute("aria-expanded", "false");
+    dropdown!.setAttribute("hidden", "");
+  }
+
+  function isOpen(): boolean {
+    return trigger!.getAttribute("aria-expanded") === "true";
+  }
+
+  // Desktop hover — open on mouseenter, close on mouseleave of the whole
+  // nav-item (wraps both the trigger and the dropdown panel).
+  const navItem = trigger.closest(".vig-mast__nav-item--dropdown");
+  if (navItem) {
+    navItem.addEventListener("mouseenter", () => open());
+    navItem.addEventListener("mouseleave", () => close());
+  }
+
+  // Touch / click toggle (also works on desktop for keyboard-primary users
+  // who prefer explicit click rather than hover).
+  trigger.addEventListener("click", () => {
+    if (isOpen()) {
+      close();
+    } else {
+      open();
+      // Give the browser a tick to paint then focus first item.
+      requestAnimationFrame(() => {
+        const items = getItems();
+        if (items.length > 0) items[0].focus();
+      });
+    }
+  });
+
+  // Keyboard navigation inside the open dropdown.
+  dropdown.addEventListener("keydown", (e: KeyboardEvent) => {
+    const items = getItems();
+    const focused = document.activeElement as HTMLElement;
+    const idx = items.indexOf(focused as HTMLAnchorElement);
+
+    if (e.key === "Escape") {
+      close();
+      trigger!.focus();
+      e.preventDefault();
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = items[(idx + 1) % items.length];
+      next?.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const prev = items[(idx - 1 + items.length) % items.length];
+      prev?.focus();
+    } else if (e.key === "Tab") {
+      // Tab out of the menu closes it.
+      close();
+    }
+  });
+
+  // Trigger also handles ArrowDown to enter the menu directly.
+  trigger.addEventListener("keydown", (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (isOpen()) {
+        close();
+      } else {
+        open();
+        requestAnimationFrame(() => {
+          const items = getItems();
+          if (items.length > 0) items[0].focus();
+        });
+      }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!isOpen()) open();
+      requestAnimationFrame(() => {
+        const items = getItems();
+        if (items.length > 0) items[0].focus();
+      });
+    } else if (e.key === "Escape") {
+      close();
+    }
+  });
+
+  // Click outside closes.
+  document.addEventListener("click", (e: MouseEvent) => {
+    if (!navItem?.contains(e.target as Node)) {
+      close();
+    }
+  });
+})();
+</script>
+
 <style>
+  /* =====================================================================
+   * MASTHEAD SHELL
+   * ===================================================================== */
   .vig-mast {
     padding-top: 20px;
   }
+
+  /* Single flex row: wordmark-left, right-group-right */
   .vig-mast__row {
     display: flex;
     flex-wrap: nowrap;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 28px;
     padding-bottom: 12px;
   }
+
+  /* =====================================================================
+   * WORDMARK BLOCK
+   * ===================================================================== */
   .vig-mast__mark-link {
     color: var(--ink);
     text-decoration: none;
     flex: 0 0 auto;
     display: inline-flex;
-    align-items: flex-end;
+    align-items: center;
     gap: 12px;
-    border-bottom: 1px solid transparent;
-    transition: border-color 80ms linear;
+    /* Focus ring uses accent only, no default underline chrome */
   }
+  .vig-mast__mark-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: 2px;
+  }
+
   .vig-mast__sigil {
     display: block;
     flex: 0 0 auto;
   }
-  .vig-mast__mark-link:hover {
-    border-bottom-color: var(--ink);
+
+  /* Stacked text column: wordmark above, sub-line below */
+  .vig-mast__mark-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    justify-content: center;
   }
-  .vig-mast__mark-link:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 3px;
-  }
-  .vig-mast__mark {
+
+  /* "SIBLEY CREEK" — Manrope Black 900, 16px, 0.16em tracking, uppercase */
+  .vig-mast__wordmark {
     font-family: var(--font-sans);
-    /* Manrope Black for the SIBLEY CREEK wordmark - heavier stroke than the
-     * 800 it replaced; the shorter brand name carries the extra weight. */
     font-weight: 900;
     font-size: 16px;
     line-height: 1;
     letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--ink);
+    white-space: nowrap;
   }
 
+  /* Sub-line — Manrope SemiBold 600, 9.5px, micro-caps, slightly lower opacity */
+  .vig-mast__subline {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 9.5px;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+    opacity: 0.52;
+    white-space: nowrap;
+  }
+
+  /* =====================================================================
+   * RIGHT SIDE WRAPPER: nav + subscribe
+   * ===================================================================== */
+  .vig-mast__right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  /* =====================================================================
+   * PRIMARY NAV
+   * ===================================================================== */
   .vig-mast__nav {
     flex: 0 1 auto;
     min-width: 0;
   }
+
   .vig-mast__nav-list {
     display: flex;
     flex-wrap: nowrap;
-    align-items: baseline;
+    align-items: center;
     margin: 0;
     padding: 0;
     list-style: none;
+    gap: 0;
   }
+
   .vig-mast__nav-item {
     display: inline-flex;
-    align-items: baseline;
+    align-items: center;
     min-width: 0;
+    position: relative;
   }
-  /* Vignelli pipe separators between nav labels.
-   *
-   * Rendered as `::after` pseudo-content on each item except the last.
-   * The pipe is a real glyph in the same Manrope family + line-height as
-   * the label, so x-height alignment is automatic - no manual translateY
-   * or background hairline. We mark the pipe aria-hidden via the standard
-   * `::after`-on-decorative rule: screen readers ignore generated content
-   * by default, so no extra ARIA wiring is needed.
-   *
-   * Color uses --ink-faint (semantic slot for faint ink chrome). Tokens
-   * currently resolve --ink-faint to pure black under the Vignelli canon,
-   * so we additionally drop opacity to 0.32 to give the pipe visible
-   * restraint against the SemiBold labels. If a future token revision
-   * gives --ink-faint a true tinted value, the opacity still composes
-   * cleanly and the pipe gets even quieter without code change.
-   *
-   * Spacing: the pipe sits ~7px from each neighboring label
-   * (margin-left + margin-right on the pseudo). Tighter than the previous
-   * 18px nav-list gap; reads as `LABEL | LABEL`, not `LABEL  |  LABEL`.
+
+  /*
+   * Vignelli pipe separators — same ::before technique as the old flat nav.
+   * Color is --ink-faint at 0.32 opacity for visual restraint.
    */
   .vig-mast__nav-item + .vig-mast__nav-item::before {
     content: "|";
@@ -188,18 +428,17 @@ const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
     line-height: 1.2;
     color: var(--ink-faint);
     opacity: 0.32;
-    /* Decorative: ensure no underline ever inherits from a focused parent. */
     text-decoration: none;
-    /* Sit on the same baseline as the labels. */
     vertical-align: baseline;
+    pointer-events: none;
   }
+
+  /* Nav link — shared by anchor links and the Topics button */
   .vig-mast__nav-link {
     font-family: var(--font-sans);
     font-weight: 600;
     font-size: 11px;
     line-height: 1.2;
-    /* Slightly tightened from 0.14em so the seven-label row clears 1240px
-     * comfortably with the wordmark on the same line. */
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--ink);
@@ -208,6 +447,15 @@ const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
     border-bottom: 1px solid transparent;
     transition: border-color 80ms linear;
     white-space: nowrap;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    cursor: pointer;
+    padding-inline: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
   .vig-mast__nav-link:hover {
     border-bottom-color: var(--ink);
@@ -218,27 +466,196 @@ const firstSegment = pathname.split("/").filter(Boolean)[0] ?? "";
   .vig-mast__nav-link:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 3px;
+    border-radius: 2px;
   }
 
+  /* Dropdown caret — rotates on open, accent color only */
+  .vig-mast__caret {
+    font-size: 7px;
+    transition: transform 80ms linear, color 80ms linear;
+    display: inline-block;
+    /* Use a slightly lighter weight so the caret reads as a decoration,
+     * not a second character in the label. */
+    opacity: 0.6;
+    vertical-align: middle;
+  }
+
+  /* When expanded, rotate caret and accent it */
+  [aria-expanded="true"] .vig-mast__caret {
+    transform: rotate(180deg);
+    color: var(--accent);
+    opacity: 1;
+  }
+
+  /* =====================================================================
+   * DROPDOWN PANEL
+   * ===================================================================== */
+  .vig-mast__dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 200;
+    background: var(--paper);
+    border: 1px solid var(--ink);
+    padding: 12px;
+    min-width: 140px;
+    list-style: none;
+    margin: 0;
+    /* Prevent animation jank when hidden attribute is removed */
+    animation: dropdown-appear 80ms linear forwards;
+  }
+
+  /*
+   * Invisible hover bridge — fills the 6px visual gap between the trigger
+   * and the panel so the cursor stays "inside" the dropdown's hit area
+   * while transiting from trigger to menu items. Without this, mouseleave
+   * fires on the parent <li> when the cursor crosses the empty gap and the
+   * panel closes before the cursor reaches it.
+   */
+  .vig-mast__dropdown::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -8px;
+    height: 8px;
+    background: transparent;
+  }
+
+  /* [hidden] overrides display from the list default */
+  .vig-mast__dropdown[hidden] {
+    display: none;
+  }
+
+  @keyframes dropdown-appear {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .vig-mast__dropdown-item {
+    display: block;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink);
+    text-decoration: none;
+    padding: 7px 4px;
+    border-bottom: 1px solid transparent;
+    transition: border-color 80ms linear;
+    white-space: nowrap;
+  }
+  .vig-mast__dropdown-item:hover,
+  .vig-mast__dropdown-item:focus {
+    border-bottom-color: var(--ink);
+    outline: none;
+  }
+  .vig-mast__dropdown-item:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 1px;
+  }
+  .vig-mast__dropdown-item.is-active {
+    border-bottom-color: var(--ink);
+  }
+
+  /* =====================================================================
+   * SUBSCRIBE CTA
+   * ===================================================================== */
+  .vig-mast__subscribe {
+    display: inline-block;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--paper);
+    background: var(--ink);
+    text-decoration: none;
+    padding: 10px 18px;
+    border: 1px solid var(--ink);
+    transition: background 80ms linear, color 80ms linear;
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+  .vig-mast__subscribe:hover {
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .vig-mast__subscribe:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 1px;
+  }
+
+  /* =====================================================================
+   * HAIRLINE RULE
+   * ===================================================================== */
   .vig-mast__rule {
     border: 0;
     border-top: 1px solid var(--ink);
     margin: 0;
   }
 
-  /* Mobile: stack the wordmark above the nav and allow the nav to wrap.
-   * The pipe separators remain between adjacent items on the same line;
-   * a wrapped row drops the pipe at the wrap point (because `::before`
-   * is per item, not per visual neighbor). That's acceptable Vignelli
-   * fallback; tighter chrome is a desktop concern. */
+  /* =====================================================================
+   * MOBILE (<= 720px)
+   * Wordmark + sub-line on its own row; nav wraps below; subscribe stays
+   * visible. No hamburger. Dropdown expands inline (position: static).
+   * ===================================================================== */
   @media (max-width: 720px) {
     .vig-mast__row {
       flex-wrap: wrap;
-      gap: 12px 20px;
+      gap: 10px 16px;
     }
+
+    /* Mark takes full row */
+    .vig-mast__mark-link {
+      flex: 1 0 100%;
+    }
+
+    /* Right side wraps to its own row, fills width */
+    .vig-mast__right {
+      flex: 1 0 100%;
+      flex-wrap: wrap;
+      gap: 8px 0;
+      align-items: flex-start;
+    }
+
+    /* Nav fills available space */
+    .vig-mast__nav {
+      flex: 1 0 auto;
+    }
+
     .vig-mast__nav-list {
       flex-wrap: wrap;
       row-gap: 4px;
+    }
+
+    /* On mobile the dropdown expands inline — no absolute float */
+    .vig-mast__nav-item--dropdown {
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .vig-mast__dropdown {
+      position: static;
+      border: none;
+      border-left: 1px solid var(--ink);
+      padding: 4px 0 4px 12px;
+      min-width: 0;
+      width: 100%;
+      flex: 1 0 100%;
+      margin-top: 4px;
+      animation: none;
+    }
+
+    /* Subscribe stays visible, trailing the nav row */
+    .vig-mast__subscribe {
+      flex: 0 0 auto;
+      align-self: center;
     }
   }
 </style>

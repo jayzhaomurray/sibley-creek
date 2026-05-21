@@ -1,0 +1,44 @@
+---
+/*
+ * AUDIT-FLAGGED 2026-05-11 - see design/chart-editorial-audit-2026-05-11.md
+ * Improved version: ./Panel1HeadlineGDPV2.astro
+ * Live in production until user reviews comparison page and picks one.
+ * Decision pending.
+ */
+/*
+ * Panel1HeadlineGDP - headline real GDP, single-series time series.
+ *
+ * Data flow: consumes the pipeline shape from
+ * data/site/panel_data/gdp.json -> panels["panel-1"], where primary is
+ * the monthly GDP level series (StatCan 36-10-0434-01) and secondary is
+ * the quarterly GDP level series (StatCan 36-10-0104-01). The original
+ * editorial argument was m/m % bars + Q/Q SAAR line; that derivation is
+ * not yet emitted by the pipeline, so until processed series land we
+ * render the levels honestly via PanelLiveChart.
+ *
+ * Synthetic-data fallback has been removed. The only fallback is
+ * PanelEmpty (DATA NOT YET WIRED) when the page does not pass `data`.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+---
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    primaryLabel="Monthly GDP"
+    secondaryLabel="Quarterly GDP"
+    dataPanelAttr="gdp-1"
+    ariaLabel="Headline real GDP, monthly and quarterly levels."
+  />
+) : (
+  <PanelEmpty reason="Pipeline did not emit panel-1 data." />
+)}

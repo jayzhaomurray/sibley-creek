@@ -14,8 +14,7 @@
  */
 
 import { enrichedBySlug, PLACEHOLDER } from "../../data/site_data_loader";
-import { splashHero } from "../../data/sections";
-import { withBase } from "../../lib/urls";
+import { splashHero, site } from "../../data/sections";
 
 interface Props {
   dateLine: string;
@@ -57,15 +56,7 @@ const stamp: StampCell[] = stampSources.map((row) => {
 });
 ---
 <section class="vig-title" aria-labelledby="vig-title-h">
-  <p class="vig-title__eyebrow">
-    <span class="vig-title__eyebrow-tok">Independent</span>
-    <span class="vig-title__eyebrow-dot" aria-hidden="true"></span>
-    <span class="vig-title__eyebrow-tok vig-title__eyebrow-tok--accent">Proudly Canadian</span>
-    <span class="vig-title__eyebrow-dot" aria-hidden="true"></span>
-    <a class="vig-title__eyebrow-tok vig-title__eyebrow-link" href={withBase("/about/")}>By Jay Zhao-Murray</a>
-  </p>
   <h1 id="vig-title-h" class="vig-title__h">Where is Canada's economy right now?</h1>
-  <p class="vig-title__dateline">{dateLine}</p>
   <p class="vig-title__abs">
     {splashHero.abstract}
   </p>
@@ -102,10 +93,6 @@ const stamp: StampCell[] = stampSources.map((row) => {
   }
   .vig-title__eyebrow {
     margin: 0 0 14px;
-    display: inline-flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0 10px;
     font-family: var(--font-sans);
     font-weight: 600;
     font-size: 10px;
@@ -113,46 +100,18 @@ const stamp: StampCell[] = stampSources.map((row) => {
     letter-spacing: 0.22em;
     text-transform: uppercase;
     color: var(--ink);
-  }
-  .vig-title__eyebrow-tok {
-    display: inline-block;
-  }
-  .vig-title__eyebrow-tok--accent {
-    color: var(--accent);
-  }
-  /* Byline link token. Matches the masthead's .vig-mast__mark-link hover
-   * vocabulary: plain ink default, 1px ink underline on hover, accent
-   * focus ring on focus-visible. The third token is a credential channel,
-   * not a data signal — red stays on "Canadian macro" (token 2). */
-  .vig-title__eyebrow-link {
-    color: var(--ink);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    transition: border-color 80ms linear;
-  }
-  .vig-title__eyebrow-link:hover {
-    border-bottom-color: var(--ink);
-  }
-  .vig-title__eyebrow-link:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 3px;
-  }
-  .vig-title__eyebrow-dot {
-    display: inline-block;
-    width: 4px;
-    height: 4px;
-    background: var(--ink);
+    opacity: 0.7;
   }
 
   .vig-title__h {
     margin: 0;
     font-family: var(--font-sans);
-    font-weight: 800;
-    /* Matched to .section-header__h on the topic pages so the splash H1
-     * and the section-page H1s read as one typographic family. */
+    /* SemiBold (600) — aligned with the section-page H1 and the
+     * boutique-register H1 so the typographic register holds across
+     * all surfaces of the site. */
+    font-weight: 600;
     font-size: clamp(28px, 4vw, 44px);
     line-height: 1.05;
-    letter-spacing: -0.018em;
     color: var(--ink);
     max-width: 22ch;
     text-transform: none;
@@ -173,7 +132,7 @@ const stamp: StampCell[] = stampSources.map((row) => {
     margin: 16px 0 0;
     font-family: var(--font-sans);
     font-weight: 200;
-    font-size: 15px;
+    font-size: 17px;
     line-height: 1.55;
     color: var(--ink);
     max-width: 64ch;

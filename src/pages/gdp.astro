@@ -1,212 +1,30 @@
 ---
 /*
- * GDP - Vignelli chartbook page.
+ * /gdp/ - SEO continuity redirect to /output/.
  *
- * Six plates per chart-diagnosis 2026-05-12 rework + editorial-director
- * chart-order recommendation. The editorial arc is cyclical-first,
- * surface-to-under-the-hood industry, then output gap, then closes on
- * the per-capita deep-dive exit.
- *
- *   01 Headline real GDP - small-multiples m/m + Y/Y vs potential growth
- *   02 Contributions to quarterly growth - 4-bucket streamlined
- *      (final domestic demand, trade net, inventories, total overlay)
- *   03 Services vs goods Y/Y - surface industry split
- *   04 Manufacturing vs mining and oil, indexed to Jan 2023 - the
- *      under-the-hood split, 38-month divergence; the
- *      regional shadow is ON/QC vs AB/SK
- *   05 BoC MPR output gap - cyclical synthesis, slack
- *      (methodology discussion pending; future Sibley nowcast extension
- *      to land here)
- *   06 Total vs per-capita real GDP, indexed to Q4 2019 - closes on the
- *      deepest structural arc; deep-dive exit ramp to
- *      /research/per-capita-output
- *
- * Cut from this page in the 2026-05-12 rework:
- *   - Growth-rate cross-check (was 03 pre-rework): redundant once 01
- *     carries m/m + Y/Y with proper geometry.
- *   - Productivity (was 06 pre-rework): structural story, not cyclical;
- *     idea parked in editorial/chart-diagnosis/ideas.md.
+ * The section was renamed gdp -> output 2026-05-20. Old links from earlier
+ * publication and search-engine indexing point at /gdp/; this page emits a
+ * meta-refresh redirect plus a canonical pointing to /output/ so referrers
+ * get the new URL and the search engine consolidates link equity onto the
+ * new path.
  */
-
-import SectionLayout from "../layouts/SectionLayout.astro";
-import type { Plate } from "../layouts/SectionLayout.astro";
-import { sections } from "../data/sections";
-import panelDataFile from "../../data/site/panel_data/gdp.json";
-import sectionsJson from "../../data/site/sections.json";
-import { pickPanel } from "../components/charts/_shared/panelData";
-import { deriveLatestReleaseLabel } from "../components/section/_shared/derivedLabels";
-
-const section = sections.find((s) => s.slug === "gdp");
-if (!section) {
-  throw new Error("GDP section not found in src/data/sections.ts");
-}
-
-const latestReleaseLabel = deriveLatestReleaseLabel(
-  section.latestReleasePrefix ?? "",
-  sectionsJson,
-  "gdp",
-);
-
-const panel1Data = pickPanel(panelDataFile, 1);
-const panel2Data = pickPanel(panelDataFile, 2);
-const panel3Data = pickPanel(panelDataFile, 3);
-const panel4Data = pickPanel(panelDataFile, 4);
-const panel5Data = pickPanel(panelDataFile, 5);
-const panel6Data = pickPanel(panelDataFile, 6);
-
-const plates: Plate[] = [
-  {
-    id: "plate-1",
-    number: "01",
-    indicator: "Headline real GDP, m/m and Y/Y",
-    plateIndexLabel: "Headline GDP",
-    asOf: "Feb 2026 (released Apr 30, 2026)",
-    title: "Headline growth is running near 1%, just below potential.",
-    interpretationHtml:
-      "Monthly real GDP edged up 0.2% in February, leaving the year-over-year pace at 1.0%. " +
-      "That sits roughly two-tenths of a point under the Bank of Canada's 1.2% estimate of near-term potential growth &mdash; close to trend, not at it. " +
-      "Growth is positive; it is not fast.",
-    callout: {
-      value: "+0.2%",
-      unitPrefix: "month-over-month",
-      delta: "Y/Y +1.0%",
-      direction: "pos",
-    },
-    source: "Statistics Canada Table 36-10-0434-01 (monthly real GDP by industry); potential growth reference from BoC Monetary Policy Report, April 2026, Appendix (2026 estimate 1.2%).",
-    chartKey: "gdp-panel-1",
-    data: panel1Data,
-    citations: [
-      { phrase: "0.2% in February", source: "pipeline:statcan:36-10-0434-01" },
-      { phrase: "1.0%", source: "pipeline:statcan:36-10-0434-01" },
-      { phrase: "two-tenths of a point", source: "derived", note: "1.2% - 1.0% = 0.2pp" },
-      { phrase: "1.2% estimate of near-term potential growth", source: "card:boc_mpr_potential_growth" },
-    ],
-  },
-  {
-    id: "plate-2",
-    number: "02",
-    indicator: "Contributions to quarterly growth, by bucket",
-    plateIndexLabel: "Contributions",
-    title: "Inventories drag the Q4 headline below the underlying pulse.",
-    interpretationHtml:
-      "Real GDP contracted at a 0.6% annualized pace in Q4 2025, but the underlying composition is more constructive than the headline. " +
-      "Final domestic demand added 2.3 percentage points and net trade another 1.5, while a 4.2-point destocking did the damage. " +
-      "The quarter's weakness is more about how much was produced for the shelf than how much was sold.",
-    callout: {
-      value: "-0.6%",
-      unitPrefix: "q/q SAAR",
-      delta: "Inventories -4.2pp",
-      direction: "neg",
-    },
-    source: "Statistics Canada Table 36-10-0104-01 (quarterly expenditure-side contributions to growth).",
-    chartKey: "gdp-panel-3",
-    data: panel3Data,
-    citations: [
-      { phrase: "0.6% annualized pace in Q4 2025", source: "pipeline:statcan:36-10-0104-01" },
-      { phrase: "2.3 percentage points", source: "pipeline:statcan:36-10-0104-01", note: "Final domestic demand contribution to Q4 2025 GDP growth (Q/Q SAAR)." },
-      { phrase: "another 1.5", source: "pipeline:statcan:36-10-0104-01", note: "Net trade contribution to Q4 2025 GDP growth (Q/Q SAAR), pp." },
-      { phrase: "4.2-point destocking", source: "pipeline:statcan:36-10-0104-01", note: "Inventory contribution to Q4 2025 GDP growth (Q/Q SAAR), pp." },
-    ],
-  },
-  {
-    id: "plate-3",
-    number: "03",
-    indicator: "Real GDP by industry, services vs goods Y/Y + manufacturing vs mining and oil indexed to Jan 2023",
-    plateIndexLabel: "Industry composite",
-    asOf: "Feb 2026",
-    title: "Resources have outrun factories by 18 percentage points since January 2023.",
-    interpretationHtml:
-      "Mining and oil-and-gas output is up roughly 12% since January 2023; manufacturing is down about 6% &mdash; an 18-point split inside the goods economy. " +
-      "Services, which employ most Canadians, are running at about 1% year-over-year. " +
-      "The divergence maps cleanly onto Canada's regional economic geography: resource provinces pulling one direction, central-Canada factory floors pulling the other.",
-    callout: {
-      value: "+12%",
-      unitPrefix: "mining + oil, since Jan 2023",
-      delta: "Manufacturing -6%",
-      direction: "neutral",
-    },
-    source: "Statistics Canada Table 36-10-0434-01 (monthly real GDP by industry).",
-    chartKey: "gdp-panel-2",
-    data: panel2Data,
-    citations: [
-      { phrase: "January 2023", source: "derived", note: "Chart anchor date for the right-panel index. Both mining/oil and manufacturing monthly series carry a 2023-01-01 observation in StatCan 36-10-0434-01. Appears in both title and blurb." },
-      { phrase: "18 percentage points", source: "derived", note: "12.16% - (-6.12%) = 18.28pp, rounded to 18 points. Inputs: mining and oil and manufacturing cumulative changes since January 2023 from StatCan 36-10-0434-01." },
-      { phrase: "roughly 12%", source: "pipeline:statcan:36-10-0434-01", note: "Mining and oil-and-gas extraction, cumulative real GDP change Jan 2023 to Feb 2026: (0.121981 / 0.108753 - 1) * 100 = +12.16%." },
-      { phrase: "down about 6%", source: "pipeline:statcan:36-10-0434-01", note: "Manufacturing real GDP, cumulative change Jan 2023 to Feb 2026: (0.199199 / 0.212183 - 1) * 100 = -6.12%." },
-      { phrase: "18-point split", source: "derived", note: "Same calculation as 18 percentage points citation: 12.16pp - (-6.12pp) = 18.28pp." },
-      { phrase: "1% year-over-year", source: "pipeline:statcan:36-10-0434-01", note: "Services real GDP Y/Y at Feb 2026: (1.758647 / 1.740295 - 1) * 100 = 1.05%, rounded to ~1%." },
-    ],
-  },
-  {
-    id: "plate-4",
-    number: "04",
-    indicator: "BoC MPR output gap",
-    plateIndexLabel: "Output gap",
-    asOf: "2025Q4; April 2026 MPR vintage",
-    title: "The output gap reopened to 1% in Q4 — a hold story, not a hike one.",
-    interpretationHtml:
-      "The Bank of Canada's output gap estimate widened to -1.0% in Q4 from -0.5% in Q3, the deepest reading since early 2021. " +
-      "The shortfall is demand-side: not enough spending to absorb the economy's productive capacity. " +
-      "A gap this size keeps the easing bias intact and takes a near-term hike off the conversation.",
-    callout: {
-      value: "-1.0%",
-      unitPrefix: "% of potential",
-      delta: "-0.5pp vs prior quarter",
-      direction: "neg",
-    },
-    source:
-      "Bank of Canada Monetary Policy Report, April 2026 (Valet INDINF_OUTGAPMPR_Q).",
-    chartKey: "gdp-panel-5",
-    data: panel5Data,
-    citations: [
-      { phrase: "-1.0% in Q4", source: "pipeline:boc:INDINF_OUTGAPMPR_Q", note: "BoC MPR output gap, Q4 2025." },
-      { phrase: "-0.5% in Q3", source: "pipeline:boc:INDINF_OUTGAPMPR_Q", note: "BoC MPR output gap, Q3 2025." },
-      { phrase: "deepest reading since early 2021", source: "pipeline:boc:INDINF_OUTGAPMPR_Q", note: "Enumerated Q1 2021 onward: only Q1 2021 (-1.7) and Q2 2021 (-2.0) were deeper than Q4 2025." },
-    ],
-  },
-  {
-    id: "plate-5",
-    number: "05",
-    indicator: "Total vs per-capita real GDP, indexed to pre-pandemic baseline (Q4 2019)",
-    plateIndexLabel: "Per capita",
-    title: "Total output is up about 11% since the pre-pandemic peak — per-capita output is barely above it.",
-    interpretationHtml:
-      "Total real GDP has grown about 11% since Q4 2019; on a per-person basis, output has risen less than 1%. " +
-      "The 10-point wedge is the population story &mdash; Canada has added nearly 3.8 million people in that span, enough to absorb almost all the headline growth without lifting living standards.",
-    callout: {
-      value: "+1%",
-      unitPrefix: "per-capita real GDP, since Q4 2019",
-      delta: "Total +11%",
-      direction: "neg",
-    },
-    source:
-      "Statistics Canada Tables 36-10-0104-01 and 17-10-0009-01; per-capita and indexation by Sibley Creek.",
-    chartKey: "gdp-panel-4",
-    data: panel4Data,
-    citations: [
-      { phrase: "Q4 2019", source: "derived", note: "Chart baseline date = 2019Q4 (2019-10-01 in StatCan quarterly notation). Both GDP and population series carry this observation per StatCan 36-10-0104-01 and 17-10-0009-01." },
-      { phrase: "about 11%", source: "derived", note: "Total real GDP cumulative since 2019Q4: 2,502,165 / 2,255,354 - 1 = +10.94%. Inputs: StatCan 36-10-0104-01, 2025Q4 latest vintage. Appears in both title and blurb." },
-      { phrase: "less than 1%", source: "derived", note: "Per-capita real GDP = total / population. 2019Q4: 2,255,354e6 / 37,828,162 = 59,621 CAD/person. 2025Q4: 2,502,165e6 / 41,575,585 = 60,184 CAD/person. Change: +0.94%. Inputs: StatCan 36-10-0104-01 (GDP) and 17-10-0009-01 (population)." },
-      { phrase: "10-point wedge", source: "derived", note: "10.94% (total) - 0.94% (per-capita) = 10.0pp. Inputs: StatCan 36-10-0104-01 and 17-10-0009-01." },
-      { phrase: "3.8 million people", source: "pipeline:statcan:17-10-0009-01", note: "Population Q4 2019 = 37,828,162; Q4 2025 = 41,575,585; difference = 3,747,423 ≈ 3.8 million." },
-    ],
-  },
-];
-
-const pageTitle = "Output";
-const pageDescription =
-  "Monthly and quarterly real GDP, contributions to growth, industry splits, output gap, per-capita output.";
-
-const lede = section.blurb?.body ?? "";
+import { withBase } from "../lib/urls";
+const target = withBase("/output/");
 ---
-<SectionLayout
-  slug="gdp"
-  sectionIndex={1}
-  sectionLabel="Output"
-  headlineQuestion={section.headlineQuestion}
-  lede={lede}
-  latestReleaseLabel={latestReleaseLabel}
-  plates={plates}
-  title={pageTitle}
-  description={pageDescription}
-/>
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecting to /output/ — Sibley Creek</title>
+    <meta name="robots" content="noindex" />
+    <link rel="canonical" href={target} />
+    <meta http-equiv="refresh" content={`0; url=${target}`} />
+    <style>
+      body { font-family: system-ui, sans-serif; padding: 2rem; color: #000; }
+      a { color: #D7263D; }
+    </style>
+  </head>
+  <body>
+    <p>This page has moved. Redirecting to <a href={target}>/output/</a>.</p>
+  </body>
+</html>

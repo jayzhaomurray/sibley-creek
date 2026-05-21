@@ -1,0 +1,35 @@
+---
+/*
+ * Panel6RecessionState - business cycle state proxy.
+ *
+ * Editorial argument is a C.D. Howe Business Cycle Council
+ * categorical state strip; that source is not in the pipeline. The
+ * pipeline emits business-sector productivity per hour (level and y/y),
+ * which we render as the closest available real series; the page
+ * interpretation copy carries the BCC state separately.
+ *
+ * Synthetic-data fallback removed.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+---
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    primaryLabel="Prod. Y/Y"
+    secondaryLabel="Prod. level"
+    dataPanelAttr="gdp-6"
+    ariaLabel="Business-sector productivity per hour: year-over-year and level."
+  />
+) : (
+  <PanelEmpty reason="BCC recession-state strip not yet emitted." />
+)}

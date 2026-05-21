@@ -1,0 +1,56 @@
+---
+/*
+ * Alt4_GdpVsCapacity - real GDP Y/Y vs total capacity utilization.
+ *
+ * What's different. Production Panel 5 renders capacity util as a single
+ * line. This alternative overlays GDP Y/Y (primary) and capacity util
+ * (secondary, dashed) so the lead-lag between cycle slack and cap-util
+ * tightening reads in one view.
+ *
+ * Why it might be better. Capacity util alone tells you the level; paired
+ * with GDP Y/Y it tells you the trajectory and the linkage. The two-series
+ * overlay is the canonical cycle-pressure read.
+ *
+ * Data. data/raw/gdp_quarterly.csv + capacity_util_total.csv.
+ */
+
+import { readCsv } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+import AltLineChart from "../_shared/AltLineChart.astro";
+
+const gdp = readCsv("gdp_quarterly.csv");
+const gdpYoy4 = (() => {
+  // Quarterly Y/Y: lag 4 quarters
+  const out = [];
+  for (let i = 0; i < gdp.length; i++) {
+    const here = gdp[i]!;
+    const prev = gdp[i - 4];
+    if (!prev || prev.value === null || here.value === null || prev.value === 0) {
+      out.push({ date: here.date, value: null });
+    } else {
+      out.push({ date: here.date, value: ((here.value - prev.value) / prev.value) * 100 });
+    }
+  }
+  return out;
+})();
+const cap = readCsv("capacity_util_total.csv");
+
+// 60-quarter window (~15y)
+const N = 60;
+const primary = gdpYoy4.slice(-N);
+const secondary = cap.slice(-N);
+---
+
+<div class="alt-chart" data-panel="alt-gdp-4">
+  <AltLineChart
+    primary={primary}
+    secondary={secondary}
+    primaryLabel="GDP Y/Y"
+    secondaryLabel="Cap. util."
+    unitSuffix="%"
+    yDecimals={1}
+    ariaLabel="Quarterly real GDP year-over-year (primary) and total capacity utilization rate (secondary, dashed)."
+  />
+</div>
+
+<AltChartStyle />

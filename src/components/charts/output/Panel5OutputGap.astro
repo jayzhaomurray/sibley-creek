@@ -1,0 +1,37 @@
+---
+/*
+ * Panel5OutputGap - BoC MPR output gap, single series.
+ *
+ * Primary: `output_gap_mpr` (BoC MPR output gap, % of potential, quarterly).
+ * Reference rule at 0% marks the potential-output line.
+ *
+ * Single-series rebuild (2026-05-11): the prior version overlaid total
+ * capacity utilization as a secondary, but the cap-util series sits at
+ * 78-82% and anchored the shared y-axis there, visually flattening the
+ * output gap line whose actual range is roughly -2% to +2%. Dropping
+ * cap-util lets the gap fill the canvas and the cycle variation read.
+ * Cap-util may be reintroduced as its own plate later.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+---
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    primaryLabel="Output gap"
+    referenceValue={0}
+    referenceLabel="Potential"
+    dataPanelAttr="gdp-5"
+    ariaLabel="BoC MPR output gap, percent of potential output, quarterly."
+  />
+) : (
+  <PanelEmpty reason="Output-gap series not yet emitted." />
+)}

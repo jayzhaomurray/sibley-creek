@@ -1,0 +1,40 @@
+---
+/*
+ * Panel2IndustryVsExpenditure - industry vs expenditure cross-check.
+ *
+ * Pipeline currently emits the monthly and quarterly GDP level series.
+ * The editorial argument requires both cuts indexed to 2019Q4=100; that
+ * indexing is not yet emitted, so we render the two level series
+ * honestly until the processed indexed series lands.
+ *
+ * Wave 5 fold (EDR brief Section 3): industry-overlay toggle
+ * (goods / services / manufacturing / mining-oil), adopting the
+ * boc-tracker pattern. Each industry line shares units with the
+ * primary aggregate (indexed level). Deferred until the centralized
+ * toggle pattern lands.
+ *
+ * Synthetic-data fallback removed.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+---
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    primaryLabel="By industry"
+    secondaryLabel="By expenditure"
+    dataPanelAttr="gdp-2"
+    ariaLabel="Industry vs expenditure GDP cuts."
+  />
+) : (
+  <PanelEmpty reason="Pipeline did not emit panel-2 data." />
+)}

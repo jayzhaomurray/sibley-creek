@@ -1,0 +1,197 @@
+---
+/*
+ * Alt2_PerCapitaVsTotal - side-by-side small multiples comparing total
+ * real GDP path vs per-capita real GDP path (computed as total / population
+ * proxy using net migration trajectory).
+ *
+ * What's different. Production Panel 4 renders per-capita alone as a line.
+ * This alternative juxtaposes total vs per-capita indexed to 100 at 2019
+ * pre-COVID so the divergence is visible at a glance: total has recovered
+ * past 2019, per-capita has not.
+ *
+ * Why it might be better. The "population-padded GDP" critique is the
+ * single most important macro story of the 2020s; a side-by-side small
+ * multiple makes it impossible to miss.
+ *
+ * Data. Reads gdp_quarterly.csv and uses pop_immigrants + pop_net_npr
+ * cumulative inflows from data/raw/.
+ */
+
+import { readCsv, decYear, tail, indexAt, VB, pickStride, fmtTick, yearTicksFromX } from "../_shared/altUtils";
+import AltChartStyle from "../_shared/AltChartStyle.astro";
+
+const gdp = readCsv("gdp_quarterly.csv");
+const imm = readCsv("pop_immigrants.csv");
+const npr = readCsv("pop_net_npr.csv");
+
+// Population proxy: cumulative immigration + net NPR additions since 2010Q1,
+// added to an arbitrary base population of 33,000,000 (2010). This is a
+// rough trajectory good enough for the indexed comparison; the editorial
+// argument is the SHAPE of the divergence, not the level.
+let pop = 33_000_000;
+const popMap = new Map<string, number>();
+const allDates = Array.from(new Set([...imm.map((p) => p.date), ...npr.map((p) => p.date)])).sort();
+const immMap = new Map(imm.map((p) => [p.date, p.value]));
+const nprMap = new Map(npr.map((p) => [p.date, p.value]));
+for (const d of allDates) {
+  const i = immMap.get(d);
+  const n = nprMap.get(d);
+  pop += (typeof i === "number" ? i : 0) + (typeof n === "number" ? n : 0);
+  popMap.set(d, pop);
+}
+
+// Quarterly GDP -> per-capita: divide by interpolated quarterly population.
+// We anchor to mid-quarter end-month for the matching pop value.
+function quarterPop(date: string): number | null {
+  const [yy, mm] = date.split("-").map(Number);
+  const month = Math.min(12, (mm ?? 1));
+  const key = `${yy}-${String(month).padStart(2, "0")}-01`;
+  let best: number | null = null;
+  // Find nearest popMap date on or before key
+  for (const [d, v] of popMap) {
+    if (d <= key) best = v;
+    else break;
+  }
+  return best;
+}
+
+const totalSeries = gdp.map((p) => ({ date: p.date, value: p.value }));
+const perCapitaSeries = gdp.map((p) => {
+  const pp = quarterPop(p.date);
+  if (typeof p.value !== "number" || pp === null || pp <= 0) return { date: p.date, value: null };
+  return { date: p.date, value: p.value / pp };
+});
+
+// Index both to Q4-2019 = 100 (pre-COVID anchor)
+const totalIdx = indexAt(totalSeries, "2019-10-01");
+const pcIdx = indexAt(perCapitaSeries, "2019-10-01");
+
+// Keep last 40 quarters
+const N = 40;
+const totalTail = tail(totalIdx, N);
+const pcTail = tail(pcIdx, N);
+
+// Layout: two side-by-side small multiples within 720x405.
+const PANEL_W = 320;
+const GAP = 32;
+const M_L = 56;
+const M_T = 44;
+const M_B = 40;
+const panel_h = VB.H - M_T - M_B;
+const panel_x0_left = M_L;
+const panel_x0_right = panel_x0_left + PANEL_W + GAP;
+
+function paddedDomain(s: Array<{ value: number | null }>): [number, number] {
+  let lo = Infinity, hi = -Infinity;
+  for (const p of s) if (typeof p.value === "number") { if (p.value < lo) lo = p.value; if (p.value > hi) hi = p.value; }
+  if (!Number.isFinite(lo)) return [0, 100];
+  const pad = (hi - lo) * 0.10 || 1;
+  return [lo - pad, hi + pad];
+}
+const [loA, hiA] = paddedDomain(totalTail);
+const [loB, hiB] = paddedDomain(pcTail);
+// Shared y-domain for visual comparability
+const yLo = Math.min(loA, loB);
+const yHi = Math.max(hiA, hiB);
+const yRange = yHi - yLo || 1;
+
+const xs = totalTail.map((p) => decYear(p.date)).filter((v) => !Number.isNaN(v));
+const xMin = xs[0] ?? 0;
+const xMax = xs[xs.length - 1] ?? 1;
+
+function makeScales(x0: number, w: number) {
+  const xScale = (yr: number) => x0 + ((yr - xMin) / (xMax - xMin || 1)) * w;
+  const yScale = (v: number) => M_T + panel_h - ((v - yLo) / yRange) * panel_h;
+  return { xScale, yScale };
+}
+function buildPath(series: Array<{ date: string; value: number | null }>, xScale: (yr: number) => number, yScale: (v: number) => number): string {
+  let d = "", started = false;
+  for (const p of series) {
+    if (typeof p.value !== "number") continue;
+    const x = xScale(decYear(p.date));
+    const y = yScale(p.value);
+    d += `${started ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)} `;
+    started = true;
+  }
+  return d.trim();
+}
+
+const yStride = pickStride(yLo, yHi);
+const yTicks: number[] = [];
+const start = Math.ceil(yLo / yStride) * yStride;
+for (let v = start; v <= yHi + 1e-9; v += yStride) yTicks.push(Number(v.toFixed(3)));
+
+const A = makeScales(panel_x0_left, PANEL_W);
+const B = makeScales(panel_x0_right, PANEL_W);
+const pathA = buildPath(totalTail, A.xScale, A.yScale);
+const pathB = buildPath(pcTail, B.xScale, B.yScale);
+
+const lastA = [...totalTail].reverse().find((p) => typeof p.value === "number");
+const lastB = [...pcTail].reverse().find((p) => typeof p.value === "number");
+const xTicksA = yearTicksFromX(xMin, xMax, A.xScale);
+const xTicksB = yearTicksFromX(xMin, xMax, B.xScale);
+---
+
+<div class="alt-chart" data-panel="alt-gdp-2">
+  <svg
+    class="alt-chart__svg"
+    viewBox={`0 0 ${VB.W} ${VB.H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label="Total real GDP vs per-capita real GDP, both indexed to 2019Q4 = 100, side-by-side."
+  >
+    {/* LEFT panel: total GDP */}
+    <g>
+      {yTicks.map((v) => {
+        const yy = A.yScale(v);
+        return <line class="alt-chart__gridline" x1={panel_x0_left} y1={yy.toFixed(2)} x2={panel_x0_left + PANEL_W} y2={yy.toFixed(2)} />;
+      })}
+      <line class="alt-chart__reference-rule" x1={panel_x0_left} y1={A.yScale(100).toFixed(2)} x2={panel_x0_left + PANEL_W} y2={A.yScale(100).toFixed(2)} />
+      <path class="alt-chart__line" d={pathA} fill="none" />
+      {lastA && (
+        <circle class="alt-chart__latest-dot" cx={A.xScale(decYear(lastA.date)).toFixed(2)} cy={A.yScale(lastA.value as number).toFixed(2)} r="4">
+          <title>{`Total real GDP (idx) ${lastA.date}: ${(lastA.value as number).toFixed(1)}`}</title>
+        </circle>
+      )}
+      <rect class="alt-chart__frame" x={panel_x0_left} y={M_T} width={PANEL_W} height={panel_h} />
+      <text class="alt-chart__small-multiple-title" x={panel_x0_left} y={M_T - 14}>TOTAL REAL GDP</text>
+      {xTicksA.map((t) => (
+        <g>
+          <line class="alt-chart__xtick" x1={t.x.toFixed(2)} y1={(M_T + panel_h).toFixed(2)} x2={t.x.toFixed(2)} y2={(M_T + panel_h + 4).toFixed(2)} />
+          <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(M_T + panel_h + 18).toFixed(2)} text-anchor="middle">{t.label}</text>
+        </g>
+      ))}
+      {yTicks.map((v, i) => {
+        const yy = A.yScale(v);
+        const isTop = i === yTicks.length - 1;
+        const txt = isTop ? `${fmtTick(v, 0)} idx` : fmtTick(v, 0);
+        return <text class="alt-chart__ytick-label" x={(panel_x0_left - 8).toFixed(2)} y={(yy + 4).toFixed(2)} text-anchor="end">{txt}</text>;
+      })}
+    </g>
+
+    {/* RIGHT panel: per-capita */}
+    <g>
+      {yTicks.map((v) => {
+        const yy = B.yScale(v);
+        return <line class="alt-chart__gridline" x1={panel_x0_right} y1={yy.toFixed(2)} x2={panel_x0_right + PANEL_W} y2={yy.toFixed(2)} />;
+      })}
+      <line class="alt-chart__reference-rule" x1={panel_x0_right} y1={B.yScale(100).toFixed(2)} x2={panel_x0_right + PANEL_W} y2={B.yScale(100).toFixed(2)} />
+      <path class="alt-chart__line" d={pathB} fill="none" />
+      {lastB && (
+        <circle class="alt-chart__latest-dot" cx={B.xScale(decYear(lastB.date)).toFixed(2)} cy={B.yScale(lastB.value as number).toFixed(2)} r="4">
+          <title>{`Per-capita real GDP (idx) ${lastB.date}: ${(lastB.value as number).toFixed(1)}`}</title>
+        </circle>
+      )}
+      <rect class="alt-chart__frame" x={panel_x0_right} y={M_T} width={PANEL_W} height={panel_h} />
+      <text class="alt-chart__small-multiple-title" x={panel_x0_right} y={M_T - 14}>PER-CAPITA REAL GDP</text>
+      {xTicksB.map((t) => (
+        <g>
+          <line class="alt-chart__xtick" x1={t.x.toFixed(2)} y1={(M_T + panel_h).toFixed(2)} x2={t.x.toFixed(2)} y2={(M_T + panel_h + 4).toFixed(2)} />
+          <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(M_T + panel_h + 18).toFixed(2)} text-anchor="middle">{t.label}</text>
+        </g>
+      ))}
+    </g>
+  </svg>
+</div>
+
+<AltChartStyle />

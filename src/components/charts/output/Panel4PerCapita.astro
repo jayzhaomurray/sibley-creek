@@ -1,0 +1,39 @@
+---
+/*
+ * AUDIT-FLAGGED 2026-05-11 - see design/chart-editorial-audit-2026-05-11.md
+ * Improved version: ./Panel4PerCapitaV2.astro
+ * Live in production until user reviews comparison page and picks one.
+ * Decision pending.
+ */
+/*
+ * Panel4PerCapita - per-capita real GDP.
+ *
+ * Pipeline emits quarterly GDP and population series; the per-capita
+ * y/y derivation is not yet on disk. We render the two raw series; the
+ * editorial argument resolves on the page interpretation copy.
+ *
+ * Synthetic-data fallback removed.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelLiveChart from "../_shared/PanelLiveChart.astro";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+---
+{data && data.primary ? (
+  <PanelLiveChart
+    primary={data.primary}
+    secondary={data.secondary}
+    primaryLabel="Real GDP Y/Y"
+    secondaryLabel="Pop. proxy"
+    dataPanelAttr="gdp-4"
+    ariaLabel="Real GDP quarterly and population proxy."
+  />
+) : (
+  <PanelEmpty reason="Per-capita derivation not yet emitted by pipeline." />
+)}

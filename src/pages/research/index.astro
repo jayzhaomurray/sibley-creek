@@ -1,64 +1,71 @@
 ---
 /*
- * /research/ - Research topic index (blog-format).
+ * /research/ — research index. Two sections:
+ *   1. Data commentary — same-day PDF notes on every major Canadian print.
+ *      Sourced from `commentaries` in src/data/sections.ts.
+ *   2. Deep dives — long-form research pieces. Sourced from `deepDives`.
  *
- * Visual lineage: the homepage `DeepDivePanel.astro` ("Research" card) is the
- * smaller version of this surface. This is the expanded full-page version -
- * same row anatomy (row number, section badge, title, deck, date stamp,
- * 1px hairlines between entries) with more vertical breathing room, larger
- * title typography, and a proper page header band.
+ * DEFERRED: tab navigation (Recent / Commentaries / Deep dives). Plan
+ * lives in memory at project_research_tab_nav_phase3.md. Trigger: 3rd
+ * distinct content series, OR a single archive crossing ~50 items.
+ * Until then, the two-section split below does the same job with less
+ * chrome. Surface the memory note when revisiting research scaling.
  *
- * Discipline (per `design/design-system.md` v1.0 - Vignelli register):
- *   - One sans (Manrope). Weight contrast is hierarchy.
- *   - IBM Plex Mono only on data / dates / row numbers.
- *   - One accent (signal red) only on the page-header kicker numeral.
- *   - 1px pure-black hairlines between entries; no card pillows, no shadows.
- *   - No pillar codes (A/B/E) or status labels in production rendering.
+ * Visual register: boutique (matches /about/, /work-with-us/, /contact/,
+ * /methodology/, /subscribe/). 720px max-width, 32/24/64 padding,
+ * bare "Sibley Creek" eyebrow, 42px Manrope 600 H1, 1px ink header
+ * border-bottom. Section subheads use the 14px uppercase + hairline-
+ * border-bottom pattern.
  *
- * Sort: newest first by `publishedAt` (ISO date string descending). Entries
- * with `publishedAt === "TK"` sort to the bottom (still surfaced; date stamp
- * renders "TK" in Plex Mono micro-caps).
- *
- * Each row links to `/research/<slug>/`.
- *
- * Layout: 2-column row anatomy inside the `--col-wide` 1040px track. The
- * row-number + section badge sit in a left rail; the title + deck stack in
- * the right rail. Collapses to a single column at `< 720px`.
+ * Each row in either list is a single click target. Sorted newest-first
+ * by publishedAt; "TK" / "Coming soon" entries sort to the bottom.
  */
 
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { deepDives, sections, site } from "../../data/sections";
-import type { DeepDive, SectionSlug } from "../../data/sections";
+import {
+  commentaries,
+  deepDives,
+  sections,
+  site,
+  type DataCommentary,
+  type DeepDive,
+  type SectionSlug,
+} from "../../data/sections";
 import { withBase } from "../../lib/urls";
 
-// Resolve a section slug to its display label (e.g. "housing" -> "Housing").
-// Falls back to the slug itself if a deep-dive's section slug ever drifts out
-// of the canon sections array.
+// Section slug -> display label (e.g. "housing" -> "Housing").
 const sectionLabelFor = (slug: SectionSlug): string => {
   const s = sections.find((x) => x.slug === slug);
   return s ? s.label : slug;
 };
 
-// Newest first. "TK" sentinel publishedAt values sort to the bottom so the
-// page reads as a blog: dated pieces above, in-flight pieces below.
-const ordered: DeepDive[] = [...deepDives].sort((a, b) => {
+// Sort newest first. "TK" sentinels sort to bottom.
+const commentariesOrdered: DataCommentary[] = [...commentaries].sort((a, b) =>
+  b.publishedAt.localeCompare(a.publishedAt),
+);
+const deepDivesOrdered: DeepDive[] = [...deepDives].sort((a, b) => {
   const aTk = !a.publishedAt || a.publishedAt === "TK";
   const bTk = !b.publishedAt || b.publishedAt === "TK";
   if (aTk && bTk) return 0;
   if (aTk) return 1;
   if (bTk) return -1;
-  // Both are ISO date strings (YYYY-MM-DD), lexicographic sort = chronological.
   return (b.publishedAt as string).localeCompare(a.publishedAt as string);
 });
 
-// Pretty date for the row stamp. The publishedAt is YYYY-MM-DD; render as
-// "May 11, 2026" (uppercased on render via CSS). "TK" passes through.
-//
-// Hand-rolled formatter: en-CA's toLocaleDateString shifts the date when
-// the build host's timezone is west of UTC (the build server resolves
-// 2026-05-11 UTC as 2026-05-10 local), which moved the Pillar A stamp by a
-// day in the dist HTML. Parsing the YYYY-MM-DD as plain integers avoids
-// the timezone round-trip entirely.
+// Landing-page limits — keep the page scannable as content fills in.
+// Archives at /research/commentaries/ and /research/deep-dives/ carry
+// the full lists; the landing surfaces the most recent of each. With
+// take-excerpts under each commentary row, 3+3 keeps both sections
+// above the fold; archive links carry the overflow.
+const COMMENTARY_LIMIT = 3;
+const DEEPDIVE_LIMIT = 3;
+const commentariesLanding = commentariesOrdered.slice(0, COMMENTARY_LIMIT);
+const deepDivesLanding = deepDivesOrdered.slice(0, DEEPDIVE_LIMIT);
+const commentaryOverflow = commentariesOrdered.length > COMMENTARY_LIMIT;
+const deepDiveOverflow = deepDivesOrdered.length > DEEPDIVE_LIMIT;
+
+// Hand-rolled YYYY-MM-DD -> "May 19, 2026" formatter (avoids timezone shift
+// that breaks date parity between local and CI build hosts).
 const MONTH_SHORT = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -75,388 +82,382 @@ const displayDate = (raw?: string): string => {
 
 const pageTitle = "Research";
 const pageDesc =
-  "Sibley Creek deep dives on the Canadian economy. Long-form research on " +
-  "the mortgage renewal wall, BoC / Fed policy divergence, per-capita " +
-  "output, and the central arguments behind the dashboard. Newest first.";
-
-const ledeText =
-  "Long-form deep dives on the Canadian economy. Each piece takes one " +
-  "argument as far as the data lets it. Newest first.";
+  "Sibley Creek research output: same-day data commentary on every major " +
+  "Canadian print, and long-form deep dives on the structural questions " +
+  "behind the dashboard.";
 ---
 <BaseLayout title={pageTitle} description={pageDesc} pageClass="research-index">
-  <article class="research-index" aria-labelledby="research-h">
-    <header class="research-index__header">
-      <p class="research-index__kicker">
-        <span class="research-index__kicker-tok">{site.name}</span>
-        <span class="research-index__kicker-sep" aria-hidden="true">|</span>
-        <span
-          class="research-index__kicker-tok research-index__kicker-tok--name"
-        >
-          Research
-        </span>
-      </p>
-
-      <div class="research-index__band">
-        <h1 id="research-h" class="research-index__h">Research</h1>
-        <p class="research-index__count">
-          <span class="research-index__count-n">{ordered.length}</span>
-          <span class="research-index__count-label">
-            {ordered.length === 1 ? "piece" : "pieces"}
-          </span>
-        </p>
-      </div>
-
-      <p class="research-index__lede">{ledeText}</p>
-
-      <hr class="research-index__rule" aria-hidden="true" />
+  <article class="static" aria-labelledby="research-h">
+    <header class="static__header">
+      <h1 id="research-h" class="static__h">Research</h1>
     </header>
 
-    <ol class="research-index__list" role="list">
-      {ordered.map((dd, i) => {
-        const isPublished = Boolean(dd.publishedPath);
-        const RowBody = (
-          <>
-            <div class="research-index__row-left" aria-hidden="true">
-              <span class="research-index__row-num">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span class="research-index__row-section">
-                {sectionLabelFor(dd.section)}
-              </span>
-            </div>
-            <div class="research-index__row-body">
-              <h2
-                id={`dd-title-${dd.slug}`}
-                class="research-index__row-title"
-              >
-                {dd.title}
-              </h2>
-              <p class="research-index__row-deck">{dd.deck}</p>
-              <p class="research-index__row-stamp">
-                {isPublished ? (
-                  <>
-                    <span class="research-index__row-stamp-label">Published</span>
-                    <span class="research-index__row-stamp-body">
-                      {displayDate(dd.publishedAt)}
-                    </span>
-                    {dd.draftStatus === "draft" && (
-                      <span class="research-index__row-stamp-chip" aria-label="Draft - human revision pending">
-                        Draft
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <span class="research-index__row-stamp-body research-index__row-stamp-body--tk">
-                    Coming soon
+    <p class="static__lede">
+      Two modes of work: same-day commentary on every major Canadian
+      print, and long-form deep dives on the structural questions
+      underneath. Newest first.
+    </p>
+
+    {/* ── Section 1: Data commentary ── */}
+    <section class="research__section" aria-labelledby="commentary-h">
+      <h2 id="commentary-h" class="research__section-title">
+        Data commentary
+      </h2>
+      <p class="research__section-desc">
+        Same-day notes on every major Canadian print. Distributed as PDFs
+        to subscribers; visible here as they ship.
+      </p>
+
+      {commentariesLanding.length === 0 ? (
+        <p class="research__empty">No commentaries published yet.</p>
+      ) : (
+        <>
+          <ol class="research__list" role="list">
+            {commentariesLanding.map((c) => (
+              <li class="research__row">
+                <a
+                  class="research__row-link research__row-link--pdf"
+                  href={withBase(c.pdfPath)}
+                >
+                  <div class="research__row-meta">
+                    <span class="research__row-date">{displayDate(c.publishedAt)}</span>
+                    <span class="research__row-badge">{sectionLabelFor(c.section)}</span>
+                  </div>
+                  <div class="research__row-body">
+                    <h3 class="research__row-title">{c.title}</h3>
+                    <p class="research__row-excerpt">{c.excerpt}</p>
+                  </div>
+                  <span class="research__row-pdf-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 4 v12" />
+                      <path d="M6 12 l6 6 6-6" />
+                      <path d="M5 20 h14" />
+                    </svg>
                   </span>
-                )}
-              </p>
-            </div>
-          </>
-        );
-        return (
-          <li class:list={["research-index__row", { "research-index__row--unpublished": !isPublished }]}>
-            {isPublished ? (
-              <a
-                class="research-index__row-link"
-                href={withBase(`/research/${dd.slug}/`)}
-                aria-labelledby={`dd-title-${dd.slug}`}
-              >
-                {RowBody}
+                </a>
+              </li>
+            ))}
+          </ol>
+          {commentaryOverflow && (
+            <p class="research__see-all">
+              <a class="research__see-all-link" href={withBase("/research/commentaries/")}>
+                See all {commentariesOrdered.length} commentaries →
               </a>
-            ) : (
-              <div class="research-index__row-link research-index__row-link--unpublished">
-                {RowBody}
-              </div>
-            )}
-          </li>
-        );
-      })}
-    </ol>
+            </p>
+          )}
+        </>
+      )}
+    </section>
+
+    {/* ── Section 2: Deep dives ── */}
+    <section class="research__section" aria-labelledby="deepdives-h">
+      <h2 id="deepdives-h" class="research__section-title">
+        Deep dives
+      </h2>
+      <p class="research__section-desc">
+        Multi-week investigations on the structural pieces of the
+        Canadian economy.
+      </p>
+
+      {deepDivesLanding.length === 0 ? (
+        <p class="research__empty">No deep dives published yet.</p>
+      ) : (
+        <>
+          <ol class="research__list" role="list">
+            {deepDivesLanding.map((dd) => {
+              const isPublished = Boolean(dd.publishedPath);
+              const href = isPublished ? withBase(`/research/${dd.slug}/`) : null;
+              const inner = (
+                <>
+                  <div class="research__row-meta">
+                    <span class:list={["research__row-date", { "research__row-date--tk": !dd.publishedAt || dd.publishedAt === "TK" }]}>
+                      {dd.publishedAt && dd.publishedAt !== "TK"
+                        ? displayDate(dd.publishedAt)
+                        : "Coming soon"}
+                    </span>
+                    <span class="research__row-badge">{sectionLabelFor(dd.section)}</span>
+                    {dd.draftStatus === "draft" && isPublished && (
+                      <span class="research__row-chip">Draft</span>
+                    )}
+                  </div>
+                  <div class="research__row-body">
+                    <h3 class="research__row-title">{dd.title}</h3>
+                    <p class="research__row-deck">{dd.deck}</p>
+                  </div>
+                </>
+              );
+              return (
+                <li class:list={["research__row", { "research__row--unpublished": !isPublished }]}>
+                  {href ? (
+                    <a class="research__row-link" href={href}>{inner}</a>
+                  ) : (
+                    <div class="research__row-link research__row-link--static">{inner}</div>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+          {deepDiveOverflow && (
+            <p class="research__see-all">
+              <a class="research__see-all-link" href={withBase("/research/deep-dives/")}>
+                See all {deepDivesOrdered.length} deep dives →
+              </a>
+            </p>
+          )}
+        </>
+      )}
+    </section>
   </article>
 
   <style>
-    /* ============================================================
-     * /research/ index page - Vignelli register, blog-format list.
-     * ============================================================ */
-
-    .research-index {
+    /* ─────────── boutique-register container (matches /about/, etc.) ─────────── */
+    .static {
       width: 100%;
-      max-width: var(--col-wide);
+      max-width: 720px;
       margin: 0 auto;
-      padding-top: 28px;
-      padding-bottom: var(--s-9);
+      padding: 32px 24px 64px;
     }
-
-    /* ---- Header band ---- */
-    .research-index__header {
-      padding-block: 0 0;
+    .static__header {
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 24px;
+      margin-bottom: 32px;
     }
-    .research-index__kicker {
-      margin: 0 0 18px;
-      display: inline-flex;
-      align-items: baseline;
-      flex-wrap: wrap;
-      gap: 0 10px;
+    .static__kicker {
+      margin: 0 0 12px;
       font-family: var(--font-sans);
       font-weight: 600;
-      font-size: 10px;
+      font-size: 13px;
       line-height: 1;
-      letter-spacing: 0.22em;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
       color: var(--ink);
+      opacity: 0.7;
     }
-    .research-index__kicker-tok {
-      display: inline-block;
-    }
-    .research-index__kicker-tok--name {
-      font-weight: 800;
-    }
-    .research-index__kicker-sep {
-      color: var(--ink);
-      opacity: 0.32;
-      font-weight: 400;
-    }
-
-    .research-index__band {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 28px;
-      flex-wrap: wrap;
-      border-top: 1px solid var(--ink);
-      padding-top: 18px;
-    }
-    .research-index__h {
+    .static__h {
       margin: 0;
-      font-family: var(--font-sans);
-      font-weight: 800;
-      font-size: clamp(40px, 6vw, 56px);
-      line-height: 1.05;
-      letter-spacing: -0.018em;
-      color: var(--ink);
-    }
-    .research-index__count {
-      margin: 0;
-      display: inline-flex;
-      align-items: baseline;
-      gap: 6px;
-      flex-shrink: 0;
-      font-family: var(--font-sans);
-      color: var(--ink);
-    }
-    .research-index__count-n {
-      font-family: var(--font-mono);
-      font-weight: 400;
-      font-size: 14px;
-      letter-spacing: 0;
-      font-variant-numeric: tabular-nums;
-    }
-    .research-index__count-label {
       font-family: var(--font-sans);
       font-weight: 600;
-      font-size: 10px;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
+      font-size: 42px;
+      line-height: 1.1;
+      color: var(--ink);
     }
-
-    .research-index__lede {
-      margin: 18px 0 0;
+    .static__lede {
+      margin: 0 0 48px;
       font-family: var(--font-sans);
-      font-weight: 200;
-      font-size: 19px;
+      font-weight: 400;
+      font-size: 18px;
       line-height: 1.55;
       color: var(--ink);
-      max-width: 64ch;
     }
 
-    .research-index__rule {
-      border: 0;
-      border-top: 2px solid var(--ink);
-      margin: 28px 0 0;
+    /* ─────────── Sections ─────────── */
+    .research__section {
+      margin-bottom: 44px;
+    }
+    .research__section:last-child {
+      margin-bottom: 0;
+    }
+    .research__section-title {
+      margin: 0 0 12px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 14px;
+      line-height: 1;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink);
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--ink);
+    }
+    .research__section-desc {
+      margin: 0 0 24px;
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--ink);
+      opacity: 0.6;
+      max-width: 56ch;
+    }
+    .research__empty {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 14px;
+      line-height: 1.4;
+      color: var(--ink);
+      opacity: 0.55;
     }
 
-    /* ---- List ---- */
-    .research-index__list {
+    /* ─────────── List + rows ─────────── */
+    .research__list {
       margin: 0;
       padding: 0;
       list-style: none;
-      display: flex;
-      flex-direction: column;
+      border-top: 1px solid rgba(0,0,0,0.12);
     }
-    .research-index__row {
+    .research__row {
       margin: 0;
       padding: 0;
-      border-bottom: 1px solid var(--ink);
-    }
-    .research-index__row:last-child {
-      border-bottom: 1px solid var(--ink);
+      border-bottom: 1px solid rgba(0,0,0,0.12);
     }
 
-    /*
-     * Whole-row anchor.
-     *
-     * Made the row a single click target (link) rather than just the title.
-     * The Vignelli rule: a click target lives on a typographic atom; here the
-     * atom is the full row. We use a grid inside the anchor so the visual
-     * row structure (number+section on the left, title+deck+date on the
-     * right) is preserved.
-     *
-     * Hover: subtle ink inversion of the title underline. The row-number
-     * underline does not transition - it stays as a Knoll-catalogue "entry
-     * code" stamp regardless of hover.
-     */
-    .research-index__row-link {
+    .research__row-link {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 0 28px;
-      padding: 32px 0 36px;
+      gap: 8px 24px;
+      padding: 20px 0 22px;
       text-decoration: none;
       color: var(--ink);
-      transition: background-color 80ms linear;
     }
-    @media (min-width: 720px) {
-      .research-index__row-link {
-        grid-template-columns: 144px 1fr;
+    @media (min-width: 560px) {
+      .research__row-link {
+        grid-template-columns: 132px 1fr;
+        gap: 0 24px;
+        padding: 18px 0 20px;
+        align-items: baseline;
+      }
+      /* PDF rows reserve a column on the right for the download icon. */
+      .research__row-link--pdf {
+        grid-template-columns: 132px 1fr auto;
       }
     }
-    .research-index__row-link:hover {
-      background-color: transparent;
-    }
-    .research-index__row-link:hover .research-index__row-title {
-      border-bottom-color: var(--accent);
+    a.research__row-link:hover .research__row-title {
       color: var(--accent);
+      border-bottom-color: var(--accent);
     }
-    .research-index__row-link:focus-visible {
+    a.research__row-link:focus-visible {
       outline: 2px solid var(--accent);
-      outline-offset: 3px;
+      outline-offset: 2px;
+    }
+    .research__row-link--static {
+      cursor: default;
+    }
+    .research__row--unpublished {
+      opacity: 0.55;
     }
 
-    /* Left rail - row number + section badge. */
-    .research-index__row-left {
+    /* Left meta rail */
+    .research__row-meta {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      padding-top: 4px;
+      gap: 4px;
+      align-items: flex-start;
     }
-    .research-index__row-num {
+    .research__row-date {
       font-family: var(--font-mono);
       font-weight: 400;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 1;
+      letter-spacing: 0.04em;
       color: var(--ink);
       font-variant-numeric: tabular-nums;
-      border-bottom: 1px solid var(--ink);
-      padding-bottom: 2px;
-      align-self: flex-start;
     }
-    .research-index__row-section {
+    .research__row-date--tk {
+      color: #8A8A8A;
+    }
+    .research__row-badge {
       font-family: var(--font-sans);
       font-weight: 600;
-      font-size: 10px;
-      line-height: 1.1;
-      letter-spacing: 0.22em;
+      font-size: 9.5px;
+      line-height: 1;
+      letter-spacing: 0.20em;
       text-transform: uppercase;
       color: var(--ink);
+      opacity: 0.55;
+    }
+    .research__row-chip {
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 9.5px;
+      line-height: 1;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
     }
 
-    /* Right rail - title, deck, date stamp. */
-    .research-index__row-body {
+    /* Right body */
+    .research__row-body {
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 0;
+      gap: 8px;
     }
-    .research-index__row-title {
+    .research__row-title {
       margin: 0;
       font-family: var(--font-sans);
-      font-weight: 800;
-      font-size: clamp(24px, 3vw, 28px);
-      line-height: 1.20;
-      letter-spacing: -0.012em;
+      font-weight: 600;
+      font-size: 17px;
+      line-height: 1.3;
       color: var(--ink);
-      max-width: 28ch;
-      /* Title is the click affordance - hover transitions its underline to
-       * accent. Border-bottom not text-decoration so we control offset
-       * precisely. */
       border-bottom: 1px solid transparent;
-      padding-bottom: 2px;
+      padding-bottom: 1px;
       align-self: flex-start;
-      transition:
-        border-color 80ms linear,
-        color 80ms linear;
+      transition: color 80ms linear, border-color 80ms linear;
     }
-    .research-index__row-deck {
-      margin: 14px 0 0;
+    .research__row-deck {
+      margin: 0;
       font-family: var(--font-sans);
-      font-weight: 200;
-      font-size: 19px;
-      line-height: 1.45;
-      color: var(--ink);
-      max-width: 56ch;
-    }
-    .research-index__row-stamp {
-      margin: 20px 0 0;
-      display: inline-flex;
-      align-items: baseline;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .research-index__row-stamp-label {
-      font-family: var(--font-sans);
-      font-weight: 600;
-      font-size: 10px;
-      line-height: 1;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: var(--ink);
-    }
-    .research-index__row-stamp-body {
-      font-family: var(--font-mono);
       font-weight: 400;
-      font-size: 11px;
-      line-height: 1;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
+      font-size: 14px;
+      line-height: 1.5;
       color: var(--ink);
-      font-variant-numeric: tabular-nums;
-    }
-    /* "TK" stamp gets the same hard-coded placeholder mid-gray used in
-     * SectionPanel.astro / DeepDivePanel.astro. Per design-system.md sec 3
-     * "Decisions flagged": all --ink-* tokens resolve to pure black, so
-     * placeholder ink is hand-coded at the call site. */
-    .research-index__row-stamp-body--tk {
-      color: #8A8A8A;
-    }
-    /* Draft chip - scannable inline marker on the same stamp row as the
-     * publication date. Micro-caps Manrope SemiBold to match the date
-     * label register, MTA red to flag the caveat. No pillow / border; the
-     * canon does not use chips with chrome. */
-    .research-index__row-stamp-chip {
-      font-family: var(--font-sans);
-      font-weight: 600;
-      font-size: 10px;
-      line-height: 1;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: var(--accent);
+      opacity: 0.70;
+      max-width: 60ch;
     }
 
-    /* ---- Mobile adjustments ---- */
-    @media (max-width: 720px) {
-      .research-index__band {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 14px;
-      }
-      .research-index__row-link {
-        padding: 24px 0 28px;
-      }
-      .research-index__row-left {
-        flex-direction: row;
-        align-items: center;
-        gap: 12px;
-      }
+    /* Excerpt under a commentary row title — the take preview pulled from
+     * the PDF's "THE TAKE" block. Same weight/size as the deep-dive deck
+     * so the two row types feel cousins. */
+    .research__row-excerpt {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--ink);
+      opacity: 0.70;
+      max-width: 60ch;
+    }
+
+    /* PDF download icon on the right of a commentary row. Ink-faint by
+     * default, accent on hover (the same hover that lights the title).
+     * Sits in the third grid column on PDF rows. */
+    .research__row-pdf-icon {
+      display: inline-flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 2px;
+      color: var(--ink);
+      opacity: 0.5;
+      transition: color 80ms linear, opacity 80ms linear;
+    }
+    a.research__row-link--pdf:hover .research__row-pdf-icon {
+      color: var(--accent);
+      opacity: 1;
+    }
+    .research__row-pdf-icon svg {
+      display: block;
+    }
+
+    /* "See all" overflow link sits below a sliced landing list. */
+    .research__see-all {
+      margin: 20px 0 0;
+    }
+    .research__see-all-link {
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 11px;
+      line-height: 1;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color 80ms linear;
+    }
+    .research__see-all-link:hover {
+      border-bottom-color: var(--accent);
     }
   </style>
 </BaseLayout>

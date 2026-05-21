@@ -2,265 +2,226 @@
 /*
  * VignelliColophon - site-wide page footer for the production canon.
  *
- * Adapted from src/components/experiments/academic-vignelli/Colophon.astro,
- * promoted out of the experiments dir. Differences from the splash version:
+ * 2026-05-20: Rebuilt (again) as a multi-column fat footer.
  *
- *   - Reads `site` + `nextRelease` from data/sections.ts (no props for
- *     publication / nextRelease shape; the footer is always-on chrome).
- *   - Drops the "This page is a design experiment..." disclaimer line; this
- *     is the production footer. The placeholder-vintage caveat is still
- *     present as a single short sentence.
- *   - "Produced" stamp uses the current date so the footer always reflects
- *     the build.
+ *   Previous colophon: slim two-line layout (brand mark + secondary nav).
+ *
+ *   New structure: three columns + brand strip.
+ *
+ *     COL 1: TOPICS       COL 2: COMPANY         COL 3: CONNECT
+ *     Overview            About                   Subscribe
+ *     Output              Methodology             Contact
+ *     Inflation           Research
+ *     Labour              Advisory
+ *     Housing
+ *     Policy
+ *     Markets
+ *     Trade
+ *
+ *     ----------------------------------------------------------------
+ *     SIBLEY CREEK . Independent macroeconomic research and advisory . (c) 2026
+ *
+ *   Topics column iterates the sections array so any slug rename flows
+ *   through automatically.
  *
  * Aesthetic discipline:
- *   - Two stacked rules above the row: signal red 2px + pure black 1px.
- *     The single brand-signal moment in the footer.
- *   - One sans family (Manrope) for everything; values that are numeric
- *     (next-release date, produced date) use IBM Plex Mono regular.
- *   - Black hairlines between blocks.
+ *   - Column headers: Manrope SemiBold, 9.5px, 0.22em tracking, uppercase.
+ *   - Item links: Manrope Regular (400), 12px, ink color. Hover -> accent.
+ *   - Top rule: 1px pure black hairline.
+ *   - Bottom brand strip: Manrope 800 for the wordmark; Manrope 300 for desc.
+ *   - 3 columns on desktop (>= 720px), stacked single-column on mobile.
  */
 
-import { site } from "../../data/sections";
+import { site, sections } from "../../data/sections";
 import { withBase } from "../../lib/urls";
+
+const currentYear = new Date().getFullYear();
 ---
 <footer class="vig-col" role="contentinfo">
+
+  {/* Top hairline rule */}
   <div class="vig-col__rules" aria-hidden="true">
     <hr class="vig-col__rule vig-col__rule--ink" />
   </div>
 
-  <div class="vig-col__row">
-    <p class="vig-col__mark">
-      <span class="vig-col__mark-name">{site.name}</span>
-      <span class="vig-col__sep" aria-hidden="true"></span>
-      <span class="vig-col__sub">Independent research.</span>
-    </p>
-    <p class="vig-col__notes">
-      Reported values match the most recently published release vintage;
-      revisions are not reconciled across releases.
-    </p>
+  {/* Three-column sitemap grid */}
+  <div class="vig-col__grid">
+
+    {/* Column 1: Topics */}
+    <nav class="vig-col__col" aria-label="Topics">
+      <p class="vig-col__col-header">Topics</p>
+      <ul class="vig-col__col-list">
+        <li>
+          <a class="vig-col__col-link" href={withBase("/overview/")}>Overview</a>
+        </li>
+        {sections.map((section) => (
+          <li>
+            <a class="vig-col__col-link" href={withBase(`/${section.slug}/`)}>
+              {section.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+
+    {/* Column 2: Company */}
+    <nav class="vig-col__col" aria-label="Company">
+      <p class="vig-col__col-header">Company</p>
+      <ul class="vig-col__col-list">
+        <li>
+          <a class="vig-col__col-link" href={withBase("/about/")}>About</a>
+        </li>
+        <li>
+          <a class="vig-col__col-link" href={withBase("/methodology/")}>Methodology</a>
+        </li>
+        <li>
+          <a class="vig-col__col-link" href={withBase("/research/")}>Research</a>
+        </li>
+        <li>
+          <a class="vig-col__col-link" href={withBase("/work-with-us/")}>Advisory</a>
+        </li>
+      </ul>
+    </nav>
+
+    {/* Column 3: Connect */}
+    <nav class="vig-col__col" aria-label="Connect">
+      <p class="vig-col__col-header">Connect</p>
+      <ul class="vig-col__col-list">
+        <li>
+          <a class="vig-col__col-link" href={withBase("/subscribe/")}>Subscribe</a>
+        </li>
+        <li>
+          <a class="vig-col__col-link" href={withBase("/contact/")}>Contact</a>
+        </li>
+      </ul>
+    </nav>
+
   </div>
 
-  <div class="vig-col__sources">
-    <p class="vig-col__sources-label">Sources</p>
-    <p class="vig-col__sources-body">
-      Statistics Canada;
-      Bank of Canada;
-      Canadian Real Estate Association;
-      Department of Finance Canada;
-      Canadian Bankers Association;
-      Alberta Economic Dashboard;
-      C.D. Howe Institute Business Cycle Council;
-      Federal Reserve Economic Data (FRED);
-      Yahoo Finance.
+  {/* Brand strip: hairline + one line */}
+  <div class="vig-col__brand-strip">
+    <hr class="vig-col__brand-rule" aria-hidden="true" />
+    <p class="vig-col__brand-line">
+      <span class="vig-col__brand-name">{site.name}</span>
+      <span class="vig-col__brand-sep" aria-hidden="true">|</span>
+      <span class="vig-col__brand-desc">Independent macroeconomic research and advisory</span>
+      <span class="vig-col__brand-sep" aria-hidden="true">|</span>
+      <span class="vig-col__brand-copy">&copy;&nbsp;{currentYear}</span>
     </p>
   </div>
-
-  {/*
-   * Secondary nav: institutional pages.
-   *
-   * About + Methodology live in the footer, not the masthead. The masthead
-   * is reserved for the seven sections + Research. This block uses the
-   * micro-caps + hairline-separator vocabulary already established by the
-   * sources label above so it slots cleanly into the colophon's register.
-   */}
-  <nav class="vig-col__secondary" aria-label="Institutional pages">
-    <p class="vig-col__secondary-label">Publication</p>
-    <ul class="vig-col__secondary-list">
-      <li class="vig-col__secondary-item">
-        <a class="vig-col__secondary-link" href={withBase("/about/")}>About</a>
-      </li>
-      <li class="vig-col__secondary-item">
-        <a class="vig-col__secondary-link" href={withBase("/methodology/")}>
-          Methodology
-        </a>
-      </li>
-    </ul>
-  </nav>
 
 </footer>
 
 <style>
   .vig-col {
-    padding-block: 22px 32px;
+    padding-block: 32px 28px;
   }
+
+  /* Top rule */
   .vig-col__rules {
-    margin: 0 0 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
+    margin: 0 0 28px;
   }
   .vig-col__rule {
     border: 0;
     margin: 0;
   }
-  .vig-col__rule--signal {
-    border-top: 2px solid var(--accent);
-  }
   .vig-col__rule--ink {
     border-top: 1px solid var(--ink);
   }
-  .vig-col__row {
+
+  /* ── Three-column grid ── */
+  .vig-col__grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 28px 40px;
+    margin-bottom: 32px;
   }
   @media (min-width: 720px) {
-    .vig-col__row {
-      grid-template-columns: 1fr 2fr;
-      gap: 32px;
+    .vig-col__grid {
+      /* Topics column wider (more items); Company + Connect equal narrow */
+      grid-template-columns: 2fr 1fr 1fr;
     }
-  }
-  .vig-col__mark {
-    margin: 0;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 10px;
-    font-family: var(--font-sans);
-    font-size: 13px;
-    line-height: 1.3;
-    color: var(--ink);
-  }
-  .vig-col__mark-name {
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    font-size: 12px;
-  }
-  .vig-col__sep {
-    display: inline-block;
-    width: 1px;
-    height: 11px;
-    background: var(--ink);
-  }
-  .vig-col__sub {
-    color: var(--ink);
-    font-weight: 200;
-    font-size: 13px;
-  }
-  .vig-col__notes {
-    margin: 0;
-    font-family: var(--font-sans);
-    font-weight: 200;
-    font-size: 12px;
-    line-height: 1.55;
-    color: var(--ink);
-    max-width: 76ch;
   }
 
-  /* Sources block — consolidates all data source attributions for the
-   * splash + section pages into one footer location. Spelled out in
-   * full (no abbreviations) per editorial decision. */
-  .vig-col__sources {
-    margin: 16px 0 0;
-    padding-top: 12px;
-    border-top: 1px solid var(--ink);
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-  @media (min-width: 720px) {
-    .vig-col__sources {
-      grid-template-columns: max-content 1fr;
-      gap: 18px;
-      align-items: baseline;
-    }
-  }
-  .vig-col__sources-label {
-    margin: 0;
+  /* ── Column anatomy ── */
+
+  /* Column header: micro-caps, Manrope SemiBold */
+  .vig-col__col-header {
+    margin: 0 0 12px;
     font-family: var(--font-sans);
     font-weight: 600;
     font-size: 9.5px;
     line-height: 1;
-    letter-spacing: 0.2em;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
     color: var(--ink);
-  }
-  .vig-col__sources-body {
-    margin: 0;
-    font-family: var(--font-sans);
-    font-weight: 400;
-    font-size: 12px;
-    line-height: 1.55;
-    color: var(--ink);
-    max-width: 80ch;
   }
 
-  /* Secondary nav: About / Methodology. Mirrors the Sources block layout
-   * (label column + body column on desktop, stacked on mobile) and the
-   * sources block's hairline-separator entry into the colophon. */
-  .vig-col__secondary {
-    margin: 16px 0 0;
-    padding-top: 12px;
-    border-top: 1px solid var(--ink);
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-  @media (min-width: 720px) {
-    .vig-col__secondary {
-      grid-template-columns: max-content 1fr;
-      gap: 18px;
-      align-items: baseline;
-    }
-  }
-  .vig-col__secondary-label {
-    margin: 0;
-    font-family: var(--font-sans);
-    font-weight: 600;
-    font-size: 9.5px;
-    line-height: 1;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--ink);
-  }
-  .vig-col__secondary-list {
+  .vig-col__col-list {
     margin: 0;
     padding: 0;
     list-style: none;
-    display: inline-flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
-  .vig-col__secondary-item {
-    display: inline-flex;
-    align-items: center;
-  }
-  /* Hairline separator between items: vertical 1px black rule, matching
-   * the wordmark separator vocabulary above. The first item carries no
-   * leading rule. */
-  .vig-col__secondary-item + .vig-col__secondary-item::before {
-    content: "";
-    display: inline-block;
-    width: 1px;
-    height: 10px;
-    background: var(--ink);
-    margin: 0 14px;
-  }
-  .vig-col__secondary-link {
+
+  .vig-col__col-link {
     font-family: var(--font-sans);
-    font-weight: 600;
-    font-size: 10px;
-    line-height: 1;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 1.3;
     color: var(--ink);
     text-decoration: none;
     border-bottom: 1px solid transparent;
-    padding-bottom: 2px;
+    padding-bottom: 1px;
     transition:
       color 80ms linear,
       border-color 80ms linear;
   }
-  .vig-col__secondary-link:hover {
+  .vig-col__col-link:hover {
     color: var(--accent);
     border-bottom-color: var(--accent);
   }
-  .vig-col__secondary-link:focus-visible {
+  .vig-col__col-link:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 3px;
   }
 
+  /* ── Brand strip ── */
+  .vig-col__brand-rule {
+    border: 0;
+    border-top: 1px solid var(--ink);
+    margin: 0 0 14px;
+  }
+  .vig-col__brand-line {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--ink);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    /* Breathing room around the vertical-bar separators */
+    gap: 0 14px;
+  }
+  .vig-col__brand-name {
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 10px;
+  }
+  .vig-col__brand-sep {
+    font-weight: 300;
+    opacity: 0.32;
+    color: var(--ink-faint);
+  }
+  .vig-col__brand-desc {
+    font-weight: 300;
+  }
+  .vig-col__brand-copy {
+    font-weight: 300;
+    opacity: 0.7;
+  }
 </style>

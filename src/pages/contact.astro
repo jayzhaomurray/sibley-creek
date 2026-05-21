@@ -1,0 +1,234 @@
+---
+/*
+ * /contact — general contact page with a form.
+ *
+ * 2026-05-20: scaffolded to replace the mailto link in the footer Contact slot.
+ *
+ * Form mechanics:
+ *   The form action is currently a placeholder (`#`). To make it functional,
+ *   wire it to a static-site form service. Easiest options:
+ *     - Formspree: action="https://formspree.io/f/<id>", method="POST".
+ *     - Web3Forms: action="https://api.web3forms.com/submit", method="POST",
+ *       plus a hidden access_key field.
+ *     - Custom serverless endpoint on Cloudflare Workers / Vercel / similar.
+ *   Once chosen, swap the action attribute + remove the placeholder comment.
+ */
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { site } from "../data/sections";
+
+const pageDesc =
+  "Get in touch with Sibley Creek about media inquiries, research questions, " +
+  "subscriptions, or advisory engagements.";
+---
+<BaseLayout
+  title={`Contact — ${site.name}`}
+  description={pageDesc}
+  pageClass="contact-page"
+  showMastheadRail={true}
+>
+  <article class="contact">
+    <header class="contact__header">
+      <h1 class="contact__title">Get in touch.</h1>
+    </header>
+
+    <section class="contact__intro">
+      <p>
+        Questions about our research, media inquiries, subscriptions, or advisory engagements — drop us a note below. We respond within two business days.
+      </p>
+    </section>
+
+    <section class="contact__form-section">
+      <form class="contact__form" action="#" method="POST" novalidate>
+        <div class="contact__field">
+          <label class="contact__label" for="contact-name">Name</label>
+          <input
+            class="contact__input"
+            type="text"
+            id="contact-name"
+            name="name"
+            autocomplete="name"
+            required
+          />
+        </div>
+
+        <div class="contact__field">
+          <label class="contact__label" for="contact-email">Email</label>
+          <input
+            class="contact__input"
+            type="email"
+            id="contact-email"
+            name="email"
+            autocomplete="email"
+            required
+          />
+        </div>
+
+        <div class="contact__field">
+          <label class="contact__label" for="contact-org">
+            Organization <span class="contact__label-aside">(optional)</span>
+          </label>
+          <input
+            class="contact__input"
+            type="text"
+            id="contact-org"
+            name="organization"
+            autocomplete="organization"
+          />
+        </div>
+
+        <div class="contact__field">
+          <label class="contact__label" for="contact-message">Message</label>
+          <textarea
+            class="contact__input contact__input--textarea"
+            id="contact-message"
+            name="message"
+            rows="6"
+            required
+          ></textarea>
+        </div>
+
+        <button class="contact__submit" type="submit">Send →</button>
+      </form>
+
+      <p class="contact__note">
+        Prefer email? Reach Jay Zhao-Murray directly at
+        <a href="mailto:jay@sibleycreek.ca">jay@sibleycreek.ca</a>.
+      </p>
+    </section>
+  </article>
+
+  <style>
+    .contact {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+
+    .contact__header {
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 24px;
+      margin-bottom: 32px;
+    }
+    .contact__eyebrow {
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin: 0 0 12px;
+      color: var(--ink);
+      opacity: 0.7;
+    }
+    .contact__title {
+      font-family: var(--font-sans);
+      font-size: 42px;
+      font-weight: 600;
+      line-height: 1.1;
+      margin: 0;
+      color: var(--ink);
+    }
+
+    .contact__intro p {
+      font-family: var(--font-sans);
+      font-size: 18px;
+      font-weight: 400;
+      line-height: 1.55;
+      color: var(--ink);
+      margin: 0 0 36px;
+    }
+
+    /* ── Form ── */
+    .contact__form {
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      margin-bottom: 24px;
+    }
+    .contact__field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .contact__label {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .contact__label-aside {
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: none;
+      opacity: 0.55;
+      margin-left: 6px;
+    }
+    .contact__input {
+      font-family: var(--font-sans);
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 1.4;
+      padding: 12px 14px;
+      border: 1px solid var(--ink);
+      background: var(--paper);
+      color: var(--ink);
+      width: 100%;
+    }
+    .contact__input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .contact__input--textarea {
+      resize: vertical;
+      min-height: 140px;
+    }
+
+    .contact__submit {
+      align-self: flex-start;
+      padding: 14px 26px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 12px;
+      line-height: 1;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--paper);
+      background: var(--ink);
+      border: 1px solid var(--ink);
+      cursor: pointer;
+      transition: background 80ms linear, color 80ms linear;
+    }
+    .contact__submit:hover {
+      background: var(--paper);
+      color: var(--ink);
+    }
+    .contact__submit:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .contact__note {
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 1.5;
+      color: var(--ink);
+      opacity: 0.7;
+      margin: 24px 0 0;
+      padding-top: 18px;
+      border-top: 1px solid rgba(0, 0, 0, 0.12);
+    }
+    .contact__note a {
+      color: var(--accent);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color 80ms linear;
+    }
+    .contact__note a:hover {
+      border-bottom-color: var(--accent);
+    }
+  </style>
+</BaseLayout>

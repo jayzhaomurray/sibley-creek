@@ -1,0 +1,869 @@
+---
+/*
+ * Panel3IndustryComposite - 2-panel side-by-side composite.
+ *
+ * LEFT cell  — SERVICES VS GOODS, Y/Y
+ *   Services Y/Y (solid 1.5px primary) + Goods Y/Y (dashed 1px comparator).
+ *   36-month window. Y-axis in %. Zero-line rendered if data crosses zero.
+ *   Source: StatCan 36-10-0434-01 via panel-2.
+ *
+ * RIGHT cell — INDEXED TO DEC 2019
+ *   Mining + oil (solid 1.5px primary) + Manufacturing (dashed 1px comparator).
+ *   84-month window anchored at Dec 2019 = 0 (cumulative % change).
+ *   Baseline rule at y=0 (dashed-2-2) to anchor "no change since Dec 2019".
+ *   Source: StatCan 36-10-0434-01 via panel-6.
+ *
+ * Layout: viewBox 720 × 405 (16:9), 1 row × 2 cols.
+ *   M_L=52, M_R=14, M_T=30, M_B=38, GAP_X=38.
+ *   CELL_W ≈ 308, CELL_H = 337.
+ *
+ * Canon compliance (design/canon_reference_panel.md):
+ *   1. 1.5px pure ink primary line; 1px ink dashed (4-2) comparator.
+ *   2. 4px MTA red latest-print dot on primary only.
+ *   3. 1px pure ink hairline frame per cell.
+ *   4. 2-3 horizontal gridlines per cell, stroke-opacity 0.18.
+ *   5. Per-cell y-axis (Mode B — cells have wildly different scales).
+ *   6. Y-tick labels: IBM Plex Mono 11px. Topmost tick of left cell
+ *      carries "%" suffix; right cell topmost carries no suffix (dimensionless).
+ *   7. X-tick labels: 3-4 year labels shared per cell (Manrope 11px 400).
+ *   8. Direct end-of-line label per series (Manrope 13px; 600 primary,
+ *      400 comparator). Clamped inside viewBox.
+ *   9. Cell header in Manrope 600 micro-caps, top-left of each cell.
+ *  10. No legends. No series color on marks. Direction via glyphs in title only.
+ *  11. aria-label + native SVG <title> per data point (no JS).
+ *
+ * Authoring pattern: all compute in frontmatter; JSX is purely presentational.
+ * Pattern references: Panel5LiabilityCompositionSmallMults, Panel6RegionalSmallMultiples.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import { decYear, tailWindow, pickPanel } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+import gdpPanelData from "../../../../data/site/panel_data/output.json";
+
+interface Props {
+  // The page-level chartRegistry passes a single `data` prop. This component
+  // reads BOTH panel-2 (services vs goods) and panel-6 (manufacturing vs
+  // mining + oil) internally from the gdp panel_data file so the chartRegistry
+  // contract stays uniform. The optional `data` prop is accepted for parity
+  // with the registry signature but is ignored.
+  data?: PanelData | null;
+}
+
+const _ignoredProps = Astro.props as Props;
+void _ignoredProps;
+
+const panelLeft: PanelData | null = pickPanel(gdpPanelData, 2);
+const panelRight: PanelData | null = pickPanel(gdpPanelData, 6);
+
+// ---- Types ------------------------------------------------------------------
+type SP = { date: string; value: number | null };
+
+// ---- Transform helpers ------------------------------------------------------
+
+/** Y/Y from raw level series. Returns nulls for the first 12 points. */
+function pctYoY(series: SP[]): SP[] {
+  const out: SP[] = [];
+  for (let i = 0; i < series.length; i++) {
+    const here = series[i]!;
+    const prev = series[i - 12];
+    if (
+      !prev ||
+      typeof prev.value !== "number" ||
+      typeof here.value !== "number" ||
+      prev.value === 0
+    ) {
+      out.push({ date: here.date, value: null });
+    } else {
+      out.push({ date: here.date, value: (here.value / prev.value - 1) * 100 });
+    }
+  }
+  return out;
+}
+
+/** Index to ANCHOR_DATE = 0 (cumulative % change from anchor).
+ *  All points before the anchor are dropped. */
+function indexedCumPct(series: SP[], anchorDate: string): SP[] {
+  const baseIdx = series.findIndex((p) => p.date === anchorDate);
+  if (baseIdx < 0) return series.map((p) => ({ date: p.date, value: null }));
+  const base = series[baseIdx]?.value;
+  if (typeof base !== "number" || base === 0)
+    return series.map((p) => ({ date: p.date, value: null }));
+  return series.slice(baseIdx).map((p) => {
+    if (typeof p.value !== "number" || Number.isNaN(p.value))
+      return { date: p.date, value: null };
+    return { date: p.date, value: (p.value / base - 1) * 100 };
+  });
+}
+
+const ANCHOR_DATE = "2023-01-01";
+// Left cell: show the Y/Y series from Jan 2023 onward (about 38 months through Feb 2026).
+// WINDOW_LEFT is used as a tail-cap; set generously to ensure the full Jan-2023-onward
+// window is not clipped by the tail function.
+const WINDOW_LEFT  = 48;   // months — tail cap, larger than the actual Jan-2023–Feb-2026 window
+// Right cell: Jan 2023 is the anchor (= 0%). Show all data from the anchor forward.
+const WINDOW_RIGHT = 48;   // months from anchor forward
+
+// ---- LEFT cell data ---------------------------------------------------------
+// primary  = services Y/Y (solid)
+// cmp      = goods Y/Y (dashed)
+
+const rawServicesAll   = panelLeft?.primary?.data   ?? [];
+const rawGoodsAll      = panelLeft?.secondary?.data ?? [];
+
+const svcYoYAll  = pctYoY(rawServicesAll);
+const gdYoYAll   = pctYoY(rawGoodsAll);
+
+// Filter to Jan 2023 onward so the left cell's date range matches the right cell.
+// tailWindow cap (WINDOW_LEFT = 48) ensures we don't overflow if the series extends
+// further than expected.
+const LEFT_DATE_START = "2023-01-01";
+const svcYoY  = tailWindow(
+  svcYoYAll.filter((p) => p.value !== null && p.date >= LEFT_DATE_START),
+  WINDOW_LEFT,
+);
+const gdYoY   = tailWindow(
+  gdYoYAll.filter((p) => p.value !== null && p.date >= LEFT_DATE_START),
+  WINDOW_LEFT,
+);
+
+// Align to same dates: use union of available dates within each's window
+// (both series should have identical monthly cadence post-alignment)
+const leftPrimary  = svcYoY;
+const leftCmp      = gdYoY;
+
+const hasLeft = leftPrimary.length > 0;
+
+// ---- RIGHT cell data --------------------------------------------------------
+// primary  = mining + oil indexed (solid)
+// cmp      = manufacturing indexed (dashed)
+// NOTE: panel-6 primary = manufacturing, secondary = mining/oil.
+// The composite spec puts mining+oil as the PRIMARY (outperformer).
+
+const rawMfgAll      = panelRight?.primary?.data   ?? [];   // manufacturing
+const rawMiningAll   = panelRight?.secondary?.data ?? [];   // mining + oil
+
+const mfgIndexed     = indexedCumPct(rawMfgAll,   ANCHOR_DATE);
+const miningIndexed  = indexedCumPct(rawMiningAll, ANCHOR_DATE);
+
+// RIGHT window: the anchor starts at Dec 2019, so we tail by WINDOW_RIGHT from the end.
+const rightPrimary = tailWindow(miningIndexed.filter((p) => p.value !== null), WINDOW_RIGHT);
+const rightCmp     = tailWindow(mfgIndexed.filter((p) => p.value !== null),    WINDOW_RIGHT);
+
+const hasRight = rightPrimary.length > 0;
+
+const hasData = hasLeft && hasRight;
+
+// ---- Geometry ---------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L  = 52;
+const M_R  = 14;
+const M_T  = 30;
+const M_B  = 38;
+const GAP_X = 38;
+
+const GRID_W = VB_W - M_L - M_R;   // 654
+const GRID_H = VB_H - M_T - M_B;   // 337
+
+const CELL_W = (GRID_W - GAP_X) / 2;   // 308
+const CELL_H = GRID_H;                  // 337
+
+// Label clearance on the right side of each cell for end-of-line text
+const LABEL_CLEARANCE = 60;   // px
+
+// Cell origins
+const LEFT_X0  = M_L;
+const RIGHT_X0 = M_L + CELL_W + GAP_X;
+const CELL_Y0  = M_T;
+const CELL_Y1  = M_T + CELL_H;
+
+// ---- Scale helpers ----------------------------------------------------------
+
+function xDomain(series: SP[]): [number, number] {
+  let lo = Infinity, hi = -Infinity;
+  for (const p of series) {
+    const v = decYear(p.date);
+    if (!Number.isNaN(v)) { if (v < lo) lo = v; if (v > hi) hi = v; }
+  }
+  return Number.isFinite(lo) ? [lo, hi] : [2019, 2026];
+}
+
+function makeXScale(xLo: number, xHi: number, cx0: number, cw: number) {
+  const plotW = cw - LABEL_CLEARANCE;
+  return (xv: number) =>
+    cx0 + ((xv - xLo) / (xHi - xLo || 1)) * plotW;
+}
+
+function yDomain(
+  primary: SP[],
+  cmp: SP[],
+  padFrac = 0.10,
+): [number, number] {
+  let lo = Infinity, hi = -Infinity;
+  for (const p of [...primary, ...cmp]) {
+    if (typeof p.value === "number" && !Number.isNaN(p.value)) {
+      if (p.value < lo) lo = p.value;
+      if (p.value > hi) hi = p.value;
+    }
+  }
+  if (!Number.isFinite(lo)) return [-2, 4];
+  const span = (hi - lo) || 1;
+  return [lo - span * padFrac, hi + span * padFrac];
+}
+
+function makeYScale(yLo: number, yHi: number) {
+  return (v: number) =>
+    CELL_Y0 + CELL_H - ((v - yLo) / (yHi - yLo || 1)) * CELL_H;
+}
+
+function niceStep(lo: number, hi: number, targetTicks = 3): number {
+  const span = hi - lo;
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  const rough = span / targetTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let nice: number;
+  if (norm < 1.5)      nice = 1;
+  else if (norm < 2.5) nice = 2;
+  else if (norm < 4)   nice = 2.5;
+  else if (norm < 7)   nice = 5;
+  else                 nice = 10;
+  return nice * mag;
+}
+
+function buildYTicks(yLo: number, yHi: number): number[] {
+  const step = niceStep(yLo, yHi, 3);
+  const start = Math.ceil(yLo / step) * step;
+  const ticks: number[] = [];
+  for (let v = start; v <= yHi + 1e-9; v += step) {
+    ticks.push(Number(v.toFixed(8)));
+  }
+  if (ticks.length > 4) {
+    const t = ticks;
+    return [t[0]!, t[Math.floor(t.length / 2)]!, t[t.length - 1]!];
+  }
+  return ticks;
+}
+
+function fmtTick(v: number): string {
+  const a = Math.abs(v);
+  if (a === 0) return "0";
+  if (a >= 100) return v.toFixed(0);
+  if (a >= 10)  return v.toFixed(1);
+  if (a >= 1)   return v.toFixed(1);
+  return v.toFixed(2);
+}
+
+function buildXTicks(
+  xLo: number,
+  xHi: number,
+  xScale: (x: number) => number,
+  maxTicks = 4,
+): Array<{ x: number; label: string }> {
+  const yStart = Math.ceil(xLo);
+  const yEnd   = Math.floor(xHi);
+  const span   = yEnd - yStart || 1;
+  const stride = Math.max(1, Math.round(span / (maxTicks - 1)));
+  const out: Array<{ x: number; label: string }> = [];
+  for (let yr = yStart; yr <= yEnd; yr += stride) {
+    const xv = yr + (1 - 0.5) / 12; // mid-January anchor
+    if (xv >= xLo && xv <= xHi) {
+      out.push({ x: xScale(xv), label: String(yr) });
+    }
+  }
+  if (out.length > maxTicks) return [out[0]!, ...out.slice(out.length - (maxTicks - 1))];
+  return out;
+}
+
+function buildPath(series: SP[], xScale: (x: number) => number, yScale: (v: number) => number): string {
+  let d = "", started = false;
+  for (const p of series) {
+    if (typeof p.value !== "number" || Number.isNaN(p.value)) { started = false; continue; }
+    const xv = decYear(p.date);
+    if (Number.isNaN(xv)) continue;
+    d += (started ? "L" : "M") + xScale(xv).toFixed(2) + " " + yScale(p.value).toFixed(2) + " ";
+    started = true;
+  }
+  return d.trim();
+}
+
+function lastReal(series: SP[]): SP | null {
+  for (let i = series.length - 1; i >= 0; i--) {
+    const p = series[i]!;
+    if (typeof p.value === "number" && !Number.isNaN(p.value)) return p;
+  }
+  return null;
+}
+
+// ---- LEFT cell geometry -----------------------------------------------------
+
+const [leftXLo, leftXHi] = xDomain([...leftPrimary, ...leftCmp]);
+const leftXScale = makeXScale(leftXLo, leftXHi, LEFT_X0, CELL_W);
+
+const [leftYLo, leftYHi] = yDomain(leftPrimary, leftCmp);
+const leftYScale = makeYScale(leftYLo, leftYHi);
+
+const leftYTicks  = hasLeft ? buildYTicks(leftYLo, leftYHi) : [];
+const leftXTicks  = hasLeft ? buildXTicks(leftXLo, leftXHi, leftXScale, 4) : [];
+
+const leftPrimPath = hasLeft ? buildPath(leftPrimary, leftXScale, leftYScale) : "";
+const leftCmpPath  = hasLeft ? buildPath(leftCmp,     leftXScale, leftYScale) : "";
+
+const leftLastPrim = hasLeft ? lastReal(leftPrimary) : null;
+const leftLastPrimX = leftLastPrim ? leftXScale(decYear(leftLastPrim.date)) : 0;
+const leftLastPrimY = leftLastPrim ? leftYScale(leftLastPrim.value as number) : 0;
+const leftLastCmp   = hasLeft ? lastReal(leftCmp) : null;
+
+// Zero line for left cell (Y/Y can cross zero)
+const leftCrossesZero =
+  hasLeft &&
+  leftYLo < 0 &&
+  leftYHi > 0;
+const leftZeroY = hasLeft ? leftYScale(0) : 0;
+
+// Note: LABEL_CLEARANCE reserves pixel space on the right of each cell's plot
+// area for end-of-line text. The plot-width contraction is baked into makeXScale.
+
+// ---- RIGHT cell geometry ----------------------------------------------------
+
+const [rightXLo, rightXHi] = xDomain([...rightPrimary, ...rightCmp]);
+const rightXScale = makeXScale(rightXLo, rightXHi, RIGHT_X0, CELL_W);
+
+const [rightYLo, rightYHi] = yDomain(rightPrimary, rightCmp);
+const rightYScale = makeYScale(rightYLo, rightYHi);
+
+const rightYTicks  = hasRight ? buildYTicks(rightYLo, rightYHi) : [];
+const rightXTicks  = hasRight ? buildXTicks(rightXLo, rightXHi, rightXScale, 4) : [];
+
+const rightPrimPath = hasRight ? buildPath(rightPrimary, rightXScale, rightYScale) : "";
+const rightCmpPath  = hasRight ? buildPath(rightCmp,     rightXScale, rightYScale) : "";
+
+const rightLastPrim = hasRight ? lastReal(rightPrimary) : null;
+const rightLastPrimX = rightLastPrim ? rightXScale(decYear(rightLastPrim.date)) : 0;
+const rightLastPrimY = rightLastPrim ? rightYScale(rightLastPrim.value as number) : 0;
+const rightLastCmp   = hasRight ? lastReal(rightCmp) : null;
+
+// Baseline rule at y=0 for indexed chart
+const rightBaselineY = hasRight ? rightYScale(0) : 0;
+const rightBaselineInView = hasRight && rightYLo < 0 + (rightYHi - rightYLo) * 0.02;
+
+// (right cell label zone is symmetric; x origin for right cell is RIGHT_X0)
+
+// ---- End-of-line label positions (clamped inside cell) ----------------------
+// Primary label sits just right of the line terminus, vertically at its y value.
+// Comparator label: positioned at last cmp point, offset vertically if too close to primary.
+const EOL_OFFSET_X = 4;
+const MIN_LABEL_GAP = 14; // px between two labels vertically
+
+function clampedLabelY(rawY: number, topBound: number, bottomBound: number): number {
+  return Math.max(topBound, Math.min(bottomBound, rawY));
+}
+
+// Left cell EOL labels
+const leftPrimLabelX = leftLastPrim ? (leftLastPrimX + EOL_OFFSET_X) : 0;
+const leftPrimLabelY = leftLastPrim
+  ? clampedLabelY(leftLastPrimY, CELL_Y0 + 14, CELL_Y1 - 5)
+  : 0;
+
+const leftCmpLabelX = leftLastCmp
+  ? (leftXScale(decYear(leftLastCmp.date)) + EOL_OFFSET_X)
+  : 0;
+const leftCmpRawY   = leftLastCmp ? leftYScale(leftLastCmp.value as number) : 0;
+const leftCmpLabelY = leftLastCmp
+  ? clampedLabelY(
+      // Nudge down if too close to primary label
+      Math.abs(leftCmpRawY - leftPrimLabelY) < MIN_LABEL_GAP
+        ? leftPrimLabelY + (leftCmpRawY >= leftPrimLabelY ? MIN_LABEL_GAP : -MIN_LABEL_GAP)
+        : leftCmpRawY,
+      CELL_Y0 + 14,
+      CELL_Y1 - 5,
+    )
+  : 0;
+
+// Right cell EOL labels
+const rightPrimLabelX = rightLastPrim ? (rightLastPrimX + EOL_OFFSET_X) : 0;
+const rightPrimLabelY = rightLastPrim
+  ? clampedLabelY(rightLastPrimY, CELL_Y0 + 14, CELL_Y1 - 5)
+  : 0;
+
+const rightCmpLabelX = rightLastCmp
+  ? (rightXScale(decYear(rightLastCmp.date)) + EOL_OFFSET_X)
+  : 0;
+const rightCmpRawY   = rightLastCmp ? rightYScale(rightLastCmp.value as number) : 0;
+const rightCmpLabelY = rightLastCmp
+  ? clampedLabelY(
+      Math.abs(rightCmpRawY - rightPrimLabelY) < MIN_LABEL_GAP
+        ? rightPrimLabelY + (rightCmpRawY >= rightPrimLabelY ? MIN_LABEL_GAP : -MIN_LABEL_GAP)
+        : rightCmpRawY,
+      CELL_Y0 + 14,
+      CELL_Y1 - 5,
+    )
+  : 0;
+
+// ---- Aria labels ------------------------------------------------------------
+const leftLatest  = leftLastPrim?.value?.toFixed(1) ?? "—";
+const rightLatest = rightLastPrim?.value?.toFixed(1) ?? "—";
+
+const ariaLabel =
+  `Two-panel industry GDP composite. Left: services vs goods Y/Y growth rate, ` +
+  `services latest ${leftLatest}%. Right: manufacturing vs mining and oil cumulative ` +
+  `percent change since January 2023, mining and oil latest ${rightLatest}%.`;
+---
+
+{!hasData ? (
+  <PanelEmpty reason="Panel3IndustryComposite: one or both source panels missing data." />
+) : (
+  <div class="ic3-chart" data-panel="gdp-3-industry-composite">
+    <svg
+      class="ic3-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+
+      {/* ================================================================
+          LEFT CELL — Services vs Goods, Y/Y
+          ================================================================ */}
+
+      {/* Gridlines */}
+      {leftYTicks.map((v) => {
+        const yy = leftYScale(v);
+        return (
+          <line
+            class="ic3-chart__gridline"
+            x1={LEFT_X0.toFixed(2)}
+            y1={yy.toFixed(2)}
+            x2={(LEFT_X0 + CELL_W).toFixed(2)}
+            y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      {/* Zero line (if series crosses zero) */}
+      {leftCrossesZero && (
+        <line
+          class="ic3-chart__zero-line"
+          x1={LEFT_X0.toFixed(2)}
+          y1={leftZeroY.toFixed(2)}
+          x2={(LEFT_X0 + CELL_W).toFixed(2)}
+          y2={leftZeroY.toFixed(2)}
+        />
+      )}
+
+      {/* Goods Y/Y — comparator (dashed, drawn first so primary sits on top) */}
+      {leftCmpPath && (
+        <path class="ic3-chart__line ic3-chart__line--cmp" d={leftCmpPath} />
+      )}
+
+      {/* Services Y/Y — primary (solid) */}
+      {leftPrimPath && (
+        <path class="ic3-chart__line" d={leftPrimPath} />
+      )}
+
+      {/* Latest-print dot — MTA red on primary only */}
+      {leftLastPrim && (
+        <circle
+          class="ic3-chart__latest-dot"
+          cx={leftLastPrimX.toFixed(2)}
+          cy={leftLastPrimY.toFixed(2)}
+          r="4"
+        >
+          <title>{`Services Y/Y latest ${leftLastPrim.date}: ${(leftLastPrim.value as number).toFixed(2)}%`}</title>
+        </circle>
+      )}
+
+      {/* Native SVG <title> hit areas — left primary */}
+      {leftPrimary.map((pt) => {
+        if (typeof pt.value !== "number") return null;
+        const xv = decYear(pt.date);
+        if (Number.isNaN(xv)) return null;
+        return (
+          <circle
+            class="ic3-chart__hit"
+            cx={leftXScale(xv).toFixed(2)}
+            cy={leftYScale(pt.value).toFixed(2)}
+            r="5"
+          >
+            <title>{`Services Y/Y ${pt.date}: ${(pt.value).toFixed(2)}%`}</title>
+          </circle>
+        );
+      })}
+
+      {/* Native SVG <title> hit areas — left comparator */}
+      {leftCmp.map((pt) => {
+        if (typeof pt.value !== "number") return null;
+        const xv = decYear(pt.date);
+        if (Number.isNaN(xv)) return null;
+        return (
+          <circle
+            class="ic3-chart__hit"
+            cx={leftXScale(xv).toFixed(2)}
+            cy={leftYScale(pt.value).toFixed(2)}
+            r="5"
+          >
+            <title>{`Goods Y/Y ${pt.date}: ${(pt.value).toFixed(2)}%`}</title>
+          </circle>
+        );
+      })}
+
+      {/* Frame */}
+      <rect
+        class="ic3-chart__frame"
+        x={LEFT_X0}
+        y={CELL_Y0}
+        width={CELL_W}
+        height={CELL_H}
+      />
+
+      {/* Cell header label */}
+      <text
+        class="ic3-chart__cell-label"
+        x={(LEFT_X0 + 6).toFixed(2)}
+        y={(CELL_Y0 - 8).toFixed(2)}
+      >SERVICES VS GOODS, Y/Y</text>
+
+      {/* Y-axis ticks — left cell */}
+      {leftYTicks.map((v, i) => {
+        const yy = leftYScale(v);
+        const isTop = i === leftYTicks.length - 1;
+        const numStr = fmtTick(v);
+        const label = isTop ? `${numStr}%` : numStr;
+        return (
+          <text
+            class="ic3-chart__ytick"
+            x={(LEFT_X0 - 5).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{label}</text>
+        );
+      })}
+
+      {/* X-axis ticks + labels — left cell */}
+      {leftXTicks.map((t) => (
+        <g>
+          <line
+            class="ic3-chart__xtick-mark"
+            x1={t.x.toFixed(2)}
+            y1={CELL_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(CELL_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="ic3-chart__xtick"
+            x={t.x.toFixed(2)}
+            y={(CELL_Y1 + 16).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* End-of-line labels — left cell */}
+      {leftLastPrim && (
+        <text
+          class="ic3-chart__eol-label ic3-chart__eol-label--primary"
+          x={leftPrimLabelX.toFixed(2)}
+          y={(leftPrimLabelY + 4).toFixed(2)}
+        >Services</text>
+      )}
+      {leftLastCmp && (
+        <text
+          class="ic3-chart__eol-label ic3-chart__eol-label--cmp"
+          x={leftCmpLabelX.toFixed(2)}
+          y={(leftCmpLabelY + 4).toFixed(2)}
+        >Goods</text>
+      )}
+
+      {/* ================================================================
+          RIGHT CELL — Manufacturing vs Mining + Oil, indexed to Dec 2019
+          ================================================================ */}
+
+      {/* Gridlines */}
+      {rightYTicks.map((v) => {
+        const yy = rightYScale(v);
+        return (
+          <line
+            class="ic3-chart__gridline"
+            x1={RIGHT_X0.toFixed(2)}
+            y1={yy.toFixed(2)}
+            x2={(RIGHT_X0 + CELL_W).toFixed(2)}
+            y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      {/* Baseline rule at y=0 (anchors "Dec 2019 = 0%") */}
+      {rightBaselineInView && (
+        <line
+          class="ic3-chart__baseline"
+          x1={RIGHT_X0.toFixed(2)}
+          y1={rightBaselineY.toFixed(2)}
+          x2={(RIGHT_X0 + CELL_W).toFixed(2)}
+          y2={rightBaselineY.toFixed(2)}
+        />
+      )}
+
+      {/* Manufacturing — comparator (dashed, drawn first) */}
+      {rightCmpPath && (
+        <path class="ic3-chart__line ic3-chart__line--cmp" d={rightCmpPath} />
+      )}
+
+      {/* Mining + oil — primary (solid) */}
+      {rightPrimPath && (
+        <path class="ic3-chart__line" d={rightPrimPath} />
+      )}
+
+      {/* Latest-print dot — MTA red on mining+oil primary */}
+      {rightLastPrim && (
+        <circle
+          class="ic3-chart__latest-dot"
+          cx={rightLastPrimX.toFixed(2)}
+          cy={rightLastPrimY.toFixed(2)}
+          r="4"
+        >
+          <title>{`Mining and oil indexed latest ${rightLastPrim.date}: ${(rightLastPrim.value as number).toFixed(1)}% vs Jan 2023`}</title>
+        </circle>
+      )}
+
+      {/* Native SVG <title> hit areas — right primary */}
+      {rightPrimary.map((pt) => {
+        if (typeof pt.value !== "number") return null;
+        const xv = decYear(pt.date);
+        if (Number.isNaN(xv)) return null;
+        return (
+          <circle
+            class="ic3-chart__hit"
+            cx={rightXScale(xv).toFixed(2)}
+            cy={rightYScale(pt.value).toFixed(2)}
+            r="5"
+          >
+            <title>{`Mining + oil ${pt.date}: ${(pt.value).toFixed(1)}% vs Jan 2023`}</title>
+          </circle>
+        );
+      })}
+
+      {/* Native SVG <title> hit areas — right comparator */}
+      {rightCmp.map((pt) => {
+        if (typeof pt.value !== "number") return null;
+        const xv = decYear(pt.date);
+        if (Number.isNaN(xv)) return null;
+        return (
+          <circle
+            class="ic3-chart__hit"
+            cx={rightXScale(xv).toFixed(2)}
+            cy={rightYScale(pt.value).toFixed(2)}
+            r="5"
+          >
+            <title>{`Manufacturing ${pt.date}: ${(pt.value).toFixed(1)}% vs Jan 2023`}</title>
+          </circle>
+        );
+      })}
+
+      {/* Frame */}
+      <rect
+        class="ic3-chart__frame"
+        x={RIGHT_X0}
+        y={CELL_Y0}
+        width={CELL_W}
+        height={CELL_H}
+      />
+
+      {/* Cell header label */}
+      <text
+        class="ic3-chart__cell-label"
+        x={(RIGHT_X0 + 6).toFixed(2)}
+        y={(CELL_Y0 - 8).toFixed(2)}
+      >INDEXED TO JAN 2023</text>
+
+      {/* Y-axis ticks — right cell (no unit suffix; dimensionless) */}
+      {rightYTicks.map((v) => {
+        const yy = rightYScale(v);
+        const numStr = fmtTick(v);
+        return (
+          <text
+            class="ic3-chart__ytick"
+            x={(RIGHT_X0 - 5).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{numStr}</text>
+        );
+      })}
+
+      {/* X-axis ticks + labels — right cell */}
+      {rightXTicks.map((t) => (
+        <g>
+          <line
+            class="ic3-chart__xtick-mark"
+            x1={t.x.toFixed(2)}
+            y1={CELL_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)}
+            y2={(CELL_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="ic3-chart__xtick"
+            x={t.x.toFixed(2)}
+            y={(CELL_Y1 + 16).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* End-of-line labels — right cell. "Mining + oil" breaks to 2 lines
+           so the label doesn't overflow the right margin. */}
+      {rightLastPrim && (
+        <text
+          class="ic3-chart__eol-label ic3-chart__eol-label--primary"
+          x={rightPrimLabelX.toFixed(2)}
+          y={(rightPrimLabelY - 3).toFixed(2)}
+        ><tspan x={rightPrimLabelX.toFixed(2)} dy="0">Mining &amp;</tspan><tspan x={rightPrimLabelX.toFixed(2)} dy="14">oil</tspan></text>
+      )}
+      {rightLastCmp && (
+        <text
+          class="ic3-chart__eol-label ic3-chart__eol-label--cmp"
+          x={rightCmpLabelX.toFixed(2)}
+          y={(rightCmpLabelY + 4).toFixed(2)}
+        >Factories</text>
+      )}
+
+    </svg>
+  </div>
+)}
+
+<style>
+  /*
+   * Panel3IndustryComposite — Tier-3 two-cell composite chart.
+   * Vignelli canon: pure ink lines, MTA red latest dot, hairline frames.
+   * Mode B: per-cell y-axes (Y/Y scale vs indexed-to-0 scale).
+   */
+
+  .ic3-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+
+  .ic3-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  /* Gridlines — pure ink, low opacity */
+  .ic3-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+
+  /* Zero line — full opacity 1px (canon: appears when series crosses zero) */
+  .ic3-chart__zero-line {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Baseline rule for indexed chart — dashed 2-2, ink */
+  .ic3-chart__baseline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 2 2;
+    stroke-opacity: 0.7;
+    shape-rendering: crispEdges;
+  }
+
+  /* Primary data line — 1.5px solid pure ink */
+  .ic3-chart__line {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Comparator line — 1px dashed (4 2) pure ink */
+  .ic3-chart__line--cmp {
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+  }
+
+  /* Invisible hit target for SVG <title> hover */
+  .ic3-chart__hit {
+    fill: transparent;
+    pointer-events: all;
+  }
+
+  /* Latest-print dot — MTA red */
+  .ic3-chart__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  /* Hairline frame — 1px pure ink */
+  .ic3-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Cell header label — Manrope 600, micro-caps */
+  .ic3-chart__cell-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+
+  /* Y-axis tick labels — IBM Plex Mono 11px */
+  .ic3-chart__ytick {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.75;
+  }
+
+  /* X-axis tick marks */
+  .ic3-chart__xtick-mark {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* X-axis tick labels — Manrope 11px 400 */
+  .ic3-chart__xtick {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.75;
+  }
+
+  /* End-of-line label — primary: Manrope 13px 600 */
+  .ic3-chart__eol-label--primary {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: var(--fw-semibold);
+  }
+
+  /* End-of-line label — comparator: Manrope 13px 400 */
+  .ic3-chart__eol-label--cmp {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 400;
+    opacity: 0.75;
+  }
+</style>

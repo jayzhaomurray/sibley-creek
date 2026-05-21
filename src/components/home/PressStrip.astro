@@ -1,0 +1,183 @@
+---
+/*
+ * PressStrip — "As Quoted In" outlet logo strip for the Sibley Creek homepage.
+ *
+ * Self-contained; takes no props. Outlets and asset paths are hardcoded.
+ * Slot this component wherever the placement decision lands; do NOT import
+ * it on index.astro until that call is made.
+ *
+ * Visual spec:
+ *   - Eyebrow:    "AS QUOTED IN", 9.5px Manrope 600, 0.22em tracking, micro-caps
+ *   - Hairlines:  1px var(--ink) above and below the strip (Vignelli system)
+ *   - Logos:      height-constrained to 30px on desktop; transparent backgrounds
+ *   - Layout:     single row on >= 720px; wraps to two rows on mobile
+ *   - No JS.      No motion. No color other than what the logo files carry.
+ *   - a11y:       section[aria-label], each img has alt with outlet name
+ *
+ * Logo asset provenance
+ * -----------------------------------------------------------------------
+ * bloomberg.svg
+ *   Source: Wikimedia Commons — File:Bloomberg logo.svg
+ *   URL:    https://upload.wikimedia.org/wikipedia/commons/5/56/Bloomberg_logo.svg
+ *   Fetched: 2026-05-20
+ *   Notes:  Adobe Illustrator export; full color wordmark on transparent bg
+ *
+ * reuters.svg
+ *   Source: Wikimedia Commons — File:Reuters logo.svg
+ *   URL:    https://upload.wikimedia.org/wikipedia/commons/e/e2/Reuters_logo.svg
+ *   Fetched: 2026-05-20
+ *   Notes:  Inkscape SVG, Reuters tomato wordmark on transparent bg
+ *
+ * wsj.svg
+ *   Source: Wikimedia Commons — File:WSJ Logo.svg
+ *   URL:    https://upload.wikimedia.org/wikipedia/commons/4/4a/WSJ_Logo.svg
+ *   Fetched: 2026-05-20
+ *   Notes:  Black WSJ wordmark; transparent bg; Inkscape export
+ *
+ * globe-and-mail.svg
+ *   Source: Wikimedia Commons — File:The Globe and Mail (2019-10-31).svg
+ *   URL:    https://upload.wikimedia.org/wikipedia/commons/b/b5/The_Globe_and_Mail_%282019-10-31%29.svg
+ *   Fetched: 2026-05-20
+ *   Notes:  2019 masthead; black wordmark on transparent bg; Inkscape export
+ *
+ * financial-post.png
+ *   Source: Wikimedia Commons — File:Financial Post.png
+ *   URL:    https://upload.wikimedia.org/wikipedia/commons/b/b3/Financial_Post.png
+ *   Fetched: 2026-05-20
+ *   Notes:  No clean SVG on Wikimedia; PNG with transparent bg used.
+ *           Replace with SVG if official press kit file becomes available at
+ *           financialpost.com/press-kit (page not available 2026-05-20).
+ *
+ * toronto-star.svg
+ *   Source: Wikimedia Commons — File:Toronto-Star-Logo.svg
+ *   URL:    https://upload.wikimedia.org/wikipedia/commons/b/ba/Toronto-Star-Logo.svg
+ *   Fetched: 2026-05-20
+ *   Notes:  Inkscape SVG; black wordmark; transparent bg
+ *
+ * cbc.svg
+ *   Source: Wikimedia Commons — File:CBC logo.svg
+ *   URL:    https://upload.wikimedia.org/wikipedia/commons/3/3b/CBC_logo.svg
+ *   Fetched: 2026-05-20
+ *   Notes:  CBC gem mark + wordmark in red (#D8232A); transparent bg
+ *           (vecta.io nano format)
+ * -----------------------------------------------------------------------
+ */
+
+const outlets = [
+  { slug: "bloomberg",      name: "Bloomberg",       ext: "svg" },
+  { slug: "reuters",        name: "Reuters",          ext: "svg" },
+  { slug: "wsj",            name: "The Wall Street Journal", ext: "svg" },
+  { slug: "globe-and-mail", name: "The Globe and Mail",      ext: "svg" },
+  { slug: "financial-post", name: "Financial Post",  ext: "png" },
+  { slug: "toronto-star",   name: "Toronto Star",    ext: "svg" },
+  { slug: "cbc",            name: "CBC",              ext: "svg" },
+] as const;
+---
+<section class="press-strip" aria-label="As quoted in">
+  <p class="press-strip__eyebrow" aria-hidden="true">As Quoted In</p>
+  <div class="press-strip__rail">
+    {outlets.map((outlet) => (
+      <div class="press-strip__cell">
+        <img
+          src={`/press/${outlet.slug}.${outlet.ext}`}
+          alt={outlet.name}
+          class="press-strip__logo"
+          loading="lazy"
+          decoding="async"
+          draggable="false"
+        />
+      </div>
+    ))}
+  </div>
+</section>
+
+<style>
+  /* -----------------------------------------------------------------------
+   * Press strip shell
+   * Hairlines above and below the full strip, consistent with the Vignelli
+   * system used by .vig-title (TitleStatement) and the indicator grid.
+   * ----------------------------------------------------------------------- */
+  .press-strip {
+    border-top: 1px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
+    padding-block: 20px 22px;
+  }
+
+  /* Eyebrow: identical vocabulary to .vig-title__stamp-k and the masthead
+   * section labels — 9.5px Manrope 600, 0.22em tracking, uppercase. */
+  .press-strip__eyebrow {
+    margin: 0 0 16px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 9.5px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  /* Rail: flex row, wrap on mobile into two rows.
+   * Gap is generous so each logo breathes — 32px between cells on desktop,
+   * 24px on mobile where wrapping happens. */
+  .press-strip__rail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 20px 32px;
+  }
+
+  .press-strip__cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Minimum cell width keeps logos from collapsing on narrow viewports
+     * while still allowing natural flex-wrap into two rows. */
+    min-width: 80px;
+  }
+
+  /* Logo sizing: uniform 30px height (within the 28-32px spec band).
+   * width: auto preserves each logo's natural aspect ratio so wordmarks
+   * with very different widths (CBC gem+mark vs. plain wordmarks) render
+   * at correct proportions. max-width caps unusually wide marks. */
+  .press-strip__logo {
+    display: block;
+    height: 30px;
+    width: auto;
+    max-width: 160px;
+    object-fit: contain;
+    /* Transparent-background logos must not inherit any background color
+     * from parent. --paper is white, which is correct for this strip. */
+    background: transparent;
+    /* Subtle opacity so full-color logos don't visually outshout the
+     * black-ink typographic context; still clearly full-color at 0.88. */
+    opacity: 0.88;
+    transition: opacity var(--dur-fast) linear;
+  }
+
+  .press-strip__logo:hover {
+    opacity: 1;
+  }
+
+  /* Desktop: single row. At 720px+ the flex container should not need to
+   * wrap — 7 logos * ~120px avg + gaps fit comfortably in ~1040px body.
+   * The flex-wrap:wrap fallback handles any narrower "desktop" width. */
+  @media (min-width: 720px) {
+    .press-strip__rail {
+      flex-wrap: nowrap;
+      gap: 0 40px;
+    }
+
+    .press-strip__logo {
+      max-width: 140px;
+    }
+  }
+
+  /* On very wide viewports, spread logos with justify-content so they
+   * use the full body width rather than clustering left. */
+  @media (min-width: 960px) {
+    .press-strip__rail {
+      justify-content: space-between;
+      gap: 0 24px;
+    }
+  }
+</style>

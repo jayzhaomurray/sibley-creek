@@ -1,0 +1,114 @@
+---
+/*
+ * /overview — Canadian Macro Overview (the dashboard).
+ *
+ * 2026-05-20: Promoted from the previous splash. The marketing landing page
+ * (v3) now lives at `/`; the dashboard moves here so each surface does its
+ * own job — splash sells, overview shows the data.
+ *
+ * Every primary numeric flows from data/site/sections.json via
+ * src/data/site_data_loader.ts. Fields the pipeline does not yet produce
+ * render as explicit placeholders so the gaps are obvious:
+ *
+ *   - real numbers           -> from JSON
+ *   - missing numbers        -> "----" in mono mid-gray
+ *   - missing asOf stamps    -> "[ NOT WIRED ]" in mono micro-caps
+ *   - missing chart series   -> dashed-border empty box, "DATA NOT YET WIRED"
+ *   - missing editorial copy -> visible Latin lorem ipsum
+ *
+ * Layout:
+ *   1. Title Statement: eyebrow + headline + dateline + abstract +
+ *      3-cell headline-numbers stamp sourced from the pipeline.
+ *   2. Indicator panel grid: 2 x 4 hairline-bordered cells. Seven section
+ *      panels + an eighth "Working papers" cell.
+ */
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import TitleStatement from "../components/home/TitleStatement.astro";
+import SectionPanel from "../components/home/SectionPanel.astro";
+import DeepDivePanel from "../components/home/DeepDivePanel.astro";
+import { deepDives, site } from "../data/sections";
+import { enrichedSections, type EnrichedSection } from "../data/site_data_loader";
+
+// Card order = enrichedSections order = canon order in sections.ts = nav order.
+const ordered: EnrichedSection[] = enrichedSections;
+
+// Title-statement date line. Always reflects today in Canadian editorial
+// time (America/Toronto), NOT the build host's UTC.
+const today = new Date();
+const longDate = new Intl.DateTimeFormat("en-CA", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "America/Toronto",
+}).format(today);
+
+const pageDesc =
+  `Canadian macro overview for ${longDate}. Seven indicator domains — output, ` +
+  "inflation, labour, housing, monetary policy, markets, trade — each with " +
+  "an anchor chart and the latest prints. Independent research.";
+---
+<BaseLayout
+  title={`Overview — ${site.name}`}
+  description={pageDesc}
+  pageClass="home-page"
+  showMastheadRail={true}
+>
+  <article class="home">
+    <TitleStatement dateLine={longDate} />
+
+    <section class="home__grid" aria-label="Indicator panels">
+      <h2 class="visually-hidden">Indicator panels</h2>
+      {ordered.map((s, i) => (
+        <div class="home__cell">
+          <SectionPanel section={s} figureNum={String(i + 1)} />
+        </div>
+      ))}
+      {/* 8th cell: working papers */}
+      <div class="home__cell">
+        <DeepDivePanel deepDives={deepDives} figureNum="8" />
+      </div>
+    </section>
+  </article>
+
+  <style>
+    .home__grid {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0;
+      /* Vignelli / Knoll catalogue: panels meet at shared 1px black
+       * hairlines. We collapse the gap and use the panel borders to form a
+       * continuous grid. */
+      border-top: 1px solid var(--ink);
+      border-left: 1px solid var(--ink);
+    }
+    @media (min-width: 760px) {
+      .home__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    .home__cell {
+      min-width: 0;
+      display: flex;
+      border-right: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+    }
+    .home__cell > :global(*) {
+      width: 100%;
+    }
+
+    /* a11y utility - visually hidden but available to screen readers */
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+</BaseLayout>

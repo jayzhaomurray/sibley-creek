@@ -1,0 +1,307 @@
+---
+/*
+ * PanelTotalVsPerCapita - side-by-side small multiples, total real GDP
+ * versus per-capita real GDP, both expressed as cumulative percent change
+ * since the January 2023 baseline.
+ *
+ * Ported from src/components/charts/_alternatives/gdp/Alt2_PerCapitaVsTotal.astro,
+ * brought in line with the Panel4SubAggregatesV2 treatment shipped for the
+ * inflation section:
+ *
+ *   - Y-axis units are signed percent change, not "= 100" index. Subtract
+ *     100 from the indexed series so "111" reads as "+11%".
+ *   - Reference rule sits at 0% (2019Q4 baseline), not 100.
+ *   - Each panel's latest dot carries a direct-label of its cumulative
+ *     % change, Plex Mono 11px, pure ink. The MTA-red dot is already the
+ *     brand stamp; the label reads as a measurement.
+ *
+ * Spillage fix vs Alt2. Alt2 ran the right panel's frame to x=728 against
+ * a 720 viewBox - 8px past the edge. Re-budgeted layout:
+ *   M_L (56) + PANEL_W (292) + GAP (36) + PANEL_W (292) + M_R (44) = 720
+ * GAP grew from 32 -> 36 to seat the left panel's "+X%" label between
+ * panels; M_R = 44 mirrors inflation V2 to seat the right panel's "+X%".
+ * Each panel shrank from 320 -> 292.
+ *
+ * Population proxy. Uses pop_total.csv (Statistics Canada Table
+ * 17-10-0009-01, quarterly population estimates), aligned on the GDP
+ * quarterly grid. Same source the Panel4PerCapitaV2 wrapper uses.
+ *
+ * Note. Production component but uses the alternatives' build-time
+ * readCsv path because neither an indexed-per-capita nor an indexed-total
+ * series is surfaced through data/site/panel_data/gdp.json. Both source
+ * CSVs (gdp_quarterly.csv, pop_total.csv) are force-added to git per the
+ * project's gitignored-CSV gotcha.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import {
+  readCsv,
+  decYear,
+  indexAt,
+  VB,
+  pickStride,
+  yearTicksFromX,
+  type AltPoint,
+} from "../_alternatives/_shared/altUtils";
+import AltChartStyle from "../_alternatives/_shared/AltChartStyle.astro";
+
+// SectionLayout dispatches with `data={plate.data}`; the chart reads raw
+// CSVs directly but accepts the prop to keep the dispatch signature uniform.
+interface Props {
+  data?: PanelData | null;
+}
+const { data: _ignored = null } = Astro.props;
+void _ignored;
+
+const gdp = readCsv("gdp_quarterly.csv");
+const pop = readCsv("pop_total.csv");
+
+// Per-capita level series on the GDP quarterly grid. GDP in C$ millions
+// chained 2017; population in persons. Per-capita = (millions * 1e6) /
+// persons = CAD per person. The level matters only as input to the
+// indexed-then-pct-change transform below.
+const popByDate = new Map<string, number | null>();
+for (const p of pop) popByDate.set(p.date, p.value);
+
+const totalSeries: AltPoint[] = gdp.map((p) => ({ date: p.date, value: p.value }));
+const perCapitaSeries: AltPoint[] = gdp.map((p) => {
+  const pv = popByDate.get(p.date);
+  if (
+    typeof p.value !== "number" ||
+    typeof pv !== "number" ||
+    Number.isNaN(p.value) ||
+    Number.isNaN(pv) ||
+    pv === 0
+  ) {
+    return { date: p.date, value: null };
+  }
+  return { date: p.date, value: (p.value * 1e6) / pv };
+});
+
+// Index both series to Q4 2019 = 100 (2019-10-01, last pre-pandemic quarter),
+// then subtract 100 so values read as signed % change.
+// Q4 2019 is the closest observable to "December 2019" in the quarterly series;
+// StatCan labels the Q4 observation 2019-10-01 (quarter start).
+const ANCHOR_DATE = "2019-10-01";
+function toPctChange(series: AltPoint[]): AltPoint[] {
+  return series.map((p) => ({
+    date: p.date,
+    value: typeof p.value === "number" ? p.value - 100 : null,
+  }));
+}
+const totalPct = toPctChange(indexAt(totalSeries, ANCHOR_DATE));
+const pcPct = toPctChange(indexAt(perCapitaSeries, ANCHOR_DATE));
+
+// Show from start of 2019 so the pre-pandemic baseline is visible.
+const DISPLAY_START = "2019-01-01";
+const totalTail = totalPct.filter((p) => p.date >= DISPLAY_START);
+const pcTail = pcPct.filter((p) => p.date >= DISPLAY_START);
+
+// Layout. 720x405 viewBox. M_L (56) + PANEL_W (292) + GAP (36) +
+// PANEL_W (292) + M_R (44) = 720. M_R seats the right panel's "+X%"
+// value label; the GAP seats the left panel's value label and the visual
+// breathing room between the two small multiples.
+const PANEL_W = 292;
+const GAP = 36;
+const M_L = 56;
+const M_R = 44;
+const M_T = 44;
+const M_B = 40;
+const panel_h = VB.H - M_T - M_B;
+const panel_x0_left = M_L;
+const panel_x0_right = panel_x0_left + PANEL_W + GAP;
+void M_R; // exists to document the budget; rendering uses panel_x0_right + PANEL_W
+
+// Shared y-domain so the two panels read as directly comparable. Always
+// include 0% so the baseline reference rule has a place to anchor.
+function domain(s: AltPoint[]): [number, number] {
+  let lo = Infinity, hi = -Infinity;
+  for (const p of s) if (typeof p.value === "number") {
+    if (p.value < lo) lo = p.value;
+    if (p.value > hi) hi = p.value;
+  }
+  if (!Number.isFinite(lo)) return [0, 1];
+  return [lo, hi];
+}
+const [loA, hiA] = domain(totalTail);
+const [loB, hiB] = domain(pcTail);
+let yLo = Math.min(loA, loB);
+let yHi = Math.max(hiA, hiB);
+if (yLo > 0) yLo = 0;
+if (yHi < 0) yHi = 0;
+const spanRaw = yHi - yLo || 1;
+yHi += spanRaw * 0.10;
+yLo -= spanRaw * 0.06;
+const yRange = yHi - yLo || 1;
+
+// Shared x-domain.
+const xs = totalTail.map((p) => decYear(p.date)).filter((v) => !Number.isNaN(v));
+const xMin = xs[0] ?? 0;
+const xMax = xs[xs.length - 1] ?? 1;
+
+function makeScales(x0: number, w: number) {
+  const xScale = (yr: number) => x0 + ((yr - xMin) / (xMax - xMin || 1)) * w;
+  const yScale = (v: number) => M_T + panel_h - ((v - yLo) / yRange) * panel_h;
+  return { xScale, yScale };
+}
+function buildPath(
+  series: AltPoint[],
+  xScale: (yr: number) => number,
+  yScale: (v: number) => number,
+): string {
+  let d = "", started = false;
+  for (const p of series) {
+    if (typeof p.value !== "number") { started = false; continue; }
+    const xv = decYear(p.date);
+    if (Number.isNaN(xv)) continue;
+    d += `${started ? "L" : "M"}${xScale(xv).toFixed(2)} ${yScale(p.value).toFixed(2)} `;
+    started = true;
+  }
+  return d.trim();
+}
+
+// Y ticks. pickStride wants 3-5 ticks; force inclusion of 0 by aligning
+// the start of the loop to the stride.
+const yStride = pickStride(yLo, yHi);
+const yTicks: number[] = [];
+const startY = Math.ceil(yLo / yStride) * yStride;
+for (let v = startY; v <= yHi + 1e-9; v += yStride) yTicks.push(Number(v.toFixed(1)));
+
+function fmtPctTick(v: number, isTop: boolean): string {
+  const rounded = Math.round(v);
+  if (rounded === 0) return isTop ? "0%" : "0";
+  const sign = rounded > 0 ? "+" : "";
+  return isTop ? `${sign}${rounded}%` : `${sign}${rounded}`;
+}
+function fmtValueLabel(v: number): string {
+  const a = Math.abs(v);
+  const sign = v >= 0 ? "+" : "-";
+  if (a >= 10) return `${sign}${Math.round(a)}%`;
+  const oneDp = a.toFixed(1);
+  if (oneDp.endsWith(".0")) return `${sign}${oneDp.slice(0, -2)}%`;
+  return `${sign}${oneDp}%`;
+}
+
+const A = makeScales(panel_x0_left, PANEL_W);
+const B = makeScales(panel_x0_right, PANEL_W);
+const pathA = buildPath(totalTail, A.xScale, A.yScale);
+const pathB = buildPath(pcTail, B.xScale, B.yScale);
+
+const lastA = [...totalTail].reverse().find((p) => typeof p.value === "number");
+const lastB = [...pcTail].reverse().find((p) => typeof p.value === "number");
+const xTicksA = yearTicksFromX(xMin, xMax, A.xScale);
+const xTicksB = yearTicksFromX(xMin, xMax, B.xScale);
+---
+
+<div class="alt-chart" data-panel="gdp-total-vs-percap">
+  <svg
+    class="alt-chart__svg"
+    viewBox={`0 0 ${VB.W} ${VB.H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label="Total real GDP versus per-capita real GDP, cumulative percent change since Q4 2019 pre-pandemic baseline, two small multiples side by side."
+  >
+    {/* LEFT panel: total real GDP, cumulative % change since 2019Q4 */}
+    <g>
+      {yTicks.map((v) => {
+        const yy = A.yScale(v);
+        return <line class="alt-chart__gridline" x1={panel_x0_left} y1={yy.toFixed(2)} x2={panel_x0_left + PANEL_W} y2={yy.toFixed(2)} />;
+      })}
+      <line class="alt-chart__reference-rule" x1={panel_x0_left} y1={A.yScale(0).toFixed(2)} x2={panel_x0_left + PANEL_W} y2={A.yScale(0).toFixed(2)} />
+      <path class="alt-chart__line" d={pathA} fill="none" />
+      {lastA && (
+        <>
+          <circle
+            class="alt-chart__latest-dot"
+            cx={A.xScale(decYear(lastA.date)).toFixed(2)}
+            cy={A.yScale(lastA.value as number).toFixed(2)}
+            r="3.5"
+          >
+            <title>{`Total real GDP ${lastA.date}: ${fmtValueLabel(lastA.value as number)} vs Q4 2019`}</title>
+          </circle>
+          <text
+            class="panel-tvpc__value-label"
+            x={(A.xScale(decYear(lastA.date)) + 6).toFixed(2)}
+            y={(A.yScale(lastA.value as number) + 4).toFixed(2)}
+            text-anchor="start"
+          >
+            {fmtValueLabel(lastA.value as number)}
+          </text>
+        </>
+      )}
+      <rect class="alt-chart__frame" x={panel_x0_left} y={M_T} width={PANEL_W} height={panel_h} />
+      <text class="alt-chart__small-multiple-title" x={panel_x0_left} y={M_T - 14}>TOTAL REAL GDP</text>
+      {xTicksA.map((t) => (
+        <g>
+          <line class="alt-chart__xtick" x1={t.x.toFixed(2)} y1={(M_T + panel_h).toFixed(2)} x2={t.x.toFixed(2)} y2={(M_T + panel_h + 4).toFixed(2)} />
+          <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(M_T + panel_h + 18).toFixed(2)} text-anchor="middle">{t.label}</text>
+        </g>
+      ))}
+      {yTicks.map((v, i) => {
+        const yy = A.yScale(v);
+        const isTop = i === yTicks.length - 1;
+        return (
+          <text class="alt-chart__ytick-label" x={(panel_x0_left - 8).toFixed(2)} y={(yy + 4).toFixed(2)} text-anchor="end">
+            {fmtPctTick(v, isTop)}
+          </text>
+        );
+      })}
+    </g>
+
+    {/* RIGHT panel: per-capita real GDP, cumulative % change since 2019Q4 */}
+    <g>
+      {yTicks.map((v) => {
+        const yy = B.yScale(v);
+        return <line class="alt-chart__gridline" x1={panel_x0_right} y1={yy.toFixed(2)} x2={panel_x0_right + PANEL_W} y2={yy.toFixed(2)} />;
+      })}
+      <line class="alt-chart__reference-rule" x1={panel_x0_right} y1={B.yScale(0).toFixed(2)} x2={panel_x0_right + PANEL_W} y2={B.yScale(0).toFixed(2)} />
+      <path class="alt-chart__line" d={pathB} fill="none" />
+      {lastB && (
+        <>
+          <circle
+            class="alt-chart__latest-dot"
+            cx={B.xScale(decYear(lastB.date)).toFixed(2)}
+            cy={B.yScale(lastB.value as number).toFixed(2)}
+            r="3.5"
+          >
+            <title>{`Per-capita real GDP ${lastB.date}: ${fmtValueLabel(lastB.value as number)} vs Q4 2019`}</title>
+          </circle>
+          <text
+            class="panel-tvpc__value-label"
+            x={(B.xScale(decYear(lastB.date)) + 6).toFixed(2)}
+            y={(B.yScale(lastB.value as number) + 4).toFixed(2)}
+            text-anchor="start"
+          >
+            {fmtValueLabel(lastB.value as number)}
+          </text>
+        </>
+      )}
+      <rect class="alt-chart__frame" x={panel_x0_right} y={M_T} width={PANEL_W} height={panel_h} />
+      <text class="alt-chart__small-multiple-title" x={panel_x0_right} y={M_T - 14}>PER-CAPITA REAL GDP</text>
+      {xTicksB.map((t) => (
+        <g>
+          <line class="alt-chart__xtick" x1={t.x.toFixed(2)} y1={(M_T + panel_h).toFixed(2)} x2={t.x.toFixed(2)} y2={(M_T + panel_h + 4).toFixed(2)} />
+          <text class="alt-chart__xtick-label" x={t.x.toFixed(2)} y={(M_T + panel_h + 18).toFixed(2)} text-anchor="middle">{t.label}</text>
+        </g>
+      ))}
+    </g>
+  </svg>
+</div>
+
+<AltChartStyle />
+
+<style is:global>
+  /*
+   * Latest-dot value label. Plex Mono 11px, pure ink (NOT MTA red).
+   * The MTA-red dot is already the brand stamp; the label reads as a
+   * measurement. Mirrors the .panel4v2__value-label treatment shipped
+   * with Panel4SubAggregatesV2 in the inflation section.
+   */
+  .panel-tvpc__value-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+</style>
