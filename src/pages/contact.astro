@@ -32,25 +32,26 @@ const pageDesc =
       <h1 class="contact__title">Get in touch.</h1>
     </header>
 
-    <section class="contact__intro">
-      <p>
+    <section class="contact__form-section">
+      <p class="contact__intro">
         Questions about our research, media inquiries, subscriptions, or advisory engagements — drop us a note below. We respond within two business days.
       </p>
-    </section>
-
-    <section class="contact__form-section">
       {/*
         Contact form (interim): POSTs to formsubmit.co, which forwards
         each submission to jayzhaomurray@outlook.com as an email. First
         submission requires Jay to click a verification link; after that
         submissions deliver directly. Swap to jay@sibleycreek.ca once the
         mailbox exists (task #22).
+        data-formsubmit-replace-section: on success, replace this whole
+        <section> (intro + form) with the success message, so the intro
+        text doesn't go stale alongside the confirmation.
       */}
       <form
         class="contact__form"
         action="https://formsubmit.co/ajax/a3077ccc8400c684e07ef6c39d7d34c6"
         method="POST"
         data-formsubmit-ajax
+        data-formsubmit-replace-section
         data-success-msg="Message sent. Jay will reply within two business days."
       >
         <input type="hidden" name="_subject" value="Sibley Creek contact form" />
@@ -105,7 +106,12 @@ const pageDesc =
 
         <button class="contact__submit" type="submit">Send →</button>
       </form>
+    </section>
 
+    {/* Outside the form-section so it survives the AJAX replace-section
+        on submit — useful follow-up channel for the user even after the
+        form has been sent. */}
+    <section class="contact__alt">
       <p class="contact__note">
         {/* TEMP: swap back to jay@sibleycreek.ca once the sibleycreek.ca
             mailbox is provisioned (task #22). */}
@@ -147,13 +153,21 @@ const pageDesc =
       color: var(--ink);
     }
 
-    .contact__intro p {
+    /* Intro now lives INSIDE the form-section as a leading paragraph so
+     * the AJAX replace-section call sweeps it away with the form on
+     * submit (otherwise the "drop us a note below" prompt sits stale
+     * above the success message). */
+    .contact__intro {
       font-family: var(--font-sans);
       font-size: 18px;
       font-weight: 400;
       line-height: 1.55;
       color: var(--ink);
       margin: 0 0 36px;
+    }
+
+    .contact__alt {
+      margin-top: 40px;
     }
 
     /* ── Form ── */

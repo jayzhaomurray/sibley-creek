@@ -241,7 +241,14 @@ const tabTitle = title === site.name ? site.name : `${title} | ${site.name}`;
                 p.className = 'formsubmit-success';
                 p.setAttribute('role', 'status');
                 p.textContent = msg;
-                form.replaceWith(p);
+                // Opt-in: if data-formsubmit-replace-section is set on the
+                // form, replace the closest <section> instead of just the
+                // form. Use this when the form's section also contains
+                // intro text that goes stale once the user submits.
+                const target = form.hasAttribute('data-formsubmit-replace-section')
+                  ? (form.closest('section') || form)
+                  : form;
+                target.replaceWith(p);
               } else {
                 throw new Error('http ' + resp.status);
               }
