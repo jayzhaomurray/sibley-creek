@@ -2,17 +2,17 @@
 /*
  * /about/ - institutional About page.
  *
- * Source content: editorial/drafts/about_page.md (style-editor pass complete,
- * TK-free, ~340 words). The body is short and well-bounded, so we render the
- * prose inline as HTML rather than route it through Astro's markdown loader
- * (which would add an indirection for a single page with no per-edit churn).
- * The draft remains the source of truth; if it is rewritten, the inline copy
- * here is hand-resynced.
+ * 2026-05-23 rewrite: positions Sibley Creek as a research + advisory
+ * firm (not a solo publication), surfaces the team (Jay + Thompson +
+ * Khoi), names the method, links to /advisory/. Joe Grimbly is kept
+ * off the public team list per the staff-roster memory note — he has
+ * a full-time job elsewhere and the public credit would be delicate.
  *
  * Visual register: Vignelli (per design/design-system.md). One sans (Manrope)
- * for everything; H1 in display-lg 800; body in body-lg 400; institutional
- * kicker in micro-caps 600 above the title band. Footer carries the page-end
- * rule; no pillar / section chrome (this is institutional, not editorial).
+ * for everything; H1 in display-lg 600; body in body-lg 400; institutional
+ * kicker in micro-caps 600 above the title band. Team list renders as
+ * styled paragraphs (no bullet markers) — bold name + em-dash + role
+ * does the visual structuring.
  *
  * The page is reachable from the footer (VignelliColophon's secondary nav)
  * and NOT from the masthead - the masthead remains the 7 sections + Research.
@@ -23,8 +23,8 @@ import { site } from "../data/sections";
 
 const pageTitle = "About";
 const pageDesc =
-  "Sibley Creek is an independent read of the Canadian macro picture, " +
-  "for readers who already know the basics.";
+  "Sibley Creek is an independent Canadian macroeconomic research and " +
+  "advisory firm. Team, method, name, and how to get in touch.";
 ---
 <BaseLayout title={pageTitle} description={pageDesc} pageClass="static-page">
   <article class="static" aria-labelledby="static-h">
@@ -54,22 +54,56 @@ const pageDesc =
       </figure>
 
       <p>
-        Sibley Creek is an independent read of the Canadian macro picture.
+        Sibley Creek is an independent Canadian macroeconomic research
+        and advisory firm.
       </p>
 
+      <p>
+        We publish a live read of the Canadian economy — same-day
+        commentary on every major print, paired with deeper research as
+        questions warrant.
+      </p>
+
+      <p>
+        We also work with select institutional clients on retainer and
+        project engagements. See <a href="/advisory/">Hire us</a> for who
+        we work with and how.
+      </p>
+
+      <p>
+        Our method pairs disciplined data analysis with ground-truth
+        reporting. We work from primary sources — Statistics Canada, the
+        Bank of Canada, the Department of Finance — and talk to the
+        people closest to the story.
+      </p>
+
+      <h2>Team</h2>
+      <ul>
+        <li>
+          <strong>Jay Zhao-Murray</strong> — Chief Economist. Jay was
+          previously the Canada economics data editor at Bloomberg in
+          Ottawa and, before that, a foreign exchange analyst at Monex
+          Canada. He started his career at the Bank of Canada and studied
+          economics at Western University.
+        </li>
+        <li>
+          <strong>Thompson Richards</strong> — Economist. Thompson holds
+          a master's in economics and data science from Carleton
+          University.
+        </li>
+        <li>
+          <strong>Khoi Pham</strong> — Research Analyst. Khoi has
+          interned at TD and Irving Oil, and is in the final year of a
+          BBA in finance and economics at the University of New Brunswick.
+        </li>
+      </ul>
+
+      <h2>The name</h2>
       <p>
         The name comes from a small stream in Sleeping Giant Provincial
-        Park, on the north shore of Lake Superior.
-        The brand mark uses the Giant: three flat-topped mesas separated
-        by two erosion notches, reclining on his back.
-      </p>
-
-      <p>
-        Sibley Creek is written by Jay Zhao-Murray, formerly Canada
-        economics data editor at Bloomberg in Ottawa and, before that, a
-        foreign-exchange analyst at Monex Canada covering the loonie. He
-        held a research assistant post at the Bank of Canada and studied
-        economics at Western.
+        Park, on the north shore of Lake Superior. The brand mark uses
+        the Giant: three flat-topped mesas separated by two erosion
+        notches, reclining on his back.
       </p>
 
     </div>
@@ -173,6 +207,26 @@ const pageDesc =
     .markdown-body a:hover {
       color: var(--accent);
       text-decoration-color: var(--accent);
+    }
+
+    /* Team list — no bullet markers; bold name + em-dash + role does the
+     * visual structuring. Each item reads as a styled paragraph. */
+    .markdown-body ul {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 16px;
+    }
+    .markdown-body li {
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 18px;
+      line-height: 1.55;
+      color: var(--ink);
+      margin: 0 0 16px;
+      padding: 0;
+    }
+    .markdown-body li:last-child {
+      margin-bottom: 0;
     }
 
     /* ----------------------------------------------------------
