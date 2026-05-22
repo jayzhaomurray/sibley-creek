@@ -54,7 +54,7 @@ from typing import Optional
 
 import pandas as pd
 
-from pipeline.fetch._http import get_client
+from pipeline.fetch._http import get_bytes, get_client
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +143,7 @@ def find_and_download_latest(
             url = release_url_for(year, month)
             tried.append(url)
             try:
-                r = client.get(url)
+                r = get_bytes(client, url)
             except Exception as exc:  # noqa: BLE001
                 last_exc = exc
                 logger.warning("CBA arrears fetch error %s -> %s", url, exc)

@@ -91,6 +91,20 @@ def post_json(client: httpx.Client, url: str, *, json_body: Any) -> Any:
 
 
 @_retry_policy
+def get_bytes(client: httpx.Client, url: str, *, params: Optional[dict] = None) -> httpx.Response:
+    """GET <url> -> raw Response (do not raise_for_status; caller inspects status).
+
+    Used for binary probing loops (e.g. CBA PDF discovery) where 404 is an
+    expected probe result, not an error. Network errors and 5xx still retry
+    via the shared policy; 404 returns immediately so the caller can move on.
+    """
+    r = client.get(url, params=params)
+    if 500 <= r.status_code < 600:
+        r.raise_for_status()  # triggers retry via _should_retry
+    return r
+
+
+@_retry_policy
 def get_text(client: httpx.Client, url: str, *, params: Optional[dict] = None) -> str:
     """GET <url> -> response body as text. Raises for status before returning.
 
