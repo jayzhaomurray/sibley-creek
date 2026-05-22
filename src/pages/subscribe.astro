@@ -7,14 +7,20 @@
  * competing for attention. Mirrors the modal pitch but lives at a real
  * URL so it can be linked from anywhere.
  *
- * DRAFT v0. Iterate freely. When the paid product launches, this page
- * evolves into a tier-selection page (Free / Standard / Anchor) with
- * pricing. For now it's a single signup form for the email waitlist.
+ * DRAFT v0. When the paid product launches, this page evolves into a
+ * tier-selection page (Free / Standard / Anchor) with pricing.
  *
- * Form action is currently a placeholder. To wire up to Kit:
- *   1. Set up the form in Kit's admin
- *   2. Replace REPLACE_WITH_KIT_FORM_ACTION_URL with Kit's form action
- *   3. Adjust the name attribute if Kit expects something other than "email_address"
+ * Email capture (interim): the form POSTs to formsubmit.co, which
+ * forwards each submission to jayzhaomurray@outlook.com as an email.
+ * No backend, no Kit/Beehiiv account yet. First submission requires Jay
+ * to click a verification link; after that submissions deliver directly.
+ *
+ * TO MIGRATE to real newsletter infra (Kit, Beehiiv, Mailchimp, etc.):
+ *   1. Set up the form in the service's admin
+ *   2. Replace the formsubmit.co action below with the service's action
+ *   3. Adjust the input name= attribute if the service expects "email_address"
+ *      or similar instead of "email"
+ *   4. Swap jayzhaomurray@outlook.com → jay@sibleycreek.ca once mailbox exists (task #22)
  */
 
 import BaseLayout from "../layouts/BaseLayout.astro";
@@ -46,19 +52,20 @@ const pageDesc =
     <section class="sub__form-section">
       <form
         class="sub__form"
-        action="REPLACE_WITH_KIT_FORM_ACTION_URL"
-        method="post"
-        target="_blank"
+        action="https://formsubmit.co/jayzhaomurray@outlook.com"
+        method="POST"
       >
         <label for="subscribe-email" class="visually-hidden">Email address</label>
         <input
           type="email"
           id="subscribe-email"
-          name="email_address"
+          name="email"
           placeholder="you@example.com"
           required
           class="sub__input"
         />
+        <input type="hidden" name="_subject" value="New Sibley Creek subscriber" />
+        <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
         <button type="submit" class="sub__submit">Subscribe</button>
       </form>
     </section>
