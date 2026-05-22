@@ -31,18 +31,21 @@ const pageDesc =
     </header>
 
     <p class="topics__lede">
-      Seven sections of the Canadian economy. Each one is its own
-      chartbook — current prints, short history, written synthesis.
+      Seven sections of the Canadian economy, each its own chartbook —
+      current prints, short history, written synthesis. For the live
+      read on what just landed, see <a href={withBase("/overview/")}>the
+      overview</a>.
     </p>
 
-    <ul class="topics__grid" role="list">
+    <ul class="topics__list" role="list">
       {sections.map((s) => (
-        <li class="topics__cell">
-          <a class="topics__card" href={withBase(`/${s.slug}/`)}>
-            <p class="topics__card-eyebrow">{s.label}</p>
-            <h2 class="topics__card-question">{s.headlineQuestion}</h2>
-            {s.kicker && <p class="topics__card-kicker">{s.kicker}</p>}
-            <span class="topics__card-cta">Read the chartbook →</span>
+        <li class="topics__row">
+          <a class="topics__rowlink" href={withBase(`/${s.slug}/`)}>
+            <p class="topics__row-eyebrow">{s.label}</p>
+            <div class="topics__row-body">
+              <h2 class="topics__row-question">{s.headlineQuestion}</h2>
+              {s.kicker && <p class="topics__row-kicker">{s.kicker}</p>}
+            </div>
           </a>
         </li>
       ))}
@@ -79,87 +82,76 @@ const pageDesc =
       max-width: 56ch;
     }
 
-    /* ── Card grid ── */
-    .topics__grid {
+    /* ── Stacked catalogue list ── */
+    /* Each section is one horizontal row: section label sits in a
+     * fixed-width left column (eyebrow), the headline question + kicker
+     * sit in the right column. Hairline rule between rows. */
+    .topics__list {
       margin: 0;
       padding: 0;
       list-style: none;
+      border-top: 1px solid var(--ink);
+    }
+    .topics__row {
+      border-bottom: 1px solid var(--ink);
+    }
+    .topics__rowlink {
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 1px;
-      background: var(--ink);          /* gap rules between cards */
-      border: 1px solid var(--ink);
-    }
-    @media (min-width: 560px) {
-      .topics__grid { grid-template-columns: 1fr 1fr; }
-    }
-
-    .topics__cell {
-      background: var(--paper, #fff);
-    }
-    .topics__card {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      padding: 22px 22px 24px;
+      grid-template-columns: minmax(120px, 160px) 1fr;
+      gap: 28px;
+      align-items: baseline;
+      padding: 24px 4px;
       color: var(--ink);
       text-decoration: none;
       transition: background 80ms linear;
-      height: 100%;
     }
-    .topics__card:hover {
+    .topics__rowlink:hover {
       background: #FAFAFA;
     }
-    .topics__card:hover .topics__card-cta {
-      border-bottom-color: var(--accent);
-    }
-    .topics__card:focus-visible {
+    .topics__rowlink:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: -2px;
     }
+    @media (max-width: 540px) {
+      /* On narrow viewports, eyebrow stacks above the body. */
+      .topics__rowlink {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+    }
 
-    .topics__card-eyebrow {
+    .topics__row-eyebrow {
       margin: 0;
       font-family: var(--font-sans);
       font-weight: 600;
-      font-size: 10px;
-      line-height: 1;
+      font-size: 11px;
+      line-height: 1.1;
       letter-spacing: 0.22em;
       text-transform: uppercase;
       color: var(--accent, #D7263D);
     }
-    .topics__card-question {
+    .topics__row-body {
+      min-width: 0;
+    }
+    .topics__row-question {
       margin: 0;
       font-family: var(--font-sans);
       font-weight: 600;
-      font-size: 18px;
-      line-height: 1.25;
-      letter-spacing: -0.005em;
+      font-size: 22px;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
       color: var(--ink);
-      max-width: 22ch;
+      max-width: 36ch;
     }
-    .topics__card-kicker {
-      margin: 0;
+    .topics__row-kicker {
+      margin: 8px 0 0;
       font-family: var(--font-sans);
       font-weight: 400;
-      font-size: 14px;
+      font-size: 15px;
       line-height: 1.5;
       color: var(--ink);
-      opacity: 0.7;
-    }
-    .topics__card-cta {
-      margin-top: auto;
-      padding-top: 8px;
-      font-family: var(--font-sans);
-      font-weight: 600;
-      font-size: 11px;
-      line-height: 1;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--accent, #D7263D);
-      border-bottom: 1px solid transparent;
-      transition: border-color 80ms linear;
-      align-self: flex-start;
+      opacity: 0.75;
+      max-width: 56ch;
     }
   </style>
 </BaseLayout>
