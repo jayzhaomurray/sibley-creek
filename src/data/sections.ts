@@ -859,6 +859,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "retail-march-2026",
+    section: "output",
+    title: "Retail sales jump 0.9%, driven by higher gas prices.",
+    publishedAt: "2026-05-22",
+    pdfPath: "/research/commentaries/retail-march-2026.pdf",
+    excerpt:
+      "The Canadian consumer showed signs of weakness in March, with both core sales and volumes declining. The headline jump reflects higher prices at the pump, not a genuine increase in demand.",
+  },
+  {
     slug: "cpi-april-2026",
     section: "inflation",
     title: "Inflation rose to 2.8% on higher gasoline prices.",
