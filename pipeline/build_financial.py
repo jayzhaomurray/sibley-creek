@@ -54,7 +54,8 @@ from pipeline.catalog.fred_series import FredSpec
 from pipeline.catalog.indeed_series import IndeedSpec
 from pipeline.catalog.yahoo_series import YahooSpec
 from pipeline.fetch import boc, fred, indeed_hiring_lab, yahoo
-from pipeline.io import SeriesMeta, write_series, write_series_merge
+from pipeline.io import SeriesMeta, build_site_data, write_series, write_series_merge
+from pipeline.io.panel_data import build_all_panel_data
 from pipeline.transform.derivations import goc_ust_spread
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -421,6 +422,21 @@ def main() -> int:
     logger.info("--- Derivations (Financial) ---")
     _safe("derive_goc_ust_spreads", derive_goc_ust_spreads, failed)
     _safe("derive_corra_overnight_spread", derive_corra_overnight_spread, failed)
+
+    # Regenerate downstream site-data JSON so newly-landed daily series
+    # (e.g. tsx_composite.csv from Yahoo, yield_2yr.csv from BoC Valet)
+    # are immediately reflected in sections.json and panel_data/*.json.
+    #
+    # Root cause of the 2026-05-22 TSX TK incident: build_financial wrote
+    # tsx_composite.csv but never called build_site_data / build_all_panel_data,
+    # so sections.json + markets.json carried stale "available: false" / null
+    # primary slots until the next full pipeline.build run. These two calls
+    # close that gap: the daily financial run is now fully self-contained.
+    logger.info("--- Site data bundle (financial refresh) ---")
+    _safe("build_site_data", lambda: build_site_data(ROOT / "data"), failed)
+
+    logger.info("--- Panel data bundle (financial refresh) ---")
+    _safe("build_panel_data", lambda: build_all_panel_data(ROOT / "data"), failed)
 
     if failed:
         logger.error("Financial build completed with %d failure(s): %s",
