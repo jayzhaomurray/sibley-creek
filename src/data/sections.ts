@@ -1012,7 +1012,7 @@ export const splashHero: {
   citations: import("../layouts/SectionLayout.astro").ClaimCitation[];
 } = {
   abstract:
-    "Stuck below its potential, on two fronts at once. Cyclically, growth is running at 1% as the job market slackens and inflation continues to settle. Structurally, immigration reforms and tariffs are forcing a realignment. Population growth has levelled off, which is showing up clearly in the housing market, while new exports are redirecting away from the US.",
+    "Stuck below its potential, on two fronts at once. Cyclically, growth is running at 1% as the job market slackens and inflation continues to settle. Structurally, immigration reforms and tariffs are forcing a realignment. Population growth has levelled off, which is showing up clearly in the housing market, while new exports are narrowly redirecting away from the US.",
   citations: [
     { phrase: "1%", source: "pipeline:statcan:36-10-0434-01", note: "Real GDP by industry, Y/Y, latest monthly print." },
     { phrase: "the job market slackens", source: "derived", note: "LFS data: unemployment rate has drifted up to 6.9% (April 2026) with aggregate hours worked negative year-over-year; intensive margin is leading the loosening." },
@@ -1020,7 +1020,7 @@ export const splashHero: {
     { phrase: "immigration reforms", source: "derived", note: "IRCC 2026-2028 Immigration Levels Plan (announced November 2025) caps permanent residents at 380,000 per year with sub-caps on international students and temporary workers; PR card in editorial/source_cards/_pending/per-capita-output/ pending user verification." },
     { phrase: "tariffs", source: "card:pp_section_232_steel_alum_50pct", note: "US Section 232 measures (50% steel and aluminum since June 2025, copper added April 2026); broader tariff stack and USMCA review covered in trade section." },
     { phrase: "Population growth has levelled off", source: "pipeline:statcan:17-10-0009-01", note: "Quarterly population Y/Y peaked at 3.18% in Q2 2024 and printed -0.25% in Q1 2026 per StatCan demographic estimates." },
-    { phrase: "new exports are redirecting away from the US", source: "derived", note: "US share of Canadian merchandise exports moved from ~76% (2024 average) to ~66% (March 2026) per StatCan 12-10-0121-01." },
+    { phrase: "new exports are narrowly redirecting away from the US", source: "derived", note: "US share of Canadian merchandise exports moved from ~76% (2024 average) to ~66% (March 2026) per StatCan 12-10-0121-01 — the shift is real but concentrated in gold." },
   ],
 };
 
