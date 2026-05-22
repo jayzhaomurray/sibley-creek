@@ -157,15 +157,15 @@
       const d2 = dx*dx + dy*dy;
       if (d2 < tbBest) { tbBest = d2; tbIdx = i; }
     }
-    addRoad(TCH1.slice(0, tbIdx + 1),        { w: '1.0', dur: 3.6, delay: 0.00, finalOp: 0.85 });
-    addRoad(TCH1.slice(tbIdx).reverse(),     { w: '1.0', dur: 3.6, delay: 0.05, finalOp: 0.85 });
+    addRoad(TCH1.slice(0, tbIdx + 1),        { w: '1.0', dur: 1.3, delay: 0.00, finalOp: 0.85 });
+    addRoad(TCH1.slice(tbIdx).reverse(),     { w: '1.0', dur: 1.3, delay: 0.03, finalOp: 0.85 });
 
     function findRoad(name) { return G.highways.find(h => h.name === name).points; }
-    addRoad(findRoad('TCH 16'),              { w: '0.85', dur: 3.4, delay: 0.10, finalOp: 0.6 });
-    addRoad(findRoad('Hwy 401'),             { w: '0.85', dur: 3.4, delay: 0.15, finalOp: 0.6 });
-    addRoad(findRoad('Hwy 11'),              { w: '0.85', dur: 3.4, delay: 0.20, finalOp: 0.6 });
-    addRoad(findRoad('Hwy 97 / Alaska').slice().reverse(), { w: '0.85', dur: 3.4, delay: 0.25, finalOp: 0.55 });
-    addRoad(findRoad('Mackenzie Hwy').slice().reverse(),   { w: '0.85', dur: 3.4, delay: 0.30, finalOp: 0.55 });
+    addRoad(findRoad('TCH 16'),              { w: '0.85', dur: 1.2, delay: 0.05, finalOp: 0.6 });
+    addRoad(findRoad('Hwy 401'),             { w: '0.85', dur: 1.2, delay: 0.07, finalOp: 0.6 });
+    addRoad(findRoad('Hwy 11'),              { w: '0.85', dur: 1.2, delay: 0.09, finalOp: 0.6 });
+    addRoad(findRoad('Hwy 97 / Alaska').slice().reverse(), { w: '0.85', dur: 1.2, delay: 0.11, finalOp: 0.55 });
+    addRoad(findRoad('Mackenzie Hwy').slice().reverse(),   { w: '0.85', dur: 1.2, delay: 0.13, finalOp: 0.55 });
 
     // Cities
     const cityNodes = [];
@@ -244,49 +244,59 @@
     sibTick.setAttribute('opacity', '0');
     sibleyG.appendChild(sibTick);
 
-    // One-shot timeline, freezes at static frame
+    // One-shot timeline (4s total), freezes at static frame.
+    //
+    // Arc (compressed from the original 8.5s):
+    //   0.0 → 1.4s : mainland outline + islands draw in (establish Canada)
+    //   0.5 → 1.8s : highways converge on Sibley
+    //   0.8 → 1.7s : 22 city dots fade in, rank-staggered; labels follow
+    //   1.8 → 2.3s : Sibley Creek marker + label land — the payload
+    //   2.0 → 4.0s : pulse runs, then fades to the frozen frame
     const t0 = performance.now();
     function frame(now) {
       const tSec = (now - t0) / 1000;
 
       cityNodes.forEach(c => {
-        const start = c.rank * 0.12;
-        const dotP = ss((tSec - start) / 0.35);
+        const start = c.rank * 0.025 + 0.8;
+        const dotP = ss((tSec - start) / 0.20);
         c.el.setAttribute('opacity', dotP.toFixed(2));
         if (c.label) {
-          const labP = ss((tSec - start - 0.30) / 0.45);
+          const labP = ss((tSec - start - 0.15) / 0.25);
           c.label.setAttribute('opacity', labP.toFixed(2));
         }
       });
 
-      const sibP = ss((tSec - 3.0) / 0.5);
+      const sibP = ss((tSec - 1.8) / 0.3);
       sibDot.setAttribute('opacity', sibP.toFixed(2));
       sibTick.setAttribute('opacity', (sibP * 0.7).toFixed(2));
-      const labP2 = ss((tSec - 3.3) / 0.5);
+      const labP2 = ss((tSec - 2.0) / 0.3);
       sibLabel.setAttribute('opacity', labP2.toFixed(2));
-      const pulseAmp = Math.max(0, 1 - Math.max(0, tSec - 6.5) / 1.8);
-      const pulse = pulseAmp * (tSec > 3.0 ? (0.5 + 0.5 * Math.sin((tSec - 3.0) * 1.6)) : 0);
+      // Pulse: active from 1.8s, fades from 2.8s → 4.0s. Higher sine
+      // frequency than the original since the active window is shorter —
+      // gives ~one clear pulse cycle inside the 1.2s decay envelope.
+      const pulseAmp = Math.max(0, 1 - Math.max(0, tSec - 2.8) / 1.2);
+      const pulse = pulseAmp * (tSec > 1.8 ? (0.5 + 0.5 * Math.sin((tSec - 1.8) * 4.0)) : 0);
       sibRing.setAttribute('r', (6 + pulse * 6).toFixed(1));
       sibRing.setAttribute('opacity', ((0.45 - pulse * 0.35) * sibP * pulseAmp).toFixed(2));
 
       ROADS.forEach(r => {
-        const start = 3.6 + r.delay;
+        const start = 0.5 + r.delay;
         const local = ss((tSec - start) / r.dur);
         r.el.setAttribute('stroke-dashoffset', (r.L * (1 - local)).toFixed(1));
         r.el.setAttribute('opacity', (r.finalOp * Math.min(1, local * 2)).toFixed(2));
       });
 
-      const oP = ss((tSec - 3.6) / 3.2);
+      const oP = ss((tSec - 0.0) / 1.4);
       mainA.setAttribute('stroke-dashoffset', (mainAL * (1 - oP)).toFixed(1));
       mainB.setAttribute('stroke-dashoffset', (mainBL * (1 - oP)).toFixed(1));
 
       islandPaths.forEach(I => {
-        const start = 4.0 + I.delay * 1.6;
-        const p = ss((tSec - start) / 1.4);
+        const start = 0.1 + I.delay * 0.7;
+        const p = ss((tSec - start) / 0.8);
         I.el.setAttribute('stroke-dashoffset', (I.L * (1 - p)).toFixed(1));
       });
 
-      if (tSec < 8.5) requestAnimationFrame(frame);
+      if (tSec < 4.0) requestAnimationFrame(frame);
       else sibRing.setAttribute('opacity', '0');
     }
     requestAnimationFrame(frame);
