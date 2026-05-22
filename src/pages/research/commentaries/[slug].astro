@@ -1,0 +1,355 @@
+---
+/*
+ * /research/commentaries/<slug>/ — HTML wrapper for a data commentary PDF.
+ *
+ * Each commentary PDF lives at /research/commentaries/<slug>.pdf. This page
+ * provides a crawlable HTML surface for search engines and LLM crawlers:
+ * the title, dateline, byline, and the take excerpt from page 1 of the PDF
+ * are all in the HTML. The PDF itself is linked prominently for readers who
+ * want the full document.
+ *
+ * Route: /research/commentaries/<slug>/  (trailing slash, Astro convention)
+ * PDF:   /research/commentaries/<slug>.pdf  (unchanged, stays where it is)
+ *
+ * JSON-LD: Article schema cross-referencing the site-level
+ * Organization + Person entities declared in BaseLayout.
+ *
+ * getStaticPaths() generates one route per entry in the `commentaries`
+ * array in src/data/sections.ts. Adding a new commentary = add a row
+ * to that array; the wrapper page is generated automatically.
+ */
+
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import { commentaries, sections, site, type DataCommentary, type SectionSlug } from "../../../data/sections";
+import { withBase } from "../../../lib/urls";
+
+export async function getStaticPaths() {
+  return commentaries.map((c) => ({
+    params: { slug: c.slug },
+    props: { commentary: c },
+  }));
+}
+
+interface Props {
+  commentary: DataCommentary;
+}
+
+const { commentary } = Astro.props;
+
+// Section label for badge display.
+const sectionLabelFor = (slug: SectionSlug): string => {
+  const s = sections.find((x) => x.slug === slug);
+  return s ? s.label : slug;
+};
+
+// Hand-rolled YYYY-MM-DD -> "May 22, 2026" formatter (avoids timezone
+// shift that toLocaleDateString takes on YYYY-MM-DD inputs on UTC hosts).
+const MONTH_LONG = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const MONTH_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+const displayDateLong = (raw: string): string => {
+  const parts = raw.split("-");
+  if (parts.length !== 3) return raw;
+  const [y, m, d] = parts.map((n) => parseInt(n, 10));
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return raw;
+  if (m < 1 || m > 12) return raw;
+  return `${MONTH_LONG[m - 1]} ${d}, ${y}`;
+};
+const displayDateShort = (raw: string): string => {
+  const parts = raw.split("-");
+  if (parts.length !== 3) return raw;
+  const [y, m, d] = parts.map((n) => parseInt(n, 10));
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return raw;
+  if (m < 1 || m > 12) return raw;
+  return `${MONTH_SHORT[m - 1]} ${d}, ${y}`;
+};
+
+const sectionLabel = sectionLabelFor(commentary.section);
+const pubDateLong = displayDateLong(commentary.publishedAt);
+const pubDateShort = displayDateShort(commentary.publishedAt);
+
+// SEO. Description is the excerpt (the take), truncated to ~155 chars.
+// The excerpt is already short (1-2 sentences); trim only if over limit.
+const rawDesc = `${commentary.title} ${commentary.excerpt}`;
+const pageDesc = rawDesc.length > 155 ? rawDesc.slice(0, 152) + "..." : rawDesc;
+
+// Canonical + og:url
+const canonicalHref = Astro.site
+  ? new URL(`/research/commentaries/${commentary.slug}/`, Astro.site).toString()
+  : `/research/commentaries/${commentary.slug}/`;
+
+// Article JSON-LD for this commentary wrapper.
+// Cross-references Organization + Person from the site-level JSON-LD
+// in BaseLayout via @id rather than re-declaring full entities.
+const articleLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "@id": `${canonicalHref}#article`,
+  "headline": commentary.title,
+  "description": commentary.excerpt,
+  "datePublished": commentary.publishedAt,
+  "dateModified": commentary.publishedAt,
+  "url": canonicalHref,
+  "mainEntityOfPage": canonicalHref,
+  "author": {
+    "@id": `${site.url}/#jay-zhao-murray`
+  },
+  "publisher": {
+    "@id": `${site.url}/#organization`
+  },
+  "about": {
+    "@type": "Thing",
+    "name": `Canadian ${sectionLabel.toLowerCase()}`
+  },
+  "inLanguage": "en-CA"
+});
+---
+<BaseLayout
+  title={commentary.title}
+  description={pageDesc}
+  canonical={canonicalHref}
+  pageClass="commentary-page"
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={articleLd} />
+  </Fragment>
+
+  <article class="commentary" aria-labelledby="commentary-h">
+    <header class="commentary__header">
+      <p class="commentary__kicker">
+        <span class="commentary__kicker-tok">{site.name}</span>
+        <span class="commentary__kicker-sep" aria-hidden="true">|</span>
+        <span class="commentary__kicker-tok">Data commentary</span>
+        <span class="commentary__kicker-sep" aria-hidden="true">|</span>
+        <span class="commentary__kicker-tok commentary__kicker-tok--section">
+          {sectionLabel}
+        </span>
+      </p>
+
+      <div class="commentary__band">
+        <h1 id="commentary-h" class="commentary__h">{commentary.title}</h1>
+      </div>
+
+      <p class="commentary__dateline">
+        <time datetime={commentary.publishedAt}>{pubDateLong}</time>
+        <span class="commentary__dateline-sep" aria-hidden="true">·</span>
+        <span class="commentary__byline">By Jay Zhao-Murray, Chief Economist</span>
+      </p>
+
+      <hr class="commentary__rule" aria-hidden="true" />
+    </header>
+
+    <section class="commentary__take" aria-labelledby="take-h">
+      <h2 id="take-h" class="commentary__take-label">The take</h2>
+      <p class="commentary__excerpt">{commentary.excerpt}</p>
+    </section>
+
+    <div class="commentary__cta">
+      <a
+        class="commentary__pdf-link"
+        href={withBase(commentary.pdfPath)}
+        rel="noopener"
+      >
+        Download the full commentary (PDF)
+        <span class="commentary__pdf-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 4 v12" />
+            <path d="M6 12 l6 6 6-6" />
+            <path d="M5 20 h14" />
+          </svg>
+        </span>
+      </a>
+    </div>
+
+    <hr class="commentary__foot-rule" aria-hidden="true" />
+    <p class="commentary__backlink">
+      <a href={withBase("/research/")}>Back to all research</a>
+    </p>
+  </article>
+
+  <style>
+    /* ============================================================
+     * /research/commentaries/<slug>/ — commentary wrapper page.
+     *
+     * Visual register: boutique (matches /research/, /about/).
+     * Max-width 720px, left-anchored in the site-shell.
+     * ============================================================ */
+
+    .commentary {
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 0 64px;
+    }
+
+    /* ---- Kicker ---- */
+    .commentary__kicker {
+      margin: 0 0 18px;
+      display: inline-flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0 10px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .commentary__kicker-tok { display: inline-block; }
+    .commentary__kicker-tok--section { font-weight: 800; }
+    .commentary__kicker-sep {
+      color: var(--ink);
+      opacity: 0.32;
+      font-weight: 400;
+    }
+
+    /* ---- Header band ---- */
+    .commentary__band {
+      border-top: 1px solid var(--ink);
+      padding-top: 18px;
+    }
+    .commentary__h {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: clamp(28px, 4.5vw, 44px);
+      line-height: 1.1;
+      letter-spacing: -0.015em;
+      color: var(--ink);
+      max-width: 26ch;
+    }
+
+    /* ---- Dateline + byline ---- */
+    .commentary__dateline {
+      margin: 20px 0 0;
+      display: inline-flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0 8px;
+      font-family: var(--font-mono);
+      font-weight: 400;
+      font-size: 11px;
+      line-height: 1;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+    .commentary__dateline-sep {
+      opacity: 0.4;
+    }
+    .commentary__byline {
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: none;
+      color: var(--ink);
+      opacity: 0.7;
+    }
+
+    .commentary__rule {
+      border: 0;
+      border-top: 2px solid var(--ink);
+      margin: 28px 0 0;
+    }
+
+    /* ---- The take ---- */
+    .commentary__take {
+      margin-top: 32px;
+    }
+    .commentary__take-label {
+      margin: 0 0 14px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .commentary__excerpt {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: var(--fs-body-lg, 18px);
+      line-height: 1.60;
+      color: var(--ink);
+      max-width: 60ch;
+    }
+
+    /* ---- PDF download CTA ---- */
+    .commentary__cta {
+      margin-top: 36px;
+    }
+    .commentary__pdf-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 13px;
+      line-height: 1;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--ink);
+      text-decoration: none;
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 3px;
+      transition:
+        color 80ms linear,
+        border-color 80ms linear;
+    }
+    .commentary__pdf-link:hover {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .commentary__pdf-link:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+    .commentary__pdf-icon {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    /* ---- Foot ---- */
+    .commentary__foot-rule {
+      border: 0;
+      border-top: 1px solid var(--ink);
+      margin: 56px 0 24px;
+    }
+    .commentary__backlink {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+    .commentary__backlink a {
+      color: var(--ink);
+      text-decoration: none;
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 2px;
+      transition:
+        color 80ms linear,
+        border-color 80ms linear;
+    }
+    .commentary__backlink a:hover {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .commentary__backlink a:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+  </style>
+</BaseLayout>
