@@ -455,13 +455,16 @@ const showBand = referenceBand !== null && bandTopY !== null && bandBotY !== nul
 // run a 60-mo window — no horizontal collision in practice. See the
 // text-vs-line overlap audit.
 // Band label position: "above" places ~4px above the band's upper edge
-// (clamped to PLOT_Y0+10 so it never crosses the plot frame); "below"
-// places at yScale(1.4) — inside the chart but below the band's lower
-// edge — for charts where the data line crosses the band's TOP at the
-// leftmost x (inflation core measures during the 2022-23 spike).
+// (clamped to PLOT_Y0+10 so it never crosses the plot frame). "below"
+// places INSIDE the band near its lower edge — used for charts where the
+// data line crosses the band's TOP at the leftmost x (inflation core
+// measures during the 2022-23 spike), so the label needs to be in the
+// band's empty lower portion to stay clear of the line.
+// Earlier implementation placed the label at yScale(lower - 0.6) which
+// is OUTSIDE the band at the bottom of the chart frame — visually broken.
 const BAND_LABEL_Y = bandTopY !== null
   ? (bandLabelPosition === "below"
-      ? yScale((referenceBand?.lower ?? 0) - 0.6)
+      ? yScale((referenceBand?.lower ?? 0) + 0.4)
       : Math.max(PLOT_Y0 + 10, bandTopY - 4))
   : 0;
 // (Band-label collision suppression resolves after showRefLabel /
