@@ -2715,36 +2715,68 @@ def main(argv: Optional[list[str]] = None) -> int:
     fan_out_enabled = (args.fan_out or auto_on) and not args.no_fan_out
     if fan_out_enabled:
         logger.info("--- Fan-out cascade ---")
+        # Pre-flight: check whether any LLM auth path is usable before
+        # attempting the cascade. On CI runners without ANTHROPIC_API_KEY
+        # and without the `claude` CLI installed, every call_claude() raises
+        # LLMDispatchError. The fan-out is an editorial convenience layer
+        # (draft blurbs on release days) -- its absence is not a data
+        # failure. We check once here and skip cleanly rather than letting
+        # the cascade attempt 20+ LLM calls, fail each one, and then
+        # surface "fan_out_release" in the failed list, which causes the
+        # CI step-7 check to flag the build as broken even though all data
+        # shipped correctly.
+        #
+        # If the pre-flight shows no path: log a single INFO line and skip.
+        # The data build is complete; the blurb cascade can be re-run
+        # manually or on a runner with credentials.
         try:
-            from pipeline.blurbs.fan_out import (
-                detect_release_event,
-                fan_out_release,
+            from pipeline.blurbs.llm_client import available_paths
+            auth = available_paths()
+            llm_available = bool(auth.get("claude_cli") or auth.get("anthropic_api_key"))
+        except Exception:  # noqa: BLE001
+            llm_available = False
+            auth = {}
+
+        if not llm_available:
+            logger.info(
+                "fan_out: skipped -- no LLM auth path available "
+                "(claude_cli=%s anthropic_api_key=%s). "
+                "Data build complete; blurb cascade requires ANTHROPIC_API_KEY "
+                "or the claude CLI on PATH.",
+                auth.get("claude_cli"),
+                auth.get("anthropic_api_key"),
             )
-            event = detect_release_event(ROOT)
-            if event is None:
-                logger.info(
-                    "fan_out: no release event detected (no sidecar "
-                    "release_date newer than snapshot); nothing to do.",
+        else:
+            try:
+                from pipeline.blurbs.fan_out import (
+                    detect_release_event,
+                    fan_out_release,
                 )
-            else:
-                logger.info(
-                    "fan_out: cascade trigger -- release_id=%s "
-                    "release_key=%s section=%s release_date=%s",
-                    event.release_id, event.release_key,
-                    event.section, event.release_date,
-                )
-                result = fan_out_release(event, repo_root=ROOT)
-                logger.info(
-                    "fan_out: drafted=%d failed=%d promoted=%s error=%s",
-                    result.surfaces_drafted, result.surfaces_failed,
-                    result.promoted, result.error,
-                )
-                if not result.promoted:
-                    failed.append("fan_out_release")
-        except Exception as exc:  # noqa: BLE001
-            logger.error("FAILED: fan_out -- %s: %s", type(exc).__name__, exc)
-            logger.debug("traceback:\n%s", traceback.format_exc())
-            failed.append("fan_out")
+                event = detect_release_event(ROOT)
+                if event is None:
+                    logger.info(
+                        "fan_out: no release event detected (no sidecar "
+                        "release_date newer than snapshot); nothing to do.",
+                    )
+                else:
+                    logger.info(
+                        "fan_out: cascade trigger -- release_id=%s "
+                        "release_key=%s section=%s release_date=%s",
+                        event.release_id, event.release_key,
+                        event.section, event.release_date,
+                    )
+                    result = fan_out_release(event, repo_root=ROOT)
+                    logger.info(
+                        "fan_out: drafted=%d failed=%d promoted=%s error=%s",
+                        result.surfaces_drafted, result.surfaces_failed,
+                        result.promoted, result.error,
+                    )
+                    if not result.promoted:
+                        failed.append("fan_out_release")
+            except Exception as exc:  # noqa: BLE001
+                logger.error("FAILED: fan_out -- %s: %s", type(exc).__name__, exc)
+                logger.debug("traceback:\n%s", traceback.format_exc())
+                failed.append("fan_out")
 
     if failed:
         logger.error("Build completed with %d failure(s): %s", len(failed), ", ".join(failed))
