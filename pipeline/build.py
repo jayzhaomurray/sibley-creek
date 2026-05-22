@@ -851,6 +851,259 @@ def derive_cpi_services_ex_shelter_yoy() -> None:
     write_series(out, meta, DATA_PROCESSED)
 
 
+def derive_cpi_goods_ex_energy_yoy() -> None:
+    """Y/Y % change in basket-weighted goods CPI excluding energy.
+
+    Inflation Panel 6 (pass-through panel, canon 4.2 element 6) left-pane
+    pairs USDCAD Y/Y against goods-ex-energy CPI Y/Y to show FX pass-through.
+
+    No standalone StatCan vector exists for a goods-ex-energy index; we
+    reconstruct it using the same basket-weighted level-then-Y/Y route used for
+    services-ex-shelter (Route A per StatCan / BoC convention):
+
+        L_t = (w_goods_t * goods_index_t - w_energy_t * energy_index_t)
+              / (w_goods_t - w_energy_t)
+
+    where w_goods and w_energy are the basket-cycle weights from
+    cpi_basket_weights_canada.csv (same source used by services-ex-shelter).
+
+    Note: the StatCan-published "goods excluding food and energy" aggregate
+    (v91859292, also in our basket) excludes BOTH food and energy; that is a
+    different cut from the editorial concept here (goods ex-energy only, which
+    retains food-from-stores). We therefore derive from first principles.
+
+    Inputs:
+        data/raw/cpi_goods.csv             NSA index level (StatCan v41691222)
+        data/raw/cpi_energy.csv            NSA index level (StatCan v41691239)
+        data/derived/cpi_basket_weights_canada.csv
+            long-format weights from cpi_basket.fetch_basket_weights()
+
+    Output:
+        data/processed/cpi_goods_ex_energy_yoy.csv  date,value (%)
+    """
+    goods = _read_raw("cpi_goods")
+    energy = _read_raw("cpi_energy")
+    if goods is None or energy is None:
+        logger.warning(
+            "derive_cpi_goods_ex_energy_yoy skipped: goods=%s energy=%s",
+            goods is not None, energy is not None,
+        )
+        return
+
+    weights_path = DATA_DERIVED / "cpi_basket_weights_canada.csv"
+    if not weights_path.exists():
+        logger.warning(
+            "derive_cpi_goods_ex_energy_yoy skipped: missing %s "
+            "(run fetch_cpi_basket_weights first)",
+            weights_path,
+        )
+        return
+    w_long = pd.read_csv(weights_path, parse_dates=["date"])
+    w_goods = (
+        w_long[w_long["aggregate"] == "goods"]
+        .set_index("date")["weight_pct"].sort_index()
+    )
+    w_energy = (
+        w_long[w_long["aggregate"] == "energy"]
+        .set_index("date")["weight_pct"].sort_index()
+    )
+    if w_goods.empty or w_energy.empty:
+        logger.warning(
+            "derive_cpi_goods_ex_energy_yoy: basket weights missing goods/energy rows"
+        )
+        return
+
+    g = goods.set_index("date")["value"].sort_index()
+    e = energy.set_index("date")["value"].sort_index()
+    joined = pd.concat([g.rename("goods"), e.rename("energy")], axis=1).dropna()
+    if joined.empty:
+        logger.warning("derive_cpi_goods_ex_energy_yoy: no overlapping months")
+        return
+
+    # Forward-fill basket weights to monthly frequency; same asof() approach
+    # as services-ex-shelter.
+    wg = w_goods.reindex(
+        w_goods.index.union(joined.index)
+    ).sort_index().ffill().reindex(joined.index)
+    we = w_energy.reindex(
+        w_energy.index.union(joined.index)
+    ).sort_index().ffill().reindex(joined.index)
+
+    denom = wg - we
+    if (denom <= 0).any():
+        logger.warning(
+            "derive_cpi_goods_ex_energy_yoy: non-positive ex-energy weight share "
+            "in some basket cycles; check cpi_basket_weights_canada.csv"
+        )
+    level = (wg * joined["goods"] - we * joined["energy"]) / denom
+    level = level.dropna()
+    if len(level) < 13:
+        logger.warning(
+            "derive_cpi_goods_ex_energy_yoy: insufficient history for Y/Y (n=%d)",
+            len(level),
+        )
+        return
+
+    yoy = (level.pct_change(12) * 100.0).dropna()
+    out = yoy.reset_index()
+    out.columns = ["date", "value"]
+
+    spec_goods = STATCAN_SERIES["cpi_goods"]
+    spec_energy = STATCAN_SERIES["cpi_energy"]
+    meta = SeriesMeta(
+        name="cpi_goods_ex_energy_yoy",
+        source="Statistics Canada Web Data Service (derived)",
+        source_url=statcan_url(spec_goods),
+        source_id=(
+            f"v{spec_goods.vector_id}-minus-weighted-v{spec_energy.vector_id}"
+            "-basket-link-month-weights"
+        ),
+        units="%",
+        frequency="monthly",
+        notes=(
+            "Year-over-year % change in basket-weighted goods CPI excluding energy. "
+            "Synthetic ex-energy level reconstructed per basket cycle from StatCan "
+            "Table 18-10-0007-01 weights (cpi_basket_weights_canada.csv): "
+            "L_t = (w_goods_t * goods_index_t - w_energy_t * energy_index_t) "
+            "/ (w_goods_t - w_energy_t). Y/Y is the standard 12-month % change "
+            "on L. Route choice ('level-then-Y/Y'): we use level-then-Y/Y per "
+            "StatCan / BoC convention, consistent with derive_cpi_services_ex_shelter_yoy. "
+            "Note: StatCan publishes 'goods ex food and energy' (v91859292) but that "
+            "excludes food as well; this derivation retains food-from-stores in goods, "
+            "matching the editorial pass-through concept (FX pass-through to goods prices "
+            "net of energy). Inputs: cpi_goods (NSA, v41691222) and cpi_energy (NSA, "
+            f"v{spec_energy.vector_id})."
+        ),
+        transform="basket_weighted_goods_minus_energy_level_then_yoy(periods_per_year=12)",
+    )
+    write_series(out, meta, DATA_PROCESSED)
+
+
+def derive_usdcad_yoy() -> None:
+    """Monthly-mean USDCAD and its Y/Y % change.
+
+    Inflation Panel 6 (pass-through panel, canon 4.2 element 6) left-pane
+    pairs USDCAD Y/Y against goods-ex-energy CPI Y/Y. The raw fxusdcad series
+    is daily (BoC Valet FXUSDCAD, 2017-present). We resample to monthly mean
+    then take the standard 12-month % change.
+
+    Monthly mean (rather than month-end or last-obs) is consistent with how
+    StatCan / BoC reference FX in price-transmission analysis: an importer
+    sees the average rate for the month, not the spot at month-end.
+
+    Input:
+        data/raw/fxusdcad.csv    daily CAD per USD (BoC Valet FXUSDCAD)
+
+    Output:
+        data/processed/usdcad_yoy.csv    date,value (% Y/Y of monthly mean)
+    """
+    raw_path = DATA_RAW / "fxusdcad.csv"
+    if not raw_path.exists():
+        logger.warning("derive_usdcad_yoy: fxusdcad.csv not found in raw/")
+        return
+
+    try:
+        df = pd.read_csv(raw_path, parse_dates=["date"])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("derive_usdcad_yoy: failed to read fxusdcad.csv: %s", exc)
+        return
+
+    if df.empty or "date" not in df.columns or "value" not in df.columns:
+        logger.warning("derive_usdcad_yoy: fxusdcad.csv empty or missing columns")
+        return
+
+    df = df.sort_values("date").dropna(subset=["value"])
+    df = df.set_index("date")
+    # Monthly mean; resample on "MS" (month-start) for consistent YYYY-MM-01 keying
+    # with StatCan monthly series.
+    monthly_mean = df["value"].resample("MS").mean().dropna()
+    if len(monthly_mean) < 13:
+        logger.warning(
+            "derive_usdcad_yoy: insufficient monthly observations for Y/Y (n=%d)",
+            len(monthly_mean),
+        )
+        return
+
+    yoy = (monthly_mean.pct_change(12) * 100.0).dropna()
+    out = yoy.reset_index()
+    out.columns = ["date", "value"]
+
+    spec = BOC_VALET_SERIES["fxusdcad"]
+    meta = SeriesMeta(
+        name="usdcad_yoy",
+        source="Bank of Canada Valet API",
+        source_url=f"https://www.bankofcanada.ca/valet/observations/{spec.series_key}/json",
+        source_id=f"{spec.series_key} (monthly mean, Y/Y)",
+        units="% Y/Y",
+        frequency="monthly",
+        notes=(
+            "Year-over-year % change in the monthly-mean USD/CAD exchange rate. "
+            "Derived from BoC Valet FXUSDCAD daily series by (1) resampling to "
+            "monthly mean (calendar-month average of all trading-day closes in the "
+            "month), then (2) standard 12-month % change. Monthly mean is preferred "
+            "over month-end for pass-through analysis (importers face the average "
+            "rate, not the spot at month-end). BoC FXUSDCAD starts 2017-01-03; "
+            "Y/Y series therefore starts 2018-01. Dates keyed to first of month "
+            "(YYYY-MM-01) for alignment with StatCan monthly series."
+        ),
+        transform="monthly_mean_then_yoy_pct(periods=12)",
+    )
+    write_series(out, meta, DATA_PROCESSED)
+
+
+def derive_lfs_micro_yoy() -> None:
+    """Pass-through: write the BoC LFS-Micro Y/Y series to processed/.
+
+    The raw series INDINF_LFSMICRO_M (BoC Valet) is already published as a
+    Y/Y % change (units: '% Y/Y'). No derivation is required. This function
+    writes a processed/ copy with an explicit meta record so the Panel 6
+    SlotSpec ('lfs_micro_yoy', 'processed') resolves correctly without
+    special-casing the raw tier.
+
+    Input:
+        data/raw/lfs_micro.csv      monthly Y/Y % (BoC Valet INDINF_LFSMICRO_M)
+
+    Output:
+        data/processed/lfs_micro_yoy.csv  date,value (% Y/Y, passthrough)
+    """
+    raw_path = DATA_RAW / "lfs_micro.csv"
+    if not raw_path.exists():
+        logger.warning("derive_lfs_micro_yoy: lfs_micro.csv not found in raw/")
+        return
+
+    try:
+        df = pd.read_csv(raw_path, parse_dates=["date"])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("derive_lfs_micro_yoy: failed to read lfs_micro.csv: %s", exc)
+        return
+
+    if df.empty or "date" not in df.columns or "value" not in df.columns:
+        logger.warning("derive_lfs_micro_yoy: lfs_micro.csv empty or missing columns")
+        return
+
+    spec = BOC_VALET_SERIES["lfs_micro"]
+    meta = SeriesMeta(
+        name="lfs_micro_yoy",
+        source="Bank of Canada Valet API",
+        source_url=f"https://www.bankofcanada.ca/valet/observations/{spec.series_key}/json",
+        source_id=spec.series_key,
+        units="% Y/Y",
+        frequency="monthly",
+        notes=(
+            "LFS-Micro composition-adjusted wage growth (% Y/Y), published directly "
+            "by the Bank of Canada as a Y/Y series. No derivation applied; this is a "
+            "passthrough copy from data/raw/lfs_micro.csv with an explicit processed/ "
+            "meta record. BoC publishes this series as INDINF_LFSMICRO_M on the Valet "
+            "API. Conceptually: the LFS microdata re-weights wage growth to hold "
+            "composition constant (industry/occupation mix), giving a cleaner "
+            "underlying wage-pressure signal than the headline LFS average hourly wages."
+        ),
+        transform="passthrough (series is natively Y/Y)",
+    )
+    out = df[["date", "value"]].copy()
+    write_series(out, meta, DATA_PROCESSED)
+
+
 def derive_cpi_breadth_gt3() -> None:
     """Share of CPI basket (weighted) with Y/Y inflation above 3%.
 
@@ -2399,6 +2652,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     logger.info("--- Derivations ---")
     _safe("derive_cpi_views", derive_cpi_views, failed)
     _safe("derive_cpi_services_ex_shelter_yoy", derive_cpi_services_ex_shelter_yoy, failed)
+    _safe("derive_cpi_goods_ex_energy_yoy", derive_cpi_goods_ex_energy_yoy, failed)
+    _safe("derive_usdcad_yoy", derive_usdcad_yoy, failed)
+    _safe("derive_lfs_micro_yoy", derive_lfs_micro_yoy, failed)
     _safe("derive_cpi_breadth_gt3", derive_cpi_breadth_gt3, failed)
     _safe("derive_cpi_breadth_band", derive_cpi_breadth_band, failed)
     _safe("derive_gdp_views", derive_gdp_views, failed)
