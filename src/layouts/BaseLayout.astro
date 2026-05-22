@@ -209,6 +209,57 @@ const tabTitle = title === site.name ? site.name : `${title} | ${site.name}`;
       <VignelliColophon />
     </div>
 
+    {/*
+      FormSubmit AJAX handler. Any form with `data-formsubmit-ajax` is
+      submitted via fetch instead of a full page POST — keeps the user
+      on the page, replaces the form with an inline confirmation, and
+      uses FormSubmit's AJAX endpoint which only requires one global
+      activation (not per-page). See src/pages/{index,subscribe,contact}
+      for the wired forms. Pointed at jayzhaomurray@outlook.com (via
+      hash a3077ccc...) — swap to jay@sibleycreek.ca via the FormSubmit
+      dashboard once that mailbox exists (task #22).
+    */}
+    <script is:inline>
+      (function () {
+        const forms = document.querySelectorAll('form[data-formsubmit-ajax]');
+        forms.forEach((form) => {
+          form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = form.querySelector('[type="submit"]');
+            const btnText = btn ? btn.textContent : '';
+            if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+            try {
+              const resp = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: { Accept: 'application/json' },
+              });
+              if (resp.ok) {
+                const msg = form.getAttribute('data-success-msg') ||
+                  'Subscribed. Thanks — first issue lands when it lands.';
+                const p = document.createElement('p');
+                p.className = 'formsubmit-success';
+                p.setAttribute('role', 'status');
+                p.textContent = msg;
+                form.replaceWith(p);
+              } else {
+                throw new Error('http ' + resp.status);
+              }
+            } catch (err) {
+              if (btn) { btn.disabled = false; btn.textContent = btnText; }
+              const existing = form.querySelector('.formsubmit-error');
+              if (existing) existing.remove();
+              const p = document.createElement('p');
+              p.className = 'formsubmit-error';
+              p.setAttribute('role', 'alert');
+              p.textContent = 'Something went wrong. Try again, or email Jay directly.';
+              form.appendChild(p);
+            }
+          });
+        });
+      })();
+    </script>
+
     <style>
       /* Site-shell wraps masthead + main + colophon in a single page
        * container so the Vignelli hairline rules align edge-to-edge across
@@ -228,6 +279,28 @@ const tabTitle = title === site.name ? site.name : `${title} | ${site.name}`;
 
       .site-main {
         padding-block: 0;
+      }
+
+      /* FormSubmit AJAX success / error feedback. Inherits page register. */
+      .formsubmit-success {
+        margin: 0;
+        padding: 14px 16px;
+        border: 1px solid var(--ink);
+        background: var(--paper, #fff);
+        font-family: var(--font-sans);
+        font-size: 16px;
+        line-height: 1.45;
+        color: var(--ink);
+      }
+      .formsubmit-error {
+        margin: 12px 0 0;
+        padding: 10px 12px;
+        border: 1px solid var(--accent, #D7263D);
+        background: var(--paper, #fff);
+        font-family: var(--font-sans);
+        font-size: 14px;
+        line-height: 1.4;
+        color: var(--accent, #D7263D);
       }
     </style>
   </body>
