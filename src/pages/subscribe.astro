@@ -11,16 +11,17 @@
  * tier-selection page (Free / Standard / Anchor) with pricing.
  *
  * Email capture (interim): the form POSTs to formsubmit.co, which
- * forwards each submission to jayzhaomurray@outlook.com as an email.
- * No backend, no Kit/Beehiiv account yet. First submission requires Jay
- * to click a verification link; after that submissions deliver directly.
+ * forwards each submission to jay@sibleycreek.ca as an email.
+ * No backend, no Kit/Beehiiv account yet. Using the raw-email AJAX
+ * endpoint until Jay clicks the activation link in the first formsubmit
+ * delivery to that address. After activation, swap the action URL to the
+ * secure hash from the formsubmit dashboard.
  *
  * TO MIGRATE to real newsletter infra (Kit, Beehiiv, Mailchimp, etc.):
  *   1. Set up the form in the service's admin
  *   2. Replace the formsubmit.co action below with the service's action
  *   3. Adjust the input name= attribute if the service expects "email_address"
  *      or similar instead of "email"
- *   4. Swap jayzhaomurray@outlook.com → jay@sibleycreek.ca once mailbox exists (task #22)
  */
 
 import BaseLayout from "../layouts/BaseLayout.astro";
@@ -52,7 +53,7 @@ const pageDesc =
     <section class="sub__form-section">
       <form
         class="sub__form"
-        action="https://formsubmit.co/ajax/a3077ccc8400c684e07ef6c39d7d34c6"
+        action="https://formsubmit.co/ajax/jay@sibleycreek.ca"
         method="POST"
         data-formsubmit-ajax
         data-success-msg="Subscribed. Thanks — first issue lands when it lands."

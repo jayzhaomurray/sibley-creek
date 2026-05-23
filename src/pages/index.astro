@@ -235,16 +235,16 @@ const latest = latestCommentary();
 
       {/*
         Email capture (interim): POSTs to formsubmit.co, which forwards
-        each submission to jayzhaomurray@outlook.com. Uses the secure
-        endpoint hash (not the naked email) so the email isn't scrapable
-        by bots and new pages don't require per-form re-verification.
-        Swap to jay@sibleycreek.ca via formsubmit dashboard once the
-        mailbox exists (task #22). Replace formsubmit.co with Kit /
-        Beehiiv / Mailchimp action when proper newsletter infra is set up.
+        each submission to jay@sibleycreek.ca. Using the raw-email AJAX
+        endpoint until Jay clicks the activation link in the first
+        formsubmit delivery to that address — after activation, swap to
+        the secure hash from the formsubmit dashboard. Replace
+        formsubmit.co with Kit / Beehiiv / Mailchimp when proper
+        newsletter infra is set up.
       */}
       <form
         class="v3-sub__form"
-        action="https://formsubmit.co/ajax/a3077ccc8400c684e07ef6c39d7d34c6"
+        action="https://formsubmit.co/ajax/jay@sibleycreek.ca"
         method="POST"
         data-formsubmit-ajax
         data-success-msg="Subscribed. Thanks — first issue lands when it lands."
@@ -779,6 +779,17 @@ const latest = latestCommentary();
     color: var(--accent, #D7263D);
     opacity: 1;
     margin-right: 4px;
+  }
+
+  /* Strip the inset border-bottom from the showcase row immediately above
+   * the Advisory band. That border runs at container width; when the dark
+   * band bleeds to the full viewport, the corners where the border ends and
+   * the viewport edge begin read as a step — the same misaligned top-edge
+   * artifact that was fixed on "How we work". The adjacent-sibling selector
+   * targets precisely the row that precedes .v3-adv without touching the
+   * other two showcase rows. */
+  .v3-row:has(+ .v3-adv) {
+    border-bottom: none;
   }
 
   /* ─── BAND: ADVISORY (inverted ink-on-paper, full-bleed pillar) ─── */
