@@ -21,7 +21,7 @@ The expected swap on the frontend side is mechanical:
 
 Section-to-vector mapping (audit target for editorial-director)
 ---------------------------------------------------------------
-gdp        -> data/processed/gdp_monthly_yoy.csv  (if landed)  | reference: 1.6 (potential growth midpoint, BoC MPR)
+output     -> data/processed/gdp_monthly_yoy.csv  (if landed)  | reference: 1.6 (potential growth midpoint, BoC MPR)
 inflation  -> data/processed/cpi_all_items_nsa_yoy.csv         | reference: 2.0 (BoC target). NSA, matches StatCan headline.
 labour     -> data/raw/lfs_ca_unemployment_rate.csv            | reference: None (no consensus NAIRU on the tile)
 housing    -> data/processed/crea_hpi_canada_yoy.csv (if landed)| reference: 0.0 (nominal zero -- price level stationarity)
@@ -77,7 +77,7 @@ SCHEMA_VERSION = 1
 # Canon section slugs, ordered by the frontend's `sections[]` array. The
 # frontend's `SectionSlug` type matches this list exactly; tests assert that.
 SECTION_SLUGS: tuple[str, ...] = (
-    "gdp",
+    "output",
     "inflation",
     "labour",
     "housing",
@@ -171,8 +171,8 @@ class SectionConfig:
 # section's primary tile value. Adjustments here propagate to the JSON
 # output without code changes elsewhere.
 SECTION_CONFIGS: dict[str, SectionConfig] = {
-    "gdp": SectionConfig(
-        slug="gdp",
+    "output": SectionConfig(
+        slug="output",
         primary_series="gdp_monthly_yoy",
         primary_dir="processed",
         unit_display="%",
@@ -364,7 +364,7 @@ class SupportingPrintSpec:
 # An entry whose primary CSV is not on disk yields a sentinel print with TK
 # strings (we still emit the row so the tile layout doesn't shift around).
 SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
-    "gdp": (
+    "output": (
         SupportingPrintSpec(
             key="gdp-mm",
             indicator="Real GDP, m/m",

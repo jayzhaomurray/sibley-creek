@@ -127,7 +127,7 @@ def test_section_slugs_match_frontend_canon():
     """The seven canon section slugs are stable; the frontend TypeScript
     `SectionSlug` union must match this tuple exactly."""
     assert SECTION_SLUGS == (
-        "gdp", "inflation", "labour", "housing", "policy", "markets", "trade",
+        "output", "inflation", "labour", "housing", "policy", "markets", "trade",
     )
     # SECTION_CONFIGS covers every slug.
     for slug in SECTION_SLUGS:
@@ -223,8 +223,8 @@ def test_markets_section_weekly_samples_daily_series(tmp_path):
     # 30 weekly observations is the convention; the seed has ~200 business
     # days starting Aug 2025, which yields >30 weeks. Cap honored.
     assert len(p["spark"]) == 30
-    # Delta is a percent string with '%' suffix
-    assert p["delta"].endswith("%")
+    # Delta is a percent string with '%' (may carry ' w/w' suffix for daily series)
+    assert "%" in p["delta"]
     # Value has 3 decimals, no '%' suffix
     assert "%" not in p["value"]
     assert p["value"].count(".") == 1
@@ -234,7 +234,7 @@ def test_missing_series_yields_error_sentinel(tmp_path):
     """If a section's primary CSV is missing, the section emits a sentinel
     with prints=[] and an `error` string. The build does NOT raise."""
     data_root = tmp_path / "data"
-    # Seed only inflation; gdp/labour/housing/policy/markets/trade missing.
+    # Seed only inflation; output/labour/housing/policy/markets/trade missing.
     _write_pair(
         data_root, "processed", "cpi_all_items_nsa_yoy",
         _monthly_df([2.5, 2.6, 2.4, 2.5, 2.3, 2.4], start="2025-10-01"),
@@ -258,7 +258,7 @@ def test_missing_series_yields_error_sentinel(tmp_path):
     assert len(inflation["prints"]) >= 1
     assert inflation["prints"][0]["key"] == "cpi-yoy"
 
-    for slug in ("gdp", "labour", "housing", "policy", "markets", "trade"):
+    for slug in ("output", "labour", "housing", "policy", "markets", "trade"):
         section = payload["sections"][slug]
         assert section["prints"] == [], f"{slug} should have empty prints when series missing"
         assert "error" in section, f"{slug} should carry an error sentinel"

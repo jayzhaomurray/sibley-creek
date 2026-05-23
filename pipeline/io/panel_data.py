@@ -105,17 +105,17 @@ class PanelSpec:
 # output. Each PanelSpec mirrors the Props interface in the corresponding
 # Panel*.astro file; gaps and missing series are flagged in `notes`.
 PANEL_SPECS: dict[str, list[PanelSpec]] = {
-    "gdp": [
+    "output": [
         PanelSpec(
-            panel_id="panel-1", section="gdp", panel_num=1,
-            file="gdp/Panel1HeadlineGDP.astro",
+            panel_id="panel-1", section="output", panel_num=1,
+            file="output/Panel1HeadlineGDP.astro",
             primary=SlotSpec("gdp_monthly", "raw", label="Monthly real GDP (level)"),
             secondary=SlotSpec("gdp_quarterly", "raw", label="Quarterly real GDP (level)"),
             notes="Panel needs m/m % and Q/Q SAAR. Chart-builder derives both from levels; or wire processed/gdp_monthly_mom (not on disk yet).",
         ),
         PanelSpec(
-            panel_id="panel-2", section="gdp", panel_num=2,
-            file="gdp/Panel2IndustryAggregate.astro",
+            panel_id="panel-2", section="output", panel_num=2,
+            file="output/Panel2IndustryAggregate.astro",
             primary=SlotSpec(
                 "gdp_industry_services", "raw",
                 label="Services (level, monthly)",
@@ -133,8 +133,8 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             ),
         ),
         PanelSpec(
-            panel_id="panel-3", section="gdp", panel_num=3,
-            file="gdp/Panel3Contributions.astro",
+            panel_id="panel-3", section="output", panel_num=3,
+            file="output/Panel3Contributions.astro",
             primary=SlotSpec("gdp_total_contribution", "raw", label="Total contribution (pp)"),
             extras=(
                 SlotSpec("gdp_contrib_consumption", "raw", label="Consumption"),
@@ -146,8 +146,8 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             ),
         ),
         PanelSpec(
-            panel_id="panel-4", section="gdp", panel_num=4,
-            file="gdp/Panel4PerCapita.astro",
+            panel_id="panel-4", section="output", panel_num=4,
+            file="output/Panel4PerCapita.astro",
             primary=SlotSpec("gdp_quarterly", "raw", label="Aggregate real GDP (quarterly)"),
             secondary=SlotSpec("pop_total", "raw", label="Canada total population (quarterly)"),
             expected_status="WIRED",
@@ -158,8 +158,8 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             ),
         ),
         PanelSpec(
-            panel_id="panel-5", section="gdp", panel_num=5,
-            file="gdp/Panel5OutputGap.astro",
+            panel_id="panel-5", section="output", panel_num=5,
+            file="output/Panel5OutputGap.astro",
             primary=SlotSpec("output_gap_mpr", "raw",
                              label="BoC MPR output gap (%, quarterly)"),
             secondary=SlotSpec("capacity_util_total", "raw",
@@ -181,8 +181,8 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             ),
         ),
         PanelSpec(
-            panel_id="panel-6", section="gdp", panel_num=6,
-            file="gdp/Panel6IndustryCyclical.astro",
+            panel_id="panel-6", section="output", panel_num=6,
+            file="output/Panel6IndustryCyclical.astro",
             primary=SlotSpec(
                 "gdp_industry_manufacturing", "raw",
                 label="Manufacturing (level, monthly)",

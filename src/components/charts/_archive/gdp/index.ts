@@ -11,7 +11,7 @@
  */
 
 import type { ChartShelfEntry } from "../../_alternatives/_shared/shelfEntry";
-import gdpPanelData from "../../../../../data/site/panel_data/gdp.json";
+import gdpPanelData from "../../../../../data/site/panel_data/output.json";
 import { pickPanel } from "../../_shared/panelData";
 
 import Panel1HeadlineGDP from "../../gdp/Panel1HeadlineGDP.astro";
