@@ -195,14 +195,28 @@ const pageDesc =
       color: var(--ink);
     }
 
-    /* Iframe: 100% width, fluid height clamp (spec §4).
-     * HTML width/height attributes are overridden entirely by CSS. */
+    /* Iframe: constrained to widget's natural content width.
+     *
+     * Investing.com's calendar renders its internal table at ~650px
+     * regardless of the iframe's outer width — stretching the iframe
+     * to 100% of the page column leaves a large dead-space band on
+     * the right. We constrain the iframe to ~700px (a touch wider
+     * than the widget's native ~650px to give breathing room for the
+     * controls band), center it in the section, and let the section
+     * header + hairlines remain at page-column width for visual
+     * continuity with the chartbook grid above.
+     *
+     * On narrow viewports (<700px) the constraint collapses and the
+     * iframe shrinks to fit; investing.com's widget compresses its
+     * columns at that size.
+     */
     .cal__frame {
       display: block;
       width: 100%;
+      max-width: 700px;
+      margin: 20px auto 0;
       height: clamp(520px, 64vh, 640px);
       border: 0;
-      margin-top: 20px;
     }
 
     /* Mobile: bump min-height so timezone/datepicker band doesn't crowd
@@ -214,9 +228,12 @@ const pageDesc =
     }
 
     /* Attribution line: Manrope SemiBold, uppercase, wide-tracked (spec §5).
-     * Wraps investing.com's required credit text. */
+     * Wraps investing.com's required credit text. Constrained to the
+     * iframe's width and centered so the attribution sits directly under
+     * the calendar rather than spanning the full page column. */
     .cal__attribution {
-      margin-top: 14px;
+      max-width: 700px;
+      margin: 14px auto 0;
       font-family: var(--font-sans);
       font-weight: 600;
       font-size: 10px;
