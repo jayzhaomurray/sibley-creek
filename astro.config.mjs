@@ -42,6 +42,7 @@ export default defineConfig({
         !page.includes('/og-preview/') &&
         !page.includes('/chart-alternatives/') &&
         !page.includes('/chart-archive/'),
+      lastmod: new Date(),
     }),
   ],
 });

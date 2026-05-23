@@ -59,7 +59,6 @@ const SKIP_SUBDIRS = new Set([
   "og-preview",
   "chart-alternatives",
   "chart-archive",
-  "splash-animation-test",
 ]);
 
 function* walkHtml(dir) {
