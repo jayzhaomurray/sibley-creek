@@ -69,6 +69,31 @@ const pageDesc =
         <DeepDivePanel deepDives={deepDives} figureNum="8" />
       </div>
     </section>
+
+    <section class="cal" aria-labelledby="cal-h">
+      <header class="cal__head">
+        <p class="cal__eyebrow">
+          <span class="cal__fig">Figure</span>
+          <span class="cal__fig-n">9.</span>
+        </p>
+        <h2 id="cal-h" class="cal__h">Week ahead.</h2>
+      </header>
+      <iframe
+        class="cal__frame"
+        src="https://sslecal2.investing.com?ecoDayBackground=%23ffffff&defaultFont=%23000000&innerBorderColor=%23e6e6e6&borderColor=%23ffffff&ecoDayFontColor=%23000000&columns=exc_flags,exc_importance,exc_actual,exc_forecast,exc_previous&importance=3&features=datepicker,timezone,timeselector,filters&countries=6&calType=week&timeZone=8&lang=68"
+        title="Canada and US economic releases, this week, high importance only"
+        width="650"
+        height="467"
+        frameborder="0"
+        allowtransparency="true"
+        marginwidth="0"
+        marginheight="0"
+      ></iframe>
+      <div class="cal__attribution">
+        Real Time Economic Calendar provided by
+        <a href="https://ca.Investing.com/" rel="nofollow" target="_blank">Investing.com Canada</a>.
+      </div>
+    </section>
   </article>
 
   <style>
@@ -109,6 +134,112 @@ const pageDesc =
       clip: rect(0, 0, 0, 0);
       white-space: nowrap;
       border: 0;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Economic-calendar section                                           */
+    /* Spec: design/_specs/economic_calendar_overview.md                   */
+    /* ------------------------------------------------------------------ */
+
+    /* Section container: horizontal hairlines only; no left/right borders.
+     * margin-top sits between the grid's closing bottom-hairline and the
+     * calendar's opening top-hairline (spec §3: 32px). */
+    .cal {
+      margin-top: 32px;
+      border-top: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 28px;
+    }
+
+    /* Header band: mirrors .vig-panel__head treatment (spec §2).
+     * 10px padding-bottom + 1px hairline under the H2. */
+    .cal__head {
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--ink);
+    }
+
+    /* Eyebrow: matches section-panel eyebrow register (spec §2). */
+    .cal__eyebrow {
+      margin: 0;
+      padding-top: 16px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+      line-height: 1.4;
+    }
+
+    /* "Figure" word — ink weight */
+    .cal__fig {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    /* Figure number — accent color, extrabold (spec §2: fig-n in var(--accent), weight 800) */
+    .cal__fig-n {
+      color: var(--accent);
+      font-weight: 800;
+      margin-left: 0.2em;
+    }
+
+    /* H2: matches section-H2 register (spec §2). */
+    .cal__h {
+      margin: 6px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: 22px;
+      letter-spacing: -0.01em;
+      line-height: 1.05;
+      color: var(--ink);
+    }
+
+    /* Iframe: 100% width, fluid height clamp (spec §4).
+     * HTML width/height attributes are overridden entirely by CSS. */
+    .cal__frame {
+      display: block;
+      width: 100%;
+      height: clamp(520px, 64vh, 640px);
+      border: 0;
+      margin-top: 20px;
+    }
+
+    /* Mobile: bump min-height so timezone/datepicker band doesn't crowd
+     * the first event row (spec §4). */
+    @media (max-width: 480px) {
+      .cal__frame {
+        height: clamp(540px, 64vh, 640px);
+      }
+    }
+
+    /* Attribution line: Manrope SemiBold, uppercase, wide-tracked (spec §5).
+     * Wraps investing.com's required credit text. */
+    .cal__attribution {
+      margin-top: 14px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1.4;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    .cal__attribution a {
+      color: var(--ink);
+      text-decoration: none;
+      border-bottom: 1px solid var(--ink);
+    }
+
+    .cal__attribution a:hover {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .cal__attribution a:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
     }
   </style>
 </BaseLayout>
