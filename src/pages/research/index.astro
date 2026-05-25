@@ -24,11 +24,9 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import {
   commentaries,
-  deepDives,
   sections,
   site,
   type DataCommentary,
-  type DeepDive,
   type SectionSlug,
 } from "../../data/sections";
 import { withBase } from "../../lib/urls";
@@ -43,26 +41,14 @@ const sectionLabelFor = (slug: SectionSlug): string => {
 const commentariesOrdered: DataCommentary[] = [...commentaries].sort((a, b) =>
   b.publishedAt.localeCompare(a.publishedAt),
 );
-const deepDivesOrdered: DeepDive[] = [...deepDives].sort((a, b) => {
-  const aTk = !a.publishedAt || a.publishedAt === "TK";
-  const bTk = !b.publishedAt || b.publishedAt === "TK";
-  if (aTk && bTk) return 0;
-  if (aTk) return 1;
-  if (bTk) return -1;
-  return (b.publishedAt as string).localeCompare(a.publishedAt as string);
-});
 
 // Landing-page limits — keep the page scannable as content fills in.
-// Archives at /research/commentaries/ and /research/deep-dives/ carry
-// the full lists; the landing surfaces the most recent of each. With
-// take-excerpts under each commentary row, 3+3 keeps both sections
-// above the fold; archive links carry the overflow.
+// The commentary archive at /research/commentaries/ carries the full list.
+// Deep-dives section is in coming-soon mode — list rendering is gone until
+// the first dive is publishable.
 const COMMENTARY_LIMIT = 3;
-const DEEPDIVE_LIMIT = 3;
 const commentariesLanding = commentariesOrdered.slice(0, COMMENTARY_LIMIT);
-const deepDivesLanding = deepDivesOrdered.slice(0, DEEPDIVE_LIMIT);
 const commentaryOverflow = commentariesOrdered.length > COMMENTARY_LIMIT;
-const deepDiveOverflow = deepDivesOrdered.length > DEEPDIVE_LIMIT;
 
 // Hand-rolled YYYY-MM-DD -> "May 19, 2026" formatter (avoids timezone shift
 // that breaks date parity between local and CI build hosts).
@@ -149,7 +135,13 @@ const pageDesc =
       )}
     </section>
 
-    {/* ── Section 2: Deep dives ── */}
+    {/* ── Section 2: Deep dives — coming-soon placeholder ──
+         Deep dives are paused until the first ones are ready to ship.
+         The section still appears on /research/ so the two-mode framing
+         (commentary + dives) reads as the firm's stated output mix;
+         the list is replaced with a restrained "Coming soon" stamp.
+         Drop this placeholder + restore the list rendering when the
+         first dive is publishable. */}
     <section class="research__section" aria-labelledby="deepdives-h">
       <h2 id="deepdives-h" class="research__section-title">
         Deep dives
@@ -158,54 +150,7 @@ const pageDesc =
         Multi-week investigations on the structural pieces of the
         Canadian economy.
       </p>
-
-      {deepDivesLanding.length === 0 ? (
-        <p class="research__empty">No deep dives published yet.</p>
-      ) : (
-        <>
-          <ol class="research__list" role="list">
-            {deepDivesLanding.map((dd) => {
-              const isPublished = Boolean(dd.publishedPath);
-              const href = isPublished ? withBase(`/research/${dd.slug}/`) : null;
-              const inner = (
-                <>
-                  <div class="research__row-meta">
-                    <span class:list={["research__row-date", { "research__row-date--tk": !dd.publishedAt || dd.publishedAt === "TK" }]}>
-                      {dd.publishedAt && dd.publishedAt !== "TK"
-                        ? displayDate(dd.publishedAt)
-                        : "Coming soon"}
-                    </span>
-                    <span class="research__row-badge">{sectionLabelFor(dd.section)}</span>
-                    {dd.draftStatus === "draft" && isPublished && (
-                      <span class="research__row-chip">Draft</span>
-                    )}
-                  </div>
-                  <div class="research__row-body">
-                    <h3 class="research__row-title">{dd.title}</h3>
-                    <p class="research__row-deck">{dd.deck}</p>
-                  </div>
-                </>
-              );
-              return (
-                <li class:list={["research__row", { "research__row--unpublished": !isPublished }]}>
-                  {href ? (
-                    <a class="research__row-link" href={href}>{inner}</a>
-                  ) : (
-                    <div class="research__row-link research__row-link--static">{inner}</div>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-          {deepDiveOverflow && (
-            <p class="research__see-all">
-              <a class="research__see-all-link" href={withBase("/research/deep-dives/")}>
-                See all {deepDivesOrdered.length} deep dives →
-              </a>
-            </p>
-          )}
-        </>
-      )}
+      <p class="research__coming-soon">Coming soon.</p>
     </section>
   </article>
 
@@ -287,6 +232,20 @@ const pageDesc =
       line-height: 1.4;
       color: var(--ink);
       opacity: 0.55;
+    }
+
+    /* Coming-soon stamp used on the deep-dives section while dives are
+     * paused. Smaller and more reserved than the section subhead so it
+     * reads as "watch this space," not as a feature. */
+    .research__coming-soon {
+      margin: 24px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink);
+      opacity: 0.65;
     }
 
     /* ─────────── List + rows ─────────── */
