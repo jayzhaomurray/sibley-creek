@@ -324,6 +324,33 @@ const sourceAllowed = (sourceName: string): boolean => {
   return SOURCE_PATTERNS_KEEP.some((p) => lower.includes(p));
 };
 
+// CBC items are kept only when they look like print news articles
+// (cbc.ca/news/...). Their TV / radio program segments come through
+// Google News with recognisable show-name prefixes — we exclude those.
+// (Google News doesn't expose the underlying outlet URL, so we filter
+// on the title format instead.)
+const CBC_SHOW_PREFIXES = [
+  "at issue",
+  "power & politics",
+  "power and politics",
+  "cross country checkup",
+  "the current",
+  "as it happens",
+  "front burner",
+  "the house",
+  "the national",
+  "ideas",
+  "q with",
+  "quirks & quarks",
+  "quirks and quarks",
+];
+
+const isCbcShowSegment = (sourceName: string, title: string): boolean => {
+  if (!sourceName.toLowerCase().includes("cbc")) return false;
+  const lowerTitle = title.toLowerCase();
+  return CBC_SHOW_PREFIXES.some((prefix) => lowerTitle.startsWith(prefix));
+};
+
 // Normalize the raw source name from Google News to a short display
 // label. Keeps the source column compact + visually consistent.
 const normalizeSource = (raw: string): string => {
@@ -450,7 +477,8 @@ if (newsItems.length === 0) {
 
     const all: NewsItem[] = settled
       .flatMap((s) => (s.status === "fulfilled" ? s.value : []))
-      .filter((item) => sourceAllowed(item.source));
+      .filter((item) => sourceAllowed(item.source))
+      .filter((item) => !isCbcShowSegment(item.source, item.title));
 
     // Dedupe by URL.
     const seen = new Set<string>();
@@ -634,7 +662,6 @@ const fmtNewsDate = (raw: string): string => {
                   <span class="reading__row-date">{fmtNewsDate(item.pubDate)}</span>
                   <span class="reading__row-source">{normalizeSource(item.source)}</span>
                   <span class="reading__row-title">{item.title}</span>
-                  <span class="reading__row-byline">{item.reporter}</span>
                 </a>
               </li>
             ))}
@@ -985,13 +1012,13 @@ const fmtNewsDate = (raw: string): string => {
     }
     /* Bloomberg-terminal-style one-line layout. Each column has
      * overflow control so nothing spills into its neighbour:
-     *   [date 130px] [source 110px] [headline flex] [reporter 130px]
+     *   [date 130px] [source 110px] [headline flex]
      * Date column width fits "May 21, 10:25 PM" in Plex Mono 11px
      * with breathing room. Source column fits "FINANCIAL POST"
      * (longest abbreviated label) in Manrope 600 10px 0.14em. */
     .reading__row-link {
       display: grid;
-      grid-template-columns: 130px 110px minmax(0, 1fr) 130px;
+      grid-template-columns: 130px 110px minmax(0, 1fr);
       align-items: baseline;
       column-gap: 16px;
       padding: 7px 0;
@@ -1048,28 +1075,11 @@ const fmtNewsDate = (raw: string): string => {
     }
     .reading__row-link:hover .reading__row-title { color: var(--accent); }
 
-    /* Reporter — italic, muted, right-aligned. The "by whom" signal in
-     * a register that doesn't compete with the headline. */
-    .reading__row-byline {
-      font-family: var(--font-sans);
-      font-weight: 400;
-      font-style: italic;
-      font-size: 12px;
-      line-height: 1.4;
-      color: var(--ink);
-      opacity: 0.6;
-      white-space: nowrap;
-      text-align: right;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
     /* Narrow viewports — collapse to two rows per item: meta on top
-     * (date + source + reporter), headline below. Headline can wrap
-     * to two lines. */
+     * (date + source), headline below. Headline can wrap to two lines. */
     @media (max-width: 760px) {
       .reading__row-link {
-        grid-template-columns: auto auto 1fr;
+        grid-template-columns: auto auto;
         grid-template-rows: auto auto;
         row-gap: 3px;
         column-gap: 10px;
@@ -1077,10 +1087,6 @@ const fmtNewsDate = (raw: string): string => {
       }
       .reading__row-date  { grid-column: 1; grid-row: 1; }
       .reading__row-source { grid-column: 2; grid-row: 1; }
-      .reading__row-byline {
-        grid-column: 3; grid-row: 1;
-        text-align: right;
-      }
       .reading__row-title {
         grid-column: 1 / -1; grid-row: 2;
         white-space: normal;
