@@ -20,9 +20,103 @@ const latestReleaseLabel = deriveLatestReleaseLabel(
 
 const panel1Data = pickPanel(panelDataFile, 1);
 const panel2Data = pickPanel(panelDataFile, 2);
-const panel3Data = pickPanel(panelDataFile, 3);
-const panel4Data = pickPanel(panelDataFile, 4);
-const panel5Data = pickPanel(panelDataFile, 5);
+
+// Plates 3, 4, 5 are static-metadata panels: panel_data.py emits the full
+// derived JSON tree under `metadata` but doesn't pre-shape it into the
+// primary/secondary series shape the chart components expect. We synthesize
+// the expected shape here from the metadata blobs.
+//
+// Long-term fix: per-panel transformers in pipeline/io/panel_data.py so the
+// JSON-on-disk is already component-ready. Tracked as backend follow-up.
+
+type RawPanels = { panels?: Record<string, { metadata?: any }> };
+const _panels = (panelDataFile as unknown as RawPanels).panels ?? {};
+
+// ---- Plate 3: PBO EFO Sept 2025 vs DoF SEU April 2026 ----------------------
+// Convention: Panel3PBOvsDoF expects POSITIVE values (positive = deficit) —
+// chart reads top-down. Metadata has negative balance_cad_bn (deficit).
+const _meta3 = _panels["panel-3"]?.metadata;
+const panel3Data = _meta3 ? {
+  panelNum: 3,
+  primary: {
+    key: "dof_seu_deficit_projection",
+    label: "DoF SEU Apr 2026",
+    unit: "CAD billions",
+    asOfISO: "2026-04-28",
+    data: (_meta3.series?.dof_seu_2026?.data ?? [])
+      .filter((d: any) => typeof d.balance_cad_bn === "number")
+      .map((d: any) => ({
+        date: `${d.fy.split("-")[0]}-04-01`,
+        value: -d.balance_cad_bn,
+      })),
+  },
+  secondary: {
+    key: "pbo_efo_deficit_projection",
+    label: "PBO EFO Sept '25",
+    unit: "CAD billions",
+    asOfISO: "2025-09-25",
+    data: (_meta3.series?.pbo_efo_sept_2025?.data ?? [])
+      .filter((d: any) => typeof d.balance_cad_bn === "number")
+      .map((d: any) => ({
+        date: `${d.fy.split("-")[0]}-04-01`,
+        value: -d.balance_cad_bn,
+      })),
+  },
+} : null;
+
+// ---- Plate 4: Provincial net debt-to-GDP -----------------------------------
+// Convention: Panel4ProvincialDebt expects 4 points in QC/ON/BC/AB order;
+// value = percent (positive). Metadata already orders provinces this way.
+const _meta4 = _panels["panel-4"]?.metadata;
+const _provincesArr: any[] = _meta4?.provinces
+  ? Object.values(_meta4.provinces)
+  : [];
+const panel4Data = _provincesArr.length >= 4 ? {
+  panelNum: 4,
+  primary: {
+    key: "provincial_debt_to_gdp",
+    label: "Provincial debt-to-GDP",
+    unit: "%",
+    asOfISO: "2026-03-18",
+    data: _provincesArr.map((p: any) => ({
+      date: `${p.iso}-2026`,
+      value: typeof p.value_pct === "number" ? p.value_pct : 0,
+    })),
+  },
+  secondary: null,
+} : null;
+
+// ---- Plate 5: Operating vs capital balance --------------------------------
+// Convention: Panel5OperatingCapital expects NEGATIVE values (deficit
+// stays negative); also rejects keys "oecd_capb" / "imf_capb" (old spec).
+const _meta5 = _panels["panel-5"]?.metadata;
+const panel5Data = _meta5 ? {
+  panelNum: 5,
+  primary: {
+    key: "dof_budget_2025_total_deficit",
+    label: "DoF total deficit",
+    unit: "CAD billions",
+    asOfISO: "2025-11-04",
+    data: (_meta5.series?.budget_2025_total_deficit?.data ?? [])
+      .filter((d: any) => typeof d.balance_cad_bn === "number")
+      .map((d: any) => ({
+        date: `${d.fy.split("-")[0]}-04-01`,
+        value: d.balance_cad_bn,
+      })),
+  },
+  secondary: {
+    key: "pbo_reclassified_operating_deficit",
+    label: "PBO reclassified operating",
+    unit: "CAD billions",
+    asOfISO: "2025-11-14",
+    data: (_meta5.series?.pbo_reclassified_operating_deficit?.data ?? [])
+      .filter((d: any) => typeof d.balance_cad_bn === "number")
+      .map((d: any) => ({
+        date: `${d.fy.split("-")[0]}-04-01`,
+        value: d.balance_cad_bn,
+      })),
+  },
+} : null;
 
 const plates: Plate[] = [
   {
