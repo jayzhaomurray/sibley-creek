@@ -25,7 +25,8 @@ output     -> data/processed/gdp_monthly_yoy.csv  (if landed)  | reference: 1.6 
 inflation  -> data/processed/cpi_all_items_nsa_yoy.csv         | reference: 2.0 (BoC target). NSA, matches StatCan headline.
 labour     -> data/raw/lfs_ca_unemployment_rate.csv            | reference: None (no consensus NAIRU on the tile)
 housing    -> data/processed/crea_hpi_canada_yoy.csv (if landed)| reference: 0.0 (nominal zero -- price level stationarity)
-policy     -> data/raw/overnight_rate_target.csv               | reference: 2.75 (BoC neutral-rate midpoint, Apr 2026 MPR)
+monetary   -> data/processed/overnight_rate_target.csv         | reference: 2.75 (BoC neutral-rate midpoint, Apr 2026 MPR)
+fiscal     -> data/processed/federal_budget_ytd.csv            | reference: 0.0 (balanced budget neutral)
 markets    -> data/raw/fxusdcad.csv                            | reference: None (ambient color only)
 trade      -> data/processed/trade_balance_total_3m_ma.csv (if landed)
                                                                | reference: 0.0 (balance neutral)
@@ -81,7 +82,8 @@ SECTION_SLUGS: tuple[str, ...] = (
     "inflation",
     "labour",
     "housing",
-    "policy",
+    "monetary",
+    "fiscal",
     "markets",
     "trade",
 )
@@ -243,8 +245,8 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
         delta_kind="pp",
         positive_is_good=None,  # housing direction is ambient color in v1
     ),
-    "policy": SectionConfig(
-        slug="policy",
+    "monetary": SectionConfig(
+        slug="monetary",
         primary_series="overnight_rate_target",
         primary_dir="processed",
         unit_display="%",
@@ -263,6 +265,27 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
         # the existing src/data/sections.ts placeholder ("deltaDir: 'pos'"
         # on the -25 bps print).
         positive_is_good=False,
+    ),
+    "fiscal": SectionConfig(
+        slug="fiscal",
+        # Fiscal section primary series: federal fiscal YTD balance.
+        # The tile shows the running budget balance as the headline read on
+        # fiscal stance. Source: DoF Fiscal Monitor, ~2-month lag,
+        # derived in pipeline.build.derive_federal_fiscal_ytd.
+        primary_series="federal_budget_ytd",
+        primary_dir="processed",
+        unit_display="B",
+        value_decimals=1,
+        delta_decimals=1,
+        delta_unit="B",
+        reference_value=0.0,
+        reference_label="Balanced budget",
+        chart_series_key="fiscal-ytd-balance",
+        print_key="fiscal-ytd-balance",
+        print_indicator="Federal balance (FYTD)",
+        as_of_format="fy-ytd-month",
+        delta_kind="level",
+        positive_is_good=True,  # surplus is good; deficit widening is bad
     ),
     "markets": SectionConfig(
         slug="markets",
@@ -587,7 +610,7 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
             ),
         ),
     ),
-    "policy": (
+    "monetary": (
         SupportingPrintSpec(
             key="goc-2y",
             indicator="2y GoC yield",
@@ -620,23 +643,11 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
             secondary_dir="raw",
             notes="GoC 2y minus UST 2y, in basis points. Inner-joined on date.",
         ),
-        # Federal budget balance (FY YTD): the DoF Fiscal Monitor headline
-        # framing. Single-month balance is too noisy (one-month seasonality
-        # dominates); FY-to-date cumulative is what Fiscal Monitor commentary
-        # and Big-Six economics desks actually cite. Comparison is the same
-        # FY-YTD figure one fiscal year prior (e.g. "FY26 YTD through Feb
-        # vs FY25 YTD through Feb"), NOT month-over-month (which collapses
-        # to the current month's monthly balance and re-introduces the
-        # noise we're trying to suppress).
-        #
-        # The chart reference rule (dashed line at 2.75% on the policy-rate
-        # sparkline) is preserved separately via SECTION_CONFIGS['policy']
-        # .reference_value=2.75.
-        #
-        # primary_series='federal_budget_ytd' is the cumsum-within-FY view
-        # derived in pipeline.build.derive_federal_fiscal_ytd(). Source CSV
-        # is in CAD millions; renderer rescales to billions via
-        # unit_display='B'.
+        # Federal budget balance (FY YTD): kept on the monetary tile as a
+        # supporting print so the policy section retains its cross-domain
+        # fiscal context read while the standalone /fiscal/ section provides
+        # the full breakdown. Comparison is the same FY-YTD figure one fiscal
+        # year prior. DoF Fiscal Monitor headline framing.
         SupportingPrintSpec(
             key="federal-budget-balance",
             indicator="Federal budget balance (FYTD)",
@@ -647,7 +658,7 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
             delta_decimals=1,
             delta_unit="B",
             delta_kind="level",
-            as_of_format="month-year",
+            as_of_format="fy-ytd-month",
             transform="fy_ytd_yoy",
             notes=(
                 "Cumulative federal budgetary balance, fiscal-year-to-date "
@@ -657,6 +668,32 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
                 "DoF Fiscal Monitor headline framing. CAD millions on disk -> "
                 "CAD billions on tile. Source: DoF Fiscal Monitor, ~2-month "
                 "lag, derived in pipeline.build.derive_federal_fiscal_ytd."
+            ),
+        ),
+    ),
+    "fiscal": (
+        # Debt service as share of revenues: PBO's named sustainability
+        # indicator ("interest burden"). Derived ratio, both legs from
+        # DoF Fiscal Monitor. Source card: plate-2.yaml (Tier A).
+        SupportingPrintSpec(
+            key="debt-service-share",
+            indicator="Debt service / revenues",
+            primary_series="public_debt_charges_ytd",
+            primary_dir="raw",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="month-year",
+            transform="partner_share",  # numerator / denominator * 100
+            secondary_series="revenues_ytd",
+            secondary_dir="raw",
+            notes=(
+                "Public debt charges YTD / total revenues YTD * 100, both from "
+                "DoF Fiscal Monitor. PBO's 'interest burden' sustainability "
+                "indicator. Source: plate-2.yaml (Tier A). Latest verified point: "
+                "49.3bn charges / (revenues YTD implied) for Apr-Feb 2025-26."
             ),
         ),
     ),

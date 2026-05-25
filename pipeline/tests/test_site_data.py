@@ -87,7 +87,7 @@ def _seed_minimal_pipeline(data_root: Path) -> None:
             "release_date": "2026-05-08",
         },
     )
-    # policy -> processed/overnight_rate_target
+    # monetary -> processed/overnight_rate_target
     _write_pair(
         data_root, "processed", "overnight_rate_target",
         _monthly_df([5.0, 5.0, 4.75, 4.75, 4.5, 4.5, 4.25, 4.0, 4.0, 3.75,
@@ -124,10 +124,14 @@ def _seed_minimal_pipeline(data_root: Path) -> None:
 # --------------------------------------------------------------------------- #
 
 def test_section_slugs_match_frontend_canon():
-    """The seven canon section slugs are stable; the frontend TypeScript
-    `SectionSlug` union must match this tuple exactly."""
+    """The eight canon section slugs are stable; the frontend TypeScript
+    `SectionSlug` union must match this tuple exactly.
+
+    Updated 2026-05-24: 'policy' renamed to 'monetary'; 'fiscal' added as
+    the new eighth section.
+    """
     assert SECTION_SLUGS == (
-        "output", "inflation", "labour", "housing", "policy", "markets", "trade",
+        "output", "inflation", "labour", "housing", "monetary", "fiscal", "markets", "trade",
     )
     # SECTION_CONFIGS covers every slug.
     for slug in SECTION_SLUGS:
@@ -135,8 +139,11 @@ def test_section_slugs_match_frontend_canon():
         assert SECTION_CONFIGS[slug].slug == slug
 
 
-def test_build_site_data_writes_all_seven_sections(tmp_path):
-    """A full minimal build emits sections.json with every canon slug."""
+def test_build_site_data_writes_all_eight_sections(tmp_path):
+    """A full minimal build emits sections.json with every canon slug.
+
+    Updated 2026-05-24: eight sections ('policy' -> 'monetary', 'fiscal' added).
+    """
     data_root = tmp_path / "data"
     _seed_minimal_pipeline(data_root)
 
@@ -194,21 +201,24 @@ def test_inflation_section_has_real_value_and_spark(tmp_path):
     assert inflation["updatedAt"] == expected_ms
 
 
-def test_policy_section_renders_in_basis_points(tmp_path):
-    """Policy delta is rendered in bps, not pp, even though the underlying
-    series is in percent. Reference is the neutral midpoint."""
+def test_monetary_section_renders_in_basis_points(tmp_path):
+    """Monetary delta is rendered in bps, not pp, even though the underlying
+    series is in percent. Reference is the neutral midpoint.
+
+    Updated 2026-05-24: section slug renamed from 'policy' to 'monetary'.
+    """
     data_root = tmp_path / "data"
     _seed_minimal_pipeline(data_root)
     payload = build_site_data(data_root)
 
-    policy = payload["sections"]["policy"]
-    assert policy["primarySeries"] == "overnight_rate_target"
-    p = policy["prints"][0]
+    monetary = payload["sections"]["monetary"]
+    assert monetary["primarySeries"] == "overnight_rate_target"
+    p = monetary["prints"][0]
     assert p["value"] == "2.25%"
     # Latest 2.25, prior 2.25 -> 0 bps delta -> neutral direction
     assert p["delta"] == "+0 bps"
     assert p["deltaDir"] == "neutral"
-    assert policy["reference"] == {"value": 2.75, "label": "Neutral midpoint 2.75%"}
+    assert monetary["reference"] == {"value": 2.75, "label": "Neutral midpoint 2.75%"}
 
 
 def test_markets_section_weekly_samples_daily_series(tmp_path):
@@ -249,7 +259,7 @@ def test_missing_series_yields_error_sentinel(tmp_path):
 
     payload = build_site_data(data_root)
 
-    # All 7 sections present; only inflation has real data.
+    # All 8 sections present; only inflation has real data.
     assert set(payload["sections"].keys()) == set(SECTION_SLUGS)
     inflation = payload["sections"]["inflation"]
     assert "error" not in inflation
@@ -258,7 +268,7 @@ def test_missing_series_yields_error_sentinel(tmp_path):
     assert len(inflation["prints"]) >= 1
     assert inflation["prints"][0]["key"] == "cpi-yoy"
 
-    for slug in ("output", "labour", "housing", "policy", "markets", "trade"):
+    for slug in ("output", "labour", "housing", "monetary", "fiscal", "markets", "trade"):
         section = payload["sections"][slug]
         assert section["prints"] == [], f"{slug} should have empty prints when series missing"
         assert "error" in section, f"{slug} should carry an error sentinel"
@@ -297,10 +307,10 @@ def test_delta_dir_encodes_direction_of_change_not_goodness(tmp_path):
     assert markets["delta"].startswith("+")
     assert markets["deltaDir"] == "pos"
 
-    # Policy: 2.25 -> 2.25 -> 0 bps. Below the half-decimal threshold, so
+    # Monetary: 2.25 -> 2.25 -> 0 bps. Below the half-decimal threshold, so
     # "neutral" regardless of positive_is_good.
-    policy = payload["sections"]["policy"]["prints"][0]
-    assert policy["deltaDir"] == "neutral"
+    monetary = payload["sections"]["monetary"]["prints"][0]
+    assert monetary["deltaDir"] == "neutral"
 
 
 def test_delta_dir_neutral_for_ambient_series_when_change_below_threshold(tmp_path):
@@ -541,8 +551,8 @@ def test_supporting_print_spread_bps(tmp_path):
         },
     )
     payload = build_site_data(data_root)
-    policy = payload["sections"]["policy"]
-    by_key = {p["key"]: p for p in policy["prints"]}
+    monetary = payload["sections"]["monetary"]
+    by_key = {p["key"]: p for p in monetary["prints"]}
     p = by_key["boc-fed-spread"]
     assert p["available"] is True
     # day 29 (last): CAD 3.29, US 4.145 -> spread = -0.855% = -85.5 bps
@@ -641,8 +651,8 @@ def test_supporting_print_fy_ytd_yoy_vs_prior_fy_at_same_month(tmp_path):
         },
     )
     payload = build_site_data(data_root)
-    policy = payload["sections"]["policy"]
-    by_key = {p["key"]: p for p in policy["prints"]}
+    monetary = payload["sections"]["monetary"]
+    by_key = {p["key"]: p for p in monetary["prints"]}
     assert "federal-budget-balance" in by_key
     p = by_key["federal-budget-balance"]
     assert p["available"] is True
@@ -687,8 +697,8 @@ def test_supporting_print_fy_ytd_falls_back_when_prior_fy_missing(tmp_path):
         },
     )
     payload = build_site_data(data_root)
-    policy = payload["sections"]["policy"]
-    by_key = {p["key"]: p for p in policy["prints"]}
+    monetary = payload["sections"]["monetary"]
+    by_key = {p["key"]: p for p in monetary["prints"]}
     p = by_key["federal-budget-balance"]
     assert p["available"] is True
     # No 12-month-lag observation; comparator falls back to iloc[-2] (May).

@@ -1,0 +1,386 @@
+---
+/*
+ * Panel4ProvincialDebt — net debt-to-GDP, ON / QC / AB / BC.
+ *
+ * NEW. Four-province horizontal bar chart at chartbook density (720x405).
+ * Each bar shows the province's debt ratio on its own published basis.
+ * BC is annotated with its methodology difference (taxpayer-supported vs
+ * net debt used by ON, QC, AB).
+ *
+ * Data shape expected from fiscal.json panel-4:
+ *   primary: {
+ *     key: "provincial_net_debt_to_gdp",
+ *     unit: "%",
+ *     data: [
+ *       { date: "2025-11-01", value: 37.7 },  // ON: Fall Economic Outlook Nov 2025 FY2025-26
+ *       { date: "2026-03-01", value: 38.8 },  // QC: Budget 2026-27 (March 18, 2026)
+ *       { date: "2026-02-01", value: 10.5 },  // AB: Budget 2026 (Feb 26, 2026) FY2026-27
+ *       { date: "2026-02-01", value: 30.6 },  // BC: Budget 2026 (Feb 17, 2026) FY2026-27 taxpayer-supported
+ *     ]
+ *   }
+ *
+ * IMPORTANT: The pipeline must emit these in a defined province order.
+ * The component also accepts a static fallback for the placeholder path.
+ *
+ * Visual decisions:
+ *   - Horizontal bars, one per province. Sorted: QC (highest), ON, BC, AB.
+ *   - Left-to-right: 0% to ~45%, x-axis is the quantity axis.
+ *   - Province name left of bar (not in bar); ratio value at bar terminus.
+ *   - MTA red accent on the province with the highest ratio (the latest-print
+ *     moment — editorial focus on QC as the structural peak).
+ *     All other bars: pure ink fill.
+ *   - BC bar: filled with a lighter ink-wash (0.65 opacity) to signal that
+ *     it is on a different basis. An asterisk label routes to the methodology
+ *     badge below the chart. NOTE: The asterisk note is in the blurb,
+ *     not inside the SVG (canon: no caption text in SVG).
+ *     Inside the SVG, a small "†taxpayer-supported" label annotates the bar
+ *     end so the chart reads on its own.
+ *   - "As of" vintage stamp per province: small Plex Mono 10px text
+ *     inside or adjacent to each bar.
+ *   - Hairline frame around the plot area (chart area right of province labels).
+ *   - No legend.
+ *
+ * Source cards (plate-4.yaml, Tier B, pending user confirmation):
+ *   ON: 37.7% net debt-to-GDP, Ontario FEOFR Nov 2025.
+ *   QC: 38.8% net debt-to-GDP, Quebec Budget 2026-2027 (March 18, 2026).
+ *   AB: 10.5% net debt-to-GDP, Alberta Budget 2026 (Feb 26, 2026).
+ *   BC: 30.6% taxpayer-supported debt-to-GDP, BC Budget 2026 (Feb 17, 2026).
+ *
+ * NOTE: QC vintage updated per Bartlett-Lapointe methodology brief:
+ *   The source card carries the Budget 2025-2026 (March 25, 2025) vintage.
+ *   Per fiscal_phase1_bartlett_lapointe.md Q3, researcher confirms the
+ *   QC figure is unchanged at 38.8% in Budget 2026-2027 (March 18, 2026);
+ *   the vintage stamp and citation should reflect the 2026-2027 budget.
+ *   Backend-engineer must update the QC entry in the pipeline accordingly.
+ *   The chart renders whatever date/value the pipeline emits; no hardcoding.
+ *
+ * Canon compliance (Tier-3):
+ *   1. Primary bars: var(--ink) fill. Accent bar (latest/highest): var(--accent).
+ *   3. 1px pure-ink hairline frame.
+ *   4. 3-4 vertical gridlines (x-axis quantity axis), stroke-opacity 0.18.
+ *   5. Y-axis = province names (category); X-axis = ratio %.
+ *   6. X-axis tick labels: Manrope 400 12px.
+ *  10. No legend. Province name = direct label left of bar.
+ *  13. viewBox 720x405, aspect-ratio 16/9.
+ *  15. aria-label naming all four provinces and their values.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---- Static province metadata (chart-builder's known order) -----------------
+// Province ordering: descending by ratio (highest debt burden first).
+// This is intentional — the editorial read is "QC and ON are the structural
+// anchors; AB is at the other end."
+// Note: BC is on taxpayer-supported basis (different from net debt).
+// The pipeline must emit exactly 4 points in this province order:
+//   index 0 = QC, index 1 = ON, index 2 = BC, index 3 = AB
+// (sorted descending by current value).
+// If sorting is done in the pipeline, the chart renders in pipeline order.
+
+const PROVINCE_META: {
+  label: string;
+  basis: string;
+  vintageLabel: string;
+  isBC: boolean;       // BC flag for methodology difference styling
+  isTop: boolean;      // highest ratio — gets MTA red accent
+}[] = [
+  { label: "QC", basis: "Net debt-to-GDP",           vintageLabel: "Budget 2026-27 (Mar 2026)", isBC: false, isTop: true  },
+  { label: "ON", basis: "Net debt-to-GDP",           vintageLabel: "FEOFR Nov 2025",            isBC: false, isTop: false },
+  { label: "BC", basis: "Taxpayer-supported",         vintageLabel: "Budget 2026 (Feb 2026)",   isBC: true,  isTop: false },
+  { label: "AB", basis: "Net debt-to-GDP",           vintageLabel: "Budget 2026 (Feb 2026)",    isBC: false, isTop: false },
+];
+
+const hasPrimary = !!(data && data.primary && data.primary.data.length >= 4);
+
+// ---- Geometry ---------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+// Province name labels are in the left gutter
+const M_L  = 52;   // left gutter (province names rendered separately)
+const M_R  = 60;   // right margin (bar value labels)
+const M_T  = 28;
+const M_B  = 38;
+
+// Province label column sits to the left of the plot frame
+const LABEL_COL_W = 32;  // "QC" etc. are short
+
+const PLOT_X0 = M_L + LABEL_COL_W;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_W  = PLOT_X1 - PLOT_X0;
+const PLOT_H  = PLOT_Y1 - PLOT_Y0;
+
+// 4 bars, uniform height
+const N_BARS  = 4;
+const ROW_GAP = 16;  // gap between bars
+const BAR_H   = Math.floor((PLOT_H - ROW_GAP * (N_BARS - 1)) / N_BARS);
+
+// ---- Computation (only when data present) -----------------------------------
+type BarData = {
+  x0: number; y0: number; w: number; h: number;
+  pctLabel: string;
+  label: string;
+  vintageLabel: string;
+  isBC: boolean;
+  isTop: boolean;
+  titleText: string;
+};
+
+let bars: BarData[] = [];
+let xTicks: { x: number; label: string }[] = [];
+let xMax = 45;
+let ariaLabel = "Provincial net debt-to-GDP: Quebec 38.8%, Ontario 37.7%, British Columbia 30.6% taxpayer-supported, Alberta 10.5%.";
+
+if (hasPrimary) {
+  const pts = data!.primary!.data.slice(0, 4);
+
+  // x-domain: 0 to ceil(max value / 5) * 5 with 10% headroom
+  const vals = pts.map((p) => typeof p.value === "number" ? p.value : 0);
+  xMax = Math.ceil(Math.max(...vals) * 1.1 / 5) * 5;
+
+  const xScale = (v: number) => PLOT_X0 + (v / xMax) * PLOT_W;
+
+  // Build bar rects
+  for (let i = 0; i < 4; i++) {
+    const pt  = pts[i]!;
+    const val = typeof pt.value === "number" ? pt.value : 0;
+    const meta = PROVINCE_META[i]!;
+    const y0 = PLOT_Y0 + i * (BAR_H + ROW_GAP);
+    const w  = xScale(val) - PLOT_X0;
+
+    bars.push({
+      x0: PLOT_X0,
+      y0,
+      w: Math.max(2, w),
+      h: BAR_H,
+      pctLabel: `${val.toFixed(1)}%`,
+      label: meta.label,
+      vintageLabel: meta.vintageLabel,
+      isBC: meta.isBC,
+      isTop: meta.isTop,
+      titleText: `${meta.label}: ${val.toFixed(1)}% (${meta.basis}, ${meta.vintageLabel})`,
+    });
+  }
+
+  // X-axis ticks at nice multiples of 10%
+  for (let v = 0; v <= xMax + 0.1; v += 10) {
+    xTicks.push({ x: xScale(v), label: `${v}%` });
+  }
+
+  // aria
+  const [qc, on, bc, ab] = bars;
+  ariaLabel = `Provincial debt ratios: QC ${qc?.pctLabel} net debt-to-GDP (Budget 2026-27), ON ${on?.pctLabel} net debt-to-GDP (FEOFR Nov 2025), BC ${bc?.pctLabel} taxpayer-supported (Budget 2026 Feb 2026), AB ${ab?.pctLabel} net debt-to-GDP (Budget 2026 Feb 2026).`;
+}
+---
+
+{!hasPrimary ? (
+  <PanelEmpty reason="Provincial debt-to-GDP series (fiscal panel-4) not yet emitted by pipeline." />
+) : (
+  <div class="p4pd-chart" data-panel="fiscal-4">
+    <svg
+      class="p4pd-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {/* Vertical gridlines (x-axis quantity axis) */}
+      {xTicks.map((t) => (
+        <line
+          class="p4pd-chart__gridline"
+          x1={t.x.toFixed(2)} y1={PLOT_Y0.toFixed(2)}
+          x2={t.x.toFixed(2)} y2={PLOT_Y1.toFixed(2)}
+        />
+      ))}
+
+      {/* Zero line (x = 0%) — always at PLOT_X0 */}
+      <line
+        class="p4pd-chart__zero-line"
+        x1={PLOT_X0.toFixed(2)} y1={PLOT_Y0.toFixed(2)}
+        x2={PLOT_X0.toFixed(2)} y2={PLOT_Y1.toFixed(2)}
+      />
+
+      {/* Bars */}
+      {bars.map((b) => (
+        <g>
+          {/* Bar rect */}
+          <rect
+            class={
+              b.isTop ? "p4pd-chart__bar p4pd-chart__bar--accent"
+              : b.isBC ? "p4pd-chart__bar p4pd-chart__bar--bc"
+              : "p4pd-chart__bar"
+            }
+            x={b.x0.toFixed(2)}
+            y={b.y0.toFixed(2)}
+            width={b.w.toFixed(2)}
+            height={b.h.toFixed(2)}
+          >
+            <title>{b.titleText}</title>
+          </rect>
+
+          {/* Province label — left of bar, right-aligned */}
+          <text
+            class="p4pd-chart__province-label"
+            x={(PLOT_X0 - 6).toFixed(2)}
+            y={(b.y0 + b.h / 2 + 4).toFixed(2)}
+            text-anchor="end"
+          >{b.label}</text>
+
+          {/* Ratio value at bar terminus */}
+          <text
+            class="p4pd-chart__bar-value"
+            x={(b.x0 + b.w + 5).toFixed(2)}
+            y={(b.y0 + b.h / 2 + 4).toFixed(2)}
+            text-anchor="start"
+          >{b.pctLabel}{b.isBC ? "*" : ""}</text>
+
+          {/* Vintage label — inside bar near terminus, or below bar */}
+          <text
+            class="p4pd-chart__vintage-label"
+            x={(b.x0 + b.w - 4).toFixed(2)}
+            y={(b.y0 + b.h - 5).toFixed(2)}
+            text-anchor="end"
+          >{b.vintageLabel}</text>
+        </g>
+      ))}
+
+      {/* Hairline frame */}
+      <rect
+        class="p4pd-chart__frame"
+        x={PLOT_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
+        width={PLOT_W.toFixed(2)} height={PLOT_H.toFixed(2)}
+      />
+
+      {/* X-axis ticks + labels */}
+      {xTicks.map((t) => (
+        <g>
+          <line
+            class="p4pd-chart__xtick"
+            x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="p4pd-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 16).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* BC methodology asterisk note — bottom of chart, Plex Mono */}
+      <text
+        class="p4pd-chart__footnote"
+        x={(PLOT_X0).toFixed(2)}
+        y={(VB_H - 4).toFixed(2)}
+        text-anchor="start"
+      >* BC on taxpayer-supported basis; ON, QC, AB on net debt basis.</text>
+
+    </svg>
+  </div>
+)}
+
+<style>
+  /* -------------------------------------------------------------------
+     Panel4ProvincialDebt — Tier-3 horizontal bar chart.
+     Four-province net debt-to-GDP. ON/QC/AB: net debt. BC: taxpayer-supported.
+     Highest ratio bar (QC) gets MTA red accent. BC bar at 65% ink.
+     Vintage stamps inside bars. Publisher's-own basis per province.
+     ------------------------------------------------------------------- */
+  .p4pd-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+  }
+  .p4pd-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans);
+  }
+  .p4pd-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  /* Zero-line (left edge of plot frame, at 0%) — full opacity */
+  .p4pd-chart__zero-line {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 1;
+    shape-rendering: crispEdges;
+  }
+  /* Standard bar — pure ink */
+  .p4pd-chart__bar {
+    fill: var(--ink);
+    stroke: none;
+    shape-rendering: crispEdges;
+  }
+  /* Highest-ratio bar (QC) — MTA red accent */
+  .p4pd-chart__bar--accent {
+    fill: var(--accent);
+  }
+  /* BC bar — methodology-different; 0.65 opacity signals different basis */
+  .p4pd-chart__bar--bc {
+    fill: var(--ink);
+    fill-opacity: 0.65;
+  }
+  .p4pd-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  /* Province labels — Manrope 600, 13px, left of bar */
+  .p4pd-chart__province-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: var(--fw-semibold);
+  }
+  /* Ratio value at bar end — Plex Mono 400 12px */
+  .p4pd-chart__bar-value {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Vintage label inside bar — Plex Mono 10px, light opacity for legibility */
+  .p4pd-chart__vintage-label {
+    fill: var(--paper);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+  }
+  .p4pd-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  /* X-axis tick labels — Manrope 400, 12px */
+  .p4pd-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+  }
+  /* Footnote — Plex Mono 10px */
+  .p4pd-chart__footnote {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 400;
+    fill-opacity: 0.6;
+  }
+</style>

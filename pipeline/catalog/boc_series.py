@@ -77,8 +77,8 @@ BOC_VALET_SERIES: dict[str, BocSpec] = {
     "corra_daily":    BocSpec("corra_daily", "AVG.INTWO", "2009-01-01", "%", "daily", "financial", "daily"),
 
     # ----- Policy rate / monetary (Section 4.5a) --------------------------
-    "overnight_rate":       BocSpec("overnight_rate", "STATIC_ATABLE_V39079", "1990-01-01", "%", "monthly", "policy", "monthly"),
-    "overnight_rate_daily": BocSpec("overnight_rate_daily", "V39079", "2009-04-21", "%", "daily", "policy", "daily"),
+    "overnight_rate":       BocSpec("overnight_rate", "STATIC_ATABLE_V39079", "1990-01-01", "%", "monthly", "monetary", "monthly"),
+    "overnight_rate_daily": BocSpec("overnight_rate_daily", "V39079", "2009-04-21", "%", "daily", "monetary", "daily"),
 
     # ----- CPI core (Section 4.2 element 2) -------------------------------
     # cpi_trim, cpi_median, cpi_common moved to StatCan catalog 2026-05-19
@@ -208,16 +208,16 @@ BOC_VALET_SERIES: dict[str, BocSpec] = {
     ),
 
     # ----- BoC balance sheet (Section 4.5a element M4) --------------------
-    "boc_total_assets":        BocSpec("boc_total_assets", "V36610", "2000-01-01", "C$ billions", "weekly", "policy", "weekly", scale=0.001),
-    "boc_goc_bonds":           BocSpec("boc_goc_bonds", "V36613", "2000-01-01", "C$ billions", "weekly", "policy", "weekly", scale=0.001),
-    "boc_settlement_balances": BocSpec("boc_settlement_balances", "V36636", "2000-01-01", "C$ billions", "weekly", "policy", "weekly", scale=0.001),
-    "boc_tbills":              BocSpec("boc_tbills", "V36612", "2000-01-01", "C$ billions", "weekly", "policy", "weekly", scale=0.001),
-    "boc_repos":               BocSpec("boc_repos", "V44201362", "2000-01-01", "C$ billions", "weekly", "policy", "weekly", scale=0.001),
-    "boc_advances":            BocSpec("boc_advances", "V36634", "2000-01-01", "C$ billions", "weekly", "policy", "weekly", scale=0.001),
-    "boc_total_liabilities":   BocSpec("boc_total_liabilities", "V36624", "2000-01-01", "C$ billions", "weekly", "policy", "weekly", scale=0.001),
-    "boc_banknotes":           BocSpec("boc_banknotes", "V36625", "2000-01-01", "C$ billions", "weekly", "policy", "weekly", scale=0.001),
-    "boc_goc_deposits":        BocSpec("boc_goc_deposits", "V36628", "2000-01-01", "C$ billions", "weekly", "policy", "weekly", scale=0.001),
-    "boc_reverse_repos":       BocSpec("boc_reverse_repos", "V1203435186", "2000-01-01", "C$ billions", "weekly", "policy", "weekly", scale=0.001),
+    "boc_total_assets":        BocSpec("boc_total_assets", "V36610", "2000-01-01", "C$ billions", "weekly", "monetary", "weekly", scale=0.001),
+    "boc_goc_bonds":           BocSpec("boc_goc_bonds", "V36613", "2000-01-01", "C$ billions", "weekly", "monetary", "weekly", scale=0.001),
+    "boc_settlement_balances": BocSpec("boc_settlement_balances", "V36636", "2000-01-01", "C$ billions", "weekly", "monetary", "weekly", scale=0.001),
+    "boc_tbills":              BocSpec("boc_tbills", "V36612", "2000-01-01", "C$ billions", "weekly", "monetary", "weekly", scale=0.001),
+    "boc_repos":               BocSpec("boc_repos", "V44201362", "2000-01-01", "C$ billions", "weekly", "monetary", "weekly", scale=0.001),
+    "boc_advances":            BocSpec("boc_advances", "V36634", "2000-01-01", "C$ billions", "weekly", "monetary", "weekly", scale=0.001),
+    "boc_total_liabilities":   BocSpec("boc_total_liabilities", "V36624", "2000-01-01", "C$ billions", "weekly", "monetary", "weekly", scale=0.001),
+    "boc_banknotes":           BocSpec("boc_banknotes", "V36625", "2000-01-01", "C$ billions", "weekly", "monetary", "weekly", scale=0.001),
+    "boc_goc_deposits":        BocSpec("boc_goc_deposits", "V36628", "2000-01-01", "C$ billions", "weekly", "monetary", "weekly", scale=0.001),
+    "boc_reverse_repos":       BocSpec("boc_reverse_repos", "V1203435186", "2000-01-01", "C$ billions", "weekly", "monetary", "weekly", scale=0.001),
 }
 
 

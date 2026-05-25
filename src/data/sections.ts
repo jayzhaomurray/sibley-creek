@@ -47,7 +47,8 @@ export type SectionSlug =
   | "inflation"
   | "labour"
   | "housing"
-  | "policy"
+  | "monetary"
+  | "fiscal"
   | "markets"
   | "trade";
 
@@ -431,12 +432,12 @@ export const sections: Section[] = [
     ],
   },
   {
-    slug: "policy",
-    label: "Policy",
-    accentVar: "--section-accent-policy",
-    kicker: "The Bank of Canada and the federal fiscal stance.",
+    slug: "monetary",
+    label: "Monetary",
+    accentVar: "--section-accent-monetary",
+    kicker: "The Bank of Canada: rate decisions, balance sheet, and market pricing.",
     headlineQuestion:
-      "What is Canada's policy stance?",
+      "What is Canada's monetary policy stance?",
     cadence: "Event-driven + monthly",
     // Apr 29 rate decision is the primary event; daily yields refresh
     // continuously but the policy stance is anchored to the rate decision.
@@ -502,12 +503,65 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 29, 2026",
       body:
-        "Idle on both levers. The Bank of Canada has held at 2.25% for four straight decisions — the floor of its stated 2.25 to 3.25% neutral range — and the federal fiscal arc is tracking the cadence of recent years, not leaning against the cycle. The next move belongs to monetary, and the bar is a clearer break in activity.",
+        "Idle. The Bank of Canada has held at 2.25% for four straight decisions — the floor of its stated 2.25 to 3.25% neutral range. The next move belongs to fiscal, and the bar is a clearer break in activity.",
     },
     abstractCitations: [
       { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, Apr 29 2026 FAD decision, via Valet V39079." },
       { phrase: "four straight decisions", source: "card:boc_fad_holds_post_oct_2025_cut", expected_count: 4, note: "Enumerated FAD holds since Oct 29, 2025 cut: Dec 10, Jan 28, Mar 18, Apr 29." },
       { phrase: "2.25 to 3.25% neutral range", source: "card:boc_mpr_neutral_range" },
+    ],
+  },
+  {
+    slug: "fiscal",
+    label: "Fiscal",
+    accentVar: "--section-accent-fiscal",
+    kicker: "Federal and provincial fiscal stance, debt service, and projection divergence.",
+    headlineQuestion:
+      "What is Canada's fiscal stance, and is it consistent with the cycle?",
+    cadence: "Monthly (Fiscal Monitor) + annual (budgets)",
+    // Fiscal Monitor Feb 2026 (released ~Apr 24 2026) is the primary event.
+    updatedAt: Date.UTC(2026, 3, 24, 8, 30),
+    chartSeriesKey: "fiscal-ytd-balance",
+    heroKicker: "Fiscal Monitor Feb 2026",
+    heroKickerPrefix: "Fiscal Monitor",
+    latestReleasePrefix: "Fiscal Monitor",
+    tileLine:
+      "Federal deficit tracking $25.5B YTD; debt service absorbing 10.3c per revenue dollar.",
+    tileLineCitations: [
+      { phrase: "$25.5B YTD", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "Federal YTD balance Apr-Feb 2025-26, -$25.5bn per DoF Fiscal Monitor Feb 2026." },
+      { phrase: "10.3c per revenue dollar", source: "card:dof_fiscal_monitor_debt_service_share", note: "Public debt charges as share of revenues, per StatCan CGFS Nov 21 2025 release." },
+    ],
+    prints: [
+      {
+        key: "fiscal-ytd-balance",
+        indicator: "Federal balance (FYTD)",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+        spark: [],
+      },
+      {
+        key: "debt-service-share",
+        indicator: "Debt service / revenues",
+        value: "TK",
+        delta: "TK",
+        deltaDir: "neutral",
+        asOf: "TK",
+        spark: [],
+      },
+    ],
+    blurb: {
+      kind: "last",
+      date: "Apr 24, 2026",
+      body:
+        "Fiscal is tracking the same cadence as recent years, not leaning against the cycle. The federal deficit is running at $25.5 billion through February — $6.3 billion wider than the same point last year. Debt service now absorbs over 10 cents of every revenue dollar, a ratio the PBO projects rising to 13 cents by 2030-31.",
+    },
+    abstractCitations: [
+      { phrase: "$25.5 billion through February", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "Federal YTD balance Apr-Feb 2025-26, -$25.5bn per Fiscal Monitor Feb 2026." },
+      { phrase: "$6.3 billion wider than the same point last year", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "FY26 YTD through Feb 2026: -$25.5bn vs FY25 YTD through Feb 2025: -$19.3bn; delta -$6.3bn." },
+      { phrase: "10 cents of every revenue dollar", source: "card:dof_fiscal_monitor_debt_service_share", note: "StatCan CGFS Nov 21 2025: 10.3c per dollar. Source card plate-2.yaml Tier A." },
+      { phrase: "13 cents by 2030-31", source: "card:pbo_interest_burden_forecast_2030", note: "PBO Main Estimates 2026-27 (May 7 2026): interest expense rises to 13.2% of revenues by 2030-31." },
     ],
   },
   {
@@ -947,7 +1001,7 @@ export const deepDives: DeepDive[] = [
   },
   {
     slug: "boc-fed-divergence",
-    section: "policy",
+    section: "monetary",
     title: "The BoC-Fed divergence is wide, but FX is not binding",
     deck:
       "The policy spread sits at the 8th percentile of three decades; USDCAD is at the 67th and strengthening. The binding constraint is not the loonie but the expectations chain.",

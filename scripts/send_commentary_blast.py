@@ -1,9 +1,14 @@
-"""Send a personalized journalist blast for a published Sibley Creek commentary.
+"""Send a personalized blast for a published Sibley Creek commentary.
 
 USAGE
 -----
 Dry-run (default, safe):
     python scripts/send_commentary_blast.py --commentary cpi-april-2026
+
+Target a specific category of recipients:
+    python scripts/send_commentary_blast.py --commentary cpi-april-2026 --category reporter
+    python scripts/send_commentary_blast.py --commentary cpi-april-2026 --category subscriber
+    python scripts/send_commentary_blast.py --commentary cpi-april-2026 --category all
 
 Preview first N recipients only:
     python scripts/send_commentary_blast.py --commentary cpi-april-2026 --limit 3
@@ -31,11 +36,12 @@ If a per-slug blast_meta.yaml exists, it takes precedence and can override
 title, publishedAt, or excerpt (useful if the blast is going out before the
 TypeScript registry is updated, or if you want a shorter subject line).
 
-JOURNALIST LIST
----------------
-Loaded from business/blast/journalists.yaml. Only entries with active: true
+RECIPIENT LIST
+--------------
+Loaded from business/recipients/recipients.yaml. Only entries with active: true
 are included. Entries with active: false are silently skipped (not counted
-against the cap).
+against the cap). Use --category to narrow to a subset (reporter, subscriber,
+friend, internal, or all). Default is all active contacts.
 
 SMTP CREDENTIALS
 ----------------
@@ -88,7 +94,7 @@ from pydantic import BaseModel, field_validator
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-JOURNALISTS_PATH = REPO_ROOT / "business" / "blast" / "journalists.yaml"
+RECIPIENTS_PATH = REPO_ROOT / "business" / "recipients" / "recipients.yaml"
 BLAST_LOG_PATH = REPO_ROOT / "business" / "blast" / "blast_log.csv"
 TEMPLATES_DIR = REPO_ROOT / "business" / "blast" / "templates"
 DEFAULT_TEMPLATE = TEMPLATES_DIR / "commentary_blast.md"
@@ -119,23 +125,27 @@ LOG_FIELDNAMES = [
 # ---------------------------------------------------------------------------
 
 
-class Journalist(BaseModel):
-    """One entry from journalists.yaml."""
+class Recipient(BaseModel):
+    """One entry from recipients.yaml."""
 
-    first_name: str
-    last_name: str
     email: str
-    outlet: str
-    beat: str = ""
+    name: str
+    category: str  # reporter | subscriber | friend | internal
+    tier: Any = None
+    source: str = ""
+    outlet: Optional[str] = ""
+    beat: Optional[str] = ""
     active: bool = False
-    notes: str = ""
+    notes: Optional[str] = ""
     added: Any = ""  # ruamel.yaml deserializes YYYY-MM-DD as datetime.date; accept either
 
-    @field_validator("first_name", "last_name", "outlet")
+    @field_validator("name")
     @classmethod
     def not_empty(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("must not be blank")
+        if not v.strip() or v.strip().startswith("#"):
+            # Name was not provided on the form; use empty string to let the
+            # template use its own fallback salutation.
+            return ""
         return v.strip()
 
     @field_validator("email")
@@ -145,6 +155,18 @@ class Journalist(BaseModel):
         if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
             raise ValueError(f"not a valid email address: {v!r}")
         return v
+
+    @property
+    def first_name(self) -> str:
+        """Returns the first word of name, or empty string if name is blank."""
+        parts = self.name.strip().split()
+        return parts[0] if parts else ""
+
+    @property
+    def last_name(self) -> str:
+        """Returns everything after the first word of name, or empty string."""
+        parts = self.name.strip().split()
+        return " ".join(parts[1:]) if len(parts) > 1 else ""
 
 
 class CommentaryMeta(BaseModel):
@@ -314,44 +336,68 @@ def resolve_commentary(slug: str) -> CommentaryMeta:
 
 
 # ---------------------------------------------------------------------------
-# Journalist list
+# Recipient list
 # ---------------------------------------------------------------------------
 
 
-def load_journalists(limit: Optional[int] = None) -> list[Journalist]:
-    """Load active journalists from journalists.yaml, validated via Pydantic."""
-    if not JOURNALISTS_PATH.exists():
+VALID_CATEGORIES = {"reporter", "subscriber", "friend", "internal"}
+
+
+def load_recipients(
+    limit: Optional[int] = None,
+    category: Optional[str] = None,
+) -> list[Recipient]:
+    """Load active recipients from recipients.yaml, filtered by category.
+
+    Args:
+        limit: cap to first N recipients after filtering.
+        category: one of reporter | subscriber | friend | internal | all | None.
+                  None and "all" both mean no category filter.
+    """
+    if not RECIPIENTS_PATH.exists():
         sys.exit(
-            f"ERROR: Journalist list not found at {JOURNALISTS_PATH}.\n"
-            f"Create the file using the template in business/blast/journalists.yaml."
+            f"ERROR: Recipient list not found at {RECIPIENTS_PATH}.\n"
+            f"Expected: business/recipients/recipients.yaml\n"
+            f"Run: node scripts/pull_subscribers.mjs  to populate from formsubmit."
         )
 
-    raw = _yaml_parser.load(JOURNALISTS_PATH.read_text(encoding="utf-8")) or []
+    raw = _yaml_parser.load(RECIPIENTS_PATH.read_text(encoding="utf-8")) or []
     if not isinstance(raw, list):
-        sys.exit(f"ERROR: {JOURNALISTS_PATH} must be a YAML list of journalist entries.")
+        sys.exit(f"ERROR: {RECIPIENTS_PATH} must be a YAML list of recipient entries.")
 
-    journalists: list[Journalist] = []
+    cat_filter = None if (category is None or category == "all") else category
+    if cat_filter and cat_filter not in VALID_CATEGORIES:
+        sys.exit(
+            f"ERROR: Unknown --category '{cat_filter}'. "
+            f"Valid values: {', '.join(sorted(VALID_CATEGORIES))}, all"
+        )
+
+    recipients: list[Recipient] = []
     errors: list[str] = []
 
     for i, entry in enumerate(raw):
+        if not isinstance(entry, dict):
+            continue
         try:
-            j = Journalist.model_validate(entry)
+            r = Recipient.model_validate(entry)
         except Exception as exc:
             errors.append(f"  entry[{i}] {entry.get('email', '?')}: {exc}")
             continue
-        if not j.active:
+        if not r.active:
             continue
-        journalists.append(j)
+        if cat_filter and r.category != cat_filter:
+            continue
+        recipients.append(r)
 
     if errors:
-        print("WARNING: Some journalist entries failed validation and were skipped:")
+        print("WARNING: Some recipient entries failed validation and were skipped:")
         for e in errors:
             print(e)
 
     if limit is not None:
-        journalists = journalists[:limit]
+        recipients = recipients[:limit]
 
-    return journalists
+    return recipients
 
 
 # ---------------------------------------------------------------------------
@@ -448,26 +494,23 @@ def render(template: str, variables: dict[str, str]) -> str:
     return result
 
 
-def build_variables(journalist: Journalist, commentary: CommentaryMeta) -> dict[str, str]:
+def build_variables(recipient: Recipient, commentary: CommentaryMeta) -> dict[str, str]:
     return {
-        "first_name": journalist.first_name,
-        "last_name": journalist.last_name,
-        "outlet": journalist.outlet,
+        "first_name": recipient.first_name,
+        "last_name": recipient.last_name,
+        "name": recipient.name.strip(),
+        "outlet": recipient.outlet or "",
         "commentary_title": commentary.title,
         "commentary_url": commentary.public_url,
         "commentary_pdf_url": commentary.pdf_url,
         "commentary_date": commentary.published_at,
         "commentary_excerpt": commentary.excerpt,
-        # notes: rendered as a standalone paragraph if non-empty, empty string if blank.
-        # The template places {{notes}} on its own line; the render() call replaces
-        # that line entirely, so a blank value leaves a blank line. We prepend \n
-        # to create the paragraph gap only when there is actual content.
         # notes: rendered as a standalone paragraph when non-empty.
         # Template places {{notes}} on its own line between two blank lines.
         # Non-empty: substitute the content (the surrounding blank lines in the
         # template already provide spacing). Empty: collapse to empty string;
         # post-render cleanup below trims the resulting double-blank-line.
-        "notes": journalist.notes.strip(),
+        "notes": (recipient.notes or "").strip(),
     }
 
 
@@ -489,7 +532,7 @@ def _append_log_row(row: dict) -> None:
 
 def send_one(
     *,
-    journalist: Journalist,
+    recipient: Recipient,
     commentary: CommentaryMeta,
     subject: str,
     body: str,
@@ -500,7 +543,8 @@ def send_one(
     """Send a single email. Returns the SMTP response string."""
     msg = EmailMessage()
     msg["From"] = f"Jay Zhao-Murray <{from_address}>"
-    msg["To"] = f"{journalist.first_name} {journalist.last_name} <{journalist.email}>"
+    display = recipient.name.strip() if recipient.name.strip() else recipient.email
+    msg["To"] = f"{display} <{recipient.email}>"
     msg["Subject"] = subject
     msg.set_content(body)
 
@@ -551,6 +595,15 @@ def parse_args() -> argparse.Namespace:
         help="Cap to first N active journalists. Useful for testing.",
     )
     parser.add_argument(
+        "--category",
+        default="all",
+        metavar="CATEGORY",
+        help=(
+            "Filter recipients by category: reporter | subscriber | friend | internal | all. "
+            "Defaults to all (all active recipients)."
+        ),
+    )
+    parser.add_argument(
         "--template-override",
         default=None,
         metavar="PATH",
@@ -574,34 +627,39 @@ def main() -> None:
         sys.exit(f"ERROR: Template not found: {template_path}")
     subject_tmpl, body_tmpl = load_template(template_path)
 
-    # --- Load journalists ---
-    journalists = load_journalists(limit=args.limit)
-    if not journalists:
+    # --- Load recipients ---
+    recipients = load_recipients(limit=args.limit, category=args.category)
+    if not recipients:
+        cat_hint = f" with category '{args.category}'" if args.category and args.category != "all" else ""
         sys.exit(
-            "ERROR: No active journalists found in business/blast/journalists.yaml.\n"
-            "Flip 'active: true' for the recipients you want to reach."
+            f"ERROR: No active recipients found{cat_hint} in business/recipients/recipients.yaml.\n"
+            f"Flip 'active: true' for the recipients you want to reach, or adjust --category."
         )
 
     # --- Build messages ---
-    messages: list[tuple[Journalist, str, str]] = []
-    for j in journalists:
-        variables = build_variables(j, commentary)
+    messages: list[tuple[Recipient, str, str]] = []
+    for r in recipients:
+        variables = build_variables(r, commentary)
         subject = render(subject_tmpl, variables)
         body = render(body_tmpl, variables)
-        messages.append((j, subject, body))
+        messages.append((r, subject, body))
 
     # --- Dry-run mode ---
     if not live:
+        cat_label = f"  Category:   {args.category}" if args.category else ""
         print(f"[DRY RUN] Commentary: {commentary.slug}")
         print(f"          Title:      {commentary.title}")
         print(f"          URL:        {commentary.public_url}")
         print(f"          Recipients: {len(messages)}")
+        if cat_label:
+            print(cat_label)
         print()
-        for journalist, subject, body in messages:
+        for recipient, subject, body in messages:
             print("=" * 72)
-            print(f"  TO:      {journalist.first_name} {journalist.last_name} <{journalist.email}>")
-            print(f"  OUTLET:  {journalist.outlet}")
-            print(f"  SUBJECT: {subject}")
+            print(f"  TO:       {recipient.name} <{recipient.email}>")
+            print(f"  CATEGORY: {recipient.category}")
+            print(f"  OUTLET:   {recipient.outlet or '—'}")
+            print(f"  SUBJECT:  {subject}")
             print()
             print(body)
             print()
@@ -610,13 +668,13 @@ def main() -> None:
 
         # Log dry-run entries so history is preserved.
         now = datetime.now(timezone.utc).isoformat()
-        for journalist, subject, body in messages:
+        for recipient, subject, body in messages:
             _append_log_row({
                 "sent_at_utc": now,
                 "slug": commentary.slug,
-                "recipient_email": journalist.email,
-                "recipient_name": f"{journalist.first_name} {journalist.last_name}",
-                "outlet": journalist.outlet,
+                "recipient_email": recipient.email,
+                "recipient_name": recipient.name,
+                "outlet": recipient.outlet or "",
                 "subject": subject,
                 "smtp_response": "",
                 "status": "dry_run",
@@ -642,8 +700,9 @@ def main() -> None:
     print(f"  Recipients : {len(messages)}")
     print(f"  Daily cap  : {cap_after}/{MIGADU_DAILY_CAP} after this batch")
     print()
-    for journalist, subject, _ in messages:
-        print(f"    {journalist.first_name} {journalist.last_name} <{journalist.email}> ({journalist.outlet})")
+    for recipient, subject, _ in messages:
+        outlet = f" ({recipient.outlet})" if recipient.outlet else ""
+        print(f"    {recipient.name} <{recipient.email}>{outlet}")
     print()
     try:
         confirm = input("Continue? [y/N] ").strip().lower()
@@ -660,11 +719,11 @@ def main() -> None:
     failed = 0
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    for journalist, subject, body in messages:
-        print(f"  Sending to {journalist.email} ... ", end="", flush=True)
+    for recipient, subject, body in messages:
+        print(f"  Sending to {recipient.email} ... ", end="", flush=True)
         try:
             smtp_response = send_one(
-                journalist=journalist,
+                recipient=recipient,
                 commentary=commentary,
                 subject=subject,
                 body=body,
@@ -677,9 +736,9 @@ def main() -> None:
             _append_log_row({
                 "sent_at_utc": now_iso,
                 "slug": commentary.slug,
-                "recipient_email": journalist.email,
-                "recipient_name": f"{journalist.first_name} {journalist.last_name}",
-                "outlet": journalist.outlet,
+                "recipient_email": recipient.email,
+                "recipient_name": recipient.name,
+                "outlet": recipient.outlet or "",
                 "subject": subject,
                 "smtp_response": smtp_response,
                 "status": "sent",
@@ -690,9 +749,9 @@ def main() -> None:
             _append_log_row({
                 "sent_at_utc": now_iso,
                 "slug": commentary.slug,
-                "recipient_email": journalist.email,
-                "recipient_name": f"{journalist.first_name} {journalist.last_name}",
-                "outlet": journalist.outlet,
+                "recipient_email": recipient.email,
+                "recipient_name": recipient.name,
+                "outlet": recipient.outlet or "",
                 "subject": subject,
                 "smtp_response": str(exc),
                 "status": "failed",

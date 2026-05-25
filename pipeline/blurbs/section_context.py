@@ -402,10 +402,10 @@ SECTION_CONTEXTS: dict[str, SectionContext] = {
             # reports a release_date.
         ),
     ),
-    "policy": SectionContext(
-        section_slug="policy",
+    "monetary": SectionContext(
+        section_slug="monetary",
         release_key="boc_decision",
-        label="Policy",
+        label="Monetary",
         primary_series=(
             "overnight_rate_target",
             "yield_2yr",

@@ -44,8 +44,7 @@ const latest = latestCommentary();
         Seeing clearly comes from knowing what to ignore.
       </p>
       <p class="v3-hero__credit">
-        Sibley Creek is an independent macroeconomic research and advisory
-        firm, focused on Canada.
+        Sibley Creek is an independent macroeconomic research and advisory firm.
       </p>
       <div class="v3-hero__cta-row">
         <a class="v3-hero__cta v3-hero__cta--primary" href="#subscribe">
@@ -94,8 +93,8 @@ const latest = latestCommentary();
       <p class="v3-row__kicker">Live tracker</p>
       <h2 id="v3-row1-h" class="v3-row__h">Our reading of the Canadian economy, every day.</h2>
       <p class="v3-row__body">
-        Eight sections — inflation, output, labour, housing, policy, markets,
-        trade — each charted and annotated. The numbers and our take,
+        Eight sections — output, inflation, labour, monetary, fiscal, housing,
+        trade, markets — each charted and annotated. The numbers and our take,
         refreshed as the data lands.
       </p>
       <a class="v3-row__cta" href={withBase("/overview/")}>See the dashboard →</a>
@@ -130,7 +129,14 @@ const latest = latestCommentary();
           <span class="v3-frame__url" data-carousel-url>{`sibleycreek.ca/${sections[0]?.slug ?? "topics"}`}</span>
         </div>
         <div class="v3-carousel" data-carousel>
-          {sections.map((s, i) => (
+          {/* TEMPORARY: skip fiscal until its chartbook screenshot exists.
+              The /fiscal/ page launched data-poor (Plate 5 awaits source-card
+              fill; plates 2-4 carry [X] placeholders pending fact-check). The
+              splash copy mentions fiscal as one of eight sections, but until
+              the page is presentable the carousel skips it rather than show
+              a broken or half-empty image. REMOVE this filter once
+              chartbook-fiscal.png is captured (see followups snapshot). */}
+          {sections.filter((s) => s.slug !== "fiscal").map((s, i) => (
             <img
               class="v3-carousel__slide"
               src={withBase(`/showcase/chartbook-${s.slug}.png`)}
@@ -149,13 +155,11 @@ const latest = latestCommentary();
       <p class="v3-row__kicker">Chartbooks</p>
       <h2 id="v3-row2-h" class="v3-row__h">A chartbook for every section.</h2>
       <p class="v3-row__body">
-        Seven sections of the Canadian economy — inflation, output, labour,
-        housing, policy, markets, trade — each its own chartbook of five to
-        six plates, threaded with a written argument.
+        Each of those eight sections gets its own chartbook of five to six
+        plates, threaded with a written argument.
       </p>
       <p class="v3-row__body">
-        Built from the primary sources, in the house typography. The charts
-        are the analysis.
+        Built from primary sources. The charts are the analysis.
       </p>
       <a class="v3-row__cta" href={withBase("/topics/")}>Browse the chartbooks →</a>
     </div>
@@ -207,16 +211,15 @@ const latest = latestCommentary();
   <section class="v3-adv" aria-labelledby="v3-adv-h">
     <div class="v3-adv__inner">
       <p class="v3-adv__eyebrow">Advisory</p>
-      <h2 id="v3-adv-h" class="v3-adv__h">Work with Sibley Creek directly.</h2>
+      <h2 id="v3-adv-h" class="v3-adv__h">Work with Sibley Creek.</h2>
       <p class="v3-adv__lead">
         We extend in-house economics teams that are swamped, and provide
         specialized Canadian-macro depth that generalist desks can't always
         cover. On retainer, on project, or for one-off briefings.
       </p>
       <p class="v3-adv__clients">
-        Typical clients: hedge funds and asset managers, family offices,
-        trade associations, wealth managers, government relations firms,
-        exporters, real estate developers, and Crown corporations.
+        Typical clients: hedge funds, asset managers, family offices, trade
+        associations, exporters, government relations firms, Crown corporations.
       </p>
       <a class="v3-adv__cta" href={withBase("/advisory/")}>Hire us →</a>
     </div>
@@ -228,9 +231,7 @@ const latest = latestCommentary();
       <p class="v3-sub__eyebrow">Subscribe</p>
       <h2 id="v3-sub-h" class="v3-sub__h">Get our research in your inbox.</h2>
       <p class="v3-sub__body">
-        Same-day commentary on every major Canadian print. Chart packs as
-        they ship. A paid tier with forward-looking research is in
-        development.
+        Commentary the day a print lands. Chartbooks as they ship.
       </p>
 
       {/*

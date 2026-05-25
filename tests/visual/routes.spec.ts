@@ -46,6 +46,8 @@ const ROUTES: RouteCase[] = [
   { path: "/markets/", name: "05_markets" },
   { path: "/trade/", name: "06_trade" },
   { path: "/housing/", name: "07_housing" },
+  { path: "/overview/", name: "09_overview" },
+  { path: "/overview-with-fiscal/", name: "10_overview_with_fiscal" },
   { path: "/research/", name: "08_research_index" },
   // When at least one deep dive is promoted to editorial/published/, add the
   // matching /research/<slug>/ route back here. The spec covers only routes

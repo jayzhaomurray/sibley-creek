@@ -351,7 +351,7 @@ _SECTION_LABELS_FOR_RELEASE: dict[str, str] = {
     "gdp": "Monthly GDP print",
     "housing": "CREA monthly print",
     "markets": "Daily market close",
-    "policy": "BoC rate decision",
+    "monetary": "BoC rate decision",
     "trade": "Monthly international trade",
 }
 

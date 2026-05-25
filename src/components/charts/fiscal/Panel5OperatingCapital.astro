@@ -1,0 +1,428 @@
+---
+/*
+ * Panel5OperatingCapital — operating vs capital balance, DoF vs PBO reclassification.
+ *
+ * NEW. SUPERSEDES the original CAPB spec per fiscal_phase1_bartlett_lapointe.md Q4.
+ * Charts Carney government's bifurcated operating/capital budget framework
+ * (DoF SEU April 2026) alongside PBO's November 17, 2025 reclassification,
+ * which found a ~$94B gap between DoF's "capital" definition and the stricter
+ * international-standard definition.
+ *
+ * === PLACEHOLDER DATA STATUS ===
+ * The backend-engineer's source card for Plate 5 (editorial/source_cards/
+ * _pending/fiscal/plate-5.yaml) contains OECD CAPB data from the ORIGINAL spec
+ * (now SUPERSEDED). The operating/capital decomposition from DoF SEU April 2026
+ * and the PBO Nov 17 2025 reclassification require researcher data extraction
+ * from:
+ *   1. DoF SEU April 2026 fiscal tables (operating vs capital split)
+ *   2. PBO Nov 17 2025 analysis: "Carney's budget has a $94 billion gap in
+ *      investment spending and a shortfall in government operating balance"
+ *      (https://thehub.ca/2025/11/17/carneys-budget-has-a-94-billion-gap-in
+ *      -investment-spending-and-a-shortfall-in-government-operating-balance-pbo/)
+ *
+ * This component uses PLACEHOLDER DATA BELOW. When real data lands:
+ *   1. Backend-engineer replaces the placeholder constants with fiscal.json panel-5
+ *   2. The component switches from PLACEHOLDER_MODE to reading data.primary / secondary
+ *   3. Update the data-panel-status attr from "placeholder" to "live"
+ *
+ * === PLACEHOLDER DATA SHAPE (what real data should look like) ===
+ * When fiscal.json panel-5 is wired, the expected shape is:
+ *
+ *   primary: {
+ *     key: "dof_operating_balance",
+ *     label: "DoF operating balance",
+ *     unit: "CAD billions",
+ *     data: [
+ *       { date: "2025-04-01", value: -25.0 },  // FY2025-26 DoF operating surplus/deficit
+ *       { date: "2026-04-01", value: -20.0 },  // FY2026-27
+ *       // ...through FY2030-31
+ *     ]
+ *   }
+ *   secondary: {
+ *     key: "pbo_operating_balance",
+ *     label: "PBO operating balance (reclassified)",
+ *     unit: "CAD billions",
+ *     data: [
+ *       { date: "2025-04-01", value: -65.0 },  // FY2025-26 PBO reclassified
+ *       // PBO's stricter capital definition pushes more spending into operating
+ *     ]
+ *   }
+ *   tertiary (optional): {
+ *     key: "dof_capital_balance",
+ *     label: "DoF capital balance",
+ *     unit: "CAD billions",
+ *     // ...
+ *   }
+ *
+ * The exact values depend on researcher extraction from DoF and PBO tables.
+ * The ~$94B cumulative reclassification figure is the editorial anchor.
+ *
+ * === VISUAL DESIGN ===
+ * Two paired series — DoF's operating + capital decomposition vs PBO's
+ * reclassified version. The gap between DoF and PBO on "operating balance"
+ * IS the story: DoF counts more spending as "capital" than PBO's international
+ * standard allows.
+ *
+ * Chosen format: grouped vertical bars per fiscal year.
+ *   - Left bar per year: DoF operating balance
+ *   - Right bar per year: PBO reclassified operating balance (should be deeper deficit)
+ *   - The gap between the two bars = the reclassification effect
+ *   - DoF bars: solid black
+ *   - PBO bars: 1px black stroke, 0.45 fill opacity (visually "lighter" to signal
+ *     watchdog's stricter read)
+ *   - MTA red accent on the latest FY across both series
+ *
+ * When placeholder mode is active, renders PanelEmpty with a detailed
+ * placeholder note rather than confusing the user with synthetic data.
+ *
+ * Source reference (for researcher extraction):
+ *   - PBO: https://thehub.ca/2025/11/17/carneys-budget-has-a-94-billion-gap-in
+ *     -investment-spending-and-a-shortfall-in-government-operating-balance-pbo/
+ *   - DoF SEU April 2026 — fiscal tables Annex 1 (operating/capital split)
+ *
+ * Canon compliance (Tier-3) — when live:
+ *   1. DoF bars: var(--ink) fill, no stroke.
+ *   2. PBO bars: var(--ink) fill, 0.45 opacity (signals different methodology).
+ *   3. 1px pure-ink hairline frame.
+ *   4. 3-4 horizontal gridlines, stroke-opacity 0.18.
+ *   5. Y-axis: Plex Mono 400 12px. Topmost tick: "$NNB".
+ *   6. X-axis: Manrope 400 12px, fiscal year labels.
+ *  10. No legend. Direct labels: "DoF" and "PBO reclassified".
+ *  13. viewBox 720x405, aspect-ratio 16/9.
+ *  15. aria-label naming the chart and the $94B headline figure.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---- Placeholder mode detection ---------------------------------------------
+// When the pipeline emits real data for fiscal panel-5, this guard will
+// flip to false. For now, any data shape with the operating_balance key
+// is considered live. If primary is missing or has the CAPB key (old spec),
+// we stay in placeholder mode.
+const isLiveData = !!(
+  data &&
+  data.primary &&
+  data.primary.data.length > 0 &&
+  data.primary.key !== "oecd_capb" &&  // reject old-spec data
+  data.primary.key !== "imf_capb"
+);
+
+// ---- Geometry (used only in live mode) -------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L  = 56;
+const M_R  = 80;
+const M_T  = 24;
+const M_B  = 38;
+
+const PLOT_X0 = M_L;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_W  = PLOT_X1 - PLOT_X0;
+const PLOT_H  = PLOT_Y1 - PLOT_Y0;
+
+// ---- Live-mode computation (only runs when isLiveData) ----------------------
+type SeriesPoint = { date: string; value: number | null };
+
+function fyLabel(date: string): string {
+  const m = date.match(/^(\d{4})/);
+  if (!m) return "";
+  return `FY${String(parseInt(m[1]!, 10) + 1).slice(-2)}`;
+}
+
+type YTick = { y: number; label: string };
+type XTick = { x: number; label: string };
+type BarRect = {
+  x: number; y: number; w: number; h: number;
+  label: string; isDoF: boolean; isLatest: boolean; titleText: string;
+};
+
+let bars: BarRect[] = [];
+let yTicks: YTick[] = [];
+let xTicks: XTick[] = [];
+let dofLabelX = 0;
+let dofLabelY = 0;
+let pboLabelX = 0;
+let pboLabelY = 0;
+let ariaLabel = "Federal operating versus capital balance: DoF SEU April 2026 classification compared with PBO November 2025 reclassification. PBO reclassifies approximately $94 billion of spending from capital to operating over the projection horizon.";
+
+if (isLiveData) {
+  const primPts: SeriesPoint[] = data!.primary!.data.filter(
+    (p: SeriesPoint) => typeof p.value === "number" && Number.isFinite(p.value)
+  );
+  const secPts: SeriesPoint[] = data!.secondary?.data.filter(
+    (p: SeriesPoint) => typeof p.value === "number" && Number.isFinite(p.value)
+  ) ?? [];
+
+  const allVals = [...primPts, ...secPts].map((p) => p.value as number);
+  const rawMin  = Math.min(...allVals);
+  const rawMax  = Math.max(0, Math.max(...allVals));  // include zero
+
+  const yDomMin = rawMin < 0 ? rawMin * 1.1 : 0;
+  const yDomMax = rawMax > 0 ? rawMax * 1.1 : Math.abs(rawMin) * 0.1;
+  const yRange  = yDomMax - yDomMin || 1;
+
+  const yScale = (v: number) =>
+    PLOT_Y0 + PLOT_H - ((v - yDomMin) / yRange) * PLOT_H;
+  // zeroY used for zero-line guard; bars are anchored to zero via Math.max/min
+  const _zeroY = yScale(0); void _zeroY;
+
+  // Y ticks
+  const stride = (yDomMax - yDomMin) <= 60 ? 10 : 20;
+  const tickStart = Math.ceil(yDomMin / stride) * stride;
+  const rawTicksArr: number[] = [];
+  for (let v = tickStart; v <= yDomMax + 1e-9; v += stride) rawTicksArr.push(v);
+  yTicks = rawTicksArr
+    .filter((v) => yScale(v) >= PLOT_Y0 - 2 && yScale(v) <= PLOT_Y1 + 2)
+    .map((v, i, arr) => {
+      const isTop = i === arr.length - 1;
+      const label = isTop ? `$${Math.abs(v).toFixed(0)}B` : `${v.toFixed(0)}`;
+      return { y: yScale(v), label };
+    });
+
+  // X domain / bar layout
+  const n = primPts.length;
+  const nGroups = Math.max(n, secPts.length);
+  const groupW = PLOT_W / (nGroups + 0.5);
+  const barW   = groupW * 0.38;
+  const groupGap = groupW * 0.12;
+
+  // X scale: fiscal year positions
+  for (let i = 0; i < n; i++) {
+    const pt = primPts[i]!;
+    const groupCenterX = PLOT_X0 + (i + 0.5) * groupW;
+    xTicks.push({ x: groupCenterX, label: fyLabel(pt.date) });
+  }
+
+  // DoF bars
+  for (let i = 0; i < primPts.length; i++) {
+    const pt = primPts[i]!;
+    const v  = pt.value as number;
+    const groupCenterX = PLOT_X0 + (i + 0.5) * groupW;
+    const barCenterX   = groupCenterX - barW / 2 - groupGap / 2;
+    const x = barCenterX - barW / 2;
+    const bTop = yScale(Math.max(0, v));
+    const bBot = yScale(Math.min(0, v));
+    bars.push({
+      x, y: bTop, w: barW, h: Math.max(1, bBot - bTop),
+      label: "DoF",
+      isDoF: true,
+      isLatest: i === primPts.length - 1,
+      titleText: `DoF ${fyLabel(pt.date)}: $${v.toFixed(1)}B`,
+    });
+  }
+
+  // PBO bars
+  for (let i = 0; i < secPts.length; i++) {
+    const pt = secPts[i]!;
+    const v  = pt.value as number;
+    const groupCenterX = PLOT_X0 + (i + 0.5) * groupW;
+    const barCenterX   = groupCenterX + barW / 2 + groupGap / 2;
+    const x = barCenterX - barW / 2;
+    const bTop = yScale(Math.max(0, v));
+    const bBot = yScale(Math.min(0, v));
+    bars.push({
+      x, y: bTop, w: barW, h: Math.max(1, bBot - bTop),
+      label: "PBO",
+      isDoF: false,
+      isLatest: i === secPts.length - 1,
+      titleText: `PBO reclassified ${fyLabel(pt.date)}: $${v.toFixed(1)}B`,
+    });
+  }
+
+  // Direct labels
+  const lastDoF = bars.filter((b) => b.isDoF).at(-1);
+  const lastPBO = bars.filter((b) => !b.isDoF).at(-1);
+  if (lastDoF) {
+    dofLabelX = lastDoF.x + lastDoF.w + 6;
+    dofLabelY = lastDoF.y + 12;
+  }
+  if (lastPBO) {
+    pboLabelX = lastPBO.x + lastPBO.w + 6;
+    pboLabelY = lastPBO.y + 12;
+    if (Math.abs(dofLabelY - pboLabelY) < 14) pboLabelY = dofLabelY + 14;
+  }
+}
+---
+
+{!isLiveData ? (
+  <PanelEmpty
+    reason="Operating vs capital balance data (fiscal panel-5) pending researcher extraction from DoF SEU Apr 2026 and PBO Nov 17 2025 analysis. Real data replaces this when the pipeline emits the operating/capital split."
+  />
+) : (
+  <div class="p5oc-chart" data-panel="fiscal-5" data-panel-status="live">
+    <svg
+      class="p5oc-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {/* Gridlines */}
+      {yTicks.map((t) => (
+        <line
+          class="p5oc-chart__gridline"
+          x1={PLOT_X0.toFixed(2)} y1={t.y.toFixed(2)}
+          x2={PLOT_X1.toFixed(2)} y2={t.y.toFixed(2)}
+        />
+      ))}
+
+      {/* Bars — DoF (solid) and PBO (lighter) */}
+      {bars.map((b) => (
+        <rect
+          class={
+            b.isDoF
+              ? (b.isLatest ? "p5oc-chart__bar p5oc-chart__bar--dof p5oc-chart__bar--latest" : "p5oc-chart__bar p5oc-chart__bar--dof")
+              : (b.isLatest ? "p5oc-chart__bar p5oc-chart__bar--pbo p5oc-chart__bar--latest" : "p5oc-chart__bar p5oc-chart__bar--pbo")
+          }
+          x={b.x.toFixed(2)}
+          y={b.y.toFixed(2)}
+          width={b.w.toFixed(2)}
+          height={b.h.toFixed(2)}
+        >
+          <title>{b.titleText}</title>
+        </rect>
+      ))}
+
+      {/* Hairline frame */}
+      <rect
+        class="p5oc-chart__frame"
+        x={PLOT_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
+        width={PLOT_W.toFixed(2)} height={PLOT_H.toFixed(2)}
+      />
+
+      {/* Y-axis tick labels */}
+      {yTicks.map((t) => (
+        <text
+          class="p5oc-chart__ytick-label"
+          x={(PLOT_X0 - 6).toFixed(2)}
+          y={(t.y + 4).toFixed(2)}
+          text-anchor="end"
+        >{t.label}</text>
+      ))}
+
+      {/* X-axis ticks + labels */}
+      {xTicks.map((t) => (
+        <g>
+          <line
+            class="p5oc-chart__xtick"
+            x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="p5oc-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 16).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* Direct labels */}
+      <text
+        class="p5oc-chart__label-dof"
+        x={dofLabelX.toFixed(2)}
+        y={dofLabelY.toFixed(2)}
+        text-anchor="start"
+      >DoF</text>
+      <text
+        class="p5oc-chart__label-pbo"
+        x={pboLabelX.toFixed(2)}
+        y={pboLabelY.toFixed(2)}
+        text-anchor="start"
+      >PBO</text>
+
+    </svg>
+  </div>
+)}
+
+<style>
+  /* -------------------------------------------------------------------
+     Panel5OperatingCapital — Tier-3 grouped bar chart.
+     Operating balance: DoF SEU April 2026 vs PBO reclassified Nov 2025.
+     DoF = solid black bars. PBO = 0.45 opacity bars (different methodology).
+     MTA red accent on latest fiscal year.
+     PLACEHOLDER: renders PanelEmpty until real data is extracted from sources.
+     ------------------------------------------------------------------- */
+  .p5oc-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+  }
+  .p5oc-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans);
+  }
+  .p5oc-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  /* DoF bars — solid black */
+  .p5oc-chart__bar {
+    stroke: none;
+    shape-rendering: crispEdges;
+  }
+  .p5oc-chart__bar--dof {
+    fill: var(--ink);
+  }
+  /* PBO bars — same ink, 0.45 opacity signals watchdog's stricter read */
+  .p5oc-chart__bar--pbo {
+    fill: var(--ink);
+    fill-opacity: 0.45;
+  }
+  /* Latest-year accent — MTA red across both series' latest bars */
+  .p5oc-chart__bar--latest {
+    fill: var(--accent);
+    fill-opacity: 1;
+  }
+  .p5oc-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p5oc-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .p5oc-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p5oc-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+  }
+  /* DoF label — Manrope 600, 13px */
+  .p5oc-chart__label-dof {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: var(--fw-semibold);
+  }
+  /* PBO label — Manrope 400, 13px (recedes to match lighter bars) */
+  .p5oc-chart__label-pbo {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 400;
+  }
+</style>

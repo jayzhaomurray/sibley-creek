@@ -1,0 +1,467 @@
+---
+/*
+ * Panel3PBOvsDoF — PBO EFO (Sept 2025) vs DoF SEU (April 2026) deficit tracks.
+ *
+ * NEW. Two five-year-forward deficit projection series, vintage-stamped,
+ * with a filled divergence band showing where they disagree.
+ *
+ * Data shape expected from fiscal.json panel-3:
+ *   primary: {
+ *     key: "dof_seu_deficit_projection",
+ *     label: "DoF SEU Apr 2026",
+ *     unit: "CAD billions",
+ *     data: [
+ *       { date: "2025-04-01", value: 66.9 },   // FY2025-26
+ *       { date: "2026-04-01", value: 65.3 },   // FY2026-27
+ *       { date: "2027-04-01", value: <X> },    // FY2027-28
+ *       { date: "2028-04-01", value: <X> },    // FY2028-29
+ *       { date: "2029-04-01", value: <X> },    // FY2029-30
+ *       { date: "2030-04-01", value: 53.2 }    // FY2030-31
+ *     ]
+ *   }
+ *   secondary: {
+ *     key: "pbo_efo_deficit_projection",
+ *     label: "PBO EFO Sept 2025",
+ *     unit: "CAD billions",
+ *     data: [{ date: "2025-04-01", value: <X> }, ...]  // matching FY spine
+ *   }
+ *
+ * Visual decisions:
+ *   - DoF (primary): 1.5px solid black. MTA red latest-point dot at final year.
+ *   - PBO (secondary): 1px dashed black "4 2". No dot. Manrope 400 label.
+ *   - Divergence band: filled area between the two series,
+ *     rgba(21,23,26,0.06) ink wash. Band helps the reader see where
+ *     the gap widens or narrows over the horizon.
+ *   - Vintage stamps: "DoF SEU Apr 2026" and "PBO EFO Sept 2025" as
+ *     direct end-of-line labels, stacked if close.
+ *   - X-axis: fiscal year labels ("FY26", "FY27", ...) at each data point.
+ *   - Y-axis: CAD billions, descending deficit framing: higher bar =
+ *     larger deficit. Y-axis labels as "$NNB" per currency_cad formatter.
+ *   - The zero line renders only if any value crosses zero (it won't for
+ *     deficit projections, so it's guarded).
+ *
+ * Vintage note (source card plate-3.yaml, Tier B):
+ *   PBO EFO Sept 2025 + DoF SEU April 2026. Methodology gap: different
+ *   private-sector survey vintages and macro envelopes. The delta is the
+ *   editorial payload — not a verdict on whose forecast is right.
+ *
+ * Canon compliance (Tier-3):
+ *   1. Primary line: var(--ink), 1.5px solid.
+ *  17. Secondary line: var(--ink), 1px dashed "4 2". No second color.
+ *   2. Latest dot on primary only: var(--accent), r=4.
+ *   3. 1px pure-ink hairline frame.
+ *   4. 3-4 gridlines, stroke-opacity 0.18.
+ *   5. Y-ticks: Plex Mono 400 12px. Topmost: "$NNB".
+ *   6. X-ticks: Manrope 400 12px. FY labels.
+ *  10. Direct end-of-line labels: primary Manrope 600 13px; secondary Manrope 400 13px.
+ *  12. Native SVG <title> hit areas. Zero JS.
+ *  13. viewBox 720x405.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import { decYear } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+const hasPrimary = !!(data && data.primary && data.primary.data.length > 0);
+const hasSecondary = !!(data && data.secondary && data.secondary.data.length > 0);
+
+// ---- Geometry ---------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L  = 56;   // left gutter (currency ticks are wider: "$66.9B")
+const M_R  = 110;  // right margin (two stacked direct labels)
+const M_T  = 24;
+const M_B  = 38;
+
+const PLOT_X0 = M_L;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_W  = PLOT_X1 - PLOT_X0;
+const PLOT_H  = PLOT_Y1 - PLOT_Y0;
+
+// ---- Helpers ----------------------------------------------------------------
+type SeriesPoint = { date: string; value: number | null };
+
+function fmtBillions(v: number, _isTop: boolean): string {
+  const abs = Math.abs(v);
+  const sgn = v < 0 ? "-" : "";
+  const body = abs >= 100 ? `$${Math.round(abs)}B` : `$${abs.toFixed(1)}B`;
+  return sgn + body;
+}
+
+// Fiscal year label from a date string (YYYY-04-01 -> "FY26")
+function fyLabel(date: string): string {
+  const m = date.match(/^(\d{4})/);
+  if (!m) return "";
+  const startYear = parseInt(m[1]!, 10);
+  // Fiscal year starting April = FY labelled by end year
+  return `FY${String(startYear + 1).slice(-2)}`;
+}
+
+// ---- Computation ------------------------------------------------------------
+type YTick = { y: number; label: string };
+type XTick = { x: number; label: string };
+
+let primPath    = "";
+let secPath     = "";
+let bandPath    = "";
+let latestX     = 0;
+let latestY     = 0;
+let latestVal   = 0;
+let primLabelX  = 0;
+let primLabelY  = 0;
+let secLabelX   = 0;
+let secLabelY   = 0;
+let yTicks: YTick[] = [];
+let xTicks: XTick[] = [];
+let primHits: { cx: number; cy: number; title: string }[] = [];
+let secHits:  { cx: number; cy: number; title: string }[] = [];
+let ariaLabel = "Federal deficit projections: PBO EFO Sept 2025 vs DoF SEU April 2026, five-year forward, CAD billions.";
+
+if (hasPrimary) {
+  const primPts: SeriesPoint[] = data!.primary!.data.filter(
+    (p: SeriesPoint) => typeof p.value === "number" && Number.isFinite(p.value)
+  );
+  const secPts: SeriesPoint[] = hasSecondary
+    ? data!.secondary!.data.filter(
+        (p: SeriesPoint) => typeof p.value === "number" && Number.isFinite(p.value)
+      )
+    : [];
+
+  const allPts = [...primPts, ...secPts];
+
+  // ---- x-domain (fiscal years, annual cadence) --------------------------------
+  const xVals = primPts.map((p) => decYear(p.date));
+  const xMin  = Math.min(...xVals);
+  const xMax  = Math.max(...xVals);
+  // Pad 0.3 year on left, 0.3 year on right so bars/dots breathe
+  const xPad  = 0.3;
+  const xDomMin = xMin - xPad;
+  const xDomSpan = (xMax + xPad) - xDomMin;
+
+  const xScale = (xv: number): number =>
+    PLOT_X0 + ((xv - xDomMin) / xDomSpan) * PLOT_W;
+
+  // ---- y-domain --------------------------------------------------------------
+  const allVals = allPts.map((p) => p.value as number);
+  const rawMin  = Math.min(...allVals);
+  const rawMax  = Math.max(...allVals);
+  // Deficit framing: chart reads top-down. Ensure zero is above plot
+  // (deficits are positive in our data convention — larger = bigger deficit).
+  const yDomMax = rawMax * 1.12;
+  const yDomMin = Math.max(0, rawMin * 0.88);
+  const yRange  = yDomMax - yDomMin || 1;
+
+  const yScale = (v: number): number =>
+    PLOT_Y0 + PLOT_H - ((v - yDomMin) / yRange) * PLOT_H;
+
+  // ---- Y ticks ---------------------------------------------------------------
+  // ~$10B strides for deficit projections in the $50-80B range
+  const rawTickRange = yDomMax - yDomMin;
+  const stride = rawTickRange <= 30 ? 5 : rawTickRange <= 60 ? 10 : 20;
+  const tickStart = Math.ceil(yDomMin / stride) * stride;
+  const rawTicks: number[] = [];
+  for (let v = tickStart; v <= yDomMax + 1e-9; v += stride) {
+    rawTicks.push(v);
+  }
+  yTicks = rawTicks
+    .filter((v) => yScale(v) >= PLOT_Y0 - 2 && yScale(v) <= PLOT_Y1 + 2)
+    .map((v, i, arr) => ({
+      y: yScale(v),
+      label: fmtBillions(v, i === arr.length - 1),
+    }));
+
+  // ---- X ticks (fiscal year at each data point) ------------------------------
+  for (const pt of primPts) {
+    const xv = decYear(pt.date);
+    xTicks.push({ x: xScale(xv), label: fyLabel(pt.date) });
+  }
+
+  // ---- Primary line + hits ---------------------------------------------------
+  primPath = primPts.map((p, i) => {
+    const xv = decYear(p.date);
+    const x = xScale(xv);
+    const y = yScale(p.value as number);
+    return `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
+  }).join(" ");
+
+  primHits = primPts.map((p) => ({
+    cx: xScale(decYear(p.date)),
+    cy: yScale(p.value as number),
+    title: `DoF SEU Apr 2026 ${fyLabel(p.date)}: $${(p.value as number).toFixed(1)}B deficit`,
+  }));
+
+  const lastPrim = primPts[primPts.length - 1]!;
+  latestX   = xScale(decYear(lastPrim.date));
+  latestY   = yScale(lastPrim.value as number);
+  latestVal = lastPrim.value as number;
+
+  // Direct label position: 10px right of last point
+  primLabelX = latestX + 10;
+  primLabelY = latestY + 4;
+
+  // ---- Secondary line + hits -------------------------------------------------
+  if (secPts.length > 0) {
+    secPath = secPts.map((p, i) => {
+      const xv = decYear(p.date);
+      const x = xScale(xv);
+      const y = yScale(p.value as number);
+      return `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
+    }).join(" ");
+
+    secHits = secPts.map((p) => ({
+      cx: xScale(decYear(p.date)),
+      cy: yScale(p.value as number),
+      title: `PBO EFO Sept 2025 ${fyLabel(p.date)}: $${(p.value as number).toFixed(1)}B deficit`,
+    }));
+
+    const lastSec = secPts[secPts.length - 1]!;
+    secLabelX = xScale(decYear(lastSec.date)) + 10;
+    // Stack secondary label below primary when close; else natural y
+    const yDiff = Math.abs(latestY - yScale(lastSec.value as number));
+    if (yDiff < 14) {
+      secLabelY = primLabelY + 14;
+    } else {
+      secLabelY = yScale(lastSec.value as number) + 4;
+    }
+
+    // ---- Divergence band -------------------------------------------------------
+    // Align by date; build forward (prim) then backward (sec) polygon
+    const primMap = new Map(primPts.map((p) => [p.date, p.value as number]));
+    const secMap  = new Map(secPts.map((p) => [p.date, p.value as number]));
+    const sharedDates = primPts.map((p) => p.date).filter((d) => secMap.has(d));
+
+    if (sharedDates.length >= 2) {
+      const fwdParts = sharedDates.map((d) => {
+        const xv = decYear(d);
+        return `${xScale(xv).toFixed(2)},${yScale(primMap.get(d)!).toFixed(2)}`;
+      });
+      const bwdParts = [...sharedDates].reverse().map((d) => {
+        const xv = decYear(d);
+        return `${xScale(xv).toFixed(2)},${yScale(secMap.get(d)!).toFixed(2)}`;
+      });
+      bandPath = `M${fwdParts[0]} L${fwdParts.slice(1).join(" L")} L${bwdParts.join(" L")} Z`;
+    }
+  }
+
+  // ---- aria-label ------------------------------------------------------------
+  ariaLabel = `Federal deficit projections: DoF SEU April 2026 projects $${latestVal.toFixed(1)}B deficit by FY2030-31. PBO EFO September 2025 shown for comparison. Source: Department of Finance Spring Economic Update (April 2026) and PBO Economic and Fiscal Outlook (September 2025).`;
+}
+---
+
+{!hasPrimary ? (
+  <PanelEmpty reason="PBO vs DoF deficit projection series (fiscal panel-3) not yet emitted by pipeline." />
+) : (
+  <div class="p3pvd-chart" data-panel="fiscal-3">
+    <svg
+      class="p3pvd-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {/* Gridlines */}
+      {yTicks.map((t) => (
+        <line
+          class="p3pvd-chart__gridline"
+          x1={PLOT_X0.toFixed(2)} y1={t.y.toFixed(2)}
+          x2={PLOT_X1.toFixed(2)} y2={t.y.toFixed(2)}
+        />
+      ))}
+
+      {/* Divergence band */}
+      {bandPath && (
+        <path class="p3pvd-chart__band" d={bandPath} />
+      )}
+
+      {/* Secondary line (PBO) — 1px dashed */}
+      {secPath && (
+        <path class="p3pvd-chart__sec-line" d={secPath} />
+      )}
+
+      {/* Primary line (DoF) — 1.5px solid */}
+      <path class="p3pvd-chart__prim-line" d={primPath} />
+
+      {/* Hit areas */}
+      {primHits.map((h) => (
+        <circle class="p3pvd-chart__hit" cx={h.cx.toFixed(2)} cy={h.cy.toFixed(2)} r="6">
+          <title>{h.title}</title>
+        </circle>
+      ))}
+      {secHits.map((h) => (
+        <circle class="p3pvd-chart__hit" cx={h.cx.toFixed(2)} cy={h.cy.toFixed(2)} r="6">
+          <title>{h.title}</title>
+        </circle>
+      ))}
+
+      {/* Latest dot on primary */}
+      <circle
+        class="p3pvd-chart__latest-dot"
+        cx={latestX.toFixed(2)}
+        cy={latestY.toFixed(2)}
+        r="4"
+      >
+        <title>Latest (DoF): ${latestVal.toFixed(1)}B</title>
+      </circle>
+
+      {/* Hairline frame */}
+      <rect
+        class="p3pvd-chart__frame"
+        x={PLOT_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
+        width={PLOT_W.toFixed(2)} height={PLOT_H.toFixed(2)}
+      />
+
+      {/* Y-axis labels */}
+      {yTicks.map((t) => (
+        <text
+          class="p3pvd-chart__ytick-label"
+          x={(PLOT_X0 - 6).toFixed(2)}
+          y={(t.y + 4).toFixed(2)}
+          text-anchor="end"
+        >{t.label}</text>
+      ))}
+
+      {/* X-axis ticks + labels */}
+      {xTicks.map((t) => (
+        <g>
+          <line
+            class="p3pvd-chart__xtick"
+            x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 4).toFixed(2)}
+          />
+          <text
+            class="p3pvd-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 16).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* Direct label — DoF (primary, 600 weight) */}
+      <text
+        class="p3pvd-chart__label-prim"
+        x={primLabelX.toFixed(2)}
+        y={primLabelY.toFixed(2)}
+        text-anchor="start"
+      >DoF SEU</text>
+
+      {/* Direct label — PBO (secondary, 400 weight) */}
+      {secPath && (
+        <text
+          class="p3pvd-chart__label-sec"
+          x={secLabelX.toFixed(2)}
+          y={secLabelY.toFixed(2)}
+          text-anchor="start"
+        >PBO EFO</text>
+      )}
+
+    </svg>
+  </div>
+)}
+
+<style>
+  /* -------------------------------------------------------------------
+     Panel3PBOvsDoF — Tier-3 two-line projection chart with band.
+     DoF SEU April 2026 vs PBO EFO September 2025, deficit ($B).
+     Primary solid, secondary dashed; divergence band as ink wash.
+     ------------------------------------------------------------------- */
+  .p3pvd-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+  }
+  .p3pvd-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans);
+  }
+  .p3pvd-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  /* Divergence band — same opacity as recession/context bands */
+  .p3pvd-chart__band {
+    fill: rgba(21, 23, 26, 0.06);
+    stroke: none;
+  }
+  /* Primary line — DoF: 1.5px solid black */
+  .p3pvd-chart__prim-line {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  /* Secondary line — PBO: 1px dashed "4 2" black */
+  .p3pvd-chart__sec-line {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .p3pvd-chart__hit {
+    fill: transparent;
+    stroke: none;
+    cursor: default;
+  }
+  /* Latest dot — MTA red, on primary only */
+  .p3pvd-chart__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+  .p3pvd-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  /* Y-axis tick labels — Plex Mono 400, 12px */
+  .p3pvd-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .p3pvd-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  /* X-axis tick labels — Manrope 400, 12px */
+  .p3pvd-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+  }
+  /* DoF direct label — Manrope 600, 13px */
+  .p3pvd-chart__label-prim {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: var(--fw-semibold);
+  }
+  /* PBO direct label — Manrope 400, 13px (recedes vs primary) */
+  .p3pvd-chart__label-sec {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 400;
+  }
+</style>

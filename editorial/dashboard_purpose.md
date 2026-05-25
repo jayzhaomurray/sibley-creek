@@ -135,7 +135,7 @@ readers who treat Canada as an afterthought.
 happens to include charts; it is a publication built around data, with
 prose narrating it. The discipline applies at every surface:
 
-- The dashboard is almost all data — seven section panels each
+- The dashboard is almost all data — eight section panels each
   surfacing a current print + a sparkline, plus a hero stamp of the
   headline numbers that anchor the cycle. The chrome around the data
   is deliberately spare.
@@ -183,7 +183,7 @@ Creek earns its keep against the Big-Six consensus.
 
 **Surface 1 -- Homepage (the dashboard).** A 30-second orientation. A
 panel grid in the Vignelli visual canon: uniform tiles, no editorial
-hero, no curated lede, no magazine-style framing. Seven section
+hero, no curated lede, no magazine-style framing. Eight section
 cells plus a working-papers cell for active deep dives.
 Indicator-first and indicator-rich: each tile surfaces the most
 recent print, the direction, and an anchor chart. The homepage exists
@@ -191,8 +191,8 @@ to answer one question -- "where does Canada stand right now?" -- and
 to route the reader into the relevant section.
 
 **Surface 2 -- Topic pages (scrolling chartbooks).** One per section
-(`/gdp/`, `/inflation/`, `/labour/`, `/housing/`, `/policy/`,
-`/markets/`, `/trade/`). Each topic page is a chartbook: a section
+(`/gdp/`, `/inflation/`, `/labour/`, `/housing/`, `/monetary/`,
+`/fiscal/`, `/markets/`, `/trade/`). Each topic page is a chartbook: a section
 header (headline question, current state in one sentence), a plate
 index linking to each chart, then a vertical stack of **chartbook
 units**. Each chartbook unit is a single indicator's chart paired
@@ -203,10 +203,11 @@ content that carries the Sibley Creek voice.
 
 **Surface 3 -- Deep dives.** Long-form essays scaffolded by
 chart-paragraph atoms throughout. Each deep dive lives within its
-home section (Pillar A inside `/housing/`, Pillar B inside `/policy/`,
-etc.) and is reachable from the section's chartbook index and from
-the homepage working-papers cell. Cross-references between sections
-are allowed; co-ownership is not.
+home section (Pillar A inside `/housing/`, Pillar B inside
+`/monetary/`, Pillar F inside `/fiscal/`, etc.) and is reachable from
+the section's chartbook index and from the homepage working-papers
+cell. Cross-references between sections are allowed; co-ownership is
+not.
 
 **Why this works.** The chartbook unit (chart + paragraph) is the
 editorial atom. It is the same atom in Mode 2 (auto-blurb on a fresh
@@ -226,29 +227,30 @@ product, and the opinionated deep-dive layer are Sibley Creek's own.
 
 ## 4. Sections (v1)
 
-Seven sections. The navigation skeleton is the boc-tracker section
-list, with one consolidation: **Demographics is folded into Labour.**
-Population growth, immigration levels, and temporary-resident flows
-are the per-capita-output and labour-supply story, and that story
-belongs in the section that already covers employment, wages, and
-hours. A standalone Demographics section would either duplicate
-Labour or reach into Housing (population-to-stock ratio) and Policy
-(fiscal-demographic pressure); both are better served by
-cross-references from a unified Labour section.
+Eight sections. The navigation skeleton is the boc-tracker section
+list, with one consolidation and one split: **Demographics is folded
+into Labour**, and **Policy is split into separate Monetary and
+Fiscal sections.** Population growth, immigration levels, and
+temporary-resident flows are the per-capita-output and labour-supply
+story, and that story belongs in the section that already covers
+employment, wages, and hours. A standalone Demographics section would
+either duplicate Labour or reach into Housing (population-to-stock
+ratio) and Fiscal (demographic pressure on the trajectory); both are
+better served by cross-references from a unified Labour section.
 
-**On the Policy section.** Policy covers both monetary (BoC) and
-fiscal (federal + provincial) under one roof. Rationale: a Bay Street
-allocator thinks about "the Canadian policy stance" as one composite
-state, and the two sub-surfaces share readers, frameworks, and
-falsification logic. The topic page for Policy has two clearly
-demarcated surfaces (monetary and fiscal), **eight chartbook units
-total: four monetary, four fiscal**, in that order. Section 4.5
-below enumerates the eight; the topic page is rendered as a single
-vertical stack with a visual divider between the monetary slate
-(units 1-4) and the fiscal slate (units 5-8). We will split Policy
-into separate Monetary and Fiscal sections in a future pass if
-Fiscal earns standalone real estate -- but in v1, one section,
-eight units.
+**On the Monetary / Fiscal split.** The original v1 plan housed
+monetary and fiscal under one Policy section. That has been split:
+Monetary (4.5) and Fiscal (4.6) are standalone sections as of
+2026-05-24. Rationale: fiscal earns standalone real estate because
+the federal trajectory, debt-service burden, the PBO-vs-DoF
+falsification surface, the provincial dispersion, and the
+operating-vs-capital reclassification under Carney's bifurcated
+budget each carry independent macro signal and would have been
+buried as four-of-eight units on a composite page. Monetary keeps
+its four canonical units (overnight rate, market path, BoC-Fed
+spread, balance sheet); Fiscal lands as a five-plate chartbook
+anchored on the trajectory + debt-service + watchdog-vs-DoF +
+provinces + operating-vs-capital structure.
 
 **The chartbook unit as editorial atom.** For each section below,
 the "basics" enumeration lists the chartbook units of that topic
@@ -462,12 +464,12 @@ dampening policy, and is supply arriving where population is settling?
    current-state classifiers. Cadence: quarterly, on the BoC
    Indicators of Capacity and Inflation Pressures release.
 
-### 4.5 Policy (Monetary + Fiscal)
+### 4.5 Monetary
 
-**Headline question.** What is the Canadian policy stance --
-monetary and fiscal -- and is it consistent with the cycle?
+**Headline question.** What is the Bank of Canada doing, and what is
+it doing to the cycle?
 
-**Chartbook units, monetary sub-surface (4):**
+**Chartbook units (4):**
 1. BoC overnight rate -- current level, distance to estimated
    neutral band (researcher-curated value extracted from the most
    recent April-MPR refresh, with vintage stamp; not an API
@@ -492,35 +494,66 @@ monetary and fiscal -- and is it consistent with the cycle?
    20-day smoothing), the funding-market plumbing diagnostic that
    confirms or falsifies the floor-maintenance call.
 
-**Chartbook units, fiscal sub-surface (4):**
-5. Federal trajectory -- DoF Fiscal Monitor latest (monthly,
-   ~2-month lag, fetched by pipeline); federal deficit YTD; debt-
-   service costs as % of revenues; PBO Economic and Fiscal Outlook
-   vs. FES/Budget baseline delta (researcher-curated comparison of
-   two cited projection vintages).
-6. Provincial -- net debt-to-GDP for ON, QC, AB, BC from each
-   province's budget; latest budget balance vs. plan; any active
-   credit-watch flags from Moody's / S&P / Fitch / DBRS
-   Morningstar published rating actions.
-7. Debt management -- GoC issuance trajectory, average term, and
-   redemption profile cited directly from the DoF Debt Management
-   Strategy Annex; coupon-roll framing reads off the DMS narrative
-   and redemption-profile table. No own construction of coupon-
-   roll math in v1.
-8. Fiscal stance vs. cycle -- cyclically-adjusted primary balance
-   cited from IMF Article IV Canada or OECD Economic Survey of
-   Canada with methodology footnote naming the source. Canada's
-   DoF does not publish a CAPB; we explicitly do not construct our
-   own in v1 basics. Fiscal impulse is a one-line transform on the
-   cited CAPB. Consistency-with-monetary-stance is prose-level
-   interpretation, not a quantified index. Our own CAPB
-   construction and a formal fiscal-monetary consistency index are
-   Pillar F deep-dive territory.
+### 4.6 Fiscal
 
-The Policy topic page renders as a single eight-unit vertical
-stack with a visual divider between unit 4 and unit 5.
+**Headline question.** What is Canada's fiscal stance, and is it
+consistent with the cycle?
 
-### 4.6 Markets
+The Fiscal section anchors on deficit-as-%-of-GDP and debt-to-GDP
+as the trajectory metrics that the Canadian fiscal-watchdog community
+(PBO, IFSD) and Bay Street allocator P1 readers both use. We do not
+lead on cyclically-adjusted primary balance or structural-balance
+vocabulary in reader copy -- PBO and IFSD avoid that academic lexicon
+in their published commentary, and Sibley Creek follows the
+citable-Canadian-source pattern rather than the OECD academic one.
+Cross-province debt is reported on each province's publisher's-own
+basis (with methodology footnote where BC reports taxpayer-supported
+debt rather than net debt).
+
+**Chartbook units (5):**
+1. Federal trajectory -- DoF Fiscal Monitor latest (monthly, ~2-
+   month lag, fetched by pipeline); federal monthly balance and
+   fiscal-YTD balance. Deficit-as-%-of-GDP is at least as prominent
+   in chart prose as the absolute dollar trajectory; year-to-date
+   reads as a running tally, not the editorial headline.
+2. Debt-service costs as share of revenues -- public debt charges
+   YTD / total revenues YTD, monthly ratio with a 5-year trailing
+   band as context; PBO's forecast endpoint (13.2% by 2030-31 per
+   the May 2026 Main Estimates) shown as a named anchor on the
+   chart. This is PBO's "interest burden" sustainability indicator
+   and the single number that anchors Pillar F's structural fiscal
+   constraint.
+3. PBO vs. DoF baseline delta -- PBO Sept 2025 Economic and Fiscal
+   Outlook deficit projection vs. DoF Spring Economic Update April
+   2026 baseline; vintage-stamped pair of five-year-forward tracks,
+   delta band highlighted. The watchdog-vs-government falsification
+   surface. Refreshes with PBO May 2026 SEU assessment once
+   machine-readable.
+4. Provincial net debt-to-GDP -- ON, QC, AB, BC on each province's
+   publisher's-own basis (BC on taxpayer-supported debt with
+   methodology footnote one click away); latest budget balance vs.
+   plan as a small overlay. Vintages stamped per province; QC reads
+   off Budget 2026-2027 (tabled March 18, 2026).
+5. Operating vs. capital balance -- operating balance vs. capital
+   balance over the DoF projection horizon under Carney's
+   bifurcated budget, with a separate trace showing PBO's
+   reclassified version (the ~$94bn reclassification flagged by
+   PBO's Nov 17, 2025 analysis). This is the structural fiscal-
+   reform story of the current government and where Page (IFSD)
+   leads in his SEU commentary. Supersedes the original CAPB plate
+   spec -- cyclically-adjusted primary balance is an OECD academic
+   construct that no Canadian fiscal-watchdog institution surfaces
+   in reader copy; the operating-vs-capital framing is where PBO,
+   IFSD, and the spring 2026 fiscal-policy debate actually sit.
+
+**Cut from v1 (deferred to Pillar F deep dive):** Debt management
+(GoC issuance trajectory, average term, redemption profile from the
+DoF Debt Management Strategy Annex) -- low macro-signal in any given
+quarter and reads as reference rather than current state. CAPB
+construction and a formal fiscal-monetary consistency index also
+remain Pillar F territory.
+
+### 4.7 Markets
 
 **Headline question.** What external winds are pushing on Canadian
 inflation, growth, and the CAD -- and where are Canadian markets and
@@ -565,7 +598,7 @@ the financial system tight or loose?
    Canadian commentary; own Canadian FCI composite construction
    defers to v1.5.
 
-### 4.7 Trade
+### 4.8 Trade
 
 **Headline question.** Is Canada's external position structurally
 shifting, and how is the US trade relationship repricing exporters?
@@ -616,11 +649,11 @@ Each is homed in exactly one section.
 | # | Deep dive | Home section | Cross-references |
 |---|---|---|---|
 | A | Mortgage renewal wall -- has it peaked, what is the residual transmission through 2027 | Housing | Markets (PCL builds, bank exposure); Inflation (mortgage-interest CPI) |
-| B | BoC vs. Fed divergence -- how far can it run before CAD, the GoC curve, or credit conditions force a back-off | Policy (monetary) | Markets (CAD, GoC-UST spreads, credit) |
+| B | BoC vs. Fed divergence -- how far can it run before CAD, the GoC curve, or credit conditions force a back-off | Monetary | Markets (CAD, GoC-UST spreads, credit) |
 | C | Housing cycle and supply response -- is it bottoming, is supply arriving where population is settling | Housing | Labour (population-to-stock ratio) |
 | D | Business investment and the productivity gap -- cyclical capex inflection vs. structural divergence with the US | GDP | Labour (productivity = output / hours); Trade (FDI) |
-| E | Population deceleration vs. labour -- does per-capita output recover through deceleration or through unemployment | Labour | Housing (population-to-stock); Policy (fiscal-demographic pressure) |
-| F | Fiscal capacity, federal and provincial -- is the debt-service trajectory consistent with the next downturn | Policy (fiscal) | Markets (GoC term premium, issuance) |
+| E | Population deceleration vs. labour -- does per-capita output recover through deceleration or through unemployment | Labour | Housing (population-to-stock); Fiscal (demographic pressure on the trajectory) |
+| F | Fiscal capacity, federal and provincial -- is the debt-service trajectory consistent with the next downturn | Fiscal | Markets (GoC term premium, issuance) |
 | G | LNG / TMX / external position -- are the structural lifts being absorbed by oil-sands discipline and the WCS differential | Trade | Markets (commodity prices, CAD) |
 | H | US trade relationship -- how is USMCA review and Section 232/301 repricing Canadian exporters | Trade | GDP (export contribution); Markets (CAD) |
 
@@ -669,8 +702,8 @@ The 2026 Canadian release calendar this anchors to:
 | Inflation | Monthly | StatCan CPI (mid-month) |
 | Labour | Monthly | LFS (first Friday); SEPH; quarterly population estimates |
 | Housing | Monthly | StatCan housing starts; CREA MLS HPI; CMHC arrears |
-| Policy (Monetary) | Event-driven | BoC rate decisions, MPR, Summary of Deliberations, FSR |
-| Policy (Fiscal) | Monthly + event | DoF Fiscal Monitor; Budget; FES; PBO releases; provincial budgets |
+| Monetary | Event-driven | BoC rate decisions, MPR, Summary of Deliberations, FSR |
+| Fiscal | Monthly + event | DoF Fiscal Monitor; Budget; FES; PBO releases; provincial budgets |
 | Markets | Daily (light) + weekly synthesis | BoC Valet daily series; weekly close summary |
 | Trade | Monthly + event | StatCan merchandise trade; quarterly current account; USMCA / 232 / 301 events |
 
@@ -809,10 +842,10 @@ Decisions, not deferrals.
   analytics. We will not half-translate.
 - **No carbon-pricing standalone pieces.** Industrial carbon pricing
   enters where it moves business investment (GDP), sectoral
-  competitiveness (Trade), or fiscal flows (Policy). It is not a
+  competitiveness (Trade), or fiscal flows (Fiscal). It is not a
   section.
 - **No federal-provincial constitutional commentary.** Equalization,
-  resource rents, and provincial fiscal divergence enter Policy as
+  resource rents, and provincial fiscal divergence enter Fiscal as
   budget math, not as constitutional argument.
 - **No pension-system policy coverage.** CPP/QPP and the major plans
   are P1 readers, not subjects. We do not handicap CPP contribution
@@ -827,28 +860,28 @@ Decisions, not deferrals.
 A healthy Sibley Creek in November 2026 looks like this. Testable;
 the editorial-director can be held to them.
 
-1. **All seven sections are live as topic-page chartbooks**, refreshed
+1. **All eight sections are live as topic-page chartbooks**, refreshed
    on their stated cadence for three consecutive months ending October
    2026. No section is a stub. No chartbook unit's chart goes stale
    by more than one release cycle; no unit's interpretation paragraph
    is older than the chart it sits on.
 
 2. **The homepage panel grid is live and indicator-first**, with all
-   seven section cells plus a working-papers cell rendering current
+   eight section cells plus a working-papers cell rendering current
    data. No editorial hero, no curated lede; the homepage answers
    "where does Canada stand right now" in 30 seconds.
 
 3. **Mode 2 (auto-blurb) is operating on at least three sections** --
-   Inflation, Labour, and Policy (monetary) at minimum -- with each
-   blurb passing human review before publish. The human review
-   gate stays; full automation of the data-fetch side is the path,
-   not the destination.
+   Inflation, Labour, and Monetary at minimum -- with each blurb
+   passing human review before publish. The human review gate stays;
+   full automation of the data-fetch side is the path, not the
+   destination.
 
 4. **At least five deep dives have shipped substantively**, with at
-   least one in each of: Housing (Pillar A or C), Policy (Pillar B
-   or F), Labour (Pillar E), GDP (Pillar D), and Trade (Pillar G or
-   H). Each shipped deep dive has either been aged well or had its
-   post-mortem published if it broke against us.
+   least one in each of: Housing (Pillar A or C), Monetary (Pillar B)
+   or Fiscal (Pillar F), Labour (Pillar E), GDP (Pillar D), and Trade
+   (Pillar G or H). Each shipped deep dive has either been aged well
+   or had its post-mortem published if it broke against us.
 
 5. **At least five published deep-dive calls materially diverge
    from the Bay Street consensus**, with named falsification
@@ -890,10 +923,10 @@ the editorial-director can be held to them.
     corrections in the November 2026 archive.
 
 12. **A v2 roadmap exists.** Specifically: a written decision on FR
-    edition (go/no-go by January 2027 based on reader analytics), a
-    written decision on splitting Policy into separate Monetary and
-    Fiscal sections, and a written decision on international
-    expansion (default: no).
+    edition (go/no-go by January 2027 based on reader analytics) and
+    a written decision on international expansion (default: no). The
+    Monetary / Fiscal split previously listed here was executed in
+    May 2026 ahead of v2.
 
 ---
 
@@ -913,4 +946,5 @@ below.
 - 2026-05-11: Section 4.6 renamed "Financial" -> "Markets" to align with the homepage label rename in flight. Cross-references in Section 5 deep-dive table and Section 6 cadence table updated accordingly. Editorial rationale: "Markets" is the more honest label for what the section actually covers at the basics layer (CAD, GoC curve, credit spreads, commodity prices, bank capital, FCI). Financial-system stability work is deep-dive territory; the basics layer is markets-data-with-Canadian-lens. editorial-director.
 - 2026-05-11 (Wave 4 adjudication): Section 4.5 Policy page panel count locked at eight (four monetary + four fiscal), not six. Frontend's six-panel placeholder must grow. Rationale: the canon enumerates four monetary elements (overnight rate, market path, BoC-Fed spread, balance sheet) and four fiscal elements (federal trajectory, provincial, debt management, fiscal stance vs cycle); collapsing to six would force editorial-arbitrary deletions from the canonical slate, and the monetary-fiscal divider is exactly the visual affordance the basics layer of a one-section-two-stance Policy page needs. Implementation note: page renders as a single eight-panel grid with a visual divider between panel 4 and panel 5. editorial-director.
 - 2026-05-11 (Wave 5 coverage-parity adjudication): boc-tracker chart inventory adjudicated. Two new panels canonized: Labour grows from 6 to 7 panels with Panel 7 EI Regular Beneficiaries (demand-side mirror of vacancy decline, leading recession indicator); Housing grows from 6 to 7 panels with Panel 7 Housing Affordability (BoC qualifying-mortgage-payment-to-income index, flow-side complement to Panel 5's stock snapshot). Eight folds canonized as toggles/overlays on existing panels: GDP Panel 5 gains capacity-utilization secondary toggle; Inflation Panel 1 gains ex-indirect-taxes Phase-2 toggle; Inflation Panel 5 expanded to three views (CSCE consumer / BOS >3% / BOS distribution); Labour Panel 1 gains youth+prime-age unemployment toggle; Labour Panel 2 gains prime+youth triplet toggles; Labour Panel 3 gains ULC overlay; Housing Panel 2 gains CMA-resales toggle; Housing Panel 5 gains 5Y mortgage rate / GoC spread element; Policy Panel 1 gains peer-bank and real-rate toggles; Policy Panel 4 gains CORRA-target spread toggle. Methodology resolutions: GDP output gap canon stays BoC MPR `INDINF_OUTGAPMPR_Q` (no HP-filter substitute); WCS at monthly cadence, daily differential not surfaced; BOS distribution buckets added to Inflation Panel 5; CPI ex-indirect-taxes deferred to Phase 2. Cuts at basics layer: productivity decomposition, LFS R-indicators, Indeed postings, 60-component CPI decomposition, mortgage-renewal-shock stylized reproduction. Full record: `editorial/wave5_boc_tracker_chart_decisions.md`. editorial-director.
+- 2026-05-24: Policy section split into Monetary (4.5) and Fiscal (4.6) per Jay's decision; downstream sections renumbered (4.6 Markets -> 4.7; 4.7 Trade -> 4.8). Section count is now eight. Section 2 Architecture / Surface 1 / Surface 2 / Surface 3 cross-references updated; Section 4 intro rewritten to name the split; Section 5 deep-dive home-section labels updated (Pillar B home is Monetary, Pillar F home is Fiscal); Section 6 cadence table split into Monetary and Fiscal rows; Section 8 out-of-scope language pointed at Fiscal rather than Policy; Section 9 criteria 1, 2, 3, 4, and 12 updated (criterion 12 retires the prior "split decision" placeholder since the split is now executed). Fiscal lands as a five-plate chartbook: (1) federal trajectory, (2) debt-service / revenues with PBO 2030-31 anchor, (3) PBO Sept 2025 EFO vs DoF SEU Apr 2026 baseline delta, (4) provincial net debt-to-GDP for ON / QC / AB / BC on publisher's-own basis (BC on taxpayer-supported, methodology footnote), (5) operating-vs-capital balance under Carney's bifurcated budget with PBO Nov 17, 2025 reclassification. Plate 5 supersedes the original CAPB spec, per methodology brief informed by Bartlett (Desjardins), Lapointe (Manulife), Page (IFSD), and Khan (IFSD): cyclically-adjusted primary balance is an OECD academic construct that no Canadian fiscal-watchdog institution surfaces in reader copy; the operating-vs-capital framing is where PBO, IFSD, and the spring 2026 fiscal-policy debate actually sit. Cut from v1 (deferred to Pillar F deep dive): debt management (issuance / term / redemption from DMS Annex) and own CAPB construction. editorial-director.
 - 2026-05-11: Architecture canonicalized: tri-modal product (dashboard / chartbook / deep-dive), Vignelli visual canon, Sibley Creek name. Prior Layout B / Hero+6 / Path C iterations retired. Publication renamed from "Macro Research Department" placeholder to Sibley Creek (project directory and package.json keep `macro-research-department` for tooling continuity). Section 1 mission rewritten to lead with tri-modal product. Section 3 architecture rewritten as tri-modal product / three reader surfaces (homepage panel grid, topic-page chartbooks, deep dives); two-layer "basics + deep dives" framing absorbed into surfaces. Section 4 reframed: chartbook unit (one chart + one 2-4 sentence interpretation paragraph) named as the editorial atom; "basics layer" / "elements" / "panels" terminology unified to "chartbook units." Section 7 voice: editorial atom defined; Mode A (auto-blurb, eventually automated) and Mode B (deep-dive prose, human-led) postures distinguished; Canadian English principle made explicit. Section 8 out-of-scope: explicit exclusions added for editions / volumes / issues, magazine-style edition framing, and editorial hero on homepage. Section 9 success criteria expanded from 10 to 12 to cover homepage panel grid live (new criterion 2) and Mode 2 operating on at least three sections (new criterion 3); November 2026 horizon preserved. editorial-director.

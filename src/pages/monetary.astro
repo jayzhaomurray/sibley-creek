@@ -1,0 +1,183 @@
+---
+import SectionLayout from "../layouts/SectionLayout.astro";
+import type { Plate } from "../layouts/SectionLayout.astro";
+import { sections } from "../data/sections";
+import panelDataFile from "../../data/site/panel_data/monetary.json";
+import sectionsJson from "../../data/site/sections.json";
+import { pickPanel } from "../components/charts/_shared/panelData";
+import { deriveLatestReleaseLabel } from "../components/section/_shared/derivedLabels";
+
+const section = sections.find((s) => s.slug === "monetary");
+if (!section) {
+  throw new Error("Monetary section not found in src/data/sections.ts");
+}
+
+// Monetary uses an override for the page-level "Latest release" stamp because
+// the primary event is the rate decision (not one of the pipeline's
+// monthly prints). When the override is set, compose the stamp directly;
+// otherwise fall through to the standard derivation.
+const latestReleaseLabel = section.latestReleaseDateOverride
+  ? `${section.latestReleasePrefix ?? ""}, ${section.latestReleaseDateOverride}`
+  : deriveLatestReleaseLabel(
+      section.latestReleasePrefix ?? "",
+      sectionsJson,
+      "monetary",
+    );
+
+const panel1Data = pickPanel(panelDataFile, 1);
+const panel2Data = pickPanel(panelDataFile, 2);
+const panel4Data = pickPanel(panelDataFile, 4);
+const panel5Data = pickPanel(panelDataFile, 5);
+
+const plates: Plate[] = [
+  {
+    id: "plate-1",
+    number: "01",
+    indicator: "Overnight rate",
+    plateIndexLabel: "Overnight rate",
+    asOf: "April 29, 2026 (rate decision)",
+    title: "The next cut crosses into accommodative; there is no neutral step back.",
+    interpretationHtml:
+      "The Bank held the overnight rate target at 2.25% on April 29, the fourth consecutive hold since the 25 bps cut on October 29, 2025. " +
+      "From here, every direction is asymmetric: a further cut crosses into accommodative, and a hike unwinds an easing cycle the data have not retracted.",
+    callout: {
+      value: "2.25%",
+      unit: "BoC overnight rate target",
+      delta: "Unchanged at Apr 29 decision",
+      direction: "neutral",
+    },
+    source: "Bank of Canada rate decision and Monetary Policy Report, latest vintage.",
+    chartKey: "policy-panel-1",
+    data: panel1Data,
+    citations: [
+      { phrase: "2.25% on April 29", source: "pipeline:boc:V39079", note: "BoC overnight target rate, April 29 2026 FAD decision, via Valet V39079." },
+      { phrase: "fourth consecutive hold", source: "card:boc_fad_holds_post_oct_2025_cut", expected_count: 4, note: "Enumerated FAD holds since Oct 29, 2025 cut. Card carries authoritative list; build fails if length drifts from expected_count." },
+      { phrase: "25 bps cut on October 29, 2025", source: "pipeline:boc:V39079", note: "BoC overnight target stepped from 2.50% to 2.25% on Oct 29, 2025 per Valet V39079 step history." },
+      { phrase: "every direction is asymmetric", source: "derived", note: "Editorial framing: BoC at the floor of its stated 2.25-3.25% nominal neutral range (card:boc_mpr_neutral_range). A further cut would push policy below the neutral range; a hike would reverse the Oct 2025 easing cycle." },
+    ],
+  },
+  {
+    id: "plate-2",
+    number: "02",
+    indicator: "BoC and Fed policy paths over time",
+    plateIndexLabel: "Policy divergence",
+    asOf: "April 2026 (BoC monthly)",
+    title: "The BoC-Fed policy gap is narrowing from a generational depth.",
+    interpretationHtml:
+      "The BoC-Fed gap stands at -150 bps, narrowest since February 2025 and 25 bps off the -175 generational trough sustained from March through November 2025, when the BoC out-cut a Fed already a full point into its own easing. " +
+      "One December Fed cut has done the closing work; the BoC has held since October. " +
+      "The asymmetry is now running the other way.",
+    source:
+      "Bank of Canada Valet (overnight rate target, monthly); FRED DFF (fed funds effective, daily resampled to monthly last). " +
+      "Canada-US 2y spread derived in chart, percentage points.",
+    chartKey: "policy-panel-7",
+    data: panel1Data,
+    citations: [
+      { phrase: "-150 bps", source: "derived", note: "BoC 2.25% - Fed upper bound 3.75% = -1.50 pp = -150 bps. Inputs: data/raw/overnight_rate_target.csv (BoC monthly) and data/raw/fed_funds.csv (Fed daily, latest May 2026 = 3.75%)." },
+      { phrase: "narrowest since February 2025", source: "derived", note: "Feb 2025: BoC 3.00% - Fed 4.50% = -150 bps (last reading at or narrower than -150). Mar-Nov 2025 spread was -175 sustained; gap returned to -150 at Dec 2025 with Fed Dec 11 cut to 3.75%." },
+      { phrase: "25 bps off the -175 generational trough", source: "derived", note: "Current spread -150 bps minus sustained 2025 trough -175 bps = 25 bps of narrowing. Sustained trough Mar-Nov 2025: BoC 2.75-2.25 minus Fed 4.50-4.00. Deepest sustained negative spread since 1996-97 (which reached -251)." },
+      { phrase: "March through November 2025", source: "derived", note: "BoC monthly overnight x Fed monthly upper bound: spread held at -175 bps from end-Mar 2025 (BoC cut to 2.75) through end-Nov 2025 (before Fed Dec 11 cut)." },
+      { phrase: "Fed already a full point into its own easing", source: "derived", note: "Fed cut 5.50 to 4.50 across three meetings: Sep 18 2024 (-50 bps), Nov 8 2024 (-25), Dec 19 2024 (-25). Total: 100 bps = a full percentage point, completed before the 2025 BoC cycle's deepest spreads." },
+      { phrase: "One December Fed cut has done the closing work", source: "derived", note: "Fed cut from 4.00 to 3.75 on Dec 11 2025 with BoC unchanged at 2.25, narrowing the spread from -175 to -150. Only Fed cut between BoC's Oct 29 cut and the present." },
+      { phrase: "BoC has held since October", source: "card:boc_fad_holds_post_oct_2025_cut", expected_count: 4, note: "Enumerated FAD holds since Oct 29, 2025 cut to 2.25%: Dec 10, Jan 28, Mar 18, Apr 29." },
+    ],
+  },
+  {
+    id: "plate-3",
+    number: "03",
+    indicator: "2y GoC vs overnight",
+    plateIndexLabel: "Market path",
+    title: "The market has stopped pricing further near-term easing.",
+    interpretationHtml:
+      "The curve is no longer pricing further near-term easing. " +
+      "The 2-year Government of Canada yield closed at 2.94% on May 7, about 69 bps above the 2.25% overnight target — a gap that reflects term premium against a market converged on the Bank's hold.",
+    source: "BoC Valet (rates); MPR market-implied curve, latest vintage.",
+    chartKey: "policy-panel-2",
+    data: panel2Data,
+    citations: [
+      { phrase: "2.94% on May 7", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, daily close May 7 2026, via BoC Valet." },
+      { phrase: "2.25% overnight target", source: "pipeline:boc:V39079", note: "BoC overnight target rate, current setting via Valet V39079." },
+      { phrase: "roughly 69 bps", source: "derived", note: "2.94% (GoC 2y) - 2.25% (overnight) = 0.69 pp = 69 bps." },
+    ],
+  },
+  {
+    id: "plate-4",
+    number: "04",
+    indicator: "BoC asset composition",
+    plateIndexLabel: "Asset composition",
+    asOf: "May 6, 2026 (weekly statement)",
+    title: "Government bonds anchor the post-QT balance sheet.",
+    interpretationHtml:
+      "The asset side has settled into a shape defined by what's left of the Government Bond Purchase Programme. " +
+      "Government of Canada bonds account for $154.6 billion of $219.0 billion in total assets — about 71% — and the total has held near that level for roughly eighteen months. " +
+      "Quantitative tightening is complete; repos run in a $20 to 50 billion range as the operating margin of the floor system.",
+    callout: {
+      value: "71%",
+      unit: "GoC bonds, share of BoC assets",
+      delta: "$154.6 bn of $219.0 bn total",
+      direction: "neutral",
+    },
+    source:
+      "Bank of Canada weekly statement (assets and liabilities; formerly Schedule B2).",
+    chartKey: "policy-panel-4",
+    data: panel4Data,
+    citations: [
+      { phrase: "$154.6 billion of $219.0 billion in total assets", source: "pipeline:boc:boc_goc_bonds", note: "BoC weekly statement: GoC bonds = $154.6bn; total assets = $219.0bn; latest May 6, 2026 vintage." },
+      { phrase: "about 71%", source: "derived", note: "154.6 / 219.0 = 70.6%, rounds to 71%." },
+      { phrase: "Quantitative tightening is complete", source: "card:boc_qt_end_2025_01", note: "BoC's January 2025 statement that quantitative tightening was complete." },
+      { phrase: "$20 to 50 billion range", source: "pipeline:boc:boc_repos", note: "BoC repos operating range over the past ~18 months, $20bn-$50bn, per weekly statement series." },
+    ],
+  },
+  {
+    id: "plate-5",
+    number: "05",
+    indicator: "BoC liability composition",
+    plateIndexLabel: "Liability composition",
+    asOf: "May 6, 2026 (weekly statement)",
+    title: "The overnight rate is now the only active policy lever.",
+    interpretationHtml:
+      "Banknotes carry $122.5 billion of $219.0 billion in total liabilities — about 56% — drifting up only $30 billion over six years as a passive function of currency demand. " +
+      "Settlement balances sit at $63.9 billion, inside the $50 to 70 billion operating range and a small fraction of the near-$400 billion peak in early 2021. " +
+      "Reverse repos are at zero.",
+    callout: {
+      value: "$63.9 bn",
+      unit: "Settlement balances",
+      delta: "Inside Dec-2024 $50-70 bn range",
+      direction: "neutral",
+    },
+    source:
+      "Bank of Canada weekly statement (assets and liabilities; formerly Schedule B2).",
+    chartKey: "policy-panel-5",
+    data: panel5Data,
+    citations: [
+      { phrase: "Banknotes carry $122.5 billion of $219.0 billion in total liabilities", source: "pipeline:boc:boc_banknotes", note: "BoC weekly statement: banknotes = $122.5bn; total liabilities = $219.0bn; May 6, 2026 vintage." },
+      { phrase: "about 56%", source: "derived", note: "122.5 / 219.0 = 55.9%, rounds to 56%." },
+      { phrase: "drifting up only $30 billion over six years", source: "pipeline:boc:boc_banknotes", note: "Banknotes ~$92bn pre-pandemic to $122.5bn now, a ~$30bn drift over six years per BoC weekly statement." },
+      { phrase: "$63.9 billion", source: "pipeline:boc:boc_settlement_balances", note: "Settlement balances, latest May 6, 2026 weekly print, $63.9bn." },
+      { phrase: "$50 to 70 billion operating range", source: "card:boc_floor_system_operating_range" },
+      { phrase: "near-$400 billion peak in early 2021", source: "pipeline:boc:boc_settlement_balances", note: "Settlement balances peak $394.13bn on 2021-03-03 per BoC weekly statement series." },
+      { phrase: "Reverse repos are at zero", source: "pipeline:boc:boc_reverse_repos", note: "BoC reverse repos = $0 across recent weekly statements." },
+    ],
+  },
+];
+
+const pageTitle = "Monetary Policy";
+const pageDescription =
+  "Canadian monetary policy chartbook: Bank of Canada overnight rate, rate path, Canada-US policy spread, asset composition, and balance sheet.";
+
+// Lede reads the same editorial blurb the auto-blurb pipeline writes for the
+// splash tile (sections.ts -> section.blurb.body). Single source of truth: a
+// release-day fan-out updates one field and both surfaces refresh.
+const lede = section.blurb?.body ?? "";
+---
+<SectionLayout
+  slug="monetary"
+  sectionIndex={4}
+  sectionLabel="Monetary"
+  headlineQuestion={section.headlineQuestion}
+  lede={lede}
+  latestReleaseLabel={latestReleaseLabel}
+  plates={plates}
+  title={pageTitle}
+  description={pageDescription}
+/>

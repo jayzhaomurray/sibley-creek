@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
  * pull_subscribers.mjs — fetches submissions from formsubmit.co's free API
- * and appends new ones to business/subscribers.md (dedup by email+timestamp).
+ * and appends new entries to business/recipients/recipients.yaml (dedup by email).
  *
  * DESTINATION: jay@sibleycreek.ca (switched from jayzhaomurray@outlook.com
  * 2026-05-23). Forms now POST to the raw-email AJAX endpoint; formsubmit
@@ -42,12 +42,16 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
-const LOG_PATH = path.join(REPO_ROOT, "business", "subscribers.md");
+
+// Output paths — recipients.yaml is the master file; sync.log is the audit trail.
+const RECIPIENTS_PATH = path.join(REPO_ROOT, "business", "recipients", "recipients.yaml");
+const SYNC_LOG_PATH = path.join(REPO_ROOT, "business", "recipients", "sync.log");
 const KEY_PATH = path.join(REPO_ROOT, "business", "secrets", "formsubmit_apikey.txt");
+
 // The email address tied to the active formsubmit account.
 // Updated 2026-05-23: switched from jayzhaomurray@outlook.com to jay@sibleycreek.ca.
-// The old API key (business/secrets/formsubmit_apikey.txt) is bound to the OLD
-// destination. Re-run --get-apikey after activation to get the new key.
+// The old API key is bound to the OLD destination. Re-run --get-apikey after
+// activation to get the new key.
 const FORM_EMAIL = "jay@sibleycreek.ca";
 
 // ---------------------------------------------------------------------------
@@ -70,35 +74,82 @@ async function fetchJson(url) {
   return res.json();
 }
 
-function parseExistingLog(raw) {
-  // Returns Set of "email|timestamp" strings already in the log.
+/**
+ * Read recipients.yaml and return a Set of known emails (lowercase).
+ * We only dedup on email — not on timestamp — because the master file
+ * stores one canonical entry per person, not one per submission.
+ */
+function readKnownEmails() {
+  if (!fs.existsSync(RECIPIENTS_PATH)) return new Set();
+  const raw = fs.readFileSync(RECIPIENTS_PATH, "utf-8");
   const seen = new Set();
-  const lines = raw.split(/\r?\n/).filter((l) => !l.trimStart().startsWith("#"));
-  const blocks = lines.join("\n").split(/\n\s*\n/).filter((b) => b.trim());
-  for (const block of blocks) {
-    const obj = {};
-    for (const line of block.split(/\r?\n/)) {
-      const m = line.match(/^(\w+)\s*:\s*(.*)/);
-      if (m) obj[m[1].trim()] = m[2].trim();
-    }
-    if (obj.email && obj.timestamp) seen.add(`${obj.email.toLowerCase()}|${obj.timestamp}`);
+  // Simple line-by-line scan. Each entry in recipients.yaml starts with
+  // "- email: foo@example.com" (list item prefix). We match both the
+  // list-item form ("- email:") and any indented form ("  email:") to be
+  // resilient to minor formatting variations.
+  for (const line of raw.split(/\r?\n/)) {
+    const m = line.match(/^(?:-\s+|[\s]+)email:\s*([^\s#]+)/);
+    if (m) seen.add(m[1].trim().toLowerCase());
   }
   return seen;
 }
 
-function submissionToBlock(sub) {
+/**
+ * Convert one formsubmit API submission into a YAML entry block (as a string).
+ * Returns null if the submission has no usable email address.
+ */
+function submissionToYamlEntry(sub) {
   // sub shape: { form_url, submitted_at: {date,...}, form_data: {email,name,...} }
-  const ts = sub.submitted_at?.date ?? sub.submitted_at ?? "unknown";
   const data = sub.form_data ?? {};
-  const email = (data.email || data.Email || "").trim();
+  const email = (data.email || data.Email || "").trim().toLowerCase();
   if (!email) return null;
-  // Determine source from form_url heuristic.
+
+  const ts = sub.submitted_at?.date ?? sub.submitted_at ?? "unknown";
+  // Determine added date: prefer the submission date (YYYY-MM-DD prefix).
+  const added = typeof ts === "string" ? ts.slice(0, 10) : new Date().toISOString().slice(0, 10);
+
+  // Name from form data: may not be present on the subscribe form.
+  const rawName = (data.name || data.Name || "").trim();
+  const nameEntry = rawName ? rawName : "# name not provided";
+
+  // Source: heuristic on form_url.
   const url = (sub.form_url || "").toLowerCase();
-  const source = url.includes("contact") ? "contact" : "subscribe";
+  const source = url.includes("contact") ? "subscribe_form" : "subscribe_form";
+  // Both contact and subscribe forms land as subscribe_form here. The category
+  // is always subscriber because only subscribers submit forms; journalists
+  // are manually added.
+  const category = "subscriber";
+
   const msg = (data.message || data.Message || "").trim();
-  let block = `timestamp: ${ts}\nemail:     ${email}\nsource:    ${source}`;
-  if (msg) block += `\nmessage:   ${msg}`;
-  return block;
+
+  // Build the YAML entry as a literal string block. This is intentional:
+  // we need append-only writes to a file that already has hand-annotated
+  // entries, and a full YAML round-trip would destroy comments + formatting.
+  const lines = [
+    `- email: ${email}`,
+    `  name: ${nameEntry}`,
+    `  category: ${category}`,
+    `  tier: null`,
+    `  source: ${source}`,
+    `  outlet: ""`,
+    `  beat: ""`,
+    `  added: ${added}`,
+    `  active: true`,
+    `  notes: ${msg ? JSON.stringify(msg) : "\"\""}`,
+  ];
+
+  return lines.join("\n");
+}
+
+/**
+ * Write one line to sync.log.
+ * Format: ISO-timestamp  source=formsubmit  fetched=N  new=N  dupes=N  [dry_run]
+ */
+function appendSyncLog(fetched, newCount, dupes, dryRun) {
+  const ts = new Date().toISOString();
+  const dryTag = dryRun ? "  [dry_run]" : "";
+  const line = `${ts}  source=formsubmit  fetched=${fetched}  new=${newCount}  dupes=${dupes}${dryTag}\n`;
+  fs.appendFileSync(SYNC_LOG_PATH, line, "utf-8");
 }
 
 // ---------------------------------------------------------------------------
@@ -128,38 +179,75 @@ async function pullSubmissions(dryRun) {
   }
   console.log(`  ${submissions.length} total submission(s) returned by API (30-day window).`);
 
-  const existing = fs.existsSync(LOG_PATH)
-    ? parseExistingLog(fs.readFileSync(LOG_PATH, "utf-8"))
-    : new Set();
+  // Build the set of emails already in recipients.yaml.
+  const knownEmails = readKnownEmails();
 
-  const newBlocks = [];
+  const newEntries = [];
+  let dupeCount = 0;
+
   for (const sub of submissions) {
-    const block = submissionToBlock(sub);
-    if (!block) continue;
-    const ts = (sub.submitted_at?.date ?? sub.submitted_at ?? "").toString();
-    const email = (sub.form_data?.email || sub.form_data?.Email || "").toLowerCase();
-    const key = `${email}|${ts}`;
-    if (!existing.has(key)) newBlocks.push(block);
+    const entry = submissionToYamlEntry(sub);
+    if (!entry) continue;
+    // Extract the email from the entry string for dedup check.
+    const emailMatch = entry.match(/^- email:\s*(.+)$/m);
+    if (!emailMatch) continue;
+    const email = emailMatch[1].trim().toLowerCase();
+
+    if (knownEmails.has(email)) {
+      dupeCount++;
+    } else {
+      newEntries.push(entry);
+      knownEmails.add(email); // prevent intra-batch dupes
+    }
   }
 
-  if (newBlocks.length === 0) {
-    console.log("No new submissions to append.");
+  const fetched = submissions.length;
+  const newCount = newEntries.length;
+
+  console.log(`  ${newCount} new, ${dupeCount} already known.`);
+
+  if (newEntries.length === 0) {
+    console.log("No new entries to append.");
+    appendSyncLog(fetched, 0, dupeCount, dryRun);
     return;
   }
 
-  console.log(`  ${newBlocks.length} new submission(s) to append.`);
   if (dryRun) {
     console.log("\n--- DRY RUN (nothing written) ---");
-    for (const b of newBlocks) console.log("\n" + b);
+    for (const e of newEntries) {
+      console.log("\n" + e);
+    }
+    appendSyncLog(fetched, newCount, dupeCount, true);
+    console.log(`\n[DRY RUN] ${newCount} entry/entries would be appended to recipients.yaml.`);
     return;
   }
 
-  // Ensure business/secrets exists
-  fs.mkdirSync(path.dirname(KEY_PATH), { recursive: true });
+  // Ensure the recipients directory exists (should already, but be safe).
+  fs.mkdirSync(path.dirname(RECIPIENTS_PATH), { recursive: true });
 
-  const append = "\n\n" + newBlocks.join("\n\n");
-  fs.appendFileSync(LOG_PATH, append, "utf-8");
-  console.log(`Appended ${newBlocks.length} new entry/entries to business/subscribers.md`);
+  // Append new entries. Each entry is separated by a blank line.
+  const append = "\n\n" + newEntries.join("\n\n") + "\n";
+  fs.appendFileSync(RECIPIENTS_PATH, append, "utf-8");
+  appendSyncLog(fetched, newCount, dupeCount, false);
+
+  console.log(`Appended ${newCount} new entry/entries to business/recipients/recipients.yaml`);
+  console.log(`Sync logged to business/recipients/sync.log`);
+}
+
+// ---------------------------------------------------------------------------
+// Deprecated-file notice
+// ---------------------------------------------------------------------------
+
+function checkDeprecated() {
+  const deprecated = path.join(REPO_ROOT, "business", "subscribers.md");
+  if (fs.existsSync(deprecated)) {
+    console.warn(
+      `NOTE: business/subscribers.md still exists (renamed to business/_deprecated_subscribers.md).`
+    );
+    console.warn(
+      `      It is no longer written to. Delete it once you have confirmed the migration.`
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -168,6 +256,7 @@ async function pullSubmissions(dryRun) {
 
 async function main() {
   const args = process.argv.slice(2);
+  checkDeprecated();
   if (args.includes("--get-apikey")) {
     await getApiKey();
   } else {

@@ -572,17 +572,17 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             ),
         ),
     ],
-    "policy": [
+    "monetary": [
         PanelSpec(
-            panel_id="panel-1", section="policy", panel_num=1,
-            file="policy/Panel1OvernightRate.astro",
+            panel_id="panel-1", section="monetary", panel_num=1,
+            file="monetary/Panel1OvernightRate.astro",
             primary=SlotSpec("overnight_rate", "raw", label="BoC overnight rate target"),
             secondary=SlotSpec("overnight_rate_daily", "raw", label="Daily overnight rate"),
             notes="MPR neutral band (low/high) is editorial; chart-builder takes it as a prop.",
         ),
         PanelSpec(
-            panel_id="panel-2", section="policy", panel_num=2,
-            file="policy/Panel2MarketPath.astro",
+            panel_id="panel-2", section="monetary", panel_num=2,
+            file="monetary/Panel2MarketPath.astro",
             primary=SlotSpec("yield_2yr", "raw", label="GoC 2-yr yield"),
             secondary=SlotSpec("overnight_rate_daily", "raw", label="Overnight rate"),
             tertiary=SlotSpec(
@@ -595,8 +595,8 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         # editorial reorder 2026-05-13. Slot intentionally vacant to preserve
         # downstream panel numbering (chartRegistry / .astro pickPanel calls).
         PanelSpec(
-            panel_id="panel-4", section="policy", panel_num=4,
-            file="policy/Panel4BalanceSheet.astro",
+            panel_id="panel-4", section="monetary", panel_num=4,
+            file="monetary/Panel4BalanceSheet.astro",
             primary=SlotSpec("boc_settlement_balances", "raw", label="Settlement balances"),
             secondary=SlotSpec("boc_total_assets", "raw", label="Total assets", window_override=340),
             extras=(
@@ -625,8 +625,8 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             ),
         ),
         PanelSpec(
-            panel_id="panel-5", section="policy", panel_num=5,
-            file="policy/Panel5LiabilityCompositionSmallMults.astro",
+            panel_id="panel-5", section="monetary", panel_num=5,
+            file="monetary/Panel5LiabilityCompositionSmallMults.astro",
             # Liability composition (Mode B small-multiples). Five components +
             # derived Other liabilities residual (handled chart-side).
             primary=SlotSpec("boc_total_liabilities", "raw", label="Total liabilities", window_override=340),
@@ -643,15 +643,16 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             ),
         ),
         PanelSpec(
-            panel_id="panel-6", section="policy", panel_num=6,
-            file="policy/Panel6FederalTrajectorySplit.astro",
+            panel_id="panel-6", section="monetary", panel_num=6,
+            file="monetary/Panel6FederalTrajectorySplit.astro",
             primary=SlotSpec("dof_fiscal_monthly_balance", "raw", label="Federal monthly balance"),
             secondary=SlotSpec("dof_fiscal_ytd_balance", "raw", label="Federal fiscal-YTD balance"),
             tertiary=SlotSpec("dof_fiscal_ytd_summary", "raw", label="Fiscal Monitor YTD summary"),
             notes=(
-                "DoF Fiscal Monitor. Two-panel side-by-side composite: monthly bars "
-                "(left) + YTD line (right), each with own y-axis. Revenues + debt "
-                "service indexed to FY19/20 derivable from the YTD summary."
+                "DoF Fiscal Monitor. Retained on monetary section as cross-domain "
+                "fiscal-context panel. Full fiscal chartbook is at /fiscal/. "
+                "Two-panel side-by-side composite: monthly bars (left) + YTD line "
+                "(right), each with own y-axis."
             ),
         ),
         # panel-7-alt: Fiscal stance (long-history). NOT a live plate yet.
@@ -662,8 +663,8 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         # (GGXWDG_NGDP) is used as the secondary slot with the label
         # "Gross debt (% GDP, general govt)" to avoid implying net-debt.
         PanelSpec(
-            panel_id="panel-7-alt", section="policy", panel_num=7,
-            file="policy/Panel7AltFiscalStance.astro",
+            panel_id="panel-7-alt", section="monetary", panel_num=7,
+            file="monetary/Panel7AltFiscalStance.astro",
             primary=SlotSpec(
                 "imf_can_gg_balance_pct_gdp", "raw",
                 label="Fiscal balance (% GDP, general govt)",
@@ -686,6 +687,129 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
                 "visually distinguish projected years (from current year onward). "
                 "For federal-only framing, DoF Fiscal Reference Tables (PDF annual) "
                 "are the authoritative source -- extraction deferred to v1.5."
+            ),
+        ),
+    ],
+    "fiscal": [
+        # Plate 1 — Federal trajectory. Ported from policy panel-6 (same series).
+        # DoF Fiscal Monitor: monthly balance + fiscal-YTD balance.
+        PanelSpec(
+            panel_id="panel-1", section="fiscal", panel_num=1,
+            file="fiscal/Panel1FederalTrajectory.astro",
+            primary=SlotSpec("dof_fiscal_monthly_balance", "raw", label="Federal monthly balance"),
+            secondary=SlotSpec("dof_fiscal_ytd_balance", "raw", label="Federal fiscal-YTD balance"),
+            tertiary=SlotSpec("dof_fiscal_ytd_summary", "raw", label="Fiscal Monitor YTD summary"),
+            expected_status="WIRED",
+            notes=(
+                "Port of policy panel-6. DoF Fiscal Monitor. Monthly bars (left) + "
+                "YTD line (right). Source: pipeline:dof:dof_fiscal_ytd_balance + "
+                "pipeline:dof:dof_fiscal_monthly_balance. Source card: plate-1.yaml "
+                "(inherits from policy section, Tier A verified)."
+            ),
+        ),
+        # Plate 2 — Debt service / revenues ratio with 5-year trailing band.
+        # Numerator: public_debt_charges_ytd. Denominator: revenues_ytd.
+        # Both already in pipeline/fetch/dof_fiscal.py.
+        # PBO names this the 'interest burden' sustainability indicator;
+        # latest value: rising toward 13.2% by 2030-31 per PBO May 2026 forecast.
+        PanelSpec(
+            panel_id="panel-2", section="fiscal", panel_num=2,
+            file="fiscal/Panel2DebtServiceRevenues.astro",
+            primary=SlotSpec(
+                "public_debt_charges_ytd", "raw",
+                label="Public debt charges YTD (C$ millions)",
+            ),
+            secondary=SlotSpec(
+                "revenues_ytd", "raw",
+                label="Budgetary revenues YTD (C$ millions)",
+            ),
+            expected_status="WIRED",
+            notes=(
+                "Plate 2: debt-service / revenues ratio. Chart-builder divides "
+                "primary by secondary * 100 to render the % ratio at each "
+                "month-of-year observation. The 5-year trailing band (5-yr min/max "
+                "envelope at each month-of-year position) is derived chart-side from "
+                "the two on-disk series. Source card: plate-2.yaml (Tier A). "
+                "PBO's 'interest burden' indicator: 10.3c per dollar of revenue "
+                "currently (StatCan CGFS Nov 2025); rising to 13.2% by 2030-31 "
+                "(PBO Main Estimates May 2026). Add 13.2% endpoint as named anchor."
+            ),
+        ),
+        # Plate 3 — PBO EFO Sept 2025 vs DoF SEU April 2026 baseline delta.
+        # Static JSON of two five-year-forward deficit projections.
+        # Source card: plate-3.yaml (Tier B, pending user_confirmed_at).
+        PanelSpec(
+            panel_id="panel-3", section="fiscal", panel_num=3,
+            file="fiscal/Panel3PBOvsDoF.astro",
+            primary=None,  # no live time-series; chart reads from metadata_path
+            metadata_path="fiscal_pbo_dof_baseline.json",
+            expected_status="NEAR",
+            notes=(
+                "Plate 3: PBO EFO Sept 2025 vs DoF SEU April 2026 five-year "
+                "deficit projection comparison. Two static series, each vintage-stamped. "
+                "Emitted by pipeline.build.derive_fiscal_pbo_dof_baseline() from "
+                "data/derived/fiscal_pbo_dof_baseline.json. "
+                "Source card: plate-3.yaml (Tier B, user_confirmed_at pending). "
+                "Methodology footnote required: different macro envelopes and "
+                "private-sector survey vintages. Chart-builder: consider adding "
+                "PBO May 2026 SEU assessment as a third trace once machine-readable."
+            ),
+        ),
+        # Plate 4 — Provincial net debt-to-GDP: ON / QC / AB / BC.
+        # Static JSON from most-recent provincial budgets. Publisher's-own basis
+        # per Bartlett + Page consensus (see fiscal_phase1_bartlett_lapointe.md Q1).
+        # BC annotated as taxpayer-supported basis (different denominator).
+        # QC vintage updated to Budget 2026-2027 (March 18, 2026; 38.8% confirmed).
+        PanelSpec(
+            panel_id="panel-4", section="fiscal", panel_num=4,
+            file="fiscal/Panel4ProvincialDebt.astro",
+            primary=None,  # no live time-series; chart reads from metadata_path
+            metadata_path="fiscal_provincial_debt.json",
+            expected_status="NEAR",
+            notes=(
+                "Plate 4: four-province net debt-to-GDP from most-recent budgets. "
+                "ON: 37.7% (Fall Economic Outlook Nov 2025); "
+                "QC: 38.8% (Budget 2026-2027, March 18 2026 -- Tier A verified); "
+                "AB: 10.5% (Budget 2026, Feb 26 2026); "
+                "BC: 30.6% taxpayer-supported basis (Budget 2026, Feb 17 2026). "
+                "Publisher's-own basis per Bartlett/IFSD recommendation; each bar "
+                "annotated with vintage stamp and basis badge. "
+                "Source card: plate-4.yaml (Tier B, user_confirmed_at pending). "
+                "Emitted by pipeline.build.derive_fiscal_provincial_debt()."
+            ),
+        ),
+        # Plate 5 — Operating vs capital balance under Carney's bifurcated budget.
+        # SUPERSEDES the original CAPB spec from fiscal_section_plan_2026-05-24.md.
+        # Per Bartlett-Lapointe-Page-Khan methodology brief (Q4): CAPB is off-radar
+        # for 3 of 4 experts. Operating-vs-capital is the framing Page, PBO, IFSD,
+        # and Bartlett are converging on in spring 2026.
+        # Two series:
+        #   (1) DoF's operating + capital decomposition from SEU April 2026.
+        #   (2) PBO's reclassified version from Nov 17 2025 assessment
+        #       (PBO identifies ~$94B gap between DoF's 'capital' definition and
+        #       PBO's stricter international standard).
+        # Source card: RESEARCHER FOLLOW-UP REQUIRED -- see notes below.
+        PanelSpec(
+            panel_id="panel-5", section="fiscal", panel_num=5,
+            file="fiscal/Panel5OperatingVsCapital.astro",
+            primary=None,  # static JSON; reads from metadata_path
+            metadata_path="fiscal_operating_capital.json",
+            expected_status="NEAR",
+            notes=(
+                "Plate 5: operating vs capital balance under Carney bifurcated budget. "
+                "SUPERSEDES CAPB spec. Two series: (1) DoF SEU April 2026 operating "
+                "+ capital decomposition; (2) PBO Nov 17 2025 reclassified decomposition "
+                "(stricter international-standard definition, ~$94B gap identified). "
+                "SOURCE CARD: RESEARCHER FOLLOW-UP REQUIRED. The PBO Nov 17 2025 "
+                "assessment (thehub.ca/2025/11/17/...) is the primary reference; "
+                "the exact DoF SEU decomposition table reference needs retrieval. "
+                "A skeleton source card for this plate is at "
+                "editorial/source_cards/_pending/fiscal/plate-5.yaml "
+                "(auto-generated by backend -- researcher must fill values before "
+                "chart-builder can finalize the component). "
+                "Chart-builder: render two-trace comparison; annotate the gap band; "
+                "title verb: 'Most of the fiscal dividend went to operating spending, "
+                "not capital.' "
             ),
         ),
     ],

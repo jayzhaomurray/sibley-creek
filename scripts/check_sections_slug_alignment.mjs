@@ -46,7 +46,8 @@ const CANONICAL_SLUGS = new Set([
   "inflation",
   "labour",
   "housing",
-  "policy",
+  "monetary",
+  "fiscal",
   "markets",
   "trade",
 ]);

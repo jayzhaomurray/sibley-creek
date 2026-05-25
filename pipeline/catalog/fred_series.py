@@ -52,10 +52,10 @@ FRED_SERIES: dict[str, FredSpec] = {
     # left the Markets section showing oil prints 5-7 days stale relative
     # to USDCAD / GoC daily yields. Yahoo futures close daily with no lag.
     # See pipeline.catalog.yahoo_series for the replacement specs.
-    "ecb_rate": FredSpec("ecb_rate", "ECBDFR", "1999-01-01", "%", "daily", "policy", "daily",
+    "ecb_rate": FredSpec("ecb_rate", "ECBDFR", "1999-01-01", "%", "daily", "monetary", "daily",
                           notes="ECB deposit facility rate; daily."),
     # Fed funds target is composite — handled by pipeline.fetch.fred.fetch_fed_funds_target.
     # Registered here as a sentinel; the orchestrator dispatches the composite.
-    "fed_funds": FredSpec("fed_funds", "__COMPOSITE_FED_FUNDS_TARGET__", "1990-01-01", "%", "daily", "policy", "daily",
+    "fed_funds": FredSpec("fed_funds", "__COMPOSITE_FED_FUNDS_TARGET__", "1990-01-01", "%", "daily", "monetary", "daily",
                           notes="Composite: FEDFUNDS monthly pre-2008 + DFEDTARU/DFEDTARL midpoint post-2008."),
 }

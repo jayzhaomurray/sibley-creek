@@ -1,0 +1,350 @@
+---
+/*
+ * /overview-with-fiscal/ — WIP preview of the 8-section overview grid.
+ *
+ * PURPOSE: Staging surface for Jay to review the 8-panel layout (7 current
+ * sections + fiscal) before the fiscal section is promoted live. This route
+ * is NOINDEX / NOFOLLOW and is NOT linked from the masthead. Reachable by
+ * direct URL only.
+ *
+ * SWAP PROTOCOL: When /fiscal/ is fully shipped (5 plates, blurbs gated,
+ * all three review gates passed) AND /monetary/ rename is live, the content
+ * of this file moves into /overview.astro and this route is deleted (or
+ * kept as a 301 to /overview/ for one release cycle).
+ * See editorial/_briefs/fiscal_section_plan_2026-05-24.md §3 for the full
+ * swap protocol.
+ *
+ * LAYOUT: 3×3 grid at desktop.
+ *   - Cells 1–8: section panels in sections.ts canon order
+ *     (fiscal sits adjacent to policy/monetary per backend-engineer's ordering)
+ *   - Cell 9: Working Papers (DeepDivePanel) — same as /overview/
+ *   - No 10th cell (bottom-right stays empty as Vignelli rest space)
+ *   On mobile (< 760px): single-column, then 2-up from 480px.
+ *   At desktop (≥ 1024px): 3-column.
+ *
+ * FISCAL DATA: If sections.ts does not yet carry the "fiscal" slug when this
+ * page builds, the panel renders as an all-placeholder shell (dashed chart
+ * box, "DATA NOT YET WIRED" label, "----" values). The build still succeeds.
+ * Once backend-engineer ships the fiscal entry in sections.ts + sections.json,
+ * the real data flows automatically — no change needed here.
+ *
+ * FIGURE NUMBERS: 1–8 for section panels (canon order), 9 for working
+ * papers, 10 for the economic calendar.
+ *
+ * 2026-05-24: Initial file. Frontend only — do not author panel content.
+ */
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import TitleStatement from "../components/home/TitleStatement.astro";
+import SectionPanel from "../components/home/SectionPanel.astro";
+import DeepDivePanel from "../components/home/DeepDivePanel.astro";
+import { deepDives, site } from "../data/sections";
+import { enrichedSections, type EnrichedSection } from "../data/site_data_loader";
+
+// All sections in canon order (backend-engineer sets fiscal's position in
+// sections.ts; enrichedSections reflects that order at build time).
+const ordered: EnrichedSection[] = enrichedSections;
+
+// Rest-cell logic: the 3-col grid at desktop should fill to complete rows.
+// Total filled cells = sections + working papers (1). If not divisible by 3,
+// add a rest cell to complete the row. When fiscal is present (8 sections),
+// 8 + 1 = 9 — divisible by 3, no rest cell needed. When only 7 sections,
+// 7 + 1 = 8 — not divisible by 3, one rest cell needed to complete row 3.
+const totalFilledCells = ordered.length + 1; // +1 for working papers
+const needsRestCell = totalFilledCells % 3 !== 0;
+
+// Title-statement date line. Always reflects today in Canadian editorial
+// time (America/Toronto), not the build host's UTC.
+const today = new Date();
+const longDate = new Intl.DateTimeFormat("en-CA", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "America/Toronto",
+}).format(today);
+
+// WIP preview page — not for indexing or distribution.
+const pageTitle = "Overview (preview with fiscal) — Sibley Creek";
+const pageDesc =
+  "Preview of the Sibley Creek dashboard with fiscal added as an 8th section. " +
+  "Not for distribution; the live dashboard is at /overview/.";
+---
+<BaseLayout
+  title={pageTitle}
+  description={pageDesc}
+  pageClass="home-page overview-preview-page"
+  showMastheadRail={true}
+>
+  {/*
+    noindex / nofollow injected into <head> via the named "head" slot.
+    This prevents the preview page from appearing in search results.
+    The canonical points to /overview/ so any crawler that ignores
+    noindex treats this as a signal to prefer the live page.
+  */}
+  <meta slot="head" name="robots" content="noindex,nofollow" />
+  <link slot="head" rel="canonical" href={`${site.url}/overview/`} />
+
+  {/*
+    WIP preview banner: visible to Jay in the browser, invisible to readers
+    (the page is noindex). Uses the existing Vignelli token palette — no
+    new colors. A thin hairline band at paper with an ink border; mono
+    micro-caps register; no fill.
+  */}
+  <div class="preview-banner" role="note" aria-label="Preview page notice">
+    <p class="preview-banner__text">
+      PREVIEW — Not published.
+      <span class="preview-banner__sep" aria-hidden="true"> / </span>
+      Live dashboard: <a class="preview-banner__link" href="/overview/">sibleycreek.ca/overview/</a>
+    </p>
+  </div>
+
+  <article class="home">
+    <TitleStatement dateLine={longDate} />
+
+    <section class="home__grid home__grid--3col" aria-label="Indicator panels">
+      <h2 class="visually-hidden">Indicator panels</h2>
+      {ordered.map((s, i) => (
+        <div class="home__cell">
+          <SectionPanel section={s} figureNum={String(i + 1)} />
+        </div>
+      ))}
+      {/* Cell 9: working papers — same as /overview/ */}
+      <div class="home__cell">
+        <DeepDivePanel deepDives={deepDives} figureNum={String(ordered.length + 1)} />
+      </div>
+      {/*
+        Rest cell: completes the 3-col row when sections + working papers
+        is not divisible by 3. At 7 sections: 8 filled cells — one rest
+        cell rounds to 9 (3×3 clean). At 8 sections (fiscal present):
+        9 filled cells — divisible by 3, no rest cell rendered.
+        Vignelli canon: the empty slot is a composition choice, not an
+        oversight.
+      */}
+      {needsRestCell && (
+        <div class="home__cell home__cell--rest" aria-hidden="true"></div>
+      )}
+    </section>
+
+    <section class="cal" aria-labelledby="cal-h">
+      <header class="cal__head">
+        <p class="cal__eyebrow">
+          <span class="cal__fig">Figure</span>
+          <span class="cal__fig-n">{ordered.length + 2}.</span>
+        </p>
+        <h2 id="cal-h" class="cal__h">Week ahead</h2>
+      </header>
+      <iframe
+        class="cal__frame"
+        src="https://sslecal2.investing.com?ecoDayBackground=%23ffffff&defaultFont=%23000000&innerBorderColor=%23e6e6e6&borderColor=%23ffffff&ecoDayFontColor=%23000000&columns=exc_flags,exc_importance,exc_actual,exc_forecast,exc_previous&importance=3&features=datepicker,timezone,timeselector,filters&countries=6&calType=week&timeZone=8&lang=68"
+        title="Canada and US economic releases, this week, high importance only"
+        width="650"
+        height="467"
+        frameborder="0"
+        allowtransparency="true"
+        marginwidth="0"
+        marginheight="0"
+      ></iframe>
+      <div class="cal__attribution">
+        Real Time Economic Calendar provided by
+        <a href="https://ca.Investing.com/" rel="nofollow" target="_blank">Investing.com Canada</a>.
+      </div>
+    </section>
+  </article>
+
+  <style>
+    /* ------------------------------------------------------------------ */
+    /* Preview banner                                                       */
+    /* ------------------------------------------------------------------ */
+
+    .preview-banner {
+      border-bottom: 1px solid var(--ink);
+      padding: 8px 0 7px;
+      margin-bottom: 0;
+    }
+
+    .preview-banner__text {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-weight: 400;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink);
+      line-height: 1;
+    }
+
+    .preview-banner__sep {
+      color: var(--ink);
+      opacity: 0.4;
+    }
+
+    .preview-banner__link {
+      color: var(--ink);
+      text-decoration: none;
+      border-bottom: 1px solid var(--ink);
+    }
+
+    .preview-banner__link:hover {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .preview-banner__link:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Panel grid                                                           */
+    /* ------------------------------------------------------------------ */
+
+    .home__grid {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0;
+      /* Vignelli / Knoll catalogue: panels meet at shared 1px black
+       * hairlines. We collapse the gap and use the panel borders to form a
+       * continuous grid. */
+      border-top: 1px solid var(--ink);
+      border-left: 1px solid var(--ink);
+    }
+
+    /* 2-col at mid-width, matching /overview/ tablet breakpoint */
+    @media (min-width: 760px) {
+      .home__grid--3col {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    /* 3-col at full desktop. Panel width is ~1/3 of the page column.
+     * The SectionPanel tile is designed for a minimum ~280px inner width;
+     * at the typical desktop content width (~1100–1200px) each cell
+     * lands at 360–400px — comfortable for the chart + readout layout. */
+    @media (min-width: 1024px) {
+      .home__grid--3col {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    .home__cell {
+      min-width: 0;
+      display: flex;
+      border-right: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+    }
+
+    .home__cell > :global(*) {
+      width: 100%;
+    }
+
+    /* Rest cell: empty slot completing the 3×3 composition.
+     * No content; hairlines only. min-height prevents total collapse. */
+    .home__cell--rest {
+      min-height: 60px;
+      background: var(--paper);
+    }
+
+    /* a11y utility */
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Economic-calendar section — identical to /overview/                 */
+    /* ------------------------------------------------------------------ */
+
+    .cal {
+      margin-top: 32px;
+      padding-bottom: 28px;
+    }
+
+    .cal__head {
+      padding-bottom: 10px;
+    }
+
+    .cal__eyebrow {
+      margin: 0;
+      padding-top: 16px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+      line-height: 1.4;
+    }
+
+    .cal__fig {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .cal__fig-n {
+      color: var(--accent);
+      font-weight: 800;
+      margin-left: 0.2em;
+    }
+
+    .cal__h {
+      margin: 6px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: 22px;
+      letter-spacing: -0.01em;
+      line-height: 1.05;
+      color: var(--ink);
+    }
+
+    .cal__frame {
+      display: block;
+      width: 100%;
+      max-width: 700px;
+      margin: 20px auto 0;
+      height: clamp(520px, 64vh, 640px);
+      border: 0;
+    }
+
+    @media (max-width: 480px) {
+      .cal__frame {
+        height: clamp(540px, 64vh, 640px);
+      }
+    }
+
+    .cal__attribution {
+      max-width: 700px;
+      margin: 14px auto 0;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1.4;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    .cal__attribution a {
+      color: var(--ink);
+      text-decoration: none;
+      border-bottom: 1px solid var(--ink);
+    }
+
+    .cal__attribution a:hover {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .cal__attribution a:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+  </style>
+</BaseLayout>

@@ -53,7 +53,8 @@ const advisoryBySlug: Record<SectionSlug, AdvisoryLevel> = {
   gdp: "advisory", // soft Feb GDP, output gap still negative
   labour: "watch", // u-rate 6.1%, edging higher
   housing: "advisory", // HPI -1.4% y/y and softening
-  policy: "normal", // BoC just cut, on path
+  monetary: "normal", // BoC just cut, on path
+  fiscal: "advisory", // deficit widening YTD
   markets: "watch", // CAD weakening, BoC-Fed wider
   trade: "alert", // deficit widening sharply to -$2.3B
 };
@@ -72,8 +73,10 @@ const nowcastBySlug: Record<SectionSlug, string> = {
     "Unemployment is currently 6.1%, unchanged on the month as participation slipped and hiring cooled.",
   housing:
     "MLS HPI is currently -1.4% y/y and weakening; sales-to-listings slipped to 0.42 in April.",
-  policy:
+  monetary:
     "BoC overnight rate is currently 2.75% after a 25bp cut on April 29; policy stance is normalizing.",
+  fiscal:
+    "Federal YTD deficit is -$25.5B through February, $6.3B wider than the same point last year.",
   markets:
     "USDCAD is currently 1.378, up 0.4% on the week as the BoC-Fed spread widened to -152 bps.",
   trade:
@@ -103,7 +106,7 @@ interface AncillaryPanel {
 const ancillary: AncillaryPanel[] = [];
 
 const bocFedPrint = sections
-  .find((s) => s.slug === "policy")
+  .find((s) => s.slug === "monetary")
   ?.prints.find((p) => p.indicator.includes("BoC-Fed"));
 if (bocFedPrint) {
   ancillary.push({
@@ -118,7 +121,7 @@ if (bocFedPrint) {
     nowcast:
       "BoC-Fed 2y spread is currently -152 bps and widening; deepest divergence of the cycle so far.",
     spark: bocFedPrint.spark ?? [],
-    href: "/policy/",
+    href: "/monetary/",
   });
 }
 
@@ -182,7 +185,8 @@ const cardOrder: SectionSlug[] = [
   "inflation",
   "labour",
   "housing",
-  "policy",
+  "monetary",
+  "fiscal",
   "markets",
   "trade",
 ];

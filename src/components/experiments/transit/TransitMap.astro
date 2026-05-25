@@ -140,15 +140,15 @@ const housingLine: Line = {
 // (660, 480) for the renewal-wall interchange, and Markets near (920, 360)
 // for BoC-Fed.
 const policyLine: Line = {
-  slug: "policy",
-  label: "Policy",
+  slug: "monetary",
+  label: "Monetary",
   // 45-deg diagonal honest to schematic rules.
   // (80, 60) -> (660, 480) is not 45deg; replace with stepped 45deg path.
   // Use (80, 60) -> (660, 640) at exactly 45deg: 580 right, 580 down.
   path: "M 80 60 L 660 640",
   stations: [
-    { id: "policy-rate", x: 160, y: 140, label: printOf("policy", 0)?.indicator ?? "BoC rate",       value: printOf("policy", 0)?.value ?? "2.75%", delta: printOf("policy", 0)?.delta, asOf: printOf("policy", 0)?.asOf, side: "left" },
-    { id: "deficit",     x: 320, y: 300, label: printOf("policy", 2)?.indicator ?? "Federal deficit", value: printOf("policy", 2)?.value ?? "$38.2B", delta: printOf("policy", 2)?.delta, asOf: printOf("policy", 2)?.asOf, side: "left" },
+    { id: "policy-rate", x: 160, y: 140, label: printOf("monetary", 0)?.indicator ?? "BoC rate",       value: printOf("monetary", 0)?.value ?? "2.75%", delta: printOf("monetary", 0)?.delta, asOf: printOf("monetary", 0)?.asOf, side: "left" },
+    { id: "deficit",     x: 320, y: 300, label: printOf("monetary", 2)?.indicator ?? "Federal deficit", value: printOf("monetary", 2)?.value ?? "$38.2B", delta: printOf("monetary", 2)?.delta, asOf: printOf("monetary", 2)?.asOf, side: "left" },
   ],
   terminus: { x: 680, y: 660, text: "POLICY TRUNK", anchor: "start" },
 };
@@ -205,7 +205,7 @@ const interchanges: InterchangeStation[] = [
     // x = 500, y = 480. Both within their segments.
     id: "ix-renewal",
     x: 500, y: 480,
-    lines: ["policy", "housing"],
+    lines: ["monetary", "housing"],
     label: "Mortgage renewal wall",
     pillar: "A",
     side: "right",
@@ -231,7 +231,7 @@ const interchanges: InterchangeStation[] = [
     // 2x = 920, x = 460, y = 440. Both inside both segments — perfect.
     id: "ix-bocfed",
     x: 460, y: 440,
-    lines: ["policy", "markets"],
+    lines: ["monetary", "markets"],
     label: "BoC-Fed divergence",
     pillar: "B",
     side: "left",

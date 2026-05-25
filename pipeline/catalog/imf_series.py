@@ -68,7 +68,7 @@ IMF_SERIES: dict[str, ImfSpec] = {
         country="CAN",
         units="% of GDP (general government net lending/borrowing)",
         frequency="annual",
-        section="policy",
+        section="fiscal",
         notes=(
             "IMF WEO -- Canada general government net lending/borrowing as % of nominal "
             "GDP. SCOPE: general government (federal + provincial + local + social "
@@ -99,7 +99,7 @@ IMF_SERIES: dict[str, ImfSpec] = {
         country="CAN",
         units="% of GDP (general government gross debt)",
         frequency="annual",
-        section="policy",
+        section="fiscal",
         notes=(
             "IMF WEO -- Canada general government gross debt as % of nominal GDP. "
             "SCOPE: general government (all levels), GROSS (not net). IMF GGXWNG_NGDP "

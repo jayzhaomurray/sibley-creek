@@ -85,7 +85,8 @@ SECTION_SLUGS: tuple[str, ...] = (
     "inflation",
     "labour",
     "housing",
-    "policy",
+    "monetary",
+    "fiscal",
     "markets",
     "trade",
 )
@@ -157,13 +158,20 @@ SECTION_PLATES: dict[str, tuple[str, ...]] = {
         "panel-5-rents",
         "panel-6-permits",
     ),
-    "policy": (
+    "monetary": (
         "panel-1-policy-rate",
         "panel-2-yield-curve",
         "panel-3-boc-fed-spread",
         "panel-4-balance-sheet",
         "panel-5-fiscal-balance",
         "panel-6-fiscal-monitor",
+    ),
+    "fiscal": (
+        "panel-1-federal-trajectory",
+        "panel-2-debt-service-revenues",
+        "panel-3-pbo-vs-dof",
+        "panel-4-provincial-debt",
+        "panel-5-operating-vs-capital",
     ),
     "markets": (
         "panel-1-usdcad",
@@ -196,7 +204,7 @@ RELEASE_KEY_TO_SECTION: dict[str, str] = {
     "cpi_monthly": "inflation",
     "lfs_monthly": "labour",
     "gdp_monthly": "gdp",
-    "boc_decision": "policy",
+    "boc_decision": "monetary",
     "crea_monthly": "housing",
     "trade_monthly": "trade",
     "markets_daily": "markets",

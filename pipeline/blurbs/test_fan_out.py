@@ -165,7 +165,7 @@ def test_detect_affected_surfaces_rate_decision() -> None:
     event = ReleaseEvent(
         release_id="boc_decision_2026-06-10",
         release_key="boc_decision",
-        section="policy",
+        section="monetary",
         reference_period="2026-06-10",
         release_date="2026-06-10",
     )

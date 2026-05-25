@@ -1,0 +1,153 @@
+---
+import SectionLayout from "../layouts/SectionLayout.astro";
+import type { Plate } from "../layouts/SectionLayout.astro";
+import { sections } from "../data/sections";
+import panelDataFile from "../../data/site/panel_data/fiscal.json";
+import sectionsJson from "../../data/site/sections.json";
+import { pickPanel } from "../components/charts/_shared/panelData";
+import { deriveLatestReleaseLabel } from "../components/section/_shared/derivedLabels";
+
+const section = sections.find((s) => s.slug === "fiscal");
+if (!section) {
+  throw new Error("Fiscal section not found in src/data/sections.ts");
+}
+
+const latestReleaseLabel = deriveLatestReleaseLabel(
+  section.latestReleasePrefix ?? "",
+  sectionsJson,
+  "fiscal",
+);
+
+const panel1Data = pickPanel(panelDataFile, 1);
+const panel2Data = pickPanel(panelDataFile, 2);
+const panel3Data = pickPanel(panelDataFile, 3);
+const panel4Data = pickPanel(panelDataFile, 4);
+const panel5Data = pickPanel(panelDataFile, 5);
+
+const plates: Plate[] = [
+  {
+    id: "plate-1",
+    number: "01",
+    indicator: "Federal monthly + YTD balance",
+    plateIndexLabel: "Federal trajectory",
+    asOf: "February 28, 2026 (Fiscal Monitor)",
+    title: "The federal track is the same cadence as recent years, not a counter-cyclical lean.",
+    interpretationHtml:
+      "The deficit is on course to land near 2.1% of GDP for fiscal 2025-26, the trajectory the Spring Economic Update projects and the path the Fiscal Monitor has been printing into. " +
+      "Eleven months in, the year-to-date balance sits at a $25.5 billion deficit, after a $5.7 billion February surplus pulled the cumulative line off its January trough. " +
+      "Heavy autumn outflows and tax-receipt months tugging the YTD reading back is the standard fiscal shape &mdash; not a fiscal stance leaning against the cycle.",
+    callout: {
+      value: "-$25.5 bn",
+      unit: "Federal balance, fiscal YTD",
+      delta: "11 months into FY 2025-26",
+      direction: "neg",
+    },
+    source: "Department of Finance Fiscal Monitor.",
+    chartKey: "fiscal-panel-1",
+    data: panel1Data,
+    citations: [
+      { phrase: "2.1% of GDP", source: "card:dof_seu_2026_deficit_gdp_share", note: "DoF Spring Economic Update April 2026 projects federal deficit at 2.1% of GDP for FY2025-26." },
+      { phrase: "$25.5 billion deficit", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "Federal fiscal YTD balance, April 2025 through February 2026, -$25.5bn per Fiscal Monitor (Feb 28 2026 print)." },
+      { phrase: "$5.7 billion February surplus", source: "pipeline:dof:dof_fiscal_monthly_balance", note: "February 2026 monthly federal budgetary balance, +$5.7bn per Fiscal Monitor." },
+      { phrase: "January trough", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "Federal YTD balance through January 2026, -$31.2bn per Fiscal Monitor." },
+    ],
+  },
+  {
+    id: "plate-2",
+    number: "02",
+    indicator: "Public debt charges / revenues, monthly ratio with 5-year band",
+    plateIndexLabel: "Debt service",
+    title: "Debt service is consuming a rising share of every federal revenue dollar.",
+    interpretationHtml:
+      "Roughly ten cents of every dollar of federal revenue now goes to servicing the debt, and the Parliamentary Budget Officer's projection has that share climbing past thirteen cents by 2030-31. " +
+      "The level itself is unremarkable by historical standards; the trajectory isn't. " +
+      "A 2022-onward structural step-up in carrying costs, compounding against a revenue base that grows with the economy rather than with rates, is what shrinks the room for fiscal response to the next downturn.",
+    source: "Statistics Canada Government Finance Statistics (CGFS); Parliamentary Budget Officer projections.",
+    chartKey: "fiscal-panel-2",
+    data: panel2Data,
+    citations: [
+      { phrase: "Roughly ten cents of every dollar", source: "card:dof_fiscal_monitor_debt_service_share", note: "StatCan CGFS Nov 21 2025: public debt charges as share of revenues = 10.3c per dollar." },
+      { phrase: "thirteen cents by 2030-31", source: "card:pbo_interest_burden_forecast_2030", note: "PBO Main Estimates 2026-27 (May 7 2026): interest expense rises to 13.2% of revenues by 2030-31." },
+      { phrase: "2022-onward structural step-up", source: "derived", note: "Public debt charges stepped up sharply from 2022 as BoC rate-hiking cycle raised federal borrowing costs. Structural inflection visible in StatCan CGFS public-debt-charges series." },
+    ],
+  },
+  {
+    id: "plate-3",
+    number: "03",
+    indicator: "PBO EFO Sept 2025 vs DoF SEU April 2026 deficit projection tracks",
+    plateIndexLabel: "PBO vs DoF",
+    title: "The watchdog and the government no longer see the same deficit track.",
+    interpretationHtml:
+      "The Department of Finance's most recent baseline projects a $66.9 billion deficit for fiscal 2025-26, declining to $53.2 billion by 2030-31; the Parliamentary Budget Officer's September 2025 outlook runs [X] billion wider over the same horizon. " +
+      "Different growth envelopes and different revenue elasticities account for most of the gap, but the gap itself is the point: when the two official Canadian fiscal projections diverge by that much, the federal trajectory is being scored two different ways at once. " +
+      "The reader who anchors on only one of them is reading half the picture.",
+    source: "Department of Finance Spring Economic Update, April 2026; Parliamentary Budget Officer Economic and Fiscal Outlook, September 2025.",
+    chartKey: "fiscal-panel-3",
+    data: panel3Data,
+    citations: [
+      { phrase: "$66.9 billion deficit for fiscal 2025-26", source: "card:dof_seu_2026_deficit_track", note: "DoF SEU April 2026 FY2025-26 deficit projection: $66.9bn." },
+      { phrase: "declining to $53.2 billion by 2030-31", source: "card:dof_seu_2026_deficit_track", note: "DoF SEU April 2026 FY2030-31 deficit projection: $53.2bn." },
+      { phrase: "[X] billion wider over the same horizon", source: "card:pbo_efo_sept_2025_deficit_track", note: "PENDING: PBO EFO Sept 2025 five-year cumulative deficit trajectory vs DoF SEU April 2026. Source card required before number ships." },
+    ],
+  },
+  {
+    id: "plate-4",
+    number: "04",
+    indicator: "Net debt-to-GDP: ON / QC / AB / BC most-recent budgets",
+    plateIndexLabel: "Provincial debt",
+    title: "Provincial fiscal stance does not generalize: the spread runs from Alberta's 10.5% to Quebec's 38.8%.",
+    interpretationHtml:
+      "Ontario at 37.7% and Quebec at 38.8% carry the largest sub-sovereign debt loads in the country relative to the size of their economies; Alberta at 10.5% sits at the other end, with British Columbia at 30.6% on a taxpayer-supported basis. " +
+      "The dispersion is not noise &mdash; resource-revenue dependency, urban tax-base concentration, and a decade of differing fiscal restraint each pull a province into its own track. " +
+      "The federal fiscal stance is not the country's fiscal stance, and any read of Canadian fiscal policy that stops at Ottawa is missing the half that funds health, education, and most capital spending.",
+    source: "Most-recent provincial budgets: Ontario 2025-26, Quebec 2025-26, Alberta 2025-26, British Columbia 2025-26. BC figure on taxpayer-supported debt-to-GDP basis.",
+    chartKey: "fiscal-panel-4",
+    data: panel4Data,
+    citations: [
+      { phrase: "Ontario at 37.7%", source: "card:provincial_debt_to_gdp_on", note: "Ontario net debt-to-GDP, FY2025-26 budget projection." },
+      { phrase: "Quebec at 38.8%", source: "card:provincial_debt_to_gdp_qc", note: "Quebec net debt-to-GDP, FY2025-26 budget projection." },
+      { phrase: "Alberta at 10.5%", source: "card:provincial_debt_to_gdp_ab", note: "Alberta net debt-to-GDP, FY2025-26 budget projection." },
+      { phrase: "British Columbia at 30.6%", source: "card:provincial_debt_to_gdp_bc", note: "BC taxpayer-supported debt-to-GDP, FY2025-26 budget projection. BC uses taxpayer-supported rather than net-debt measure." },
+    ],
+  },
+  {
+    id: "plate-5",
+    number: "05",
+    indicator: "Operating vs capital balance: DoF SEU Apr 2026 vs PBO Nov 2025 reclassification",
+    plateIndexLabel: "Operating/capital",
+    asOf: "Pending source card",
+    title: "The PBO and Finance apply different definitions of capital — and the gap is not small.",
+    interpretationHtml:
+      "The government's bifurcated budget treats roughly [X] billion of spending as capital that the Parliamentary Budget Officer reclassifies as operating under the international-standard definition. " +
+      "Reclassified that way, the operating balance Canadians are told about is materially worse than the headline, and the gap is not an accounting curiosity &mdash; it is the basis on which the new fiscal framework will be judged. " +
+      "The fight over what counts as capital is the fight over whether fiscal stance is being measured honestly at all.",
+    source: "Parliamentary Budget Officer operating/capital reclassification analysis, November 2025; Department of Finance Spring Economic Update, April 2026.",
+    chartKey: "fiscal-panel-5",
+    data: panel5Data,
+    citations: [
+      { phrase: "[X] billion of spending as capital", source: "card:pbo_operating_capital_reclassification_nov_2025", note: "PENDING: PBO Nov 17 2025 analysis reclassifying DoF claimed capital spending back into operating under international-standard definition. Source card required; approx. $94bn per methodology brief addendum." },
+      { phrase: "international-standard definition", source: "card:pbo_operating_capital_reclassification_nov_2025", note: "PBO applies international public-sector accounting standard for capital vs operating distinction, distinct from DoF's bifurcated-budget framework." },
+    ],
+  },
+];
+
+const pageTitle = "Fiscal Policy";
+const pageDescription =
+  "Canadian fiscal policy chartbook: federal deficit trajectory, debt service and revenues, PBO vs Finance projection divergence, provincial debt-to-GDP, and the operating/capital split.";
+
+// Lede reads the same editorial blurb the auto-blurb pipeline writes for the
+// splash tile (sections.ts -> section.blurb.body). Single source of truth: a
+// release-day fan-out updates one field and both surfaces refresh.
+const lede = section.blurb?.body ?? "";
+---
+<SectionLayout
+  slug="fiscal"
+  sectionIndex={5}
+  sectionLabel="Fiscal"
+  headlineQuestion={section.headlineQuestion}
+  lede={lede}
+  latestReleaseLabel={latestReleaseLabel}
+  plates={plates}
+  title={pageTitle}
+  description={pageDescription}
+/>
