@@ -23,6 +23,12 @@
  * holidays. Single-jurisdiction view drops the currency column entirely
  * since every row has the same value — saves horizontal space and reads
  * cleaner.
+ *
+ * Timezone: the Forex Factory XML feed publishes ALL times in GMT/UTC.
+ * The feed text "12:30pm" for a StatCan release is actually 8:30 AM ET.
+ * convertFFTimestamp() reads (date, time) → returns the ET-localised
+ * date+time. Date is recomputed because a late-night GMT event could
+ * fall on the prior ET date.
  */
 import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -90,6 +96,49 @@ const toISO = (raw: string): string => {
   const m = raw.match(/^(\d{2})-(\d{2})-(\d{4})$/);
   if (!m) return raw;
   return `${m[3]}-${m[1]}-${m[2]}`;
+};
+
+// Convert Forex Factory's GMT timestamp to America/Toronto.
+// Returns { etDateISO, etTimeLabel }. On non-numeric times ("All Day",
+// "Tentative", blank), passes the raw date and the raw time label through.
+const TIME_FMT_ET = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Toronto",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+const DATE_FMT_ET = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Toronto",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const convertFFTimestamp = (
+  rawDate: string,
+  rawTime: string,
+): { etDateISO: string; etTimeLabel: string } => {
+  const tm = rawTime.match(/^(\d+):(\d+)(am|pm)$/i);
+  const dm = rawDate.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (!tm || !dm) {
+    // Pass-through for "All Day", "Tentative", or unparseable.
+    return { etDateISO: toISO(rawDate), etTimeLabel: rawTime || "—" };
+  }
+  let h = parseInt(tm[1]!, 10);
+  const mins = parseInt(tm[2]!, 10);
+  const isPM = tm[3]!.toLowerCase() === "pm";
+  if (isPM && h < 12) h += 12;
+  if (!isPM && h === 12) h = 0;
+  const mm = parseInt(dm[1]!, 10);
+  const dd = parseInt(dm[2]!, 10);
+  const yyyy = parseInt(dm[3]!, 10);
+  // FF time is GMT — construct a UTC Date with no offset, then re-format
+  // the same instant in the America/Toronto zone.
+  const utc = new Date(Date.UTC(yyyy, mm - 1, dd, h, mins));
+  const etDateISO = DATE_FMT_ET.format(utc); // en-CA yields "YYYY-MM-DD"
+  const etTimeLabel = TIME_FMT_ET.format(utc)
+    .toLowerCase()
+    .replace(/\s/g, ""); // "8:30am"
+  return { etDateISO, etTimeLabel };
 };
 
 const MONTH_NAMES = [
@@ -175,13 +224,16 @@ try {
       }))
       .filter((e) => COUNTRIES_KEEP.has(e.country));
 
-    // Group by date.
+    // Group by ET date (date can shift if a GMT-late-night event lands
+    // before the local ET day rolls over). Also overwrite the time label
+    // and country-stripped date string on each event so render is ET-clean.
     const byDate = new Map<string, FFEvent[]>();
     for (const e of events) {
-      const iso = toISO(e.date);
-      const arr = byDate.get(iso) ?? [];
+      const { etDateISO, etTimeLabel } = convertFFTimestamp(e.date, e.time);
+      e.time = etTimeLabel;
+      const arr = byDate.get(etDateISO) ?? [];
       arr.push(e);
-      byDate.set(iso, arr);
+      byDate.set(etDateISO, arr);
     }
     ffBuckets = Array.from(byDate.entries())
       .sort(([a], [b]) => a.localeCompare(b))
@@ -294,9 +346,137 @@ const pageDesc =
       <p class="ffcal__attribution">
         Calendar data from
         <a href="https://www.forexfactory.com/calendar" rel="nofollow noopener" target="_blank">Forex Factory</a>.
+        Ottawa time.
+      </p>
+    </section>
+
+    {/* ──────────────── What we're reading (reporter byline feed) ────────────────
+         Aggregated live via a Cloudflare Worker that fetches Google News
+         RSS per curated reporter, dedupes by URL, returns top items as
+         JSON. The Worker URL is set in the inline script below — point
+         it at your deployed Worker once `cd workers/news-feed && wrangler
+         deploy` lands. See workers/news-feed/README.md. */}
+    <section class="reading" aria-labelledby="reading-h">
+      <header class="reading__head">
+        <p class="reading__eyebrow">
+          <span class="reading__fig">Figure</span>
+          <span class="reading__fig-n">10.</span>
+        </p>
+        <h2 id="reading-h" class="reading__h">What we're reading</h2>
+      </header>
+
+      <div class="reading__body" data-reading-root>
+        <p class="reading__loading" data-reading-loading>Loading bylines…</p>
+        <ol class="reading__list" role="list" data-reading-list hidden></ol>
+        <p class="reading__error" data-reading-error hidden>
+          Feed unavailable. Refresh to retry.
+        </p>
+      </div>
+
+      <p class="reading__attribution">
+        Bylines from a curated reporter list. Data via Google News RSS.
       </p>
     </section>
   </article>
+
+  <script is:inline>
+    // ──────────────── Reporter byline feed ────────────────
+    // Fetches from the Sibley news-feed Cloudflare Worker on page load.
+    // The Worker handles all RSS fetching + caching + dedupe server-side;
+    // this client just renders the JSON response.
+    //
+    // SET ME: replace the placeholder with your deployed Worker URL.
+    // After `wrangler deploy`, the printed URL looks like:
+    //   https://sibley-news-feed.YOUR-SUBDOMAIN.workers.dev
+    // Until that's set, the section renders the "Feed unavailable" state.
+    const WORKER_URL = "https://sibley-news-feed.PLACEHOLDER.workers.dev";
+
+    const root = document.querySelector("[data-reading-root]");
+    const loadingEl = root?.querySelector("[data-reading-loading]");
+    const listEl = root?.querySelector("[data-reading-list]");
+    const errorEl = root?.querySelector("[data-reading-error]");
+
+    // Hand-rolled date formatter (avoids timezone drift; emits e.g.
+    // "May 24, 8:42 AM"). Uses America/Toronto since that's the
+    // publication's home timezone.
+    const TIME_FMT = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Toronto",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    const fmtDate = (iso) => {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "";
+      return TIME_FMT.format(d);
+    };
+
+    // Escape HTML entities to defend against any RSS payload that
+    // sneaks markup into a title.
+    const esc = (s) => {
+      if (typeof s !== "string") return "";
+      return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    };
+
+    const showError = () => {
+      if (loadingEl) loadingEl.hidden = true;
+      if (listEl) listEl.hidden = true;
+      if (errorEl) errorEl.hidden = false;
+    };
+
+    const showItems = (items) => {
+      if (!listEl || !loadingEl) return;
+      const html = items
+        .map((item) => {
+          const date = fmtDate(item.pubDate);
+          return `
+            <li class="reading__row">
+              <a class="reading__row-link" href="${esc(item.link)}" rel="noopener" target="_blank">
+                <div class="reading__row-meta">
+                  <span class="reading__row-date">${esc(date)}</span>
+                  <span class="reading__row-source">${esc(item.source || "")}</span>
+                </div>
+                <h3 class="reading__row-title">${esc(item.title)}</h3>
+                <p class="reading__row-byline">${esc(item.reporter)}</p>
+              </a>
+            </li>
+          `;
+        })
+        .join("");
+      listEl.innerHTML = html;
+      loadingEl.hidden = true;
+      listEl.hidden = false;
+    };
+
+    // Refuse to fetch if the placeholder URL hasn't been updated yet.
+    // Surfaces the error state instead of hammering a nonexistent host.
+    if (!WORKER_URL || WORKER_URL.includes("PLACEHOLDER")) {
+      showError();
+    } else {
+      fetch(WORKER_URL, { method: "GET" })
+        .then((res) => {
+          if (!res.ok) throw new Error(`Worker returned ${res.status}`);
+          return res.json();
+        })
+        .then((data) => {
+          if (!data || !Array.isArray(data.items) || data.items.length === 0) {
+            showError();
+            return;
+          }
+          showItems(data.items);
+        })
+        .catch((_err) => {
+          showError();
+        });
+    }
+  </script>
 
   <style>
     /* ──────────────── Section panel grid (same as /overview/) ──────────────── */
@@ -574,6 +754,127 @@ const pageDesc =
       .ffcal__td--num {
         display: none;
       }
+    }
+
+    /* ──────────────── What we're reading (reporter bylines) ──────────────── */
+    .reading {
+      margin-top: 40px;
+      padding-bottom: 28px;
+    }
+    .reading__head { padding-bottom: 10px; }
+    .reading__eyebrow {
+      margin: 0;
+      padding-top: 16px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+      line-height: 1.4;
+    }
+    .reading__fig { color: var(--ink); font-weight: 600; }
+    .reading__fig-n { color: var(--accent); font-weight: 800; margin-left: 0.2em; }
+    .reading__h {
+      margin: 6px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: 22px;
+      letter-spacing: -0.01em;
+      line-height: 1.05;
+      color: var(--ink);
+    }
+
+    .reading__body {
+      margin-top: 16px;
+      max-width: 920px;
+    }
+
+    .reading__loading,
+    .reading__error {
+      margin: 12px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--ink);
+      opacity: 0.6;
+    }
+
+    .reading__list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      border-top: 1px solid var(--ink);
+    }
+    .reading__row {
+      margin: 0;
+      padding: 0;
+      border-bottom: 1px solid rgba(0,0,0,0.12);
+    }
+    .reading__row-link {
+      display: block;
+      padding: 12px 0;
+      text-decoration: none;
+      color: var(--ink);
+      transition: background-color 0.12s ease;
+    }
+    .reading__row-link:hover {
+      background-color: rgba(0,0,0,0.025);
+    }
+    .reading__row-link:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+    .reading__row-meta {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 4px;
+      font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink);
+      opacity: 0.65;
+    }
+    .reading__row-date {
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .reading__row-source {
+      font-weight: 600;
+      letter-spacing: 0.18em;
+    }
+    .reading__row-title {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 16px;
+      line-height: 1.3;
+      color: var(--ink);
+    }
+    .reading__row-byline {
+      margin: 4px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--ink);
+      opacity: 0.6;
+    }
+
+    .reading__attribution {
+      max-width: 920px;
+      margin: 14px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1.4;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink);
+      opacity: 0.55;
     }
   </style>
 </BaseLayout>

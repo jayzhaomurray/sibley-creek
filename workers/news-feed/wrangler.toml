@@ -1,0 +1,23 @@
+# Cloudflare Worker — Sibley Creek reporter-byline news feed.
+#
+# Deploy:
+#   cd workers/news-feed
+#   npm install          # one-time
+#   npx wrangler login   # one-time, opens browser for Cloudflare auth
+#   npx wrangler deploy  # publishes the Worker
+#
+# After first deploy, your Worker URL is:
+#   https://sibley-news-feed.<your-cf-subdomain>.workers.dev
+# (your-cf-subdomain is whatever your Cloudflare account uses;
+#  wrangler prints the full URL after deploy.)
+#
+# Then edit src/pages/overview-ff.astro and set WORKER_URL to that URL.
+
+name = "sibley-news-feed"
+main = "src/index.js"
+compatibility_date = "2025-05-01"
+# Workers free plan handles 100k requests/day — covers Sibley far past
+# anything realistic. No paid features needed.
+
+# No KV / D1 / R2 bindings — we use the built-in edge Cache API for all
+# caching. Zero state beyond the default cache.
