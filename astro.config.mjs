@@ -47,7 +47,10 @@ export default defineConfig({
         // sitemap so search engines don't discover the URL via /sitemap.xml.
         !page.includes('/fiscal-team-review/') &&
         // /overview-with-fiscal/ is a similar noindex preview surface.
-        !page.includes('/overview-with-fiscal/'),
+        !page.includes('/overview-with-fiscal/') &&
+        // /overview-ff/ is an internal alt-overview with the Forex Factory
+        // calendar feed in place of the investing.com iframe. noindex.
+        !page.includes('/overview-ff/'),
       lastmod: new Date(),
     }),
   ],
