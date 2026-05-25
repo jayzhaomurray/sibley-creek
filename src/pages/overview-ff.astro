@@ -19,10 +19,10 @@
  * fall back to the cached copy regardless of age — better to render
  * yesterday's calendar than the empty state.
  *
- * Filter: none — the full Forex Factory week is rendered, all countries
- * and all impact levels. Same scope FF shows on its own site, just in
- * Sibley type. We may later add per-currency / per-impact filter chips,
- * but the unfiltered view is the comparison baseline.
+ * Filter: Canadian (CAD) events only, all impact levels including
+ * holidays. Single-jurisdiction view drops the currency column entirely
+ * since every row has the same value — saves horizontal space and reads
+ * cleaner.
  */
 import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -65,6 +65,7 @@ type FFDayBucket = {
 const FF_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml";
 const FF_CACHE_PATH = resolve(process.cwd(), "data/derived/ff_calendar_cache.xml");
 const FF_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h
+const COUNTRIES_KEEP = new Set(["CAD"]);
 
 let ffBuckets: FFDayBucket[] = [];
 let ffFetchError: string | null = null;
@@ -161,16 +162,18 @@ try {
     ffFetchError = null;
     const eventBlocks = xml.match(/<event>[\s\S]*?<\/event>/g) ?? [];
 
-    const events: FFEvent[] = eventBlocks.map((block): FFEvent => ({
-      title: tagText(block, "title"),
-      country: tagText(block, "country"),
-      date: tagText(block, "date"),
-      time: tagText(block, "time"),
-      impact: tagText(block, "impact"),
-      forecast: tagText(block, "forecast"),
-      previous: tagText(block, "previous"),
-      url: tagText(block, "url"),
-    }));
+    const events: FFEvent[] = eventBlocks
+      .map((block): FFEvent => ({
+        title: tagText(block, "title"),
+        country: tagText(block, "country"),
+        date: tagText(block, "date"),
+        time: tagText(block, "time"),
+        impact: tagText(block, "impact"),
+        forecast: tagText(block, "forecast"),
+        previous: tagText(block, "previous"),
+        url: tagText(block, "url"),
+      }))
+      .filter((e) => COUNTRIES_KEEP.has(e.country));
 
     // Group by date.
     const byDate = new Map<string, FFEvent[]>();
@@ -193,8 +196,8 @@ try {
 }
 
 const pageDesc =
-  `Canadian macro overview for ${longDate}, with the full Forex Factory ` +
-  "week ahead. Internal alt to /overview/. Independent research.";
+  `Canadian macro overview for ${longDate}, with the Forex Factory ` +
+  "week ahead (Canada only). Internal alt to /overview/. Independent research.";
 ---
 <BaseLayout
   title={`Overview (FF alt) — ${site.name}`}
@@ -244,7 +247,7 @@ const pageDesc =
       {ffFetchError ? (
         <p class="ffcal__error">Calendar feed unavailable: {ffFetchError}</p>
       ) : ffBuckets.length === 0 ? (
-        <p class="ffcal__error">No events listed for this week.</p>
+        <p class="ffcal__error">No Canadian events listed for this week.</p>
       ) : (
         <div class="ffcal__body">
           {ffBuckets.map((bucket) => (
@@ -254,7 +257,6 @@ const pageDesc =
                 <thead>
                   <tr>
                     <th class="ffcal__th ffcal__th--time">Time</th>
-                    <th class="ffcal__th ffcal__th--cur">Cur.</th>
                     <th class="ffcal__th ffcal__th--imp">Imp.</th>
                     <th class="ffcal__th ffcal__th--event">Event</th>
                     <th class="ffcal__th ffcal__th--num">Forecast</th>
@@ -265,7 +267,6 @@ const pageDesc =
                   {bucket.events.map((ev) => (
                     <tr class={`ffcal__row ffcal__row--${(ev.impact || "low").toLowerCase()}`}>
                       <td class="ffcal__td ffcal__td--time">{ev.time || "—"}</td>
-                      <td class="ffcal__td ffcal__td--cur">{ev.country}</td>
                       <td class="ffcal__td ffcal__td--imp">
                         <span class={`ffcal__impact ffcal__impact--${(ev.impact || "low").toLowerCase()}`}>
                           {ev.impact || "—"}
