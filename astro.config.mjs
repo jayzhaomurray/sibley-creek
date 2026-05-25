@@ -41,7 +41,13 @@ export default defineConfig({
         !page.includes('/_experiments/') &&
         !page.includes('/og-preview/') &&
         !page.includes('/chart-alternatives/') &&
-        !page.includes('/chart-archive/'),
+        !page.includes('/chart-archive/') &&
+        // /fiscal-team-review/ is an internal-review draft reachable only by
+        // direct URL. noindex'd via SectionLayout.noindex=true. Excluded from
+        // sitemap so search engines don't discover the URL via /sitemap.xml.
+        !page.includes('/fiscal-team-review/') &&
+        // /overview-with-fiscal/ is a similar noindex preview surface.
+        !page.includes('/overview-with-fiscal/'),
       lastmod: new Date(),
     }),
   ],

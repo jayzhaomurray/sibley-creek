@@ -304,6 +304,13 @@ interface Props {
   description: string;
   canonical?: string;
   ogImage?: string;
+  /**
+   * When true, emits `<meta name="robots" content="noindex,nofollow" />`.
+   * Use for team-review / draft variants of a section page that should be
+   * reachable by direct URL but never indexed and never followed. Sitemap
+   * exclusion is configured separately in astro.config.mjs.
+   */
+  noindex?: boolean;
 }
 
 const {
@@ -318,6 +325,7 @@ const {
   description,
   canonical,
   ogImage,
+  noindex = false,
 } = Astro.props;
 
 // Build the plate-index entries consumed by SectionPageHeader.
@@ -376,8 +384,10 @@ const qaPageLd = JSON.stringify({
 >
   <Fragment slot="head">
     {/* QAPage structured data: maps the section's headline question + lede
-        onto schema.org Question/Answer for AEO indexing. */}
-    <script type="application/ld+json" set:html={qaPageLd} />
+        onto schema.org Question/Answer for AEO indexing. Skipped on noindex
+        pages — no point structuring data we don't want indexed. */}
+    {!noindex && <script type="application/ld+json" set:html={qaPageLd} />}
+    {noindex && <meta name="robots" content="noindex,nofollow" />}
   </Fragment>
 
   <article class="section-chartbook" data-section={slug}>

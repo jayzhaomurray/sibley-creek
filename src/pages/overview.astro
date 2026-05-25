@@ -26,11 +26,14 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import TitleStatement from "../components/home/TitleStatement.astro";
 import SectionPanel from "../components/home/SectionPanel.astro";
-import DeepDivePanel from "../components/home/DeepDivePanel.astro";
-import { deepDives, site } from "../data/sections";
+import { site } from "../data/sections";
 import { enrichedSections, type EnrichedSection } from "../data/site_data_loader";
 
 // Card order = enrichedSections order = canon order in sections.ts = nav order.
+// The Research / Working Papers cell has been removed from /overview/ —
+// research lives at /research/. The /fiscal/ cell stays in the grid but
+// renders an "in development" placeholder treatment until the chartbook
+// settles out of team review.
 const ordered: EnrichedSection[] = enrichedSections;
 
 // Title-statement date line. Always reflects today in Canadian editorial
@@ -61,13 +64,23 @@ const pageDesc =
       <h2 class="visually-hidden">Indicator panels</h2>
       {ordered.map((s, i) => (
         <div class="home__cell">
-          <SectionPanel section={s} figureNum={String(i + 1)} />
+          {s.slug === "fiscal" ? (
+            <a class="fiscal-soon" href="/fiscal/">
+              <p class="fiscal-soon__eyebrow">
+                <span class="fiscal-soon__fig">Figure</span>
+                <span class="fiscal-soon__fig-n">{String(i + 1)}.</span>
+              </p>
+              <h3 class="fiscal-soon__h">Fiscal</h3>
+              <p class="fiscal-soon__lede">
+                What is Canada's fiscal policy stance?
+              </p>
+              <p class="fiscal-soon__stamp">In development</p>
+            </a>
+          ) : (
+            <SectionPanel section={s} figureNum={String(i + 1)} />
+          )}
         </div>
       ))}
-      {/* 8th cell: working papers */}
-      <div class="home__cell">
-        <DeepDivePanel deepDives={deepDives} figureNum="8" />
-      </div>
     </section>
 
     <section class="cal" aria-labelledby="cal-h">
@@ -120,6 +133,75 @@ const pageDesc =
     }
     .home__cell > :global(*) {
       width: 100%;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Fiscal "in development" placeholder cell                            */
+    /* Renders in place of SectionPanel while the /fiscal/ chartbook is    */
+    /* in team review. Matches the section-panel outer dimensions so the   */
+    /* grid stays uniform; reads as restrained, not broken.                */
+    /* ------------------------------------------------------------------ */
+    .fiscal-soon {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding: 20px 22px 24px;
+      min-height: 260px;
+      text-decoration: none;
+      color: var(--ink);
+      transition: background-color 0.15s ease;
+    }
+    .fiscal-soon:hover {
+      background-color: rgba(0, 0, 0, 0.02);
+    }
+    .fiscal-soon:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+    .fiscal-soon__eyebrow {
+      margin: 0 0 12px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+      line-height: 1.4;
+    }
+    .fiscal-soon__fig {
+      color: var(--ink);
+      font-weight: 600;
+    }
+    .fiscal-soon__fig-n {
+      color: var(--accent);
+      font-weight: 800;
+      margin-left: 0.2em;
+    }
+    .fiscal-soon__h {
+      margin: 0 0 8px;
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: 22px;
+      letter-spacing: -0.01em;
+      line-height: 1.05;
+      color: var(--ink);
+    }
+    .fiscal-soon__lede {
+      margin: 0 0 auto;
+      font-family: var(--font-sans);
+      font-weight: 300;
+      font-size: 15px;
+      line-height: 1.4;
+      color: var(--ink);
+    }
+    .fiscal-soon__stamp {
+      margin: 28px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink-soft, #777);
     }
 
     /* a11y utility - visually hidden but available to screen readers */
