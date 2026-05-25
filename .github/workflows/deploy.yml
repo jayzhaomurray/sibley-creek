@@ -5,10 +5,20 @@ name: Deploy to GitHub Pages
 # workflow does NOT run the Python pipeline - it only builds the Astro
 # site against the cached payload. The data refresh runs separately in
 # build-financial-daily.yml / build-monthly.yml.
+#
+# Scheduled rebuild every 15 min refreshes the build-time fetches that
+# live in page frontmatter: the Forex Factory calendar on /overview/
+# and the "What we're reading" reporter byline feed (rss-parser against
+# Google News). GHA runner IPs aren't blocked by Google News, so the
+# fetch succeeds. Public-repo GHA minutes are unlimited, so 96 runs/day
+# is fine. Disk caches inside each fetch (FF 6h, news 15m) gate against
+# upstream rate limits.
 on:
   push:
     branches: [master, main]
   workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
 
 permissions:
   contents: read

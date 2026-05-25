@@ -257,6 +257,196 @@ const pageDesc =
   "inflation, labour, monetary, fiscal, housing, trade, markets — each with " +
   "an anchor chart and the latest prints, plus the Canadian week ahead and " +
   "a curated reporter byline feed. Independent research.";
+
+// ────────────────────────────────────────────────────────────────────────────
+// "What we're reading" — reporter-byline news feed.
+//
+// Build-time aggregation: rss-parser fetches Google News RSS for each
+// reporter (quoted-name query), then we merge, dedupe by URL, sort by
+// pubDate desc, take top 12. The render is fully server-side — no
+// client JS needed.
+//
+// Freshness comes from GitHub Actions cron firing `deploy.yml` every
+// 15 min, which re-runs this fetch. Each cron-triggered build hits
+// Google News from a fresh GHA runner (no disk cache across runs).
+//
+// Local dev keeps a disk cache at `data/derived/news_feed_cache.json`
+// with a 15-min TTL so rapid `npm run build` iterations don't hammer
+// Google News from a single residential IP. On fetch failure (any
+// reason), fall back to the cached copy regardless of age.
+//
+// Why Google News rather than per-outlet author RSS: most of these
+// outlets (Globe, Bloomberg, WSJ, Reuters) don't publish per-byline
+// RSS. Google News quoted-name search covers all of them.
+import Parser from "rss-parser";
+
+const REPORTERS = [
+  "Laura Dhillon Kane",
+  "Erik Hertzberg",
+  "Nojoud Al Mallees",
+  "Brian Platt",
+  "Derek Decloet",
+  "Paul Vieira",
+  "Robb Stewart",
+  "Promit Mukherjee",
+  "David Ljunggren",
+  "Matt Lundy",
+  "Mark Rendell",
+  "Fergal Smith",
+  "Greg Quinn",
+  "Kevin Carmichael",
+  "Bill Curry",
+  "Andrew Coyne",
+];
+
+const NEWS_CACHE_PATH = resolve(process.cwd(), "data/derived/news_feed_cache.json");
+const NEWS_CACHE_TTL_MS = 15 * 60 * 1000; // 15 min
+const NEWS_TOP_N = 12;
+
+type NewsItem = {
+  title: string;
+  link: string;
+  pubDate: string;
+  source: string;
+  reporter: string;
+};
+
+const googleNewsUrl = (reporterName: string): string => {
+  const q = `"${reporterName}"`;
+  const params = new URLSearchParams({
+    q,
+    hl: "en-CA",
+    gl: "CA",
+    ceid: "CA:en",
+  });
+  return `https://news.google.com/rss/search?${params.toString()}`;
+};
+
+const newsParser = new Parser({
+  timeout: 8000,
+  headers: {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+      "(KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    Accept: "application/rss+xml, application/xml, text/xml, */*;q=0.1",
+    "Accept-Language": "en-CA,en;q=0.9",
+  },
+});
+
+const newsCacheAgeMs = (): number | null => {
+  if (!existsSync(NEWS_CACHE_PATH)) return null;
+  try { return Date.now() - statSync(NEWS_CACHE_PATH).mtimeMs; }
+  catch { return null; }
+};
+
+const readNewsCache = (): NewsItem[] | null => {
+  if (!existsSync(NEWS_CACHE_PATH)) return null;
+  try {
+    const raw = readFileSync(NEWS_CACHE_PATH, "utf-8");
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed?.items) ? parsed.items : null;
+  } catch { return null; }
+};
+
+const writeNewsCache = (items: NewsItem[]): void => {
+  try {
+    mkdirSync(dirname(NEWS_CACHE_PATH), { recursive: true });
+    writeFileSync(
+      NEWS_CACHE_PATH,
+      JSON.stringify({ generatedAt: new Date().toISOString(), items }, null, 2),
+      "utf-8",
+    );
+  } catch { /* best-effort */ }
+};
+
+let newsItems: NewsItem[] = [];
+let newsFromCache = false;
+
+const newsAge = newsCacheAgeMs();
+if (newsAge !== null && newsAge < NEWS_CACHE_TTL_MS) {
+  const cached = readNewsCache();
+  if (cached && cached.length > 0) {
+    newsItems = cached;
+    newsFromCache = true;
+  }
+}
+
+if (newsItems.length === 0) {
+  try {
+    const settled = await Promise.allSettled(
+      REPORTERS.map(async (reporter) => {
+        const feed = await newsParser.parseURL(googleNewsUrl(reporter));
+        return (feed.items ?? []).map((item): NewsItem => ({
+          title: item.title ?? "",
+          link: item.link ?? "",
+          pubDate: item.pubDate ?? "",
+          // rss-parser exposes <source> via item.source.url + item.source._
+          // (text). Google News uses <source>Outlet Name</source>.
+          source: ((item as any).source?._
+            ?? (item as any).source
+            ?? "") as string,
+          reporter,
+        }));
+      }),
+    );
+
+    const all: NewsItem[] = settled.flatMap((s) =>
+      s.status === "fulfilled" ? s.value : [],
+    );
+
+    // Dedupe by URL.
+    const seen = new Set<string>();
+    const deduped: NewsItem[] = [];
+    for (const item of all) {
+      if (!item.link || seen.has(item.link)) continue;
+      seen.add(item.link);
+      deduped.push(item);
+    }
+
+    // Sort newest first.
+    deduped.sort((a, b) => {
+      const at = Date.parse(a.pubDate) || 0;
+      const bt = Date.parse(b.pubDate) || 0;
+      return bt - at;
+    });
+
+    newsItems = deduped.slice(0, NEWS_TOP_N);
+
+    if (newsItems.length > 0) {
+      writeNewsCache(newsItems);
+    } else {
+      // Empty live fetch — fall back to stale cache if available.
+      const stale = readNewsCache();
+      if (stale && stale.length > 0) {
+        newsItems = stale;
+        newsFromCache = true;
+      }
+    }
+  } catch (_err) {
+    const stale = readNewsCache();
+    if (stale && stale.length > 0) {
+      newsItems = stale;
+      newsFromCache = true;
+    }
+  }
+}
+
+// Format pubDate for render. Google News emits RFC 822
+// ("Sat, 23 May 2026 10:30:00 GMT") — convert to ET-localised label
+// like "May 23, 6:30 AM".
+const NEWS_LABEL_FMT = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Toronto",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+const fmtNewsDate = (raw: string): string => {
+  const t = Date.parse(raw);
+  if (Number.isNaN(t)) return "";
+  return NEWS_LABEL_FMT.format(new Date(t));
+};
 ---
 <BaseLayout
   title={`Overview — ${site.name}`}
@@ -354,11 +544,10 @@ const pageDesc =
     </section>
 
     {/* ──────────────── What we're reading (reporter byline feed) ────────────────
-         Aggregated live via a Cloudflare Worker that fetches Google News
-         RSS per curated reporter, dedupes by URL, returns top items as
-         JSON. The Worker URL is set in the inline script below — point
-         it at your deployed Worker once `cd workers/news-feed && wrangler
-         deploy` lands. See workers/news-feed/README.md. */}
+         Server-side rendered at build time. The fetch lives in this page's
+         frontmatter above; rss-parser pulls Google News RSS for each
+         reporter, merges/dedupes/sorts. GitHub Actions cron triggers a
+         redeploy every 15 min so the live site stays close to current. */}
     <section class="reading" aria-labelledby="reading-h">
       <header class="reading__head">
         <p class="reading__eyebrow">
@@ -368,117 +557,35 @@ const pageDesc =
         <h2 id="reading-h" class="reading__h">What we're reading</h2>
       </header>
 
-      <div class="reading__body" data-reading-root>
-        <p class="reading__loading" data-reading-loading>Loading bylines…</p>
-        <ol class="reading__list" role="list" data-reading-list hidden></ol>
-        <p class="reading__error" data-reading-error hidden>
-          Feed unavailable. Refresh to retry.
-        </p>
+      <div class="reading__body">
+        {newsItems.length === 0 ? (
+          <p class="reading__error">
+            Feed unavailable. Refresh on the next build.
+          </p>
+        ) : (
+          <ol class="reading__list" role="list">
+            {newsItems.map((item) => (
+              <li class="reading__row">
+                <a class="reading__row-link" href={item.link} rel="noopener" target="_blank">
+                  <div class="reading__row-meta">
+                    <span class="reading__row-date">{fmtNewsDate(item.pubDate)}</span>
+                    {item.source && <span class="reading__row-source">{item.source}</span>}
+                  </div>
+                  <h3 class="reading__row-title">{item.title}</h3>
+                  <p class="reading__row-byline">{item.reporter}</p>
+                </a>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
 
       <p class="reading__attribution">
         Bylines from a curated reporter list. Data via Google News RSS.
+        {newsFromCache && " (cached)"}
       </p>
     </section>
   </article>
-
-  <script is:inline>
-    // ──────────────── Reporter byline feed ────────────────
-    // Fetches from the Sibley news-feed Cloudflare Worker on page load.
-    // The Worker handles all RSS fetching + caching + dedupe server-side;
-    // this client just renders the JSON response.
-    //
-    // Deployed Worker URL. Sources, caching, parsing all live in
-    // workers/news-feed/src/index.js. Re-deploy after editing the
-    // reporter list with `cd workers/news-feed && npx wrangler deploy`.
-    const WORKER_URL = "https://sibley-news-feed.sibleycreek.workers.dev";
-
-    const root = document.querySelector("[data-reading-root]");
-    const loadingEl = root?.querySelector("[data-reading-loading]");
-    const listEl = root?.querySelector("[data-reading-list]");
-    const errorEl = root?.querySelector("[data-reading-error]");
-
-    // Hand-rolled date formatter (avoids timezone drift; emits e.g.
-    // "May 24, 8:42 AM"). Uses America/Toronto since that's the
-    // publication's home timezone.
-    const TIME_FMT = new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/Toronto",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-    const fmtDate = (iso) => {
-      const d = new Date(iso);
-      if (Number.isNaN(d.getTime())) return "";
-      return TIME_FMT.format(d);
-    };
-
-    // Escape HTML entities to defend against any RSS payload that
-    // sneaks markup into a title.
-    const esc = (s) => {
-      if (typeof s !== "string") return "";
-      return s
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    };
-
-    const showError = () => {
-      if (loadingEl) loadingEl.hidden = true;
-      if (listEl) listEl.hidden = true;
-      if (errorEl) errorEl.hidden = false;
-    };
-
-    const showItems = (items) => {
-      if (!listEl || !loadingEl) return;
-      const html = items
-        .map((item) => {
-          const date = fmtDate(item.pubDate);
-          return `
-            <li class="reading__row">
-              <a class="reading__row-link" href="${esc(item.link)}" rel="noopener" target="_blank">
-                <div class="reading__row-meta">
-                  <span class="reading__row-date">${esc(date)}</span>
-                  <span class="reading__row-source">${esc(item.source || "")}</span>
-                </div>
-                <h3 class="reading__row-title">${esc(item.title)}</h3>
-                <p class="reading__row-byline">${esc(item.reporter)}</p>
-              </a>
-            </li>
-          `;
-        })
-        .join("");
-      listEl.innerHTML = html;
-      loadingEl.hidden = true;
-      listEl.hidden = false;
-    };
-
-    // Refuse to fetch if the placeholder URL hasn't been updated yet.
-    // Surfaces the error state instead of hammering a nonexistent host.
-    if (!WORKER_URL || WORKER_URL.includes("PLACEHOLDER")) {
-      showError();
-    } else {
-      fetch(WORKER_URL, { method: "GET" })
-        .then((res) => {
-          if (!res.ok) throw new Error(`Worker returned ${res.status}`);
-          return res.json();
-        })
-        .then((data) => {
-          if (!data || !Array.isArray(data.items) || data.items.length === 0) {
-            showError();
-            return;
-          }
-          showItems(data.items);
-        })
-        .catch((_err) => {
-          showError();
-        });
-    }
-  </script>
 
   <style>
     /* ──────────────── Section panel grid (same as /overview/) ──────────────── */
