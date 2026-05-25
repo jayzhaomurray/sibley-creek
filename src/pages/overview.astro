@@ -280,36 +280,51 @@ const pageDesc =
 // RSS. Google News quoted-name search covers all of them.
 import Parser from "rss-parser";
 
-// Per-reporter feed sources. Where the outlet publishes a per-author
-// RSS feed AND the reporter is still active there, we hit it directly
-// (cleaner, faster, more accurate timestamps). Otherwise we fall back
-// to Google News quoted-name search.
+// Per-reporter feed sources. Three modes per reporter:
+//   1. `rssUrl` set → fetch the outlet's per-author RSS directly
+//      (Bloomberg .rss is the only outlet exposing this for our list)
+//   2. `searchQuery` set → use this exact Google News query. For
+//      reporters at outlets that paywall / bot-block direct access
+//      (WSJ, Reuters, Globe), constraining the query with the outlet
+//      name (e.g. `"Paul Vieira" "Wall Street Journal"`) drastically
+//      improves both volume and signal — Google News indexes WSJ
+//      headlines even though direct WSJ access is paywalled.
+//   3. neither → default Google News query is `"Name"` (quoted)
 //
 // Bloomberg .rss verified 2026-05-25 via researcher (see
 // research/reporter_rss_urls.md). Greg Quinn left Bloomberg for MNI
 // Market News (subscription wire, no public RSS) — stays on Google
-// News. Globe / Reuters / WSJ don't expose per-author RSS or are
-// hard-blocked to programmatic fetches; Google News is the only path
-// for those reporters too.
-type ReporterFeed = { name: string; rssUrl?: string; sourceLabel?: string };
+// News with no outlet constraint since MNI isn't well-indexed.
+type ReporterFeed = {
+  name: string;
+  rssUrl?: string;
+  searchQuery?: string;
+  sourceLabel?: string;
+};
 
 const REPORTER_FEEDS: ReporterFeed[] = [
+  // Bloomberg — direct per-author RSS
   { name: "Laura Dhillon Kane", rssUrl: "https://www.bloomberg.com/authors/AWTYgfjBi9I/laura-dhillon-kane.rss", sourceLabel: "BLOOMBERG" },
   { name: "Erik Hertzberg",     rssUrl: "https://www.bloomberg.com/authors/ASMz3hGbX_o/erik-hertzberg.rss",     sourceLabel: "BLOOMBERG" },
   { name: "Nojoud Al Mallees",  rssUrl: "https://www.bloomberg.com/authors/AXv522UYITE/nojoud-al-mallees.rss",  sourceLabel: "BLOOMBERG" },
   { name: "Brian Platt",        rssUrl: "https://www.bloomberg.com/authors/AVhsUwCy8eU/brian-platt.rss",        sourceLabel: "BLOOMBERG" },
   { name: "Derek Decloet",      rssUrl: "https://www.bloomberg.com/authors/AUgcl3vfSXE/derek-decloet.rss",      sourceLabel: "BLOOMBERG" },
-  { name: "Paul Vieira" },          // WSJ — no public author RSS; bot-blocked
-  { name: "Robb Stewart" },         // WSJ / Dow Jones — same
-  { name: "Promit Mukherjee" },     // Reuters — DataDome blocked
-  { name: "David Ljunggren" },      // Reuters — DataDome blocked
-  { name: "Matt Lundy" },           // Globe and Mail — no per-author RSS exposed
-  { name: "Mark Rendell" },         // Globe and Mail — same
-  { name: "Fergal Smith" },         // Reuters — DataDome blocked
-  { name: "Greg Quinn" },           // MNI Market News (moved from Bloomberg); no public RSS
-  { name: "Kevin Carmichael" },     // The Logic — WordPress feed endpoint misconfigured
-  { name: "Bill Curry" },           // Globe and Mail — same
-  { name: "Andrew Coyne" },         // Globe and Mail — same
+  // WSJ — Google News with outlet constraint (direct WSJ access is paywalled / bot-blocked)
+  { name: "Paul Vieira",        searchQuery: '"Paul Vieira" "Wall Street Journal"' },
+  { name: "Robb Stewart",       searchQuery: '"Robb Stewart" "Wall Street Journal"' },
+  // Reuters — Google News with outlet constraint (Reuters site is DataDome-blocked)
+  { name: "Promit Mukherjee",   searchQuery: '"Promit Mukherjee" Reuters' },
+  { name: "David Ljunggren",    searchQuery: '"David Ljunggren" Reuters' },
+  { name: "Fergal Smith",       searchQuery: '"Fergal Smith" Reuters' },
+  // Globe and Mail — Google News with outlet constraint (no per-author RSS exposed)
+  { name: "Matt Lundy",         searchQuery: '"Matt Lundy" "Globe and Mail"' },
+  { name: "Mark Rendell",       searchQuery: '"Mark Rendell" "Globe and Mail"' },
+  { name: "Bill Curry",         searchQuery: '"Bill Curry" "Globe and Mail"' },
+  { name: "Andrew Coyne",       searchQuery: '"Andrew Coyne" "Globe and Mail"' },
+  // The Logic — Google News with outlet constraint
+  { name: "Kevin Carmichael",   searchQuery: '"Kevin Carmichael" "The Logic"' },
+  // MNI Market News — no outlet constraint (poorly indexed, plain query works better)
+  { name: "Greg Quinn" },
 ];
 
 // Outlet allowlist — substring match (lowercased) against the source
@@ -410,10 +425,9 @@ type NewsItem = {
   reporter: string;
 };
 
-const googleNewsUrl = (reporterName: string): string => {
-  const q = `"${reporterName}"`;
+const googleNewsUrl = (query: string): string => {
   const params = new URLSearchParams({
-    q,
+    q: query,
     hl: "en-CA",
     gl: "CA",
     ceid: "CA:en",
@@ -473,7 +487,7 @@ if (newsAge !== null && newsAge < NEWS_CACHE_TTL_MS) {
 if (newsItems.length === 0) {
   try {
     const settled = await Promise.allSettled(
-      REPORTER_FEEDS.map(async ({ name, rssUrl, sourceLabel }) => {
+      REPORTER_FEEDS.map(async ({ name, rssUrl, searchQuery, sourceLabel }) => {
         // Direct outlet RSS: feed's source is the outlet itself
         // (Bloomberg). Item title is the clean headline; no need to
         // split off a trailing "- Outlet" suffix.
@@ -487,9 +501,12 @@ if (newsItems.length === 0) {
             reporter: name,
           }));
         }
-        // Fallback: Google News quoted-name search. Source is appended
-        // to each item title — splitTitleAndSource() extracts it.
-        const feed = await newsParser.parseURL(googleNewsUrl(name));
+        // Fallback: Google News search. searchQuery overrides the
+        // default quoted-name format with an outlet-constrained query
+        // for WSJ / Reuters / Globe / Logic reporters — drastically
+        // tightens signal versus a bare quoted name.
+        const query = searchQuery ?? `"${name}"`;
+        const feed = await newsParser.parseURL(googleNewsUrl(query));
         return (feed.items ?? []).map((item): NewsItem => {
           const { title, source } = splitTitleAndSource(item.title ?? "");
           return {
@@ -517,14 +534,43 @@ if (newsItems.length === 0) {
       deduped.push(item);
     }
 
-    // Sort newest first.
+    // Sort all dedupes by pubDate desc — basis for both per-outlet
+    // selection and recency fill.
     deduped.sort((a, b) => {
       const at = Date.parse(a.pubDate) || 0;
       const bt = Date.parse(b.pubDate) || 0;
       return bt - at;
     });
 
-    newsItems = deduped.slice(0, NEWS_TOP_N);
+    // Per-outlet minimum: guarantee at least 1 item per outlet that
+    // appears in the curated reporter list, otherwise busy outlets
+    // (Bloomberg with 5 reporters) crowd out quieter ones (WSJ, MNI).
+    // The pick is the newest item from each outlet; the rest of the
+    // feed fills with the most-recent unreserved items.
+    const reservedByOutlet = new Map<string, NewsItem>();
+    for (const item of deduped) {
+      const outlet = normalizeSource(item.source);
+      if (!outlet) continue;
+      if (!reservedByOutlet.has(outlet)) {
+        reservedByOutlet.set(outlet, item);
+      }
+    }
+    const reservedSet = new Set(reservedByOutlet.values());
+    const fillItems = deduped.filter((i) => !reservedSet.has(i));
+
+    const reservedItems = Array.from(reservedByOutlet.values());
+    const combined = [
+      ...reservedItems,
+      ...fillItems.slice(0, Math.max(0, NEWS_TOP_N - reservedItems.length)),
+    ];
+    // Final sort by date for display order.
+    combined.sort((a, b) => {
+      const at = Date.parse(a.pubDate) || 0;
+      const bt = Date.parse(b.pubDate) || 0;
+      return bt - at;
+    });
+
+    newsItems = combined.slice(0, NEWS_TOP_N);
 
     if (newsItems.length > 0) {
       writeNewsCache(newsItems);
