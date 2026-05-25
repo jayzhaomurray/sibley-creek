@@ -309,7 +309,15 @@ const pageDesc =
        * resulting offset broke Vignelli left-edge orthogonality. The
        * iframe + attribution now share the section header's left edge. */
       margin: 20px 0 0;
-      height: clamp(520px, 64vh, 640px);
+      /* Height tuned to fit the widget's rendered content tightly rather
+       * than reserve space for the busiest possible week. Investing.com's
+       * widget renders ~30px per event row + ~80px legend + ~80px chrome
+       * (header + filter band). A typical Canada-only "This week" view
+       * shows 4-8 events; 440-520px keeps the bottom of the legend close
+       * to the iframe edge instead of leaving a yawning gap above the
+       * "Real Time Economic Calendar provided by..." attribution. Busy
+       * weeks scroll inside the iframe — acceptable trade. */
+      height: clamp(440px, 52vh, 540px);
       border: 0;
     }
 
