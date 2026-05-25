@@ -280,23 +280,36 @@ const pageDesc =
 // RSS. Google News quoted-name search covers all of them.
 import Parser from "rss-parser";
 
-const REPORTERS = [
-  "Laura Dhillon Kane",
-  "Erik Hertzberg",
-  "Nojoud Al Mallees",
-  "Brian Platt",
-  "Derek Decloet",
-  "Paul Vieira",
-  "Robb Stewart",
-  "Promit Mukherjee",
-  "David Ljunggren",
-  "Matt Lundy",
-  "Mark Rendell",
-  "Fergal Smith",
-  "Greg Quinn",
-  "Kevin Carmichael",
-  "Bill Curry",
-  "Andrew Coyne",
+// Per-reporter feed sources. Where the outlet publishes a per-author
+// RSS feed AND the reporter is still active there, we hit it directly
+// (cleaner, faster, more accurate timestamps). Otherwise we fall back
+// to Google News quoted-name search.
+//
+// Bloomberg .rss verified 2026-05-25 via researcher (see
+// research/reporter_rss_urls.md). Greg Quinn left Bloomberg for MNI
+// Market News (subscription wire, no public RSS) — stays on Google
+// News. Globe / Reuters / WSJ don't expose per-author RSS or are
+// hard-blocked to programmatic fetches; Google News is the only path
+// for those reporters too.
+type ReporterFeed = { name: string; rssUrl?: string; sourceLabel?: string };
+
+const REPORTER_FEEDS: ReporterFeed[] = [
+  { name: "Laura Dhillon Kane", rssUrl: "https://www.bloomberg.com/authors/AWTYgfjBi9I/laura-dhillon-kane.rss", sourceLabel: "BLOOMBERG" },
+  { name: "Erik Hertzberg",     rssUrl: "https://www.bloomberg.com/authors/ASMz3hGbX_o/erik-hertzberg.rss",     sourceLabel: "BLOOMBERG" },
+  { name: "Nojoud Al Mallees",  rssUrl: "https://www.bloomberg.com/authors/AXv522UYITE/nojoud-al-mallees.rss",  sourceLabel: "BLOOMBERG" },
+  { name: "Brian Platt",        rssUrl: "https://www.bloomberg.com/authors/AVhsUwCy8eU/brian-platt.rss",        sourceLabel: "BLOOMBERG" },
+  { name: "Derek Decloet",      rssUrl: "https://www.bloomberg.com/authors/AUgcl3vfSXE/derek-decloet.rss",      sourceLabel: "BLOOMBERG" },
+  { name: "Paul Vieira" },          // WSJ — no public author RSS; bot-blocked
+  { name: "Robb Stewart" },         // WSJ / Dow Jones — same
+  { name: "Promit Mukherjee" },     // Reuters — DataDome blocked
+  { name: "David Ljunggren" },      // Reuters — DataDome blocked
+  { name: "Matt Lundy" },           // Globe and Mail — no per-author RSS exposed
+  { name: "Mark Rendell" },         // Globe and Mail — same
+  { name: "Fergal Smith" },         // Reuters — DataDome blocked
+  { name: "Greg Quinn" },           // MNI Market News (moved from Bloomberg); no public RSS
+  { name: "Kevin Carmichael" },     // The Logic — WordPress feed endpoint misconfigured
+  { name: "Bill Curry" },           // Globe and Mail — same
+  { name: "Andrew Coyne" },         // Globe and Mail — same
 ];
 
 // Outlet allowlist — substring match (lowercased) against the source
@@ -460,8 +473,23 @@ if (newsAge !== null && newsAge < NEWS_CACHE_TTL_MS) {
 if (newsItems.length === 0) {
   try {
     const settled = await Promise.allSettled(
-      REPORTERS.map(async (reporter) => {
-        const feed = await newsParser.parseURL(googleNewsUrl(reporter));
+      REPORTER_FEEDS.map(async ({ name, rssUrl, sourceLabel }) => {
+        // Direct outlet RSS: feed's source is the outlet itself
+        // (Bloomberg). Item title is the clean headline; no need to
+        // split off a trailing "- Outlet" suffix.
+        if (rssUrl) {
+          const feed = await newsParser.parseURL(rssUrl);
+          return (feed.items ?? []).map((item): NewsItem => ({
+            title: (item.title ?? "").trim(),
+            link: item.link ?? "",
+            pubDate: item.pubDate ?? item.isoDate ?? "",
+            source: sourceLabel ?? "",
+            reporter: name,
+          }));
+        }
+        // Fallback: Google News quoted-name search. Source is appended
+        // to each item title — splitTitleAndSource() extracts it.
+        const feed = await newsParser.parseURL(googleNewsUrl(name));
         return (feed.items ?? []).map((item): NewsItem => {
           const { title, source } = splitTitleAndSource(item.title ?? "");
           return {
@@ -469,7 +497,7 @@ if (newsItems.length === 0) {
             link: item.link ?? "",
             pubDate: item.pubDate ?? "",
             source,
-            reporter,
+            reporter: name,
           };
         });
       }),
@@ -517,16 +545,16 @@ if (newsItems.length === 0) {
   }
 }
 
-// Format pubDate for render. Google News emits RFC 822
-// ("Sat, 23 May 2026 10:30:00 GMT") — convert to ET-localised label
-// like "May 23, 6:30 AM".
+// Format pubDate for render. Date only — Google News reports pubDate
+// as the indexing time rather than the original publication time, so
+// time-of-day is unreliable across most of our sources. Showing only
+// the date keeps the imprecision invisible. Bloomberg direct RSS does
+// have accurate times but we display uniformly to keep the row
+// consistent across mixed sources.
 const NEWS_LABEL_FMT = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Toronto",
   month: "short",
   day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  hour12: true,
 });
 const fmtNewsDate = (raw: string): string => {
   const t = Date.parse(raw);
@@ -1012,13 +1040,13 @@ const fmtNewsDate = (raw: string): string => {
     }
     /* Bloomberg-terminal-style one-line layout. Each column has
      * overflow control so nothing spills into its neighbour:
-     *   [date 130px] [source 110px] [headline flex]
-     * Date column width fits "May 21, 10:25 PM" in Plex Mono 11px
-     * with breathing room. Source column fits "FINANCIAL POST"
-     * (longest abbreviated label) in Manrope 600 10px 0.14em. */
+     *   [date 70px] [source 110px] [headline flex]
+     * Date is now month + day only (e.g. "May 23") so the column
+     * shrinks. Source column fits "FINANCIAL POST" (longest
+     * abbreviated label) in Manrope 600 10px 0.14em. */
     .reading__row-link {
       display: grid;
-      grid-template-columns: 130px 110px minmax(0, 1fr);
+      grid-template-columns: 70px 110px minmax(0, 1fr);
       align-items: baseline;
       column-gap: 16px;
       padding: 7px 0;
