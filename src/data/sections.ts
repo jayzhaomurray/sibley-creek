@@ -503,7 +503,7 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 29, 2026",
       body:
-        "Idle. The Bank of Canada has held at 2.25% for four straight decisions — the floor of its stated 2.25 to 3.25% neutral range. The next move belongs to fiscal, and the bar is a clearer break in activity.",
+        "On hold. The Bank of Canada has stayed at 2.25% through four straight decisions, sitting at the floor of its 2.25 to 3.25% neutral range. Activity is softening at the same time the Iran-war oil shock is feeding energy inflation. The call hinges on persistence — how long the Strait of Hormuz stays closed, and whether the shock seeps into expectations.",
     },
     abstractCitations: [
       { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, Apr 29 2026 FAD decision, via Valet V39079." },
