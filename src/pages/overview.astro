@@ -300,12 +300,25 @@ type ReporterFeed = {
   rssUrl?: string;
   searchQuery?: string;
   sourceLabel?: string;
-  // Optional title-must-match regex. For columnists whose Google News
-  // quoted-name query sometimes returns articles that *mention* them
-  // rather than written by them (e.g. a news piece quoting Andrew
-  // Coyne in body), require the title to match a column-style marker.
+  // Optional title-must-match regex. For columnists or wire reporters
+  // whose Google News query returns articles that *mention* them but
+  // aren't their bylines OR for wire reporters whose bylines appear
+  // on non-beat stories (e.g. Reuters reporters credited on Cuba /
+  // Iran / UFO wires alongside Canadian macro work), require the
+  // title to pass a topic gate.
   titleMustMatch?: RegExp;
+  // Override the source attribution for all items from this reporter.
+  // Necessary for Reuters reporters whose articles appear via MSN /
+  // TradingView syndication — the host is MSN but the byline is
+  // Reuters wire. Outlet reservation groups on the override label.
+  primaryOutlet?: string;
 };
+
+// Canada-topic gate for Reuters wire reporters. Reuters Canada
+// correspondents get credited on multi-byline wire stories that
+// often aren't Canadian (Rubio / Iran / UFO files / etc.). This
+// regex drops anything without a Canada anchor in the title.
+const REUTERS_CANADA_FILTER = /canad|loonie|TSX|BoC|Carney|StatCan|Ottawa|Champagne|Macklem|Bank of Canada/i;
 
 const REPORTER_FEEDS: ReporterFeed[] = [
   // Bloomberg — direct per-author RSS (clean attribution by construction)
@@ -317,10 +330,15 @@ const REPORTER_FEEDS: ReporterFeed[] = [
   // WSJ — Google News with outlet constraint (direct WSJ access is paywalled / bot-blocked)
   { name: "Paul Vieira",        searchQuery: '"Paul Vieira" "Wall Street Journal"' },
   { name: "Robb Stewart",       searchQuery: '"Robb Stewart" "Wall Street Journal"' },
-  // Reuters — Google News with outlet constraint
-  { name: "Promit Mukherjee",   searchQuery: '"Promit Mukherjee" Reuters' },
-  { name: "David Ljunggren",    searchQuery: '"David Ljunggren" Reuters' },
-  { name: "Fergal Smith",       searchQuery: '"Fergal Smith" Reuters' },
+  // Reuters — broaden the site filter to include MSN + TradingView
+  // syndication. The plain "<Name>" Reuters query misses multi-byline
+  // wire stories (AI-Workers, BoC-Patient, Inflation-2.8% verified
+  // 2026-05-25) — those appear under MSN / TradingView. Then a Canada-
+  // topic title filter drops non-Canadian wires (Rubio / Cuba / UFO).
+  // primaryOutlet forces display = REUTERS regardless of host.
+  { name: "Promit Mukherjee",   searchQuery: '"Promit Mukherjee" (site:reuters.com OR site:msn.com OR site:tradingview.com)', titleMustMatch: REUTERS_CANADA_FILTER, primaryOutlet: "REUTERS" },
+  { name: "David Ljunggren",    searchQuery: '"David Ljunggren" (site:reuters.com OR site:msn.com OR site:tradingview.com)',  titleMustMatch: REUTERS_CANADA_FILTER, primaryOutlet: "REUTERS" },
+  { name: "Fergal Smith",       searchQuery: '"Fergal Smith" (site:reuters.com OR site:msn.com OR site:tradingview.com)',     titleMustMatch: REUTERS_CANADA_FILTER, primaryOutlet: "REUTERS" },
   // Globe and Mail — Google News with outlet constraint
   { name: "Matt Lundy",         searchQuery: '"Matt Lundy" "Globe and Mail"' },
   { name: "Mark Rendell",       searchQuery: '"Mark Rendell" "Globe and Mail"' },
@@ -328,8 +346,9 @@ const REPORTER_FEEDS: ReporterFeed[] = [
   // Coyne is a Globe Opinion columnist — his legit pieces start with
   // "Opinion:" or contain "Coyne" in the headline. Without this filter,
   // unrelated Globe news pieces that quote him in body get attributed
-  // to him (false positive).
-  { name: "Andrew Coyne",       searchQuery: '"Andrew Coyne" "Globe and Mail"', titleMustMatch: /\b(Opinion:|Coyne)\b/i },
+  // to him (false positive). NOTE: avoid \b anchors next to ":" — the
+  // colon is non-word so \b after "Opinion:" never matches.
+  { name: "Andrew Coyne",       searchQuery: '"Andrew Coyne" "Globe and Mail"', titleMustMatch: /Opinion:|Coyne/i },
   // The Logic — Carmichael's columns use "Carmichael:" prefix consistently
   { name: "Kevin Carmichael",   searchQuery: '"Kevin Carmichael" "The Logic"', titleMustMatch: /Carmichael/i },
   // MNI Market News — Greg Quinn's MNI bylines aren't headline-indexable
@@ -429,6 +448,14 @@ const splitTitleAndSource = (rawTitle: string): { title: string; source: string 
 const NEWS_CACHE_PATH = resolve(process.cwd(), "data/derived/news_feed_cache.json");
 const NEWS_CACHE_TTL_MS = 15 * 60 * 1000; // 15 min
 const NEWS_TOP_N = 12;
+// Freshness floor: drop items older than this from the feed before
+// any per-outlet reservation. If an outlet has nothing in the window,
+// no reservation — the feed shrinks rather than padding with stale
+// content. 14 days fits the macro publishing cadence (covers BoC
+// meeting cycles + monthly StatCan releases) without dragging in
+// month-old wires.
+const NEWS_MAX_AGE_DAYS = 14;
+const NEWS_MAX_AGE_MS = NEWS_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
 
 type NewsItem = {
   title: string;
@@ -500,7 +527,7 @@ if (newsAge !== null && newsAge < NEWS_CACHE_TTL_MS) {
 if (newsItems.length === 0) {
   try {
     const settled = await Promise.allSettled(
-      REPORTER_FEEDS.map(async ({ name, rssUrl, searchQuery, sourceLabel, titleMustMatch }) => {
+      REPORTER_FEEDS.map(async ({ name, rssUrl, searchQuery, sourceLabel, titleMustMatch, primaryOutlet }) => {
         // Direct outlet RSS: feed's source is the outlet itself.
         let items: NewsItem[];
         if (rssUrl) {
@@ -509,28 +536,30 @@ if (newsItems.length === 0) {
             title: (item.title ?? "").trim(),
             link: item.link ?? "",
             pubDate: item.pubDate ?? item.isoDate ?? "",
-            source: sourceLabel ?? "",
+            source: primaryOutlet ?? sourceLabel ?? "",
             reporter: name,
           }));
         } else {
-          // Fallback: Google News search. searchQuery overrides the
-          // default quoted-name format with an outlet-constrained query.
+          // Fallback: Google News search. primaryOutlet overrides the
+          // raw source from title-split — useful when the same byline
+          // appears across multiple hosts (Reuters wire syndicated to
+          // MSN / TradingView).
           const query = searchQuery ?? `"${name}"`;
           const feed = await newsParser.parseURL(googleNewsUrl(query));
           items = (feed.items ?? []).map((item): NewsItem => {
-            const { title, source } = splitTitleAndSource(item.title ?? "");
+            const { title, source: rawSource } = splitTitleAndSource(item.title ?? "");
             return {
               title,
               link: item.link ?? "",
               pubDate: item.pubDate ?? "",
-              source,
+              source: primaryOutlet ?? rawSource,
               reporter: name,
             };
           });
         }
-        // Per-reporter title filter (columnist byline marker check).
-        // Tightens false positives where Google News returns an article
-        // that mentions the reporter in body but wasn't written by them.
+        // Per-reporter title filter — drops false positives (columnist
+        // misattributions) and off-beat content (Reuters reporters
+        // credited on non-Canadian wires).
         if (titleMustMatch) {
           items = items.filter((it) => titleMustMatch.test(it.title));
         }
@@ -560,6 +589,15 @@ if (newsItems.length === 0) {
       return bt - at;
     });
 
+    // Freshness floor: drop items older than NEWS_MAX_AGE_DAYS. Applied
+    // before reservation so per-outlet minimums only count fresh items.
+    const nowMs = Date.now();
+    const fresh = deduped.filter((item) => {
+      const t = Date.parse(item.pubDate);
+      if (Number.isNaN(t)) return false;
+      return nowMs - t <= NEWS_MAX_AGE_MS;
+    });
+
     // Per-outlet minimum: guarantee at least N items per outlet, where
     // N varies by outlet. WSJ and Reuters get 2 each (lower publishing
     // cadence than Bloomberg, otherwise crowded out). Others default
@@ -573,7 +611,7 @@ if (newsItems.length === 0) {
     const DEFAULT_OUTLET_MIN = 1;
 
     const reservedByOutlet = new Map<string, NewsItem[]>();
-    for (const item of deduped) {
+    for (const item of fresh) {
       const outlet = normalizeSource(item.source);
       if (!outlet) continue;
       const min = OUTLET_MINIMUMS[outlet] ?? DEFAULT_OUTLET_MIN;
@@ -585,7 +623,7 @@ if (newsItems.length === 0) {
     }
     const reservedItems = Array.from(reservedByOutlet.values()).flat();
     const reservedSet = new Set(reservedItems);
-    const fillItems = deduped.filter((i) => !reservedSet.has(i));
+    const fillItems = fresh.filter((i) => !reservedSet.has(i));
 
     const combined = [
       ...reservedItems,
