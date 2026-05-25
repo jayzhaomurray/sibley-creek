@@ -522,7 +522,7 @@ export const sections: Section[] = [
     // Fiscal Monitor Feb 2026 (released ~Apr 24 2026) is the primary event.
     updatedAt: Date.UTC(2026, 3, 24, 8, 30),
     chartSeriesKey: "fiscal-ytd-balance",
-    heroKicker: "Fiscal Monitor Feb 2026",
+    heroKicker: "Fiscal Monitor Feb '26",
     heroKickerPrefix: "Fiscal Monitor",
     latestReleasePrefix: "Fiscal Monitor",
     tileLine:
@@ -555,11 +555,11 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 24, 2026",
       body:
-        "Fiscal is tracking the same cadence as recent years, not leaning against the cycle. The federal deficit is running at $25.5 billion through February — $6.3 billion wider than the same point last year. Debt service now absorbs over 10 cents of every revenue dollar, a ratio the PBO projects rising to 13 cents by 2030-31.",
+        "Fiscal is tracking the same cadence as recent years, not leaning against the cycle. The federal deficit is running at $25.5 billion through February — $6.2 billion wider than the same point last year. Debt service absorbs over 10 cents of every revenue dollar, a ratio the PBO projects rising to 13 cents by 2030-31 — shrinking the room for fiscal response to the next downturn.",
     },
     abstractCitations: [
       { phrase: "$25.5 billion through February", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "Federal YTD balance Apr-Feb 2025-26, -$25.5bn per Fiscal Monitor Feb 2026." },
-      { phrase: "$6.3 billion wider than the same point last year", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "FY26 YTD through Feb 2026: -$25.5bn vs FY25 YTD through Feb 2025: -$19.3bn; delta -$6.3bn." },
+      { phrase: "$6.2 billion wider than the same point last year", source: "card:dof_fiscal_monitor_feb_2025_ytd_anchor", note: "FY26 YTD through Feb 2026: -$25.5bn (Fiscal Monitor Feb 2026, Tier A). FY25 YTD through Feb 2025: -$19.3bn (Fiscal Monitor Feb 2025, Tier A). Subtraction on published one-decimal figures: $6.2bn wider." },
       { phrase: "10 cents of every revenue dollar", source: "card:dof_fiscal_monitor_debt_service_share", note: "StatCan CGFS Nov 21 2025: 10.3c per dollar. Source card plate-2.yaml Tier A." },
       { phrase: "13 cents by 2030-31", source: "card:pbo_interest_burden_forecast_2030", note: "PBO Main Estimates 2026-27 (May 7 2026): interest expense rises to 13.2% of revenues by 2030-31." },
     ],
