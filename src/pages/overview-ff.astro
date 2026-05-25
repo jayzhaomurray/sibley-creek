@@ -254,10 +254,17 @@ const pageDesc =
             <div class="ffcal__day">
               <h3 class="ffcal__day-h">{bucket.dateLabel}</h3>
               <table class="ffcal__table">
+                <colgroup>
+                  <col class="ffcal__col--time" />
+                  <col class="ffcal__col--imp" />
+                  <col class="ffcal__col--event" />
+                  <col class="ffcal__col--num" />
+                  <col class="ffcal__col--num" />
+                </colgroup>
                 <thead>
                   <tr>
                     <th class="ffcal__th ffcal__th--time">Time</th>
-                    <th class="ffcal__th ffcal__th--imp">Imp.</th>
+                    <th class="ffcal__th ffcal__th--imp">Importance</th>
                     <th class="ffcal__th ffcal__th--event">Event</th>
                     <th class="ffcal__th ffcal__th--num">Forecast</th>
                     <th class="ffcal__th ffcal__th--num">Previous</th>
@@ -441,11 +448,21 @@ const pageDesc =
     }
     .ffcal__table {
       width: 100%;
+      /* table-layout: fixed pins col widths to the <colgroup>, so every
+       * day's table renders identical column geometry regardless of the
+       * widest cell within that day. This is what makes the columns
+       * line up vertically across all date blocks. */
+      table-layout: fixed;
       border-collapse: collapse;
       font-family: var(--font-sans);
       font-size: 13px;
       line-height: 1.4;
     }
+    /* Fixed-pixel column widths shared across every day's table. */
+    .ffcal__col--time  { width: 90px; }
+    .ffcal__col--imp   { width: 130px; }
+    .ffcal__col--event { width: auto; }
+    .ffcal__col--num   { width: 110px; }
     .ffcal__th {
       padding: 8px 8px 6px;
       text-align: left;
@@ -484,27 +501,47 @@ const pageDesc =
       color: var(--ink);
     }
 
-    /* Impact chip — small text, no fill colour beyond ink/accent.
-     * High = filled accent square; Medium = hairline ink square;
-     * Low / Holiday = hollow grey square. */
+    /* Impact chip — three clearly distinct tiers.
+     *   HIGH    = filled accent red,  white text       (loudest)
+     *   MEDIUM  = filled ink (black), white text       (mid weight)
+     *   LOW     = hollow, grey hairline + grey text    (quietest)
+     *   HOLIDAY = same as LOW but italicised label hint */
     .ffcal__impact {
       display: inline-block;
-      padding: 2px 6px;
+      padding: 2px 8px;
+      min-width: 64px;
+      text-align: center;
       font-size: 10px;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
       font-weight: 600;
       border: 1px solid var(--ink);
       color: var(--ink);
+      box-sizing: border-box;
     }
     .ffcal__impact--high {
       background-color: var(--accent);
       color: #fff;
       border-color: var(--accent);
     }
-    .ffcal__impact--medium { background: transparent; }
-    .ffcal__impact--low { opacity: 0.5; }
-    .ffcal__impact--holiday { opacity: 0.5; }
+    .ffcal__impact--medium {
+      background-color: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
+    }
+    .ffcal__impact--low {
+      background-color: transparent;
+      color: var(--ink);
+      border-color: rgba(0,0,0,0.35);
+      opacity: 0.65;
+    }
+    .ffcal__impact--holiday {
+      background-color: transparent;
+      color: var(--ink);
+      border-color: rgba(0,0,0,0.35);
+      opacity: 0.65;
+      font-style: italic;
+    }
 
     .ffcal__attribution {
       max-width: 920px;
