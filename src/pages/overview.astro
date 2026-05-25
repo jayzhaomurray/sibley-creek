@@ -299,6 +299,44 @@ const REPORTERS = [
   "Andrew Coyne",
 ];
 
+// Outlet allowlist — substring match (lowercased) against the source
+// name Google News appends to each item's title. Items from outlets not
+// on this list are filtered out. Tightens noise from cross-matched
+// player names (Transfermarkt soccer), niche industry blogs, etc.
+const SOURCE_PATTERNS_KEEP = [
+  "globe and mail",
+  "bloomberg",          // also catches "BNN Bloomberg"
+  "reuters",
+  "wall street journal",
+  "wsj",
+  "financial post",
+  "canadian press",
+  "the logic",
+  "national post",
+  "cbc",
+  "toronto star",
+  "thestar",
+];
+
+const sourceAllowed = (sourceName: string): boolean => {
+  if (!sourceName) return false;
+  const lower = sourceName.toLowerCase();
+  return SOURCE_PATTERNS_KEEP.some((p) => lower.includes(p));
+};
+
+// Google News appends " - Outlet Name" to every title. Splitting on the
+// last " - " gives us a cleaned title plus the source name without
+// parsing extra XML or HTML.
+const splitTitleAndSource = (rawTitle: string): { title: string; source: string } => {
+  if (!rawTitle) return { title: "", source: "" };
+  const lastDash = rawTitle.lastIndexOf(" - ");
+  if (lastDash < 0) return { title: rawTitle, source: "" };
+  return {
+    title: rawTitle.slice(0, lastDash).trim(),
+    source: rawTitle.slice(lastDash + 3).trim(),
+  };
+};
+
 const NEWS_CACHE_PATH = resolve(process.cwd(), "data/derived/news_feed_cache.json");
 const NEWS_CACHE_TTL_MS = 15 * 60 * 1000; // 15 min
 const NEWS_TOP_N = 12;
@@ -376,23 +414,22 @@ if (newsItems.length === 0) {
     const settled = await Promise.allSettled(
       REPORTERS.map(async (reporter) => {
         const feed = await newsParser.parseURL(googleNewsUrl(reporter));
-        return (feed.items ?? []).map((item): NewsItem => ({
-          title: item.title ?? "",
-          link: item.link ?? "",
-          pubDate: item.pubDate ?? "",
-          // rss-parser exposes <source> via item.source.url + item.source._
-          // (text). Google News uses <source>Outlet Name</source>.
-          source: ((item as any).source?._
-            ?? (item as any).source
-            ?? "") as string,
-          reporter,
-        }));
+        return (feed.items ?? []).map((item): NewsItem => {
+          const { title, source } = splitTitleAndSource(item.title ?? "");
+          return {
+            title,
+            link: item.link ?? "",
+            pubDate: item.pubDate ?? "",
+            source,
+            reporter,
+          };
+        });
       }),
     );
 
-    const all: NewsItem[] = settled.flatMap((s) =>
-      s.status === "fulfilled" ? s.value : [],
-    );
+    const all: NewsItem[] = settled
+      .flatMap((s) => (s.status === "fulfilled" ? s.value : []))
+      .filter((item) => sourceAllowed(item.source));
 
     // Dedupe by URL.
     const seen = new Set<string>();
