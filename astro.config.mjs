@@ -48,9 +48,10 @@ export default defineConfig({
         !page.includes('/fiscal-team-review/') &&
         // /overview-with-fiscal/ is a similar noindex preview surface.
         !page.includes('/overview-with-fiscal/') &&
-        // /overview-ff/ is an internal alt-overview with the Forex Factory
-        // calendar feed in place of the investing.com iframe. noindex.
-        !page.includes('/overview-ff/'),
+        // /_archive/ holds superseded versions kept for reference (e.g.
+        // overview-investingcom.astro). Underscore-prefixed Astro paths
+        // aren't routed, but exclude defensively in case routing changes.
+        !page.includes('/_archive/'),
       lastmod: new Date(),
     }),
   ],

@@ -1,0 +1,367 @@
+---
+/*
+ * /overview — Canadian Macro Overview (the dashboard).
+ *
+ * 2026-05-20: Promoted from the previous splash. The marketing landing page
+ * (v3) now lives at `/`; the dashboard moves here so each surface does its
+ * own job — splash sells, overview shows the data.
+ *
+ * Every primary numeric flows from data/site/sections.json via
+ * src/data/site_data_loader.ts. Fields the pipeline does not yet produce
+ * render as explicit placeholders so the gaps are obvious:
+ *
+ *   - real numbers           -> from JSON
+ *   - missing numbers        -> "----" in mono mid-gray
+ *   - missing asOf stamps    -> "[ NOT WIRED ]" in mono micro-caps
+ *   - missing chart series   -> dashed-border empty box, "DATA NOT YET WIRED"
+ *   - missing editorial copy -> visible Latin lorem ipsum
+ *
+ * Layout:
+ *   1. Title Statement: eyebrow + headline + dateline + abstract +
+ *      3-cell headline-numbers stamp sourced from the pipeline.
+ *   2. Indicator panel grid: 2 x 4 hairline-bordered cells. Seven section
+ *      panels + an eighth "Working papers" cell.
+ */
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import TitleStatement from "../components/home/TitleStatement.astro";
+import SectionPanel from "../components/home/SectionPanel.astro";
+import { site } from "../data/sections";
+import { enrichedSections, type EnrichedSection } from "../data/site_data_loader";
+
+// Card order = enrichedSections order = canon order in sections.ts = nav order.
+// The Research / Working Papers cell has been removed from /overview/ —
+// research lives at /research/. The /fiscal/ cell stays in the grid but
+// renders an "in development" placeholder treatment until the chartbook
+// settles out of team review.
+const ordered: EnrichedSection[] = enrichedSections;
+
+// Title-statement date line. Always reflects today in Canadian editorial
+// time (America/Toronto), NOT the build host's UTC.
+const today = new Date();
+const longDate = new Intl.DateTimeFormat("en-CA", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "America/Toronto",
+}).format(today);
+
+const pageDesc =
+  `Canadian macro overview for ${longDate}. Eight indicator domains — output, ` +
+  "inflation, labour, monetary, fiscal, housing, trade, markets — each with " +
+  "an anchor chart and the latest prints. Independent research.";
+---
+<BaseLayout
+  title={`Overview — ${site.name}`}
+  description={pageDesc}
+  pageClass="home-page"
+  showMastheadRail={true}
+>
+  <article class="home">
+    <TitleStatement dateLine={longDate} />
+
+    <section class="home__grid" aria-label="Indicator panels">
+      <h2 class="visually-hidden">Indicator panels</h2>
+      {ordered.map((s, i) => (
+        <div class="home__cell">
+          {s.slug === "fiscal" ? (
+            <a class="fiscal-soon" href="/fiscal/">
+              <p class="fiscal-soon__eyebrow">
+                <span class="fiscal-soon__fig">Figure</span>
+                <span class="fiscal-soon__fig-n">{String(i + 1)}.</span>
+              </p>
+              <h3 class="fiscal-soon__h">Fiscal</h3>
+              <p class="fiscal-soon__lede">
+                What is Canada's fiscal policy stance?
+              </p>
+              <p class="fiscal-soon__stamp">In development</p>
+            </a>
+          ) : (
+            <SectionPanel section={s} figureNum={String(i + 1)} />
+          )}
+        </div>
+      ))}
+    </section>
+
+    <section class="cal" aria-labelledby="cal-h">
+      <header class="cal__head">
+        <p class="cal__eyebrow">
+          <span class="cal__fig">Figure</span>
+          <span class="cal__fig-n">9.</span>
+        </p>
+        <h2 id="cal-h" class="cal__h">Week ahead</h2>
+      </header>
+      <iframe
+        class="cal__frame"
+        src="https://sslecal2.investing.com?ecoDayBackground=%23ffffff&defaultFont=%23000000&innerBorderColor=%23e6e6e6&borderColor=%23ffffff&ecoDayFontColor=%23000000&columns=exc_flags,exc_importance,exc_actual,exc_forecast,exc_previous&importance=3&features=datepicker,timezone,timeselector,filters&countries=6&calType=week&timeZone=8&lang=68"
+        title="Canada and US economic releases, this week, high importance only"
+        height="467"
+        frameborder="0"
+        allowtransparency="true"
+        marginwidth="0"
+        marginheight="0"
+      ></iframe>
+      <div class="cal__attribution">
+        Real Time Economic Calendar provided by
+        <a href="https://ca.Investing.com/" rel="nofollow" target="_blank">Investing.com Canada</a>.
+      </div>
+    </section>
+  </article>
+
+  <style>
+    .home__grid {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0;
+      /* Vignelli / Knoll catalogue: panels meet at shared 1px black
+       * hairlines. We collapse the gap and use the panel borders to form a
+       * continuous grid. */
+      border-top: 1px solid var(--ink);
+      border-left: 1px solid var(--ink);
+    }
+    @media (min-width: 760px) {
+      .home__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    .home__cell {
+      min-width: 0;
+      display: flex;
+      border-right: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+    }
+    .home__cell > :global(*) {
+      width: 100%;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Fiscal "in development" placeholder cell                            */
+    /* Renders in place of SectionPanel while the /fiscal/ chartbook is    */
+    /* in team review. Matches the section-panel outer dimensions so the   */
+    /* grid stays uniform; reads as restrained, not broken.                */
+    /* ------------------------------------------------------------------ */
+    .fiscal-soon {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding: 20px 22px 24px;
+      min-height: 260px;
+      text-decoration: none;
+      color: var(--ink);
+      transition: background-color 0.15s ease;
+    }
+    .fiscal-soon:hover {
+      background-color: rgba(0, 0, 0, 0.02);
+    }
+    .fiscal-soon:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+    .fiscal-soon__eyebrow {
+      margin: 0 0 12px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+      line-height: 1.4;
+    }
+    .fiscal-soon__fig {
+      color: var(--ink);
+      font-weight: 600;
+    }
+    .fiscal-soon__fig-n {
+      color: var(--accent);
+      font-weight: 800;
+      margin-left: 0.2em;
+    }
+    .fiscal-soon__h {
+      margin: 0 0 8px;
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: 22px;
+      letter-spacing: -0.01em;
+      line-height: 1.05;
+      color: var(--ink);
+    }
+    .fiscal-soon__lede {
+      margin: 0 0 auto;
+      font-family: var(--font-sans);
+      font-weight: 300;
+      font-size: 15px;
+      line-height: 1.4;
+      color: var(--ink);
+    }
+    .fiscal-soon__stamp {
+      margin: 28px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink-soft, #777);
+    }
+
+    /* a11y utility - visually hidden but available to screen readers */
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Economic-calendar section                                           */
+    /* Spec: design/_specs/economic_calendar_overview.md                   */
+    /* ------------------------------------------------------------------ */
+
+    /* Section container: no own borders.
+     * The chartbook grid's bottom-hairline doubles as the calendar's top
+     * boundary; the colophon's own top-hairline doubles as the calendar's
+     * bottom boundary. One shared rule on each side rather than stacked
+     * lines.
+     * 2026-05-23: cut #3 + #4 in the horizontal-rule audit.
+     * overflow-x: hidden prevents any residual iframe bleed on narrow viewports
+     * where the investing.com widget compresses but may still slightly exceed
+     * the CSS box boundary. */
+    .cal {
+      margin-top: 32px;
+      padding-bottom: 28px;
+      overflow-x: hidden;
+    }
+
+    /* Header band: padding only, no bottom hairline.
+     * The section's top border is right above the eyebrow; an additional
+     * divider 30px below it read as an excessive double-rule next to the
+     * top border. 2026-05-23: cut as part of the horizontal-rule audit on
+     * /overview/ (spec §2 originally specified the hairline, overridden
+     * here per user direction). */
+    .cal__head {
+      padding-bottom: 10px;
+    }
+
+    /* Eyebrow: matches section-panel eyebrow register (spec §2). */
+    .cal__eyebrow {
+      margin: 0;
+      padding-top: 16px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+      line-height: 1.4;
+    }
+
+    /* "Figure" word — ink weight */
+    .cal__fig {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    /* Figure number — accent color, extrabold (spec §2: fig-n in var(--accent), weight 800) */
+    .cal__fig-n {
+      color: var(--accent);
+      font-weight: 800;
+      margin-left: 0.2em;
+    }
+
+    /* H2: matches section-H2 register (spec §2). */
+    .cal__h {
+      margin: 6px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: 22px;
+      letter-spacing: -0.01em;
+      line-height: 1.05;
+      color: var(--ink);
+    }
+
+    /* Iframe: constrained to widget's natural content width.
+     *
+     * Investing.com's calendar renders its internal table at ~650px
+     * regardless of the iframe's outer width — stretching the iframe
+     * to 100% of the page column leaves a large dead-space band on
+     * the right. We constrain the iframe to ~700px (a touch wider
+     * than the widget's native ~650px to give breathing room for the
+     * controls band), center it in the section, and let the section
+     * header + hairlines remain at page-column width for visual
+     * continuity with the chartbook grid above.
+     *
+     * On narrow viewports (<700px) the constraint collapses and the
+     * iframe shrinks to fit; investing.com's widget compresses its
+     * columns at that size.
+     */
+    .cal__frame {
+      display: block;
+      width: 100%;
+      max-width: 700px;
+      /* Left-aligned to the section header (FIGURE 9. Week ahead).
+       * Previously `margin: 20px auto 0` centred the iframe within the
+       * page column while the header sat on the left gutter — the
+       * resulting offset broke Vignelli left-edge orthogonality. The
+       * iframe + attribution now share the section header's left edge. */
+      margin: 20px 0 0;
+      /* Height tuned to fit the widget's rendered content tightly rather
+       * than reserve space for the busiest possible week. Investing.com's
+       * widget renders ~30px per event row + ~80px legend + ~80px chrome
+       * (header + filter band). A typical Canada-only "This week" view
+       * shows 4-8 events; 440-520px keeps the bottom of the legend close
+       * to the iframe edge instead of leaving a yawning gap above the
+       * "Real Time Economic Calendar provided by..." attribution. Busy
+       * weeks scroll inside the iframe — acceptable trade. */
+      height: clamp(440px, 52vh, 540px);
+      border: 0;
+    }
+
+    /* Mobile: bump min-height so timezone/datepicker band doesn't crowd
+     * the first event row (spec §4). */
+    @media (max-width: 480px) {
+      .cal__frame {
+        height: clamp(540px, 64vh, 640px);
+      }
+    }
+
+    /* Attribution line: Manrope SemiBold, uppercase, wide-tracked (spec §5).
+     * Wraps investing.com's required credit text. Constrained to the
+     * iframe's width and centered so the attribution sits directly under
+     * the calendar rather than spanning the full page column. */
+    .cal__attribution {
+      max-width: 700px;
+      /* Left-aligned with the iframe + section header — see .cal__frame
+       * note. Was `14px auto 0` (centred); now flush-left so the
+       * attribution sits directly under the calendar's left edge. */
+      margin: 14px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1.4;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    .cal__attribution a {
+      color: var(--ink);
+      text-decoration: none;
+      border-bottom: 1px solid var(--ink);
+    }
+
+    .cal__attribution a:hover {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .cal__attribution a:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+  </style>
+</BaseLayout>

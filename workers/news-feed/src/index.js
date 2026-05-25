@@ -39,6 +39,7 @@ const REPORTERS = [
   "Greg Quinn",
   "Kevin Carmichael",
   "Bill Curry",
+  "Andrew Coyne",
 ];
 
 const REPORTER_TTL_SEC = 15 * 60; // 15 min
@@ -87,8 +88,10 @@ function parseRss(xml, reporter) {
   return items;
 }
 
-// Fetch one reporter's RSS, with edge cache. Returns parsed items array
-// (possibly empty on failure — never throws).
+// Fetch one reporter's RSS, with edge cache. Returns
+// { items, status, error } so the caller can surface diagnostics
+// when something goes wrong (Google News rate-limit, parse failure,
+// etc.). Never throws.
 async function fetchReporter(reporter, ctx) {
   const cacheKey = new Request(
     `https://sibley-news-cache/reporter/${encodeURIComponent(reporter)}`,
@@ -98,40 +101,59 @@ async function fetchReporter(reporter, ctx) {
   const cached = await cache.match(cacheKey);
   if (cached) {
     try {
-      return await cached.json();
+      const cachedItems = await cached.json();
+      if (Array.isArray(cachedItems) && cachedItems.length > 0) {
+        return { items: cachedItems, status: 200, error: null, cached: true };
+      }
+      // Cached empty array — fall through and try again. Caching empties
+      // would mean a single bad fetch breaks the reporter for 15 min.
     } catch (_e) {
       // Corrupt cache entry — fall through and refetch.
     }
   }
 
   let items = [];
+  let status = 0;
+  let error = null;
   try {
     const res = await fetch(newsRssUrl(reporter), {
       headers: {
+        // Browser-style headers — bare Worker UA gets aggressively
+        // rate-limited / 403'd by Google News.
         "User-Agent":
-          "SibleyCreek-NewsFeed/1.0 (+https://sibleycreek.ca; reporter byline aggregator)",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+          "(KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+        Accept:
+          "application/rss+xml, application/xml, text/xml, */*;q=0.1",
+        "Accept-Language": "en-CA,en;q=0.9",
       },
-      // Google News occasionally takes >5s; give it room before failing.
-      cf: { cacheTtl: REPORTER_TTL_SEC },
     });
+    status = res.status;
     if (res.ok) {
       const xml = await res.text();
       items = parseRss(xml, reporter);
+      if (items.length === 0 && xml.length > 0) {
+        error = "parsed-empty";
+      }
+    } else {
+      error = `http-${res.status}`;
     }
-  } catch (_e) {
-    items = [];
+  } catch (e) {
+    error = "fetch-throw: " + (e && e.message ? e.message : String(e));
   }
 
-  // Write the (possibly empty) result to cache so we don't refetch a
-  // failing reporter every 60s — wait for the TTL window.
-  const body = new Response(JSON.stringify(items), {
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": `public, max-age=${REPORTER_TTL_SEC}`,
-    },
-  });
-  ctx.waitUntil(cache.put(cacheKey, body.clone()));
-  return items;
+  // Only cache non-empty results. Empty / errored fetches retry on next
+  // call. Stops a single bad moment from breaking the reporter for 15 min.
+  if (items.length > 0) {
+    const body = new Response(JSON.stringify(items), {
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": `public, max-age=${REPORTER_TTL_SEC}`,
+      },
+    });
+    ctx.waitUntil(cache.put(cacheKey, body.clone()));
+  }
+  return { items, status, error, cached: false };
 }
 
 export default {
@@ -154,7 +176,30 @@ export default {
     const settled = await Promise.allSettled(
       REPORTERS.map((r) => fetchReporter(r, ctx)),
     );
-    const all = settled.flatMap((s) => (s.status === "fulfilled" ? s.value : []));
+    // Per-reporter diagnostics. Useful when troubleshooting why a name
+    // returns 0 items (rate limit, parse failure, etc.).
+    const reporterStats = {};
+    const all = [];
+    settled.forEach((s, i) => {
+      const reporter = REPORTERS[i];
+      if (s.status === "fulfilled") {
+        const r = s.value;
+        reporterStats[reporter] = {
+          items: r.items.length,
+          status: r.status,
+          error: r.error,
+          cached: r.cached,
+        };
+        all.push(...r.items);
+      } else {
+        reporterStats[reporter] = {
+          items: 0,
+          status: 0,
+          error: "settled-rejected: " + (s.reason && s.reason.message ? s.reason.message : String(s.reason)),
+          cached: false,
+        };
+      }
+    });
 
     // Dedupe by canonical URL.
     const seen = new Set();
@@ -178,6 +223,7 @@ export default {
       reporterCount: REPORTERS.length,
       totalCandidates: deduped.length,
       items: top,
+      reporterStats,
     };
 
     const response = new Response(JSON.stringify(payload), {

@@ -1,43 +1,52 @@
 ---
 /*
- * /overview — Canadian Macro Overview (the dashboard).
+ * /overview/ — Canadian macro overview (the dashboard).
  *
- * 2026-05-20: Promoted from the previous splash. The marketing landing page
- * (v3) now lives at `/`; the dashboard moves here so each surface does its
- * own job — splash sells, overview shows the data.
+ * Three stacked surfaces:
+ *   1. Indicator panel grid: 2x4 hairline-bordered cells, one per
+ *      section. Fiscal cell renders "In development" while the chartbook
+ *      is in team review.
+ *   2. Week ahead: Canadian economic calendar parsed from the Forex
+ *      Factory XML feed at build time. Sibley-styled (Manrope + Plex
+ *      Mono, hairlines, accent on high-impact). Ottawa time. Currency
+ *      column dropped (CAD-only view). See FF section below for cache
+ *      + timezone logic.
+ *   3. What we're reading: live reporter-byline feed powered by the
+ *      Cloudflare Worker at workers/news-feed/. Browser fetches the
+ *      Worker on page load; Worker aggregates Google News RSS across
+ *      a curated reporter list, dedupes by URL, returns top items.
  *
- * Every primary numeric flows from data/site/sections.json via
- * src/data/site_data_loader.ts. Fields the pipeline does not yet produce
- * render as explicit placeholders so the gaps are obvious:
+ * Promoted from /overview-ff/ on 2026-05-25 — the previous /overview/
+ * used investing.com's iframe widget for the calendar; archived at
+ * src/pages/_archive/overview-investingcom.astro.
  *
- *   - real numbers           -> from JSON
- *   - missing numbers        -> "----" in mono mid-gray
- *   - missing asOf stamps    -> "[ NOT WIRED ]" in mono micro-caps
- *   - missing chart series   -> dashed-border empty box, "DATA NOT YET WIRED"
- *   - missing editorial copy -> visible Latin lorem ipsum
+ * Forex Factory feed model: their XML at
+ * `nfs.faireconomy.media/ff_calendar_thisweek.xml` is open. We fetch
+ * at build time, parse, render. 6-hour disk cache at
+ * `data/derived/ff_calendar_cache.xml` prevents hammering FF on
+ * rapid rebuilds (they rate-limit aggressively). On fetch failure
+ * (429, network, etc.) we fall back to the cached copy regardless
+ * of age — better to render yesterday's calendar than the empty
+ * state.
  *
- * Layout:
- *   1. Title Statement: eyebrow + headline + dateline + abstract +
- *      3-cell headline-numbers stamp sourced from the pipeline.
- *   2. Indicator panel grid: 2 x 4 hairline-bordered cells. Seven section
- *      panels + an eighth "Working papers" cell.
+ * Timezone: the Forex Factory XML feed publishes ALL times in GMT/UTC.
+ * The feed text "12:30pm" for a StatCan release is actually 8:30 AM ET.
+ * convertFFTimestamp() reads (date, time) → returns the ET-localised
+ * date+time. Date is recomputed because a late-night GMT event could
+ * fall on the prior ET date.
  */
-
+import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import TitleStatement from "../components/home/TitleStatement.astro";
 import SectionPanel from "../components/home/SectionPanel.astro";
 import { site } from "../data/sections";
 import { enrichedSections, type EnrichedSection } from "../data/site_data_loader";
 
-// Card order = enrichedSections order = canon order in sections.ts = nav order.
-// The Research / Working Papers cell has been removed from /overview/ —
-// research lives at /research/. The /fiscal/ cell stays in the grid but
-// renders an "in development" placeholder treatment until the chartbook
-// settles out of team review.
+// --- Section panel grid (same as /overview/) ---------------------------------
 const ordered: EnrichedSection[] = enrichedSections;
 
-// Title-statement date line. Always reflects today in Canadian editorial
-// time (America/Toronto), NOT the build host's UTC.
+// --- Date line --------------------------------------------------------------
 const today = new Date();
 const longDate = new Intl.DateTimeFormat("en-CA", {
   month: "long",
@@ -46,10 +55,208 @@ const longDate = new Intl.DateTimeFormat("en-CA", {
   timeZone: "America/Toronto",
 }).format(today);
 
+// --- Forex Factory feed -----------------------------------------------------
+type FFEvent = {
+  title: string;
+  country: string;
+  date: string;   // raw "MM-DD-YYYY"
+  time: string;   // raw "h:mma" or "All Day" / "Tentative"
+  impact: "High" | "Medium" | "Low" | "Holiday" | string;
+  forecast: string;
+  previous: string;
+  url: string;
+};
+
+type FFDayBucket = {
+  dateLabel: string;
+  isoDate: string;
+  events: FFEvent[];
+};
+
+const FF_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml";
+const FF_CACHE_PATH = resolve(process.cwd(), "data/derived/ff_calendar_cache.xml");
+const FF_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h
+const COUNTRIES_KEEP = new Set(["CAD"]);
+
+let ffBuckets: FFDayBucket[] = [];
+let ffFetchError: string | null = null;
+
+// Plain-text extractor for a CDATA-wrapped XML field. The FF feed uses
+// `<title>...</title>` (no CDATA) and `<date><![CDATA[...]]></date>`. Handle
+// both; trim whitespace.
+const stripCData = (s: string): string => {
+  const m = s.match(/<!\[CDATA\[([\s\S]*?)\]\]>/);
+  if (m) return m[1]!.trim();
+  return s.trim();
+};
+const tagText = (block: string, tag: string): string => {
+  const re = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, "i");
+  const m = block.match(re);
+  if (!m) return "";
+  return stripCData(m[1]!);
+};
+
+// MM-DD-YYYY -> ISO YYYY-MM-DD
+const toISO = (raw: string): string => {
+  const m = raw.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (!m) return raw;
+  return `${m[3]}-${m[1]}-${m[2]}`;
+};
+
+// Convert Forex Factory's GMT timestamp to America/Toronto.
+// Returns { etDateISO, etTimeLabel }. On non-numeric times ("All Day",
+// "Tentative", blank), passes the raw date and the raw time label through.
+const TIME_FMT_ET = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Toronto",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+const DATE_FMT_ET = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Toronto",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const convertFFTimestamp = (
+  rawDate: string,
+  rawTime: string,
+): { etDateISO: string; etTimeLabel: string } => {
+  const tm = rawTime.match(/^(\d+):(\d+)(am|pm)$/i);
+  const dm = rawDate.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (!tm || !dm) {
+    // Pass-through for "All Day", "Tentative", or unparseable.
+    return { etDateISO: toISO(rawDate), etTimeLabel: rawTime || "—" };
+  }
+  let h = parseInt(tm[1]!, 10);
+  const mins = parseInt(tm[2]!, 10);
+  const isPM = tm[3]!.toLowerCase() === "pm";
+  if (isPM && h < 12) h += 12;
+  if (!isPM && h === 12) h = 0;
+  const mm = parseInt(dm[1]!, 10);
+  const dd = parseInt(dm[2]!, 10);
+  const yyyy = parseInt(dm[3]!, 10);
+  // FF time is GMT — construct a UTC Date with no offset, then re-format
+  // the same instant in the America/Toronto zone.
+  const utc = new Date(Date.UTC(yyyy, mm - 1, dd, h, mins));
+  const etDateISO = DATE_FMT_ET.format(utc); // en-CA yields "YYYY-MM-DD"
+  const etTimeLabel = TIME_FMT_ET.format(utc)
+    .toLowerCase()
+    .replace(/\s/g, ""); // "8:30am"
+  return { etDateISO, etTimeLabel };
+};
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const dayLabel = (iso: string): string => {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return iso;
+  const y = parseInt(m[1]!, 10);
+  const mo = parseInt(m[2]!, 10);
+  const d = parseInt(m[3]!, 10);
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  const dow = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][dt.getUTCDay()];
+  return `${dow}, ${MONTH_NAMES[mo - 1]} ${d}`;
+};
+
+// --- Fetch w/ disk cache ----------------------------------------------------
+// Pattern: if the cache file exists and is younger than the TTL, use it
+// directly. Otherwise try to refresh. On any fetch error (including 429
+// rate-limit) fall back to the cached copy regardless of age. Only if
+// there's no cache at all AND the fetch fails do we render the error
+// state. This keeps builds cheap and resilient to FF throttling.
+const cacheAgeMs = (): number | null => {
+  if (!existsSync(FF_CACHE_PATH)) return null;
+  try { return Date.now() - statSync(FF_CACHE_PATH).mtimeMs; }
+  catch { return null; }
+};
+const readCache = (): string | null => {
+  if (!existsSync(FF_CACHE_PATH)) return null;
+  try { return readFileSync(FF_CACHE_PATH, { encoding: "latin1" }); }
+  catch { return null; }
+};
+const writeCache = (xml: string): void => {
+  try {
+    mkdirSync(dirname(FF_CACHE_PATH), { recursive: true });
+    writeFileSync(FF_CACHE_PATH, xml, { encoding: "latin1" });
+  } catch { /* swallow — cache is best-effort */ }
+};
+
+let xml: string | null = null;
+const age = cacheAgeMs();
+if (age !== null && age < FF_CACHE_TTL_MS) {
+  xml = readCache();
+}
+if (xml === null) {
+  try {
+    const res = await fetch(FF_URL, {
+      headers: { "User-Agent": "SibleyCreek/1.0 (+https://sibleycreek.ca)" },
+    });
+    if (!res.ok) {
+      ffFetchError = `Forex Factory feed returned HTTP ${res.status}; using cached copy.`;
+      xml = readCache();
+    } else {
+      const buf = await res.arrayBuffer();
+      xml = new TextDecoder("windows-1252").decode(buf);
+      writeCache(xml);
+    }
+  } catch (err) {
+    ffFetchError = err instanceof Error ? err.message : "Unknown fetch error";
+    xml = readCache();
+  }
+}
+
+try {
+  if (xml === null) {
+    if (!ffFetchError) ffFetchError = "No Forex Factory data available (no cache, no network).";
+  } else {
+    // Live or cached XML in hand; parse the same way regardless.
+    ffFetchError = null;
+    const eventBlocks = xml.match(/<event>[\s\S]*?<\/event>/g) ?? [];
+
+    const events: FFEvent[] = eventBlocks
+      .map((block): FFEvent => ({
+        title: tagText(block, "title"),
+        country: tagText(block, "country"),
+        date: tagText(block, "date"),
+        time: tagText(block, "time"),
+        impact: tagText(block, "impact"),
+        forecast: tagText(block, "forecast"),
+        previous: tagText(block, "previous"),
+        url: tagText(block, "url"),
+      }))
+      .filter((e) => COUNTRIES_KEEP.has(e.country));
+
+    // Group by ET date (date can shift if a GMT-late-night event lands
+    // before the local ET day rolls over). Also overwrite the time label
+    // and country-stripped date string on each event so render is ET-clean.
+    const byDate = new Map<string, FFEvent[]>();
+    for (const e of events) {
+      const { etDateISO, etTimeLabel } = convertFFTimestamp(e.date, e.time);
+      e.time = etTimeLabel;
+      const arr = byDate.get(etDateISO) ?? [];
+      arr.push(e);
+      byDate.set(etDateISO, arr);
+    }
+    ffBuckets = Array.from(byDate.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([isoDate, evs]) => ({
+        isoDate,
+        dateLabel: dayLabel(isoDate),
+        events: evs,
+      }));
+  }
+} catch (err) {
+  ffFetchError = err instanceof Error ? err.message : "Unknown fetch error";
+}
+
 const pageDesc =
   `Canadian macro overview for ${longDate}. Eight indicator domains — output, ` +
   "inflation, labour, monetary, fiscal, housing, trade, markets — each with " +
-  "an anchor chart and the latest prints. Independent research.";
+  "an anchor chart and the latest prints, plus the Canadian week ahead and " +
+  "a curated reporter byline feed. Independent research.";
 ---
 <BaseLayout
   title={`Overview — ${site.name}`}
@@ -83,40 +290,203 @@ const pageDesc =
       ))}
     </section>
 
-    <section class="cal" aria-labelledby="cal-h">
-      <header class="cal__head">
-        <p class="cal__eyebrow">
-          <span class="cal__fig">Figure</span>
-          <span class="cal__fig-n">9.</span>
+    <section class="ffcal" aria-labelledby="ffcal-h">
+      <header class="ffcal__head">
+        <p class="ffcal__eyebrow">
+          <span class="ffcal__fig">Figure</span>
+          <span class="ffcal__fig-n">9.</span>
         </p>
-        <h2 id="cal-h" class="cal__h">Week ahead</h2>
+        <h2 id="ffcal-h" class="ffcal__h">Week ahead</h2>
       </header>
-      <iframe
-        class="cal__frame"
-        src="https://sslecal2.investing.com?ecoDayBackground=%23ffffff&defaultFont=%23000000&innerBorderColor=%23e6e6e6&borderColor=%23ffffff&ecoDayFontColor=%23000000&columns=exc_flags,exc_importance,exc_actual,exc_forecast,exc_previous&importance=3&features=datepicker,timezone,timeselector,filters&countries=6&calType=week&timeZone=8&lang=68"
-        title="Canada and US economic releases, this week, high importance only"
-        height="467"
-        frameborder="0"
-        allowtransparency="true"
-        marginwidth="0"
-        marginheight="0"
-      ></iframe>
-      <div class="cal__attribution">
-        Real Time Economic Calendar provided by
-        <a href="https://ca.Investing.com/" rel="nofollow" target="_blank">Investing.com Canada</a>.
+
+      {ffFetchError ? (
+        <p class="ffcal__error">Calendar feed unavailable: {ffFetchError}</p>
+      ) : ffBuckets.length === 0 ? (
+        <p class="ffcal__error">No Canadian events listed for this week.</p>
+      ) : (
+        <div class="ffcal__body">
+          {ffBuckets.map((bucket) => (
+            <div class="ffcal__day">
+              <h3 class="ffcal__day-h">{bucket.dateLabel}</h3>
+              <table class="ffcal__table">
+                <colgroup>
+                  <col class="ffcal__col--time" />
+                  <col class="ffcal__col--imp" />
+                  <col class="ffcal__col--event" />
+                  <col class="ffcal__col--num" />
+                  <col class="ffcal__col--num" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th class="ffcal__th ffcal__th--time">Time</th>
+                    <th class="ffcal__th ffcal__th--imp">Importance</th>
+                    <th class="ffcal__th ffcal__th--event">Event</th>
+                    <th class="ffcal__th ffcal__th--num">Forecast</th>
+                    <th class="ffcal__th ffcal__th--num">Previous</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bucket.events.map((ev) => (
+                    <tr class={`ffcal__row ffcal__row--${(ev.impact || "low").toLowerCase()}`}>
+                      <td class="ffcal__td ffcal__td--time">{ev.time || "—"}</td>
+                      <td class="ffcal__td ffcal__td--imp">
+                        <span class={`ffcal__impact ffcal__impact--${(ev.impact || "low").toLowerCase()}`}>
+                          {ev.impact || "—"}
+                        </span>
+                      </td>
+                      <td class="ffcal__td ffcal__td--event">{ev.title}</td>
+                      <td class="ffcal__td ffcal__td--num">{ev.forecast || "—"}</td>
+                      <td class="ffcal__td ffcal__td--num">{ev.previous || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p class="ffcal__attribution">
+        Calendar data from
+        <a href="https://www.forexfactory.com/calendar" rel="nofollow noopener" target="_blank">Forex Factory</a>.
+        Ottawa time.
+      </p>
+    </section>
+
+    {/* ──────────────── What we're reading (reporter byline feed) ────────────────
+         Aggregated live via a Cloudflare Worker that fetches Google News
+         RSS per curated reporter, dedupes by URL, returns top items as
+         JSON. The Worker URL is set in the inline script below — point
+         it at your deployed Worker once `cd workers/news-feed && wrangler
+         deploy` lands. See workers/news-feed/README.md. */}
+    <section class="reading" aria-labelledby="reading-h">
+      <header class="reading__head">
+        <p class="reading__eyebrow">
+          <span class="reading__fig">Figure</span>
+          <span class="reading__fig-n">10.</span>
+        </p>
+        <h2 id="reading-h" class="reading__h">What we're reading</h2>
+      </header>
+
+      <div class="reading__body" data-reading-root>
+        <p class="reading__loading" data-reading-loading>Loading bylines…</p>
+        <ol class="reading__list" role="list" data-reading-list hidden></ol>
+        <p class="reading__error" data-reading-error hidden>
+          Feed unavailable. Refresh to retry.
+        </p>
       </div>
+
+      <p class="reading__attribution">
+        Bylines from a curated reporter list. Data via Google News RSS.
+      </p>
     </section>
   </article>
 
+  <script is:inline>
+    // ──────────────── Reporter byline feed ────────────────
+    // Fetches from the Sibley news-feed Cloudflare Worker on page load.
+    // The Worker handles all RSS fetching + caching + dedupe server-side;
+    // this client just renders the JSON response.
+    //
+    // Deployed Worker URL. Sources, caching, parsing all live in
+    // workers/news-feed/src/index.js. Re-deploy after editing the
+    // reporter list with `cd workers/news-feed && npx wrangler deploy`.
+    const WORKER_URL = "https://sibley-news-feed.sibleycreek.workers.dev";
+
+    const root = document.querySelector("[data-reading-root]");
+    const loadingEl = root?.querySelector("[data-reading-loading]");
+    const listEl = root?.querySelector("[data-reading-list]");
+    const errorEl = root?.querySelector("[data-reading-error]");
+
+    // Hand-rolled date formatter (avoids timezone drift; emits e.g.
+    // "May 24, 8:42 AM"). Uses America/Toronto since that's the
+    // publication's home timezone.
+    const TIME_FMT = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Toronto",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    const fmtDate = (iso) => {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "";
+      return TIME_FMT.format(d);
+    };
+
+    // Escape HTML entities to defend against any RSS payload that
+    // sneaks markup into a title.
+    const esc = (s) => {
+      if (typeof s !== "string") return "";
+      return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    };
+
+    const showError = () => {
+      if (loadingEl) loadingEl.hidden = true;
+      if (listEl) listEl.hidden = true;
+      if (errorEl) errorEl.hidden = false;
+    };
+
+    const showItems = (items) => {
+      if (!listEl || !loadingEl) return;
+      const html = items
+        .map((item) => {
+          const date = fmtDate(item.pubDate);
+          return `
+            <li class="reading__row">
+              <a class="reading__row-link" href="${esc(item.link)}" rel="noopener" target="_blank">
+                <div class="reading__row-meta">
+                  <span class="reading__row-date">${esc(date)}</span>
+                  <span class="reading__row-source">${esc(item.source || "")}</span>
+                </div>
+                <h3 class="reading__row-title">${esc(item.title)}</h3>
+                <p class="reading__row-byline">${esc(item.reporter)}</p>
+              </a>
+            </li>
+          `;
+        })
+        .join("");
+      listEl.innerHTML = html;
+      loadingEl.hidden = true;
+      listEl.hidden = false;
+    };
+
+    // Refuse to fetch if the placeholder URL hasn't been updated yet.
+    // Surfaces the error state instead of hammering a nonexistent host.
+    if (!WORKER_URL || WORKER_URL.includes("PLACEHOLDER")) {
+      showError();
+    } else {
+      fetch(WORKER_URL, { method: "GET" })
+        .then((res) => {
+          if (!res.ok) throw new Error(`Worker returned ${res.status}`);
+          return res.json();
+        })
+        .then((data) => {
+          if (!data || !Array.isArray(data.items) || data.items.length === 0) {
+            showError();
+            return;
+          }
+          showItems(data.items);
+        })
+        .catch((_err) => {
+          showError();
+        });
+    }
+  </script>
+
   <style>
+    /* ──────────────── Section panel grid (same as /overview/) ──────────────── */
     .home__grid {
       margin-top: 28px;
       display: grid;
       grid-template-columns: 1fr;
       gap: 0;
-      /* Vignelli / Knoll catalogue: panels meet at shared 1px black
-       * hairlines. We collapse the gap and use the panel borders to form a
-       * continuous grid. */
       border-top: 1px solid var(--ink);
       border-left: 1px solid var(--ink);
     }
@@ -134,13 +504,19 @@ const pageDesc =
     .home__cell > :global(*) {
       width: 100%;
     }
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
 
-    /* ------------------------------------------------------------------ */
-    /* Fiscal "in development" placeholder cell                            */
-    /* Renders in place of SectionPanel while the /fiscal/ chartbook is    */
-    /* in team review. Matches the section-panel outer dimensions so the   */
-    /* grid stays uniform; reads as restrained, not broken.                */
-    /* ------------------------------------------------------------------ */
+    /* ──────────────── Fiscal "In development" placeholder cell ──────────────── */
     .fiscal-soon {
       display: flex;
       flex-direction: column;
@@ -151,9 +527,7 @@ const pageDesc =
       color: var(--ink);
       transition: background-color 0.15s ease;
     }
-    .fiscal-soon:hover {
-      background-color: rgba(0, 0, 0, 0.02);
-    }
+    .fiscal-soon:hover { background-color: rgba(0, 0, 0, 0.02); }
     .fiscal-soon:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: -2px;
@@ -168,10 +542,7 @@ const pageDesc =
       color: var(--ink);
       line-height: 1.4;
     }
-    .fiscal-soon__fig {
-      color: var(--ink);
-      font-weight: 600;
-    }
+    .fiscal-soon__fig { color: var(--ink); font-weight: 600; }
     .fiscal-soon__fig-n {
       color: var(--accent);
       font-weight: 800;
@@ -204,51 +575,13 @@ const pageDesc =
       color: var(--ink-soft, #777);
     }
 
-    /* a11y utility - visually hidden but available to screen readers */
-    .visually-hidden {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-
-    /* ------------------------------------------------------------------ */
-    /* Economic-calendar section                                           */
-    /* Spec: design/_specs/economic_calendar_overview.md                   */
-    /* ------------------------------------------------------------------ */
-
-    /* Section container: no own borders.
-     * The chartbook grid's bottom-hairline doubles as the calendar's top
-     * boundary; the colophon's own top-hairline doubles as the calendar's
-     * bottom boundary. One shared rule on each side rather than stacked
-     * lines.
-     * 2026-05-23: cut #3 + #4 in the horizontal-rule audit.
-     * overflow-x: hidden prevents any residual iframe bleed on narrow viewports
-     * where the investing.com widget compresses but may still slightly exceed
-     * the CSS box boundary. */
-    .cal {
+    /* ──────────────── Forex Factory calendar (Sibley-styled) ──────────────── */
+    .ffcal {
       margin-top: 32px;
       padding-bottom: 28px;
-      overflow-x: hidden;
     }
-
-    /* Header band: padding only, no bottom hairline.
-     * The section's top border is right above the eyebrow; an additional
-     * divider 30px below it read as an excessive double-rule next to the
-     * top border. 2026-05-23: cut as part of the horizontal-rule audit on
-     * /overview/ (spec §2 originally specified the hairline, overridden
-     * here per user direction). */
-    .cal__head {
-      padding-bottom: 10px;
-    }
-
-    /* Eyebrow: matches section-panel eyebrow register (spec §2). */
-    .cal__eyebrow {
+    .ffcal__head { padding-bottom: 10px; }
+    .ffcal__eyebrow {
       margin: 0;
       padding-top: 16px;
       font-family: var(--font-sans);
@@ -259,22 +592,9 @@ const pageDesc =
       color: var(--ink);
       line-height: 1.4;
     }
-
-    /* "Figure" word — ink weight */
-    .cal__fig {
-      color: var(--ink);
-      font-weight: 600;
-    }
-
-    /* Figure number — accent color, extrabold (spec §2: fig-n in var(--accent), weight 800) */
-    .cal__fig-n {
-      color: var(--accent);
-      font-weight: 800;
-      margin-left: 0.2em;
-    }
-
-    /* H2: matches section-H2 register (spec §2). */
-    .cal__h {
+    .ffcal__fig { color: var(--ink); font-weight: 600; }
+    .ffcal__fig-n { color: var(--accent); font-weight: 800; margin-left: 0.2em; }
+    .ffcal__h {
       margin: 6px 0 0;
       font-family: var(--font-sans);
       font-weight: 800;
@@ -284,60 +604,129 @@ const pageDesc =
       color: var(--ink);
     }
 
-    /* Iframe: constrained to widget's natural content width.
-     *
-     * Investing.com's calendar renders its internal table at ~650px
-     * regardless of the iframe's outer width — stretching the iframe
-     * to 100% of the page column leaves a large dead-space band on
-     * the right. We constrain the iframe to ~700px (a touch wider
-     * than the widget's native ~650px to give breathing room for the
-     * controls band), center it in the section, and let the section
-     * header + hairlines remain at page-column width for visual
-     * continuity with the chartbook grid above.
-     *
-     * On narrow viewports (<700px) the constraint collapses and the
-     * iframe shrinks to fit; investing.com's widget compresses its
-     * columns at that size.
-     */
-    .cal__frame {
-      display: block;
+    .ffcal__error {
+      margin: 24px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 13px;
+      color: var(--ink);
+      opacity: 0.6;
+    }
+
+    .ffcal__body {
+      margin-top: 16px;
+      max-width: 920px;
+    }
+    .ffcal__day { margin-bottom: 20px; }
+    .ffcal__day-h {
+      margin: 0 0 4px;
+      padding-bottom: 6px;
+      font-family: var(--font-sans);
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      color: var(--ink);
+      border-bottom: 1px solid var(--ink);
+    }
+    .ffcal__table {
       width: 100%;
-      max-width: 700px;
-      /* Left-aligned to the section header (FIGURE 9. Week ahead).
-       * Previously `margin: 20px auto 0` centred the iframe within the
-       * page column while the header sat on the left gutter — the
-       * resulting offset broke Vignelli left-edge orthogonality. The
-       * iframe + attribution now share the section header's left edge. */
-      margin: 20px 0 0;
-      /* Height tuned to fit the widget's rendered content tightly rather
-       * than reserve space for the busiest possible week. Investing.com's
-       * widget renders ~30px per event row + ~80px legend + ~80px chrome
-       * (header + filter band). A typical Canada-only "This week" view
-       * shows 4-8 events; 440-520px keeps the bottom of the legend close
-       * to the iframe edge instead of leaving a yawning gap above the
-       * "Real Time Economic Calendar provided by..." attribution. Busy
-       * weeks scroll inside the iframe — acceptable trade. */
-      height: clamp(440px, 52vh, 540px);
-      border: 0;
+      /* table-layout: fixed pins col widths to the <colgroup>, so every
+       * day's table renders identical column geometry regardless of the
+       * widest cell within that day. This is what makes the columns
+       * line up vertically across all date blocks. */
+      table-layout: fixed;
+      border-collapse: collapse;
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    /* Fixed-pixel column widths shared across every day's table. */
+    .ffcal__col--time  { width: 90px; }
+    .ffcal__col--imp   { width: 130px; }
+    .ffcal__col--event { width: auto; }
+    .ffcal__col--num   { width: 110px; }
+    .ffcal__th {
+      padding: 8px 8px 6px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink);
+      opacity: 0.6;
+      border-bottom: 1px solid rgba(0,0,0,0.12);
+    }
+    .ffcal__th--num { text-align: right; font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); }
+    .ffcal__td {
+      padding: 7px 8px;
+      vertical-align: top;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .ffcal__td--time {
+      font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+      font-size: 12px;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    .ffcal__td--cur {
+      font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .ffcal__td--imp { white-space: nowrap; }
+    .ffcal__td--event { color: var(--ink); }
+    .ffcal__td--num {
+      text-align: right;
+      font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+      font-size: 12px;
+      color: var(--ink);
     }
 
-    /* Mobile: bump min-height so timezone/datepicker band doesn't crowd
-     * the first event row (spec §4). */
-    @media (max-width: 480px) {
-      .cal__frame {
-        height: clamp(540px, 64vh, 640px);
-      }
+    /* Impact chip — three clearly distinct tiers.
+     *   HIGH    = filled accent red,  white text       (loudest)
+     *   MEDIUM  = filled ink (black), white text       (mid weight)
+     *   LOW     = hollow, grey hairline + grey text    (quietest)
+     *   HOLIDAY = same as LOW but italicised label hint */
+    .ffcal__impact {
+      display: inline-block;
+      padding: 2px 8px;
+      min-width: 64px;
+      text-align: center;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 600;
+      border: 1px solid var(--ink);
+      color: var(--ink);
+      box-sizing: border-box;
+    }
+    .ffcal__impact--high {
+      background-color: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .ffcal__impact--medium {
+      background-color: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
+    }
+    .ffcal__impact--low {
+      background-color: transparent;
+      color: var(--ink);
+      border-color: rgba(0,0,0,0.35);
+      opacity: 0.65;
+    }
+    .ffcal__impact--holiday {
+      background-color: transparent;
+      color: var(--ink);
+      border-color: rgba(0,0,0,0.35);
+      opacity: 0.65;
+      font-style: italic;
     }
 
-    /* Attribution line: Manrope SemiBold, uppercase, wide-tracked (spec §5).
-     * Wraps investing.com's required credit text. Constrained to the
-     * iframe's width and centered so the attribution sits directly under
-     * the calendar rather than spanning the full page column. */
-    .cal__attribution {
-      max-width: 700px;
-      /* Left-aligned with the iframe + section header — see .cal__frame
-       * note. Was `14px auto 0` (centred); now flush-left so the
-       * attribution sits directly under the calendar's left edge. */
+    .ffcal__attribution {
+      max-width: 920px;
       margin: 14px 0 0;
       font-family: var(--font-sans);
       font-weight: 600;
@@ -347,21 +736,147 @@ const pageDesc =
       text-transform: uppercase;
       color: var(--ink);
     }
-
-    .cal__attribution a {
+    .ffcal__attribution a {
       color: var(--ink);
       text-decoration: none;
       border-bottom: 1px solid var(--ink);
+      margin-left: 0.3em;
     }
-
-    .cal__attribution a:hover {
+    .ffcal__attribution a:hover {
       color: var(--accent);
       border-bottom-color: var(--accent);
     }
-
-    .cal__attribution a:focus-visible {
+    .ffcal__attribution a:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: 3px;
+    }
+
+    @media (max-width: 600px) {
+      .ffcal__th--num,
+      .ffcal__td--num {
+        display: none;
+      }
+    }
+
+    /* ──────────────── What we're reading (reporter bylines) ──────────────── */
+    .reading {
+      margin-top: 40px;
+      padding-bottom: 28px;
+    }
+    .reading__head { padding-bottom: 10px; }
+    .reading__eyebrow {
+      margin: 0;
+      padding-top: 16px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+      line-height: 1.4;
+    }
+    .reading__fig { color: var(--ink); font-weight: 600; }
+    .reading__fig-n { color: var(--accent); font-weight: 800; margin-left: 0.2em; }
+    .reading__h {
+      margin: 6px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 800;
+      font-size: 22px;
+      letter-spacing: -0.01em;
+      line-height: 1.05;
+      color: var(--ink);
+    }
+
+    .reading__body {
+      margin-top: 16px;
+      max-width: 920px;
+    }
+
+    .reading__loading,
+    .reading__error {
+      margin: 12px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--ink);
+      opacity: 0.6;
+    }
+
+    .reading__list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      border-top: 1px solid var(--ink);
+    }
+    .reading__row {
+      margin: 0;
+      padding: 0;
+      border-bottom: 1px solid rgba(0,0,0,0.12);
+    }
+    .reading__row-link {
+      display: block;
+      padding: 12px 0;
+      text-decoration: none;
+      color: var(--ink);
+      transition: background-color 0.12s ease;
+    }
+    .reading__row-link:hover {
+      background-color: rgba(0,0,0,0.025);
+    }
+    .reading__row-link:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+    .reading__row-meta {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 4px;
+      font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink);
+      opacity: 0.65;
+    }
+    .reading__row-date {
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .reading__row-source {
+      font-weight: 600;
+      letter-spacing: 0.18em;
+    }
+    .reading__row-title {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 16px;
+      line-height: 1.3;
+      color: var(--ink);
+    }
+    .reading__row-byline {
+      margin: 4px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--ink);
+      opacity: 0.6;
+    }
+
+    .reading__attribution {
+      max-width: 920px;
+      margin: 14px 0 0;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1.4;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink);
+      opacity: 0.55;
     }
   </style>
 </BaseLayout>
