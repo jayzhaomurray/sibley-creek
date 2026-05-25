@@ -31,7 +31,15 @@ import { deepDives, site } from "../data/sections";
 import { enrichedSections, type EnrichedSection } from "../data/site_data_loader";
 
 // Card order = enrichedSections order = canon order in sections.ts = nav order.
-const ordered: EnrichedSection[] = enrichedSections;
+// TEMPORARY: filter out fiscal until the /fiscal/ section page lands its real
+// data (Plate 5 reclassification + Plate 3 PBO track + remaining source cards).
+// The /overview-with-fiscal/ noindex preview page renders the full 8-section
+// grid; once fiscal's data is real, drop this filter so /overview/ promotes
+// to 8 panels. Until then the live /overview/ stays at 7 sections + working
+// papers per the original layout. See followups snapshot for the trigger.
+const ordered: EnrichedSection[] = enrichedSections.filter(
+  (s) => s.slug !== "fiscal"
+);
 
 // Title-statement date line. Always reflects today in Canadian editorial
 // time (America/Toronto), NOT the build host's UTC.
@@ -45,7 +53,7 @@ const longDate = new Intl.DateTimeFormat("en-CA", {
 
 const pageDesc =
   `Canadian macro overview for ${longDate}. Seven indicator domains — output, ` +
-  "inflation, labour, housing, monetary policy, markets, trade — each with " +
+  "inflation, labour, monetary, housing, trade, markets — each with " +
   "an anchor chart and the latest prints. Independent research.";
 ---
 <BaseLayout
@@ -82,7 +90,6 @@ const pageDesc =
         class="cal__frame"
         src="https://sslecal2.investing.com?ecoDayBackground=%23ffffff&defaultFont=%23000000&innerBorderColor=%23e6e6e6&borderColor=%23ffffff&ecoDayFontColor=%23000000&columns=exc_flags,exc_importance,exc_actual,exc_forecast,exc_previous&importance=3&features=datepicker,timezone,timeselector,filters&countries=6&calType=week&timeZone=8&lang=68"
         title="Canada and US economic releases, this week, high importance only"
-        width="650"
         height="467"
         frameborder="0"
         allowtransparency="true"
@@ -146,10 +153,14 @@ const pageDesc =
      * boundary; the colophon's own top-hairline doubles as the calendar's
      * bottom boundary. One shared rule on each side rather than stacked
      * lines.
-     * 2026-05-23: cut #3 + #4 in the horizontal-rule audit. */
+     * 2026-05-23: cut #3 + #4 in the horizontal-rule audit.
+     * overflow-x: hidden prevents any residual iframe bleed on narrow viewports
+     * where the investing.com widget compresses but may still slightly exceed
+     * the CSS box boundary. */
     .cal {
       margin-top: 32px;
       padding-bottom: 28px;
+      overflow-x: hidden;
     }
 
     /* Header band: padding only, no bottom hairline.
