@@ -324,6 +324,27 @@ const sourceAllowed = (sourceName: string): boolean => {
   return SOURCE_PATTERNS_KEEP.some((p) => lower.includes(p));
 };
 
+// Normalize the raw source name from Google News to a short display
+// label. Keeps the source column compact + visually consistent.
+const normalizeSource = (raw: string): string => {
+  if (!raw) return "";
+  const lower = raw.toLowerCase();
+  if (lower.includes("bnn")) return "BNN";
+  if (lower.includes("bloomberg")) return "BLOOMBERG";
+  if (lower.includes("globe and mail")) return "GLOBE";
+  if (lower.includes("reuters")) return "REUTERS";
+  if (lower.includes("wsj") || lower.includes("wall street journal")) return "WSJ";
+  if (lower.includes("financial post")) return "FINANCIAL POST";
+  if (lower.includes("canadian press")) return "CP";
+  if (lower.includes("the logic")) return "THE LOGIC";
+  if (lower.includes("national post")) return "NATIONAL POST";
+  if (lower.includes("cbc")) return "CBC";
+  if (lower.includes("toronto star") || lower.includes("thestar")) return "STAR";
+  // Allowlist match got us here but the label isn't recognised —
+  // uppercase the raw name as a defensive fallback.
+  return raw.toUpperCase();
+};
+
 // Google News appends " - Outlet Name" to every title. Splitting on the
 // last " - " gives us a cleaned title plus the source name without
 // parsing extra XML or HTML.
@@ -611,7 +632,7 @@ const fmtNewsDate = (raw: string): string => {
                   title={item.title}
                 >
                   <span class="reading__row-date">{fmtNewsDate(item.pubDate)}</span>
-                  <span class="reading__row-source">{item.source}</span>
+                  <span class="reading__row-source">{normalizeSource(item.source)}</span>
                   <span class="reading__row-title">{item.title}</span>
                   <span class="reading__row-byline">{item.reporter}</span>
                 </a>
@@ -962,15 +983,17 @@ const fmtNewsDate = (raw: string): string => {
       padding: 0;
       border-bottom: 1px solid rgba(0,0,0,0.08);
     }
-    /* Bloomberg-terminal-style one-line layout:
-     *   [date 90px] [source 110px] [headline flex 1] [reporter 150px]
-     * Headline truncates with ellipsis at narrow widths. Hover surfaces
-     * the full headline via the link's title attribute. */
+    /* Bloomberg-terminal-style one-line layout. Each column has
+     * overflow control so nothing spills into its neighbour:
+     *   [date 130px] [source 110px] [headline flex] [reporter 130px]
+     * Date column width fits "May 21, 10:25 PM" in Plex Mono 11px
+     * with breathing room. Source column fits "FINANCIAL POST"
+     * (longest abbreviated label) in Manrope 600 10px 0.14em. */
     .reading__row-link {
       display: grid;
-      grid-template-columns: 80px 110px minmax(0, 1fr) 150px;
+      grid-template-columns: 130px 110px minmax(0, 1fr) 130px;
       align-items: baseline;
-      column-gap: 14px;
+      column-gap: 16px;
       padding: 7px 0;
       text-decoration: none;
       color: var(--ink);
@@ -982,7 +1005,9 @@ const fmtNewsDate = (raw: string): string => {
       outline-offset: -2px;
     }
 
-    /* Date — Plex Mono, mirrors the calendar's time column register. */
+    /* Date — Plex Mono, mirrors the calendar's time column register.
+     * overflow controls keep it inside the 130px column even if
+     * tomorrow's locale formatting produces a longer string. */
     .reading__row-date {
       font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
       font-size: 11px;
@@ -990,6 +1015,8 @@ const fmtNewsDate = (raw: string): string => {
       color: var(--ink);
       opacity: 0.7;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     /* Source — Manrope SemiBold uppercase letter-spaced. Matches the
