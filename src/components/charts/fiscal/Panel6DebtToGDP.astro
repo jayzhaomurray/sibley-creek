@@ -1,0 +1,594 @@
+---
+/*
+ * Panel6DebtToGDP — Federal debt as % of GDP: 45-year history + SEU 2026 projection.
+ *
+ * EDITORIAL PURPOSE: Sustainability anchor for the fiscal-stance page. Shows where
+ * federal debt-to-GDP has been (1980–FY2024-25) and where it's projected to go
+ * (FY2025-26 through FY2030-31 per DoF SEU April 2026). Annotates the 1990s peak,
+ * pre-GFC trough, COVID peak, and latest actual — the four durable reference points
+ * that bracket the current position.
+ *
+ * PLATE TITLE CANDIDATE (per writing-style.md terminal-period / one-verb canon):
+ *   "Federal debt holds above 40 per cent of GDP through the projection horizon."
+ *
+ * DATA SOURCES (Tier A verified):
+ *   Historical (1980–2024): Budget 2025 Annex 1 Chart A1.5 (DoF).
+ *     Source card: editorial/source_cards/_pending/fiscal/dof_federal_debt_to_gdp_trajectory.yaml
+ *     Derived JSON: data/derived/fiscal_debt_to_gdp.json
+ *   Projection (FY2025-26 to FY2030-31): DoF Spring Economic Update April 28 2026,
+ *     Annex 1 Table A1.7 — supersedes Budget 2025 baseline (always-freshest-vintage rule).
+ *     Primary source: budget.canada.ca/update-miseajour/2026/report-rapport/anx1-en.html
+ *
+ * YEAR CONVENTION: "year" in the source data is fiscal-year-ending (calendar year of
+ * 31-March year-end). Year 2024 = FY2023-24; year 2025 = FY2024-25 (first projection
+ * year). Historical actuals run year 1980 through 2024 in the JSON; the history/
+ * projection break sits between year 2024 (FY2023-24, last actual) and year 2025
+ * (FY2024-25, first SEU 2026 projection).
+ *
+ *   NOTE: The source-card and JSON label year 2024 as "FY2023-24" and year 2025 as
+ *   "FY2024-25". Year 2025 is therefore the FIRST projection point per DoF SEU 2026,
+ *   labelled FY2024-25 = 41.1% (SEU 2026). The red dot sits on year 2025 (FY2024-25)
+ *   as the "latest reported / first projection" junction.
+ *
+ * VISUAL DESIGN (Tier-3 canon):
+ *   - Solid 1.5px ink line for historical portion (years 1980–2024).
+ *   - Dashed 1px ink line for projection (years 2025–2030, SEU 2026).
+ *   - Vertical dashed separator at x = year 2025 (the break point).
+ *   - MTA red dot at year 2025 (FY2024-25, 41.1%) — history/projection junction.
+ *   - 4 annotation callouts at reference points (1990s peak, pre-GFC trough,
+ *     COVID peak, latest actual at year 2024), plus one at FY2028-29 peak.
+ *   - 3-4 horizontal gridlines, stroke-opacity 0.18.
+ *   - Y-ticks: Plex Mono 400 12px; topmost: "70%" suffix.
+ *   - X-ticks: Manrope 400 12px, every 5 years.
+ *   - 1px hairline frame.
+ *   - No legend; no caption; no source text inside SVG.
+ *
+ * DATA WIRING:
+ *   Historical series and SEU 2026 projections embedded as verified constants (Tier A).
+ *   `data` prop accepted for interface parity but not consumed.
+ *
+ * CANON COMPLIANCE (Tier-3):
+ *   1. Single trace, no color encoding on series identity.
+ *   2. MTA red accent on latest-point dot only.
+ *   3. Hairline frame 1px ink.
+ *   4. Gridlines 4 ticks at stroke-opacity 0.18.
+ *   5. Plex Mono y-ticks, Manrope x-ticks + annotations.
+ *   6. aria-label names chart + all 4 reference points + projection terminal.
+ *   7. No source paragraph, no caption, no methodology note inside or adjacent to SVG.
+ *   8. Projection dashed per Tier-3 convention (signals forecast vs actual).
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+// data prop accepted for interface parity; constants below are authoritative (Tier A).
+const { data = null } = Astro.props;
+void data;
+
+// ---- Historical series (Budget 2025 Annex 1 Chart A1.5, Tier A) ----------------
+// year = fiscal-year-ending calendar year (e.g. 1995 = FY1994-95)
+// kind: "actual" = verified historical, "projection" = SEU 2026 projection
+type Pt = { year: number; pct: number; kind: "actual" | "projection" };
+
+const HIST: Pt[] = [
+  { year: 1980, pct: 28.5, kind: "actual" },
+  { year: 1981, pct: 29.2, kind: "actual" },
+  { year: 1982, pct: 35.2, kind: "actual" },
+  { year: 1983, pct: 37.3, kind: "actual" },
+  { year: 1984, pct: 42.1, kind: "actual" },
+  { year: 1985, pct: 45.6, kind: "actual" },
+  { year: 1986, pct: 48.9, kind: "actual" },
+  { year: 1987, pct: 49.9, kind: "actual" },
+  { year: 1988, pct: 50.2, kind: "actual" },
+  { year: 1989, pct: 51.2, kind: "actual" },
+  { year: 1990, pct: 54.3, kind: "actual" },
+  { year: 1991, pct: 58.4, kind: "actual" },
+  { year: 1992, pct: 62.5, kind: "actual" },
+  { year: 1993, pct: 65.3, kind: "actual" },
+  { year: 1994, pct: 66.2, kind: "actual" },
+  { year: 1995, pct: 66.6, kind: "actual" }, // 1990s peak
+  { year: 1996, pct: 65.5, kind: "actual" },
+  { year: 1997, pct: 61.7, kind: "actual" },
+  { year: 1998, pct: 58.9, kind: "actual" },
+  { year: 1999, pct: 53.6, kind: "actual" },
+  { year: 2000, pct: 47.0, kind: "actual" },
+  { year: 2001, pct: 44.7, kind: "actual" },
+  { year: 2002, pct: 42.3, kind: "actual" },
+  { year: 2003, pct: 39.5, kind: "actual" },
+  { year: 2004, pct: 37.0, kind: "actual" },
+  { year: 2005, pct: 33.9, kind: "actual" },
+  { year: 2006, pct: 31.2, kind: "actual" },
+  { year: 2007, pct: 29.0, kind: "actual" },
+  { year: 2008, pct: 28.2, kind: "actual" }, // pre-GFC trough
+  { year: 2009, pct: 33.4, kind: "actual" },
+  { year: 2010, pct: 33.4, kind: "actual" },
+  { year: 2011, pct: 33.4, kind: "actual" },
+  { year: 2012, pct: 34.0, kind: "actual" },
+  { year: 2013, pct: 32.9, kind: "actual" },
+  { year: 2014, pct: 31.5, kind: "actual" },
+  { year: 2015, pct: 31.9, kind: "actual" },
+  { year: 2016, pct: 32.2, kind: "actual" },
+  { year: 2017, pct: 31.4, kind: "actual" },
+  { year: 2018, pct: 30.7, kind: "actual" },
+  { year: 2019, pct: 31.2, kind: "actual" },
+  { year: 2020, pct: 47.2, kind: "actual" }, // COVID peak
+  { year: 2021, pct: 45.0, kind: "actual" },
+  { year: 2022, pct: 41.1, kind: "actual" },
+  { year: 2023, pct: 42.1, kind: "actual" },
+  { year: 2024, pct: 41.2, kind: "actual" }, // FY2023-24: latest actual (Budget 2025 / AFR)
+];
+
+// Projection: DoF SEU April 28 2026, Annex 1 Table A1.7 (fresher than Budget 2025)
+// year = fiscal-year-ending; year 2025 = FY2024-25
+const PROJ: Pt[] = [
+  { year: 2025, pct: 41.1, kind: "projection" }, // FY2024-25 — red dot / junction
+  { year: 2026, pct: 41.5, kind: "projection" }, // FY2025-26
+  { year: 2027, pct: 41.8, kind: "projection" }, // FY2026-27
+  { year: 2028, pct: 41.9, kind: "projection" }, // FY2027-28
+  { year: 2029, pct: 41.9, kind: "projection" }, // FY2028-29 (joint peak)
+  { year: 2030, pct: 41.8, kind: "projection" }, // FY2029-30
+  { year: 2031, pct: 41.6, kind: "projection" }, // FY2030-31
+];
+
+// Full series joined (historical + projection, no overlap — year 2025 starts proj)
+const ALL: Pt[] = [...HIST, ...PROJ];
+
+// Break point: x-position of year 2025 (the first projection point / red dot)
+const BREAK_YEAR = 2025;
+
+// ---- Geometry ---------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L  = 44;   // "70%" is 3 chars in Plex Mono 12px; 44px is sufficient
+const M_R  = 28;
+const M_T  = 32;
+const M_B  = 38;
+
+const PLOT_X0 = M_L;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_W  = PLOT_X1 - PLOT_X0;
+const PLOT_H  = PLOT_Y1 - PLOT_Y0;
+
+// ---- Scales -----------------------------------------------------------------
+const xMin = Math.min(...ALL.map((p) => p.year));
+const xMax = Math.max(...ALL.map((p) => p.year));
+const xSpan = xMax - xMin;
+
+const xScale = (yr: number): number =>
+  PLOT_X0 + ((yr - xMin) / xSpan) * PLOT_W;
+
+// Y domain: 20% floor to 75% ceiling (1990s peak = 66.6; 70% tick at top with headroom)
+const Y_DOM_MIN = 20;
+const Y_DOM_MAX = 75;
+const ySpan = Y_DOM_MAX - Y_DOM_MIN;
+
+const yScale = (pct: number): number =>
+  PLOT_Y0 + PLOT_H - ((pct - Y_DOM_MIN) / ySpan) * PLOT_H;
+
+// ---- Y ticks: nice 10pp strides within domain, topmost labelled "70%" ------
+const Y_TICK_VALS = [20, 30, 40, 50, 60, 70];
+
+type YTick = { y: number; label: string };
+const yTicks: YTick[] = Y_TICK_VALS
+  .filter((v) => v >= Y_DOM_MIN && v <= Y_DOM_MAX)
+  .map((v, i, arr) => ({
+    y: yScale(v),
+    label: i === arr.length - 1 ? `${v}%` : `${v}`,
+  }));
+
+// ---- X ticks: every 5 years from 1980 to 2030 ------------------------------
+type XTick = { x: number; label: string };
+const xTicks: XTick[] = [];
+for (let yr = 1980; yr <= 2030; yr += 10) {
+  xTicks.push({ x: xScale(yr), label: `${yr}` });
+}
+// Add a mid-point 5-year tick label (unlabelled tick marks for visual rhythm)
+const xTicksFine: XTick[] = [];
+for (let yr = 1985; yr <= 2030; yr += 10) {
+  xTicksFine.push({ x: xScale(yr), label: "" });
+}
+
+// ---- SVG path for historical segment (years 1980–2024) ----------------------
+const histPath = HIST.map((p, i) => {
+  const x = xScale(p.year);
+  const y = yScale(p.pct);
+  return `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
+}).join(" ");
+
+// Bridge: add the first projection point to close the historical line visually
+// (so the two segments share the junction at year 2025)
+const histBridgePt = PROJ[0]!;
+const histPathWithBridge =
+  histPath +
+  ` L${xScale(histBridgePt.year).toFixed(2)},${yScale(histBridgePt.pct).toFixed(2)}`;
+
+// ---- SVG path for projection segment (years 2025–2031) ----------------------
+const projPath = PROJ.map((p, i) => {
+  const x = xScale(p.year);
+  const y = yScale(p.pct);
+  return `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
+}).join(" ");
+
+// ---- Separator (vertical dashed line at break year) --------------------------
+const breakX = xScale(BREAK_YEAR);
+
+// ---- Latest dot (MTA red) at year 2025 (FY2024-25, 41.1%) -------------------
+const dotPt = PROJ[0]!;
+const dotX  = xScale(dotPt.year);
+const dotY  = yScale(dotPt.pct);
+
+// ---- Hit areas for all data points ------------------------------------------
+type Hit = { cx: number; cy: number; title: string };
+const hits: Hit[] = ALL.map((p) => {
+  const fyEnd   = p.year;
+  const fyStart = fyEnd - 1;
+  const fyLabel = `FY${String(fyStart).slice(-2)}-${String(fyEnd).slice(-2)}`;
+  const tag     = p.kind === "actual" ? "actual" : "SEU 2026 projection";
+  return {
+    cx: xScale(p.year),
+    cy: yScale(p.pct),
+    title: `${fyLabel}: ${p.pct.toFixed(1)}% of GDP (${tag})`,
+  };
+});
+
+// ---- Annotations: 5 callouts ------------------------------------------------
+// Each has a dot at the data point and a text label with a short leader line.
+// Layout is hand-tuned to avoid overlap given the 1980–2031 x span.
+type Annot = {
+  year: number;
+  pct: number;
+  lines: string[];
+  textAnchor: "start" | "middle" | "end";
+  dx: number;    // text x offset from dot centre
+  dy: number;    // text y offset from dot centre (top of first line)
+  leaderLen: number; // leader line length in y direction (signed, - = up)
+};
+
+const ANNOTATIONS: Annot[] = [
+  {
+    // 1990s peak: FY1994-95, 66.6%
+    year: 1995, pct: 66.6,
+    lines: ["1990s peak", "66.6%"],
+    textAnchor: "middle", dx: 0, dy: -38, leaderLen: -28,
+  },
+  {
+    // Pre-GFC trough: FY2007-08, 28.2%
+    year: 2008, pct: 28.2,
+    lines: ["Pre-GFC trough", "28.2%"],
+    textAnchor: "middle", dx: 0, dy: 32, leaderLen: 22,
+  },
+  {
+    // COVID peak: FY2019-20, 47.2%
+    year: 2020, pct: 47.2,
+    lines: ["COVID peak", "47.2%"],
+    textAnchor: "start", dx: 8, dy: -10, leaderLen: 0,
+  },
+  {
+    // Latest actual: FY2023-24, 41.2%
+    year: 2024, pct: 41.2,
+    lines: ["FY2023-24", "41.2%"],
+    textAnchor: "end", dx: -8, dy: 18, leaderLen: 0,
+  },
+  {
+    // SEU 2026 peak: FY2028-29, 41.9%
+    year: 2029, pct: 41.9,
+    lines: ["SEU peak", "41.9%"],
+    textAnchor: "start", dx: 8, dy: -10, leaderLen: 0,
+  },
+];
+
+// ---- aria-label --------------------------------------------------------------
+const ariaLabel =
+  "Federal debt as a percentage of GDP, 1980 to 2031. " +
+  "Historical actuals from Department of Finance Canada (Budget 2025 Annex 1 Chart A1.5). " +
+  "Projection FY2024-25 through FY2030-31 from DoF Spring Economic Update April 2026. " +
+  "Key reference points: 1990s peak FY1994-95 at 66.6 percent; pre-GFC trough FY2007-08 at 28.2 percent; " +
+  "COVID-era peak FY2019-20 at 47.2 percent; latest actual FY2023-24 at 41.2 percent. " +
+  "SEU 2026 projects debt at 41.1 percent in FY2024-25, peaking at 41.9 percent in FY2028-29 and " +
+  "declining modestly to 41.6 percent by FY2030-31.";
+---
+
+<div class="p6dtg-chart" data-panel="fiscal-6" data-panel-status="live" data-vintage="SEU-2026-04-28">
+  <svg
+    class="p6dtg-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    <title>Federal debt as % of GDP, 1980–2031: history and DoF SEU 2026 projection.</title>
+
+    {/* Horizontal gridlines */}
+    {yTicks.map((t) => (
+      <line
+        class="p6dtg-chart__gridline"
+        x1={PLOT_X0.toFixed(2)} y1={t.y.toFixed(2)}
+        x2={PLOT_X1.toFixed(2)} y2={t.y.toFixed(2)}
+      />
+    ))}
+
+    {/* Projection zone background — subtle ink wash right of break */}
+    <rect
+      class="p6dtg-chart__proj-zone"
+      x={breakX.toFixed(2)}
+      y={PLOT_Y0.toFixed(2)}
+      width={(PLOT_X1 - breakX).toFixed(2)}
+      height={PLOT_H.toFixed(2)}
+    />
+
+    {/* Vertical separator at break year */}
+    <line
+      class="p6dtg-chart__break-line"
+      x1={breakX.toFixed(2)} y1={PLOT_Y0.toFixed(2)}
+      x2={breakX.toFixed(2)} y2={PLOT_Y1.toFixed(2)}
+    />
+
+    {/* "Projected" label above the projection zone */}
+    <text
+      class="p6dtg-chart__proj-label"
+      x={((breakX + PLOT_X1) / 2).toFixed(2)}
+      y={(PLOT_Y0 - 6).toFixed(2)}
+      text-anchor="middle"
+    >SEU 2026 projection</text>
+
+    {/* Historical line — 1.5px solid */}
+    <path class="p6dtg-chart__hist-line" d={histPathWithBridge} />
+
+    {/* Projection line — 1px dashed */}
+    <path class="p6dtg-chart__proj-line" d={projPath} />
+
+    {/* Hit areas (transparent circles for title tooltips) */}
+    {hits.map((h) => (
+      <circle class="p6dtg-chart__hit" cx={h.cx.toFixed(2)} cy={h.cy.toFixed(2)} r="5">
+        <title>{h.title}</title>
+      </circle>
+    ))}
+
+    {/* Annotation callouts */}
+    {ANNOTATIONS.map((a) => {
+      const ax = xScale(a.year);
+      const ay = yScale(a.pct);
+      const hasLeader = Math.abs(a.leaderLen) > 2;
+      const leaderX = ax;
+      const leaderY1 = ay + (a.leaderLen > 0 ? 5 : -5);
+      const leaderY2 = ay + a.leaderLen;
+      const textX = ax + a.dx;
+      const textY0 = ay + a.dy;
+      return (
+        <g>
+          {/* Small annotation dot (2px solid ink, not the red dot) */}
+          <circle class="p6dtg-chart__annot-dot" cx={ax.toFixed(2)} cy={ay.toFixed(2)} r="3" />
+          {/* Leader line (when offset is large enough to warrant one) */}
+          {hasLeader && (
+            <line
+              class="p6dtg-chart__annot-leader"
+              x1={leaderX.toFixed(2)} y1={leaderY1.toFixed(2)}
+              x2={leaderX.toFixed(2)} y2={leaderY2.toFixed(2)}
+            />
+          )}
+          {/* First line of label */}
+          <text
+            class="p6dtg-chart__annot-line1"
+            x={textX.toFixed(2)}
+            y={textY0.toFixed(2)}
+            text-anchor={a.textAnchor}
+          >{a.lines[0]}</text>
+          {/* Second line of label (value) */}
+          <text
+            class="p6dtg-chart__annot-line2"
+            x={textX.toFixed(2)}
+            y={(textY0 + 14).toFixed(2)}
+            text-anchor={a.textAnchor}
+          >{a.lines[1]}</text>
+        </g>
+      );
+    })}
+
+    {/* MTA red dot — history/projection junction, FY2024-25 41.1% */}
+    <circle
+      class="p6dtg-chart__latest-dot"
+      cx={dotX.toFixed(2)}
+      cy={dotY.toFixed(2)}
+      r="4"
+    >
+      <title>FY2024-25: 41.1% of GDP (SEU 2026 projection — first year)</title>
+    </circle>
+
+    {/* Hairline frame — on top to clip any overflow */}
+    <rect
+      class="p6dtg-chart__frame"
+      x={PLOT_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
+      width={PLOT_W.toFixed(2)} height={PLOT_H.toFixed(2)}
+    />
+
+    {/* Y-axis tick labels */}
+    {yTicks.map((t) => (
+      <text
+        class="p6dtg-chart__ytick-label"
+        x={(PLOT_X0 - 6).toFixed(2)}
+        y={(t.y + 4).toFixed(2)}
+        text-anchor="end"
+      >{t.label}</text>
+    ))}
+
+    {/* X-axis ticks (major, labelled — every 10 years) */}
+    {xTicks.map((t) => (
+      <g>
+        <line
+          class="p6dtg-chart__xtick"
+          x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+          x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 5).toFixed(2)}
+        />
+        <text
+          class="p6dtg-chart__xtick-label"
+          x={t.x.toFixed(2)}
+          y={(PLOT_Y1 + 17).toFixed(2)}
+          text-anchor="middle"
+        >{t.label}</text>
+      </g>
+    ))}
+
+    {/* X-axis ticks (minor, unlabelled — every 5 years) */}
+    {xTicksFine.map((t) => (
+      <line
+        class="p6dtg-chart__xtick-minor"
+        x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+        x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 3).toFixed(2)}
+      />
+    ))}
+
+  </svg>
+</div>
+
+<style>
+  /* -------------------------------------------------------------------
+     Panel6DebtToGDP — Tier-3 single-trace line chart.
+     Federal debt as % of GDP: 1980 historical through SEU 2026 projection.
+
+     Historical line: 1.5px solid ink.
+     Projection line: 1px dashed ink.
+     Break separator: vertical dashed ink at FY2024-25.
+     Red dot: MTA accent at the history/projection junction.
+     ------------------------------------------------------------------- */
+  .p6dtg-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+  }
+  .p6dtg-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans);
+  }
+  /* Gridlines — 0.18 opacity ink */
+  .p6dtg-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  /* Projection zone background — very subtle ink wash */
+  .p6dtg-chart__proj-zone {
+    fill: rgba(21, 23, 26, 0.03);
+    stroke: none;
+  }
+  /* Vertical break line — dashed, 0.4 opacity ink */
+  .p6dtg-chart__break-line {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+    stroke-opacity: 0.4;
+    shape-rendering: crispEdges;
+  }
+  /* "SEU 2026 projection" label above the projection zone */
+  .p6dtg-chart__proj-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 400;
+    opacity: 0.55;
+    letter-spacing: 0.02em;
+  }
+  /* Historical line — 1.5px solid pure ink */
+  .p6dtg-chart__hist-line {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  /* Projection line — 1px dashed "5 3" ink */
+  .p6dtg-chart__proj-line {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 5 3;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  /* Hit areas — transparent */
+  .p6dtg-chart__hit {
+    fill: transparent;
+    stroke: none;
+    cursor: default;
+  }
+  /* Annotation dots — small solid ink circle at the annotated data point */
+  .p6dtg-chart__annot-dot {
+    fill: var(--ink);
+    stroke: none;
+  }
+  /* Annotation leader lines — 0.45 opacity ink */
+  .p6dtg-chart__annot-leader {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.45;
+    shape-rendering: crispEdges;
+  }
+  /* Annotation first line — descriptor (Manrope 400 11px, recedes) */
+  .p6dtg-chart__annot-line1 {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.7;
+  }
+  /* Annotation second line — value (Manrope 600 11px) */
+  .p6dtg-chart__annot-line2 {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+  }
+  /* Latest dot — MTA red, at junction */
+  .p6dtg-chart__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+  /* Hairline frame — 1px pure ink */
+  .p6dtg-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  /* Y-axis tick labels — Plex Mono 400 12px */
+  .p6dtg-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.7;
+  }
+  /* X-axis major tick marks */
+  .p6dtg-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+    opacity: 0.4;
+  }
+  /* X-axis major tick labels — Manrope 400 12px */
+  .p6dtg-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.7;
+  }
+  /* X-axis minor tick marks (5-year, unlabelled) */
+  .p6dtg-chart__xtick-minor {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+    opacity: 0.25;
+  }
+</style>

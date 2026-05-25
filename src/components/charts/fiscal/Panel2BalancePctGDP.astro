@@ -1,0 +1,687 @@
+---
+/*
+ * Panel2BalancePctGDP — Federal budgetary balance as % of GDP.
+ * FY1983-84 to FY2024-25 historical (FRT 2025, Tier A) + FY2025-26 to FY2030-31
+ * projection (DoF Spring Economic Update April 28 2026, Tier A).
+ *
+ * REPLACES: Panel2DebtServiceRatio (debt-service ratio with 5-year band).
+ * EDITORIAL PURPOSE: Answers "where is the fiscal stance heading?" — full
+ * historical horizon anchors the current position; 6-year DoF projection
+ * shows the intended trajectory.
+ *
+ * PLATE TITLE CANDIDATE (writing-style.md terminal-period / one-verb canon):
+ *   "The deficit widens sharply before Ottawa's six-year glide back to -1.4%."
+ *   — or more concise —
+ *   "Ottawa projects a narrowing deficit through FY2030-31."
+ *
+ * DATA SOURCES (Tier A verified):
+ *   Historical: Fiscal Reference Tables 2025, Tables 1 & 2 (DoF, October 2025).
+ *     Source card: editorial/source_cards/_pending/fiscal/dof_federal_balance_pct_gdp_history.yaml
+ *     JSON: data/derived/fiscal_balance_pct_gdp.json
+ *   Projection: DoF Spring Economic Update 2026, April 28 2026, Annex 1 Table A1.7.
+ *     Source card: same json, "projection" array.
+ *   Sign convention: deficit negative, surplus positive (canonical DoF sign).
+ *
+ * SERIES-BREAK NOTE:
+ *   FRT footnote: data from FY1983-84 onward are not directly comparable with
+ *   earlier years (full-accrual vs modified-cash accounting basis).
+ *   DECISION: Show FY1966-67 to FY1982-83 as a ghost line (ink, 0.25 opacity)
+ *   with a small "Basis change 1983" annotation at the break point.
+ *   This preserves pre-accrual context without misrepresenting comparability.
+ *   Visible-series emphasis starts at FY1983-84.
+ *
+ * COVID SCALING DECISION:
+ *   FY2020-21 = -14.8% is the dominant visual feature and is editorially
+ *   essential (it is THE reference point for the current deficit's smallness).
+ *   Y-axis scales to accommodate: yMin = -16%, yMax = +3%.
+ *   No axis break; no truncation. The full depth is the argument.
+ *
+ * VISUAL DESIGN (Tier-3 canon, single-trace line):
+ *   - Pre-1983 ghost: 1.5px ink, opacity 0.22, same line (continuity signal).
+ *   - Post-1983 historical solid: 1.5px solid ink.
+ *   - Projection dashed: 1px ink, stroke-dasharray "5 3".
+ *   - Vertical dotted separator at FY2024-25 → FY2025-26 break.
+ *   - Zero line: 1.5px ink, distinct from gridlines.
+ *   - MTA red dot at FY2024-25 (-1.2%) — actual/projection boundary.
+ *   - 4 annotation callouts: Martin pivot FY1996-97, surplus peak FY2000-01,
+ *     GFC trough FY2009-10, COVID peak FY2020-21.
+ *   - Direct end-of-line labels: "Historical" (at FY2024-25) and
+ *     "Projection (SEU 2026)" (at FY2030-31).
+ *   - 4 horizontal gridlines at stroke-opacity 0.18.
+ *   - Y-ticks: Plex Mono 400 12px; topmost carries "%" suffix.
+ *   - X-ticks: Manrope 400 12px; decade labels 1990, 2000, 2010, 2020 + "2030" at end.
+ *   - viewBox 720x405, 1px pure-ink hairline frame.
+ *   - No legend; no source paragraph; no caption text inside or adjacent to SVG.
+ *
+ * DATA WIRING:
+ *   Constants embedded inline (Tier A, verified from fiscal_balance_pct_gdp.json).
+ *   `data` prop accepted for interface parity; not consumed.
+ *
+ * CANON COMPLIANCE (Tier-3):
+ *   1. Single trace — no multi-color series encoding.
+ *   2. MTA red accent on actual/projection boundary dot only.
+ *   3. Hairline frame 1px ink.
+ *   4. Gridlines at 0.18 opacity; zero line 1.5px separate treatment.
+ *   5. Plex Mono y-ticks, Manrope x-ticks, Manrope 600 annotations.
+ *   6. aria-label names chart + all 4 reference points + projection terminal.
+ *   7. No source paragraph, no caption, no methodology note inside or adjacent.
+ *   8. Projection dashed (convention: forecast vs actual).
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+// data prop accepted for interface parity; embedded constants are authoritative (Tier A).
+const { data = null } = Astro.props;
+void data;
+
+// ---- Verified constants (fiscal_balance_pct_gdp.json, Tier A) -------------------
+// fy = fiscal-year START (e.g. 1983 = FY1983-84). balance_pct_gdp = % of GDP.
+// Sign: deficit negative, surplus positive.
+// pre1983 = modified-cash basis (pre-accrual accounting). Shown as ghost line.
+
+type Pt = { fy: number; v: number; pre83: boolean };
+
+const ALL_HIST: Pt[] = [
+  // Pre-1983 (modified cash — ghost line)
+  { fy: 1966, v: -0.7,  pre83: true  },
+  { fy: 1967, v: -1.5,  pre83: true  },
+  { fy: 1968, v: -0.8,  pre83: true  },
+  { fy: 1969, v:  0.2,  pre83: true  },
+  { fy: 1970, v: -1.1,  pre83: true  },
+  { fy: 1971, v: -1.8,  pre83: true  },
+  { fy: 1972, v: -1.7,  pre83: true  },
+  { fy: 1973, v: -1.7,  pre83: true  },
+  { fy: 1974, v: -1.4,  pre83: true  },
+  { fy: 1975, v: -3.5,  pre83: true  },
+  { fy: 1976, v: -3.3,  pre83: true  },
+  { fy: 1977, v: -4.8,  pre83: true  },
+  { fy: 1978, v: -5.2,  pre83: true  },
+  { fy: 1979, v: -4.2,  pre83: true  },
+  { fy: 1980, v: -4.5,  pre83: true  },
+  { fy: 1981, v: -4.3,  pre83: true  },
+  { fy: 1982, v: -7.5,  pre83: true  },
+  // Post-1983 (full accrual — canonical series)
+  { fy: 1983, v: -7.7,  pre83: false },
+  { fy: 1984, v: -8.0,  pre83: false },
+  { fy: 1985, v: -6.7,  pre83: false },
+  { fy: 1986, v: -5.7,  pre83: false },
+  { fy: 1987, v: -5.1,  pre83: false },
+  { fy: 1988, v: -4.5,  pre83: false },
+  { fy: 1989, v: -4.3,  pre83: false },
+  { fy: 1990, v: -4.9,  pre83: false },
+  { fy: 1991, v: -4.6,  pre83: false },
+  { fy: 1992, v: -5.4,  pre83: false },
+  { fy: 1993, v: -5.2,  pre83: false },
+  { fy: 1994, v: -4.6,  pre83: false },
+  { fy: 1995, v: -3.6,  pre83: false },
+  { fy: 1996, v: -1.0,  pre83: false }, // Martin pivot
+  { fy: 1997, v:  0.3,  pre83: false },
+  { fy: 1998, v:  0.6,  pre83: false },
+  { fy: 1999, v:  1.4,  pre83: false },
+  { fy: 2000, v:  1.8,  pre83: false }, // Surplus peak
+  { fy: 2001, v:  0.7,  pre83: false },
+  { fy: 2002, v:  0.6,  pre83: false },
+  { fy: 2003, v:  0.7,  pre83: false },
+  { fy: 2004, v:  0.1,  pre83: false },
+  { fy: 2005, v:  0.9,  pre83: false },
+  { fy: 2006, v:  0.9,  pre83: false },
+  { fy: 2007, v:  0.6,  pre83: false },
+  { fy: 2008, v: -0.6,  pre83: false },
+  { fy: 2009, v: -3.6,  pre83: false }, // GFC trough
+  { fy: 2010, v: -2.1,  pre83: false },
+  { fy: 2011, v: -1.6,  pre83: false },
+  { fy: 2012, v: -1.2,  pre83: false },
+  { fy: 2013, v: -0.4,  pre83: false },
+  { fy: 2014, v:  0.0,  pre83: false },
+  { fy: 2015, v: -0.1,  pre83: false },
+  { fy: 2016, v: -0.9,  pre83: false },
+  { fy: 2017, v: -0.9,  pre83: false },
+  { fy: 2018, v: -0.6,  pre83: false },
+  { fy: 2019, v: -1.7,  pre83: false },
+  { fy: 2020, v: -14.8, pre83: false }, // COVID peak
+  { fy: 2021, v: -3.6,  pre83: false },
+  { fy: 2022, v: -1.2,  pre83: false },
+  { fy: 2023, v: -2.1,  pre83: false },
+  { fy: 2024, v: -1.2,  pre83: false }, // Latest actual — red dot
+];
+
+// Projection series (DoF SEU April 2026, Annex 1 Table A1.7)
+// Joined at FY2024-25 (-1.2%) which also appears in historical above.
+type ProjPt = { fy: number; v: number };
+const PROJ: ProjPt[] = [
+  { fy: 2024, v: -1.2 }, // Join point = latest actual = red dot
+  { fy: 2025, v: -2.1 },
+  { fy: 2026, v: -1.9 },
+  { fy: 2027, v: -1.8 },
+  { fy: 2028, v: -1.6 },
+  { fy: 2029, v: -1.5 },
+  { fy: 2030, v: -1.4 },
+];
+
+// ---- Geometry -------------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L  = 52;   // left gutter: "-8.0%" is 5 chars, Plex Mono 12px
+const M_R  = 104;  // right margin: end-of-line label "Projection (SEU 2026)"
+const M_T  = 28;
+const M_B  = 38;
+
+const PLOT_X0 = M_L;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_W  = PLOT_X1 - PLOT_X0;
+const PLOT_H  = PLOT_Y1 - PLOT_Y0;
+
+// ---- Y domain (fixed to accommodate COVID trough at -14.8%) --------------------
+// Range: -16% to +3% — clean enough for gridlines; COVID spike shows fully.
+const Y_DOM_MIN = -16;
+const Y_DOM_MAX =   3;
+const Y_RANGE   = Y_DOM_MAX - Y_DOM_MIN; // 19
+
+const yScale = (v: number): number =>
+  PLOT_Y0 + PLOT_H - ((v - Y_DOM_MIN) / Y_RANGE) * PLOT_H;
+
+const zeroY = yScale(0);
+
+// ---- X domain ------------------------------------------------------------------
+// FY start years: 1966 to 2030 (fy is the April-start year of the fiscal year).
+const X_MIN = 1966;
+const X_MAX = 2030;
+const X_SPAN = X_MAX - X_MIN;
+
+const xScale = (fy: number): number =>
+  PLOT_X0 + ((fy - X_MIN) / X_SPAN) * PLOT_W;
+
+// ---- Y ticks: -15, -10, -5, 0, +2 (approx 4 ticks; zero handled separately) ---
+// Use nice round values. Skip 0 — it's the zero line.
+const TICK_VALS = [-15, -10, -5, 0, 2];
+
+type YTick = { y: number; label: string };
+const yTicks: YTick[] = TICK_VALS.map((v, i, arr) => {
+  const isTop = i === arr.length - 1;
+  const label = isTop ? `${v > 0 ? "+" : ""}${v}%` : `${v > 0 ? "+" : ""}${v}`;
+  return { y: yScale(v), label };
+});
+
+// ---- X ticks: decade labels at 1990, 2000, 2010, 2020; terminal "2031" --------
+type XTick = { x: number; label: string };
+const xTicks: XTick[] = [
+  { x: xScale(1990), label: "1990" },
+  { x: xScale(2000), label: "2000" },
+  { x: xScale(2010), label: "2010" },
+  { x: xScale(2020), label: "2020" },
+  { x: xScale(2030), label: "2030" },
+];
+
+// ---- Build SVG paths -----------------------------------------------------------
+// Ghost path: pre-1983 (pre83 === true), dim
+const ghostPts = ALL_HIST.filter((p) => p.pre83 || p.fy === 1983); // bridge to accrual point
+const ghostPath = ghostPts
+  .map((p, i) => `${i === 0 ? "M" : "L"}${xScale(p.fy).toFixed(2)},${yScale(p.v).toFixed(2)}`)
+  .join(" ");
+
+// Solid path: post-1983 actuals
+const solidPts = ALL_HIST.filter((p) => !p.pre83);
+const solidPath = solidPts
+  .map((p, i) => `${i === 0 ? "M" : "L"}${xScale(p.fy).toFixed(2)},${yScale(p.v).toFixed(2)}`)
+  .join(" ");
+
+// Projection path (dashed): FY2024 → FY2030
+const projPath = PROJ
+  .map((p, i) => `${i === 0 ? "M" : "L"}${xScale(p.fy).toFixed(2)},${yScale(p.v).toFixed(2)}`)
+  .join(" ");
+
+// ---- Key coordinates -----------------------------------------------------------
+// Latest actual = FY2024 (-1.2%) — red dot
+const latestPt = ALL_HIST[ALL_HIST.length - 1]!; // { fy: 2024, v: -1.2 }
+const latestX = xScale(latestPt.fy);
+const latestY = yScale(latestPt.v);
+
+// History/projection break vertical marker x position (between FY2024 and FY2025)
+const breakX = xScale(2024.5);
+
+// Terminal projection point (FY2030, -1.4%)
+const termPt = PROJ[PROJ.length - 1]!;
+const termX = xScale(termPt.fy);
+const termY = yScale(termPt.v);
+
+// End-of-solid label position ("Historical")
+const histLabelX = latestX - 2;
+const histLabelY = latestY - 10;
+
+// ---- Annotation callouts --------------------------------------------------------
+// 4 editorial reference points. Leader line from point to text.
+// Layout: place text above/below to avoid overlap with the line.
+
+type Annot = {
+  x: number; y: number;         // data point screen coords
+  textX: number; textY: number; // label text anchor
+  textAnchor: "start" | "middle" | "end";
+  line1: string; line2?: string;
+  // leader: draw a small tick from (x, y) to (textX, y+offset)?
+  leader: boolean;
+};
+
+// Martin pivot: FY1996-97 (fy=1996, v=-1.0) — up from prior deficit, near zero
+const martinX = xScale(1996);
+const martinY = yScale(-1.0);
+
+// Surplus peak: FY2000-01 (fy=2000, v=+1.8)
+const surplusX = xScale(2000);
+const surplusY = yScale(1.8);
+
+// GFC trough: FY2009-10 (fy=2009, v=-3.6)
+const gfcX = xScale(2009);
+const gfcY = yScale(-3.6);
+
+// COVID peak: FY2020-21 (fy=2020, v=-14.8)
+const covidX = xScale(2020);
+const covidY = yScale(-14.8);
+
+const ANNOTS: Annot[] = [
+  // Martin pivot — label above, right of point (space available)
+  {
+    x: martinX, y: martinY,
+    textX: martinX + 2, textY: martinY - 28,
+    textAnchor: "start",
+    line1: "Martin", line2: "pivot",
+    leader: true,
+  },
+  // Surplus peak — label above; anchor right since projection labels are right
+  {
+    x: surplusX, y: surplusY,
+    textX: surplusX + 2, textY: surplusY - 28,
+    textAnchor: "start",
+    line1: "+1.8%", line2: "surplus",
+    leader: true,
+  },
+  // GFC trough — label below the line (line is at -3.6, enough room above the -5 gridline)
+  {
+    x: gfcX, y: gfcY,
+    textX: gfcX + 2, textY: gfcY + 22,
+    textAnchor: "start",
+    line1: "GFC", line2: "-3.6%",
+    leader: true,
+  },
+  // COVID peak — label to the right (space to the right before break line)
+  {
+    x: covidX, y: covidY,
+    textX: covidX + 4, textY: covidY + 5,
+    textAnchor: "start",
+    line1: "COVID", line2: "-14.8%",
+    leader: false, // text is at the point, no separate leader
+  },
+];
+
+// ---- Hit areas for accessibility -----------------------------------------------
+type Hit = { cx: number; cy: number; title: string };
+const histHits: Hit[] = solidPts.map((p) => ({
+  cx: xScale(p.fy),
+  cy: yScale(p.v),
+  title: `FY${p.fy}-${String(p.fy + 1).slice(-2)}: ${p.v >= 0 ? "+" : ""}${p.v.toFixed(1)}% of GDP`,
+}));
+const projHits: Hit[] = PROJ.slice(1).map((p) => ({
+  cx: xScale(p.fy),
+  cy: yScale(p.v),
+  title: `FY${p.fy}-${String(p.fy + 1).slice(-2)} (proj.): ${p.v.toFixed(1)}% of GDP`,
+}));
+
+// ---- aria-label ----------------------------------------------------------------
+const ariaLabel =
+  "Federal budgetary balance as a per cent of GDP, FY1983-84 to FY2030-31. " +
+  "Historical: FRT 2025 (Tier A, DoF October 2025). " +
+  "Projection: DoF Spring Economic Update April 28 2026. " +
+  "Key reference points: Martin pivot FY1996-97 at minus 1.0%; " +
+  "surplus peak FY2000-01 at plus 1.8%; " +
+  "GFC trough FY2009-10 at minus 3.6%; " +
+  "COVID peak FY2020-21 at minus 14.8%. " +
+  "Latest actual FY2024-25 at minus 1.2%. " +
+  "DoF projects deficit narrows from minus 2.1% in FY2025-26 to minus 1.4% by FY2030-31.";
+
+// Pre-1983 break annotation position
+const breakAnnotX = xScale(1983) + 2;
+const breakAnnotY = PLOT_Y0 + 14;
+---
+
+<div class="p2bg-chart" data-panel="fiscal-2" data-panel-status="live" data-vintage="FRT-2025-10 SEU-2026-04-28">
+  <svg
+    class="p2bg-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    <title>Federal budgetary balance as % of GDP, FY1983-84 to FY2030-31 (DoF FRT 2025 + SEU 2026 projection).</title>
+
+    {/* Gridlines at -15, -10, -5, 0, +2 */}
+    {yTicks.map((t) => (
+      <line
+        class="p2bg-chart__gridline"
+        x1={PLOT_X0.toFixed(2)} y1={t.y.toFixed(2)}
+        x2={PLOT_X1.toFixed(2)} y2={t.y.toFixed(2)}
+      />
+    ))}
+
+    {/* Zero line — 1.5px ink, heavier; anchors the surplus/deficit divide */}
+    <line
+      class="p2bg-chart__zero-line"
+      x1={PLOT_X0.toFixed(2)} y1={zeroY.toFixed(2)}
+      x2={PLOT_X1.toFixed(2)} y2={zeroY.toFixed(2)}
+    />
+
+    {/* Vertical break separator at history/projection divide */}
+    <line
+      class="p2bg-chart__break-line"
+      x1={breakX.toFixed(2)} y1={PLOT_Y0.toFixed(2)}
+      x2={breakX.toFixed(2)} y2={PLOT_Y1.toFixed(2)}
+    />
+
+    {/* Ghost line: pre-1983 (modified cash basis) */}
+    <path class="p2bg-chart__ghost-line" d={ghostPath} />
+
+    {/* Pre-1983 basis-change annotation */}
+    <text
+      class="p2bg-chart__basis-note"
+      x={breakAnnotX.toFixed(2)}
+      y={breakAnnotY.toFixed(2)}
+      text-anchor="start"
+    >Basis change 1983</text>
+
+    {/* Solid historical line: FY1983-84 to FY2024-25 */}
+    <path class="p2bg-chart__solid-line" d={solidPath} />
+
+    {/* Projection dashed line: FY2024-25 to FY2030-31 */}
+    <path class="p2bg-chart__proj-line" d={projPath} />
+
+    {/* Historical hit areas */}
+    {histHits.map((h) => (
+      <circle class="p2bg-chart__hit" cx={h.cx.toFixed(2)} cy={h.cy.toFixed(2)} r="5">
+        <title>{h.title}</title>
+      </circle>
+    ))}
+
+    {/* Projection hit areas */}
+    {projHits.map((h) => (
+      <circle class="p2bg-chart__hit" cx={h.cx.toFixed(2)} cy={h.cy.toFixed(2)} r="5">
+        <title>{h.title}</title>
+      </circle>
+    ))}
+
+    {/* Annotation callouts */}
+    {ANNOTS.map((a) => (
+      <g class="p2bg-chart__annot">
+        {a.leader && (
+          <line
+            class="p2bg-chart__annot-leader"
+            x1={a.x.toFixed(2)} y1={a.y.toFixed(2)}
+            x2={a.textX.toFixed(2)} y2={(a.textY + (a.textY < a.y ? 12 : -4)).toFixed(2)}
+          />
+        )}
+        <text
+          class="p2bg-chart__annot-text"
+          x={a.textX.toFixed(2)}
+          y={a.textY.toFixed(2)}
+          text-anchor={a.textAnchor}
+        >{a.line1}</text>
+        {a.line2 && (
+          <text
+            class="p2bg-chart__annot-text"
+            x={a.textX.toFixed(2)}
+            y={(a.textY + 14).toFixed(2)}
+            text-anchor={a.textAnchor}
+          >{a.line2}</text>
+        )}
+      </g>
+    ))}
+
+    {/* MTA red dot — FY2024-25 actual/projection boundary */}
+    <circle
+      class="p2bg-chart__latest-dot"
+      cx={latestX.toFixed(2)}
+      cy={latestY.toFixed(2)}
+      r="4"
+    >
+      <title>FY2024-25 (latest actual): -1.2% of GDP</title>
+    </circle>
+
+    {/* Hairline frame — clips any overflow */}
+    <rect
+      class="p2bg-chart__frame"
+      x={PLOT_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
+      width={PLOT_W.toFixed(2)} height={PLOT_H.toFixed(2)}
+    />
+
+    {/* Y-axis tick labels */}
+    {yTicks.map((t) => (
+      <text
+        class="p2bg-chart__ytick-label"
+        x={(PLOT_X0 - 6).toFixed(2)}
+        y={(t.y + 4).toFixed(2)}
+        text-anchor="end"
+      >{t.label}</text>
+    ))}
+
+    {/* X-axis ticks + labels */}
+    {xTicks.map((t) => (
+      <g>
+        <line
+          class="p2bg-chart__xtick"
+          x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+          x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 4).toFixed(2)}
+        />
+        <text
+          class="p2bg-chart__xtick-label"
+          x={t.x.toFixed(2)}
+          y={(PLOT_Y1 + 16).toFixed(2)}
+          text-anchor="middle"
+        >{t.label}</text>
+      </g>
+    ))}
+
+    {/* End-of-line label: "Historical" near FY2024-25 */}
+    <text
+      class="p2bg-chart__label-hist"
+      x={(histLabelX - 4).toFixed(2)}
+      y={(histLabelY).toFixed(2)}
+      text-anchor="end"
+    >Historical</text>
+
+    {/* End-of-line label: "Projection" + vintage below terminal point */}
+    <text
+      class="p2bg-chart__label-proj"
+      x={(termX + 8).toFixed(2)}
+      y={(termY + 4).toFixed(2)}
+      text-anchor="start"
+    >Projection</text>
+    <text
+      class="p2bg-chart__label-proj-sub"
+      x={(termX + 8).toFixed(2)}
+      y={(termY + 17).toFixed(2)}
+      text-anchor="start"
+    >(SEU 2026)</text>
+
+  </svg>
+</div>
+
+<style>
+  /* -------------------------------------------------------------------
+     Panel2BalancePctGDP — Tier-3 single-trace line chart.
+     Federal budgetary balance % GDP: FY1966-FY2024-25 historical
+     (FRT 2025) + FY2025-26 to FY2030-31 projection (DoF SEU 2026).
+
+     Single trace, no series-color encoding. MTA red on boundary dot only.
+     Pre-1983 ghost at 0.22 opacity signals basis change without truncating.
+     Projection dashed (convention: forecast vs actual).
+     ------------------------------------------------------------------- */
+  .p2bg-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+  }
+  .p2bg-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans);
+  }
+
+  /* Gridlines — 1px ink, 0.18 opacity */
+  .p2bg-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+
+  /* Zero line — 1.5px ink, NOT a gridline */
+  .p2bg-chart__zero-line {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    shape-rendering: crispEdges;
+  }
+
+  /* Vertical break separator (actual/projection) — dotted, faint */
+  .p2bg-chart__break-line {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 2 3;
+    stroke-opacity: 0.35;
+    shape-rendering: crispEdges;
+  }
+
+  /* Pre-1983 ghost line — same weight, much reduced opacity */
+  .p2bg-chart__ghost-line {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-opacity: 0.22;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Solid historical line — FY1983-84 onwards */
+  .p2bg-chart__solid-line {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Projection dashed line */
+  .p2bg-chart__proj-line {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 5 3;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Hit areas — transparent, cursor pointer */
+  .p2bg-chart__hit {
+    fill: transparent;
+    stroke: none;
+    cursor: default;
+  }
+
+  /* Latest dot — MTA red, boundary moment only */
+  .p2bg-chart__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  /* Hairline frame */
+  .p2bg-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Y-axis tick labels — Plex Mono 400, 12px, ink-faint */
+  .p2bg-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.7;
+  }
+
+  /* X-axis tick marks */
+  .p2bg-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+    opacity: 0.4;
+  }
+
+  /* X-axis tick labels — Manrope 400, 12px */
+  .p2bg-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.7;
+  }
+
+  /* Annotation leader lines */
+  .p2bg-chart__annot-leader {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.45;
+    shape-rendering: crispEdges;
+  }
+
+  /* Annotation text — Manrope 600, 11px (compact; canvas is crowded) */
+  .p2bg-chart__annot-text {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* Basis-change note — Manrope 400, 10px, faint */
+  .p2bg-chart__basis-note {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 400;
+    opacity: 0.45;
+  }
+
+  /* End-of-line label: "Historical" — Manrope 600, 12px */
+  .p2bg-chart__label-hist {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* End-of-line label: "Projection" — Manrope 600, 12px */
+  .p2bg-chart__label-proj {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* Projection vintage sub-label — Manrope 400, 11px, faint */
+  .p2bg-chart__label-proj-sub {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.6;
+  }
+</style>

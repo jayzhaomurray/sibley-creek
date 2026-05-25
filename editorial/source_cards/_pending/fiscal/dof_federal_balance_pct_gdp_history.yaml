@@ -1,0 +1,85 @@
+id: dof_federal_balance_pct_gdp_history
+title: "Department of Finance Canada — Fiscal Reference Tables 2025 (federal budgetary balance % of GDP, FY1966-67 to FY2024-25)"
+url: "https://publications.gc.ca/collections/collection_2025/fin/F1-26-2025-eng.pdf"
+anchor: ""
+excerpt: |
+  Fiscal Reference Tables 2025 (Department of Finance Canada, released October 2025).
+  Table 1 (Fiscal transactions, millions of dollars) and Table 2 (Fiscal transactions,
+  per cent of GDP), pp. 9-10. Selected verbatim rows from Table 2 — "Budgetary surplus
+  or deficit (-)" column (Table 2 reports the post-2008 series including net actuarial
+  losses; pre-2008 reports the single budgetary balance column):
+
+      1990-91   -4.9
+      1995-96   -3.6
+      1996-97   -1.0
+      2000-01    1.8
+      2008-09   -0.6
+      2009-10   -3.6
+      2010-11   -2.1
+      2015-16   -0.1
+      2019-20   -1.7
+      2020-21  -14.8
+      2023-24   -2.1
+      2024-25   -1.2
+
+  Footnote: "Due to a break in the series following the introduction of full accrual
+  accounting, data from 1983-84 onward are not directly comparable with earlier years."
+currency_probe_url: "https://www.canada.ca/en/department-finance/services/publications/fiscal-reference-tables/2025.html"
+verified_value:
+  vintage: "October 2025"
+  earliest_year: "1966-67"
+  latest_year: "2024-25"
+  primary_table_reference: "Tables 1 and 2 (Fiscal transactions, $ millions and % of GDP)"
+  fy2024_25_balance_cad_bn: -36.348
+  fy2024_25_balance_pct_gdp: -1.2
+  fy2020_21_balance_pct_gdp: -14.8
+  fy1996_97_balance_pct_gdp: -1.0
+  fy2000_01_balance_pct_gdp: 1.8
+  series_break_note: "Full-accrual accounting break starts 1983-84; pre-1983-84 figures are reported but not directly comparable."
+  derived_csv: "data/derived/fiscal_balance_pct_gdp.csv"
+  derived_json: "data/derived/fiscal_balance_pct_gdp.json"
+verified_at: 2026-05-25
+vintage_label: "Fiscal Reference Tables 2025 (Department of Finance Canada, October 2025)"
+next_expected: "Fiscal Reference Tables 2026 (expected October-November 2026)"
+cadence: "Annual; typically released October-November alongside Annual Financial Report"
+cited_in:
+  - "src/pages/fiscal.astro (plate-2; federal balance % GDP history series)"
+  - "data/derived/fiscal_balance_pct_gdp.json"
+notes: |
+  Primary canada.ca PDF (https://www.canada.ca/content/dam/fin/publications/frt-trf/2025/frt-trf-25-eng.pdf)
+  returns 403/timeout on bot fetches (canada.ca WAF). The IDENTICAL document is mirrored
+  on publications.gc.ca (Government of Canada Publications) at F1-26-2025-eng.pdf — same
+  Department of Finance imprint, same content, fetched cleanly (1.27 MB, 65 pages).
+  publications.gc.ca is the official archival mirror operated by the Government of Canada.
+
+  Extraction pipeline:
+    - Downloaded PDF to data/raw/fiscal/frt_2025.pdf (curl with Referer header).
+    - Parsed Tables 1 and 2 via pdfplumber (analyses/fiscal_plate2_build.py).
+    - Balance column: Table 2 idx 3 pre-2008-09; idx 5 from 2008-09 onward (full accrual
+      "Budgetary surplus or deficit (-)" column including net actuarial losses).
+    - Output: data/derived/fiscal_balance_pct_gdp.{csv,json}, 59 rows historical.
+
+  Verification anchors (independent cross-checks against the SEU 2026 projection card
+  and the AFR 2024-25):
+    - FY2024-25 = -$36.3bn / -1.2% of GDP matches SEU 2026 Annex 1 Table A1.7 row.
+    - FY2020-21 = -$327.7bn / -14.8% of GDP matches the widely-reported pandemic peak.
+    - FY1996-97 = -1.0% matches the Chretien-Martin near-balance year.
+
+  Tier A: primary HTML reachable via official Government of Canada publications mirror
+  (publications.gc.ca), verbatim Table 2 rows captured, multi-year values reconcile with
+  independently-verified SEU 2026 projection card and Annual Financial Report 2024-25.
+
+verification_tier: "A"
+triangulation:
+  - source: "Fiscal Reference Tables 2025 — Department of Finance Canada (publications.gc.ca mirror)"
+    url: "https://publications.gc.ca/collections/collection_2025/fin/F1-26-2025-eng.pdf"
+    excerpt: "Table 2 Fiscal transactions (per cent of GDP) ... 2024-25 ... -1.2 ... 2023-24 ... -2.1 ... 2020-21 ... -14.8 ... 1996-97 ... -1.0 ... 1990-91 ... -4.9"
+    credibility: "Department of Finance Canada — primary publisher, archived on official Government of Canada publications portal"
+  - source: "Spring Economic Update 2026, Annex 1 Table A1.7 (FY2024-25 historical anchor reconciliation)"
+    url: "https://budget.canada.ca/update-miseajour/2026/report-rapport/anx1-en.html"
+    excerpt: "Budgetary Balance ($ billions): 2024-25: -36.3 ... Budgetary Balance (% of GDP): 2024-25: -1.2%"
+    credibility: "Department of Finance Canada — same publisher, independent vintage (April 2026), reconciles FY2024-25 to one decimal"
+user_confirmed_at: null
+user_confirmed_by: null
+
+status: pending_user

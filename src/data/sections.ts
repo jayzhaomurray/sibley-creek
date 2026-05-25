@@ -515,9 +515,9 @@ export const sections: Section[] = [
     slug: "fiscal",
     label: "Fiscal",
     accentVar: "--section-accent-fiscal",
-    kicker: "Federal and provincial fiscal stance, debt service, and projection divergence.",
+    kicker: "Balance trajectory, operating-balance commitment, and the PBO reclassification fight.",
     headlineQuestion:
-      "What is Canada's fiscal stance, and is it consistent with the cycle?",
+      "What is Canada's fiscal policy stance?",
     cadence: "Monthly (Fiscal Monitor) + annual (budgets)",
     // Fiscal Monitor Feb 2026 (released ~Apr 24 2026) is the primary event.
     updatedAt: Date.UTC(2026, 3, 24, 8, 30),
@@ -526,10 +526,9 @@ export const sections: Section[] = [
     heroKickerPrefix: "Fiscal Monitor",
     latestReleasePrefix: "Fiscal Monitor",
     tileLine:
-      "Federal deficit tracking $25.5B YTD; debt service absorbing 10.3c per revenue dollar.",
+      "Federal deficit pencils in a fade from 2.1% to 1.4% of GDP across the horizon.",
     tileLineCitations: [
-      { phrase: "$25.5B YTD", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "Federal YTD balance Apr-Feb 2025-26, -$25.5bn per DoF Fiscal Monitor Feb 2026." },
-      { phrase: "10.3c per revenue dollar", source: "card:dof_fiscal_monitor_debt_service_share", note: "Public debt charges as share of revenues, per StatCan CGFS Nov 21 2025 release." },
+      { phrase: "2.1% to 1.4% of GDP", source: "card:dof_seu_2026_deficit_gdp_share", note: "DoF SEU April 2026 Annex 1 Table A1.7: federal deficit 2.1% of GDP in FY2025-26 fading to 1.4% by FY2030-31." },
     ],
     prints: [
       {
@@ -555,13 +554,13 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 24, 2026",
       body:
-        "Fiscal is tracking the same cadence as recent years, not leaning against the cycle. The federal deficit is running at $25.5 billion through February — $6.2 billion wider than the same point last year. Debt service absorbs over 10 cents of every revenue dollar, a ratio the PBO projects rising to 13 cents by 2030-31 — shrinking the room for fiscal response to the next downturn.",
+        "Fiscal stance is mildly expansionary, penciled in to fade from 2.1% to 1.4% of GDP across the horizon. The government's stated commitment to balance day-to-day operating spending by FY2028-29 holds under its own classification of operating vs capital. The PBO disagrees: reclassifying $94 billion the government calls capital leaves the operating balance still in deficit by $18 billion that year.",
     },
     abstractCitations: [
-      { phrase: "$25.5 billion through February", source: "pipeline:dof:dof_fiscal_ytd_balance", note: "Federal YTD balance Apr-Feb 2025-26, -$25.5bn per Fiscal Monitor Feb 2026." },
-      { phrase: "$6.2 billion wider than the same point last year", source: "card:dof_fiscal_monitor_feb_2025_ytd_anchor", note: "FY26 YTD through Feb 2026: -$25.5bn (Fiscal Monitor Feb 2026, Tier A). FY25 YTD through Feb 2025: -$19.3bn (Fiscal Monitor Feb 2025, Tier A). Subtraction on published one-decimal figures: $6.2bn wider." },
-      { phrase: "10 cents of every revenue dollar", source: "card:dof_fiscal_monitor_debt_service_share", note: "StatCan CGFS Nov 21 2025: 10.3c per dollar. Source card plate-2.yaml Tier A." },
-      { phrase: "13 cents by 2030-31", source: "card:pbo_interest_burden_forecast_2030", note: "PBO Main Estimates 2026-27 (May 7 2026): interest expense rises to 13.2% of revenues by 2030-31." },
+      { phrase: "fade from 2.1% to 1.4% of GDP", source: "card:dof_seu_2026_deficit_gdp_share", note: "DoF SEU April 2026 Annex 1 Table A1.7: federal deficit 2.1% of GDP in FY2025-26 to 1.4% by FY2030-31." },
+      { phrase: "balance day-to-day operating spending by FY2028-29", source: "card:dof_operating_balance_projection", note: "DoF SEU April 2026 Annex 1 Table A1.5: day-to-day operating balance crosses zero in FY2028-29 (+$0.9bn), meeting the stated fiscal anchor under DoF's own definition." },
+      { phrase: "reclassifying $94 billion", source: "card:pbo_operating_capital_reclassification_nov_2025", note: "PBO Budget 2025 review (RP-2526-017-S, Nov 14 2025): PBO reclassifies $94bn of DoF's claimed capital ($311.5bn) as operating under international standard." },
+      { phrase: "operating balance still in deficit by $18 billion", source: "card:pbo_operating_capital_reclassification_nov_2025", note: "PBO RP-2526-017-S: under PBO's reclassification, the FY2028-29 operating deficit is -$18.1bn (DoF says +$0.9bn surplus)." },
     ],
   },
   {

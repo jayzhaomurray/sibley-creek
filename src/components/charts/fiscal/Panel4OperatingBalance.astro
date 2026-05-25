@@ -1,0 +1,387 @@
+---
+/*
+ * Panel4OperatingBalance — DoF SEU April 2026 day-to-day operating balance projection.
+ *
+ * EDITORIAL PURPOSE: Shows the government's stated fiscal stance under the Carney
+ * bifurcated frame. Six-year track (FY2025-26 → FY2030-31) from DoF Spring Economic
+ * Update April 2026, Annex 1 Table A1.5. Editorial point: operating balance is pencilled
+ * in for FY2028-29 — the government's stated fiscal anchor, hit exactly.
+ *
+ * PLATE TITLE CANDIDATE (per writing-style.md terminal-period / one-verb canon):
+ *   "Ottawa pencils in operating balance for FY2028-29."
+ *
+ * DATA SOURCE (Tier A verified):
+ *   DoF Spring Economic Update, April 28 2026 — Annex 1, Table A1.5.
+ *   Primary figures: data/derived/fiscal_dof_operating_balance.json
+ *   Source card:    editorial/source_cards/_pending/fiscal/dof_operating_balance_projection.yaml
+ *   Sign convention: positive = surplus, negative = deficit.
+ *
+ * DESIGN (Tier-3, single-trace vertical bar):
+ *   - Deficit bars (< 0): solid var(--ink) fill, no stroke.
+ *   - Surplus bars (>= 0): var(--ink) fill-opacity 0.45, 1px ink stroke —
+ *     visually "lighter" reads as the forward projection crossing the anchor.
+ *   - FY2028-29 bar: var(--accent) MTA red — anchor-met focal point.
+ *   - Zero line: 1.5px var(--ink), NOT a gridline.
+ *   - Annotation: "Fiscal anchor met" callout above the FY2028-29 bar.
+ *   - 3-4 horizontal gridlines at 0.18 opacity (zero line handled separately).
+ *   - Y-ticks: Plex Mono 400 12px; topmost carries "$NNB" suffix.
+ *   - X-ticks: Manrope 400 12px; fiscal-year labels "FY26" … "FY31".
+ *   - viewBox 720x405, 1px pure-ink hairline frame.
+ *   - No legend; no caption; no source text inside SVG.
+ *
+ * DATA WIRING:
+ *   This component uses verified constants embedded inline (Tier A, SEU 2026 Annex 1).
+ *   When the pipeline later emits panel-4 for /fiscal/ with key "dof_operating_balance",
+ *   switch to reading data.primary. Until then the constants are the authoritative source.
+ *   The `data` prop is accepted (for interface compatibility) but not consumed.
+ *
+ * CANON COMPLIANCE (Tier-3):
+ *   1. Single trace — one bar series, no multi-color encoding on series identity.
+ *   2. Zero line 1.5px — heavier than gridlines (0.18 opacity), anchors the anchor.
+ *   3. MTA red accent on FY2028-29 only — the "latest point" moment is the anchor year.
+ *   4. Hairline frame 1px ink.
+ *   5. Gridlines 3 ticks at stroke-opacity 0.18.
+ *   6. Plex Mono y-ticks, Manrope x-ticks, Manrope 600 annotation.
+ *   7. aria-label names chart + anchor finding.
+ *   8. No source paragraph, no caption, no methodology note inside or adjacent to SVG.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+// data prop accepted for interface parity; constants below are authoritative (Tier A).
+const { data = null } = Astro.props;
+void data; // intentionally unused until pipeline wires panel-4
+
+// ---- Verified constants (DoF SEU April 2026, Annex 1 Table A1.5) ----------------
+// Source: data/derived/fiscal_dof_operating_balance.json
+// Sign: positive = surplus, negative = deficit.
+const SERIES: { fy: string; label: string; value: number; isAnchor: boolean }[] = [
+  { fy: "FY26", label: "FY2025-26", value: -26.4, isAnchor: false },
+  { fy: "FY27", label: "FY2026-27", value: -10.5, isAnchor: false },
+  { fy: "FY28", label: "FY2027-28", value:  -5.2, isAnchor: false },
+  { fy: "FY29", label: "FY2028-29", value:   0.9, isAnchor: true  }, // fiscal anchor met
+  { fy: "FY30", label: "FY2029-30", value:   4.5, isAnchor: false },
+  { fy: "FY31", label: "FY2030-31", value:   6.1, isAnchor: false },
+];
+
+// ---- Geometry -------------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L  = 60;   // left gutter: "$-26.4B" is 7 chars in Plex Mono 12px
+const M_R  = 24;
+const M_T  = 28;
+const M_B  = 38;
+
+const PLOT_X0 = M_L;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_W  = PLOT_X1 - PLOT_X0;
+const PLOT_H  = PLOT_Y1 - PLOT_Y0;
+
+// ---- Y domain ------------------------------------------------------------------
+const rawMin = Math.min(...SERIES.map((s) => s.value));  // -26.4
+const rawMax = Math.max(...SERIES.map((s) => s.value));  //  +6.1
+
+// Extend by ~12% headroom on each side; always include zero.
+const yDomMin = rawMin < 0 ? rawMin * 1.12 : 0;
+const yDomMax = rawMax > 0 ? rawMax * 1.20 : 5;  // 20% ceiling so FY31 bar breathes
+const yRange  = yDomMax - yDomMin || 1;
+
+const yScale = (v: number): number =>
+  PLOT_Y0 + PLOT_H - ((v - yDomMin) / yRange) * PLOT_H;
+
+const zeroY = yScale(0);
+
+// ---- Y ticks (3-4 nice values, excluding the zero line) -----------------------
+// With min ~-30 and max ~+7.5, a $10B stride works well: -30, -20, -10, 0, +10
+// We generate ticks at multiples of 10B across the domain, then filter to range.
+const TICK_STRIDE = 10;
+const tickVals: number[] = [];
+{
+  const first = Math.ceil(yDomMin / TICK_STRIDE) * TICK_STRIDE;
+  for (let v = first; v <= yDomMax + 1e-9; v += TICK_STRIDE) {
+    // Skip zero — the zero line is rendered separately as the fiscal anchor mark.
+    if (Math.abs(v) < 1e-9) continue;
+    if (yScale(v) >= PLOT_Y0 - 2 && yScale(v) <= PLOT_Y1 + 2) {
+      tickVals.push(v);
+    }
+  }
+}
+
+type YTick = { y: number; label: string };
+const yTicks: YTick[] = tickVals.map((v, i, arr) => {
+  const isTop = i === arr.length - 1;
+  const abs   = Math.abs(v);
+  const sign  = v < 0 ? "-" : "+";
+  // Topmost tick carries "$NNB" suffix; others are just the signed number.
+  const body  = isTop ? `$${sign}${abs.toFixed(0)}B` : `${sign}${abs.toFixed(0)}`;
+  return { y: yScale(v), label: body };
+});
+
+// ---- X layout (6 bars, equal spacing) -----------------------------------------
+const n      = SERIES.length;
+const groupW = PLOT_W / (n + 0.5);   // slot per fiscal year
+const barW   = groupW * 0.55;         // bar occupies 55% of slot
+
+type BarRect = {
+  x: number; y: number; w: number; h: number;
+  isSurplus: boolean; isAnchor: boolean;
+  titleText: string;
+};
+
+const bars: BarRect[] = [];
+type XTick = { x: number; label: string };
+const xTicks: XTick[] = [];
+
+for (let i = 0; i < n; i++) {
+  const pt     = SERIES[i]!;
+  const cx     = PLOT_X0 + (i + 0.5) * groupW;
+  const x      = cx - barW / 2;
+  const bTop   = yScale(Math.max(0, pt.value));
+  const bBot   = yScale(Math.min(0, pt.value));
+  bars.push({
+    x, y: bTop, w: barW, h: Math.max(1, bBot - bTop),
+    isSurplus: pt.value >= 0,
+    isAnchor:  pt.isAnchor,
+    titleText: `${pt.label}: $${pt.value >= 0 ? "+" : ""}${pt.value.toFixed(1)}B day-to-day operating balance`,
+  });
+  xTicks.push({ x: cx, label: pt.fy });
+}
+
+// ---- Anchor annotation (FY29 bar) -------------------------------------------
+// Callout text sits above the FY29 bar. Bar top for a surplus bar is bTop.
+const anchorBar    = bars[3]!; // FY2028-29 is index 3
+const anchorCx     = anchorBar.x + anchorBar.w / 2;
+const anchorLineX  = anchorCx;
+const anchorLineY1 = anchorBar.y - 6;   // just above bar top
+const anchorLineY2 = anchorBar.y - 22;  // leader line end
+const anchorTextY  = anchorBar.y - 26;  // text baseline
+
+// ---- aria-label ---------------------------------------------------------------
+const ariaLabel =
+  "Federal day-to-day operating balance projection, DoF Spring Economic Update April 2026. " +
+  "Six-year track from FY2025-26 through FY2030-31. " +
+  "Deficit of minus $26.4 billion in FY2025-26 narrows to plus $0.9 billion in FY2028-29, " +
+  "meeting the government's fiscal anchor of balancing day-to-day operating spending with revenues. " +
+  "Surplus reaches plus $6.1 billion by FY2030-31. " +
+  "Source: Department of Finance Spring Economic Update 2026, Annex 1 Table A1.5.";
+---
+
+<div class="p4ob-chart" data-panel="fiscal-4" data-panel-status="live" data-vintage="SEU-2026-04-28">
+  <svg
+    class="p4ob-chart__svg"
+    viewBox={`0 0 ${VB_W} ${VB_H}`}
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={ariaLabel}
+  >
+    <title>Federal day-to-day operating balance, DoF SEU April 2026 projection, FY2025-26 to FY2030-31.</title>
+
+    {/* Gridlines — deficit side only (surplus side is sparse) */}
+    {yTicks.map((t) => (
+      <line
+        class="p4ob-chart__gridline"
+        x1={PLOT_X0.toFixed(2)} y1={t.y.toFixed(2)}
+        x2={PLOT_X1.toFixed(2)} y2={t.y.toFixed(2)}
+      />
+    ))}
+
+    {/* Zero line — 1.5px ink, heavier than gridlines, IS the fiscal anchor */}
+    <line
+      class="p4ob-chart__zero-line"
+      x1={PLOT_X0.toFixed(2)} y1={zeroY.toFixed(2)}
+      x2={PLOT_X1.toFixed(2)} y2={zeroY.toFixed(2)}
+    />
+
+    {/* Bars */}
+    {bars.map((b) => (
+      <rect
+        class={
+          b.isAnchor
+            ? "p4ob-chart__bar p4ob-chart__bar--anchor"
+            : b.isSurplus
+            ? "p4ob-chart__bar p4ob-chart__bar--surplus"
+            : "p4ob-chart__bar p4ob-chart__bar--deficit"
+        }
+        x={b.x.toFixed(2)}
+        y={b.y.toFixed(2)}
+        width={b.w.toFixed(2)}
+        height={b.h.toFixed(2)}
+      >
+        <title>{b.titleText}</title>
+      </rect>
+    ))}
+
+    {/* Hairline frame — on top so it clips any bar overflow */}
+    <rect
+      class="p4ob-chart__frame"
+      x={PLOT_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
+      width={PLOT_W.toFixed(2)} height={PLOT_H.toFixed(2)}
+    />
+
+    {/* Y-axis tick labels */}
+    {yTicks.map((t) => (
+      <text
+        class="p4ob-chart__ytick-label"
+        x={(PLOT_X0 - 6).toFixed(2)}
+        y={(t.y + 4).toFixed(2)}
+        text-anchor="end"
+      >{t.label}</text>
+    ))}
+
+    {/* Zero line label — "$0" on the left margin */}
+    <text
+      class="p4ob-chart__zero-label"
+      x={(PLOT_X0 - 6).toFixed(2)}
+      y={(zeroY + 4).toFixed(2)}
+      text-anchor="end"
+    >0</text>
+
+    {/* X-axis ticks + labels */}
+    {xTicks.map((t) => (
+      <g>
+        <line
+          class="p4ob-chart__xtick"
+          x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+          x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 4).toFixed(2)}
+        />
+        <text
+          class="p4ob-chart__xtick-label"
+          x={t.x.toFixed(2)}
+          y={(PLOT_Y1 + 16).toFixed(2)}
+          text-anchor="middle"
+        >{t.label}</text>
+      </g>
+    ))}
+
+    {/* Anchor annotation — FY2028-29 callout */}
+    <line
+      class="p4ob-chart__annot-leader"
+      x1={anchorLineX.toFixed(2)} y1={anchorLineY1.toFixed(2)}
+      x2={anchorLineX.toFixed(2)} y2={anchorLineY2.toFixed(2)}
+    />
+    <text
+      class="p4ob-chart__annot-text"
+      x={anchorTextY < PLOT_Y0 + 18 ? (anchorCx + 6).toFixed(2) : anchorCx.toFixed(2)}
+      y={anchorTextY.toFixed(2)}
+      text-anchor="middle"
+    >Fiscal anchor met</text>
+
+  </svg>
+</div>
+
+<style>
+  /* -------------------------------------------------------------------
+     Panel4OperatingBalance — Tier-3 single-trace bar chart.
+     DoF SEU April 2026 day-to-day operating balance, FY2025-26 to FY2030-31.
+
+     Deficit bars: solid ink. Surplus bars: 0.45 opacity + 1px ink stroke.
+     Anchor bar (FY2028-29): MTA red accent.
+     Zero line: 1.5px ink — the fiscal anchor threshold.
+     ------------------------------------------------------------------- */
+  .p4ob-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+  }
+  .p4ob-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans);
+  }
+  /* Gridlines — 0.18 opacity ink, crispEdges */
+  .p4ob-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  /* Zero line — 1.5px solid ink, NOT a gridline */
+  .p4ob-chart__zero-line {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    shape-rendering: crispEdges;
+  }
+  /* Base bar style */
+  .p4ob-chart__bar {
+    shape-rendering: crispEdges;
+  }
+  /* Deficit bars — solid ink, no stroke */
+  .p4ob-chart__bar--deficit {
+    fill: var(--ink);
+    stroke: none;
+  }
+  /* Surplus bars — lighter: 0.45 opacity fill + 1px ink stroke */
+  .p4ob-chart__bar--surplus {
+    fill: var(--ink);
+    fill-opacity: 0.45;
+    stroke: var(--ink);
+    stroke-width: 1;
+  }
+  /* Anchor bar (FY2028-29) — MTA red, full opacity */
+  .p4ob-chart__bar--anchor {
+    fill: var(--accent);
+    fill-opacity: 1;
+    stroke: none;
+  }
+  /* Hairline frame — 1px pure ink */
+  .p4ob-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  /* Y-axis tick labels — Plex Mono 400, 12px, tabular nums */
+  .p4ob-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.7;
+  }
+  /* Zero label — same as tick labels but full opacity (it's the anchor) */
+  .p4ob-chart__zero-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  /* X-axis tick marks */
+  .p4ob-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+    opacity: 0.4;
+  }
+  /* X-axis tick labels — Manrope 400, 12px */
+  .p4ob-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.7;
+  }
+  /* Annotation leader line — 1px ink, 0.5 opacity */
+  .p4ob-chart__annot-leader {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.5;
+    shape-rendering: crispEdges;
+  }
+  /* Annotation text — Manrope 600, 13px */
+  .p4ob-chart__annot-text {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+  }
+</style>
