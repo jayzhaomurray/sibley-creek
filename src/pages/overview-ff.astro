@@ -12,14 +12,20 @@
  * `/overview/` (which uses investing.com's iframe). noindex + excluded
  * from sitemap so it's reachable only by direct URL.
  *
- * Refresh model: build-time fetch. The feed updates throughout the week;
- * a daily GitHub Actions cron + redeploy keeps this current. Acceptable
- * staleness budget: 24h.
+ * Refresh model: build-time fetch with a 6-hour disk cache at
+ * `data/derived/ff_calendar_cache.xml`. Forex Factory rate-limits (HTTP
+ * 429) when builds hit the CDN repeatedly, so we re-fetch only when the
+ * cache is stale or missing. On fetch failure (429, network, etc.) we
+ * fall back to the cached copy regardless of age — better to render
+ * yesterday's calendar than the empty state.
  *
- * Filter: Canadian (CAD) + US (USD) events, all impact levels including
- * holidays. The investing.com /overview/ widget is high-impact-only; this
- * one keeps medium too so the reader can see the fuller week.
+ * Filter: none — the full Forex Factory week is rendered, all countries
+ * and all impact levels. Same scope FF shows on its own site, just in
+ * Sibley type. We may later add per-currency / per-impact filter chips,
+ * but the unfiltered view is the comparison baseline.
  */
+import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import TitleStatement from "../components/home/TitleStatement.astro";
 import SectionPanel from "../components/home/SectionPanel.astro";
@@ -57,7 +63,8 @@ type FFDayBucket = {
 };
 
 const FF_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.xml";
-const COUNTRIES_KEEP = new Set(["CAD", "USD"]);
+const FF_CACHE_PATH = resolve(process.cwd(), "data/derived/ff_calendar_cache.xml");
+const FF_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h
 
 let ffBuckets: FFDayBucket[] = [];
 let ffFetchError: string | null = null;
@@ -99,33 +106,71 @@ const dayLabel = (iso: string): string => {
   return `${dow}, ${MONTH_NAMES[mo - 1]} ${d}`;
 };
 
+// --- Fetch w/ disk cache ----------------------------------------------------
+// Pattern: if the cache file exists and is younger than the TTL, use it
+// directly. Otherwise try to refresh. On any fetch error (including 429
+// rate-limit) fall back to the cached copy regardless of age. Only if
+// there's no cache at all AND the fetch fails do we render the error
+// state. This keeps builds cheap and resilient to FF throttling.
+const cacheAgeMs = (): number | null => {
+  if (!existsSync(FF_CACHE_PATH)) return null;
+  try { return Date.now() - statSync(FF_CACHE_PATH).mtimeMs; }
+  catch { return null; }
+};
+const readCache = (): string | null => {
+  if (!existsSync(FF_CACHE_PATH)) return null;
+  try { return readFileSync(FF_CACHE_PATH, { encoding: "latin1" }); }
+  catch { return null; }
+};
+const writeCache = (xml: string): void => {
+  try {
+    mkdirSync(dirname(FF_CACHE_PATH), { recursive: true });
+    writeFileSync(FF_CACHE_PATH, xml, { encoding: "latin1" });
+  } catch { /* swallow — cache is best-effort */ }
+};
+
+let xml: string | null = null;
+const age = cacheAgeMs();
+if (age !== null && age < FF_CACHE_TTL_MS) {
+  xml = readCache();
+}
+if (xml === null) {
+  try {
+    const res = await fetch(FF_URL, {
+      headers: { "User-Agent": "SibleyCreek/1.0 (+https://sibleycreek.ca)" },
+    });
+    if (!res.ok) {
+      ffFetchError = `Forex Factory feed returned HTTP ${res.status}; using cached copy.`;
+      xml = readCache();
+    } else {
+      const buf = await res.arrayBuffer();
+      xml = new TextDecoder("windows-1252").decode(buf);
+      writeCache(xml);
+    }
+  } catch (err) {
+    ffFetchError = err instanceof Error ? err.message : "Unknown fetch error";
+    xml = readCache();
+  }
+}
+
 try {
-  const res = await fetch(FF_URL, {
-    headers: {
-      "User-Agent": "SibleyCreek/1.0 (+https://sibleycreek.ca)",
-    },
-  });
-  if (!res.ok) {
-    ffFetchError = `Forex Factory feed returned HTTP ${res.status}`;
+  if (xml === null) {
+    if (!ffFetchError) ffFetchError = "No Forex Factory data available (no cache, no network).";
   } else {
-    // Feed is windows-1252; fetch as ArrayBuffer + decode manually since most
-    // of the content is ASCII and Astro's build env handles latin1 fine.
-    const buf = await res.arrayBuffer();
-    const xml = new TextDecoder("windows-1252").decode(buf);
+    // Live or cached XML in hand; parse the same way regardless.
+    ffFetchError = null;
     const eventBlocks = xml.match(/<event>[\s\S]*?<\/event>/g) ?? [];
 
-    const events: FFEvent[] = eventBlocks
-      .map((block): FFEvent => ({
-        title: tagText(block, "title"),
-        country: tagText(block, "country"),
-        date: tagText(block, "date"),
-        time: tagText(block, "time"),
-        impact: tagText(block, "impact"),
-        forecast: tagText(block, "forecast"),
-        previous: tagText(block, "previous"),
-        url: tagText(block, "url"),
-      }))
-      .filter((e) => COUNTRIES_KEEP.has(e.country));
+    const events: FFEvent[] = eventBlocks.map((block): FFEvent => ({
+      title: tagText(block, "title"),
+      country: tagText(block, "country"),
+      date: tagText(block, "date"),
+      time: tagText(block, "time"),
+      impact: tagText(block, "impact"),
+      forecast: tagText(block, "forecast"),
+      previous: tagText(block, "previous"),
+      url: tagText(block, "url"),
+    }));
 
     // Group by date.
     const byDate = new Map<string, FFEvent[]>();
@@ -148,8 +193,8 @@ try {
 }
 
 const pageDesc =
-  `Canadian macro overview for ${longDate}, with the week ahead from the ` +
-  "Forex Factory feed (CAD + USD). Internal alt to /overview/. Independent research.";
+  `Canadian macro overview for ${longDate}, with the full Forex Factory ` +
+  "week ahead. Internal alt to /overview/. Independent research.";
 ---
 <BaseLayout
   title={`Overview (FF alt) — ${site.name}`}
@@ -199,7 +244,7 @@ const pageDesc =
       {ffFetchError ? (
         <p class="ffcal__error">Calendar feed unavailable: {ffFetchError}</p>
       ) : ffBuckets.length === 0 ? (
-        <p class="ffcal__error">No Canadian or US events listed for this week.</p>
+        <p class="ffcal__error">No events listed for this week.</p>
       ) : (
         <div class="ffcal__body">
           {ffBuckets.map((bucket) => (
