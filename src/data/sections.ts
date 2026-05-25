@@ -1096,7 +1096,7 @@ export const site = {
   // tagline to "Canadian macro" - confident, label-sized.
   tagline: "Canadian macro",
   description:
-    "Sibley Creek - Canadian macroeconomic indicators and analysis. Independent research on GDP, inflation, labour, housing, monetary policy, markets, and trade.",
+    "Sibley Creek - Canadian macroeconomic indicators and analysis. Independent research on GDP, inflation, labour, monetary policy, fiscal policy, housing, trade, and markets.",
   locale: "en-CA",
   url: "https://sibleycreek.ca",
 };

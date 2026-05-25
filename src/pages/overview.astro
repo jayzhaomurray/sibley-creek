@@ -31,15 +31,7 @@ import { deepDives, site } from "../data/sections";
 import { enrichedSections, type EnrichedSection } from "../data/site_data_loader";
 
 // Card order = enrichedSections order = canon order in sections.ts = nav order.
-// TEMPORARY: filter out fiscal until the /fiscal/ section page lands its real
-// data (Plate 5 reclassification + Plate 3 PBO track + remaining source cards).
-// The /overview-with-fiscal/ noindex preview page renders the full 8-section
-// grid; once fiscal's data is real, drop this filter so /overview/ promotes
-// to 8 panels. Until then the live /overview/ stays at 7 sections + working
-// papers per the original layout. See followups snapshot for the trigger.
-const ordered: EnrichedSection[] = enrichedSections.filter(
-  (s) => s.slug !== "fiscal"
-);
+const ordered: EnrichedSection[] = enrichedSections;
 
 // Title-statement date line. Always reflects today in Canadian editorial
 // time (America/Toronto), NOT the build host's UTC.
@@ -52,8 +44,8 @@ const longDate = new Intl.DateTimeFormat("en-CA", {
 }).format(today);
 
 const pageDesc =
-  `Canadian macro overview for ${longDate}. Seven indicator domains — output, ` +
-  "inflation, labour, monetary, housing, trade, markets — each with " +
+  `Canadian macro overview for ${longDate}. Eight indicator domains — output, ` +
+  "inflation, labour, monetary, fiscal, housing, trade, markets — each with " +
   "an anchor chart and the latest prints. Independent research.";
 ---
 <BaseLayout

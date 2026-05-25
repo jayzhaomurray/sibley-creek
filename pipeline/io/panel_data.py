@@ -707,32 +707,47 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
                 "(inherits from policy section, Tier A verified)."
             ),
         ),
-        # Plate 2 — Debt service / revenues ratio with 5-year trailing band.
-        # Numerator: public_debt_charges_ytd. Denominator: revenues_ytd.
-        # Both already in pipeline/fetch/dof_fiscal.py.
+        # Plate 2 — Debt service / revenues ratio with 5-year trailing same-month band.
+        # Derived series emitted by pipeline.build.derive_fiscal_plate2_band():
+        #   primary:   debt_service_ratio        -- ratio_pct, all available months
+        #   secondary: debt_service_ratio_band_lo -- 5-yr same-month trailing min
+        #   tertiary:  debt_service_ratio_band_hi -- 5-yr same-month trailing max
+        # History source: dof_fiscal_ratio_history.csv (FY2019-20 onward, built by
+        #   pipeline.build.fetch_dof_fiscal_history()).
         # PBO names this the 'interest burden' sustainability indicator;
         # latest value: rising toward 13.2% by 2030-31 per PBO May 2026 forecast.
         PanelSpec(
             panel_id="panel-2", section="fiscal", panel_num=2,
             file="fiscal/Panel2DebtServiceRevenues.astro",
             primary=SlotSpec(
-                "public_debt_charges_ytd", "raw",
-                label="Public debt charges YTD (C$ millions)",
+                "debt_service_ratio", "derived",
+                label="Debt service / revenues ratio (%)",
+                unit_override="%",
             ),
             secondary=SlotSpec(
-                "revenues_ytd", "raw",
-                label="Budgetary revenues YTD (C$ millions)",
+                "debt_service_ratio_band_lo", "derived",
+                label="5-year same-month trailing min (%)",
+                unit_override="%",
+            ),
+            tertiary=SlotSpec(
+                "debt_service_ratio_band_hi", "derived",
+                label="5-year same-month trailing max (%)",
+                unit_override="%",
             ),
             expected_status="WIRED",
             notes=(
-                "Plate 2: debt-service / revenues ratio. Chart-builder divides "
-                "primary by secondary * 100 to render the % ratio at each "
-                "month-of-year observation. The 5-year trailing band (5-yr min/max "
-                "envelope at each month-of-year position) is derived chart-side from "
-                "the two on-disk series. Source card: plate-2.yaml (Tier A). "
+                "Plate 2: debt-service / revenues ratio (%). Pre-computed pipeline-side "
+                "from DoF Fiscal Monitor multi-year history (FY2019-20 onward). "
+                "primary=debt_service_ratio (the ratio itself, monthly); "
+                "secondary=debt_service_ratio_band_lo (5-yr same-month trailing min); "
+                "tertiary=debt_service_ratio_band_hi (5-yr same-month trailing max). "
+                "Band methodology: for month m, use the 5 most-recent prior occurrences "
+                "of the same calendar month (e.g. Feb 2026 band = Feb 2021-2025); "
+                "requires >=2 prior same-month observations. "
+                "Source card: plate-2.yaml (Tier A). "
                 "PBO's 'interest burden' indicator: 10.3c per dollar of revenue "
-                "currently (StatCan CGFS Nov 2025); rising to 13.2% by 2030-31 "
-                "(PBO Main Estimates May 2026). Add 13.2% endpoint as named anchor."
+                "currently; rising to 13.2% by 2030-31 (PBO Main Estimates May 2026). "
+                "PBO endpoint rendered as named anchor in the chart component."
             ),
         ),
         # Plate 3 — PBO EFO Sept 2025 vs DoF SEU April 2026 baseline delta.

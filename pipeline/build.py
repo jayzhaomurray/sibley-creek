@@ -43,11 +43,12 @@ non-zero if any task failed, so CI surfaces the failure in the run UI.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
 import traceback
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -63,6 +64,7 @@ from pipeline.catalog.boc_series import BocSpec
 from pipeline.catalog.imf_series import ImfSpec
 from pipeline.catalog.statcan_series import StatcanSpec, get_url as statcan_url
 from pipeline.fetch import alberta, boc, cba_arrears, cpi_basket, cpi_components, crea, dof_fiscal, imf_weo, statcan
+from pipeline.fetch._http import get_client as _http_get_client
 from pipeline.io import SeriesMeta, build_site_data, write_series
 from pipeline.io.panel_data import build_all_panel_data
 from pipeline.transform import yoy_pct
@@ -348,6 +350,294 @@ def fetch_dof_fiscal_monitor() -> None:
         ),
     )
     write_series(summary_df, summary_meta, DATA_RAW)
+
+
+def fetch_dof_fiscal_history() -> None:
+    """Fetch historical Fiscal Monitor issues to build a multi-year YTD ratio history.
+
+    The 5-year trailing same-month band for Plate 2 requires public debt charges YTD
+    and revenues YTD for every Fiscal Monitor issue back to FY2019-20. The live fetcher
+    (`fetch_dof_fiscal_monitor`) only captures the most recent issue. This function
+    walks back through historical issues and extends the on-disk history CSV.
+
+    Output:
+        data/derived/dof_fiscal_ratio_history.csv
+            date, pdc_ytd_cad_millions, rev_ytd_cad_millions, ratio_pct, fiscal_year_label
+            One row per Fiscal Monitor issue (monthly, April-March FY cycle).
+            Signs: public_debt_charges_ytd is stored as a positive number (charges are
+            a cost; DoF publishes them as negative in the deficit context; we flip sign
+            here to make the ratio positive). revenues_ytd is always positive.
+
+    Caching: the history CSV is append-mode — already-present rows (by date) are
+    skipped. A fresh run only fetches missing months.
+
+    Failure mode: per-issue failures are logged and skipped; a partial history is
+    still written so the band computation has whatever data exists.
+    """
+    out_path = DATA_DERIVED / "dof_fiscal_ratio_history.csv"
+    existing_dates: set[str] = set()
+    existing_rows: list[dict] = []
+
+    if out_path.exists():
+        try:
+            ex_df = pd.read_csv(out_path)
+            existing_dates = set(ex_df["date"].astype(str).tolist())
+            existing_rows = ex_df.to_dict(orient="records")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("dof_fiscal_history: could not read existing cache: %s", exc)
+            existing_dates = set()
+            existing_rows = []
+
+    # Issue range: April 2019 to "2 months ago" (same as find_available_issue heuristic).
+    # Walk forward month by month from FY2019-20 start.
+    today = date.today()
+    latest_ref = pd.Timestamp(today) - pd.DateOffset(months=2)
+    start = pd.Timestamp("2019-04-30")  # first month of FY2019-20
+
+    new_rows: list[dict] = []
+    cursor = start
+    with _http_get_client(headers={"User-Agent": "Mozilla/5.0 macro-research-department"}) as client:
+        while cursor <= latest_ref:
+            year = cursor.year
+            month = cursor.month
+            issue_date_str = (pd.Timestamp(year=year, month=month, day=1) + pd.offsets.MonthEnd(0)).date().isoformat()
+            if issue_date_str in existing_dates:
+                cursor += pd.DateOffset(months=1)
+                continue
+            url = dof_fiscal.issue_url(year, month)
+            try:
+                r = client.get(url)
+                if r.status_code != 200:
+                    logger.debug("dof_fiscal_history: %s returned %d, skipping", url, r.status_code)
+                    cursor += pd.DateOffset(months=1)
+                    continue
+                issue = dof_fiscal.parse_issue(r.content, year, month)
+                if issue.revenues_ytd is None or issue.public_debt_charges_ytd is None:
+                    logger.warning(
+                        "dof_fiscal_history: FM-%d-%02d missing PDC or revenues YTD, skipping",
+                        year, month,
+                    )
+                    cursor += pd.DateOffset(months=1)
+                    continue
+                # public_debt_charges_ytd is stored as negative (it's a cost).
+                # Flip sign so the ratio is positive.
+                pdc_ytd = abs(issue.public_debt_charges_ytd)
+                rev_ytd = issue.revenues_ytd
+                ratio_pct = (pdc_ytd / rev_ytd * 100.0) if rev_ytd else None
+                new_rows.append({
+                    "date": issue_date_str,
+                    "pdc_ytd_cad_millions": pdc_ytd,
+                    "rev_ytd_cad_millions": rev_ytd,
+                    "ratio_pct": ratio_pct,
+                    "fiscal_year_label": issue.fiscal_year_label,
+                    "month_of_year": month,
+                })
+                logger.info("dof_fiscal_history: fetched FM-%d-%02d, ratio=%.2f%%", year, month, ratio_pct or 0)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("dof_fiscal_history: FM-%d-%02d failed: %s: %s", year, month, type(exc).__name__, exc)
+            cursor += pd.DateOffset(months=1)
+
+    if not new_rows and not existing_rows:
+        logger.warning("dof_fiscal_history: no data available, skipping write")
+        return
+
+    all_rows = existing_rows + new_rows
+    out_df = pd.DataFrame(all_rows)
+    out_df["date"] = pd.to_datetime(out_df["date"])
+    out_df = out_df.drop_duplicates(subset=["date"], keep="last").sort_values("date").reset_index(drop=True)
+    out_df["date"] = out_df["date"].dt.date.astype(str)
+    out_df.to_csv(out_path, index=False)
+
+    meta_path = DATA_DERIVED / "dof_fiscal_ratio_history.meta.json"
+    meta_path.write_text(json.dumps({
+        "name": "dof_fiscal_ratio_history",
+        "source": "Department of Finance Canada -- Fiscal Monitor (multi-issue historical fetch)",
+        "source_url": "https://www.canada.ca/en/department-finance/services/publications/fiscal-monitor",
+        "units": "pdc_ytd and rev_ytd in CAD millions; ratio_pct in percent",
+        "frequency": "monthly",
+        "notes": (
+            "Multi-year YTD summary built by walking historical Fiscal Monitor issues "
+            "from FY2019-20 onward. Each row is one issue. pdc_ytd is stored as a positive "
+            "number (absolute value of public debt charges YTD, which DoF reports as a cost). "
+            "ratio_pct = pdc_ytd / rev_ytd * 100. Used by derive_fiscal_plate2_band() to "
+            "compute the 5-year trailing same-month-of-year min/max envelope for Plate 2."
+        ),
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "schema_version": 1,
+    }, indent=2))
+    logger.info("dof_fiscal_history: wrote %d rows to %s", len(out_df), out_path)
+
+
+def derive_fiscal_plate2_band() -> None:
+    """Compute the debt-service/revenues ratio and its 5-year trailing same-month band.
+
+    Reads:
+        data/derived/dof_fiscal_ratio_history.csv — multi-year monthly ratio history
+        data/raw/dof_fiscal_ytd_summary.csv — current-issue scalar (fallback if history
+            doesn't include the latest date)
+
+    Writes (all to data/derived/):
+        debt_service_ratio.csv        -- date, value  (ratio_pct for all available months)
+        debt_service_ratio_band_lo.csv -- date, value (5-yr same-month trailing min)
+        debt_service_ratio_band_hi.csv -- date, value (5-yr same-month trailing max)
+
+    Band methodology (matches plate-2.yaml source card):
+        For each month m in the history, the band value at m is computed from the
+        5 prior occurrences of the same calendar month (e.g. February 2026 band uses
+        Feb 2021, Feb 2022, Feb 2023, Feb 2024, Feb 2025). The current month itself
+        is NOT included in its own band, so the band is a pure historical context
+        envelope, not a smoothed version of the current value. Months with fewer
+        than 2 prior same-month observations are left as NaN (no band emitted for
+        them) to avoid spurious single-point "envelopes" in early years.
+    """
+    hist_path = DATA_DERIVED / "dof_fiscal_ratio_history.csv"
+    if not hist_path.exists():
+        logger.warning("derive_fiscal_plate2_band: history CSV not found (%s), skipping", hist_path)
+        return
+
+    hist = pd.read_csv(hist_path, parse_dates=["date"])
+    if hist.empty:
+        logger.warning("derive_fiscal_plate2_band: history CSV is empty, skipping")
+        return
+
+    # Supplement with the latest summary scalar if not already in history.
+    summary_path = DATA_RAW / "dof_fiscal_ytd_summary.csv"
+    if summary_path.exists():
+        try:
+            summary = pd.read_csv(summary_path, parse_dates=["date"])
+            if not summary.empty:
+                for _, row in summary.iterrows():
+                    row_date = pd.Timestamp(row["date"])
+                    # Skip if already present in history
+                    if row_date in hist["date"].values:
+                        continue
+                    rev_ytd = row.get("revenues_ytd_cad_millions")
+                    pdc_ytd_raw = row.get("public_debt_charges_ytd_cad_millions")
+                    if pd.isna(rev_ytd) or pd.isna(pdc_ytd_raw):
+                        continue
+                    pdc_ytd = abs(float(pdc_ytd_raw))
+                    rev_ytd = float(rev_ytd)
+                    ratio_pct = (pdc_ytd / rev_ytd * 100.0) if rev_ytd else None
+                    new_row = pd.DataFrame([{
+                        "date": row_date,
+                        "pdc_ytd_cad_millions": pdc_ytd,
+                        "rev_ytd_cad_millions": rev_ytd,
+                        "ratio_pct": ratio_pct,
+                        "fiscal_year_label": row.get("fiscal_year_label", ""),
+                        "month_of_year": row_date.month,
+                    }])
+                    hist = pd.concat([hist, new_row], ignore_index=True)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("derive_fiscal_plate2_band: could not read summary scalar: %s", exc)
+
+    hist = hist.sort_values("date").reset_index(drop=True)
+    hist["month_of_year"] = pd.to_datetime(hist["date"]).dt.month
+    hist["ratio_pct"] = pd.to_numeric(hist["ratio_pct"], errors="coerce")
+    hist = hist.dropna(subset=["ratio_pct"]).reset_index(drop=True)
+
+    if hist.empty:
+        logger.warning("derive_fiscal_plate2_band: no valid ratio rows after cleaning, skipping")
+        return
+
+    # Build the band: for each row, find the 5 most-recent prior occurrences
+    # of the same calendar month and take min/max.
+    band_lo: list[dict] = []
+    band_hi: list[dict] = []
+    hist_sorted = hist.sort_values("date").reset_index(drop=True)
+
+    for idx, row in hist_sorted.iterrows():
+        current_date = pd.Timestamp(row["date"])
+        month = int(row["month_of_year"])
+        # All prior rows with same month_of_year (strictly before this date).
+        prior = hist_sorted[
+            (hist_sorted["month_of_year"] == month) &
+            (pd.to_datetime(hist_sorted["date"]) < current_date)
+        ]["ratio_pct"].dropna()
+        # Require at least 2 prior observations to emit a band value;
+        # cap lookback at 5.
+        prior_5 = prior.iloc[-5:] if len(prior) >= 5 else prior
+        if len(prior_5) < 2:
+            continue
+        date_str = current_date.date().isoformat()
+        band_lo.append({"date": date_str, "value": float(prior_5.min())})
+        band_hi.append({"date": date_str, "value": float(prior_5.max())})
+
+    # Primary ratio series: all available rows, date + ratio_pct as "value".
+    primary_df = hist_sorted[["date", "ratio_pct"]].rename(columns={"ratio_pct": "value"}).copy()
+    primary_df["date"] = pd.to_datetime(primary_df["date"]).dt.date.astype(str)
+
+    source_url = "https://www.canada.ca/en/department-finance/services/publications/fiscal-monitor"
+
+    primary_meta = SeriesMeta(
+        name="debt_service_ratio",
+        source="Department of Finance Canada -- Fiscal Monitor (derived)",
+        source_url=source_url,
+        source_id="dof_fiscal_ratio_history:ratio_pct",
+        units="%",
+        frequency="monthly",
+        notes=(
+            "Federal public debt charges YTD as a share of total budgetary revenues YTD, "
+            "expressed as a percentage. Derived from Fiscal Monitor multi-year history "
+            "(dof_fiscal_ratio_history.csv). Formula: |public_debt_charges_ytd| / "
+            "revenues_ytd * 100. Each data point is a Fiscal Monitor issue (one per month "
+            "of the federal fiscal year, April through latest available). "
+            "Source card: editorial/source_cards/_pending/fiscal/plate-2.yaml (Tier A)."
+        ),
+        transform="pdc_ytd_abs / revenues_ytd * 100",
+    )
+    write_series(primary_df, primary_meta, DATA_DERIVED)
+
+    if band_lo:
+        lo_df = pd.DataFrame(band_lo)
+        lo_meta = SeriesMeta(
+            name="debt_service_ratio_band_lo",
+            source="Department of Finance Canada -- Fiscal Monitor (derived)",
+            source_url=source_url,
+            source_id="dof_fiscal_ratio_history:5yr_same_month_min",
+            units="%",
+            frequency="monthly",
+            notes=(
+                "Lower envelope of the 5-year trailing same-month-of-year debt-service "
+                "ratio. For each month m, this is the minimum of the ratio across the "
+                "up to 5 most-recent prior occurrences of the same calendar month "
+                "(e.g. February 2026 band uses Feb 2021-2025). Requires at least 2 "
+                "prior same-month observations to emit a value. Used as the lower band "
+                "fill in Panel2DebtServiceRatio (Plate 2)."
+            ),
+            transform="rolling_5yr_same_month_min(debt_service_ratio)",
+        )
+        write_series(lo_df, lo_meta, DATA_DERIVED)
+        logger.info("derive_fiscal_plate2_band: band_lo has %d points", len(lo_df))
+    else:
+        logger.warning("derive_fiscal_plate2_band: band_lo is empty (insufficient history)")
+
+    if band_hi:
+        hi_df = pd.DataFrame(band_hi)
+        hi_meta = SeriesMeta(
+            name="debt_service_ratio_band_hi",
+            source="Department of Finance Canada -- Fiscal Monitor (derived)",
+            source_url=source_url,
+            source_id="dof_fiscal_ratio_history:5yr_same_month_max",
+            units="%",
+            frequency="monthly",
+            notes=(
+                "Upper envelope of the 5-year trailing same-month-of-year debt-service "
+                "ratio. For each month m, this is the maximum of the ratio across the "
+                "up to 5 most-recent prior occurrences of the same calendar month. "
+                "Requires at least 2 prior same-month observations to emit a value. "
+                "Used as the upper band fill in Panel2DebtServiceRatio (Plate 2)."
+            ),
+            transform="rolling_5yr_same_month_max(debt_service_ratio)",
+        )
+        write_series(hi_df, hi_meta, DATA_DERIVED)
+        logger.info("derive_fiscal_plate2_band: band_hi has %d points", len(hi_df))
+    else:
+        logger.warning("derive_fiscal_plate2_band: band_hi is empty (insufficient history)")
+
+    logger.info(
+        "derive_fiscal_plate2_band: primary=%d rows, band_lo=%d rows, band_hi=%d rows",
+        len(primary_df), len(band_lo), len(band_hi),
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -2619,6 +2909,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     # 4) DoF Fiscal Monitor (monthly, ~2-month lag).
     logger.info("--- DoF Fiscal Monitor ---")
     _safe("dof_fiscal_monitor", fetch_dof_fiscal_monitor, failed)
+    # 4b) DoF Fiscal Monitor historical sweep (FY2019-20 onward) for Plate 2 band.
+    #     Append-only: skips already-cached months; only fetches new issues.
+    logger.info("--- DoF Fiscal Monitor history (Plate 2 band) ---")
+    _safe("dof_fiscal_history", fetch_dof_fiscal_history, failed)
 
     # 5) CREA MLS HPI (monthly XLSX bulk). Per-geography isolation inside.
     logger.info("--- CREA MLS HPI ---")
@@ -2664,6 +2958,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     _safe("derive_terms_of_trade", derive_terms_of_trade, failed)
     _safe("derive_current_account_views", derive_current_account_views, failed)
     _safe("derive_federal_fiscal_ytd", derive_federal_fiscal_ytd, failed)
+    _safe("derive_fiscal_plate2_band", derive_fiscal_plate2_band, failed)
     _safe("derive_labour_force_ex_npr", derive_labour_force_ex_npr, failed)
     _safe("derive_boc_fed_spread_monthly", derive_boc_fed_spread_monthly, failed)
     _safe("derive_sectoral_exports_by_destination", derive_sectoral_exports_by_destination, failed)
