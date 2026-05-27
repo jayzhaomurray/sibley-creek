@@ -42,7 +42,7 @@ from openpyxl.utils.units import pixels_to_EMU
 ROOT = Path(__file__).resolve().parent.parent
 NSA_CSV = ROOT / "data" / "raw" / "cpi_all_items_nsa.csv"
 SA_CSV = ROOT / "data" / "raw" / "cpi_all_items_sa.csv"
-OUT_DIR = ROOT / "bylines" / "commentaries"
+OUT_DIR = ROOT / "work" / "published" / "commentaries"
 OUT_PATH = OUT_DIR / "Sibley Creek Inflation Chart Template v2.xlsx"
 
 INK = "15171A"

@@ -320,6 +320,11 @@ def style_fixture(release_id, surface, draft_body, revision_note):
     return draft_body
 
 
+def surface_fit_fixture(prompt: str, model: str) -> str:
+    # Gate 3 no-op in fixtures; production routes this to editorial-director.
+    return "VERDICT: PASS"
+
+
 def fetcher_fixture(url: str) -> FetchResult:
     """Frozen-fixture fetcher: returns the StatCan Daily body for any
     statcan.gc.ca URL; 404 for everything else.
@@ -367,6 +372,7 @@ def test_full_cpi_cycle_to_ready_for_user(tmp_path: Path):
         researcher_dispatch=make_researcher_fixture(fail_round_count=0),
         writer_dispatch=writer_fixture,
         style_dispatch=style_fixture,
+        surface_fit_dispatch=surface_fit_fixture,
         verifier_fetcher=fetcher_fixture,
         email_sender=email,
         use_live_verifier=True,
@@ -414,6 +420,7 @@ def test_full_cpi_cycle_with_one_round_of_verifier_failure(tmp_path: Path):
         researcher_dispatch=make_researcher_fixture(fail_round_count=1),
         writer_dispatch=writer_fixture,
         style_dispatch=style_fixture,
+        surface_fit_dispatch=surface_fit_fixture,
         verifier_fetcher=fetcher_fixture,
         email_sender=email,
         use_live_verifier=True,

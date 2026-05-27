@@ -165,7 +165,8 @@ class SectionConfig:
     # for monthly/quarterly cadence). "w/w" picks the row nearest 7 calendar
     # days back from the latest observation (right for daily series like
     # FX, yields, commodities -- d/d moves are noise; w/w is the macro read).
-    # When "w/w", the displayed delta string is suffixed " w/w".
+    # When "w/w", the displayed delta string is suffixed " 1w" to stay
+    # within the tile delta character cap.
     delta_window: str = "prior"
 
 
@@ -311,7 +312,7 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
     ),
     "trade": SectionConfig(
         slug="trade",
-        primary_series="trade_balance_total",
+        primary_series="trade_balance_total_3m_ma",
         primary_dir="processed",
         unit_display="B",  # rendered as e.g. "-$2.3B"
         value_decimals=1,
@@ -962,7 +963,7 @@ def _format_delta(latest: float, prior: float, cfg: SectionConfig) -> str:
     """Compute and render the delta string in the section's preferred units.
 
     When `cfg.delta_window == "w/w"`, the period suffix is appended to the
-    rendered string ("+0.4% w/w"). The convention follows Bay Street / FT
+    rendered string ("+0.4% 1w"). The convention follows Bay Street / FT
     practice: monthly and quarterly prints carry their period implicitly
     in the asOf stamp ("Mar 2026", "2025Q4") so a bare delta reads as m/m
     or q/q; daily prints (asOf "May 8, 2026") leave the comparator window
@@ -974,12 +975,12 @@ def _format_delta(latest: float, prior: float, cfg: SectionConfig) -> str:
     elif cfg.delta_kind == "pct":
         if prior == 0:
             base = _canon_fmt_delta(0.0, kind="percent", decimals=cfg.delta_decimals)
-            return f"{base} w/w" if cfg.delta_window == "w/w" else base
+            return f"{base} 1w" if cfg.delta_window == "w/w" else base
         diff = (latest / prior - 1.0) * 100.0
     else:
         diff = latest - prior
     base = _canon_fmt_delta(diff, kind=kind, decimals=cfg.delta_decimals)
-    return f"{base} w/w" if cfg.delta_window == "w/w" else base
+    return f"{base} 1w" if cfg.delta_window == "w/w" else base
 
 
 def _resolve_delta_dir(latest: float, prior: float, cfg: SectionConfig) -> str:
@@ -1085,12 +1086,12 @@ def _format_delta_for_spec(latest: float, prior: float, spec) -> str:
     elif spec.delta_kind == "pct":
         if prior == 0:
             base = _canon_fmt_delta(0.0, kind="percent", decimals=spec.delta_decimals)
-            return f"{base} w/w" if getattr(spec, "delta_window", "prior") == "w/w" else base
+            return f"{base} 1w" if getattr(spec, "delta_window", "prior") == "w/w" else base
         diff = (latest / prior - 1.0) * 100.0
     else:
         diff = latest - prior
     base = _canon_fmt_delta(diff, kind=kind, decimals=spec.delta_decimals)
-    return f"{base} w/w" if getattr(spec, "delta_window", "prior") == "w/w" else base
+    return f"{base} 1w" if getattr(spec, "delta_window", "prior") == "w/w" else base
 
 
 def _resolve_delta_dir_for_spec(latest: float, prior: float, spec) -> str:

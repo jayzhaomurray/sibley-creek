@@ -2,9 +2,9 @@
 
 Owner: editorial-director.
 Date: 2026-05-11.
-Status: design canon. Supersedes `research/auto_blurb_pipeline_design.md`
-(researcher v1, single-LLM-centric). v1 will be moved to
-`research/auto_blurb_pipeline_design_v1_archived.md` as reference.
+Status: design canon. Supersedes the v1 single-LLM-centric design
+(researcher v1, single-LLM-centric). v1 archived at
+`_archive/research/auto_blurb_pipeline_design_v1_archived.md` as reference.
 
 Anchors:
 - `editorial/dashboard_purpose.md` Sections 1 (mission), 5 (deep-dive
@@ -1493,7 +1493,7 @@ End of brief.
 ## Appendix. What this v2 changes from v1
 
 The v1 design memo (now archived at
-`research/auto_blurb_pipeline_design_v1_archived.md`) was a
+`_archive/research/auto_blurb_pipeline_design_v1_archived.md`) was a
 single-LLM-plus-mechanical-validators design. The v2 changes
 are:
 

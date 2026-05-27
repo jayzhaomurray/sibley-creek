@@ -58,17 +58,77 @@ const pageDesc =
         data-formsubmit-ajax
         data-success-msg="Subscribed. Thanks — first issue lands when it lands."
       >
-        <label for="subscribe-email" class="visually-hidden">Email address</label>
-        <input
-          type="email"
-          id="subscribe-email"
-          name="email"
-          placeholder="you@example.com"
-          required
-          class="sub__input"
-        />
-        <input type="hidden" name="_subject" value="New Sibley Creek subscriber" />
+        <input type="hidden" name="_subject" value="Sibley subscriber (subscribe page)" />
+        <input type="hidden" name="source" value="subscribe_page" />
         <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
+
+        <div class="sub__field">
+          <label class="sub__label" for="subscribe-email">Email address</label>
+          <input
+            type="email"
+            id="subscribe-email"
+            name="email"
+            placeholder="you@example.com"
+            required
+            class="sub__input"
+            autocomplete="email"
+          />
+        </div>
+
+        <div class="sub__field">
+          <label class="sub__label" for="subscribe-name">
+            Name <span class="sub__label-aside">(optional)</span>
+          </label>
+          <input
+            type="text"
+            id="subscribe-name"
+            name="name"
+            placeholder="Your name"
+            class="sub__input"
+            autocomplete="name"
+          />
+        </div>
+
+        <div class="sub__field">
+          <label class="sub__label" for="subscribe-org">
+            Organization <span class="sub__label-aside">(optional)</span>
+          </label>
+          <input
+            type="text"
+            id="subscribe-org"
+            name="organization"
+            placeholder="Your organization"
+            class="sub__input"
+            autocomplete="organization"
+          />
+        </div>
+
+        <div class="sub__field">
+          <label class="sub__label" for="subscribe-role">
+            Role <span class="sub__label-aside">(optional)</span>
+          </label>
+          <input
+            type="text"
+            id="subscribe-role"
+            name="role"
+            placeholder="Your role"
+            class="sub__input"
+          />
+        </div>
+
+        <div class="sub__field sub__field--checkbox">
+          <label class="sub__checkbox-label" for="subscribe-advisory">
+            <input
+              type="checkbox"
+              id="subscribe-advisory"
+              name="advisory_interest"
+              value="yes"
+              class="sub__checkbox"
+            />
+            I'm also interested in Sibley's advisory services
+          </label>
+        </div>
+
         <button type="submit" class="sub__submit">Subscribe</button>
       </form>
     </section>
@@ -132,40 +192,85 @@ const pageDesc =
     .sub__form {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 20px;
     }
-    @media (min-width: 480px) {
-      .sub__form {
-        flex-direction: row;
-      }
+    .sub__field {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
     }
-    .sub__input {
-      flex: 1;
-      padding: 13px 14px;
-      border: 1px solid var(--ink);
+    .sub__label {
       font-family: var(--font-sans);
-      font-size: 16px;
-      background-color: var(--paper);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
       color: var(--ink);
     }
-    .sub__input:focus {
+    .sub__label-aside {
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: none;
+      opacity: 0.55;
+      margin-left: 6px;
+    }
+    .sub__field--checkbox {
+      gap: 0;
+    }
+    .sub__checkbox-label {
+      font-family: var(--font-sans);
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 1.4;
+      color: var(--ink);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .sub__checkbox {
+      flex: 0 0 auto;
+      width: 16px;
+      height: 16px;
+      margin-top: 2px;
+      accent-color: var(--ink);
+      cursor: pointer;
+    }
+    .sub__input {
+      padding: 12px 14px;
+      border: 1px solid var(--ink);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      background-color: var(--paper);
+      color: var(--ink);
+      width: 100%;
+    }
+    .sub__input:focus-visible {
       outline: 2px solid var(--accent);
-      outline-offset: -2px;
+      outline-offset: 1px;
     }
     .sub__submit {
-      padding: 13px 28px;
+      align-self: flex-start;
+      padding: 14px 26px;
       background-color: var(--ink);
       color: var(--paper);
       border: 1px solid var(--ink);
       font-family: var(--font-sans);
-      font-size: 16px;
+      font-size: 12px;
       font-weight: var(--fw-semibold);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
       cursor: pointer;
       white-space: nowrap;
+      transition: background 80ms linear, color 80ms linear;
     }
     .sub__submit:hover {
-      background-color: var(--accent);
-      border-color: var(--accent);
+      background-color: var(--paper);
+      color: var(--ink);
+    }
+    .sub__submit:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
     }
 
     .sub__section-title {

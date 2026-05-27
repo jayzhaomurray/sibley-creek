@@ -137,7 +137,8 @@ def test_legal_transitions_map_covers_every_state():
     expected = {
         "release_landed", "context_drafted", "claims_verified",
         "writer_drafted", "fact_checked", "style_polished",
-        "ready_for_user", "approved", "published", "rejected", "escalated",
+        "surface_fit_passed", "ready_for_user", "approved", "published",
+        "rejected", "escalated",
     }
     assert states_appearing == expected
 

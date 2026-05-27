@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
  * pull_subscribers.mjs — fetches submissions from formsubmit.co's free API
- * and appends new entries to business/recipients/recipients.yaml (dedup by email).
+ * and appends new entries to work/outreach/recipients/recipients.yaml (dedup by email).
  *
  * DESTINATION: jay@sibleycreek.ca (switched from jayzhaomurray@outlook.com
  * 2026-05-23). Forms now POST to the raw-email AJAX endpoint; formsubmit
@@ -11,7 +11,7 @@
  * AFTER ACTIVATION — fetch the secure hash and lock it in:
  *   1. Get the new API key:  node scripts/pull_subscribers.mjs --get-apikey
  *      (emails the key to jay@sibleycreek.ca — check that inbox)
- *   2. Store it: echo "YOUR_KEY_HERE" > business/secrets/formsubmit_apikey.txt
+ *   2. Store it: echo "YOUR_KEY_HERE" > work/outreach/secrets/formsubmit_apikey.txt
  *   3. Get the secure hash from the formsubmit.co dashboard or activation email.
  *   4. Swap `jay@sibleycreek.ca` for the hash in every form action URL:
  *        src/pages/index.astro   (splash subscribe form)
@@ -22,8 +22,8 @@
  *   1. Run: node scripts/pull_subscribers.mjs --get-apikey
  *      This fires a GET to formsubmit.co which emails your API key to
  *      the FORM_EMAIL address below. Copy the key from that email.
- *   2. Store it in business/secrets/formsubmit_apikey.txt  (already gitignored)
- *      e.g.:  echo "YOUR_KEY_HERE" > business/secrets/formsubmit_apikey.txt
+ *   2. Store it in work/outreach/secrets/formsubmit_apikey.txt  (already gitignored)
+ *      e.g.:  echo "YOUR_KEY_HERE" > work/outreach/secrets/formsubmit_apikey.txt
  *   3. Run normally: node scripts/pull_subscribers.mjs
  *
  * API limits (formsubmit.co free tier):
@@ -44,9 +44,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
 
 // Output paths — recipients.yaml is the master file; sync.log is the audit trail.
-const RECIPIENTS_PATH = path.join(REPO_ROOT, "business", "recipients", "recipients.yaml");
-const SYNC_LOG_PATH = path.join(REPO_ROOT, "business", "recipients", "sync.log");
-const KEY_PATH = path.join(REPO_ROOT, "business", "secrets", "formsubmit_apikey.txt");
+const RECIPIENTS_PATH = path.join(REPO_ROOT, "work", "outreach", "recipients", "recipients.yaml");
+const SYNC_LOG_PATH = path.join(REPO_ROOT, "work", "outreach", "recipients", "sync.log");
+const KEY_PATH = path.join(REPO_ROOT, "work", "outreach", "secrets", "formsubmit_apikey.txt");
 
 // The email address tied to the active formsubmit account.
 // Updated 2026-05-23: switched from jayzhaomurray@outlook.com to jay@sibleycreek.ca.
@@ -163,7 +163,7 @@ async function getApiKey() {
   console.log(`Response:`, JSON.stringify(data, null, 2));
   console.log(`\nCheck ${FORM_EMAIL} inbox for your API key.`);
   console.log(`NOTE: this key is for the NEW destination (jay@sibleycreek.ca).`);
-  console.log(`Then: echo "YOUR_KEY" > business/secrets/formsubmit_apikey.txt`);
+  console.log(`Then: echo "YOUR_KEY" > work/outreach/secrets/formsubmit_apikey.txt`);
 }
 
 async function pullSubmissions(dryRun) {
@@ -230,8 +230,8 @@ async function pullSubmissions(dryRun) {
   fs.appendFileSync(RECIPIENTS_PATH, append, "utf-8");
   appendSyncLog(fetched, newCount, dupeCount, false);
 
-  console.log(`Appended ${newCount} new entry/entries to business/recipients/recipients.yaml`);
-  console.log(`Sync logged to business/recipients/sync.log`);
+  console.log(`Appended ${newCount} new entry/entries to work/outreach/recipients/recipients.yaml`);
+  console.log(`Sync logged to work/outreach/recipients/sync.log`);
 }
 
 // ---------------------------------------------------------------------------
@@ -239,15 +239,8 @@ async function pullSubmissions(dryRun) {
 // ---------------------------------------------------------------------------
 
 function checkDeprecated() {
-  const deprecated = path.join(REPO_ROOT, "business", "subscribers.md");
-  if (fs.existsSync(deprecated)) {
-    console.warn(
-      `NOTE: business/subscribers.md still exists (renamed to business/_deprecated_subscribers.md).`
-    );
-    console.warn(
-      `      It is no longer written to. Delete it once you have confirmed the migration.`
-    );
-  }
+  // Pre-2026-05-23 subscribers.md migration is complete; deprecated file archived
+  // at old/archive/business/subscribers.md. No check needed.
 }
 
 // ---------------------------------------------------------------------------

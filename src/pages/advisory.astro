@@ -97,18 +97,85 @@ const pageDesc =
     <section class="wwu__contact">
       <h2 class="wwu__section-title">Get in touch</h2>
       <p>
-        Book a 30-minute discovery call with Jay Zhao-Murray, Chief Economist. The conversation is exploratory and at no cost — bring your questions and we will figure out whether and how Sibley Creek can help.
+        Send a brief note below — Jay will reply within one business day to schedule. Or book directly if you prefer.
       </p>
-      <div class="wwu__book-cta">
+
+      <form
+        class="wwu__prebrief-form"
+        action="https://formsubmit.co/ajax/jay@sibleycreek.ca"
+        method="POST"
+        data-formsubmit-ajax
+        data-formsubmit-replace-section
+        data-success-msg="Thanks. Jay will reply within 1 business day to schedule."
+      >
+        <input type="hidden" name="_subject" value="Sibley advisory inquiry (pre-call brief)" />
+        <input type="hidden" name="source" value="advisory_prebrief" />
+        <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
+
+        <div class="wwu__field">
+          <label class="wwu__label" for="advisory-name">Name</label>
+          <input
+            class="wwu__input"
+            type="text"
+            id="advisory-name"
+            name="name"
+            autocomplete="name"
+            required
+          />
+        </div>
+
+        <div class="wwu__field">
+          <label class="wwu__label" for="advisory-org">Organization</label>
+          <input
+            class="wwu__input"
+            type="text"
+            id="advisory-org"
+            name="organization"
+            autocomplete="organization"
+            required
+          />
+        </div>
+
+        <div class="wwu__field">
+          <label class="wwu__label" for="advisory-question">
+            What would you like to discuss?
+            <span class="wwu__label-hint">One or two sentences is enough.</span>
+          </label>
+          <textarea
+            class="wwu__input wwu__input--textarea"
+            id="advisory-question"
+            name="message"
+            rows="4"
+            required
+          ></textarea>
+        </div>
+
+        <div class="wwu__field">
+          <label class="wwu__label" for="advisory-email">Email</label>
+          <input
+            class="wwu__input"
+            type="email"
+            id="advisory-email"
+            name="email"
+            autocomplete="email"
+            required
+          />
+        </div>
+
+        <button class="wwu__prebrief-submit" type="submit">Send &rarr;</button>
+      </form>
+
+      <p class="wwu__direct-book">
+        Or book directly:
         <a
-          class="btn btn-primary wwu__book-btn"
           href="https://calendar.app.google/TUWHM2Xtg7gvVKj5A"
           target="_blank"
           rel="noopener noreferrer"
-        >Book a discovery call &rarr;</a>
-      </div>
+        >30-minute discovery call &rarr;</a>
+      </p>
+
       <p class="wwu__contact-fallback">
-        Prefer email instead? Reach Jay directly at <a href="mailto:jay@sibleycreek.ca">jay@sibleycreek.ca</a> — we respond within two business days.
+        Prefer email? Reach Jay directly at <a href="mailto:jay@sibleycreek.ca">jay@sibleycreek.ca</a>.
       </p>
     </section>
   </article>
@@ -220,13 +287,100 @@ const pageDesc =
       margin: 0 0 14px 0;
     }
 
-    .wwu__book-cta {
-      margin: 24px 0 20px;
+    /* Pre-call brief form */
+    .wwu__prebrief-form {
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      margin: 24px 0 28px;
     }
-    /* No font overrides — let .btn + .btn-primary set the type so this
-     * matches Subscribe / Hire us across the site. */
+    .wwu__field {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .wwu__label {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .wwu__label-hint {
+      font-weight: 400;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: none;
+      opacity: 0.55;
+    }
+    .wwu__input {
+      font-family: var(--font-sans);
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 1.4;
+      padding: 12px 14px;
+      border: 1px solid var(--ink);
+      background: var(--paper);
+      color: var(--ink);
+      width: 100%;
+    }
+    .wwu__input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .wwu__input--textarea {
+      resize: vertical;
+      min-height: 110px;
+    }
+    .wwu__prebrief-submit {
+      align-self: flex-start;
+      padding: 14px 26px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 12px;
+      line-height: 1;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--paper);
+      background: var(--ink);
+      border: 1px solid var(--ink);
+      cursor: pointer;
+      transition: background 80ms linear, color 80ms linear;
+    }
+    .wwu__prebrief-submit:hover {
+      background: var(--paper);
+      color: var(--ink);
+    }
+    .wwu__prebrief-submit:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* "Or book directly" secondary link */
+    .wwu__direct-book {
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--ink);
+      margin: 0 0 12px;
+    }
+    .wwu__direct-book a {
+      color: var(--ink);
+      text-decoration: none;
+      border-bottom: 1px solid var(--ink);
+      transition: border-color 80ms linear;
+    }
+    .wwu__direct-book a:hover {
+      border-bottom-color: var(--accent);
+      color: var(--accent);
+    }
+
     .wwu__contact-fallback {
-      font-size: 14px !important;
+      font-size: 13px;
       opacity: 0.7;
     }
   </style>

@@ -882,8 +882,8 @@ export interface DeepDive {
  * Data commentaries — the same-day notes published as PDFs on every major
  * Canadian macro print.
  *
- * Authoring source-of-truth is bylines/commentaries/<slug>.docx (Jay's
- * working folder). The exported .pdf is copied to public/research/commentaries/
+ * Authoring source-of-truth is work/published/commentaries/<slug>.docx
+ * (Jay's working folder). The exported .pdf is copied to public/research/commentaries/
  * so it's served at /research/commentaries/<slug>.pdf. Adding a new
  * commentary = (a) export the .pdf, (b) drop it in public/research/commentaries/,
  * (c) add a row to the array below.

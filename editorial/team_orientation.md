@@ -106,7 +106,7 @@ Full canon: `design/canon_reference_panel.md` and `design/sparkline-canon.md`.
 - `editorial/` — the voice canon, methodology canon, review protocol, source cards, blurb files
 - `src/pages/` — section pages (inflation.astro, gdp.astro, etc.)
 - `src/components/charts/` — chart components per section
-- `business/` — strategy, discovery, retainer/subscription planning (not reader-facing)
+- `work/` — strategy, discovery, retainer/subscription planning, and outreach operations (not reader-facing)
 
 **Deliverables expectations:**
 - All written work passes through the three review gates before going to the live site.
@@ -140,6 +140,6 @@ When you need depth:
 - `design/design-system.md` — the visual identity
 - `design/canon_reference_panel.md` — the Tier-3 chart canon
 - `design/sparkline-canon.md` — the sparkline canon and splash-composition rules
-- `business/strategy/` — the firm's commercial strategy (read when relevant to your work; not required for analytical work)
+- `work/strategy/` — the firm's commercial strategy (read when relevant to your work; not required for analytical work)
 
 Welcome to the team. Build something good.

@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /*
- * parse_subscribers.mjs — reads business/recipients/recipients.yaml and reports
- * count, list, and optional latest-N preview.
+ * parse_subscribers.mjs
+ * Reads work/outreach/recipients/recipients.yaml and reports count, list,
+ * and optional latest-N preview.
  *
  * Updated 2026-05-23: switched from business/subscribers.md (deprecated) to
- * business/recipients/recipients.yaml (master list).
+ * work/outreach/recipients/recipients.yaml (master list).
  *
  * Usage:
  *   node scripts/parse_subscribers.mjs
@@ -21,8 +22,8 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
 
-const RECIPIENTS_PATH = path.resolve(REPO_ROOT, "business", "recipients", "recipients.yaml");
-const DEPRECATED_PATH = path.resolve(REPO_ROOT, "business", "subscribers.md");
+const RECIPIENTS_PATH = path.resolve(REPO_ROOT, "work", "outreach", "recipients", "recipients.yaml");
+const DEPRECATED_PATH = path.resolve(REPO_ROOT, "old", "archive", "business", "subscribers.md");
 
 // ---------------------------------------------------------------------------
 // Args
@@ -166,13 +167,13 @@ function main() {
   // Surface deprecation notice if the old file still exists.
   if (fs.existsSync(DEPRECATED_PATH)) {
     console.warn(
-      `NOTE: business/subscribers.md still exists and is DEPRECATED.`
+      `NOTE: old/archive/business/subscribers.md still exists and is DEPRECATED.`
     );
     console.warn(
-      `      All data has been migrated to business/recipients/recipients.yaml.`
+      `      All data has been migrated to work/outreach/recipients/recipients.yaml.`
     );
     console.warn(
-      `      Delete business/subscribers.md once you have confirmed the migration.\n`
+      `      Delete old/archive/business/subscribers.md once you have confirmed the migration.\n`
     );
   }
 

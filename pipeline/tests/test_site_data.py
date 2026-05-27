@@ -233,7 +233,7 @@ def test_markets_section_weekly_samples_daily_series(tmp_path):
     # 30 weekly observations is the convention; the seed has ~200 business
     # days starting Aug 2025, which yields >30 weeks. Cap honored.
     assert len(p["spark"]) == 30
-    # Delta is a percent string with '%' (may carry ' w/w' suffix for daily series)
+    # Delta is a percent string with '%' (may carry a compact 1w suffix for daily series)
     assert "%" in p["delta"]
     # Value has 3 decimals, no '%' suffix
     assert "%" not in p["value"]

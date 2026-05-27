@@ -24,7 +24,7 @@ COMMENTARY METADATA
 -------------------
 The script resolves commentary metadata from one of two sources, in order:
 
-    1. bylines/commentaries/<slug>/blast_meta.yaml    (per-slug override)
+    1. work/published/commentaries/<slug>/blast_meta.yaml    (per-slug override)
     2. src/data/sections.ts                            (canonical registry)
 
 The TypeScript registry is parsed with a lightweight regex extractor --
@@ -38,14 +38,14 @@ TypeScript registry is updated, or if you want a shorter subject line).
 
 RECIPIENT LIST
 --------------
-Loaded from business/recipients/recipients.yaml. Only entries with active: true
+Loaded from work/outreach/recipients/recipients.yaml. Only entries with active: true
 are included. Entries with active: false are silently skipped (not counted
 against the cap). Use --category to narrow to a subset (reporter, subscriber,
 friend, internal, or all). Default is all active contacts.
 
 SMTP CREDENTIALS
 ----------------
-Loaded from business/secrets/migadu_smtp.env or env vars:
+Loaded from work/outreach/secrets/migadu_smtp.env or env vars:
     MIGADU_USERNAME   full email address (e.g. jay@sibleycreek.ca)
     MIGADU_PASSWORD   mailbox password
 
@@ -55,12 +55,12 @@ from any other address to protect sender reputation.
 DAILY CAP
 ---------
 Migadu Mini: 100 outbound messages/day, counted per recipient.
-The script reads business/blast/blast_log.csv, counts sends for today
+The script reads work/outreach/blast/blast_log.csv, counts sends for today
 (UTC date), and refuses if the current batch would exceed 100.
 
 LOG FORMAT
 ----------
-business/blast/blast_log.csv columns:
+work/outreach/blast/blast_log.csv columns:
     sent_at_utc, slug, recipient_email, recipient_name, outlet,
     subject, smtp_response, status
 
@@ -94,13 +94,13 @@ from pydantic import BaseModel, field_validator
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-RECIPIENTS_PATH = REPO_ROOT / "business" / "recipients" / "recipients.yaml"
-BLAST_LOG_PATH = REPO_ROOT / "business" / "blast" / "blast_log.csv"
-TEMPLATES_DIR = REPO_ROOT / "business" / "blast" / "templates"
+RECIPIENTS_PATH = REPO_ROOT / "work" / "outreach" / "recipients" / "recipients.yaml"
+BLAST_LOG_PATH = REPO_ROOT / "work" / "outreach" / "blast" / "blast_log.csv"
+TEMPLATES_DIR = REPO_ROOT / "work" / "outreach" / "blast" / "templates"
 DEFAULT_TEMPLATE = TEMPLATES_DIR / "commentary_blast.md"
-SMTP_ENV_PATH = REPO_ROOT / "business" / "secrets" / "migadu_smtp.env"
+SMTP_ENV_PATH = REPO_ROOT / "work" / "outreach" / "secrets" / "migadu_smtp.env"
 SECTIONS_TS_PATH = REPO_ROOT / "src" / "data" / "sections.ts"
-BYLINES_DIR = REPO_ROOT / "bylines" / "commentaries"
+BYLINES_DIR = REPO_ROOT / "work" / "published" / "commentaries"
 
 MIGADU_SMTP_HOST = "smtp.migadu.com"
 MIGADU_SMTP_PORT = 465  # SSL
@@ -222,12 +222,12 @@ def load_smtp_credentials() -> tuple[str, str]:
     if not username:
         sys.exit(
             "ERROR: MIGADU_USERNAME not set. "
-            "Add it to business/secrets/migadu_smtp.env or export as env var."
+            "Add it to work/outreach/secrets/migadu_smtp.env or export as env var."
         )
     if not password:
         sys.exit(
             "ERROR: MIGADU_PASSWORD not set. "
-            "Add it to business/secrets/migadu_smtp.env or export as env var."
+            "Add it to work/outreach/secrets/migadu_smtp.env or export as env var."
         )
 
     return username, password
@@ -305,7 +305,7 @@ def _parse_ts_commentary(slug: str) -> Optional[dict]:
 def resolve_commentary(slug: str) -> CommentaryMeta:
     """Resolve commentary metadata for the given slug.
 
-    Checks bylines/commentaries/<slug>/blast_meta.yaml first, then falls
+    Checks work/published/commentaries/<slug>/blast_meta.yaml first, then falls
     back to parsing src/data/sections.ts. Exits loudly if neither source
     can produce a complete record.
     """
@@ -329,7 +329,7 @@ def resolve_commentary(slug: str) -> CommentaryMeta:
         sys.exit(
             f"ERROR: Commentary '{slug}' is missing fields: {missing}.\n"
             f"  - Add '{slug}' to src/data/sections.ts, OR\n"
-            f"  - Create bylines/commentaries/{slug}/blast_meta.yaml with the missing fields."
+            f"  - Create work/published/commentaries/{slug}/blast_meta.yaml with the missing fields."
         )
 
     return CommentaryMeta(**{k: base[k] for k in required})
@@ -357,7 +357,7 @@ def load_recipients(
     if not RECIPIENTS_PATH.exists():
         sys.exit(
             f"ERROR: Recipient list not found at {RECIPIENTS_PATH}.\n"
-            f"Expected: business/recipients/recipients.yaml\n"
+            f"Expected: work/outreach/recipients/recipients.yaml\n"
             f"Run: node scripts/pull_subscribers.mjs  to populate from formsubmit."
         )
 
@@ -632,7 +632,7 @@ def main() -> None:
     if not recipients:
         cat_hint = f" with category '{args.category}'" if args.category and args.category != "all" else ""
         sys.exit(
-            f"ERROR: No active recipients found{cat_hint} in business/recipients/recipients.yaml.\n"
+            f"ERROR: No active recipients found{cat_hint} in work/outreach/recipients/recipients.yaml.\n"
             f"Flip 'active: true' for the recipients you want to reach, or adjust --category."
         )
 
