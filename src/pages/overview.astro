@@ -448,7 +448,7 @@ const splitTitleAndSource = (rawTitle: string): { title: string; source: string 
 
 const NEWS_CACHE_PATH = resolve(process.cwd(), "data/derived/news_feed_cache.json");
 const NEWS_CACHE_TTL_MS = 15 * 60 * 1000; // 15 min
-const NEWS_TOP_N = 12;
+const NEWS_TOP_N = 10;
 // Freshness floor: drop items older than this from the feed before
 // any per-outlet reservation. If an outlet has nothing in the window,
 // no reservation — the feed shrinks rather than padding with stale
@@ -466,6 +466,12 @@ type NewsItem = {
   reporter: string;
 };
 
+type NewsCache = {
+  generatedAt: string | null;
+  items: NewsItem[];
+  wasDeduped: boolean;
+};
+
 const googleNewsUrl = (query: string): string => {
   const params = new URLSearchParams({
     q: query,
@@ -474,6 +480,30 @@ const googleNewsUrl = (query: string): string => {
     ceid: "CA:en",
   });
   return `https://news.google.com/rss/search?${params.toString()}`;
+};
+
+const newsDedupeKey = (item: NewsItem): string => {
+  const source = normalizeSource(item.source);
+  const title = item.title
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  return `${source}|${title}`;
+};
+
+const dedupeNewsItems = (items: NewsItem[]): NewsItem[] => {
+  const seenUrls = new Set<string>();
+  const seenStories = new Set<string>();
+  const deduped: NewsItem[] = [];
+  for (const item of items) {
+    const storyKey = newsDedupeKey(item);
+    if (!item.link || seenUrls.has(item.link) || seenStories.has(storyKey)) continue;
+    seenUrls.add(item.link);
+    seenStories.add(storyKey);
+    deduped.push(item);
+  }
+  return deduped;
 };
 
 const newsParser = new Parser({
@@ -487,27 +517,34 @@ const newsParser = new Parser({
   },
 });
 
-const newsCacheAgeMs = (): number | null => {
-  if (!existsSync(NEWS_CACHE_PATH)) return null;
-  try { return Date.now() - statSync(NEWS_CACHE_PATH).mtimeMs; }
-  catch { return null; }
+const newsCacheAgeMs = (cache: NewsCache | null): number | null => {
+  if (!cache?.generatedAt) return null;
+  const generatedMs = Date.parse(cache.generatedAt);
+  if (Number.isNaN(generatedMs)) return null;
+  return Date.now() - generatedMs;
 };
 
-const readNewsCache = (): NewsItem[] | null => {
+const readNewsCache = (): NewsCache | null => {
   if (!existsSync(NEWS_CACHE_PATH)) return null;
   try {
     const raw = readFileSync(NEWS_CACHE_PATH, "utf-8");
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed?.items) ? parsed.items : null;
+    if (!Array.isArray(parsed?.items)) return null;
+    const items = dedupeNewsItems(parsed.items);
+    return {
+      generatedAt: typeof parsed.generatedAt === "string" ? parsed.generatedAt : null,
+      items,
+      wasDeduped: items.length !== parsed.items.length,
+    };
   } catch { return null; }
 };
 
-const writeNewsCache = (items: NewsItem[]): void => {
+const writeNewsCache = (items: NewsItem[], generatedAt = new Date().toISOString()): void => {
   try {
     mkdirSync(dirname(NEWS_CACHE_PATH), { recursive: true });
     writeFileSync(
       NEWS_CACHE_PATH,
-      JSON.stringify({ generatedAt: new Date().toISOString(), items }, null, 2),
+      JSON.stringify({ generatedAt, items: dedupeNewsItems(items) }, null, 2),
       "utf-8",
     );
   } catch { /* best-effort */ }
@@ -516,12 +553,18 @@ const writeNewsCache = (items: NewsItem[]): void => {
 let newsItems: NewsItem[] = [];
 let newsFromCache = false;
 
-const newsAge = newsCacheAgeMs();
+const cachedNews = readNewsCache();
+// GitHub Actions checks out tracked files with fresh mtimes, so cache
+// freshness must come from the JSON payload. In CI, prefer a live fetch
+// on every scheduled build and reserve the cache for failure fallback.
+const newsAge = process.env.GITHUB_ACTIONS === "true" ? null : newsCacheAgeMs(cachedNews);
 if (newsAge !== null && newsAge < NEWS_CACHE_TTL_MS) {
-  const cached = readNewsCache();
-  if (cached && cached.length > 0) {
-    newsItems = cached;
+  if (cachedNews && cachedNews.items.length > 0) {
+    newsItems = cachedNews.items;
     newsFromCache = true;
+    if (cachedNews.wasDeduped) {
+      writeNewsCache(cachedNews.items, cachedNews.generatedAt ?? undefined);
+    }
   }
 }
 
@@ -573,14 +616,9 @@ if (newsItems.length === 0) {
       .filter((item) => sourceAllowed(item.source))
       .filter((item) => !isCbcShowSegment(item.source, item.title));
 
-    // Dedupe by URL.
-    const seen = new Set<string>();
-    const deduped: NewsItem[] = [];
-    for (const item of all) {
-      if (!item.link || seen.has(item.link)) continue;
-      seen.add(item.link);
-      deduped.push(item);
-    }
+    // Dedupe by URL and by normalized source/title. Google News often
+    // emits the same wire story through multiple RSS URLs.
+    const deduped = dedupeNewsItems(all);
 
     // Sort all dedupes by pubDate desc — basis for both per-outlet
     // selection and recency fill.
@@ -644,16 +682,22 @@ if (newsItems.length === 0) {
     } else {
       // Empty live fetch — fall back to stale cache if available.
       const stale = readNewsCache();
-      if (stale && stale.length > 0) {
-        newsItems = stale;
+      if (stale && stale.items.length > 0) {
+        newsItems = stale.items;
         newsFromCache = true;
+        if (stale.wasDeduped) {
+          writeNewsCache(stale.items, stale.generatedAt ?? undefined);
+        }
       }
     }
   } catch (_err) {
     const stale = readNewsCache();
-    if (stale && stale.length > 0) {
-      newsItems = stale;
+    if (stale && stale.items.length > 0) {
+      newsItems = stale.items;
       newsFromCache = true;
+      if (stale.wasDeduped) {
+        writeNewsCache(stale.items, stale.generatedAt ?? undefined);
+      }
     }
   }
 }
