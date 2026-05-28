@@ -672,32 +672,12 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
             ),
         ),
     ),
-    "fiscal": (
-        # Debt service as share of revenues: PBO's named sustainability
-        # indicator ("interest burden"). Derived ratio, both legs from
-        # DoF Fiscal Monitor. Source card: plate-2.yaml (Tier A).
-        SupportingPrintSpec(
-            key="debt-service-share",
-            indicator="Debt service / revenues",
-            primary_series="public_debt_charges_ytd",
-            primary_dir="raw",
-            unit_display="%",
-            value_decimals=1,
-            delta_decimals=1,
-            delta_unit="pp",
-            delta_kind="pp",
-            as_of_format="month-year",
-            transform="partner_share",  # numerator / denominator * 100
-            secondary_series="revenues_ytd",
-            secondary_dir="raw",
-            notes=(
-                "Public debt charges YTD / total revenues YTD * 100, both from "
-                "DoF Fiscal Monitor. PBO's 'interest burden' sustainability "
-                "indicator. Source: plate-2.yaml (Tier A). Latest verified point: "
-                "49.3bn charges / (revenues YTD implied) for Apr-Feb 2025-26."
-            ),
-        ),
-    ),
+    # "fiscal" debt-service-share tile removed 2026-05-28: raw CSVs
+    # (public_debt_charges_ytd, revenues_ytd) are not present in data/raw/,
+    # which caused the partner_share transform to fall back to "TK" and
+    # render as visible placeholders on /overview/. Restore this entry
+    # once the upstream DoF Fiscal Monitor pipeline writes those CSVs.
+    "fiscal": (),
     "markets": (
         SupportingPrintSpec(
             key="goc-10y",

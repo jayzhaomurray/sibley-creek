@@ -1,0 +1,149 @@
+#!/bin/sh
+# pre-push hook: blocks pushes containing substantial changes with no matching
+# audit-findings entry committed in the same push range.
+#
+# Enable with:  git config core.hooksPath .githooks
+# Skip once:    git push --no-verify
+#
+# Substantial paths are read from .audit-config.json at repo root.
+# Audit findings live in editorial/audit_findings/.
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+AUDIT_CONFIG="$REPO_ROOT/.audit-config.json"
+FINDINGS_DIR="$REPO_ROOT/editorial/audit_findings"
+
+# ---------------------------------------------------------------------------
+# Parse substantial_paths from .audit-config.json.
+# Simple line-by-line grep: pull quoted strings that contain / or *.
+# Works because .audit-config.json has a known, stable shape.
+# _doc_* keys are skipped because they don't contain path separators.
+# ---------------------------------------------------------------------------
+if [ ! -f "$AUDIT_CONFIG" ]; then
+  echo "pre-push: .audit-config.json not found at repo root, skipping check."
+  exit 0
+fi
+
+# Extract the values inside substantial_paths array.
+# Strategy: grab all quoted strings containing "/" from the file,
+# then strip the leading/trailing quotes.
+SUBSTANTIAL_PATTERNS="$(grep -oE '"[a-zA-Z0-9_./*-]+/[a-zA-Z0-9_./*-]+"' "$AUDIT_CONFIG" | tr -d '"')"
+
+if [ -z "$SUBSTANTIAL_PATTERNS" ]; then
+  # Nothing configured; nothing to block.
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Read refs from stdin (one line per ref being pushed):
+#   <local_ref> <local_sha> <remote_ref> <remote_sha>
+# ---------------------------------------------------------------------------
+SUBSTANTIAL_FILES=""
+NULL_SHA="0000000000000000000000000000000000000000"
+
+while read local_ref local_sha remote_ref remote_sha; do
+  # Deleted branch push — nothing to check.
+  if [ "$local_sha" = "$NULL_SHA" ]; then
+    continue
+  fi
+
+  # Determine the compare base.
+  if [ "$remote_sha" = "$NULL_SHA" ]; then
+    # New branch: compare against merge-base with origin/master, or root if none.
+    BASE_SHA="$(git merge-base HEAD origin/master 2>/dev/null)"
+    if [ -z "$BASE_SHA" ]; then
+      # No common ancestor (orphan or first push of entire repo).
+      RANGE="$local_sha"
+      CHANGED="$(git diff-tree --no-commit-id -r --name-only "$local_sha" 2>/dev/null)"
+    else
+      RANGE="$BASE_SHA..$local_sha"
+      CHANGED="$(git diff --name-only "$BASE_SHA" "$local_sha" 2>/dev/null)"
+    fi
+  else
+    RANGE="$remote_sha..$local_sha"
+    CHANGED="$(git diff --name-only "$remote_sha" "$local_sha" 2>/dev/null)"
+  fi
+
+  if [ -z "$CHANGED" ]; then
+    continue
+  fi
+
+  # Check each changed file against substantial patterns.
+  # bash `case` does not support **, so we convert pattern/** to pattern/*
+  # and also match pattern/**/* using two passes.  A path like
+  # src/pages/foo/bar.astro must match "src/pages/**" so we test whether
+  # the file starts with the prefix up to /*.
+  for filepath in $CHANGED; do
+    for pattern in $SUBSTANTIAL_PATTERNS; do
+      # Convert glob: strip trailing /** or /**/* to get a prefix.
+      prefix="$(echo "$pattern" | sed 's|/\*\*.*||')"
+      # Also handle bare * at end (no subdirs).
+      bare="$(echo "$pattern" | sed 's|\*\*|\*|g')"
+
+      matched=0
+      # Prefix match: file starts with the path before /**
+      case "$filepath" in
+        "$prefix/"*)  matched=1 ;;
+      esac
+      # Exact-level glob match (handles patterns without **)
+      if [ "$matched" = "0" ]; then
+        case "$filepath" in
+          $bare) matched=1 ;;
+        esac
+      fi
+
+      if [ "$matched" = "1" ]; then
+        # Avoid duplicates.
+        already=0
+        for s in $SUBSTANTIAL_FILES; do
+          if [ "$s" = "$filepath" ]; then already=1; break; fi
+        done
+        if [ "$already" = "0" ]; then
+          SUBSTANTIAL_FILES="$SUBSTANTIAL_FILES $filepath"
+        fi
+        break
+      fi
+    done
+  done
+
+  # ---------------------------------------------------------------------------
+  # Audit-presence check.
+  # A finding is considered present if ANY file under editorial/audit_findings/
+  # appears in the diff range being pushed (i.e., was committed as part of this
+  # push batch).  This is the lightest correct heuristic: if the author
+  # committed a finding alongside the substantial work, the check passes.
+  # Weakness: a stale finding from an unrelated earlier push also passes.
+  # That's an acceptable false-negative for v1; the instruction layer (AGENTS.md)
+  # catches semantic mismatches.
+  # ---------------------------------------------------------------------------
+  if [ -n "$SUBSTANTIAL_FILES" ]; then
+    FINDINGS_IN_RANGE="$(git diff --name-only "$remote_sha" "$local_sha" 2>/dev/null | grep '^editorial/audit_findings/')"
+    if [ -z "$FINDINGS_IN_RANGE" ]; then
+      # Build the file list for the message.
+      FILE_LIST=""
+      for f in $SUBSTANTIAL_FILES; do
+        FILE_LIST="$FILE_LIST\n  - $f"
+      done
+
+      printf '\n'
+      printf '========================================\n'
+      printf 'PRE-PUSH BLOCKED: unaudited substantial changes\n'
+      printf '\n'
+      printf 'Modified substantial files:%b\n' "$FILE_LIST"
+      printf '\n'
+      printf 'No audit-findings entry found in this push range.\n'
+      printf '\n'
+      printf 'Options:\n'
+      printf '  1. Run an audit before pushing:\n'
+      printf '       npm run audit-diff -- --by claude --task "describe the work"\n'
+      printf '     (or --by codex if Codex was the leader)\n'
+      printf '  2. Skip this check (only if audit is genuinely not warranted):\n'
+      printf '       git push --no-verify\n'
+      printf '========================================\n'
+      printf '\n'
+      exit 1
+    fi
+  fi
+
+done
+
+exit 0
