@@ -1168,7 +1168,7 @@ def _apply_supporting_transform(
     return out_df
 
 
-def _build_supporting_print(spec: SupportingPrintSpec, data_root: Path) -> dict:
+def _build_supporting_print(spec: SupportingPrintSpec, data_root: Path) -> dict | None:
     """Build one supporting print entry, or a TK sentinel if data is missing.
 
     Always returns a dict with the SectionPrint shape; tile layout never
@@ -1187,31 +1187,14 @@ def _build_supporting_print(spec: SupportingPrintSpec, data_root: Path) -> dict:
             primary = None  # spread / partner-share needs both sides
 
     if primary is None or primary.data.empty:
-        return {
-            "key": spec.key,
-            "indicator": spec.indicator,
-            "value": "TK",
-            "delta": "TK",
-            "deltaDir": "neutral",
-            "asOf": "TK",
-            "spark": [],
-            "available": False,
-            "note": spec.notes,
-        }
+        # Skip the tile when data is missing rather than emit a "TK" sentinel.
+        # TK strings rendered as visible placeholders on prod (2026-05-28).
+        # Caller's append() loop filters None.
+        return None
 
     df = _apply_supporting_transform(spec, primary, secondary)
     if df is None or df.empty or len(df) < 2:
-        return {
-            "key": spec.key,
-            "indicator": spec.indicator,
-            "value": "TK",
-            "delta": "TK",
-            "deltaDir": "neutral",
-            "asOf": "TK",
-            "spark": [],
-            "available": False,
-            "note": spec.notes or "transform yielded fewer than 2 observations",
-        }
+        return None
 
     latest_row = df.iloc[-1]
     latest_val = float(latest_row["value"])
@@ -1357,23 +1340,14 @@ def _build_section(cfg: SectionConfig, data_root: Path) -> dict:
     prints: list[dict] = [print_entry]
     for supporting in SUPPORTING_PRINTS.get(cfg.slug, ()):
         try:
-            prints.append(_build_supporting_print(supporting, data_root))
+            built = _build_supporting_print(supporting, data_root)
+            if built is not None:
+                prints.append(built)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
-                "site_data: supporting print %s/%s failed: %s: %s",
+                "site_data: supporting print %s/%s failed: %s: %s -- tile skipped",
                 cfg.slug, supporting.key, type(exc).__name__, exc,
             )
-            prints.append({
-                "key": supporting.key,
-                "indicator": supporting.indicator,
-                "value": "TK",
-                "delta": "TK",
-                "deltaDir": "neutral",
-                "asOf": "TK",
-                "spark": [],
-                "available": False,
-                "note": f"build failed: {type(exc).__name__}: {exc}",
-            })
 
     return {
         "slug": cfg.slug,
