@@ -46,6 +46,7 @@ export default defineConfig({
         // direct URL. noindex'd via SectionLayout.noindex=true. Excluded from
         // sitemap so search engines don't discover the URL via /sitemap.xml.
         !page.includes('/fiscal-team-review/') &&
+        !page.includes('/fiscal-codex-draft/') &&
         // /overview-with-fiscal/ is a similar noindex preview surface.
         !page.includes('/overview-with-fiscal/') &&
         // /_archive/ holds superseded versions kept for reference (e.g.

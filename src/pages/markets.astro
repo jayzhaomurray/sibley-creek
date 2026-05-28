@@ -4,15 +4,15 @@ import type { Plate } from "../layouts/SectionLayout.astro";
 import { sections } from "../data/sections";
 import panelDataFile from "../../data/site/panel_data/markets.json";
 import sectionsJson from "../../data/site/sections.json";
-import { pickPanel } from "../components/charts/_shared/panelData";
-import { deriveLatestReleaseLabel } from "../components/section/_shared/derivedLabels";
+import { pickPanel, type PanelData } from "../components/charts/_shared/panelData";
+import { deriveLatestReleaseLabel, formatAsOf } from "../components/section/_shared/derivedLabels";
 
 const section = sections.find((s) => s.slug === "markets");
 if (!section) {
   throw new Error("Markets section not found in src/data/sections.ts");
 }
 
-const latestReleaseLabel = deriveLatestReleaseLabel(
+const defaultLatestReleaseLabel = deriveLatestReleaseLabel(
   section.latestReleasePrefix ?? "",
   sectionsJson,
   "markets",
@@ -23,6 +23,32 @@ const panel2Data = pickPanel(panelDataFile, 2);
 const panel3Data = pickPanel(panelDataFile, 3);
 const panel6Data = pickPanel(panelDataFile, 6);
 
+function latestDisplayedDailyDate(panels: Array<PanelData | null>): string | null {
+  const picks: Array<{ iso: string; frequency: string }> = [];
+  for (const panel of panels) {
+    for (const series of [panel?.primary, panel?.secondary, panel?.tertiary]) {
+      if (!series?.asOfISO) continue;
+      const frequency = (series.frequency ?? "").toLowerCase();
+      if (frequency !== "daily" && frequency !== "weekly") continue;
+      picks.push({ iso: series.asOfISO, frequency });
+    }
+  }
+  if (picks.length === 0) return null;
+  const latest = picks.reduce((best, item) => item.iso > best.iso ? item : best);
+  return formatAsOf(latest.iso, latest.frequency);
+}
+
+const latestDisplayedDate = latestDisplayedDailyDate([
+  panel6Data,
+  panel1Data,
+  panel2Data,
+  panel3Data,
+]);
+
+const latestReleaseLabel = latestDisplayedDate
+  ? `${section.latestReleasePrefix ?? "Daily close"}, ${latestDisplayedDate}`
+  : defaultLatestReleaseLabel;
+
 const plates: Plate[] = [
   {
     id: "plate-1",
@@ -30,10 +56,9 @@ const plates: Plate[] = [
     chartKey: "markets-panel-6",
     indicator: "WTI oil price",
     plateIndexLabel: "Energy",
-    asOf: "May 13, 2026 (WTI); March 2026 (WCS)",
     title: "Oil prices are still over $100 per barrel, even with the ceasefire.",
     interpretationHtml:
-      "WTI closed at US$101.12 on May 13, off a US$109.76 peak on May 4. WCS averaged US$75.85 in March. " +
+      "WTI closed at US$101.12 on May 13, off a US$109.76 peak on May 4. " +
       "Crude has stayed above US$100 since the war in Iran pushed prices up earlier this spring, and the ceasefire has unwound part of the move but not all of it.",
     callout: {
       value: "US$101.12",
@@ -42,14 +67,13 @@ const plates: Plate[] = [
       direction: "neutral",
     },
     source:
-      "FRED (DCOILWTICO); Government of Alberta Economic Dashboard (WCS monthly).",
+      "Yahoo Finance (CL=F) via Sibley Creek pipeline.",
     data: panel6Data,
     citations: [
       { phrase: "WTI closed at US$101.12 on May 13", source: "pipeline:fred:DCOILWTICO", note: "WTI spot, May 13, 2026 daily close." },
       { phrase: "off a US$109.76 peak on May 4", source: "pipeline:fred:DCOILWTICO", note: "WTI spot, May 4, 2026 daily close — the early-May high." },
-      { phrase: "WCS averaged US$75.85 in March", source: "pipeline:gov_ab:wcs", note: "Western Canadian Select monthly average, March 2026, Government of Alberta Economic Dashboard." },
       { phrase: "Crude has stayed above US$100", source: "pipeline:fred:DCOILWTICO", note: "WTI daily closes have remained above US$100 since the late-April / early-May spike (May 4 peak: $109.76; May 13: $101.12)." },
-      { phrase: "the war in Iran pushed prices up earlier this spring", source: "derived", note: "Iran-related Middle East conflict drove WTI and Brent higher through April-May 2026. Geopolitical context referenced in BoC April 2026 MPR (conditional on Middle East outcome) and CSCE Q1 2026 supplement (Middle East war survey window March 26 - April 2, 2026)." },
+      { phrase: "the war in Iran pushed prices up earlier this spring", source: "derived", note: "Iran-related Middle East conflict drove WTI higher through April-May 2026. Geopolitical context referenced in BoC April 2026 MPR (conditional on Middle East outcome) and CSCE Q1 2026 supplement (Middle East war survey window March 26 - April 2, 2026)." },
       { phrase: "the ceasefire has unwound part of the move but not all of it", source: "derived", note: "WTI fell from May 4 peak of $109.76 to $101.12 by May 13 — a partial retracement but still well above the pre-spike $90s range." },
     ],
   },

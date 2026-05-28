@@ -41,11 +41,10 @@
 
 import BaseLayout from "./BaseLayout.astro";
 import { site } from "../data/sections";
-import SectionSubscribeCTA from "../components/SectionSubscribeCTA.astro";
 import SectionPageHeader from "../components/section/SectionPageHeader.astro";
 import ChartbookUnit from "../components/section/ChartbookUnit.astro";
 import type { PanelData } from "../components/charts/_shared/panelData";
-import { derivePlateAsOf } from "../components/section/_shared/derivedLabels";
+import { derivePlateAsOf, derivePrimaryPlateAsOf } from "../components/section/_shared/derivedLabels";
 
 // Per-section chart components. The same dispatch pattern as the prior
 // SectionLayout - the chart-builder owns chart internals; we embed.
@@ -98,13 +97,11 @@ import PolicyPanel6FederalTrajectorySplit from "../components/charts/policy/Pane
 import PolicyPanel7PolicyRateDivergence from "../components/charts/policy/Panel7PolicyRateDivergence.astro";
 
 import FiscalPanel1FederalTrajectory from "../components/charts/fiscal/Panel1FederalTrajectory.astro";
-// Panel2DebtServiceRatio replaced by Panel2BalancePctGDP (2026-05-25). Kept on disk.
-// import FiscalPanel2DebtServiceRatio from "../components/charts/fiscal/Panel2DebtServiceRatio.astro";
+import FiscalPanel2DebtServiceRatio from "../components/charts/fiscal/Panel2DebtServiceRatio.astro";
 import FiscalPanel2BalancePctGDP from "../components/charts/fiscal/Panel2BalancePctGDP.astro";
 import FiscalPanel3PBOvsDoF from "../components/charts/fiscal/Panel3PBOvsDoF.astro";
 import FiscalPanel4OperatingBalance from "../components/charts/fiscal/Panel4OperatingBalance.astro";
-// Panel4ProvincialDebt kept on disk for future /provinces/ page; not routed here.
-// import FiscalPanel4ProvincialDebt from "../components/charts/fiscal/Panel4ProvincialDebt.astro";
+import FiscalPanel4ProvincialDebt from "../components/charts/fiscal/Panel4ProvincialDebt.astro";
 import FiscalPanel5OperatingCapital from "../components/charts/fiscal/Panel5OperatingCapital.astro";
 import FiscalPanel6DebtToGDP from "../components/charts/fiscal/Panel6DebtToGDP.astro";
 
@@ -120,7 +117,7 @@ import FiscalPanel6DebtToGDP from "../components/charts/fiscal/Panel6DebtToGDP.a
  * bindings. The registry holds ONLY the live mappings the section pages
  * dispatch through.
  */
-export type ChartKey = "gdp-panel-1" | "gdp-panel-2" | "gdp-panel-3" | "gdp-panel-4" | "gdp-panel-5" | "inflation-panel-0" | "inflation-panel-1" | "inflation-panel-2" | "inflation-panel-3" | "inflation-panel-4" | "inflation-panel-5" | "inflation-panel-6" | "labour-panel-1" | "labour-panel-2" | "labour-panel-3" | "labour-panel-4" | "labour-panel-5" | "labour-panel-6" | "housing-panel-1" | "housing-panel-2" | "housing-panel-3" | "housing-panel-6" | "housing-panel-7" | "policy-panel-1" | "policy-panel-2" | "policy-panel-4" | "policy-panel-5" | "policy-panel-6" | "policy-panel-7" | "fiscal-panel-1" | "fiscal-panel-2" | "fiscal-panel-3" | "fiscal-panel-4" | "fiscal-panel-5" | "fiscal-panel-6" | "markets-panel-1" | "markets-panel-2" | "markets-panel-3" | "markets-panel-6" | "trade-panel-3" | "trade-panel-sector-pivot" | "trade-panel-gold" | "trade-panel-reorientation-scatter";
+export type ChartKey = "gdp-panel-1" | "gdp-panel-2" | "gdp-panel-3" | "gdp-panel-4" | "gdp-panel-5" | "inflation-panel-0" | "inflation-panel-1" | "inflation-panel-2" | "inflation-panel-3" | "inflation-panel-4" | "inflation-panel-5" | "inflation-panel-6" | "labour-panel-1" | "labour-panel-2" | "labour-panel-3" | "labour-panel-4" | "labour-panel-5" | "labour-panel-6" | "housing-panel-1" | "housing-panel-2" | "housing-panel-3" | "housing-panel-6" | "housing-panel-7" | "policy-panel-1" | "policy-panel-2" | "policy-panel-4" | "policy-panel-5" | "policy-panel-6" | "policy-panel-7" | "fiscal-panel-1" | "fiscal-panel-2" | "fiscal-panel-debt-service" | "fiscal-panel-3" | "fiscal-panel-4" | "fiscal-panel-provincial-debt" | "fiscal-panel-5" | "fiscal-panel-6" | "markets-panel-1" | "markets-panel-2" | "markets-panel-3" | "markets-panel-6" | "trade-panel-3" | "trade-panel-sector-pivot" | "trade-panel-gold" | "trade-panel-reorientation-scatter";
 
 const chartRegistry: Record<ChartKey, any> = {
   "gdp-panel-1": Panel1HeadlineGDP,
@@ -155,8 +152,10 @@ const chartRegistry: Record<ChartKey, any> = {
   "policy-panel-7": PolicyPanel7PolicyRateDivergence,
   "fiscal-panel-1": FiscalPanel1FederalTrajectory,
   "fiscal-panel-2": FiscalPanel2BalancePctGDP,
+  "fiscal-panel-debt-service": FiscalPanel2DebtServiceRatio,
   "fiscal-panel-3": FiscalPanel3PBOvsDoF,
   "fiscal-panel-4": FiscalPanel4OperatingBalance,
+  "fiscal-panel-provincial-debt": FiscalPanel4ProvincialDebt,
   "fiscal-panel-5": FiscalPanel5OperatingCapital,
   "fiscal-panel-6": FiscalPanel6DebtToGDP,
   "markets-panel-1": MarketsPanel1CAD,
@@ -217,6 +216,16 @@ export interface Plate {
    * plate has no `data` to derive from.
    */
   asOf?: string;
+  /**
+   * How to derive `asOf` when it is omitted.
+   *
+   * - "all" (default): use all visible panel-data slots and name mixed
+   *   cadences.
+   * - "primary": use only the primary series. This is needed when the
+   *   panel payload contains support series that the chart does not render,
+   *   or when the visual's date should follow the primary measure.
+   */
+  asOfMode?: "all" | "primary";
   /** Declarative headline title sentence. */
   title: string;
   /** Interpretation paragraph (plain text). Placeholder OK. */
@@ -414,7 +423,11 @@ const qaPageLd = JSON.stringify({
         const derivedAsOf =
           plate.asOf !== undefined
             ? plate.asOf
-            : (derivePlateAsOf(plate.data) ?? "");
+            : (
+                plate.asOfMode === "primary"
+                  ? derivePrimaryPlateAsOf(plate.data)
+                  : derivePlateAsOf(plate.data)
+              ) ?? "";
         // Callout-unit composition: if `unit` is hand-set, use it as-is.
         // Else if `unitPrefix` is set, append the derived date so the
         // callout refreshes alongside the chart.
@@ -463,7 +476,6 @@ const qaPageLd = JSON.stringify({
       })}
     </div>
 
-    <SectionSubscribeCTA source="section_cta" />
   </article>
 
   <style>

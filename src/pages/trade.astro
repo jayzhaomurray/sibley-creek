@@ -1,6 +1,7 @@
 ---
 import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
+import type { PanelData } from "../components/charts/_shared/panelData";
 import { sections } from "../data/sections";
 import panelDataFile from "../../data/site/panel_data/trade.json";
 import sectionsJson from "../../data/site/sections.json";
@@ -19,6 +20,10 @@ const latestReleaseLabel = deriveLatestReleaseLabel(
 );
 
 const plate1Data = pickPanel(panelDataFile, 3);
+const panelsById = (panelDataFile as { panels?: Record<string, PanelData> }).panels ?? {};
+const plate2Data = pickPanel(panelDataFile, 8);
+const plate3Data = panelsById["panel-9"] ?? null;
+const plate4Data = panelsById["panel-7-alt"] ?? null;
 
 const plates: Plate[] = [
   {
@@ -57,7 +62,7 @@ const plates: Plate[] = [
       "Every other product cluster sits near zero on the non-US axis. " +
       "Strip out the gold channel and there would be no pivot.",
     source: "Statistics Canada Table 12-10-0182-01 (NAPCS sub-chapter exports by partner country).",
-    data: null,
+    data: plate2Data,
     citations: [
       { phrase: "gold — accounts for nearly all the non-US export growth Canada saw this year", source: "derived", note: "NAPCS 35 (gold/silver/PGM) Δ non-US exports March 2026 vs March 2025: roughly +C$4,784M — roughly 6x the next-largest non-US gain (oil at +C$816M). Sum of all positive non-US Δs across NAPCS sub-chapters is dominated by NAPCS 35. Source: StatCan 12-10-0182-01." },
       { phrase: "Every other product cluster sits near zero on the non-US axis", source: "derived", note: "Visible from the scatter: outside NAPCS 35, no sub-chapter exceeds ~C$1B Δ non-US between March 2025 and March 2026. Source: StatCan 12-10-0182-01." },
@@ -81,7 +86,7 @@ const plates: Plate[] = [
       direction: "neutral",
     },
     source: "Statistics Canada Table 12-10-0182-01 (NAPCS 35: unwrought gold, silver, and PGM by partner country); Yahoo Finance (gold futures, USD/oz).",
-    data: null,
+    data: plate3Data,
     citations: [
       { phrase: "gold has been mined in Ontario and Quebec", source: "derived", note: "Natural Resources Canada: Ontario and Quebec are the two largest gold-producing provinces, together accounting for roughly three-quarters of Canadian gold production." },
       { phrase: "sent straight to London's bullion banks, who store much of it in the Bank of England's vaults", source: "derived", note: "Royal Canadian Mint named on the original LBMA Good Delivery List in 1934; Canadian refined gold flows to LBMA-member bullion banks (HSBC, JPM, ICBC Standard) in London, who custody a substantial portion of their bullion at the Bank of England. BoE vaults hold ~5,000 tonnes of gold, of which only ~300 tonnes is UK reserves; the balance is custody for foreign central banks and commercial bullion banks." },
@@ -102,7 +107,7 @@ const plates: Plate[] = [
       "Steel, softwood, and cars each shed under five points of US share; copper drifted the other way and became slightly more US-dependent. " +
       "One sector adapted; the rest stayed locked in.",
     source: "Statistics Canada Table 12-10-0182-01 (NAPCS sub-chapter exports by partner country).",
-    data: null,
+    data: plate4Data,
     citations: [
       { phrase: "the five tariff-exposed sectors charted", source: "derived", note: "Chart renders five sectors: steel (NAPCS 30+31), aluminum (NAPCS 32+38), copper (NAPCS 33), softwood (NAPCS 55), cars (NAPCS 81). Of these, steel/aluminum/copper/cars are subject to US Section 232 tariffs (steel + aluminum 2018+, copper July 2025 50%, autos April 2025 25%); softwood is covered by US AD/CVD duties (Lumber V dispute, 2017+) rather than Section 232. 'Tariff-exposed' is the accurate framing. Source: StatCan 12-10-0182-01." },
       { phrase: "aluminum has meaningfully shifted away from the US — down almost 11 points", source: "derived", note: "Aluminum (NAPCS 32+38) US share: Mar 2025 = 96.9%; Mar 2026 = 86.0%; Δ = -10.9pp ≈ 11pp. Source: StatCan 12-10-0182-01." },

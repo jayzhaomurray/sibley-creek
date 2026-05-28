@@ -47,47 +47,79 @@
  * micro-caps treatment; tooltips and aria-label use full names.
  */
 
+import type { PanelData } from "../_shared/panelData";
 import { readCsv, decYear, VB, pickStride, fmtTick, yearTicksFromX } from "../_alternatives/_shared/altUtils";
 import AltChartStyle from "../_alternatives/_shared/AltChartStyle.astro";
 
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
 // --- Load ------------------------------------------------------------------
-const lvl = readCsv("unemployment_level.csv");          // millions, total U
-const rate = readCsv("unemployment_rate.csv");          // percent, UR
-const short = readCsv("unemployment_1_to_4_weeks.csv"); // millions, U_short
-
-const rMap = new Map(rate.map((p) => [p.date, p.value]));
-const sMap = new Map(short.map((p) => [p.date, p.value]));
-
-interface Row { d: string; U: number; UR: number; E: number; Us: number | null; }
-const rows: Row[] = [];
-for (const p of lvl) {
-  const UR = rMap.get(p.date);
-  const Us = sMap.get(p.date);
-  if (UR === undefined || UR === null || p.value === null) continue;
-  const U = p.value;
-  const LF = U / (UR / 100);
-  const E = LF - U;
-  rows.push({ d: p.date, U, UR, E, Us: Us ?? null });
-}
-rows.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
-
-// --- Build separation / finding rate series --------------------------------
+// Preferred path: SectionLayout passes derived panel_data where primary is
+// separation rate (%) and secondary is job-finding rate (%). Fallback keeps
+// the chart usable in isolation on alternatives/archive routes.
 interface Flow { d: string; sep: number | null; find: number | null; }
-const flows: Flow[] = [];
-for (let i = 0; i < rows.length - 1; i++) {
-  const t = rows[i]!;
-  const t1 = rows[i + 1]!;
-  const Us1 = t1.Us;
-  let sep: number | null = null;
-  let find: number | null = null;
-  if (Us1 !== null && t.E > 0) sep = Us1 / t.E;
-  if (Us1 !== null && t.U > 0) find = 1 - (t1.U - Us1) / t.U;
-  flows.push({ d: t.d, sep, find });
+
+function buildFlowsFromPanel(panel: PanelData | null): Flow[] {
+  const sep = panel?.primary?.data ?? [];
+  const find = panel?.secondary?.data ?? [];
+  if (sep.length === 0 || find.length === 0) return [];
+  const findByDate = new Map(find.map((p) => [p.date, p.value]));
+  return sep
+    .map((p) => ({
+      d: p.date,
+      sep: typeof p.value === "number" ? p.value / 100 : null,
+      find: typeof findByDate.get(p.date) === "number"
+        ? (findByDate.get(p.date) as number) / 100
+        : null,
+    }))
+    .sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
 }
+
+function buildFlowsFromRaw(): Flow[] {
+  const lvl = readCsv("unemployment_level.csv");          // millions, total U
+  const rate = readCsv("unemployment_rate.csv");          // percent, UR
+  const short = readCsv("unemployment_1_to_4_weeks.csv"); // millions, U_short
+
+  const rMap = new Map(rate.map((p) => [p.date, p.value]));
+  const sMap = new Map(short.map((p) => [p.date, p.value]));
+
+  interface Row { d: string; U: number; UR: number; E: number; Us: number | null; }
+  const rows: Row[] = [];
+  for (const p of lvl) {
+    const UR = rMap.get(p.date);
+    const Us = sMap.get(p.date);
+    if (UR === undefined || UR === null || p.value === null) continue;
+    const U = p.value;
+    const LF = U / (UR / 100);
+    const E = LF - U;
+    rows.push({ d: p.date, U, UR, E, Us: Us ?? null });
+  }
+  rows.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+
+  const out: Flow[] = [];
+  for (let i = 0; i < rows.length - 1; i++) {
+    const t = rows[i]!;
+    const t1 = rows[i + 1]!;
+    const Us1 = t1.Us;
+    let sep: number | null = null;
+    let find: number | null = null;
+    if (Us1 !== null && t.E > 0) sep = Us1 / t.E;
+    if (Us1 !== null && t.U > 0) find = 1 - (t1.U - Us1) / t.U;
+    out.push({ d: t.d, sep, find });
+  }
+  return out;
+}
+
+const flows = buildFlowsFromPanel(data);
+const chartFlows = flows.length > 0 ? flows : buildFlowsFromRaw();
 
 // --- Window: last 240 months -----------------------------------------------
 const WINDOW = 240;
-const tailFlows = flows.slice(-WINDOW);
+const tailFlows = chartFlows.slice(-WINDOW);
 
 // --- Geometry: two-panel small multiples -----------------------------------
 const PANEL_W = 280;

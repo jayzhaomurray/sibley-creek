@@ -240,6 +240,20 @@ export function derivePlateAsOf(
 }
 
 /**
+ * Derive a plate-level "as of" string from only the panel's primary
+ * series. Use this for charts whose panel payload carries support series
+ * that are not visible in the chart, or whose visual date should follow
+ * the primary plotted measure rather than the freshest support input.
+ */
+export function derivePrimaryPlateAsOf(
+  data: PanelData | null | undefined,
+): string | null {
+  const primary = data?.primary;
+  if (!primary?.asOfISO) return null;
+  return formatAsOf(primary.asOfISO, primary.frequency);
+}
+
+/**
  * Squash a pipeline series label down to a single-word tag suitable for
  * inline parenthetical use. The pipeline labels are full-text ("Housing
  * starts SAAR", "Residential permits", "WTI spot"); inside an asOf stamp
@@ -270,6 +284,17 @@ function compactSeriesLabel(label: string): string {
   // Keep the first meaningful word, lowercase it for editorial fit
   // ("starts", "permits", "WCS"). Preserve all-caps acronyms (>= 3 caps).
   const first = cleaned[0]!;
+  const canonical = new Map<string, string>([
+    ["goc", "GoC"],
+    ["boc", "BoC"],
+    ["boc-fed", "BoC-Fed"],
+    ["lfs-micro", "LFS-Micro"],
+    ["dsr", "DSR"],
+    ["wcs", "WCS"],
+    ["wti", "WTI"],
+  ]);
+  const mapped = canonical.get(first.toLowerCase());
+  if (mapped) return mapped;
   if (/^[A-Z]{2,}$/.test(first)) return first;
   return first.toLowerCase();
 }

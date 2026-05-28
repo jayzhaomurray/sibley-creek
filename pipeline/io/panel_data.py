@@ -406,13 +406,15 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         ),
         PanelSpec(
             panel_id="panel-6", section="labour", panel_num=6,
-            file="labour/Panel6RegionalDumbbell.astro",
-            primary=SlotSpec("lfs_on_unemployment_rate", "raw", label="ON unemployment rate"),
-            secondary=SlotSpec("lfs_qc_unemployment_rate", "raw", label="QC unemployment rate"),
-            tertiary=SlotSpec("lfs_ab_unemployment_rate", "raw", label="AB unemployment rate"),
-            extras=(
-                SlotSpec("lfs_bc_unemployment_rate", "raw", label="BC unemployment rate"),
-                SlotSpec("lfs_ca_unemployment_rate", "raw", label="Canada unemployment rate (national)"),
+            file="labour/Panel8LabourFlowRates.astro",
+            primary=SlotSpec("labour_separation_rate", "derived", label="Separation rate"),
+            secondary=SlotSpec("labour_job_finding_rate", "derived", label="Job finding rate"),
+            notes=(
+                "Flow-rate chart derives monthly transition probabilities from "
+                "LFS unemployment stocks, unemployment rate, and short-duration "
+                "unemployment using the Elsby-Michaels-Solon approximation. "
+                "The final LFS month is dropped because the t+1 short-duration "
+                "stock is required."
             ),
         ),
         # Wave 5 add: EI Regular Beneficiaries (Labour Panel 7). Single-series
@@ -832,8 +834,7 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
         PanelSpec(
             panel_id="panel-1", section="markets", panel_num=1,
             file="markets/Panel1CAD.astro",
-            primary=SlotSpec("usdcad", "raw", label="USDCAD spot"),
-            secondary=SlotSpec("fxusdcad", "raw", label="USDCAD spot (BoC)"),
+            primary=SlotSpec("fxusdcad", "raw", label="USDCAD spot"),
             expected_status="NEAR",
             notes="Panel expects BoC CEER index. CEER is MISSING (BoC Valet, key TBD; pipeline.build_financial may fetch in daily run).",
         ),
@@ -871,8 +872,6 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             panel_id="panel-6", section="markets", panel_num=6,
             file="markets/Panel4Energy.astro",
             primary=SlotSpec("wti", "raw", label="WTI"),
-            secondary=SlotSpec("brent", "raw", label="Brent"),
-            tertiary=SlotSpec("wcs", "raw", label="WCS"),
             extras=(
                 SlotSpec("natural_gas_alberta", "raw", label="AECO natural gas (Alberta reference)"),
             ),
@@ -1268,11 +1267,89 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
 # Disk readers
 # --------------------------------------------------------------------------- #
 
+def _read_labour_flow_slot(slot: SlotSpec, data_root: Path) -> Optional[dict]:
+    """Derive labour-market transition rates for the flow-rate panel.
+
+    The chart uses the Elsby-Michaels-Solon stock-flow approximation:
+      separation_t ~= U_short_{t+1} / E_t
+      finding_t = 1 - (U_{t+1} - U_short_{t+1}) / U_t
+
+    Values are emitted in monthly percent units.
+    """
+    try:
+        u = pd.read_csv(data_root / "raw" / "unemployment_level.csv", parse_dates=["date"])
+        ur = pd.read_csv(data_root / "raw" / "unemployment_rate.csv", parse_dates=["date"])
+        short = pd.read_csv(data_root / "raw" / "unemployment_1_to_4_weeks.csv", parse_dates=["date"])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("panel_data: failed to derive labour flow slot %s: %s: %s",
+                       slot.series, type(exc).__name__, exc)
+        return None
+
+    merged = (
+        u.rename(columns={"value": "U"})
+        .merge(ur.rename(columns={"value": "UR"}), on="date", how="inner")
+        .merge(short.rename(columns={"value": "U_short"}), on="date", how="inner")
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
+    if merged.empty:
+        return None
+
+    rows: list[dict] = []
+    for i in range(len(merged) - 1):
+        t = merged.iloc[i]
+        t1 = merged.iloc[i + 1]
+        try:
+            u_t = float(t["U"])
+            ur_t = float(t["UR"])
+            u_t1 = float(t1["U"])
+            u_short_t1 = float(t1["U_short"])
+        except (TypeError, ValueError):
+            continue
+        if pd.isna(u_t) or pd.isna(ur_t) or pd.isna(u_t1) or pd.isna(u_short_t1):
+            continue
+        if u_t <= 0 or ur_t <= 0:
+            continue
+        labour_force = u_t / (ur_t / 100)
+        employment = labour_force - u_t
+        if employment <= 0:
+            continue
+        if slot.series == "labour_separation_rate":
+            value = (u_short_t1 / employment) * 100
+        elif slot.series == "labour_job_finding_rate":
+            value = (1 - (u_t1 - u_short_t1) / u_t) * 100
+        else:
+            return None
+        rows.append({"date": t["date"], "value": value})
+
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return None
+    df = df.sort_values("date").tail(RECENT_WINDOW["monthly"]).reset_index(drop=True)
+    as_of_iso = pd.to_datetime(df["date"].iloc[-1]).date().isoformat()
+    return {
+        "key": slot.series,
+        "label": slot.label,
+        "tier": "derived",
+        "data": _df_to_records(df),
+        "unit": "%",
+        "frequency": "monthly",
+        "asOfISO": as_of_iso,
+        "source": "Statistics Canada Labour Force Survey; Sibley Creek derived flow rates",
+        "sourceUrl": None,
+        "sourceId": "14-10-0287-01; 14-10-0342-01",
+        "releaseDate": None,
+    }
+
+
 def _read_slot(slot: SlotSpec, data_root: Path) -> Optional[dict]:
     """Read one slot's CSV (with .meta.json) and return the per-panel payload.
 
     Returns None if the CSV is not on disk in any of the three tiers.
     """
+    if slot.series in {"labour_separation_rate", "labour_job_finding_rate"}:
+        return _read_labour_flow_slot(slot, data_root)
+
     tiers = [slot.tier] + [t for t in ("processed", "derived", "raw") if t != slot.tier]
     for tier in tiers:
         csv_path = data_root / tier / f"{slot.series}.csv"

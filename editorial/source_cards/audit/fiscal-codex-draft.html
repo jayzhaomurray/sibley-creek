@@ -1,0 +1,1887 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Source audit · fiscal-codex-draft</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: #111;
+  background: #f7f6f1;
+  margin: 0;
+}
+.wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 40px;
+  align-items: start;
+}
+header.page-head {
+  grid-column: 1 / -1;
+  border-bottom: 2px solid #111;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+header.page-head h1 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+header.page-head .breadcrumb a {
+  color: #666;
+  text-decoration: none;
+  margin-right: 16px;
+}
+header.page-head .breadcrumb a:hover { color: #000; text-decoration: underline; }
+main {
+  background: white;
+  padding: 32px;
+  border: 1px solid #ddd;
+}
+.headline-q {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #111;
+}
+.section-label {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.abstract {
+  font-size: 17px;
+  line-height: 1.6;
+  border-left: 3px solid #c00;
+  padding-left: 16px;
+  margin: 24px 0 40px 0;
+  color: #222;
+}
+.plate {
+  border-top: 1px solid #ccc;
+  padding: 24px 0;
+}
+.plate-number {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.plate-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 4px 0 10px 0;
+  color: #111;
+}
+.plate-meta {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #777;
+  margin-bottom: 12px;
+}
+.plate-blurb { font-size: 16px; line-height: 1.6; color: #222; }
+.plate-source-line {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #666;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dotted #ccc;
+}
+.claim {
+  background: #fffbcc;
+  padding: 1px 2px;
+  border-bottom: 2px solid #e6c200;
+  cursor: pointer;
+}
+.claim:hover {
+  background: #fff299;
+}
+.claim-pending {
+  background: #ffe5a0;
+  border-bottom: 2px solid #c83a00;
+}
+.claim-pending:hover {
+  background: #ffd680;
+}
+.claim-anchor {
+  color: inherit;
+  text-decoration: none;
+}
+.ledger-ref-link {
+  text-decoration: none;
+}
+.ledger-ref-link:hover .ledger-ref {
+  filter: brightness(1.1);
+  outline: 2px solid #006699;
+}
+/* Flash the target when the user clicks a cross-link, both directions. */
+.claim:target,
+.claim-pending:target {
+  animation: flash-yellow 1.5s ease-out;
+  scroll-margin-top: 80px;
+}
+.ledger-item:target {
+  animation: flash-blue 1.5s ease-out;
+  scroll-margin-top: 80px;
+}
+@keyframes flash-yellow {
+  0% { background: #ff8c00; outline: 3px solid #ff8c00; outline-offset: 2px; }
+  100% { background: inherit; outline: none; }
+}
+@keyframes flash-blue {
+  0% { background: #b3d9ff; outline: 3px solid #006699; outline-offset: 2px; }
+  100% { background: inherit; outline: none; }
+}
+.verify-toolbar {
+  background: #fbe8e8;
+  border: 1px solid #c83a00;
+  padding: 12px 16px;
+  margin-top: 14px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.verify-toolbar .nav-btn {
+  background: white;
+  color: #c83a00;
+  border: 1px solid #c83a00;
+  padding: 6px 12px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  margin-right: 6px;
+}
+.verify-toolbar .nav-btn:hover { background: #c83a00; color: white; }
+.verify-toolbar-counts { line-height: 1.5; }
+.verify-toolbar-counts .amber { color: #c83a00; font-weight: 600; }
+.verify-toolbar-counts .green { color: #2a7a30; font-weight: 600; }
+.verify-toolbar-counts .red { color: #c33; font-weight: 600; }
+.export-btn {
+  background: #006699;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.export-btn:hover { background: #00557e; }
+.export-btn:disabled { background: #888; cursor: not-allowed; }
+.export-toast {
+  font-size: 12px;
+  color: #2a7a30;
+  font-weight: 600;
+  margin-left: 8px;
+  display: none;
+}
+.export-toast.show { display: inline; }
+.ledger-item-pending {
+  border-left: 4px solid #c83a00;
+  padding-left: 8px;
+  background: #fff7e6;
+  margin-top: 8px;
+}
+.ledger-item-pending.decision-approve { border-left-color: #2a7a30; background: #f0f8f0; }
+.ledger-item-pending.decision-reject { border-left-color: #c33; background: #fbe8e8; }
+.ledger-item-pending.flash-target {
+  animation: flash-amber 1.5s ease-out;
+}
+@keyframes flash-amber {
+  0% { background: #ff8c00; outline: 3px solid #ff8c00; outline-offset: 2px; }
+  100% { background: #fff7e6; outline: none; }
+}
+.pending-decision-block { margin-top: 10px; }
+.pending-values, .pending-triangulation, .pending-card-notes {
+  margin: 8px 0;
+  font-size: 12px;
+}
+.pending-triangulation.muted { color: #888; font-style: italic; }
+.secondaries { list-style: none; padding: 0; margin: 4px 0 0 0; }
+.secondary { padding: 6px 8px; background: #f8f7ec; border-left: 2px solid #999; margin-bottom: 4px; font-size: 12px; }
+.secondary-credibility { font-size: 11px; color: #555; margin-top: 2px; }
+.secondary-excerpt { margin: 4px 0 0 0; padding: 4px 8px; background: white; font-style: italic; color: #444; font-size: 11px; line-height: 1.4; }
+.verified-values { list-style: none; padding: 0; margin: 4px 0; }
+.verified-values li { padding: 3px 6px; background: #f3f3ef; margin-bottom: 2px; font-family: var(--font-mono, monospace); font-size: 11px; }
+.verified-values code { background: transparent; font-size: 10px; color: #444; }
+fieldset.decision {
+  border: 1px solid #c83a00;
+  padding: 10px 14px;
+  margin-top: 8px;
+  background: white;
+}
+fieldset.decision legend {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #c83a00;
+  padding: 0 6px;
+}
+fieldset.decision label {
+  display: block;
+  margin: 4px 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+fieldset.decision label input { margin-right: 6px; }
+.comment-row { margin-top: 8px; }
+.comment-row label { font-size: 10px; color: #555; }
+.comment-row textarea {
+  width: 100%;
+  font-family: Georgia, serif;
+  font-size: 11px;
+  padding: 4px 6px;
+  border: 1px solid #c8c0a0;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.claim-fuzzy {
+  /* Fuzzy match — same yellow as a literal phrase match, but with a dashed
+     underline to flag that the citation's phrase: didn't match verbatim and
+     the sidecar should be tightened on the next editorial pass. */
+  border-bottom-style: dashed;
+}
+.claim-sup {
+  color: #b07b00;
+  font-weight: 700;
+  font-size: 0.8em;
+  margin-left: 1px;
+}
+.claim-uncovered {
+  /* No citation matches this token at all — true gap. The audit page surfaces
+     it so the user can either tighten a sidecar phrase or add a new citation. */
+  background: #fbe8e8;
+  padding: 1px 2px;
+  border-bottom: 2px solid #c33;
+  cursor: help;
+}
+.claim-uncovered-sup {
+  color: #c33;
+  font-weight: 700;
+  font-size: 0.85em;
+  margin-left: 1px;
+}
+aside.ledger {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 16px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+}
+aside.ledger h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+.ledger-group { margin-bottom: 20px; }
+.ledger-group-h {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #555;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ddd;
+}
+.ledger-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.ledger-ref {
+  display: inline-block;
+  background: #e6c200;
+  color: white;
+  padding: 1px 6px;
+  font-weight: 700;
+  font-size: 11px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+.ledger-ref.pipeline { background: #2a7a30; }
+.ledger-ref.derived { background: #888; }
+.ledger-ref.unknown, .ledger-ref.card-missing, .ledger-ref.other { background: #c33; }
+.ledger-phrase {
+  font-style: italic;
+  color: #333;
+  display: block;
+  margin: 4px 0;
+}
+.ledger-source-label { font-weight: 600; color: #222; font-size: 12px; }
+.tier-badge {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  margin-left: 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.tier-pipeline { background: #2a7a30; color: white; }
+.tier-a { background: #2a7a30; color: white; }
+.tier-b { background: #b07b00; color: white; }
+.tier-c { background: #c47000; color: white; }
+.tier-mode3 { background: #8a3a4a; color: white; }
+.tier-pending { background: #c33; color: white; }
+.tier-untagged { background: #777; color: white; }
+.tier-error { background: #c33; color: white; }
+.tier-other { background: #888; color: white; font-style: italic; }
+.no-inline-match {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  margin-left: 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+  background: #c33;
+  color: white;
+  cursor: help;
+}
+.ledger-excerpt {
+  margin: 6px 0;
+  padding: 8px 10px;
+  background: #f3f3ef;
+  color: #444;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 2px solid #999;
+}
+.ledger-meta { font-size: 11px; color: #777; }
+.ledger-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: #006699;
+  text-decoration: none;
+  font-weight: 600;
+}
+.ledger-link:hover { text-decoration: underline; }
+.freshness {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #eef5f3;
+  border-left: 3px solid #2a7a30;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #2a4f30;
+}
+.freshness-label { font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
+.freshness-stamp { font-family: var(--font-mono, monospace); margin-left: 6px; }
+.freshness-meta { color: #555; margin-left: 12px; }
+.freshness-hint { display: block; margin-top: 4px; color: #555; font-style: italic; }
+.note-line { font-size: 11px; color: #888; margin-top: 4px; font-style: italic; }
+footer.audit-foot {
+  grid-column: 1 / -1;
+  border-top: 1px solid #ccc;
+  padding: 20px 0;
+  font-size: 12px;
+  color: #777;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.edit-btn {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #006699;
+  background: transparent;
+  border: 1px solid #006699;
+  padding: 3px 8px;
+  margin-left: 8px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.edit-btn:hover { background: #006699; color: white; }
+.edit-form {
+  margin-top: 12px;
+  padding: 14px;
+  background: #f8f7ec;
+  border: 1px solid #d8c773;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  display: none;
+}
+.edit-form.open { display: block; }
+.edit-form label {
+  display: block;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+  margin: 8px 0 4px 0;
+}
+.edit-form textarea, .edit-form input[type="text"] {
+  width: 100%;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #c8c0a0;
+  background: white;
+  box-sizing: border-box;
+}
+.edit-form textarea { min-height: 80px; line-height: 1.5; resize: vertical; }
+.edit-form .row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.edit-form .row .primary {
+  background: #006699;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.edit-form .row .primary:hover { background: #00557e; }
+.edit-form .row .toast {
+  font-size: 12px;
+  color: #2a7a30;
+  font-weight: 600;
+  margin-left: 8px;
+  display: none;
+}
+.edit-form .row .toast.show { display: inline; }
+.edit-form .hint {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+  margin-top: 4px;
+}
+.tile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 32px;
+}
+.tile {
+  border: 1px solid #ddd;
+  padding: 16px;
+  background: #fbfaf5;
+}
+.tile-section-label {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 6px;
+}
+.tile-line {
+  font-size: 15px;
+  line-height: 1.5;
+  color: #222;
+}
+.dive-body {
+  font-size: 16px;
+  line-height: 1.65;
+  color: #222;
+}
+.dive-body h1, .dive-body h2, .dive-body h3 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  color: #111;
+  margin-top: 32px;
+}
+.dive-body h1 { font-size: 22px; }
+.dive-body h2 { font-size: 18px; }
+.dive-body h3 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.1em; color: #444; }
+.dive-body p { margin: 12px 0; }
+.dive-body ul, .dive-body ol { margin: 12px 0; padding-left: 24px; }
+.dive-body code { font-family: var(--font-mono, monospace); font-size: 0.92em; background: #f0efe8; padding: 1px 4px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <div class="breadcrumb">
+        <a href="./index.html">← All sections</a>
+        <span style="color:#999">·</span>
+        <a href="https://sibleycreek.ca/fiscal-codex-draft/" target="_blank" rel="noopener">Live page ↗</a>
+      </div>
+      <h1>Source audit · fiscal-codex-draft</h1>
+      
+      
+      <div class="verify-toolbar">
+        <div class="verify-toolbar-counts">
+          <strong>16 claims awaiting your verification.</strong>
+          <span class="amber">16 pending</span> ·
+          <span class="green" id="approved-count">0 approved</span> ·
+          <span class="red" id="rejected-count">0 rejected</span>
+        </div>
+        <div>
+          <button class="nav-btn" onclick="jumpToNextPending()">Next pending ↓</button>
+          <button class="export-btn" id="export-btn" onclick="exportDecisions('fiscal-codex-draft')" disabled>Copy decisions to clipboard</button>
+          <span class="export-toast" id="export-toast">Copied — paste into PowerShell</span>
+        </div>
+      </div>
+    </header>
+    <main>
+      <div class="section-label">Section abstract <button class="edit-btn" onclick="document.getElementById('edit-abstract').classList.toggle('open')">✎ Propose edit</button></div>
+      <h2 class="headline-q"></h2>
+      <div class="abstract"><em>(no section abstract found)</em></div>
+      
+    <div class="edit-form" id="edit-abstract">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="" />
+      <label>Blurb (current)</label>
+      <textarea data-field="body"></textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'fiscal-codex-draft', 'section-abstract')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      
+      <section class="plate">
+        <div class="plate-number">01 · Federal trajectory</div>
+        <h3 class="plate-title">The federal track is ordinary, not counter-cyclical. <button class="edit-btn" onclick="document.getElementById('edit-plate-0').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Federal monthly and fiscal-year-to-date balance · February 28, 2026 (Fiscal Monitor)</div>
+        <div class="plate-blurb">Ottawa is not running an emergency stance, but it is also not tightening into the cycle. The Spring Economic Update puts the deficit at <span class="claim claim-pending" id="ref-1" data-ref="1"><a href="#ledger-1" class="claim-anchor">2.1% of GDP<sup class="claim-sup">[1]</sup></a></span> in FY2025-26, while the Fiscal Monitor shows a <span class="claim" id="ref-2" data-ref="2"><a href="#ledger-2" class="claim-anchor">$25.5 billion deficit<sup class="claim-sup">[2]</sup></a></span> after eleven months. The <span class="claim" id="ref-3" data-ref="3"><a href="#ledger-3" class="claim-anchor">February surplus<sup class="claim-sup">[3]</sup></a></span> helped, but it does not change the fiscal-year shape: this is a familiar deficit cadence, not a deliberate macro offset.</div>
+        <div class="plate-source-line">Department of Finance Fiscal Monitor; Department of Finance Spring Economic Update.</div>
+        
+    <div class="edit-form" id="edit-plate-0">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="The federal track is ordinary, not counter-cyclical." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Ottawa is not running an emergency stance, but it is also not tightening into the cycle. The Spring Economic Update puts the deficit at 2.1% of GDP in FY2025-26, while the Fiscal Monitor shows a $25.5 billion deficit after eleven months. The February surplus helped, but it does not change the fiscal-year shape: this is a familiar deficit cadence, not a deliberate macro offset.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'fiscal-codex-draft', 'plate-1')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">02 · Debt service</div>
+        <h3 class="plate-title">Debt service is the binding line in the fiscal room. <button class="edit-btn" onclick="document.getElementById('edit-plate-1').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Federal public debt charges as a share of revenues</div>
+        <div class="plate-blurb">The deficit ratio is the headline, but the debt-service share is the constraint clients should watch. Public debt charges reached <span class="claim claim-pending" id="ref-4" data-ref="4"><a href="#ledger-4" class="claim-anchor">$49.3 billion<sup class="claim-sup">[4]</sup></a></span> fiscal-year-to-date through <span class="claim-uncovered">February 2026<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>, and the derived debt-service-to-revenue ratio is <span class="claim" id="ref-5" data-ref="5"><a href="#ledger-5" class="claim-anchor">10.9%<sup class="claim-sup">[5]</sup></a></span>. The PBO's Main Estimates work puts the same burden on a path toward <span class="claim claim-pending" id="ref-6" data-ref="6"><a href="#ledger-6" class="claim-anchor">13.2% of revenues by 2030-31<sup class="claim-sup">[6]</sup></a></span>, which is where fiscal space starts getting visibly rationed.</div>
+        <div class="plate-source-line">Department of Finance Fiscal Monitor; Parliamentary Budget Officer Main Estimates analysis.</div>
+        
+    <div class="edit-form" id="edit-plate-1">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Debt service is the binding line in the fiscal room." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The deficit ratio is the headline, but the debt-service share is the constraint clients should watch. Public debt charges reached $49.3 billion fiscal-year-to-date through February 2026, and the derived debt-service-to-revenue ratio is 10.9%. The PBO's Main Estimates work puts the same burden on a path toward 13.2% of revenues by 2030-31, which is where fiscal space starts getting visibly rationed.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'fiscal-codex-draft', 'plate-2')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">03 · PBO vs DoF</div>
+        <h3 class="plate-title">Finance and the PBO mostly agree on the headline deficit. <button class="edit-btn" onclick="document.getElementById('edit-plate-2').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">PBO EFO Sept 2025 vs DoF SEU April 2026 deficit projection tracks</div>
+        <div class="plate-blurb">The standard outsider take that Ottawa and the watchdog are miles apart is overstated on the headline deficit. Finance has FY2025-26 at <span class="claim claim-pending" id="ref-7" data-ref="7"><a href="#ledger-7" class="claim-anchor">$66.9 billion<sup class="claim-sup">[7]</sup></a></span> and FY2030-31 at <span class="claim claim-pending" id="ref-8" data-ref="8"><a href="#ledger-8" class="claim-anchor">$53.2 billion<sup class="claim-sup">[8]</sup></a></span>; the PBO's September outlook had the same starting year at <span class="claim claim-pending" id="ref-9" data-ref="9"><a href="#ledger-9" class="claim-anchor">$68.5 billion<sup class="claim-sup">[9]</sup></a></span> and the middle years <span class="claim claim-pending" id="ref-10" data-ref="10"><a href="#ledger-10" class="claim-anchor">close to $60 billion<sup class="claim-sup">[10]</sup></a></span>. The argument is not the line itself, but the assumptions and classifications underneath it.</div>
+        <div class="plate-source-line">Department of Finance Spring Economic Update; Parliamentary Budget Officer Economic and Fiscal Outlook.</div>
+        
+    <div class="edit-form" id="edit-plate-2">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Finance and the PBO mostly agree on the headline deficit." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The standard outsider take that Ottawa and the watchdog are miles apart is overstated on the headline deficit. Finance has FY2025-26 at $66.9 billion and FY2030-31 at $53.2 billion; the PBO's September outlook had the same starting year at $68.5 billion and the middle years close to $60 billion. The argument is not the line itself, but the assumptions and classifications underneath it.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'fiscal-codex-draft', 'plate-3')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">04 · Provincial stance</div>
+        <h3 class="plate-title">Provincial fiscal stance does not generalize from Ottawa. <button class="edit-btn" onclick="document.getElementById('edit-plate-3').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Provincial debt-to-GDP, publisher's-own basis · Mixed vintage: ON Nov 2025; QC Mar 2026; AB/BC Feb 2026</div>
+        <div class="plate-blurb">The provincial balance sheet is not one Canadian story. Quebec sits at <span class="claim claim-pending" id="ref-11" data-ref="11"><a href="#ledger-11" class="claim-anchor">38.8% of GDP<sup class="claim-sup">[11]</sup></a></span> and Ontario at <span class="claim claim-pending" id="ref-12" data-ref="12"><a href="#ledger-12" class="claim-anchor">37.7%<sup class="claim-sup">[12]</sup></a></span>, while Alberta is at <span class="claim claim-pending" id="ref-13" data-ref="13"><a href="#ledger-13" class="claim-anchor">10.5%<sup class="claim-sup">[13]</sup></a></span>. British Columbia's <span class="claim claim-pending" id="ref-14" data-ref="14"><a href="#ledger-14" class="claim-anchor">30.6%<sup class="claim-sup">[14]</sup></a></span> print is on a <span class="claim claim-pending" id="ref-15" data-ref="15"><a href="#ledger-15" class="claim-anchor">taxpayer-supported basis<sup class="claim-sup">[15]</sup></a></span>, so it belongs on the same page but not in the same sentence without the caveat.</div>
+        <div class="plate-source-line">Ontario, Quebec, Alberta, and British Columbia budget documents.</div>
+        
+    <div class="edit-form" id="edit-plate-3">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Provincial fiscal stance does not generalize from Ottawa." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The provincial balance sheet is not one Canadian story. Quebec sits at 38.8% of GDP and Ontario at 37.7%, while Alberta is at 10.5%. British Columbia's 30.6% print is on a taxpayer-supported basis, so it belongs on the same page but not in the same sentence without the caveat.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'fiscal-codex-draft', 'plate-4')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">05 · Operating/capital</div>
+        <h3 class="plate-title">The operating anchor depends on what counts as capital. <button class="edit-btn" onclick="document.getElementById('edit-plate-4').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Operating vs capital balance under the bifurcated budget framework · November 14, 2025 (PBO Budget 2025 review)</div>
+        <div class="plate-blurb">The fiscal anchor lives or dies on classification. The PBO reclassifies <span class="claim claim-pending" id="ref-16" data-ref="16"><a href="#ledger-16" class="claim-anchor">$94 billion<sup class="claim-sup">[16]</sup></a></span> of spending that Budget <span class="claim-uncovered">2025<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> treats as capital, equal to about <span class="claim claim-pending" id="ref-17" data-ref="17"><a href="#ledger-17" class="claim-anchor">30% of Finance's claimed capital envelope<sup class="claim-sup">[17]</sup></a></span>. On that stricter basis, the operating balance is still in deficit by <span class="claim claim-pending" id="ref-18" data-ref="18"><a href="#ledger-18" class="claim-anchor">$18.1 billion<sup class="claim-sup">[18]</sup></a></span> in FY2028-29, <span class="claim claim-pending" id="ref-19" data-ref="19"><a href="#ledger-19" class="claim-anchor">the year Ottawa says the operating anchor is met<sup class="claim-sup">[19]</sup></a></span>.</div>
+        <div class="plate-source-line">Parliamentary Budget Officer Budget 2025 review; Department of Finance Budget 2025.</div>
+        
+    <div class="edit-form" id="edit-plate-4">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="The operating anchor depends on what counts as capital." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The fiscal anchor lives or dies on classification. The PBO reclassifies $94 billion of spending that Budget 2025 treats as capital, equal to about 30% of Finance's claimed capital envelope. On that stricter basis, the operating balance is still in deficit by $18.1 billion in FY2028-29, the year Ottawa says the operating anchor is met.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'fiscal-codex-draft', 'plate-5')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+    </main>
+    
+    <aside class="ledger">
+      <h2>Claims ledger</h2>
+      
+      
+              <div class="ledger-group">
+                <div class="ledger-group-h">01 · Federal trajectory</div>
+                
+      <div class="ledger-item ledger-item-pending" id="ledger-1">
+        <a href="#ref-1" class="ledger-ref-link"><span class="ledger-ref card">[1]</span></a>
+        <span class="ledger-source-label">Department of Finance Canada — Spring Economic Update 2026 (FY2025-26 federal deficit as % of GDP)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"2.1% of GDP"</div>
+        <div class="ledger-excerpt">Department of Finance Canada, Spring Economic Update 2026, Economic and Fiscal
+Overview (released April 28, 2026): &quot;The 2025-26 deficit is now projected to be
+$66.9 billion—$11.5 billion lower than in Budget 2025—or 2.1 per cent of GDP.
+The deficit is expected to decline to $53.2 billion, or 1.4 per cent of GDP by
+2030-31, consistent with the fiscal anchor.&quot;
+</div>
+        <div class="ledger-meta">Spring Economic Update 2026 (released April 28, 2026) · verified 2026-05-24 · next Budget 2026 (timing TBD; expected fall 2026 or early 2027)</div>
+        <div class="note-line">DoF Spring Economic Update April 2026 projects the federal deficit at 2.1% of GDP for FY2025-26.</div>
+        <a class="ledger-link" href="https://budget.canada.ca/update-miseajour/2026/report-rapport/overview-apercu-en.html" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>dof_seu_2026_27_release_date</code>: <strong>2026-04-28</strong></li><li><code>fy2025_26_deficit_cad_bn</code>: <strong>66.9</strong></li><li><code>fy2025_26_deficit_pct_gdp</code>: <strong>2.1</strong></li><li><code>fy2030_31_deficit_cad_bn</code>: <strong>53.2</strong></li><li><code>fy2030_31_deficit_pct_gdp</code>: <strong>1.4</strong></li><li><code>primary_table_reference</code>: <strong>Annex 1, Table A1.7 (Summary Statement of Transactions)</strong></li></ul></div>
+          <div class="pending-triangulation"><strong>Triangulated secondaries:</strong><ul class="secondaries">
+        <li class="secondary">
+          <a href="https://budget.canada.ca/update-miseajour/2026/report-rapport/overview-apercu-en.html" target="_blank" rel="noopener"><strong>Spring Economic Update 2026 — Economic and Fiscal Overview (budget.canada.ca)</strong></a>
+          <div class="secondary-credibility">Department of Finance Canada — primary publisher</div>
+          <blockquote class="secondary-excerpt">The 2025-26 deficit is now projected to be $66.9 billion—$11.5 billion lower than in Budget 2025—or 2.1 per cent of GDP.</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://www.theglobeandmail.com/politics/article-spring-economic-update-francois-philippe-champagne-mark-carney-april/" target="_blank" rel="noopener"><strong>The Globe and Mail — Spring Economic Update coverage</strong></a>
+          <div class="secondary-credibility">Tier-1 Canadian business press; allowlist member</div>
+          <blockquote class="secondary-excerpt">Ottawa announces $6-billion to boost skilled trades, smaller deficit projection of $66.9-billion</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://chamber.ca/policy-matters-what-the-spring-economic-statement-means-for-business/" target="_blank" rel="noopener"><strong>Canadian Chamber of Commerce — Policy Matters on SEU 2026</strong></a>
+          <div class="secondary-credibility">Established trade association policy publication</div>
+          <blockquote class="secondary-excerpt">2025-26 deficit projection of $66.9 billion (2.1% of GDP) — improvement of $11.5 billion from Budget 2025</blockquote>
+        </li></ul></div>
+          <div class="pending-card-notes">Primary canada.ca DoF press-release page returns 403 on WebFetch (WAF), but the
+budget.canada.ca report site is publicly reachable and was fetched cleanly. The
+budget.canada.ca site IS the primary publisher: it hosts the SEU 2026 report
+text in HTML form alongside the bilingual PDF. The figure &quot;2.1 per cent of GDP&quot;
+appears verbatim in the Economic and Fiscal Overview chapter.
+
+The triangulation block carries two independent credible secondaries reproducing
+the same FY2025-26 figure and tabling date:
+  - The Globe and Mail's coverage of the April 28 release
+  - The Canadian Chamber of Commerce policy summary
+Both confirm $66.9bn / 2.1% / April 28, 2026 release.
+
+Tier A: primary HTML reachable, verbatim excerpt captured, value confirmed
+independently by two credible secondaries. The 403 on the canada.ca DoF news
+release is a WAF block on bot fetches, not a publication issue (the page
+resolves cleanly in a browser).
+</div>
+          <fieldset class="decision" data-claim-id="dof_seu_2026_deficit_gdp_share">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-dof_seu_2026_deficit_gdp_share" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-dof_seu_2026_deficit_gdp_share" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-dof_seu_2026_deficit_gdp_share" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-dof_seu_2026_deficit_gdp_share">Comment (required if rejecting):</label>
+              <textarea id="comment-dof_seu_2026_deficit_gdp_share" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="ledger-item" id="ledger-2">
+        <a href="#ref-2" class="ledger-ref-link"><span class="ledger-ref pipeline">[2]</span></a>
+        <span class="ledger-source-label">DoF Fiscal Monitor dof_fiscal_ytd_balance</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"$25.5 billion deficit"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">Federal fiscal YTD balance through February 2026, -$25.5bn per Fiscal Monitor.</div>
+        <a class="ledger-link" href="https://www.canada.ca/en/department-finance/services/publications/fiscal-monitor.html" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+      <div class="ledger-item" id="ledger-3">
+        <a href="#ref-3" class="ledger-ref-link"><span class="ledger-ref pipeline">[3]</span></a>
+        <span class="ledger-source-label">DoF Fiscal Monitor dof_fiscal_monthly_balance</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"February surplus"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">February 2026 monthly federal balance was +$5.7bn per Fiscal Monitor.</div>
+        <a class="ledger-link" href="https://www.canada.ca/en/department-finance/services/publications/fiscal-monitor.html" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">02 · Debt service</div>
+                
+      <div class="ledger-item ledger-item-pending" id="ledger-4">
+        <a href="#ref-4" class="ledger-ref-link"><span class="ledger-ref card">[4]</span></a>
+        <span class="ledger-source-label">Department of Finance Canada — The Fiscal Monitor (February 2026 issue)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"$49.3 billion"</div>
+        <div class="ledger-excerpt">Public debt charges totalled $49.3 billion, roughly the same as a year earlier for the April to February period of 2025-26. ... federal government reported a $25.5 billion budgetary deficit for the April 2025 to February 2026 period.</div>
+        <div class="ledger-meta">February 2026 issue (released ~April 24, 2026) · verified 2026-05-22 · next 2026-05-29</div>
+        <div class="note-line">Fiscal Monitor Feb 2026: public debt charges $49.3bn fiscal-year-to-date.</div>
+        <a class="ledger-link" href="https://www.canada.ca/en/department-finance/services/publications/fiscal-monitor/2026/02.html#financial-results" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>public_debt_charges_ytd_apr2025_feb2026_cad_bn</code>: <strong>49.3</strong></li><li><code>budgetary_deficit_ytd_apr2025_feb2026_cad_bn</code>: <strong>25.5</strong></li><li><code>reference_period</code>: <strong>April 2025 to February 2026</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Plate-2 metric is public debt charges YTD divided by total budgetary revenues YTD,
+derived from the Fiscal Monitor's standard &quot;Revenues and expenses, fiscal year to date&quot;
+table. The numerator is verified above; the revenues line and the ratio itself are
+derived inside the pipeline (`pipeline/fetch/dof_fiscal.py` already extracts both
+legs). The publication URL above is the WAF-protected canonical canada.ca page; the
+ratio is the primary editorial unit. WebFetch returns 403 on canada.ca; verbatim
+excerpt taken from Department of Finance Fiscal Monitor (Feb 2026) as reproduced by
+CP24 (Canadian Press wire reproduction of DoF release) and PBO Spring Update
+assessment notes.
+</div>
+          <fieldset class="decision" data-claim-id="dof_fiscal_monitor_debt_service_share">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-dof_fiscal_monitor_debt_service_share" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-dof_fiscal_monitor_debt_service_share" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-dof_fiscal_monitor_debt_service_share" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-dof_fiscal_monitor_debt_service_share">Comment (required if rejecting):</label>
+              <textarea id="comment-dof_fiscal_monitor_debt_service_share" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="ledger-item" id="ledger-5">
+        <a href="#ref-5" class="ledger-ref-link"><span class="ledger-ref pipeline">[5]</span></a>
+        <span class="ledger-source-label">DoF Fiscal Monitor debt_service_ratio</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"10.9%"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">Derived from public debt charges divided by revenues through February 2026.</div>
+        <a class="ledger-link" href="https://www.canada.ca/en/department-finance/services/publications/fiscal-monitor.html" target="_blank" rel="noopener">Open source ↗</a>
+        
+      </div>
+      <div class="ledger-item ledger-item-pending" id="ledger-6">
+        <a href="#ref-6" class="ledger-ref-link"><span class="ledger-ref card">[6]</span></a>
+        <span class="ledger-source-label">PBO Government's Expenditure Plan and Main Estimates 2026-27 — May 7, 2026 (RP-2627-004-S)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"13.2% of revenues by 2030-31"</div>
+        <div class="ledger-excerpt">PBO Government's Expenditure Plan and Main Estimates 2026-27 (released
+May 7, 2026; publication ID RP-2627-004-S): &quot;Between 2024-25 and 2030-31,
+public debt charges as a share of revenues are expected to increase from
+10.5 to 13.2 per cent, and as a share of GDP from 1.7 per cent to 2.1
+per cent.&quot;
+
+&quot;The Main Estimates outline $502.8 billion in budgetary spending
+authorities. Voted authorities requiring Parliament's approval total
+$230.4 billion.&quot; Statutory authorities for public debt servicing total
+$53.7 billion in 2026-27, comprising $48.6 billion in interest on
+unmatured debt and $5.1 billion in other interest costs. Public debt
+charges in 2026-27 represent a $4.7 billion increase (9.5 per cent)
+compared to 2025-26 estimates.
+</div>
+        <div class="ledger-meta">PBO Main Estimates 2026-27 (RP-2627-004-S), May 2026 · verified 2026-05-24 · next PBO Supplementary Estimates A 2026-27: ~June 2026; PBO EFO next: fall 2026</div>
+        <div class="note-line">PBO Main Estimates 2026-27 analysis projects the federal interest burden rising to 13.2% of revenues by 2030-31.</div>
+        <a class="ledger-link" href="https://www.pbo-dpb.ca/en/publications/RP-2627-004-S--government-expenditure-plan-main-estimates-2026-27--plan-depenses-gouvernement-budget-principal-depenses-2026-2027" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>pbo_publication_id</code>: <strong>RP-2627-004-S</strong></li><li><code>pbo_release_date</code>: <strong>2026-05-07</strong></li><li><code>pbo_interest_burden_2024_25_pct_of_revenues</code>: <strong>10.5</strong></li><li><code>pbo_interest_burden_2030_31_pct_of_revenues</code>: <strong>13.2</strong></li><li><code>pbo_interest_burden_2024_25_pct_of_gdp</code>: <strong>1.7</strong></li><li><code>pbo_interest_burden_2030_31_pct_of_gdp</code>: <strong>2.1</strong></li><li><code>public_debt_charges_2026_27_cad_bn</code>: <strong>53.7</strong></li><li><code>public_debt_charges_2026_27_interest_unmatured_debt_cad_bn</code>: <strong>48.6</strong></li><li><code>public_debt_charges_2026_27_other_interest_cad_bn</code>: <strong>5.1</strong></li><li><code>public_debt_charges_yoy_increase_cad_bn</code>: <strong>4.7</strong></li><li><code>public_debt_charges_yoy_increase_pct</code>: <strong>9.5</strong></li><li><code>main_estimates_total_budgetary_authorities_cad_bn</code>: <strong>502.8</strong></li><li><code>voted_authorities_cad_bn</code>: <strong>230.4</strong></li></ul></div>
+          <div class="pending-triangulation"><strong>Triangulated secondaries:</strong><ul class="secondaries">
+        <li class="secondary">
+          <a href="https://www.pbo-dpb.ca/en/publications/RP-2627-004-S--government-expenditure-plan-main-estimates-2026-27--plan-depenses-gouvernement-budget-principal-depenses-2026-2027" target="_blank" rel="noopener"><strong>PBO publication page for Main Estimates 2026-27</strong></a>
+          <div class="secondary-credibility">Officer of Parliament — primary publisher of its own publication</div>
+          <blockquote class="secondary-excerpt">Publication ID: RP-2627-004-S. Release Date: May 7, 2026. Between 2024-25 and 2030-31, public debt charges as a share of revenues are expected to increase from 10.5 to 13.2 per cent, and as a share of GDP from 1.7 per cent to 2.1 per cent. The 2026-27 Main Estimates outline $53.7 billion in forecasted statutory authorities related to servicing public debt, including $48.6 billion for interest on unmatured debt and $5.1 billion for other interest costs.</blockquote>
+        </li></ul></div>
+          <div class="pending-card-notes">This card supersedes the prior placeholder. The 13.2% figure is the
+endpoint of a published PBO projection (RP-2627-004-S), not a
+back-of-envelope: PBO computes interest cost as a share of total revenues
+rising from 10.5% in 2024-25 to 13.2% in 2030-31, with parallel framing
+as a share of GDP rising 1.7% to 2.1%. The publication is PBO's standard
+spring review of the federal main estimates — an annual document, so
+this figure will be revised once a year.
+
+Verification chain that closed:
+  - PBO publication page (RP-2627-004-S): 200 OK, publication ID,
+    release date, and headline numerics verified.
+  - Same page reproduces the verbatim &quot;Between 2024-25 and 2030-31,
+    public debt charges as a share of revenues are expected to increase
+    from 10.5 to 13.2 per cent&quot; sentence in the document summary.
+
+The chart anchor for plate-2 is: PBO Main Estimates 2026-27 projects
+public debt charges to rise from 10.5% of federal revenues today to
+13.2% by 2030-31. The Fiscal Monitor YTD ratio (DoF's most recent
+reported value) ties to this as the current-period observation; PBO's
+projection extends it forward to 2030-31 on a current-policy baseline.
+</div>
+          <fieldset class="decision" data-claim-id="pbo_interest_burden_forecast_2030">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-pbo_interest_burden_forecast_2030" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-pbo_interest_burden_forecast_2030" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-pbo_interest_burden_forecast_2030" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-pbo_interest_burden_forecast_2030">Comment (required if rejecting):</label>
+              <textarea id="comment-pbo_interest_burden_forecast_2030" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">03 · PBO vs DoF</div>
+                
+      <div class="ledger-item ledger-item-pending" id="ledger-7">
+        <a href="#ref-7" class="ledger-ref-link"><span class="ledger-ref card">[7]</span></a>
+        <span class="ledger-source-label">Department of Finance Canada — Spring Economic Update 2026 (5-year deficit projection track)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"$66.9 billion"</div>
+        <div class="ledger-excerpt">Department of Finance Canada, Spring Economic Update 2026, Annex 1 (Details
+of economic and fiscal projections), Table A1.7 (Summary Statement of
+Transactions), budgetary balance in billions of dollars: FY2025-26 -$66.9bn
+(-2.1% of GDP); FY2026-27 -$65.3bn (-1.9%); FY2027-28 -$63.1bn (-1.8%);
+FY2028-29 -$57.7bn (-1.6%); FY2029-30 -$56.2bn (-1.5%); FY2030-31 -$53.2bn
+(-1.4%).
+</div>
+        <div class="ledger-meta">Spring Economic Update 2026 — Annex 1, Table A1.7 (released April 28, 2026) · verified 2026-05-24 · next Budget 2026 (timing TBD)</div>
+        <div class="note-line">DoF SEU April 2026 FY2025-26 deficit projection.</div>
+        <a class="ledger-link" href="https://budget.canada.ca/update-miseajour/2026/report-rapport/anx1-en.html#table-a17" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>dof_seu_release_date</code>: <strong>2026-04-28</strong></li><li><code>primary_table_reference</code>: <strong>Annex 1, Table A1.7 (Summary Statement of Transactions)</strong></li><li><code>budgetary_balance_cad_bn</code>: <strong>[object Object]</strong></li><li><code>budgetary_balance_pct_gdp</code>: <strong>[object Object]</strong></li></ul></div>
+          <div class="pending-triangulation"><strong>Triangulated secondaries:</strong><ul class="secondaries">
+        <li class="secondary">
+          <a href="https://budget.canada.ca/update-miseajour/2026/report-rapport/anx1-en.html" target="_blank" rel="noopener"><strong>Spring Economic Update 2026 — Annex 1 (budget.canada.ca)</strong></a>
+          <div class="secondary-credibility">Department of Finance Canada — primary publisher</div>
+          <blockquote class="secondary-excerpt">Table A1.7 (Summary Statement of Transactions): budgetary balance FY2025-26 -$66.9bn (-2.1% GDP); FY2026-27 -$65.3bn (-1.9%); FY2027-28 -$63.1bn (-1.8%); FY2028-29 -$57.7bn (-1.6%); FY2029-30 -$56.2bn (-1.5%); FY2030-31 -$53.2bn (-1.4%)</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://budget.canada.ca/update-miseajour/2026/report-rapport/overview-apercu-en.html" target="_blank" rel="noopener"><strong>Spring Economic Update 2026 — Economic and Fiscal Overview (budget.canada.ca)</strong></a>
+          <div class="secondary-credibility">Department of Finance Canada — overview chapter, same publication</div>
+          <blockquote class="secondary-excerpt">The 2025-26 deficit is now projected to be $66.9 billion ... The deficit is expected to decline to $53.2 billion, or 1.4 per cent of GDP by 2030-31</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://www.theglobeandmail.com/politics/article-spring-economic-update-francois-philippe-champagne-mark-carney-april/" target="_blank" rel="noopener"><strong>The Globe and Mail — Spring Economic Update coverage</strong></a>
+          <div class="secondary-credibility">Tier-1 Canadian business press; allowlist member</div>
+          <blockquote class="secondary-excerpt">smaller deficit projection of $66.9-billion ... announced April 28</blockquote>
+        </li></ul></div>
+          <div class="pending-card-notes">Annex 1 of the Spring Economic Update 2026 contains the canonical 5-year fiscal
+track in Table A1.7. The HTML version on budget.canada.ca returns clean fetch
+with the full table extracted. Plate-3 of /fiscal/ shows this 5-year track
+against the PBO EFO September 2025 track (the parallel researcher's
+pbo_efo_sept_2025_deficit_track.yaml card holds that side).
+
+The deficit declines from $66.9bn (2.1% of GDP) in FY2025-26 to $53.2bn (1.4%
+of GDP) by FY2030-31 — consistent with the government's stated fiscal anchor
+of a declining deficit-to-GDP ratio and capital investment accounting for
+100% of the deficit by FY2028-29.
+
+Tier A: primary HTML directly fetched, verbatim table extracted, full
+numerical track captured. Triangulation block carries the budget.canada.ca
+Overview page (which restates the FY2025-26 and FY2030-31 anchor values) and
+The Globe and Mail coverage of the April 28 release.
+</div>
+          <fieldset class="decision" data-claim-id="dof_seu_2026_deficit_track">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-dof_seu_2026_deficit_track" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-dof_seu_2026_deficit_track" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-dof_seu_2026_deficit_track" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-dof_seu_2026_deficit_track">Comment (required if rejecting):</label>
+              <textarea id="comment-dof_seu_2026_deficit_track" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="ledger-item ledger-item-pending" id="ledger-8">
+        <a href="#ref-8" class="ledger-ref-link"><span class="ledger-ref card">[8]</span></a>
+        <span class="ledger-source-label">Department of Finance Canada — Spring Economic Update 2026 (5-year deficit projection track)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"$53.2 billion"</div>
+        <div class="ledger-excerpt">Department of Finance Canada, Spring Economic Update 2026, Annex 1 (Details
+of economic and fiscal projections), Table A1.7 (Summary Statement of
+Transactions), budgetary balance in billions of dollars: FY2025-26 -$66.9bn
+(-2.1% of GDP); FY2026-27 -$65.3bn (-1.9%); FY2027-28 -$63.1bn (-1.8%);
+FY2028-29 -$57.7bn (-1.6%); FY2029-30 -$56.2bn (-1.5%); FY2030-31 -$53.2bn
+(-1.4%).
+</div>
+        <div class="ledger-meta">Spring Economic Update 2026 — Annex 1, Table A1.7 (released April 28, 2026) · verified 2026-05-24 · next Budget 2026 (timing TBD)</div>
+        <div class="note-line">DoF SEU April 2026 FY2030-31 deficit projection.</div>
+        <a class="ledger-link" href="https://budget.canada.ca/update-miseajour/2026/report-rapport/anx1-en.html#table-a17" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>dof_seu_release_date</code>: <strong>2026-04-28</strong></li><li><code>primary_table_reference</code>: <strong>Annex 1, Table A1.7 (Summary Statement of Transactions)</strong></li><li><code>budgetary_balance_cad_bn</code>: <strong>[object Object]</strong></li><li><code>budgetary_balance_pct_gdp</code>: <strong>[object Object]</strong></li></ul></div>
+          <div class="pending-triangulation"><strong>Triangulated secondaries:</strong><ul class="secondaries">
+        <li class="secondary">
+          <a href="https://budget.canada.ca/update-miseajour/2026/report-rapport/anx1-en.html" target="_blank" rel="noopener"><strong>Spring Economic Update 2026 — Annex 1 (budget.canada.ca)</strong></a>
+          <div class="secondary-credibility">Department of Finance Canada — primary publisher</div>
+          <blockquote class="secondary-excerpt">Table A1.7 (Summary Statement of Transactions): budgetary balance FY2025-26 -$66.9bn (-2.1% GDP); FY2026-27 -$65.3bn (-1.9%); FY2027-28 -$63.1bn (-1.8%); FY2028-29 -$57.7bn (-1.6%); FY2029-30 -$56.2bn (-1.5%); FY2030-31 -$53.2bn (-1.4%)</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://budget.canada.ca/update-miseajour/2026/report-rapport/overview-apercu-en.html" target="_blank" rel="noopener"><strong>Spring Economic Update 2026 — Economic and Fiscal Overview (budget.canada.ca)</strong></a>
+          <div class="secondary-credibility">Department of Finance Canada — overview chapter, same publication</div>
+          <blockquote class="secondary-excerpt">The 2025-26 deficit is now projected to be $66.9 billion ... The deficit is expected to decline to $53.2 billion, or 1.4 per cent of GDP by 2030-31</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://www.theglobeandmail.com/politics/article-spring-economic-update-francois-philippe-champagne-mark-carney-april/" target="_blank" rel="noopener"><strong>The Globe and Mail — Spring Economic Update coverage</strong></a>
+          <div class="secondary-credibility">Tier-1 Canadian business press; allowlist member</div>
+          <blockquote class="secondary-excerpt">smaller deficit projection of $66.9-billion ... announced April 28</blockquote>
+        </li></ul></div>
+          <div class="pending-card-notes">Annex 1 of the Spring Economic Update 2026 contains the canonical 5-year fiscal
+track in Table A1.7. The HTML version on budget.canada.ca returns clean fetch
+with the full table extracted. Plate-3 of /fiscal/ shows this 5-year track
+against the PBO EFO September 2025 track (the parallel researcher's
+pbo_efo_sept_2025_deficit_track.yaml card holds that side).
+
+The deficit declines from $66.9bn (2.1% of GDP) in FY2025-26 to $53.2bn (1.4%
+of GDP) by FY2030-31 — consistent with the government's stated fiscal anchor
+of a declining deficit-to-GDP ratio and capital investment accounting for
+100% of the deficit by FY2028-29.
+
+Tier A: primary HTML directly fetched, verbatim table extracted, full
+numerical track captured. Triangulation block carries the budget.canada.ca
+Overview page (which restates the FY2025-26 and FY2030-31 anchor values) and
+The Globe and Mail coverage of the April 28 release.
+</div>
+          <fieldset class="decision" data-claim-id="dof_seu_2026_deficit_track">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-dof_seu_2026_deficit_track" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-dof_seu_2026_deficit_track" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-dof_seu_2026_deficit_track" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-dof_seu_2026_deficit_track">Comment (required if rejecting):</label>
+              <textarea id="comment-dof_seu_2026_deficit_track" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="ledger-item ledger-item-pending" id="ledger-9">
+        <a href="#ref-9" class="ledger-ref-link"><span class="ledger-ref card">[9]</span></a>
+        <span class="ledger-source-label">PBO Economic and Fiscal Outlook — September 2025 (RP-2526-012-S)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"$68.5 billion"</div>
+        <div class="ledger-excerpt">PBO Economic and Fiscal Outlook September 2025 (released Sept 25, 2025;
+publication ID RP-2526-012-S; PDF distribution URL:
+https://distribution-a617274656661637473.pbo-dpb.ca/e40b5816b0130180b69a3e321f211634180a563c54de15cdafa64434e2b43ad3):
+&quot;The budgetary deficit is projected to increase sharply from $51.7 billion
+(1.7 per cent of GDP) in 2024-25 to $68.5 billion (2.2 per cent of GDP) in
+2025-26 ... Assuming no new measures are introduced and existing temporary
+measures sunset as scheduled, the budgetary deficit is expected to decline
+slightly but remain close to $60 billion through the medium term as growth
+in revenues only slightly outpaces growth in expenses.&quot;
+
+&quot;Compared to PBO's March 2025 outlook, projected deficits are $26.6 billion
+higher, on average, over 2024-25 to 2029-30.&quot;
+
+&quot;Reflecting increased trade uncertainty and the implementation of tariffs,
+real GDP growth is projected to average 1.2 per cent annually over 2025 and
+2026.&quot;
+</div>
+        <div class="ledger-meta">PBO EFO Sept 2025 (RP-2526-012-S) · verified 2026-05-24 · next PBO EFO next: fall 2026 (typically September/October)</div>
+        <div class="note-line">PBO EFO Sept 2025 FY2025-26 deficit projection.</div>
+        <a class="ledger-link" href="https://www.pbo-dpb.ca/en/publications/RP-2526-012-S--economic-fiscal-outlook-september-2025--perspectives-economiques-financieres-septembre-2025" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>pbo_efo_vintage</code>: <strong>September 2025</strong></li><li><code>pbo_efo_release_date</code>: <strong>2025-09-25</strong></li><li><code>pbo_efo_publication_id</code>: <strong>RP-2526-012-S</strong></li><li><code>pbo_efo_pdf_distribution_url</code>: <strong>https://distribution-a617274656661637473.pbo-dpb.ca/e40b5816b0130180b69a3e321f211634180a563c54de15cdafa64434e2b43ad3</strong></li><li><code>deficit_2024_25_cad_bn</code>: <strong>51.7</strong></li><li><code>deficit_2024_25_pct_gdp</code>: <strong>1.7</strong></li><li><code>deficit_2025_26_cad_bn</code>: <strong>68.5</strong></li><li><code>deficit_2025_26_pct_gdp</code>: <strong>2.2</strong></li><li><code>medium_term_deficit_anchor_cad_bn_approx</code>: <strong>60</strong></li><li><code>medium_term_horizon</code>: <strong>2026-27 through 2029-30</strong></li><li><code>delta_vs_march_2025_outlook_cad_bn_avg</code>: <strong>26.6</strong></li><li><code>real_gdp_growth_2025_pct</code>: <strong>1.2</strong></li><li><code>real_gdp_growth_2026_pct</code>: <strong>1.2</strong></li></ul></div>
+          <div class="pending-triangulation"><strong>Triangulated secondaries:</strong><ul class="secondaries">
+        <li class="secondary">
+          <a href="https://www.pbo-dpb.ca/en/news-releases--communiques-de-presse/pbo-releases-latest-economic-and-fiscal-outlook-le-dpb-publie-ses-dernieres-perspectives-economiques-et-financieres" target="_blank" rel="noopener"><strong>PBO press release for EFO September 2025</strong></a>
+          <div class="secondary-credibility">Officer of Parliament — primary publisher of its own publication</div>
+          <blockquote class="secondary-excerpt">PBO Economic and Fiscal Outlook - September 2025. Release Date: September 25, 2025. Publication ID: RP-2526-012-S. The budgetary deficit is projected to increase sharply from $51.7 billion (1.7 per cent of GDP) in 2024-25 to $68.5 billion (2.2 per cent of GDP) in 2025-26.</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://www.investmentexecutive.com/news/research-and-markets/pbo-report-forecasts-sharp-rise-in-deficit-to-68-5b-this-year/" target="_blank" rel="noopener"><strong>Investment Executive coverage of PBO EFO Sept 2025</strong></a>
+          <div class="secondary-credibility">Newcom Media — trade publication for the Canadian investment industry, factually-anchored news coverage of PBO releases</div>
+          <blockquote class="secondary-excerpt">PBO report forecasts sharp rise in deficit to $68.5B this year ... $68.5 billion this year ... $51.7 billion last year ... deficits will be $26.6 billion higher each year on average through 2029-30 than the projections in its March outlook ... expects deficits to decline slightly but remain close to $60 billion annually over the forecast horizon</blockquote>
+        </li></ul></div>
+          <div class="pending-card-notes">CONSTRAINT — granularity of the deficit path:
+
+The PBO's own press release (verified at the institutional pbo-dpb.ca URL
+above) publishes the two anchor years explicitly ($51.7bn for 2024-25 and
+$68.5bn for 2025-26) and characterises the medium-term trajectory as &quot;close
+to $60 billion&quot; through 2029-30. PBO publishes the year-by-year deficit
+table only inside the EFO PDF, which is a FlateDecode-compressed binary
+that WebFetch could not parse. No third-party (CBC, Investment Executive,
+Globe and Mail, BNN, RBC Economics) reproduces the year-by-year medium-term
+table; all sources collapse to the &quot;close to $60 billion through medium
+term&quot; framing.
+
+Recommended chart treatment: plot the two verified anchor points (2024-25
+and 2025-26) as explicit values, plot 2026-27 through 2029-30 as a flat
+~$60bn band with a caveat label &quot;PBO horizon anchor ~$60bn&quot;, and add a
+methodology note explaining that the PBO's medium-term path is published
+as a path-shaped guidance rather than as a year-by-year table in
+press-accessible form. For 2030-31 the EFO does not publish — the PBO
+horizon ends at 2029-30.
+
+Verification chain that closed:
+  - Primary publication page: pbo-dpb.ca (RP-2526-012-S) — 200 OK, title
+    and publication ID verified.
+  - PBO press release page: pbo-dpb.ca news-releases — 200 OK, two anchor
+    year values verified verbatim.
+  - Investment Executive coverage of the same release — 200 OK, full
+    verbatim of the two anchor values and the &quot;close to $60 billion&quot;
+    framing.
+  - PDF: FlateDecode compressed, WebFetch cannot extract; not used as a
+    source for any specific number.
+
+Tier A on the two anchor years (2024-25 and 2025-26) and the 1.2% GDP
+growth: PBO's own press release reproduces them. Tier B on the &quot;close to
+$60 billion&quot; medium-term framing: same press release uses that phrasing
+but no year-specific numbers were extractable.
+</div>
+          <fieldset class="decision" data-claim-id="pbo_efo_sept_2025_deficit_track">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-pbo_efo_sept_2025_deficit_track" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-pbo_efo_sept_2025_deficit_track" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-pbo_efo_sept_2025_deficit_track" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-pbo_efo_sept_2025_deficit_track">Comment (required if rejecting):</label>
+              <textarea id="comment-pbo_efo_sept_2025_deficit_track" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="ledger-item ledger-item-pending" id="ledger-10">
+        <a href="#ref-10" class="ledger-ref-link"><span class="ledger-ref card">[10]</span></a>
+        <span class="ledger-source-label">PBO Economic and Fiscal Outlook — September 2025 (RP-2526-012-S)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"close to $60 billion"</div>
+        <div class="ledger-excerpt">PBO Economic and Fiscal Outlook September 2025 (released Sept 25, 2025;
+publication ID RP-2526-012-S; PDF distribution URL:
+https://distribution-a617274656661637473.pbo-dpb.ca/e40b5816b0130180b69a3e321f211634180a563c54de15cdafa64434e2b43ad3):
+&quot;The budgetary deficit is projected to increase sharply from $51.7 billion
+(1.7 per cent of GDP) in 2024-25 to $68.5 billion (2.2 per cent of GDP) in
+2025-26 ... Assuming no new measures are introduced and existing temporary
+measures sunset as scheduled, the budgetary deficit is expected to decline
+slightly but remain close to $60 billion through the medium term as growth
+in revenues only slightly outpaces growth in expenses.&quot;
+
+&quot;Compared to PBO's March 2025 outlook, projected deficits are $26.6 billion
+higher, on average, over 2024-25 to 2029-30.&quot;
+
+&quot;Reflecting increased trade uncertainty and the implementation of tariffs,
+real GDP growth is projected to average 1.2 per cent annually over 2025 and
+2026.&quot;
+</div>
+        <div class="ledger-meta">PBO EFO Sept 2025 (RP-2526-012-S) · verified 2026-05-24 · next PBO EFO next: fall 2026 (typically September/October)</div>
+        <div class="note-line">PBO EFO Sept 2025 medium-term framing for the deficit through 2029-30.</div>
+        <a class="ledger-link" href="https://www.pbo-dpb.ca/en/publications/RP-2526-012-S--economic-fiscal-outlook-september-2025--perspectives-economiques-financieres-septembre-2025" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>pbo_efo_vintage</code>: <strong>September 2025</strong></li><li><code>pbo_efo_release_date</code>: <strong>2025-09-25</strong></li><li><code>pbo_efo_publication_id</code>: <strong>RP-2526-012-S</strong></li><li><code>pbo_efo_pdf_distribution_url</code>: <strong>https://distribution-a617274656661637473.pbo-dpb.ca/e40b5816b0130180b69a3e321f211634180a563c54de15cdafa64434e2b43ad3</strong></li><li><code>deficit_2024_25_cad_bn</code>: <strong>51.7</strong></li><li><code>deficit_2024_25_pct_gdp</code>: <strong>1.7</strong></li><li><code>deficit_2025_26_cad_bn</code>: <strong>68.5</strong></li><li><code>deficit_2025_26_pct_gdp</code>: <strong>2.2</strong></li><li><code>medium_term_deficit_anchor_cad_bn_approx</code>: <strong>60</strong></li><li><code>medium_term_horizon</code>: <strong>2026-27 through 2029-30</strong></li><li><code>delta_vs_march_2025_outlook_cad_bn_avg</code>: <strong>26.6</strong></li><li><code>real_gdp_growth_2025_pct</code>: <strong>1.2</strong></li><li><code>real_gdp_growth_2026_pct</code>: <strong>1.2</strong></li></ul></div>
+          <div class="pending-triangulation"><strong>Triangulated secondaries:</strong><ul class="secondaries">
+        <li class="secondary">
+          <a href="https://www.pbo-dpb.ca/en/news-releases--communiques-de-presse/pbo-releases-latest-economic-and-fiscal-outlook-le-dpb-publie-ses-dernieres-perspectives-economiques-et-financieres" target="_blank" rel="noopener"><strong>PBO press release for EFO September 2025</strong></a>
+          <div class="secondary-credibility">Officer of Parliament — primary publisher of its own publication</div>
+          <blockquote class="secondary-excerpt">PBO Economic and Fiscal Outlook - September 2025. Release Date: September 25, 2025. Publication ID: RP-2526-012-S. The budgetary deficit is projected to increase sharply from $51.7 billion (1.7 per cent of GDP) in 2024-25 to $68.5 billion (2.2 per cent of GDP) in 2025-26.</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://www.investmentexecutive.com/news/research-and-markets/pbo-report-forecasts-sharp-rise-in-deficit-to-68-5b-this-year/" target="_blank" rel="noopener"><strong>Investment Executive coverage of PBO EFO Sept 2025</strong></a>
+          <div class="secondary-credibility">Newcom Media — trade publication for the Canadian investment industry, factually-anchored news coverage of PBO releases</div>
+          <blockquote class="secondary-excerpt">PBO report forecasts sharp rise in deficit to $68.5B this year ... $68.5 billion this year ... $51.7 billion last year ... deficits will be $26.6 billion higher each year on average through 2029-30 than the projections in its March outlook ... expects deficits to decline slightly but remain close to $60 billion annually over the forecast horizon</blockquote>
+        </li></ul></div>
+          <div class="pending-card-notes">CONSTRAINT — granularity of the deficit path:
+
+The PBO's own press release (verified at the institutional pbo-dpb.ca URL
+above) publishes the two anchor years explicitly ($51.7bn for 2024-25 and
+$68.5bn for 2025-26) and characterises the medium-term trajectory as &quot;close
+to $60 billion&quot; through 2029-30. PBO publishes the year-by-year deficit
+table only inside the EFO PDF, which is a FlateDecode-compressed binary
+that WebFetch could not parse. No third-party (CBC, Investment Executive,
+Globe and Mail, BNN, RBC Economics) reproduces the year-by-year medium-term
+table; all sources collapse to the &quot;close to $60 billion through medium
+term&quot; framing.
+
+Recommended chart treatment: plot the two verified anchor points (2024-25
+and 2025-26) as explicit values, plot 2026-27 through 2029-30 as a flat
+~$60bn band with a caveat label &quot;PBO horizon anchor ~$60bn&quot;, and add a
+methodology note explaining that the PBO's medium-term path is published
+as a path-shaped guidance rather than as a year-by-year table in
+press-accessible form. For 2030-31 the EFO does not publish — the PBO
+horizon ends at 2029-30.
+
+Verification chain that closed:
+  - Primary publication page: pbo-dpb.ca (RP-2526-012-S) — 200 OK, title
+    and publication ID verified.
+  - PBO press release page: pbo-dpb.ca news-releases — 200 OK, two anchor
+    year values verified verbatim.
+  - Investment Executive coverage of the same release — 200 OK, full
+    verbatim of the two anchor values and the &quot;close to $60 billion&quot;
+    framing.
+  - PDF: FlateDecode compressed, WebFetch cannot extract; not used as a
+    source for any specific number.
+
+Tier A on the two anchor years (2024-25 and 2025-26) and the 1.2% GDP
+growth: PBO's own press release reproduces them. Tier B on the &quot;close to
+$60 billion&quot; medium-term framing: same press release uses that phrasing
+but no year-specific numbers were extractable.
+</div>
+          <fieldset class="decision" data-claim-id="pbo_efo_sept_2025_deficit_track">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-pbo_efo_sept_2025_deficit_track" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-pbo_efo_sept_2025_deficit_track" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-pbo_efo_sept_2025_deficit_track" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-pbo_efo_sept_2025_deficit_track">Comment (required if rejecting):</label>
+              <textarea id="comment-pbo_efo_sept_2025_deficit_track" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">04 · Provincial stance</div>
+                
+      <div class="ledger-item ledger-item-pending" id="ledger-11">
+        <a href="#ref-11" class="ledger-ref-link"><span class="ledger-ref card">[11]</span></a>
+        <span class="ledger-source-label">Quebec — net debt-to-GDP ratio (Budget 2025-26)</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span>
+        <div class="ledger-phrase">"38.8% of GDP"</div>
+        <div class="ledger-excerpt">Quebec Ministry of Finance, Budget 2025-26: net debt-to-GDP ratio
+projected at 38.8 per cent for fiscal 2025-26. Quebec defines net debt
+as the difference between total liabilities and financial assets, consistent
+with the Public Sector Accounting Board standard.
+</div>
+        <div class="ledger-meta">Quebec Budget 2025-26 · next Quebec Budget 2026-27</div>
+        <div class="note-line">Quebec Budget 2026-2027 net debt-to-GDP.</div>
+        <a class="ledger-link" href="https://www.finances.gouv.qc.ca/en/index.asp" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>vintage</code>: <strong>Quebec Budget 2025-26</strong></li><li><code>fy2025_26_net_debt_to_gdp_pct</code>: <strong>38.8</strong></li><li><code>measure</code>: <strong>net debt-to-GDP, PSAB standard</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Value from fiscal.astro plate-4 editorial copy. Awaiting primary budget
+document fetch verification. Tier B pending user confirmation.
+</div>
+          <fieldset class="decision" data-claim-id="provincial_debt_to_gdp_qc">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-provincial_debt_to_gdp_qc" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-provincial_debt_to_gdp_qc" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-provincial_debt_to_gdp_qc" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-provincial_debt_to_gdp_qc">Comment (required if rejecting):</label>
+              <textarea id="comment-provincial_debt_to_gdp_qc" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="ledger-item ledger-item-pending" id="ledger-12">
+        <a href="#ref-12" class="ledger-ref-link"><span class="ledger-ref card">[12]</span></a>
+        <span class="ledger-source-label">Ontario — net debt-to-GDP ratio (2025 Fall Economic Outlook and Fiscal Review)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"37.7%"</div>
+        <div class="ledger-excerpt">Ontario Ministry of Finance, 2025 Fall Economic Outlook and Fiscal Review,
+Chapter 3 (released November 2025): &quot;The net debt-to-GDP (GDP) ratio is
+projected to be 37.7 per cent in 2025-26 ... 38.7 per cent in 2026-27 and
+38.4 per cent in 2027-28. The ratio is forecast to remain below the
+government's target of 40.0 per cent.&quot;
+</div>
+        <div class="ledger-meta">Ontario 2025 Fall Economic Outlook and Fiscal Review (Nov 2025) · verified 2026-05-24 · next Ontario Budget 2026 (likely March-April 2026)</div>
+        <div class="note-line">Ontario Fall Economic Outlook and Fiscal Review 2025 net debt-to-GDP.</div>
+        <a class="ledger-link" href="https://budget.ontario.ca/2025/fallstatement/chapter-3.html" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>vintage</code>: <strong>Ontario 2025 Fall Economic Outlook and Fiscal Review (Nov 2025)</strong></li><li><code>fy2025_26_net_debt_to_gdp_pct</code>: <strong>37.7</strong></li><li><code>fy2026_27_net_debt_to_gdp_pct</code>: <strong>38.7</strong></li><li><code>fy2027_28_net_debt_to_gdp_pct</code>: <strong>38.4</strong></li><li><code>fiscal_anchor_target_pct</code>: <strong>40</strong></li><li><code>primary_table_reference</code>: <strong>Table 3.1 (Fiscal Summary), row: Net Debt as a Per Cent of GDP</strong></li></ul></div>
+          <div class="pending-triangulation"><strong>Triangulated secondaries:</strong><ul class="secondaries">
+        <li class="secondary">
+          <a href="https://budget.ontario.ca/2025/fallstatement/chapter-3.html" target="_blank" rel="noopener"><strong>Ontario 2025 Fall Economic Outlook and Fiscal Review — Chapter 3</strong></a>
+          <div class="secondary-credibility">Ontario Ministry of Finance — primary publisher</div>
+          <blockquote class="secondary-excerpt">The net debt-to-GDP (GDP) ratio is projected to be 37.7 per cent in 2025-26</blockquote>
+        </li></ul></div>
+          <div class="pending-card-notes">Primary directly fetched: the Ontario Ministry of Finance hosts the 2025 Fall
+Economic Outlook and Fiscal Review at budget.ontario.ca and returned a clean
+WebFetch. Chapter 3 contains both the verbatim narrative (37.7% in 2025-26)
+and the supporting Table 3.1.
+
+The 2025 FEO context: Ontario's net debt-to-GDP fell to a 13-year low of 36.2%
+in FY2024-25, then rises modestly across the medium-term outlook to 38.7%
+(FY2026-27) before declining to 38.4% (FY2027-28). All values remain below
+the 40% target ratio that anchors Ontario's fiscal sustainability framing.
+
+Tier A: primary URL reachable, verbatim text captured, table reference
+identified.
+</div>
+          <fieldset class="decision" data-claim-id="provincial_debt_to_gdp_on">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-provincial_debt_to_gdp_on" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-provincial_debt_to_gdp_on" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-provincial_debt_to_gdp_on" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-provincial_debt_to_gdp_on">Comment (required if rejecting):</label>
+              <textarea id="comment-provincial_debt_to_gdp_on" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="ledger-item ledger-item-pending" id="ledger-13">
+        <a href="#ref-13" class="ledger-ref-link"><span class="ledger-ref card">[13]</span></a>
+        <span class="ledger-source-label">Alberta — net debt-to-GDP ratio (Budget 2025-26)</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span>
+        <div class="ledger-phrase">"10.5%"</div>
+        <div class="ledger-excerpt">Government of Alberta, Budget 2025-26: net debt-to-GDP ratio at
+10.5 per cent for fiscal 2025-26. Alberta's low debt-to-GDP reflects
+resource-revenue surpluses that kept net financial assets positive
+through most of the prior decade.
+</div>
+        <div class="ledger-meta">Alberta Budget 2025-26 · next Alberta Budget 2026-27</div>
+        <div class="note-line">Alberta Budget 2026 net debt-to-GDP.</div>
+        <a class="ledger-link" href="https://www.alberta.ca/budget" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>vintage</code>: <strong>Alberta Budget 2025-26</strong></li><li><code>fy2025_26_net_debt_to_gdp_pct</code>: <strong>10.5</strong></li><li><code>measure</code>: <strong>net debt-to-GDP</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Value from fiscal.astro plate-4 editorial copy. Awaiting primary budget
+document fetch verification. Tier B pending user confirmation.
+</div>
+          <fieldset class="decision" data-claim-id="provincial_debt_to_gdp_ab">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-provincial_debt_to_gdp_ab" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-provincial_debt_to_gdp_ab" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-provincial_debt_to_gdp_ab" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-provincial_debt_to_gdp_ab">Comment (required if rejecting):</label>
+              <textarea id="comment-provincial_debt_to_gdp_ab" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="ledger-item ledger-item-pending" id="ledger-14">
+        <a href="#ref-14" class="ledger-ref-link"><span class="ledger-ref card">[14]</span></a>
+        <span class="ledger-source-label">British Columbia — taxpayer-supported debt-to-GDP ratio (Budget 2025-26)</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span>
+        <div class="ledger-phrase">"30.6%"</div>
+        <div class="ledger-excerpt">Province of British Columbia, Budget 2025-26: taxpayer-supported
+debt-to-GDP ratio at 30.6 per cent for fiscal 2025-26. BC reports
+on a taxpayer-supported basis rather than the PSAB net-debt standard
+used by Ontario and Quebec; the two measures are not directly comparable.
+</div>
+        <div class="ledger-meta">BC Budget 2025-26 · next BC Budget 2026-27</div>
+        <div class="note-line">BC Budget 2026 taxpayer-supported debt-to-GDP.</div>
+        <a class="ledger-link" href="https://www.bcbudget.gov.bc.ca" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>vintage</code>: <strong>BC Budget 2025-26</strong></li><li><code>fy2025_26_taxpayer_supported_debt_to_gdp_pct</code>: <strong>30.6</strong></li><li><code>measure</code>: <strong>taxpayer-supported debt-to-GDP (BC-specific measure, not PSAB net debt)</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Value from fiscal.astro plate-4 editorial copy. BC uses taxpayer-supported
+debt-to-GDP rather than the PSAB net-debt standard; the distinction is
+noted in the plate prose. Awaiting primary budget document fetch
+verification. Tier B pending user confirmation.
+</div>
+          <fieldset class="decision" data-claim-id="provincial_debt_to_gdp_bc">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-provincial_debt_to_gdp_bc" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-provincial_debt_to_gdp_bc" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-provincial_debt_to_gdp_bc" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-provincial_debt_to_gdp_bc">Comment (required if rejecting):</label>
+              <textarea id="comment-provincial_debt_to_gdp_bc" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="ledger-item ledger-item-pending" id="ledger-15">
+        <a href="#ref-15" class="ledger-ref-link"><span class="ledger-ref card">[15]</span></a>
+        <span class="ledger-source-label">British Columbia — taxpayer-supported debt-to-GDP ratio (Budget 2025-26)</span><span class="tier-badge tier-pending" title="Tier B card pending user approval; site cannot ship until walked">AWAITING VERIFICATION</span>
+        <div class="ledger-phrase">"taxpayer-supported basis"</div>
+        <div class="ledger-excerpt">Province of British Columbia, Budget 2025-26: taxpayer-supported
+debt-to-GDP ratio at 30.6 per cent for fiscal 2025-26. BC reports
+on a taxpayer-supported basis rather than the PSAB net-debt standard
+used by Ontario and Quebec; the two measures are not directly comparable.
+</div>
+        <div class="ledger-meta">BC Budget 2025-26 · next BC Budget 2026-27</div>
+        <div class="note-line">BC publishes taxpayer-supported debt-to-GDP, unlike the net-debt basis used for ON/QC/AB in this plate.</div>
+        <a class="ledger-link" href="https://www.bcbudget.gov.bc.ca" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>vintage</code>: <strong>BC Budget 2025-26</strong></li><li><code>fy2025_26_taxpayer_supported_debt_to_gdp_pct</code>: <strong>30.6</strong></li><li><code>measure</code>: <strong>taxpayer-supported debt-to-GDP (BC-specific measure, not PSAB net debt)</strong></li></ul></div>
+          <div class="pending-triangulation muted">No triangulation block on the card. Either verify the primary directly in your browser, or reject.</div>
+          <div class="pending-card-notes">Value from fiscal.astro plate-4 editorial copy. BC uses taxpayer-supported
+debt-to-GDP rather than the PSAB net-debt standard; the distinction is
+noted in the plate prose. Awaiting primary budget document fetch
+verification. Tier B pending user confirmation.
+</div>
+          <fieldset class="decision" data-claim-id="provincial_debt_to_gdp_bc">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-provincial_debt_to_gdp_bc" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-provincial_debt_to_gdp_bc" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-provincial_debt_to_gdp_bc" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-provincial_debt_to_gdp_bc">Comment (required if rejecting):</label>
+              <textarea id="comment-provincial_debt_to_gdp_bc" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+              </div>
+              <div class="ledger-group">
+                <div class="ledger-group-h">05 · Operating/capital</div>
+                
+      <div class="ledger-item ledger-item-pending" id="ledger-16">
+        <a href="#ref-16" class="ledger-ref-link"><span class="ledger-ref card">[16]</span></a>
+        <span class="ledger-source-label">PBO Budget 2025: Issues for Parliamentarians — November 14, 2025 (RP-2526-017-S)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"$94 billion"</div>
+        <div class="ledger-excerpt">PBO Budget 2025: Issues for Parliamentarians (release date Nov 14, 2025;
+publication ID RP-2526-017-S; PDF distribution URL:
+https://distribution-a617274656661637473.pbo-dpb.ca/190ba7d3612031a7e15f5b45833a685e0e579add5a40fc0d2730ef043aeea0b1):
+
+CAPITAL INVESTMENT RECLASSIFICATION: &quot;Budget 2025 records capital investments
+rising from $32.2 billion in 2024-25 to about $59.6 billion by 2029-30.&quot; Under
+PBO's capital definition, &quot;PBO projects Ottawa's actual investment spending
+will be $217.3 billion from 2024-25 to 2029-30, rather than $311.5 billion&quot; —
+approximately $94 billion (roughly 30 per cent) lower than the Government's
+reported figure.
+
+OPERATING BALANCE — PBO RECLASSIFIED, YEAR-BY-YEAR (deficit, $CAD billions):
+&quot;Using the PBO's narrower capital definition, day-to-day operating deficits
+are $10.5 billion in 2024-25, $45.8 billion in 2025-26, $25.3 billion in
+2026-27, $23.3 billion in 2027-28, $18.1 billion in 2028-29, and $17.6 billion
+in 2029-30.&quot;
+
+TOTAL BUDGETARY DEFICIT, BUDGET 2025 (DoF version): &quot;$78.3 billion in
+2025-26, $65.4 billion in 2026-27, $63.5 billion in 2027-28, $57.9 billion
+in 2028-29, and $56.6 billion in 2029-30.&quot; Average over 2025-26 to 2029-30:
+$64.3 billion.
+
+FISCAL ANCHOR: &quot;Only a 7.5% probability that the deficit-to-GDP ratio will
+decline in every year between 2026-27 and 2029-30.&quot;
+</div>
+        <div class="ledger-meta">PBO Budget 2025: Issues for Parliamentarians (Nov 14, 2025) · verified 2026-05-24 · next PBO Budget 2026 assessment: spring 2026 (publication ID TBD)</div>
+        <div class="note-line">PBO Budget 2025 review: gap between DoF claimed capital and PBO reclassified capital.</div>
+        <a class="ledger-link" href="https://www.pbo-dpb.ca/en/publications/RP-2526-017-S--budget-2025-issues-parliamentarians--budget-2025-enjeux-parlementaires" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>pbo_publication_id</code>: <strong>RP-2526-017-S</strong></li><li><code>pbo_release_date</code>: <strong>2025-11-14</strong></li><li><code>pbo_pdf_distribution_url</code>: <strong>https://distribution-a617274656661637473.pbo-dpb.ca/190ba7d3612031a7e15f5b45833a685e0e579add5a40fc0d2730ef043aeea0b1</strong></li><li><code>pbo_reclassified_operating_deficit_cad_bn</code>: <strong>[object Object]</strong></li><li><code>budget_2025_total_deficit_cad_bn</code>: <strong>[object Object]</strong></li><li><code>budget_2025_capital_investment_path_cad_bn</code>: <strong>[object Object]</strong></li><li><code>total_capital_investment_2024_25_to_2029_30_dof_cad_bn</code>: <strong>311.5</strong></li><li><code>total_capital_investment_2024_25_to_2029_30_pbo_reclassified_cad_bn</code>: <strong>217.3</strong></li><li><code>reclassification_gap_cad_bn</code>: <strong>94</strong></li><li><code>reclassification_gap_pct_of_dof_capital</code>: <strong>30</strong></li><li><code>pbo_fiscal_anchor_probability_pct</code>: <strong>7.5</strong></li><li><code>avg_deficit_2025_26_to_2029_30_cad_bn</code>: <strong>64.3</strong></li></ul></div>
+          <div class="pending-triangulation"><strong>Triangulated secondaries:</strong><ul class="secondaries">
+        <li class="secondary">
+          <a href="https://www.pbo-dpb.ca/en/news-releases--communiques-de-presse/pbo-releases-review-of-budget-2025-le-dpb-publie-lexamen-du-budget-de-2025" target="_blank" rel="noopener"><strong>PBO press release for Budget 2025 review</strong></a>
+          <div class="secondary-credibility">Officer of Parliament — primary publisher of its own publication</div>
+          <blockquote class="secondary-excerpt">Publication ID: RP-2526-017-S. Release Date: November 14, 2025. The deficit is projected to average $64.3 billion annually over 2025-26 to 2029-30. Under PBO's definition, capital investments would total $217.3 billion over 2024-25 to 2029-30, approximately $94 billion lower than Budget 2025 estimates.</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://thedeepdive.ca/pbo-warns-on-budget-2025-anchors/" target="_blank" rel="noopener"><strong>The Deep Dive — PBO Budget 2025 coverage</strong></a>
+          <div class="secondary-credibility">Canadian capital-markets news publication; reproduces PBO publication tables verbatim with attribution</div>
+          <blockquote class="secondary-excerpt">federal deficits will average $64.3 billion a year from 2025-26 to 2029-30 ... Budget 2025 projects shortfalls of 2025-26: $78.3 billion; 2026-27: $65.4 billion; 2027-28: $63.5 billion; 2028-29: $57.9 billion; 2029-30: $56.6 billion. Using the PBO's narrower capital definition, day-to-day operating deficits are 2024-25: $10.5 billion; 2025-26: $45.8 billion; 2026-27: $25.3 billion; 2027-28: $23.3 billion; 2028-29: $18.1 billion; 2029-30: $17.6 billion.</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://thehub.ca/2025/11/17/carneys-budget-has-a-94-billion-gap-in-investment-spending-and-a-shortfall-in-government-operating-balance-pbo/" target="_blank" rel="noopener"><strong>The Hub — Carney budget $94B gap coverage</strong></a>
+          <div class="secondary-credibility">Canadian policy publication; reproduces PBO finding with publication ID attribution</div>
+          <blockquote class="secondary-excerpt">PBO projects Ottawa's actual investment spending will be $217.3 billion from 2024-25 to 2029-30, rather than $311.5 billion. ... PBO Publication ID: RP-2526-017-S.</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://www.investmentexecutive.com/news/ottawas-operating-spending-not-capital-driving-deeper-deficits-pbo/" target="_blank" rel="noopener"><strong>Investment Executive — PBO operating spending coverage</strong></a>
+          <div class="secondary-credibility">Trade publication for the Canadian investment industry; reproduces PBO findings with attribution</div>
+          <blockquote class="secondary-excerpt">Average deficit: $64.3 billion over next five years ... Net new operating spending: $87 billion over five years ... PBO's capital spending calculation: $217.3 billion through 2030 ... The $94 billion gap: represents 30% reduction from Ottawa's projection through 2030.</blockquote>
+        </li></ul></div>
+          <div class="pending-card-notes">CONSTRAINT — DoF year-by-year operating balance (DoF's own version):
+
+PBO's report cites the DoF/Budget 2025 capital path at the endpoints ($32.2bn
+rising to $59.6bn over 2024-25 to 2029-30) and the DoF's total budgetary
+deficit by year. PBO does not publish DoF's claimed year-by-year OPERATING
+balance in press-accessible form — that decomposition is inside Budget 2025
+Annex 1 (the budget.canada.ca PDF, which 403s on WebFetch). The DoF
+operating balance trajectory is derivable from (a) DoF total deficit by
+year minus (b) DoF capital investment by year, but the capital investment
+year-by-year (other than the 2024-25 and 2029-30 endpoints) is not in any
+secondary I could verify.
+
+Recommended chart treatment for plate-5:
+  - Trace 1 (verified): PBO reclassified operating deficit, year-by-year
+    2024-25 through 2029-30 — fully populated from this card.
+  - Trace 2 (verified): Budget 2025 total deficit, year-by-year 2025-26
+    through 2029-30 — fully populated from this card.
+  - Annotate: &quot;$94B reclassification gap&quot; — PBO moves spending from DoF's
+    capital line to PBO's operating line over the six-year horizon.
+  - Skip: DoF's own year-by-year &quot;operating balance&quot; trace as a separate
+    line. The point of the chart is the PBO reclassification view; showing
+    DoF's claimed operating balance alongside is editorially nice-to-have
+    but unverifiable in the time we have. The framing &quot;Carney's claimed
+    capital spending vs PBO's reclassified view, and what that does to the
+    operating line&quot; can be carried entirely by the two verified traces plus
+    the $94B annotation.
+
+Verification chain that closed:
+  - PBO publication page (RP-2526-017-S): 200 OK, ID and release date
+    verified.
+  - PBO press release page (Nov 14, 2025): 200 OK, average deficit
+    framing and operating-balance qualitative framing verified.
+  - thedeepdive.ca coverage of the same release: 200 OK, verbatim
+    year-by-year operating deficits AND year-by-year Budget 2025 total
+    deficits AND endpoint capital investment values reproduced.
+  - The Hub coverage (thehub.ca/2025/11/17): 200 OK, $94B reclassification
+    headline verified, $217.3B vs $311.5B capital totals verified.
+  - Investment Executive coverage: 200 OK, average $64.3B and $87B
+    operating measures since FES 2024 verified.
+  - PDF: FlateDecode compressed, WebFetch cannot extract.
+
+Tier A on the year-by-year PBO reclassified operating deficits, the
+year-by-year Budget 2025 total deficits, the $94B reclassification headline,
+and the $217.3B / $311.5B / $64.3B figures: all reproduced in PBO press
+release plus at least one institutional/credible secondary (thedeepdive,
+thehub, investmentexecutive). PBO is the primary on its own publication.
+</div>
+          <fieldset class="decision" data-claim-id="pbo_operating_capital_reclassification_nov_2025">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-pbo_operating_capital_reclassification_nov_2025" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-pbo_operating_capital_reclassification_nov_2025" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-pbo_operating_capital_reclassification_nov_2025" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-pbo_operating_capital_reclassification_nov_2025">Comment (required if rejecting):</label>
+              <textarea id="comment-pbo_operating_capital_reclassification_nov_2025" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="ledger-item ledger-item-pending" id="ledger-17">
+        <a href="#ref-17" class="ledger-ref-link"><span class="ledger-ref card">[17]</span></a>
+        <span class="ledger-source-label">PBO Budget 2025: Issues for Parliamentarians — November 14, 2025 (RP-2526-017-S)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"30% of Finance's claimed capital envelope"</div>
+        <div class="ledger-excerpt">PBO Budget 2025: Issues for Parliamentarians (release date Nov 14, 2025;
+publication ID RP-2526-017-S; PDF distribution URL:
+https://distribution-a617274656661637473.pbo-dpb.ca/190ba7d3612031a7e15f5b45833a685e0e579add5a40fc0d2730ef043aeea0b1):
+
+CAPITAL INVESTMENT RECLASSIFICATION: &quot;Budget 2025 records capital investments
+rising from $32.2 billion in 2024-25 to about $59.6 billion by 2029-30.&quot; Under
+PBO's capital definition, &quot;PBO projects Ottawa's actual investment spending
+will be $217.3 billion from 2024-25 to 2029-30, rather than $311.5 billion&quot; —
+approximately $94 billion (roughly 30 per cent) lower than the Government's
+reported figure.
+
+OPERATING BALANCE — PBO RECLASSIFIED, YEAR-BY-YEAR (deficit, $CAD billions):
+&quot;Using the PBO's narrower capital definition, day-to-day operating deficits
+are $10.5 billion in 2024-25, $45.8 billion in 2025-26, $25.3 billion in
+2026-27, $23.3 billion in 2027-28, $18.1 billion in 2028-29, and $17.6 billion
+in 2029-30.&quot;
+
+TOTAL BUDGETARY DEFICIT, BUDGET 2025 (DoF version): &quot;$78.3 billion in
+2025-26, $65.4 billion in 2026-27, $63.5 billion in 2027-28, $57.9 billion
+in 2028-29, and $56.6 billion in 2029-30.&quot; Average over 2025-26 to 2029-30:
+$64.3 billion.
+
+FISCAL ANCHOR: &quot;Only a 7.5% probability that the deficit-to-GDP ratio will
+decline in every year between 2026-27 and 2029-30.&quot;
+</div>
+        <div class="ledger-meta">PBO Budget 2025: Issues for Parliamentarians (Nov 14, 2025) · verified 2026-05-24 · next PBO Budget 2026 assessment: spring 2026 (publication ID TBD)</div>
+        <div class="note-line">$94bn is about 30% of DoF's $311.5bn claimed capital envelope.</div>
+        <a class="ledger-link" href="https://www.pbo-dpb.ca/en/publications/RP-2526-017-S--budget-2025-issues-parliamentarians--budget-2025-enjeux-parlementaires" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>pbo_publication_id</code>: <strong>RP-2526-017-S</strong></li><li><code>pbo_release_date</code>: <strong>2025-11-14</strong></li><li><code>pbo_pdf_distribution_url</code>: <strong>https://distribution-a617274656661637473.pbo-dpb.ca/190ba7d3612031a7e15f5b45833a685e0e579add5a40fc0d2730ef043aeea0b1</strong></li><li><code>pbo_reclassified_operating_deficit_cad_bn</code>: <strong>[object Object]</strong></li><li><code>budget_2025_total_deficit_cad_bn</code>: <strong>[object Object]</strong></li><li><code>budget_2025_capital_investment_path_cad_bn</code>: <strong>[object Object]</strong></li><li><code>total_capital_investment_2024_25_to_2029_30_dof_cad_bn</code>: <strong>311.5</strong></li><li><code>total_capital_investment_2024_25_to_2029_30_pbo_reclassified_cad_bn</code>: <strong>217.3</strong></li><li><code>reclassification_gap_cad_bn</code>: <strong>94</strong></li><li><code>reclassification_gap_pct_of_dof_capital</code>: <strong>30</strong></li><li><code>pbo_fiscal_anchor_probability_pct</code>: <strong>7.5</strong></li><li><code>avg_deficit_2025_26_to_2029_30_cad_bn</code>: <strong>64.3</strong></li></ul></div>
+          <div class="pending-triangulation"><strong>Triangulated secondaries:</strong><ul class="secondaries">
+        <li class="secondary">
+          <a href="https://www.pbo-dpb.ca/en/news-releases--communiques-de-presse/pbo-releases-review-of-budget-2025-le-dpb-publie-lexamen-du-budget-de-2025" target="_blank" rel="noopener"><strong>PBO press release for Budget 2025 review</strong></a>
+          <div class="secondary-credibility">Officer of Parliament — primary publisher of its own publication</div>
+          <blockquote class="secondary-excerpt">Publication ID: RP-2526-017-S. Release Date: November 14, 2025. The deficit is projected to average $64.3 billion annually over 2025-26 to 2029-30. Under PBO's definition, capital investments would total $217.3 billion over 2024-25 to 2029-30, approximately $94 billion lower than Budget 2025 estimates.</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://thedeepdive.ca/pbo-warns-on-budget-2025-anchors/" target="_blank" rel="noopener"><strong>The Deep Dive — PBO Budget 2025 coverage</strong></a>
+          <div class="secondary-credibility">Canadian capital-markets news publication; reproduces PBO publication tables verbatim with attribution</div>
+          <blockquote class="secondary-excerpt">federal deficits will average $64.3 billion a year from 2025-26 to 2029-30 ... Budget 2025 projects shortfalls of 2025-26: $78.3 billion; 2026-27: $65.4 billion; 2027-28: $63.5 billion; 2028-29: $57.9 billion; 2029-30: $56.6 billion. Using the PBO's narrower capital definition, day-to-day operating deficits are 2024-25: $10.5 billion; 2025-26: $45.8 billion; 2026-27: $25.3 billion; 2027-28: $23.3 billion; 2028-29: $18.1 billion; 2029-30: $17.6 billion.</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://thehub.ca/2025/11/17/carneys-budget-has-a-94-billion-gap-in-investment-spending-and-a-shortfall-in-government-operating-balance-pbo/" target="_blank" rel="noopener"><strong>The Hub — Carney budget $94B gap coverage</strong></a>
+          <div class="secondary-credibility">Canadian policy publication; reproduces PBO finding with publication ID attribution</div>
+          <blockquote class="secondary-excerpt">PBO projects Ottawa's actual investment spending will be $217.3 billion from 2024-25 to 2029-30, rather than $311.5 billion. ... PBO Publication ID: RP-2526-017-S.</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://www.investmentexecutive.com/news/ottawas-operating-spending-not-capital-driving-deeper-deficits-pbo/" target="_blank" rel="noopener"><strong>Investment Executive — PBO operating spending coverage</strong></a>
+          <div class="secondary-credibility">Trade publication for the Canadian investment industry; reproduces PBO findings with attribution</div>
+          <blockquote class="secondary-excerpt">Average deficit: $64.3 billion over next five years ... Net new operating spending: $87 billion over five years ... PBO's capital spending calculation: $217.3 billion through 2030 ... The $94 billion gap: represents 30% reduction from Ottawa's projection through 2030.</blockquote>
+        </li></ul></div>
+          <div class="pending-card-notes">CONSTRAINT — DoF year-by-year operating balance (DoF's own version):
+
+PBO's report cites the DoF/Budget 2025 capital path at the endpoints ($32.2bn
+rising to $59.6bn over 2024-25 to 2029-30) and the DoF's total budgetary
+deficit by year. PBO does not publish DoF's claimed year-by-year OPERATING
+balance in press-accessible form — that decomposition is inside Budget 2025
+Annex 1 (the budget.canada.ca PDF, which 403s on WebFetch). The DoF
+operating balance trajectory is derivable from (a) DoF total deficit by
+year minus (b) DoF capital investment by year, but the capital investment
+year-by-year (other than the 2024-25 and 2029-30 endpoints) is not in any
+secondary I could verify.
+
+Recommended chart treatment for plate-5:
+  - Trace 1 (verified): PBO reclassified operating deficit, year-by-year
+    2024-25 through 2029-30 — fully populated from this card.
+  - Trace 2 (verified): Budget 2025 total deficit, year-by-year 2025-26
+    through 2029-30 — fully populated from this card.
+  - Annotate: &quot;$94B reclassification gap&quot; — PBO moves spending from DoF's
+    capital line to PBO's operating line over the six-year horizon.
+  - Skip: DoF's own year-by-year &quot;operating balance&quot; trace as a separate
+    line. The point of the chart is the PBO reclassification view; showing
+    DoF's claimed operating balance alongside is editorially nice-to-have
+    but unverifiable in the time we have. The framing &quot;Carney's claimed
+    capital spending vs PBO's reclassified view, and what that does to the
+    operating line&quot; can be carried entirely by the two verified traces plus
+    the $94B annotation.
+
+Verification chain that closed:
+  - PBO publication page (RP-2526-017-S): 200 OK, ID and release date
+    verified.
+  - PBO press release page (Nov 14, 2025): 200 OK, average deficit
+    framing and operating-balance qualitative framing verified.
+  - thedeepdive.ca coverage of the same release: 200 OK, verbatim
+    year-by-year operating deficits AND year-by-year Budget 2025 total
+    deficits AND endpoint capital investment values reproduced.
+  - The Hub coverage (thehub.ca/2025/11/17): 200 OK, $94B reclassification
+    headline verified, $217.3B vs $311.5B capital totals verified.
+  - Investment Executive coverage: 200 OK, average $64.3B and $87B
+    operating measures since FES 2024 verified.
+  - PDF: FlateDecode compressed, WebFetch cannot extract.
+
+Tier A on the year-by-year PBO reclassified operating deficits, the
+year-by-year Budget 2025 total deficits, the $94B reclassification headline,
+and the $217.3B / $311.5B / $64.3B figures: all reproduced in PBO press
+release plus at least one institutional/credible secondary (thedeepdive,
+thehub, investmentexecutive). PBO is the primary on its own publication.
+</div>
+          <fieldset class="decision" data-claim-id="pbo_operating_capital_reclassification_nov_2025">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-pbo_operating_capital_reclassification_nov_2025" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-pbo_operating_capital_reclassification_nov_2025" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-pbo_operating_capital_reclassification_nov_2025" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-pbo_operating_capital_reclassification_nov_2025">Comment (required if rejecting):</label>
+              <textarea id="comment-pbo_operating_capital_reclassification_nov_2025" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="ledger-item ledger-item-pending" id="ledger-18">
+        <a href="#ref-18" class="ledger-ref-link"><span class="ledger-ref card">[18]</span></a>
+        <span class="ledger-source-label">PBO Budget 2025: Issues for Parliamentarians — November 14, 2025 (RP-2526-017-S)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"$18.1 billion"</div>
+        <div class="ledger-excerpt">PBO Budget 2025: Issues for Parliamentarians (release date Nov 14, 2025;
+publication ID RP-2526-017-S; PDF distribution URL:
+https://distribution-a617274656661637473.pbo-dpb.ca/190ba7d3612031a7e15f5b45833a685e0e579add5a40fc0d2730ef043aeea0b1):
+
+CAPITAL INVESTMENT RECLASSIFICATION: &quot;Budget 2025 records capital investments
+rising from $32.2 billion in 2024-25 to about $59.6 billion by 2029-30.&quot; Under
+PBO's capital definition, &quot;PBO projects Ottawa's actual investment spending
+will be $217.3 billion from 2024-25 to 2029-30, rather than $311.5 billion&quot; —
+approximately $94 billion (roughly 30 per cent) lower than the Government's
+reported figure.
+
+OPERATING BALANCE — PBO RECLASSIFIED, YEAR-BY-YEAR (deficit, $CAD billions):
+&quot;Using the PBO's narrower capital definition, day-to-day operating deficits
+are $10.5 billion in 2024-25, $45.8 billion in 2025-26, $25.3 billion in
+2026-27, $23.3 billion in 2027-28, $18.1 billion in 2028-29, and $17.6 billion
+in 2029-30.&quot;
+
+TOTAL BUDGETARY DEFICIT, BUDGET 2025 (DoF version): &quot;$78.3 billion in
+2025-26, $65.4 billion in 2026-27, $63.5 billion in 2027-28, $57.9 billion
+in 2028-29, and $56.6 billion in 2029-30.&quot; Average over 2025-26 to 2029-30:
+$64.3 billion.
+
+FISCAL ANCHOR: &quot;Only a 7.5% probability that the deficit-to-GDP ratio will
+decline in every year between 2026-27 and 2029-30.&quot;
+</div>
+        <div class="ledger-meta">PBO Budget 2025: Issues for Parliamentarians (Nov 14, 2025) · verified 2026-05-24 · next PBO Budget 2026 assessment: spring 2026 (publication ID TBD)</div>
+        <div class="note-line">PBO reclassified operating deficit in FY2028-29.</div>
+        <a class="ledger-link" href="https://www.pbo-dpb.ca/en/publications/RP-2526-017-S--budget-2025-issues-parliamentarians--budget-2025-enjeux-parlementaires" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>pbo_publication_id</code>: <strong>RP-2526-017-S</strong></li><li><code>pbo_release_date</code>: <strong>2025-11-14</strong></li><li><code>pbo_pdf_distribution_url</code>: <strong>https://distribution-a617274656661637473.pbo-dpb.ca/190ba7d3612031a7e15f5b45833a685e0e579add5a40fc0d2730ef043aeea0b1</strong></li><li><code>pbo_reclassified_operating_deficit_cad_bn</code>: <strong>[object Object]</strong></li><li><code>budget_2025_total_deficit_cad_bn</code>: <strong>[object Object]</strong></li><li><code>budget_2025_capital_investment_path_cad_bn</code>: <strong>[object Object]</strong></li><li><code>total_capital_investment_2024_25_to_2029_30_dof_cad_bn</code>: <strong>311.5</strong></li><li><code>total_capital_investment_2024_25_to_2029_30_pbo_reclassified_cad_bn</code>: <strong>217.3</strong></li><li><code>reclassification_gap_cad_bn</code>: <strong>94</strong></li><li><code>reclassification_gap_pct_of_dof_capital</code>: <strong>30</strong></li><li><code>pbo_fiscal_anchor_probability_pct</code>: <strong>7.5</strong></li><li><code>avg_deficit_2025_26_to_2029_30_cad_bn</code>: <strong>64.3</strong></li></ul></div>
+          <div class="pending-triangulation"><strong>Triangulated secondaries:</strong><ul class="secondaries">
+        <li class="secondary">
+          <a href="https://www.pbo-dpb.ca/en/news-releases--communiques-de-presse/pbo-releases-review-of-budget-2025-le-dpb-publie-lexamen-du-budget-de-2025" target="_blank" rel="noopener"><strong>PBO press release for Budget 2025 review</strong></a>
+          <div class="secondary-credibility">Officer of Parliament — primary publisher of its own publication</div>
+          <blockquote class="secondary-excerpt">Publication ID: RP-2526-017-S. Release Date: November 14, 2025. The deficit is projected to average $64.3 billion annually over 2025-26 to 2029-30. Under PBO's definition, capital investments would total $217.3 billion over 2024-25 to 2029-30, approximately $94 billion lower than Budget 2025 estimates.</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://thedeepdive.ca/pbo-warns-on-budget-2025-anchors/" target="_blank" rel="noopener"><strong>The Deep Dive — PBO Budget 2025 coverage</strong></a>
+          <div class="secondary-credibility">Canadian capital-markets news publication; reproduces PBO publication tables verbatim with attribution</div>
+          <blockquote class="secondary-excerpt">federal deficits will average $64.3 billion a year from 2025-26 to 2029-30 ... Budget 2025 projects shortfalls of 2025-26: $78.3 billion; 2026-27: $65.4 billion; 2027-28: $63.5 billion; 2028-29: $57.9 billion; 2029-30: $56.6 billion. Using the PBO's narrower capital definition, day-to-day operating deficits are 2024-25: $10.5 billion; 2025-26: $45.8 billion; 2026-27: $25.3 billion; 2027-28: $23.3 billion; 2028-29: $18.1 billion; 2029-30: $17.6 billion.</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://thehub.ca/2025/11/17/carneys-budget-has-a-94-billion-gap-in-investment-spending-and-a-shortfall-in-government-operating-balance-pbo/" target="_blank" rel="noopener"><strong>The Hub — Carney budget $94B gap coverage</strong></a>
+          <div class="secondary-credibility">Canadian policy publication; reproduces PBO finding with publication ID attribution</div>
+          <blockquote class="secondary-excerpt">PBO projects Ottawa's actual investment spending will be $217.3 billion from 2024-25 to 2029-30, rather than $311.5 billion. ... PBO Publication ID: RP-2526-017-S.</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://www.investmentexecutive.com/news/ottawas-operating-spending-not-capital-driving-deeper-deficits-pbo/" target="_blank" rel="noopener"><strong>Investment Executive — PBO operating spending coverage</strong></a>
+          <div class="secondary-credibility">Trade publication for the Canadian investment industry; reproduces PBO findings with attribution</div>
+          <blockquote class="secondary-excerpt">Average deficit: $64.3 billion over next five years ... Net new operating spending: $87 billion over five years ... PBO's capital spending calculation: $217.3 billion through 2030 ... The $94 billion gap: represents 30% reduction from Ottawa's projection through 2030.</blockquote>
+        </li></ul></div>
+          <div class="pending-card-notes">CONSTRAINT — DoF year-by-year operating balance (DoF's own version):
+
+PBO's report cites the DoF/Budget 2025 capital path at the endpoints ($32.2bn
+rising to $59.6bn over 2024-25 to 2029-30) and the DoF's total budgetary
+deficit by year. PBO does not publish DoF's claimed year-by-year OPERATING
+balance in press-accessible form — that decomposition is inside Budget 2025
+Annex 1 (the budget.canada.ca PDF, which 403s on WebFetch). The DoF
+operating balance trajectory is derivable from (a) DoF total deficit by
+year minus (b) DoF capital investment by year, but the capital investment
+year-by-year (other than the 2024-25 and 2029-30 endpoints) is not in any
+secondary I could verify.
+
+Recommended chart treatment for plate-5:
+  - Trace 1 (verified): PBO reclassified operating deficit, year-by-year
+    2024-25 through 2029-30 — fully populated from this card.
+  - Trace 2 (verified): Budget 2025 total deficit, year-by-year 2025-26
+    through 2029-30 — fully populated from this card.
+  - Annotate: &quot;$94B reclassification gap&quot; — PBO moves spending from DoF's
+    capital line to PBO's operating line over the six-year horizon.
+  - Skip: DoF's own year-by-year &quot;operating balance&quot; trace as a separate
+    line. The point of the chart is the PBO reclassification view; showing
+    DoF's claimed operating balance alongside is editorially nice-to-have
+    but unverifiable in the time we have. The framing &quot;Carney's claimed
+    capital spending vs PBO's reclassified view, and what that does to the
+    operating line&quot; can be carried entirely by the two verified traces plus
+    the $94B annotation.
+
+Verification chain that closed:
+  - PBO publication page (RP-2526-017-S): 200 OK, ID and release date
+    verified.
+  - PBO press release page (Nov 14, 2025): 200 OK, average deficit
+    framing and operating-balance qualitative framing verified.
+  - thedeepdive.ca coverage of the same release: 200 OK, verbatim
+    year-by-year operating deficits AND year-by-year Budget 2025 total
+    deficits AND endpoint capital investment values reproduced.
+  - The Hub coverage (thehub.ca/2025/11/17): 200 OK, $94B reclassification
+    headline verified, $217.3B vs $311.5B capital totals verified.
+  - Investment Executive coverage: 200 OK, average $64.3B and $87B
+    operating measures since FES 2024 verified.
+  - PDF: FlateDecode compressed, WebFetch cannot extract.
+
+Tier A on the year-by-year PBO reclassified operating deficits, the
+year-by-year Budget 2025 total deficits, the $94B reclassification headline,
+and the $217.3B / $311.5B / $64.3B figures: all reproduced in PBO press
+release plus at least one institutional/credible secondary (thedeepdive,
+thehub, investmentexecutive). PBO is the primary on its own publication.
+</div>
+          <fieldset class="decision" data-claim-id="pbo_operating_capital_reclassification_nov_2025">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-pbo_operating_capital_reclassification_nov_2025" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-pbo_operating_capital_reclassification_nov_2025" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-pbo_operating_capital_reclassification_nov_2025" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-pbo_operating_capital_reclassification_nov_2025">Comment (required if rejecting):</label>
+              <textarea id="comment-pbo_operating_capital_reclassification_nov_2025" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="ledger-item ledger-item-pending" id="ledger-19">
+        <a href="#ref-19" class="ledger-ref-link"><span class="ledger-ref card">[19]</span></a>
+        <span class="ledger-source-label">Department of Finance Canada — Spring Economic Update 2026, Day-to-Day Operating Balance projection (Table A1.5)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"the year Ottawa says the operating anchor is met"</div>
+        <div class="ledger-excerpt">Department of Finance Canada, Spring Economic Update 2026, Annex 1 (Details
+of economic and fiscal projections), Table A1.5 (Day-to-Day Operating
+Balance, in billions of dollars):
+
+Total expenses: FY2025-26 578.3; FY2026-27 595.0; FY2027-28 609.9;
+FY2028-29 623.7; FY2029-30 645.9; FY2030-31 666.9.
+Capital investments (expenses): 34.0; 47.4; 51.2; 51.6; 53.8; 54.2.
+Day-to-day operating expenses: 544.3; 547.6; 558.7; 572.0; 592.2; 612.7.
+Budgetary revenues: 511.5; 529.6; 546.8; 565.9; 589.8; 613.7.
+Capital investments (revenues): 6.5; 7.5; 6.7; 7.0; 6.8; 5.2.
+Day-to-day operating balance: FY2025-26 -26.4; FY2026-27 -10.5;
+FY2027-28 -5.2; FY2028-29 +0.9; FY2029-30 +4.5; FY2030-31 +6.1.
+
+Accompanying text (verbatim): &quot;from 2028-29 through to 2030-31, projected
+revenues are expected to more than offset day-to-day operating spending,
+meeting the government's fiscal anchor of balancing day-to-day operating
+spending with revenues.&quot;
+</div>
+        <div class="ledger-meta">Spring Economic Update 2026 — Annex 1, Table A1.5 (released April 28, 2026) · verified 2026-05-25 · next Budget 2026 (timing TBD)</div>
+        <div class="note-line">DoF SEU/Budget operating-balance framing has the day-to-day operating balance moving into surplus in FY2028-29.</div>
+        <a class="ledger-link" href="https://budget.canada.ca/update-miseajour/2026/report-rapport/anx1-en.html#table-a15" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>dof_seu_release_date</code>: <strong>2026-04-28</strong></li><li><code>primary_table_reference</code>: <strong>Annex 1, Table A1.5 (Day-to-Day Operating Balance)</strong></li><li><code>fiscal_anchor_commitment</code>: <strong>Balance day-to-day operating spending with revenues by 2028-29</strong></li><li><code>fiscal_anchor_first_balance_fy</code>: <strong>2028-29</strong></li><li><code>day_to_day_operating_balance_cad_bn</code>: <strong>[object Object]</strong></li><li><code>day_to_day_operating_expenses_cad_bn</code>: <strong>[object Object]</strong></li><li><code>capital_investments_expenses_cad_bn</code>: <strong>[object Object]</strong></li></ul></div>
+          <div class="pending-triangulation"><strong>Triangulated secondaries:</strong><ul class="secondaries">
+        <li class="secondary">
+          <a href="https://budget.canada.ca/update-miseajour/2026/report-rapport/anx1-en.html" target="_blank" rel="noopener"><strong>Spring Economic Update 2026 — Annex 1, Table A1.5 (budget.canada.ca)</strong></a>
+          <div class="secondary-credibility">Department of Finance Canada — primary publisher</div>
+          <blockquote class="secondary-excerpt">Table A1.5 Day-to-Day Operating Balance: 2025-26 -26.4; 2026-27 -10.5; 2027-28 -5.2; 2028-29 0.9; 2029-30 4.5; 2030-31 6.1. From 2028-29 through to 2030-31, projected revenues are expected to more than offset day-to-day operating spending, meeting the government's fiscal anchor of balancing day-to-day operating spending with revenues.</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://budget.canada.ca/update-miseajour/2026/report-rapport/overview-apercu-en.html" target="_blank" rel="noopener"><strong>Spring Economic Update 2026 — Overview chapter, Chart 2 (budget.canada.ca)</strong></a>
+          <div class="secondary-credibility">Department of Finance Canada — Overview chapter of same publication</div>
+          <blockquote class="secondary-excerpt">Day-to-day operating deficit: 26, 10, 5, 0, 0, 0 (FY2025-26 through 2030-31, rounded to nearest billion). Total deficit in 2028-29 and 2029-30 attributed entirely to Contribution of capital investments to deficit.</blockquote>
+        </li></ul></div>
+          <div class="pending-card-notes">PRIMARY SOURCE, PRIMARY FETCH. The SEU 2026 Annex 1 HTML returned 200 OK
+on direct WebFetch and contained the full year-by-year operating balance
+decomposition in Table A1.5. The chart (Chart 2 of the Overview page)
+reproduces the same series rounded to the nearest billion.
+
+Note: SEU 2026 (April 2026) is the freshest vintage of the DoF operating
+balance track. It REVISES the Budget 2025 (November 2025) baseline. Per
+user canon &quot;always use the freshest vintage,&quot; plate-4 should use SEU 2026
+numbers, not Budget 2025.
+
+Compared to the PBO reclassification (RP-2526-017-S, Nov 14 2025), the
+SEU 2026 DoF operating balance is materially smaller in every year. PBO
+found $18.1bn operating deficit in 2028-29 using a narrower capital
+definition (IMF GFS 2014); DoF's own April 2026 projection has the
+operating balance at +$0.9bn (small surplus) in the same year. The gap
+reflects (a) PBO's stricter capital definition and (b) better-than-Budget
+2025 economic news between Nov 2025 and April 2026.
+
+Tier A — primary HTML directly fetched and parsed. Triangulation block
+carries the budget.canada.ca Overview page (Chart 2 of the same
+publication, which restates the same series rounded) as a second
+primary-pub cross-reference within the same document.
+</div>
+          <fieldset class="decision" data-claim-id="dof_operating_balance_projection">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-dof_operating_balance_projection" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-dof_operating_balance_projection" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-dof_operating_balance_projection" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-dof_operating_balance_projection">Comment (required if rejecting):</label>
+              <textarea id="comment-dof_operating_balance_projection" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+              </div>
+    </aside>
+  
+    <footer class="audit-foot">
+      Generated 2026-05-28 16:57 · Tagged claims show a yellow highlight with a [N] reference. Hover or click to see the source. Sidebar lists all claims with verbatim excerpts. Sources marked as "pipeline" auto-refresh; "card" entries are managed in editorial/source_cards/registry.yaml. Use "Propose edit" to send a structured EDIT REQUEST back to Claude.
+    </footer>
+  </div>
+  <script>
+    function copyEditSpec(btn, slug, surface) {
+      const form = btn.closest('.edit-form');
+      const title = form.querySelector('[data-field="title"]').value.trim();
+      const body = form.querySelector('[data-field="body"]').value.trim();
+      const reason = form.querySelector('[data-field="reason"]').value.trim();
+      const spec = [
+        'EDIT REQUEST',
+        'section: ' + slug,
+        'surface: ' + surface,
+        '',
+        'proposed_title:',
+        title,
+        '',
+        'proposed_body:',
+        body,
+        '',
+        'reason:',
+        reason,
+      ].join('\n');
+      navigator.clipboard.writeText(spec).then(function () {
+        const toast = btn.parentElement.querySelector('.toast');
+        toast.classList.add('show');
+        setTimeout(function () { toast.classList.remove('show'); }, 2500);
+      });
+    }
+    function updateVerifyTally() {
+      const approved = document.querySelectorAll('input[type=radio][value=approve]:checked').length;
+      const rejected = document.querySelectorAll('input[type=radio][value=reject]:checked').length;
+      const total = document.querySelectorAll('.pending-decision-block fieldset.decision').length;
+      const pending = total - approved - rejected;
+      const pendEl = document.querySelector('.verify-toolbar-counts .amber');
+      const apprEl = document.getElementById('approved-count');
+      const rejEl = document.getElementById('rejected-count');
+      if (pendEl) pendEl.textContent = pending + ' pending';
+      if (apprEl) apprEl.textContent = approved + ' approved';
+      if (rejEl) rejEl.textContent = rejected + ' rejected';
+      document.querySelectorAll('.ledger-item-pending').forEach(function (el) {
+        const fs = el.querySelector('.decision');
+        if (!fs) return;
+        const id = fs.dataset.claimId;
+        const choice = document.querySelector('input[name="decision-' + id + '"]:checked')?.value;
+        el.classList.toggle('decision-approve', choice === 'approve');
+        el.classList.toggle('decision-reject', choice === 'reject');
+      });
+      const btn = document.getElementById('export-btn');
+      if (btn) btn.disabled = (approved + rejected) === 0;
+    }
+    function exportDecisions(surfaceSlug) {
+      const lines = ['# Generated ' + new Date().toISOString().slice(0, 16).replace('T', ' ') + ', surface: ' + surfaceSlug, ''];
+      document.querySelectorAll('.pending-decision-block fieldset.decision').forEach(function (fs) {
+        const id = fs.dataset.claimId;
+        const choice = document.querySelector('input[name="decision-' + id + '"]:checked')?.value;
+        if (choice === 'approve') {
+          lines.push('npm run approve-claim ' + surfaceSlug + ':' + id);
+        } else if (choice === 'reject') {
+          const comment = (document.getElementById('comment-' + id)?.value || '').replace(/"/g, '\\"');
+          lines.push('npm run reject-claim ' + surfaceSlug + ':' + id + (comment ? ' -- --reason "' + comment + '"' : ''));
+        }
+      });
+      const text = lines.join('\n');
+      navigator.clipboard.writeText(text).then(function () {
+        const toast = document.getElementById('export-toast');
+        if (toast) {
+          toast.classList.add('show');
+          setTimeout(function () { toast.classList.remove('show'); }, 2500);
+        }
+      });
+    }
+    function jumpToNextPending() {
+      // Find the first pending card that hasn't been decided yet.
+      const pendingCards = document.querySelectorAll('.ledger-item-pending');
+      for (const card of pendingCards) {
+        const fs = card.querySelector('.decision');
+        if (!fs) continue;
+        const id = fs.dataset.claimId;
+        const approved = document.querySelector('input[name="decision-' + id + '"][value="approve"]:checked');
+        const rejected = document.querySelector('input[name="decision-' + id + '"][value="reject"]:checked');
+        if (!approved && !rejected) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          card.classList.add('flash-target');
+          setTimeout(function () { card.classList.remove('flash-target'); }, 1500);
+          return;
+        }
+      }
+      // All decided — alert.
+      alert('All pending claims on this surface have been marked. Hit "Copy decisions to clipboard" to export.');
+    }
+    document.addEventListener('change', function (e) {
+      if (e.target.matches('input[type=radio]')) updateVerifyTally();
+    });
+    updateVerifyTally();
+  </script>
+</body>
+</html>
