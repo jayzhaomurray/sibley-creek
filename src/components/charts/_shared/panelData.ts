@@ -106,6 +106,31 @@ export function pickPanel(
 }
 
 /**
+ * Pull a panel entry out of the section JSON file by its string key (e.g.
+ * "panel-7-alt", "panel-9"). Canonical access pattern for panels whose keys
+ * are not plain numeric -- raw panelsById[key] lookups are banned; use this
+ * instead.
+ *
+ * Applies identical null-safety logic to pickPanel: returns null when the
+ * key is absent OR when the entry has no usable primary series (no data
+ * points). Either condition triggers the "DATA NOT YET WIRED" path.
+ */
+export function pickPanelByKey(
+  file: unknown,
+  key: string,
+): PanelData | null {
+  if (!file || typeof file !== "object") return null;
+  const panels = (file as { panels?: unknown }).panels;
+  if (!panels || typeof panels !== "object") return null;
+  const entry = (panels as Record<string, unknown>)[key];
+  if (!entry || typeof entry !== "object") return null;
+  const e = entry as PanelData;
+  const prim = e.primary;
+  if (!prim || !Array.isArray(prim.data) || prim.data.length === 0) return null;
+  return e;
+}
+
+/**
  * Parse a YYYY-MM-DD (or YYYY-MM) date into a decimal year value usable
  * by x-scale math. Defensive against malformed strings - returns NaN if
  * the date is unparseable.

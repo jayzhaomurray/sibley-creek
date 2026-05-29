@@ -1,11 +1,10 @@
 ---
 import SectionLayout from "../layouts/SectionLayout.astro";
 import type { Plate } from "../layouts/SectionLayout.astro";
-import type { PanelData } from "../components/charts/_shared/panelData";
 import { sections } from "../data/sections";
 import panelDataFile from "../../data/site/panel_data/trade.json";
 import sectionsJson from "../../data/site/sections.json";
-import { pickPanel } from "../components/charts/_shared/panelData";
+import { pickPanel, pickPanelByKey } from "../components/charts/_shared/panelData";
 import { deriveLatestReleaseLabel } from "../components/section/_shared/derivedLabels";
 
 const section = sections.find((s) => s.slug === "trade");
@@ -20,10 +19,9 @@ const latestReleaseLabel = deriveLatestReleaseLabel(
 );
 
 const plate1Data = pickPanel(panelDataFile, 3);
-const panelsById = (panelDataFile as { panels?: Record<string, PanelData> }).panels ?? {};
 const plate2Data = pickPanel(panelDataFile, 8);
-const plate3Data = panelsById["panel-9"] ?? null;
-const plate4Data = panelsById["panel-7-alt"] ?? null;
+const plate3Data = pickPanelByKey(panelDataFile, "panel-9");
+const plate4Data = pickPanelByKey(panelDataFile, "panel-7-alt");
 
 const plates: Plate[] = [
   {
