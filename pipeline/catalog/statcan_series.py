@@ -46,6 +46,57 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
         scale=1e-6, sa=True,
         notes="Monthly real GDP, all industries, chained 2017$, SAAR. Source publishes in C$ millions; scaled 1e-6 to C$ trillions.",
     ),
+    # GDP by industry monthly sub-aggregates (Table 36-10-0434-01, monthly SA).
+    # Vector IDs confirmed from boc-tracker lift (2026-05-11); all four series
+    # were pre-scaled from C$ millions to C$ trillions in that lift.
+    # Registered here so the standard catalog run keeps them fresh after each
+    # StatCan Monthly GDP release (typically last business day of the month,
+    # ~60-day lag).
+    "gdp_industry_goods": StatcanSpec(
+        name="gdp_industry_goods",
+        vector_id=65201211, table_id="36-10-0434-01",
+        units="C$ trillions, chained 2017", frequency="monthly", section="gdp",
+        scale=1e-6, sa=True,
+        notes=(
+            "Goods-producing industries, monthly real GDP, chained 2017$, SAAR. "
+            "Table 36-10-0434-01, v65201211. Source publishes in C$ millions; "
+            "scaled 1e-6 to C$ trillions. Feeds Output Panel 2."
+        ),
+    ),
+    "gdp_industry_services": StatcanSpec(
+        name="gdp_industry_services",
+        vector_id=65201212, table_id="36-10-0434-01",
+        units="C$ trillions, chained 2017", frequency="monthly", section="gdp",
+        scale=1e-6, sa=True,
+        notes=(
+            "Service-producing industries, monthly real GDP, chained 2017$, SAAR. "
+            "Table 36-10-0434-01, v65201212. Source publishes in C$ millions; "
+            "scaled 1e-6 to C$ trillions. Feeds Output Panel 2."
+        ),
+    ),
+    "gdp_industry_manufacturing": StatcanSpec(
+        name="gdp_industry_manufacturing",
+        vector_id=65201263, table_id="36-10-0434-01",
+        units="C$ trillions, chained 2017", frequency="monthly", section="gdp",
+        scale=1e-6, sa=True,
+        notes=(
+            "Manufacturing industries, monthly real GDP, chained 2017$, SAAR. "
+            "Table 36-10-0434-01, v65201263. Source publishes in C$ millions; "
+            "scaled 1e-6 to C$ trillions. Feeds Output Panel 2."
+        ),
+    ),
+    "gdp_industry_mining_oil": StatcanSpec(
+        name="gdp_industry_mining_oil",
+        vector_id=65201236, table_id="36-10-0434-01",
+        units="C$ trillions, chained 2017", frequency="monthly", section="gdp",
+        scale=1e-6, sa=True,
+        notes=(
+            "Mining, quarrying, and oil and gas extraction, monthly real GDP, "
+            "chained 2017$, SAAR. Table 36-10-0434-01, v65201236. Source "
+            "publishes in C$ millions; scaled 1e-6 to C$ trillions. Feeds "
+            "Output Panel 2."
+        ),
+    ),
     "gdp_quarterly": StatcanSpec(
         name="gdp_quarterly",
         vector_id=62305752, table_id="36-10-0104-01",
@@ -54,8 +105,19 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
         notes="Quarterly real GDP, expenditure-based, chained 2017$, SAAR.",
     ),
     # GDP contributions to quarterly Q/Q-AR growth, 6-bar decomposition.
+    # NOTE: two names for the same vector. "gdp_contrib_total" is the catalog
+    # canonical slug (used by derive_gdp_views etc.); "gdp_total_contribution"
+    # is the boc-tracker lift slug that output Panel 3 SlotSpec references.
+    # Both are registered so the standard catalog run keeps both files fresh.
     "gdp_contrib_total":       StatcanSpec("gdp_contrib_total", 79448580, "36-10-0104-01", "pp", "quarterly", "gdp", sa=True,
                                            notes="Total contribution to annualized Q/Q growth (headline AR comparator)."),
+    "gdp_total_contribution":  StatcanSpec("gdp_total_contribution", 79448580, "36-10-0104-01", "pp", "quarterly", "gdp", sa=True,
+                                           notes=(
+                                               "Total GDP at market prices: contribution to annualized Q/Q growth, "
+                                               "percentage points. Alias of gdp_contrib_total (same vector v79448580); "
+                                               "registered separately because output Panel 3 SlotSpec references this "
+                                               "boc-tracker-lift name. Both files are kept in sync by the catalog run."
+                                           )),
     "gdp_contrib_consumption": StatcanSpec("gdp_contrib_consumption", 79448555, "36-10-0104-01", "pp", "quarterly", "gdp", sa=True),
     "gdp_contrib_govt":        StatcanSpec("gdp_contrib_govt", 79448562, "36-10-0104-01", "pp", "quarterly", "gdp", sa=True),
     "gdp_contrib_investment":  StatcanSpec("gdp_contrib_investment", 79448563, "36-10-0104-01", "pp", "quarterly", "gdp", sa=True,
