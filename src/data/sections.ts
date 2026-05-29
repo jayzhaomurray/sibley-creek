@@ -236,7 +236,7 @@ export const sections: Section[] = [
     heroKickerPrefix: "GDP",
     latestReleasePrefix: "Monthly GDP by industry",
     tileLine:
-      "Growth is slowing down, especially in the goods sector.",
+      "Growth slowed to 0.4% in March, driven by the goods sector.",
     prints: [
       {
         // Real GDP y/y is the primary print — first row, matches the

@@ -41,11 +41,16 @@ if (!section) {
   throw new Error("Output section not found in src/data/sections.ts");
 }
 
-const latestReleaseLabel = deriveLatestReleaseLabel(
+// Manual override for the dual-print release (StatCan publishes monthly +
+// quarterly GDP on the same day; the derive helper only knows about one
+// asOf at a time). Update on the next release.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _autoDerivedLatestReleaseLabel = deriveLatestReleaseLabel(
   section.latestReleasePrefix ?? "",
   sectionsJson,
   "output",
 );
+const latestReleaseLabel = "GDP, Mar & Q1 2026";
 
 const panel1Data = pickPanel(panelDataFile, 1);
 const panel2Data = pickPanel(panelDataFile, 2);
@@ -109,13 +114,13 @@ const plates: Plate[] = [
     number: "03",
     indicator: "Real GDP by industry, services vs goods Y/Y + manufacturing vs mining and oil indexed to Jan 2023",
     plateIndexLabel: "Industry composite",
-    title: "Resources have outrun factories by 18 percentage points since January 2023.",
+    title: "Resources have outrun factories by 16 percentage points since January 2023.",
     interpretationHtml:
-      "Mining and oil-and-gas output is up roughly 12% since January 2023; manufacturing is down about 6% &mdash; an 18-point split inside the goods economy. " +
+      "Mining and oil-and-gas output is up roughly 10% since January 2023; manufacturing is down about 6% &mdash; a 16-point split inside the goods economy. " +
       "Services, which employ most Canadians, are running at about 1% year-over-year. " +
       "The divergence maps cleanly onto Canada's regional economic geography: resource provinces pulling one direction, central-Canada factory floors pulling the other.",
     callout: {
-      value: "+12%",
+      value: "+10%",
       unitPrefix: "mining + oil, since Jan 2023",
       delta: "Manufacturing -6%",
       direction: "neutral",
@@ -125,11 +130,11 @@ const plates: Plate[] = [
     data: panel2Data,
     citations: [
       { phrase: "January 2023", source: "derived", note: "Chart anchor date for the right-panel index. Both mining/oil and manufacturing monthly series carry a 2023-01-01 observation in StatCan 36-10-0434-01. Appears in both title and blurb." },
-      { phrase: "18 percentage points", source: "derived", note: "12.16% - (-6.12%) = 18.28pp, rounded to 18 points. Inputs: mining and oil and manufacturing cumulative changes since January 2023 from StatCan 36-10-0434-01." },
-      { phrase: "roughly 12%", source: "pipeline:statcan:36-10-0434-01", note: "Mining and oil-and-gas extraction, cumulative real GDP change Jan 2023 to Feb 2026: (0.121981 / 0.108753 - 1) * 100 = +12.16%." },
-      { phrase: "down about 6%", source: "pipeline:statcan:36-10-0434-01", note: "Manufacturing real GDP, cumulative change Jan 2023 to Feb 2026: (0.199199 / 0.212183 - 1) * 100 = -6.12%." },
-      { phrase: "18-point split", source: "derived", note: "Same calculation as 18 percentage points citation: 12.16pp - (-6.12pp) = 18.28pp." },
-      { phrase: "1% year-over-year", source: "pipeline:statcan:36-10-0434-01", note: "Services real GDP Y/Y at Feb 2026: (1.758647 / 1.740295 - 1) * 100 = 1.05%, rounded to ~1%." },
+      { phrase: "16 percentage points", source: "derived", note: "9.66% - (-6.34%) = 16.00pp. Inputs: mining and oil and manufacturing cumulative changes since January 2023 from StatCan 36-10-0434-01." },
+      { phrase: "roughly 10%", source: "pipeline:statcan:36-10-0434-01", note: "Mining and oil-and-gas extraction, cumulative real GDP change Jan 2023 to Mar 2026: (0.119254 / 0.108753 - 1) * 100 = +9.66%." },
+      { phrase: "down about 6%", source: "pipeline:statcan:36-10-0434-01", note: "Manufacturing real GDP, cumulative change Jan 2023 to Mar 2026: (0.198729 / 0.212183 - 1) * 100 = -6.34%." },
+      { phrase: "16-point split", source: "derived", note: "Same calculation as 16 percentage points citation: 9.66pp - (-6.34pp) = 16.00pp." },
+      { phrase: "1% year-over-year", source: "pipeline:statcan:36-10-0434-01", note: "Services real GDP Y/Y at Mar 2026: (1.762291 / 1.740295 - 1) * 100 = 1.26%, rounded to ~1%." },
     ],
   },
   {
@@ -166,8 +171,8 @@ const plates: Plate[] = [
     asOfMode: "primary",
     title: "Total output is up about 11% since the pre-pandemic peak — per-capita output is barely above it.",
     interpretationHtml:
-      "Total real GDP has grown about 11% since Q4 2019; on a per-person basis, output has risen less than 1%. " +
-      "The 10-point wedge is the population story &mdash; Canada has added nearly 3.8 million people in that span, accounting for almost all of the headline growth without materially lifting living standards.",
+      "Total real GDP has grown about 11% since Q4 2019; on a per-person basis, output has risen about 1%. " +
+      "The 10-point wedge is the population story &mdash; Canada has added nearly 3.6 million people in that span, accounting for almost all of the headline growth without materially lifting living standards.",
     callout: {
       value: "+1%",
       unitPrefix: "per-capita real GDP, since Q4 2019",
@@ -180,10 +185,10 @@ const plates: Plate[] = [
     data: panel4Data,
     citations: [
       { phrase: "Q4 2019", source: "derived", note: "Chart baseline date = 2019Q4 (2019-10-01 in StatCan quarterly notation). Both GDP and population series carry this observation per StatCan 36-10-0104-01 and 17-10-0009-01." },
-      { phrase: "about 11%", source: "derived", note: "Total real GDP cumulative since 2019Q4: 2,502,165 / 2,255,354 - 1 = +10.94%. Inputs: StatCan 36-10-0104-01, 2025Q4 latest vintage. Appears in both title and blurb." },
-      { phrase: "less than 1%", source: "derived", note: "Per-capita real GDP = total / population. 2019Q4: 2,255,354e6 / 37,828,162 = 59,621 CAD/person. 2025Q4: 2,502,165e6 / 41,575,585 = 60,184 CAD/person. Change: +0.94%. Inputs: StatCan 36-10-0104-01 (GDP) and 17-10-0009-01 (population)." },
-      { phrase: "10-point wedge", source: "derived", note: "10.94% (total) - 0.94% (per-capita) = 10.0pp. Inputs: StatCan 36-10-0104-01 and 17-10-0009-01." },
-      { phrase: "3.8 million people", source: "pipeline:statcan:17-10-0009-01", note: "Population Q4 2019 = 37,828,162; Q4 2025 = 41,575,585; difference = 3,747,423 ≈ 3.8 million." },
+      { phrase: "about 11%", source: "derived", note: "Total real GDP cumulative since 2019Q4: 2,500,680 / 2,255,354 - 1 = +10.88%. Inputs: StatCan 36-10-0104-01, 2026Q1 latest vintage. Appears in both title and blurb." },
+      { phrase: "about 1%", source: "derived", note: "Per-capita real GDP = total / population. 2019Q4: 2,255,354e6 / 37,828,162 = 59,621 CAD/person. 2026Q1: 2,500,680e6 / 41,472,081 = 60,298 CAD/person. Change: +1.14%. Inputs: StatCan 36-10-0104-01 (GDP) and 17-10-0009-01 (population)." },
+      { phrase: "10-point wedge", source: "derived", note: "10.88% (total) - 1.14% (per-capita) = 9.74pp ≈ 10pp. Inputs: StatCan 36-10-0104-01 and 17-10-0009-01." },
+      { phrase: "3.6 million people", source: "pipeline:statcan:17-10-0009-01", note: "Population Q4 2019 = 37,828,162; Q1 2026 = 41,472,081; difference = 3,643,919 ≈ 3.6 million." },
     ],
   },
 ];
