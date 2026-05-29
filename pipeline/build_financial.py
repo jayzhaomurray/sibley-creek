@@ -49,6 +49,7 @@ from typing import Callable, Optional
 import pandas as pd
 
 from pipeline.catalog import BOC_VALET_SERIES, FRED_SERIES, INDEED_SERIES, YAHOO_SERIES
+from pipeline.notifications.failure import notify_on_failure
 from pipeline.catalog.boc_series import BocSpec
 from pipeline.catalog.fred_series import FredSpec
 from pipeline.catalog.indeed_series import IndeedSpec
@@ -447,4 +448,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    with notify_on_failure("build_financial"):
+        sys.exit(main())

@@ -1322,4 +1322,6 @@ def main() -> int:
 
 if __name__ == "__main__":
     import sys
-    sys.exit(main())
+    from pipeline.notifications.failure import notify_on_failure
+    with notify_on_failure("panel_data"):
+        sys.exit(main())

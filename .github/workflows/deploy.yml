@@ -106,6 +106,45 @@ jobs:
         with:
           path: ./dist
 
+      # Phase 1 monitoring: fire an email if any build step above failed.
+      # Covers ALL failure classes: Astro build errors, JS build-gate trips
+      # (check_panel_data_wired, check_tk_in_dist, check_sections_slug_alignment,
+      # check_label_budgets, check_buildtime_file_refs, text-overlap gate), and
+      # any future steps added to this job. Requires GitHub Secrets:
+      #   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
+      # See docs/notifications.md for setup instructions.
+      - name: Notify on build failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASS }}
+          subject: "[Sibley Creek Alert] Deploy build failed (${{ github.workflow }} #${{ github.run_number }})"
+          to: jayzhaomurray@outlook.com
+          from: ${{ secrets.SMTP_FROM }}
+          body: |
+            WHAT HAPPENED
+            The Sibley Creek GitHub Actions deploy build failed on one or
+            more steps. The site is still serving the last successful build.
+
+            WHAT VISITORS SEE
+            No change. Visitors see the last successfully-deployed version.
+            No data corruption occurred.
+
+            WHAT TO DO
+            Open the failed run link below. Check which step failed and
+            review the error output. Fix the underlying cause and either
+            push a new commit or re-run the workflow manually.
+
+            DETAILS
+            workflow: ${{ github.workflow }}
+            run_number: ${{ github.run_number }}
+            trigger: ${{ github.event_name }}
+            commit: ${{ github.sha }}
+            run_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
   deploy:
     needs: build
     runs-on: ubuntu-latest

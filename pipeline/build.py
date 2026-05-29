@@ -74,6 +74,9 @@ from pipeline.transform.derivations import (
     six_month_annualized,
     trade_balance_3m_ma,
 )
+from pipeline.notifications.failure import notify_on_failure
+from pipeline.notifications.vintage import check_and_notify_new_vintages
+from pipeline.notifications.news_feed import check_and_notify_news_feed
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_ROOT = ROOT / "data"
@@ -3077,8 +3080,23 @@ def main(argv: Optional[list[str]] = None) -> int:
         logger.error("Build completed with %d failure(s): %s", len(failed), ", ".join(failed))
         return 1
     logger.info("Build completed successfully.")
+
+    # Phase 1 monitoring: fire notifications for new data vintages and
+    # news-feed updates. These run after a successful build only -- if the
+    # build itself failed, the GHA workflow-failure step handles the alert.
+    _refresh_ts = datetime_now_iso()
+    try:
+        check_and_notify_new_vintages(_refresh_ts)
+    except Exception as _exc:  # noqa: BLE001
+        logger.error("vintage notification hook failed (non-fatal): %s", _exc)
+    try:
+        check_and_notify_news_feed(_refresh_ts)
+    except Exception as _exc:  # noqa: BLE001
+        logger.error("news_feed notification hook failed (non-fatal): %s", _exc)
+
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    with notify_on_failure("build_macro"):
+        sys.exit(main())
