@@ -35,18 +35,37 @@ Useful for catching stale pipeline output after a page refactor, or for
 identifying panels-in-progress that haven't been wired into a page yet. Does not
 block CI; it is a maintainer inspection tool.
 
-### check_raw_tracked.mjs -- NOT implemented
+### check_raw_tracked.mjs -- hard pre-build gate
 
-This script was scoped as "check that raw CSVs referenced in panel_data metadata
-are tracked by git." It was not implemented because the panel_data JSON files do
-not systematically preserve raw CSV source paths in their metadata blocks. The
-one exception (inflation panel-3) embeds the path in a human-readable notes
-string, not a machine-readable field. Without structured metadata, the script
-cannot reliably extract the paths without parsing Python pipeline source, which
-was explicitly out of scope.
+**When it fires:** Before `check_panel_data_wired`, as part of `npm run build`.
+**What it catches:** Any disk-resident source file (raw CSV, processed CSV,
+derived JSON) that backs a wired panel's `source_files` list but is NOT tracked
+by git. This is the root-cause failure mode: a raw CSV added locally but never
+force-tracked means CI cannot build the panel.
+**Exit behavior:** Exit 1, listing each missing file, which panel needs it, and
+the fix command (`git add -f <path>`). Exit 0 silently if all source files are
+tracked.
+**npm script:** `npm run audit:raw-tracked`
 
-The correct future state: the pipeline emits a structured `source_files` list in
-each panel's metadata block. That is a pipeline change (separate task).
+**How it works:** The pipeline emits a `source_files` field on each panel in
+`data/site/panel_data/<section>.json` (added to `pipeline/io/panel_data.py`).
+The field is a sorted list of project-root-relative paths
+(e.g. `["data/raw/crea_resales.csv", "data/raw/crea_snlr.csv"]`). The script
+reads that field for every wired panel and calls `git ls-files <path>` to
+confirm tracking. Panels with no disk-resident files (empty `source_files`)
+are skipped -- nothing to verify.
+
+**Source classification:** `_resolve_slot_path()` walks the same tier-fallback
+order as the slot reader (preferred tier first, then processed/derived/raw).
+Labour-flow derived slots resolve to their three hardcoded raw input CSVs via
+`LABOUR_FLOW_SOURCE_FILES`. BoC Valet, FRED, and IMF series that land on disk
+as raw CSVs are captured automatically if the file exists. Slots not yet on
+disk (un-wired panels) contribute nothing and do not cause false failures.
+
+This gate closes the root-cause gap that `check_panel_data_wired.mjs` only
+catches at the symptom layer (null primary data). If a new series is fetched
+and its raw CSV is not force-tracked, this gate fails before the site ever
+renders a broken panel.
 
 ## Convention: raw CSVs backing WIRED panels
 

@@ -984,6 +984,13 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
 # Disk readers
 # --------------------------------------------------------------------------- #
 
+LABOUR_FLOW_SOURCE_FILES = [
+    "data/raw/unemployment_level.csv",
+    "data/raw/unemployment_rate.csv",
+    "data/raw/unemployment_1_to_4_weeks.csv",
+]
+
+
 def _read_labour_flow_slot(slot: SlotSpec, data_root: Path) -> Optional[dict]:
     """Derive labour-market transition rates for the flow-rate panel.
 
@@ -1057,6 +1064,28 @@ def _read_labour_flow_slot(slot: SlotSpec, data_root: Path) -> Optional[dict]:
         "sourceId": "14-10-0287-01; 14-10-0342-01",
         "releaseDate": None,
     }
+
+
+def _resolve_slot_path(slot: SlotSpec, data_root: Path) -> Optional[str]:
+    """Return the relative-to-ROOT path of the CSV that backs this slot.
+
+    Walks the same tier-fallback order as _read_slot. Returns a POSIX-style
+    relative path string (e.g. "data/raw/cpi_all_items.csv") or None if no
+    file is found on disk.
+
+    Labour-flow derived slots are not backed by a single CSV; callers should
+    use LABOUR_FLOW_SOURCE_FILES directly for those series.
+    """
+    if slot.series in {"labour_separation_rate", "labour_job_finding_rate"}:
+        return None  # handled via LABOUR_FLOW_SOURCE_FILES
+
+    tiers = [slot.tier] + [t for t in ("processed", "derived", "raw") if t != slot.tier]
+    for tier in tiers:
+        csv_path = data_root / tier / f"{slot.series}.csv"
+        if csv_path.exists():
+            # Return path relative to project root using forward slashes
+            return f"data/{tier}/{slot.series}.csv"
+    return None
 
 
 def _read_slot(slot: SlotSpec, data_root: Path) -> Optional[dict]:
@@ -1174,6 +1203,49 @@ def _read_metadata(path_rel: str, data_root: Path) -> Optional[dict]:
         return None
 
 
+def _collect_source_files(spec: "PanelSpec", data_root: Path) -> list[str]:
+    """Collect the set of disk-resident source file paths for a panel.
+
+    Returns a deduplicated, sorted list of project-root-relative POSIX paths
+    (e.g. ["data/raw/crea_resales.csv", "data/raw/crea_snlr.csv"]).
+
+    Rules:
+    - Each SlotSpec resolves to a CSV via _resolve_slot_path (tier fallback).
+    - Labour-flow derived slots resolve to LABOUR_FLOW_SOURCE_FILES.
+    - metadata_path resolves to data/derived/<metadata_path>.
+    - BoC Valet / IMF / FRED series that land on disk as raw CSVs are captured
+      automatically by _resolve_slot_path if the file exists.
+    - Slots that have no file on disk (slot not yet fetched, or backed purely by
+      an in-memory derivation without a CSV) contribute nothing -- the gate will
+      not fire on missing-and-untracked slots for un-wired panels.
+    """
+    paths: set[str] = set()
+
+    all_slots: list["SlotSpec"] = []
+    if spec.primary is not None:
+        all_slots.append(spec.primary)
+    if spec.secondary is not None:
+        all_slots.append(spec.secondary)
+    if spec.tertiary is not None:
+        all_slots.append(spec.tertiary)
+    all_slots.extend(spec.extras)
+
+    for slot in all_slots:
+        if slot.series in {"labour_separation_rate", "labour_job_finding_rate"}:
+            paths.update(LABOUR_FLOW_SOURCE_FILES)
+        else:
+            p = _resolve_slot_path(slot, data_root)
+            if p is not None:
+                paths.add(p)
+
+    if spec.metadata_path is not None:
+        meta_disk = data_root / "derived" / spec.metadata_path
+        if meta_disk.exists():
+            paths.add(f"data/derived/{spec.metadata_path}")
+
+    return sorted(paths)
+
+
 def build_section_payload(section: str, data_root: Path) -> dict:
     """Build the per-section panel data payload for one section."""
     specs = PANEL_SPECS.get(section, [])
@@ -1188,6 +1260,7 @@ def build_section_payload(section: str, data_root: Path) -> dict:
             "secondary": None,
             "tertiary": None,
             "extras": [],
+            "source_files": _collect_source_files(spec, data_root),
         }
         try:
             if spec.primary is not None:
