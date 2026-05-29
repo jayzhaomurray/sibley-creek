@@ -912,6 +912,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "gdp-march-q1-2026",
+    section: "output",
+    title: "Economy edges down 0.1% annualized in first quarter.",
+    publishedAt: "2026-05-29",
+    pdfPath: "/research/commentaries/gdp-march-q1-2026.pdf",
+    excerpt:
+      "Sounding the alarm on a so-called 'technical recession' is premature, but further economic weakness this year could force the Bank of Canada back into easing mode.",
+  },
+  {
     slug: "retail-march-2026",
     section: "output",
     title: "Retail sales jump 0.9%, driven by higher gas prices.",
