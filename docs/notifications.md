@@ -99,7 +99,7 @@ Settings > Secrets and variables > Actions > Repository secrets.
 | SMTP_PORT    | Port number (587 for STARTTLS, 465 for SSL)    |
 | SMTP_USER    | SMTP login username                            |
 | SMTP_PASS    | SMTP login password or app password            |
-| SMTP_FROM    | Sending address (e.g. notifications@sibleycreek.ca) |
+| SMTP_FROM    | Sending address (e.g. jayzhaomurray@gmail.com)      |
 
 These are referenced by both the Python notification substrate
 (pipeline/notifications/send.py) and the GHA deploy.yml workflow-failure
@@ -146,7 +146,7 @@ The deploy.yml build job includes a final step that runs only on failure:
     username: ${{ secrets.SMTP_USER }}
     password: ${{ secrets.SMTP_PASS }}
     subject: "[Sibley Creek Alert] Deploy build failed (${{ github.workflow }})"
-    to: jayzhaomurray@outlook.com
+    to: jayzhaomurray@gmail.com
     from: ${{ secrets.SMTP_FROM }}
     body: |
       The Sibley Creek GitHub Actions deploy build failed.

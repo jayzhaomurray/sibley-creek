@@ -9,7 +9,7 @@ Required environment variables (same naming pattern as pipeline/blurbs/email.py)
     SMTP_PORT   -- relay port as integer (e.g. 587 for STARTTLS, 465 for SSL)
     SMTP_USER   -- SASL username / login
     SMTP_PASS   -- SASL password
-    SMTP_FROM   -- envelope from address (defaults to notifications@sibleycreek.ca)
+    SMTP_FROM   -- envelope from address (defaults to jayzhaomurray@gmail.com)
 
 Optional
 ---------
@@ -68,8 +68,8 @@ logger = logging.getLogger("pipeline.notifications.send")
 ROOT = Path(__file__).resolve().parents[2]
 DRY_RUN_PATH = ROOT / "data" / "derived" / "notification_dry_run.txt"
 
-_DEFAULT_FROM = "notifications@sibleycreek.ca"
-_DEFAULT_TO = "jayzhaomurray@outlook.com"
+_DEFAULT_FROM = "jayzhaomurray@gmail.com"
+_DEFAULT_TO = "jayzhaomurray@gmail.com"
 
 _SEVERITY_PREFIX: dict[str, str] = {
     "fyi": "Update",
