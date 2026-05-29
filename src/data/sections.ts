@@ -232,11 +232,11 @@ export const sections: Section[] = [
     // Most recent monthly GDP print released Apr 30, 2026 (Feb 2026 reference period).
     updatedAt: Date.UTC(2026, 3, 30, 8, 30),
     chartSeriesKey: "gdp-yoy",
-    heroKicker: "February GDP",
+    heroKicker: "March & Q1 GDP",
     heroKickerPrefix: "GDP",
     latestReleasePrefix: "Monthly GDP by industry",
     tileLine:
-      "February GDP came in soft on goods-producing industries; services held up.",
+      "Growth is slowing down, especially in the goods sector.",
     prints: [
       {
         // Real GDP y/y is the primary print — first row, matches the
@@ -279,13 +279,14 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "Apr 30, 2026",
+      date: "May 29, 2026",
       body:
-        "Slowly, and mostly in the resource patch. Real GDP is running near 1% Y/Y, just below the Bank of Canada's 1.2% estimate of near-term potential growth. Oil and gas are doing the heavy lifting while manufacturing is in deep recession. Services growth is trundling along. Even that 1% pace relies on population growth more than anything — on a per capita basis, output is scarcely higher than it was before the pandemic.",
+        "Stalled at the headline, but the composition is more nuanced. Real GDP edged down 0.1% annualized in Q1 and slipped another 0.1% in March, leaving year-over-year growth at just 0.4%. The Q1 drag came from a surge in imports and contracting government spending — not from collapsing household demand. Calls of a technical recession remain premature.",
     },
     abstractCitations: [
-      { phrase: "near 1% Y/Y", source: "pipeline:statcan:36-10-0434-01", note: "Real GDP Y/Y, latest monthly print." },
-      { phrase: "1.2% estimate of near-term potential growth", source: "card:boc_mpr_potential_growth" },
+      { phrase: "0.1% annualized in Q1", source: "pipeline:statcan:36-10-0104-01", note: "Q1 2026 real GDP quarterly q/q SAAR." },
+      { phrase: "0.1% in March", source: "pipeline:statcan:36-10-0434-01", note: "March 2026 monthly real GDP m/m." },
+      { phrase: "0.4%", source: "pipeline:statcan:36-10-0434-01", note: "Real GDP Y/Y, March 2026 monthly print." },
     ],
   },
   {
@@ -1074,11 +1075,12 @@ export const splashHero: {
   citations: import("../layouts/SectionLayout.astro").ClaimCitation[];
 } = {
   abstract:
-    "Stuck below its potential, on two fronts at once. Cyclically, growth is running at 1% as the job market slackens and inflation continues to settle. Structurally, immigration reforms and tariffs are forcing a realignment. Population growth has levelled off, which is showing up clearly in the housing market, while new exports are narrowly redirecting away from the US.",
+    "Stuck below its potential, on two fronts at once. Cyclically, growth is running at 0.4% as the job market slackens and core inflation sits at target. Gas prices are high due to the closing of the Strait of Hormuz. Structurally, immigration reforms and tariffs are forcing a realignment. Population growth has levelled off, which is showing up clearly in the housing market, while new exports are narrowly redirecting away from the US.",
   citations: [
-    { phrase: "1%", source: "pipeline:statcan:36-10-0434-01", note: "Real GDP by industry, Y/Y, latest monthly print." },
+    { phrase: "0.4%", source: "pipeline:statcan:36-10-0434-01", note: "Real GDP by industry, Y/Y, March 2026 monthly print." },
     { phrase: "the job market slackens", source: "derived", note: "LFS data: unemployment rate has drifted up to 6.9% (April 2026) with aggregate hours worked negative year-over-year; intensive margin is leading the loosening." },
-    { phrase: "inflation continues to settle", source: "derived", note: "Headline CPI at 2.3% Y/Y in March 2026; preferred cores (CPI-trim 2.2%, CPI-median 2.3%) near the 2% target; expectations moderating per CSCE and BOS." },
+    { phrase: "core inflation sits at target", source: "derived", note: "Preferred cores (CPI-trim, CPI-median) near 2% in April 2026; CPI-trim 2.2%, CPI-median 2.3%." },
+    { phrase: "Gas prices are high due to the closing of the Strait of Hormuz", source: "derived", note: "Geopolitical context — editorial claim, source card pending." },
     { phrase: "immigration reforms", source: "derived", note: "IRCC 2026-2028 Immigration Levels Plan (announced November 2025) caps permanent residents at 380,000 per year with sub-caps on international students and temporary workers; PR card in editorial/source_cards/_pending/per-capita-output/ pending user verification." },
     { phrase: "tariffs", source: "card:pp_section_232_steel_alum_50pct", note: "US Section 232 measures (50% steel and aluminum since June 2025, copper added April 2026); broader tariff stack and USMCA review covered in trade section." },
     { phrase: "Population growth has levelled off", source: "pipeline:statcan:17-10-0009-01", note: "Quarterly population Y/Y peaked at 3.18% in Q2 2024 and printed -0.25% in Q1 2026 per StatCan demographic estimates." },
