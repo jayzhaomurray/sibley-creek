@@ -27,7 +27,7 @@
  * Source: IMF World Economic Outlook database (April WEO vintage),
  *   https://www.imf.org/en/Publications/WEO.
  *
- * Data. data/site/panel_data/policy.json panel-7-alt
+ * Data. data/site/panel_data/monetary.json panel-7-alt
  *   primary:   imf_can_gg_balance_pct_gdp
  *   secondary: imf_can_gg_gross_debt_pct_gdp
  */
@@ -40,7 +40,7 @@ import type { AltPoint } from "../_shared/altUtils";
 
 // ── load data ──────────────────────────────────────────────────────────────
 const rawJson = JSON.parse(
-  readFileSync(resolve(process.cwd(), "data/site/panel_data/policy.json"), "utf-8")
+  readFileSync(resolve(process.cwd(), "data/site/panel_data/monetary.json"), "utf-8")
 );
 const panel = (rawJson.panels?.["panel-7-alt"] ?? null) as {
   primary: { data: AltPoint[] };
@@ -49,7 +49,7 @@ const panel = (rawJson.panels?.["panel-7-alt"] ?? null) as {
 
 if (!panel?.primary?.data || !panel?.secondary?.data) {
   throw new Error(
-    "Alt_FiscalStanceRatios: panel-7-alt not found in policy.json — run the pipeline to generate fiscal stance data."
+    "Alt_FiscalStanceRatios: panel-7-alt not found in monetary.json — run the pipeline to generate fiscal stance data."
   );
 }
 

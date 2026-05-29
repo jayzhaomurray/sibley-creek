@@ -268,42 +268,6 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
                 SlotSpec("bos_dist_above3", "raw", label="BOS dist > 3%"),
             ),
         ),
-        PanelSpec(
-            panel_id="panel-6", section="inflation", panel_num=6,
-            file="inflation/Panel6PassThrough.astro",
-            # Canon (editorial/dashboard_purpose.md Section 4.2 element 6):
-            # side-by-side strip-chart panel,
-            #   pane A: USDCAD Y/Y vs goods-ex-energy CPI Y/Y
-            #   pane B: LFS-Micro wage Y/Y vs services-ex-shelter CPI Y/Y
-            # Gated per canon: "if they slip, pass-through defers to v1.5."
-            #
-            # Status (2026-05-11): all four pass-through derivations MISSING.
-            # The chart renders PanelEmpty until backend lands them. The
-            # SlotSpecs below are the target wiring once the four processed
-            # CSVs exist; expected_status="MISSING" so _read_slot logs a
-            # warning today instead of silently falling back.
-            primary=SlotSpec("usdcad_yoy", "processed",
-                             label="USDCAD Y/Y"),
-            secondary=SlotSpec("cpi_goods_ex_energy_yoy", "processed",
-                               label="Goods ex-energy CPI Y/Y"),
-            tertiary=SlotSpec("lfs_micro_yoy", "processed",
-                              label="LFS-Micro wage Y/Y"),
-            extras=(
-                SlotSpec("cpi_services_ex_shelter_yoy", "processed",
-                         label="Services ex-shelter CPI Y/Y"),
-            ),
-            expected_status="MISSING",
-            notes=(
-                "Pass-through panel gated on four backend derivations - none on "
-                "disk yet. Required: processed/usdcad_yoy (monthly-mean FX, Y/Y), "
-                "processed/lfs_micro_yoy (BoC LFS-Micro Y/Y), "
-                "processed/cpi_goods_ex_energy_yoy and "
-                "processed/cpi_services_ex_shelter_yoy (basket-weighted ex-aggregates "
-                "per canon 4.2 element 4 methodology gate). Chart renders PanelEmpty "
-                "until all four land. See Panel6PassThrough.astro header for the "
-                "paste-ready backend brief."
-            ),
-        ),
     ],
     "labour": [
         PanelSpec(
@@ -396,15 +360,6 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             notes="V/U ratio = vacancies / unemployed; chart-builder computes from job_vacancy_level / unemployment_level (both on disk).",
         ),
         PanelSpec(
-            panel_id="panel-5", section="labour", panel_num=5,
-            file="labour/Panel5IRCCSupplyTrajectory.astro",
-            primary=SlotSpec("pop_immigrants", "raw", label="Immigrants (PR proxy)"),
-            secondary=SlotSpec("pop_net_npr", "raw", label="Net NPR"),
-            tertiary=SlotSpec("pop_npr_inflows", "raw", label="NPR inflows"),
-            expected_status="NEAR",
-            notes="IRCC plans live in data/ircc_levels_plan.json (already in repo). Trailing-4Q PR/NPR derivation needs rolling sums on raw quarterly inflows; chart-builder applies. Plan vintages: WIRED (in repo).",
-        ),
-        PanelSpec(
             panel_id="panel-6", section="labour", panel_num=6,
             file="labour/Panel8LabourFlowRates.astro",
             primary=SlotSpec("labour_separation_rate", "derived", label="Separation rate"),
@@ -415,37 +370,6 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
                 "unemployment using the Elsby-Michaels-Solon approximation. "
                 "The final LFS month is dropped because the t+1 short-duration "
                 "stock is required."
-            ),
-        ),
-        # Wave 5 add: EI Regular Beneficiaries (Labour Panel 7). Single-series
-        # line chart with level / Y/Y / MoM toggles handled chart-side. The
-        # raw level is in persons; chart-builder divides by 1000 for default
-        # "thousands" display per Wave 5 brief (Section 5 backend item 1).
-        #
-        # Secondary slot wires the derived labour-force-ex-NPR denominator
-        # (data/processed/labour_force_ex_npr.csv -- millions of persons,
-        # monthly) so the chart wrapper can compute the EI-claimants-to-
-        # labour-force ratio with the NPR-driven denominator growth filtered
-        # out. See derive_labour_force_ex_npr() in pipeline/build.py for the
-        # v1 derivation method and its documented biases.
-        PanelSpec(
-            panel_id="panel-7", section="labour", panel_num=7,
-            file="labour/Panel7EIBeneficiaries.astro",
-            primary=SlotSpec("ei_regular_beneficiaries", "raw",
-                             label="EI regular beneficiaries (persons)"),
-            secondary=SlotSpec("labour_force_ex_npr", "processed",
-                               label="Labour force ex-NPRs (millions, monthly)"),
-            expected_status="WIRED",
-            notes=(
-                "Wave 5 canon: cyclical-inflection signal (demand-side mirror "
-                "of LFS unemployment). StatCan Table 14-10-0011 v64549350, "
-                "Canada total SA monthly. Chart-side: divide by 1000 for "
-                "default thousands display; Y/Y and MoM toggles applied at "
-                "render time. Peak-to-trough annotation supplied by researcher. "
-                "Ratio toggle: claimants / (labour_force_ex_npr * 1e6) -- "
-                "denominator deflates NPR-driven labour-force growth so the "
-                "ratio reads as a cyclical indicator. See derive_labour_force_ex_npr "
-                "in pipeline/build.py for method + documented bias direction."
             ),
         ),
         # New plate (2026-05-12): hours-vs-headcount dual-panel. Lines left
@@ -512,21 +436,6 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             ),
             expected_status="NEAR",
             notes="Months-of-inventory by CMA is MISSING (CREA publishes; not in pipeline). SNLR is on disk; chart-builder can use SNLR as the v1 inventory tightness proxy.",
-        ),
-        PanelSpec(
-            panel_id="panel-4", section="housing", panel_num=4,
-            file="housing/Panel4Rent.astro",
-            primary=SlotSpec("cpi_rent_yoy", "processed", label="CPI rent Y/Y"),
-            secondary=SlotSpec("cpi_rented_accommodation_yoy", "processed", label="CPI rented accommodation Y/Y"),
-            expected_status="NEAR",
-            notes="Panel expects CPI rent + CMHC RMS annual rent growth. RMS annual is MISSING (CMHC publishes annually; needs separate fetcher).",
-        ),
-        PanelSpec(
-            panel_id="panel-5", section="housing", panel_num=5,
-            file="housing/Panel5MortgageStack.astro",
-            primary=SlotSpec("mortgage_rate_5yr", "raw", label="5yr conventional mortgage rate"),
-            expected_status="NEAR",
-            notes="Renewal-wall bucket shares + 90+ day delinquency rate are MISSING (BoC / CMHC; data licensing needs check). Chart can render the rate level alone in v1.",
         ),
         PanelSpec(
             panel_id="panel-6", section="housing", panel_num=6,
@@ -855,20 +764,6 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             ),
         ),
         PanelSpec(
-            panel_id="panel-4", section="markets", panel_num=4,
-            file="markets/Panel3CanadaUS2ySpread.astro",
-            primary=SlotSpec("yield_2yr", "raw", label="Canada 2y"),
-            secondary=SlotSpec("us_2yr", "raw", label="US 2y"),
-            notes="Spread = Canada 2y - US 2y. Chart-builder joins on date and converts to bp.",
-        ),
-        PanelSpec(
-            panel_id="panel-5", section="markets", panel_num=5,
-            file="markets/Panel3CreditSpreads.astro",
-            primary=SlotSpec("yield_10yr", "raw", label="GoC 10y (proxy denominator)"),
-            expected_status="MISSING",
-            notes="Panel expects IG OAS bp and HY OAS bp (Canada IG/HY indices). Both MISSING -- need FTSE Canada Universe Corporate OAS or ICE BofA Canada series (licensed; M/L effort). FRED publishes US BAMLC0A0CM and BAMLH0A0HYM2 OAS daily; could proxy as v1 fallback (M).",
-        ),
-        PanelSpec(
             panel_id="panel-6", section="markets", panel_num=6,
             file="markets/Panel4Energy.astro",
             primary=SlotSpec("wti", "raw", label="WTI"),
@@ -876,49 +771,8 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
                 SlotSpec("natural_gas_alberta", "raw", label="AECO natural gas (Alberta reference)"),
             ),
         ),
-        PanelSpec(
-            panel_id="panel-7", section="markets", panel_num=7,
-            file="markets/Panel5BankStability.astro",
-            primary=SlotSpec("boc_settlement_balances", "raw", label="Settlement balances (system liquidity proxy)"),
-            expected_status="MISSING",
-            notes="Panel expects Big-Six PCL build and avg CET1 ratio (quarterly bank earnings). Both MISSING -- need OSFI / per-bank disclosure or manual fixture (M/L).",
-        ),
-        PanelSpec(
-            panel_id="panel-8", section="markets", panel_num=8,
-            file="markets/Panel6FCI.astro",
-            primary=SlotSpec("yield_10yr", "raw", label="GoC 10y (proxy for FCI)"),
-            secondary=SlotSpec("usdcad", "raw", label="USDCAD spot"),
-            expected_status="MISSING",
-            notes="Panel expects a standardized FCI (BoC FCI or Chicago Fed NFCI). BoC FCI: MISSING (Valet may publish; key TBD). Chicago NFCI: available via FRED (NFCI series) -- S effort to add.",
-        ),
     ],
     "trade": [
-        PanelSpec(
-            panel_id="panel-1", section="trade", panel_num=1,
-            file="trade/Panel1TradeBalance.astro",
-            primary=SlotSpec("trade_balance_total", "raw", label="Trade balance, all countries"),
-            secondary=SlotSpec("trade_balance_total_3m_ma", "processed", label="3mma"),
-            tertiary=SlotSpec("trade_balance_us", "raw", label="Trade balance with US"),
-        ),
-        PanelSpec(
-            panel_id="panel-2", section="trade", panel_num=2,
-            file="trade/Panel2CurrentAccount.astro",
-            primary=SlotSpec("current_account_balance", "raw", label="Current account balance (headline)"),
-            secondary=SlotSpec("ca_goods_balance_q", "raw", label="Goods balance"),
-            tertiary=SlotSpec("ca_services_balance_q", "raw", label="Services balance"),
-            extras=(
-                SlotSpec("ca_primary_income_q", "raw", label="Primary income balance"),
-                SlotSpec("ca_secondary_income_q", "raw", label="Secondary income balance"),
-                SlotSpec("current_account_components_sum", "processed", label="Components sum (reconciliation)"),
-            ),
-            expected_status="WIRED",
-            notes=(
-                "Quarterly SA from StatCan Table 36-10-0018. Headline + four "
-                "sub-component balances support the stacked-bar decomposition. "
-                "Annual companions ca_*_income (Table 36-10-0014) remain on disk "
-                "if a longer back-history is needed."
-            ),
-        ),
         PanelSpec(
             panel_id="panel-3", section="trade", panel_num=3,
             file="trade/Panel3PartnerShares.astro",
@@ -926,89 +780,6 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             secondary=SlotSpec("trade_exports_us", "raw", label="Exports to US"),
             expected_status="NEAR",
             notes="Panel expects shares to US/China/UK/Japan/Mexico. Only trade_exports_us is on disk in raw/; per-partner (china/uk/japan/mexico) MISSING. StatCan Table 12-10-0119 has the vectors; S effort to add 4 vectors to catalog.",
-        ),
-        PanelSpec(
-            panel_id="panel-4", section="trade", panel_num=4,
-            file="trade/Panel4TariffState.astro",
-            primary=None,
-            # metadata_path points at data/derived/tariff_state.json, emitted by
-            # pipeline.build.derive_tariff_state_fixture() on each build.
-            # The fixture is built from the verified source cards in
-            # editorial/source_cards/registry.yaml; rows carry id, label,
-            # rate_pct, rate_label, sector, mechanism, effective_date, status,
-            # source_url, excerpt, verified_at, verification_tier.
-            # Chart-builder work required: Panel4TariffState.astro currently
-            # renders PanelEmpty; needs to be replaced with a table or stack
-            # visualization that consumes data.metadata.rows from this fixture.
-            metadata_path="tariff_state.json",
-            expected_status="NEAR",
-            notes=(
-                "Tariff state is editorial/maintained content, not a time series. "
-                "The pipeline emits data/derived/tariff_state.json from the "
-                "verified source cards in editorial/source_cards/registry.yaml "
-                "(tariff-action cards: eo_14193_*, pp_section_232_*, pp_10908_*, "
-                "pp_10976_*, usmca_article_34_7). The JSON is surfaced under "
-                "panel.metadata in the per-section panel_data JSON. "
-                "NEAR because the fixture is emitted but the chart component "
-                "still renders PanelEmpty -- frontend build required."
-            ),
-        ),
-        PanelSpec(
-            panel_id="panel-5", section="trade", panel_num=5,
-            file="trade/Panel5TermsOfTrade.astro",
-            primary=SlotSpec("terms_of_trade", "processed", label="Terms of trade (national-accounts ratio)"),
-            secondary=SlotSpec("terms_of_trade_yoy", "processed", label="ToT Y/Y %"),
-            tertiary=SlotSpec("tot_exports_ipi", "raw", label="Exports IPI"),
-            extras=(
-                SlotSpec("tot_imports_ipi", "raw", label="Imports IPI"),
-                SlotSpec("wti", "raw", label="WTI (commodity ToT cross-check)"),
-            ),
-            expected_status="WIRED",
-            notes=(
-                "ToT = exports IPI / imports IPI x 100, derived in "
-                "pipeline.build.derive_terms_of_trade from StatCan Table 36-10-0106 "
-                "(GDP price indexes, quarterly SA). WTI kept as a commodity-ToT "
-                "cross-check overlay."
-            ),
-        ),
-        PanelSpec(
-            panel_id="panel-6", section="trade", panel_num=6,
-            file="trade/Panel6FDIBySector.astro",
-            # Inward (FDIC) total as primary; outward (CDIA) total as secondary.
-            # Key sectors wired as extras for the by-sector decomposition.
-            # Source: StatCan Table 36-10-0659-01 (by industry and select countries),
-            # annual, C$ millions. Vectors resolved 2026-05-13.
-            primary=SlotSpec("fdi_inward_total", "raw",
-                             label="FDIC inward (total all industries, C$ millions)"),
-            secondary=SlotSpec("fdi_outward_total", "raw",
-                               label="CDIA outward (total all industries, C$ millions)"),
-            extras=(
-                SlotSpec("fdi_inward_finance_insurance", "raw", label="Inward: Finance & insurance"),
-                SlotSpec("fdi_inward_mining_oil_gas", "raw", label="Inward: Mining, oil & gas"),
-                SlotSpec("fdi_inward_manufacturing", "raw", label="Inward: Manufacturing"),
-                SlotSpec("fdi_inward_real_estate", "raw", label="Inward: Real estate"),
-                SlotSpec("fdi_inward_professional_services", "raw", label="Inward: Professional services"),
-                SlotSpec("fdi_inward_wholesale_trade", "raw", label="Inward: Wholesale trade"),
-                SlotSpec("fdi_outward_finance_insurance", "raw", label="Outward: Finance & insurance"),
-                SlotSpec("fdi_outward_mining_oil_gas", "raw", label="Outward: Mining, oil & gas"),
-                SlotSpec("fdi_outward_manufacturing", "raw", label="Outward: Manufacturing"),
-                SlotSpec("fdi_outward_real_estate", "raw", label="Outward: Real estate"),
-                SlotSpec("fdi_outward_professional_services", "raw", label="Outward: Professional services"),
-                SlotSpec("fdi_outward_wholesale_trade", "raw", label="Outward: Wholesale trade"),
-            ),
-            expected_status="WIRED",
-            notes=(
-                "FDI by industry, inward and outward. StatCan Table 36-10-0659-01 "
-                "(not 36-10-0008-01, which is by country). Annual, C$ millions, "
-                "scalarFactorCode=6 (values arrive in millions — no pipeline scaling needed). "
-                "The 36-10-0008-01 stub (fdi_total, v62800001) in the prior catalog was "
-                "pointing at the wrong table; removed. Vectors resolved 2026-05-13 via POST "
-                "getSeriesInfoFromCubePidCoord on productId=36100659. "
-                "Chart-builder work required: Panel6FDIBySector.astro currently renders "
-                "PanelEmpty; needs to be replaced with a side-by-side bar or stacked-bar "
-                "decomposition using primary/secondary totals + extras sector splits. "
-                "Annual cadence means window_override is not needed (annual default = 60 years)."
-            ),
         ),
         # panel-7-alt: Sectoral exports by destination (US vs non-US).
         # NOT a live plate yet — alt channel only.
@@ -1202,60 +973,6 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
                 "based on historical HS 7108 share of HS 71xx (not directly verifiable "
                 "in this table -- editorial should note the bundling). "
                 "Vectors: v1863625573 (total), v1863625693 (UK), v1863625603 (US). "
-                "Resolved 2026-05-14."
-            ),
-        ),
-        PanelSpec(
-            panel_id="panel-9-alt", section="trade", panel_num=9,
-            file="trade/Panel9AltAluminumByPartner.astro",
-            # Aluminum (NAPCS 32+38) by destination. The non-US story:
-            # Netherlands >> Mexico >> everyone else (see coverage gap note).
-            # Primary = USA (anchors the scale; US is ~86% of total in 2026)
-            # Secondary = Netherlands (dominant non-US destination)
-            # Tertiary = Mexico
-            # Extras = remaining partners with non-trivial flows (all near zero
-            # at current rates; included for completeness and chart flexibility)
-            primary=SlotSpec("exports_aluminum_us", "processed",
-                             label="Aluminum exports to US (C$M)"),
-            secondary=SlotSpec("exports_aluminum_nld", "processed",
-                               label="Aluminum exports to Netherlands (C$M)"),
-            tertiary=SlotSpec("exports_aluminum_mex", "processed",
-                              label="Aluminum exports to Mexico (C$M)"),
-            extras=(
-                SlotSpec("exports_aluminum_gbr", "processed",
-                         label="Aluminum exports to UK (C$M)"),
-                SlotSpec("exports_aluminum_chn", "processed",
-                         label="Aluminum exports to China (C$M)"),
-                SlotSpec("exports_aluminum_jpn", "processed",
-                         label="Aluminum exports to Japan (C$M)"),
-                SlotSpec("exports_aluminum_deu", "processed",
-                         label="Aluminum exports to Germany (C$M)"),
-                SlotSpec("exports_aluminum_kor", "processed",
-                         label="Aluminum exports to South Korea (C$M)"),
-                SlotSpec("exports_aluminum_fra", "processed",
-                         label="Aluminum exports to France (C$M)"),
-                SlotSpec("exports_aluminum_bel", "processed",
-                         label="Aluminum exports to Belgium (C$M)"),
-                SlotSpec("exports_aluminum_ind", "processed",
-                         label="Aluminum exports to India (C$M)"),
-                SlotSpec("exports_aluminum_sgp", "processed",
-                         label="Aluminum exports to Singapore (C$M)"),
-            ),
-            expected_status="WIRED",
-            notes=(
-                "Aluminum (NAPCS 32+38) exports by partner country. "
-                "Derived: NAPCS 32 (unwrought) + NAPCS 38 (semi-finished) per partner. "
-                "Source: StatCan Table 12-10-0182-01. NSA monthly, 1997-01 to present. "
-                "COVERAGE GAP: UAE, Qatar, Kuwait, Bahrain, Oman NOT in the 29-partner "
-                "dimension of this table. No StatCan WDS alternative exists for these "
-                "countries. Data confirms flows are negligible in any case. "
-                "Key finding (March 2026): US = C$1,016M (~86% of total C$1,181M). "
-                "Non-US is heavily concentrated: Netherlands C$118M >> Mexico C$38M >> "
-                "all others <$2M. Non-US aluminum diversification is shallow — "
-                "almost no meaningful non-US flow exists except Rotterdam-hub routing. "
-                "Chart-builder note: stacked area or multi-line; if stacked, exclude "
-                "the USA series and show non-US partners only against the non-US total "
-                "(use exports_aluminum_nonus from panel-7-alt as the reference total). "
                 "Resolved 2026-05-14."
             ),
         ),

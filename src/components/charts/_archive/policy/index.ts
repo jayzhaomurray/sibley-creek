@@ -4,7 +4,7 @@
  */
 
 import type { ChartShelfEntry } from "../../_alternatives/_shared/shelfEntry";
-import policyPanelData from "../../../../../data/site/panel_data/policy.json";
+import policyPanelData from "../../../../../data/site/panel_data/monetary.json";
 import { pickPanel } from "../../_shared/panelData";
 
 import Panel4BalanceSheet from "./Panel4BalanceSheet.astro";
@@ -22,7 +22,7 @@ export const entries: ChartShelfEntry[] = [
       "Original Panel 4. Plotted settlement balances (primary, liability side) against total Bank assets (secondary). V2 retired the dual-line view and rebuilt as a five-panel small-multiples grid of the asset-side composition (Total assets, GoC bonds, T-bills, Advances, Repos).",
     whyBetter:
       "Asset composition is the structural story after QT completion; the dual-line view conflated a liability-side gauge (settlement balances) with an asset-side total and gave neither story room to breathe.",
-    dataFields: "data/site/panel_data/policy.json panel-4.",
+    dataFields: "data/site/panel_data/monetary.json panel-4.",
     addedAt: "2026-05-12",
     data: policy4Data,
   },
@@ -35,7 +35,7 @@ export const entries: ChartShelfEntry[] = [
     whyBetter:
       "Splitting clarifies the read — monthly bars are noisy month to month, YTD accumulates monotonically within each fiscal year. The shared-axis form compromised both.",
     dataFields:
-      "data/site/panel_data/policy.json panel-6 (post-renumber); primary=dof_fiscal_monthly_balance, secondary=dof_fiscal_ytd_balance.",
+      "data/site/panel_data/monetary.json panel-6 (post-renumber); primary=dof_fiscal_monthly_balance, secondary=dof_fiscal_ytd_balance.",
     addedAt: "2026-05-13",
   },
   {
