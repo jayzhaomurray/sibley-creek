@@ -913,6 +913,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "two-quarter-rule",
+    section: "output",
+    title: "Two negative quarters of real GDP growth is just a rule of thumb.",
+    publishedAt: "2026-06-01",
+    pdfPath: "/research/commentaries/two-quarter-rule.pdf",
+    excerpt:
+      "The media often defines a recession as two consecutive quarters of negative real GDP growth. Since 1961 that rule has fired eight times — but Canada has had only five official recessions.",
+  },
+  {
     slug: "gdp-march-q1-2026",
     section: "output",
     title: "Economy edges down 0.1% annualized in first quarter.",
