@@ -182,6 +182,29 @@ const SECTION_PRINT_SERIES = {
   "wti": "wti",
 };
 
+// Sane-range check for sections.json print valueRaw values.
+// Maps print keys (hyphenated dashboard convention) to [min, max] pairs.
+// Values are sourced from the same thresholds as SANE_RANGES above — do NOT
+// change one without changing the other. Print keys not listed here skip the
+// range check (the panel_data gate catches corruption in the underlying series).
+const SECTION_PRINT_SANE_RANGES = {
+  // Bond yields (%)
+  "goc-2y":       [0, 25],
+  "goc-10y":      [0, 25],
+  "policy-rate":  [0, 25],
+  // FX
+  "usdcad":       [0.5, 2.5],
+  // Equity
+  "tsx-composite": [1000, 200000],
+  // Commodities
+  "wti":          [0, 500],
+  // Unemployment (%)
+  "unrate":       [0, 30],
+  // GoC-UST spreads (bps as stored in sections.json for boc-fed-spread)
+  // Note: boc-fed-spread is stored in bps (-500 to +500); goc-2y/goc-10y above cover %-point spreads
+  "boc-fed-spread": [-500, 500],
+};
+
 const today = new Date();
 today.setHours(0, 0, 0, 0);
 
@@ -387,6 +410,19 @@ function checkSectionsPayload(payload) {
       if (Array.isArray(print.spark)) {
         for (let i = 0; i < print.spark.length; i++) {
           checkFiniteNumber(print.spark[i], `sections/${section}/${printKey}.spark[${i}]`, violations);
+        }
+      }
+
+      // Sane-range check on valueRaw — catches finite-but-absurd values that
+      // the NaN/Infinity check above cannot see (e.g. TSX print = 0).
+      const printRange = SECTION_PRINT_SANE_RANGES[printKey];
+      if (printRange && typeof print.valueRaw === "number" && Number.isFinite(print.valueRaw)) {
+        const [lo, hi] = printRange;
+        if (print.valueRaw < lo || print.valueRaw > hi) {
+          violations.push(
+            `sections/${section}/${printKey}.valueRaw=${print.valueRaw} ` +
+            `outside sane range [${lo}, ${hi}]`
+          );
         }
       }
 
