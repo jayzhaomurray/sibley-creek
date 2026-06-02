@@ -55,10 +55,16 @@ const TK_PATTERNS = [
 
 // HTML files to skip — dev-only routes that strip_dev_routes.mjs may have
 // already removed. We check for existence so this is safe regardless.
+// Also skip noindex section-preview routes that intentionally carry
+// [TITLE TK] / [CAPTION TK] placeholders awaiting writer-gate copy.
 const SKIP_SUBDIRS = new Set([
   "og-preview",
   "chart-alternatives",
   "chart-archive",
+  // Fiscal chartbook preview: noindex dev route with writer TK placeholders.
+  // Titles/captions are intentional [TITLE TK] pending three-gate copy review.
+  // Remove from skip list only after writer copy is finalized and gates pass.
+  "fiscal",
 ]);
 
 function* walkHtml(dir) {

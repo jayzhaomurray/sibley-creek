@@ -1,0 +1,484 @@
+---
+/*
+ * Plate2RevenuesPctGDP — Federal revenues vs program expenses as % of GDP.
+ *
+ * EDITORIAL PURPOSE (R2.5 MERGE): Single two-line chart combining revenues and
+ * program expenses on one honest axis. The gap between the lines IS the deficit/
+ * surplus, readable by eye. Merged from the prior Plate2 (revenues) + Plate3
+ * (expenses) because separate tight-axis charts at different y-domains would
+ * destroy the gap read — the whole editorial point.
+ *
+ * DATA: fiscal.json panel-7 (revenues) + panel-8 (expenses), wired by fiscal.astro
+ *   primary   = frt_revenues_pct_gdp      (% of GDP, FY1983-84 → FY2030-31)
+ *   secondary = frt_program_exp_pct_gdp   (% of GDP, FY1983-84 → FY2030-31)
+ *   NOTE: fiscal.astro wires this as data.primary = revenues, data.secondary = expenses.
+ *
+ * FORM: Two solid lines on one axis (R2.5 monochrome discipline).
+ *   Revenue line:  1.5px solid ink.
+ *   Expense line:  1.5px long-dash (6 3) to separate from revenue without using hue.
+ *   The gap between them is the fiscal surplus (revenue > expense) or deficit
+ *   (expense > revenue). Optional faint fill between lines where expense > revenue
+ *   is set to no-fill (default per spec — lines read cleanly without it on a 40-year
+ *   span with the COVID spike).
+ *   Direct terminus labels at the right edge name each line.
+ *
+ * Y-DOMAIN (tight, honest, un-clipped per R2.3):
+ *   Combined range: revenues 13.9%–18.0%, expenses 11.8%–28.1% (COVID spike).
+ *   Domain must reach the COVID peak un-clipped. Tight axis: 11%–30%, nice 1pp...
+ *   Actually for readability: 10%–30%, 5pp strides (10, 15, 20, 25, 30).
+ *   The spike at 28.1% is real and must reach its true y position.
+ *
+ * LONG HISTORY: FY1983-84 → FY2030-31 (42 actuals + 6 forecast per series).
+ *   x-ticks every 5 years.
+ *
+ * FORECAST CONVENTION (R2.1):
+ *   ONE consistent solid/dashed style across the boundary for each line.
+ *   Vertical dashed divider at the boundary (ink 1px, dash 4 3, 0.40 opacity).
+ *   "Forecast" micro-caps label above projection region.
+ *   ONE red dot (canon R2): PRIMARY series (revenues) only, at the last plotted
+ *   observation (the forecast endpoint FY2030-31). Secondary (expenses) gets none.
+ *
+ * TITLE: [TITLE TK]
+ * CAPTION: [CAPTION TK]
+ *
+ * CANON COMPLIANCE (Tier-3):
+ *   1. Two-line chart, monochrome. Revenue solid, expense dashed (6 3).
+ *   2. Tight axis containing COVID spike un-clipped.
+ *   3. Forecast divider + "Forecast" label (R2.1).
+ *   4. ONE red dot (canon R2): primary series (revenues) only, at the last plotted point.
+ *   5. One latest-point numeric label on the primary line.
+ *   6. Hairline frame 1px ink.
+ *   7. 4 horizontal gridlines, 0.18 opacity.
+ *   8. Plex Mono y-ticks; topmost "%".
+ *   9. Manrope x-ticks every 5 years.
+ *  10. Direct terminus labels per line (Manrope 600 12px).
+ *  11. viewBox 720x405.
+ *  12. aria-label names chart, window, last actuals.
+ *  13. No source/caption/methodology inside SVG.
+ *
+ * PLATE 3 NOTE: Plate3ProgramExpPctGDP now renders a dedicated expense-only chart
+ *   (with tight independent axis, full COVID spike visible) as a standalone companion.
+ *   This merged plate is the editorial primary; Plate3 is the detailed view.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---- Data types ----------------------------------------------------------------
+type RawPt = { date: string; value: number | null; is_forecast?: number; fy_label?: string };
+
+interface Pt {
+  fyLabel: string;
+  value: number;
+  isForecast: boolean;
+}
+
+function extractPts(raw: unknown[] | undefined | null): Pt[] {
+  if (!raw || raw.length === 0) return [];
+  const result: Pt[] = [];
+  for (const r of raw as RawPt[]) {
+    if (r.value === null || r.value === undefined) continue;
+    result.push({
+      fyLabel: r.fy_label ?? r.date.slice(0, 4),
+      value: r.value,
+      isForecast: r.is_forecast === 1,
+    });
+  }
+  return result;
+}
+
+const revPts = extractPts(data?.primary?.data);
+const expPts = extractPts(data?.secondary?.data);
+
+const hasData = revPts.length > 0 || expPts.length > 0;
+
+// ---- Geometry ------------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 56;   // canon left margin
+const M_R = 96;   // canon right gutter for direct terminus labels
+const M_T = 44;   // canon top
+const M_B = 40;   // canon bottom
+
+const PLOT_X0 = M_L;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_W  = PLOT_X1 - PLOT_X0;
+const PLOT_H  = PLOT_Y1 - PLOT_Y0;
+
+// ---- Y domain: tight, contains COVID spike un-clipped (R2.3) -------------------
+// Revenue range: ~13.9%–18.0%
+// Expense range: ~11.8%–28.1% (COVID spike at FY2020-21)
+// Combined tight axis: 10% to 30%, 5pp strides -> 5 ticks, 3 interior gridlines.
+const Y_DOM_MIN = 10;
+const Y_DOM_MAX = 30;
+const Y_TICK_STEP = 5;
+const ySpan = Y_DOM_MAX - Y_DOM_MIN;
+
+const yScale = (v: number): number =>
+  PLOT_Y0 + PLOT_H - ((v - Y_DOM_MIN) / ySpan) * PLOT_H;
+
+// ---- X scale: use the union of both point sets (should be identical) -----------
+// Use revenues as the primary x-index (longer of the two if mismatched)
+const allFYLabels = revPts.length > 0 ? revPts.map((p) => p.fyLabel) : expPts.map((p) => p.fyLabel);
+const N = allFYLabels.length;
+const fyIndex = new Map(allFYLabels.map((fy, i) => [fy, i]));
+
+const xOfFY = (fy: string): number => {
+  const i = fyIndex.get(fy) ?? 0;
+  return PLOT_X0 + (N > 1 ? (i / (N - 1)) * PLOT_W : PLOT_W / 2);
+};
+const xOfIndex = (i: number): number =>
+  PLOT_X0 + (N > 1 ? (i / (N - 1)) * PLOT_W : PLOT_W / 2);
+
+// ---- Y ticks -------------------------------------------------------------------
+type YTick = { y: number; label: string };
+const yTickVals: number[] = [];
+for (let v = Y_DOM_MIN; v <= Y_DOM_MAX; v += Y_TICK_STEP) yTickVals.push(v);
+const yTicks: YTick[] = yTickVals.map((v, i) => ({
+  y: yScale(v),
+  label: i === yTickVals.length - 1 ? `${v}%` : `${v}`,
+}));
+const gridlines = yTickVals.filter((v) => v > Y_DOM_MIN && v < Y_DOM_MAX);
+
+// ---- X ticks: nice round END-YEARS on the ~48yr span ---------------------------
+// A Canadian fiscal year is named for the year it ends (FY1983-84 -> 1984,
+// FY2030-31 -> 2031). Single 4-digit round number, no apostrophe, no emphasis.
+// Decade ticks (1990, 2000, 2010, 2020) plus the series end (2031), which sits
+// 11 years clear of 2020 so it never crowds.
+const fyEndYear = (fy: string): number => parseInt(fy.slice(0, 4), 10) + 1;
+type XTick = { x: number; label: string };
+const X_TARGET_ENDYEARS = [1990, 2000, 2010, 2020];
+const seriesEndYear = allFYLabels.length > 0 ? fyEndYear(allFYLabels[allFYLabels.length - 1]!) : null;
+const xTargetSet = new Set<number>(X_TARGET_ENDYEARS);
+if (seriesEndYear !== null) xTargetSet.add(seriesEndYear);
+const xTicks: XTick[] = allFYLabels
+  .map((fy, i) => ({ i, ey: fyEndYear(fy) }))
+  .filter(({ ey }) => xTargetSet.has(ey))
+  .map(({ i, ey }) => ({ x: xOfIndex(i), label: String(ey) }));
+
+// ---- Forecast boundary helper --------------------------------------------------
+function firstForecastIdx(pts: Pt[]): number {
+  for (let i = 0; i < pts.length; i++) {
+    if (pts[i]!.isForecast) return i;
+  }
+  return -1;
+}
+
+// Forecast boundary: use the earlier of the two series' first forecast indexes
+const revFirstFC = firstForecastIdx(revPts);
+const expFirstFC = firstForecastIdx(expPts);
+const forecastStartIdx = Math.min(
+  revFirstFC >= 0 ? revFirstFC : Infinity,
+  expFirstFC >= 0 ? expFirstFC : Infinity,
+) as number;
+
+// Divider x: between last actual and first forecast on the x-axis
+const dividerX = isFinite(forecastStartIdx) && forecastStartIdx > 0
+  ? (xOfIndex(forecastStartIdx - 1) + xOfIndex(forecastStartIdx)) / 2
+  : null;
+
+// ---- SVG paths -----------------------------------------------------------------
+function buildPath(pts: Pt[]): string {
+  if (pts.length === 0) return "";
+  return pts
+    .map((p, i) => `${i === 0 ? "M" : "L"}${xOfFY(p.fyLabel).toFixed(2)},${yScale(p.value).toFixed(2)}`)
+    .join(" ");
+}
+
+const revPath = buildPath(revPts);
+const expPath = buildPath(expPts);
+
+// ---- Latest-point dot + numeric label (canon R2) -------------------------------
+// ONE dot only, on the PRIMARY series (revenues — fiscal.astro wires
+// data.primary = revenues). It sits on the LAST PLOTTED OBSERVATION, which is the
+// forecast endpoint (FY2030-31), NOT the last actual. The secondary series
+// (expenses) gets NO dot. This also resolves the prior two-dot collision.
+const revDotPt = revPts.length > 0 ? revPts[revPts.length - 1] : null;
+
+const revDotX = revDotPt ? xOfFY(revDotPt.fyLabel) : 0;
+const revDotY = revDotPt ? yScale(revDotPt.value) : 0;
+const revLabel = revDotPt ? `${revDotPt.value.toFixed(1)}%` : "";
+
+// ---- Terminus labels (rightmost point of each series) --------------------------
+// At the forecast endpoint the two series nearly converge (revenue ~15.7%, expense
+// ~15.1% of GDP), so their natural y positions are <10px apart and double-print.
+// We pin the labels to the gutter x (just past the right frame) and force a
+// symmetric vertical spread around the pair's midpoint so they clear each other by
+// >=14px without either drifting far from the line it names.
+const revTerminus = revPts[revPts.length - 1];
+const expTerminus = expPts[expPts.length - 1];
+const revTermX = revTerminus ? xOfFY(revTerminus.fyLabel) : 0;
+const expTermX = expTerminus ? xOfFY(expTerminus.fyLabel) : 0;
+
+const rawRevTermY = revTerminus ? yScale(revTerminus.value) : 0;
+const rawExpTermY = expTerminus ? yScale(expTerminus.value) : 0;
+
+// Enforce >=TERM_GAP vertical separation. Revenue (higher value -> smaller y) goes
+// on top; expense below. Spread symmetrically about their midpoint so neither label
+// strays far from its terminus.
+const TERM_GAP = 16; // >= 14px canon minimum
+let revTermY = rawRevTermY;
+let expTermY = rawExpTermY;
+if (revTerminus && expTerminus) {
+  const mid = (rawRevTermY + rawExpTermY) / 2;
+  // Revenue is the higher % at the endpoint, so its label sits above (smaller y);
+  // expense below. Symmetric spread keeps each near its own terminus.
+  if (rawRevTermY <= rawExpTermY) {
+    revTermY = mid - TERM_GAP / 2;
+    expTermY = mid + TERM_GAP / 2;
+  } else {
+    revTermY = mid + TERM_GAP / 2;
+    expTermY = mid - TERM_GAP / 2;
+  }
+}
+
+// The "15.7%" numeric value label belongs to the revenue dot. Park it to the LEFT
+// of the dot (inside the frame) and nudge it up off the line, so it does not
+// compete with the gutter terminus labels or the dot glyph.
+const revDotLabelX = revDotX - 7;
+const revLabelY = revDotY - 9;
+
+// ---- aria-label ----------------------------------------------------------------
+const ariaLabel =
+  `Federal revenues and program expenses as a percentage of GDP, ` +
+  `FY${allFYLabels[0] ?? ""} to FY${allFYLabels[allFYLabels.length - 1] ?? ""}. ` +
+  `Revenue line ends at ${revLabel} of GDP (FY${revDotPt?.fyLabel ?? ""}, projected). ` +
+  `The gap between the lines is the fiscal surplus (revenue above expense) or deficit. ` +
+  `FY2020-21 expense spike at 28.1% reflects COVID-19 emergency spending.`;
+---
+
+{!hasData ? (
+  <PanelEmpty reason="DATA NOT YET WIRED — fiscal.json panel-7 (revenues) + panel-8 (expenses)" />
+) : (
+  <div class="p2rev-chart" data-panel="fiscal-plate-2" data-panel-status="live">
+    <svg
+      class="p2rev-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      <title>Revenues and program spending converge near 15.5% of GDP—the gap is the deficit. — Federal revenues vs program expenses, % of GDP</title>
+
+      {/* Horizontal gridlines */}
+      {gridlines.map((v) => (
+        <line
+          class="p2rev-chart__gridline"
+          x1={PLOT_X0.toFixed(2)} y1={yScale(v).toFixed(2)}
+          x2={PLOT_X1.toFixed(2)} y2={yScale(v).toFixed(2)}
+        />
+      ))}
+
+      {/* Revenue line (solid) */}
+      {revPath && <path class="p2rev-chart__rev-line" d={revPath} />}
+
+      {/* Expense line (long-dash 6 3 to differentiate from revenue without hue) */}
+      {expPath && <path class="p2rev-chart__exp-line" d={expPath} />}
+
+      {/* Vertical forecast divider (R2.1) */}
+      {dividerX !== null && (
+        <line
+          class="p2rev-chart__divider"
+          x1={dividerX.toFixed(2)} y1={PLOT_Y0.toFixed(2)}
+          x2={dividerX.toFixed(2)} y2={PLOT_Y1.toFixed(2)}
+        />
+      )}
+
+      {/* "Forecast" label above projection region (R2.1) */}
+      {dividerX !== null && (
+        <text
+          class="p2rev-chart__forecast-label"
+          x={(dividerX + 6).toFixed(2)}
+          y={(PLOT_Y0 - 6).toFixed(2)}
+          text-anchor="start"
+        >FORECAST</text>
+      )}
+
+      {/* MTA red dot — PRIMARY series (revenues) only, at the last plotted
+          observation (forecast endpoint). One dot per chart (canon R2). */}
+      {revDotPt && (
+        <circle
+          class="p2rev-chart__latest-dot"
+          cx={revDotX.toFixed(2)}
+          cy={revDotY.toFixed(2)}
+          r="4"
+        >
+          <title>Revenue FY{revDotPt.fyLabel}: {revLabel} of GDP{revDotPt.isForecast ? " (SEU 2026 proj.)" : ""}</title>
+        </circle>
+      )}
+
+      {/* Numeric value label dropped per user (the dot + axis carry the latest value;
+          the floating % competed with the terminus labels). The dot remains. */}
+
+      {/* Hairline frame */}
+      <rect
+        class="p2rev-chart__frame"
+        x={PLOT_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
+        width={PLOT_W.toFixed(2)} height={PLOT_H.toFixed(2)}
+      />
+
+      {/* Y-axis tick labels */}
+      {yTicks.map((t) => (
+        <text
+          class="p2rev-chart__ytick-label"
+          x={(PLOT_X0 - 6).toFixed(2)}
+          y={(t.y + 4).toFixed(2)}
+          text-anchor="end"
+        >{t.label}</text>
+      ))}
+
+      {/* X-axis tick labels */}
+      {xTicks.map((t) => (
+        <g>
+          <line
+            class="p2rev-chart__xtick"
+            x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 5).toFixed(2)}
+          />
+          <text
+            class="p2rev-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 17).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* Direct terminus labels — name each line at its right terminus */}
+      {revTerminus && (
+        <text
+          class="p2rev-chart__term-label"
+          x={(revTermX + 8).toFixed(2)}
+          y={(revTermY + 4).toFixed(2)}
+          text-anchor="start"
+        >Revenues</text>
+      )}
+      {expTerminus && (
+        <text
+          class="p2rev-chart__term-label"
+          x={(expTermX + 8).toFixed(2)}
+          y={(expTermY + 4).toFixed(2)}
+          text-anchor="start"
+        >Expenses</text>
+      )}
+
+    </svg>
+  </div>
+)}
+
+<style>
+  /*
+   * Plate2RevenuesPctGDP — Tier-3 two-line merged revenue-vs-expense chart (R2.5).
+   * Revenue: 1.5px solid ink. Expense: 1.5px long-dash (6 3).
+   * Axis 10%–30% contains COVID spike (28.1%) un-clipped.
+   * Forecast signal: vertical dashed divider + "Forecast" label (R2.1).
+   * Two red dots (one per series last actual). No hue on data lines.
+   */
+  .p2rev-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+  }
+  .p2rev-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans);
+  }
+  .p2rev-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  /* Revenue line: 1.5px solid ink */
+  .p2rev-chart__rev-line {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  /* Expense line: 1.5px long-dash (6 3) — differentiates from revenue without hue */
+  .p2rev-chart__exp-line {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-dasharray: 6 3;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  /* Vertical dashed divider (R2.1): dash 4 2, opacity 0.40 (structural divider) */
+  .p2rev-chart__divider {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-opacity: 0.40;
+    shape-rendering: crispEdges;
+  }
+  /* "FORECAST" label (R2.1): recession-label token — Manrope 600 11px, 0.18em, full ink */
+  .p2rev-chart__forecast-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+  }
+  .p2rev-chart__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+  /* Latest-actual numeric label: Plex Mono 12px (data, not prose) */
+  .p2rev-chart__latest-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .p2rev-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p2rev-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .p2rev-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p2rev-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+  }
+  /* Direct terminus labels: canon direct-label — Manrope 600 13px, full ink */
+  .p2rev-chart__term-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  /* TK placeholder slot: typeset as an empty slot, not shipped chrome (R9) */
+  .p2rev-chart__term-label--tk {
+    fill: var(--ink-placeholder);
+  }
+</style>

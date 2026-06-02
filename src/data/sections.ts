@@ -555,13 +555,13 @@ export const sections: Section[] = [
       kind: "last",
       date: "Apr 24, 2026",
       body:
-        "Fiscal stance is mildly expansionary, penciled in to fade from 2.1% to 1.4% of GDP across the horizon. The government's stated commitment to balance day-to-day operating spending by FY2028-29 holds under its own classification of operating vs capital. The PBO disagrees: reclassifying $94 billion the government calls capital leaves the operating balance still in deficit by $18 billion that year.",
+        "The fiscal stance is mildly expansionary and stays in deficit through the decade—the gap narrows because program spending is held below GDP growth, not because revenue rises. Ottawa's own plan reaches an operating surplus by 2028-29 while booking capital investment separately as debt; record bond issuance funds the difference. Federal debt holds near 41% of GDP through the forecast—well below the 66.6% of the mid-1990s, elevated against the past decade.",
     },
     abstractCitations: [
-      { phrase: "fade from 2.1% to 1.4% of GDP", source: "card:dof_seu_2026_deficit_gdp_share", note: "DoF SEU April 2026 Annex 1 Table A1.7: federal deficit 2.1% of GDP in FY2025-26 to 1.4% by FY2030-31." },
-      { phrase: "balance day-to-day operating spending by FY2028-29", source: "card:dof_operating_balance_projection", note: "DoF SEU April 2026 Annex 1 Table A1.5: day-to-day operating balance crosses zero in FY2028-29 (+$0.9bn), meeting the stated fiscal anchor under DoF's own definition." },
-      { phrase: "reclassifying $94 billion", source: "card:pbo_operating_capital_reclassification_nov_2025", note: "PBO Budget 2025 review (RP-2526-017-S, Nov 14 2025): PBO reclassifies $94bn of DoF's claimed capital ($311.5bn) as operating under international standard." },
-      { phrase: "operating balance still in deficit by $18 billion", source: "card:pbo_operating_capital_reclassification_nov_2025", note: "PBO RP-2526-017-S: under PBO's reclassification, the FY2028-29 operating deficit is -$18.1bn (DoF says +$0.9bn surplus)." },
+      { phrase: "stays in deficit through the decade", source: "card:dof_seu_2026_deficit_gdp_share", note: "DoF SEU April 2026 Annex 1 Table A1.7: federal deficit every forecast year, 2.1% of GDP in FY2025-26 fading to 1.4% by FY2030-31." },
+      { phrase: "reaches an operating surplus by 2028-29", source: "card:dof_operating_balance_projection", note: "DoF SEU April 2026 Annex 1 Table A1.5: day-to-day operating balance crosses zero in FY2028-29 (+$0.9bn), meeting the stated fiscal anchor under DoF's own definition." },
+      { phrase: "Federal debt holds near 41% of GDP", source: "pipeline:fiscal:panel-9", note: "fiscal.json panel-9 frt_federal_debt_pct_gdp: 41.1% FY2025-26 to 41.6% FY2030-31 (forecast-stable)." },
+      { phrase: "well below the 66.6% of the mid-1990s", source: "pipeline:fiscal:panel-9", note: "fiscal.json panel-9 frt_federal_debt_pct_gdp: series peak 66.6% at FY1995-96." },
     ],
   },
   {

@@ -1,0 +1,557 @@
+---
+/*
+ * Plate1BalanceTwoPanel — ALTERNATE Plate 1 (two-panel small-multiples, ONE plate).
+ *
+ * Comparison companion to Plate1BalanceComposition (the original single-panel
+ * signed-bar chart). Renders directly below the original on /fiscal/ so Jay can
+ * pick the presentation ("alternate lives alongside, user picks").
+ *
+ * LAYOUT: two panels SIDE-BY-SIDE in one plate (the proportions read cleaner
+ *   horizontally than stacked — the long history needs width, the zoom is short).
+ *
+ *   PANEL A (left): FULL budget-balance history, FY1983-84 -> FY2030-31 forecast.
+ *     Signed total bars from zero, $B (frt_federal_balance_total). The COVID
+ *     -$327B bar lives here — this panel is the long view.
+ *
+ *   PANEL B (right): the all-forecast composition, FY2025-26 -> FY2030-31, showing
+ *     the OPERATING vs CAPITAL split in $B (frt_federal_balance_opex /
+ *     frt_federal_balance_capex). Operating swings from -$26.4B to +$6.1B (surplus
+ *     by FY2028-29); capital ($40.5 -> 59.3B) is the drag. Operating = INK (1.00);
+ *     capital = MID grey (0.55) on a pure-ink base (grey-tint ramp, NOT texture;
+ *     fiscal_bar_language.md §2), with a 1px --paper white hairline between the two
+ *     segments. The whole panel is forecast, so it carries NO divider/FORECAST
+ *     label — the era-signal lives in the panel title. The FY2024-25 last actual
+ *     lives in Panel A, where the last actual belongs.
+ *
+ * AXIS MODE: Mode B (per-panel y-axes). The two panels have very different
+ *   scales: full ~ -340..+40, forecast zoom ~ -70..+10. Each panel carries its
+ *   own y-tick labels. No latest-dot (bars; canon R2).
+ *
+ * CANON: full-ink chrome (no opacity dimming on CHROME), 12px ticks, dashed `4 2`
+ *   forecast divider + uppercase FORECAST label IN PANEL A ONLY (it spans the
+ *   actual/forecast boundary), zero line 1.5px pure ink, hairline frame 1px,
+ *   gridlines 0.18 opacity, 13px panel titles (small-mults canon). Category
+ *   separation = grey-tint ink-density ramp (INK/MID), never texture, never
+ *   forecast-signaling. Panel title slots are TK placeholders rendered in
+ *   var(--ink-placeholder). Author NO reader prose.
+ *
+ * DATA: fiscal.json panel-6
+ *   primary   = frt_federal_balance_total ($B, FY1983-84 -> FY2030-31, is_forecast)
+ *   secondary = frt_federal_balance_opex  ($B, FY2025-26 -> FY2030-31, forecast)
+ *   tertiary  = frt_federal_balance_capex ($B positive, FY2025-26 -> FY2030-31)
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---- Data types ----------------------------------------------------------------
+type RawPt = { date: string; value: number | null; is_forecast?: number; fy_label?: string };
+
+interface BarPt {
+  fyLabel: string;
+  total: number;
+  opex: number | null;
+  capex: number | null;
+  isForecast: boolean;
+}
+
+const opexByFY = new Map<string, number | null>();
+const capexByFY = new Map<string, number | null>();
+if (data?.secondary?.data) {
+  for (const r of data.secondary.data as RawPt[]) {
+    const fy = r.fy_label ?? r.date.slice(0, 4);
+    opexByFY.set(fy, r.value);
+  }
+}
+if (data?.tertiary?.data) {
+  for (const r of data.tertiary.data as RawPt[]) {
+    const fy = r.fy_label ?? r.date.slice(0, 4);
+    capexByFY.set(fy, r.value);
+  }
+}
+
+const allBars: BarPt[] = [];
+if (data?.primary?.data && data.primary.data.length > 0) {
+  for (const r of data.primary.data as RawPt[]) {
+    if (r.value === null || r.value === undefined) continue;
+    const fy = r.fy_label ?? r.date.slice(0, 4);
+    allBars.push({
+      fyLabel: fy,
+      total: r.value,
+      opex: opexByFY.get(fy) ?? null,
+      capex: capexByFY.get(fy) ?? null,
+      isForecast: r.is_forecast === 1,
+    });
+  }
+}
+
+const hasData = allBars.length > 0;
+
+// Zoom window: FY2025-26 -> FY2030-31 (forecast end). All-forecast composition
+// panel — the lone FY2024-25 actual total is dropped (it lives in Panel A, where
+// the last actual belongs). Six bars, every one an operating/capital split.
+const ZOOM_FYS = ["2025-26", "2026-27", "2027-28", "2028-29", "2029-30", "2030-31"];
+const zoomBars: BarPt[] = ZOOM_FYS
+  .map((fy) => allBars.find((b) => b.fyLabel === fy))
+  .filter((b): b is BarPt => Boolean(b));
+
+// ---- Outer geometry ------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_T = 44;   // canon top — FORECAST stamp clears
+const M_B = 40;   // canon bottom — x-tick labels
+const PANEL_GUTTER = 64; // space between the two panels (each needs its own axis)
+const M_L = 56;   // canon left axis margin (Panel A y-ticks)
+const M_R = 96;   // canon right gutter (Panel B segment labels)
+
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_H = PLOT_Y1 - PLOT_Y0;
+
+// Width split: Panel A (history) gets the larger share; Panel B (zoom) is narrower.
+const innerW = VB_W - M_L - M_R - PANEL_GUTTER;
+const A_W = innerW * 0.62;
+const B_W = innerW * 0.38;
+
+const A_X0 = M_L;
+const A_X1 = A_X0 + A_W;
+const B_X0 = A_X1 + PANEL_GUTTER;
+const B_X1 = B_X0 + B_W;
+
+// ---- Panel A scale (full history) ---------------------------------------------
+// Data range -327.7B (COVID) to +19.9B. Nice strides of 40: -360..+40.
+const A_Y_MIN = -360;
+const A_Y_MAX = 40;
+const A_Y_STEP = 40;
+const aSpan = A_Y_MAX - A_Y_MIN;
+const aY = (v: number): number => PLOT_Y0 + PLOT_H - ((v - A_Y_MIN) / aSpan) * PLOT_H;
+
+// ---- Panel B scale (forecast zoom) --------------------------------------------
+// Range: total -66.9..-36.3, opex -26.4..+6.1, capex extends deficit. Zoom -70..+10.
+const B_Y_MIN = -70;
+const B_Y_MAX = 10;
+const B_Y_STEP = 20;
+const bSpan = B_Y_MAX - B_Y_MIN;
+const bY = (v: number): number => PLOT_Y0 + PLOT_H - ((v - B_Y_MIN) / bSpan) * PLOT_H;
+
+// ---- Panel A bars --------------------------------------------------------------
+const A_N = allBars.length;
+const A_BAR_TOTAL_W = A_W / A_N;
+const A_BAR_GAP = Math.max(A_BAR_TOTAL_W * 0.12, 0.6);
+const A_BAR_W = A_BAR_TOTAL_W - A_BAR_GAP;
+const aBarX = (i: number): number => A_X0 + i * A_BAR_TOTAL_W + A_BAR_GAP / 2;
+const aBarCX = (i: number): number => aBarX(i) + A_BAR_W / 2;
+
+interface RectSpec { x: number; y: number; w: number; h: number; hatch: boolean; title: string }
+const aRects: RectSpec[] = [];
+for (let i = 0; i < allBars.length; i++) {
+  const b = allBars[i]!;
+  const y0 = aY(0);
+  const y1 = aY(b.total);
+  const [ry, rh] = b.total >= 0 ? [y1, y0 - y1] : [y0, y1 - y0];
+  if (rh > 0.3) {
+    aRects.push({
+      x: aBarX(i), y: ry, w: A_BAR_W, h: rh, hatch: false,
+      title: `FY${b.fyLabel}: $${b.total >= 0 ? "+" : ""}${b.total.toFixed(1)}B`,
+    });
+  }
+}
+
+// Panel A forecast divider
+const aFirstFcIdx = allBars.findIndex((b) => b.isForecast);
+const aDividerX = aFirstFcIdx > 0
+  ? (aBarX(aFirstFcIdx - 1) + A_BAR_W + aBarX(aFirstFcIdx)) / 2
+  : null;
+
+// Panel A y-ticks
+type YTick = { y: number; label: string };
+const aYTickVals: number[] = [];
+for (let v = A_Y_MIN; v <= A_Y_MAX; v += A_Y_STEP) aYTickVals.push(v);
+const aYTicks: YTick[] = aYTickVals.map((v, i) => ({
+  y: aY(v),
+  label: i === aYTickVals.length - 1
+    ? (v >= 0 ? `+$${v}B` : `-$${Math.abs(v)}B`)
+    : (v === 0 ? "0" : (v > 0 ? `+${v}` : `${v}`)),
+}));
+const aGrid = aYTickVals.filter((v) => v !== 0);
+
+// End-year label: a Canadian fiscal year is named for the year it ends
+// (FY1983-84 -> 1984, FY2030-31 -> 2031). Single 4-digit round number, no
+// apostrophe, no emphasis.
+const fyEndYear = (fy: string): number => parseInt(fy.slice(0, 4), 10) + 1;
+
+// Panel A x-ticks: nice round end-years on the ~48yr axis — decade ticks
+// (1990, 2000, 2010, 2020) plus the series end (2031), which sits 11 years
+// clear of 2020 so it never crowds. Pick the bar whose end-year matches each
+// target.
+type XTick = { x: number; label: string };
+const A_TARGET_ENDYEARS = [1990, 2000, 2010, 2020];
+const aSeriesEndYear = allBars.length > 0 ? fyEndYear(allBars[allBars.length - 1]!.fyLabel) : null;
+const aTargetSet = new Set<number>(A_TARGET_ENDYEARS);
+if (aSeriesEndYear !== null) aTargetSet.add(aSeriesEndYear);
+const aXTicks: XTick[] = allBars
+  .map((b, i) => ({ b, i, ey: fyEndYear(b.fyLabel) }))
+  .filter(({ ey }) => aTargetSet.has(ey))
+  .map(({ i, ey }) => ({ x: aBarCX(i), label: String(ey) }));
+
+// ---- Panel B bars (forecast zoom, opex/capex composition) ----------------------
+const B_N = zoomBars.length;
+const B_BAR_TOTAL_W = B_N > 0 ? B_W / B_N : B_W;
+const B_BAR_GAP = Math.max(B_BAR_TOTAL_W * 0.20, 2);
+const B_BAR_W = B_BAR_TOTAL_W - B_BAR_GAP;
+const bBarX = (i: number): number => B_X0 + i * B_BAR_TOTAL_W + B_BAR_GAP / 2;
+const bBarCX = (i: number): number => bBarX(i) + B_BAR_W / 2;
+
+const bRects: RectSpec[] = [];
+for (let i = 0; i < zoomBars.length; i++) {
+  const b = zoomBars[i]!;
+  const x = bBarX(i);
+  const w = B_BAR_W;
+  const y0 = bY(0);
+
+  if (b.opex === null || b.capex === null) {
+    // Last actual (FY2024-25): total only, solid.
+    const y1 = bY(b.total);
+    const [ry, rh] = b.total >= 0 ? [y1, y0 - y1] : [y0, y1 - y0];
+    if (rh > 0.3) {
+      bRects.push({
+        x, y: ry, w, h: rh, hatch: false,
+        title: `FY${b.fyLabel}: $${b.total >= 0 ? "+" : ""}${b.total.toFixed(1)}B`,
+      });
+    }
+  } else {
+    // Operating segment (signed): zero -> opex.
+    if (b.opex !== 0) {
+      const y1 = bY(b.opex);
+      const [ry, rh] = b.opex >= 0 ? [y1, y0 - y1] : [y0, y1 - y0];
+      if (rh > 0.3) {
+        bRects.push({
+          x, y: ry, w, h: rh, hatch: false,
+          title: `FY${b.fyLabel} operating: $${b.opex >= 0 ? "+" : ""}${b.opex.toFixed(1)}B (SEU 2026 proj.)`,
+        });
+      }
+    }
+    // Capital segment (positive, extends deficit below operating).
+    if (b.capex > 0) {
+      const capexTop = Math.min(b.opex, 0);
+      const yTop = bY(capexTop);
+      const yBot = bY(capexTop - b.capex);
+      const rh = yBot - yTop;
+      if (rh > 0.3) {
+        bRects.push({
+          x, y: yTop, w, h: rh, hatch: true,
+          title: `FY${b.fyLabel} capital: $${b.capex.toFixed(1)}B (SEU 2026 proj.)`,
+        });
+      }
+    }
+  }
+}
+
+// Panel B carries NO forecast divider and NO FORECAST label: the whole panel is
+// forecast (it starts at FY2025-26), so there is no actual/forecast boundary to
+// mark. The era-signal lives in the panel title. (Panel A keeps its divider +
+// label — it genuinely spans the boundary.)
+
+// Panel B y-ticks
+const bYTickVals: number[] = [];
+for (let v = B_Y_MIN; v <= B_Y_MAX; v += B_Y_STEP) bYTickVals.push(v);
+const bYTicks: YTick[] = bYTickVals.map((v, i) => ({
+  y: bY(v),
+  label: i === bYTickVals.length - 1
+    ? (v >= 0 ? `+$${v}B` : `-$${Math.abs(v)}B`)
+    : (v === 0 ? "0" : (v > 0 ? `+${v}` : `${v}`)),
+}));
+const bGrid = bYTickVals.filter((v) => v !== 0);
+
+// Panel B x-ticks: short 6-bar forecast zoom (end-years 2026..2031). Every-two
+// end-years (2026, 2028, 2030) — evenly spaced, no adjacent-year crowding. The
+// final 2031 bar is dropped from the ticks (it would abut 2030); the panel title
+// names the FY2030-31 horizon.
+const bXTicks: XTick[] = zoomBars
+  .map((b, i) => ({ i, ey: fyEndYear(b.fyLabel) }))
+  .filter(({ ey }) => ey % 2 === 0)
+  .map(({ i, ey }) => ({ x: bBarCX(i), label: String(ey) }));
+
+// Panel B in-gutter segment labels anchored to the last forecast bar.
+const lastZoom = zoomBars.length > 0 ? zoomBars[zoomBars.length - 1] : null;
+let bOpexLabelY = PLOT_Y1 - 60;
+let bCapexLabelY = PLOT_Y1 - 30;
+if (lastZoom && lastZoom.opex !== null && lastZoom.capex !== null) {
+  bOpexLabelY = (bY(0) + bY(lastZoom.opex)) / 2;
+  const capexTop = Math.min(lastZoom.opex, 0);
+  bCapexLabelY = (bY(capexTop) + bY(capexTop - lastZoom.capex)) / 2;
+}
+const bSegLabelX = B_X1 + 5;
+
+// ---- aria-label ----------------------------------------------------------------
+const firstFY = allBars[0]?.fyLabel ?? "";
+const lastFY = allBars[allBars.length - 1]?.fyLabel ?? "";
+const ariaLabel =
+  `Two-panel federal budget balance. Left panel: total balance, signed bars from zero, ` +
+  `FY${firstFY} to FY${lastFY} ($B). Right panel: forecast-window composition FY2025-26 to FY2030-31 ` +
+  `showing the operating-vs-capital split (operating in black, capital in mid grey), where the ` +
+  `operating balance swings from a deficit to a small surplus and capital spending is the drag on ` +
+  `the total. Each panel uses its own y-axis scale.`;
+---
+
+{!hasData ? (
+  <PanelEmpty reason="DATA NOT YET WIRED — fiscal.json panel-6 primary=frt_federal_balance_total" />
+) : (
+  <div class="p1tp-chart" data-panel="fiscal-plate-1-alt" data-panel-status="live">
+    <svg
+      class="p1tp-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      <title>Ottawa is balancing the operating books and borrowing the rest for capital. — Federal budget balance (two-panel)</title>
+
+      {/* ===================== PANEL A — full history ===================== */}
+      {aGrid.map((v) => (
+        <line
+          class="p1tp-chart__gridline"
+          x1={A_X0.toFixed(2)} y1={aY(v).toFixed(2)}
+          x2={A_X1.toFixed(2)} y2={aY(v).toFixed(2)}
+        />
+      ))}
+      <line
+        class="p1tp-chart__zero-line"
+        x1={A_X0.toFixed(2)} y1={aY(0).toFixed(2)}
+        x2={A_X1.toFixed(2)} y2={aY(0).toFixed(2)}
+      />
+      {aRects.map((seg) => (
+        <rect
+          class={seg.hatch ? "p1tp-chart__bar-mid" : "p1tp-chart__bar-solid"}
+          x={seg.x.toFixed(2)} y={seg.y.toFixed(2)}
+          width={seg.w.toFixed(2)} height={seg.h.toFixed(2)}
+        >
+          <title>{seg.title}</title>
+        </rect>
+      ))}
+      {aDividerX !== null && (
+        <line
+          class="p1tp-chart__divider"
+          x1={aDividerX.toFixed(2)} y1={PLOT_Y0.toFixed(2)}
+          x2={aDividerX.toFixed(2)} y2={PLOT_Y1.toFixed(2)}
+        />
+      )}
+      {/* FORECAST label: right-anchored at Panel A's right frame (small left pad)
+          so it ends AT the frame and reads cleanly as Panel A's, instead of
+          spilling past the divider into the inter-panel gutter. */}
+      {aDividerX !== null && (
+        <text
+          class="p1tp-chart__forecast-label"
+          x={(A_X1 - 4).toFixed(2)} y={(PLOT_Y0 - 6).toFixed(2)}
+          text-anchor="end"
+        >FORECAST</text>
+      )}
+      <rect
+        class="p1tp-chart__frame"
+        x={A_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
+        width={A_W.toFixed(2)} height={PLOT_H.toFixed(2)}
+      />
+      {aYTicks.map((t) => (
+        <text
+          class="p1tp-chart__ytick-label"
+          x={(A_X0 - 6).toFixed(2)} y={(t.y + 4).toFixed(2)}
+          text-anchor="end"
+        >{t.label}</text>
+      ))}
+      {aXTicks.map((t) => (
+        <g>
+          <line class="p1tp-chart__xtick" x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)} x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 5).toFixed(2)} />
+          <text class="p1tp-chart__xtick-label" x={t.x.toFixed(2)} y={(PLOT_Y1 + 17).toFixed(2)} text-anchor="middle">{t.label}</text>
+        </g>
+      ))}
+      {/* Panel A label — short subject label (small-mult convention), NOT an
+         editorial sentence. The take lives in the plate title + blurb, never in the SVG. */}
+      <text
+        class="p1tp-chart__panel-title"
+        x={A_X0.toFixed(2)} y={(PLOT_Y0 - 22).toFixed(2)}
+        text-anchor="start"
+      >Total balance</text>
+
+      {/* ===================== PANEL B — forecast zoom ===================== */}
+      {bGrid.map((v) => (
+        <line
+          class="p1tp-chart__gridline"
+          x1={B_X0.toFixed(2)} y1={bY(v).toFixed(2)}
+          x2={B_X1.toFixed(2)} y2={bY(v).toFixed(2)}
+        />
+      ))}
+      <line
+        class="p1tp-chart__zero-line"
+        x1={B_X0.toFixed(2)} y1={bY(0).toFixed(2)}
+        x2={B_X1.toFixed(2)} y2={bY(0).toFixed(2)}
+      />
+      {bRects.map((seg) => (
+        <rect
+          class={seg.hatch ? "p1tp-chart__bar-mid" : "p1tp-chart__bar-solid"}
+          x={seg.x.toFixed(2)} y={seg.y.toFixed(2)}
+          width={seg.w.toFixed(2)} height={seg.h.toFixed(2)}
+        >
+          <title>{seg.title}</title>
+        </rect>
+      ))}
+      {/* Panel B: no forecast divider, no FORECAST label — the whole panel is
+          forecast; the era-signal lives in the panel title. */}
+      <rect
+        class="p1tp-chart__frame"
+        x={B_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
+        width={B_W.toFixed(2)} height={PLOT_H.toFixed(2)}
+      />
+      {bYTicks.map((t) => (
+        <text
+          class="p1tp-chart__ytick-label"
+          x={(B_X0 - 6).toFixed(2)} y={(t.y + 4).toFixed(2)}
+          text-anchor="end"
+        >{t.label}</text>
+      ))}
+      {bXTicks.map((t) => (
+        <g>
+          <line class="p1tp-chart__xtick" x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)} x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 5).toFixed(2)} />
+          <text class="p1tp-chart__xtick-label" x={t.x.toFixed(2)} y={(PLOT_Y1 + 17).toFixed(2)} text-anchor="middle">{t.label}</text>
+        </g>
+      ))}
+      {/* Panel B segment labels (right gutter) */}
+      {lastZoom && lastZoom.opex !== null && (
+        <>
+          <text
+            class="p1tp-chart__seg-label-primary"
+            x={bSegLabelX.toFixed(2)} y={(bOpexLabelY + 4).toFixed(2)}
+            text-anchor="start"
+          >Operating</text>
+          <text
+            class="p1tp-chart__seg-label-secondary"
+            x={bSegLabelX.toFixed(2)} y={(bCapexLabelY + 4).toFixed(2)}
+            text-anchor="start"
+          >Capital</text>
+        </>
+      )}
+      {/* Panel B label — short subject label (small-mult convention), NOT an
+         editorial sentence. The take lives in the plate title + blurb, never in the SVG. */}
+      <text
+        class="p1tp-chart__panel-title"
+        x={B_X0.toFixed(2)} y={(PLOT_Y0 - 22).toFixed(2)}
+        text-anchor="start"
+      >Operating vs capital</text>
+
+    </svg>
+  </div>
+)}
+
+<style>
+  /*
+   * Plate1BalanceTwoPanel — Plate 1, two-panel small-multiples (Mode B).
+   * Panel A: full FY1983-84 history total bars. Panel B: all-forecast composition
+   * with operating (INK 1.00) / capital (MID grey 0.55) split — grey-tint ramp,
+   * NOT texture; 1px --paper white hairline between segments. Per-panel y-axes.
+   * Full-ink chrome on chrome; data tint is category-only, never forecast.
+   */
+  .p1tp-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+  }
+  .p1tp-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans);
+  }
+  .p1tp-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  .p1tp-chart__zero-line {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-opacity: 1;
+    shape-rendering: crispEdges;
+  }
+  /* Grey-tint ink-density ramp (replaces texture; per fiscal_bar_language.md §2).
+     Operating = INK (1.00, lead category); capital = MID (0.55, secondary).
+     Panel A total bars are single-category and stay solid ink. */
+  .p1tp-chart__bar-solid {
+    fill: var(--ink);
+    fill-opacity: 1;
+    stroke: none;
+  }
+  /* Capital segment (Panel B): MID grey. No white hairline — the ink/grey tint
+     contrast (1.00 vs 0.55) separates the categories on its own; a --paper stroke
+     outlined the whole rect and read as stripey black/white banding (Jay 2026-06-02). */
+  .p1tp-chart__bar-mid {
+    fill: var(--ink);
+    fill-opacity: 0.55;
+    stroke: none;
+  }
+  .p1tp-chart__divider {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-opacity: 0.40;
+    shape-rendering: crispEdges;
+  }
+  .p1tp-chart__forecast-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+  }
+  .p1tp-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p1tp-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .p1tp-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p1tp-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+  }
+  .p1tp-chart__seg-label-primary {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .p1tp-chart__seg-label-secondary {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 400;
+  }
+  /* Per-panel title slot — TK placeholder, ink-placeholder color (R9).
+     13px per small-multiples canon (canon_reference_panel.md §5.3 label size). */
+  .p1tp-chart__panel-title {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .p1tp-chart__panel-title--tk {
+    fill: var(--ink-placeholder);
+  }
+</style>

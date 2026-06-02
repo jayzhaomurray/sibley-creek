@@ -103,6 +103,17 @@ quality bar.
 
 - **Data-driven, by design.** A deep dive without charts is not a Sibley
   Creek deep dive. See `editorial/dashboard_purpose.md` Section 3.
+- **Chart no-drift workflow.** Use surface names: overview charts,
+  chartbook charts, feature charts. New chartbook charts are
+  template-first: line time series, two-panel composite, small multiples,
+  signed bars, stacked bars, or a named special-form exception. Chart SVGs
+  contain chart furniture only (axes, ticks, direct labels, compact
+  subpanel labels, numeric callouts, short data annotations). Full
+  sentences belong in `ChartbookUnit` / page title and interpretation
+  slots, not inside `src/components/charts/**`. Copy-placement passes do
+  not edit chart components except for compact labels/annotation words.
+  Before handing off chart work, run `node scripts/check_chartbook_contract.mjs`.
+  Details: `claude-ref/chart-specs/chart_no_drift_workflow_2026-06-02.md`.
 - **Bad versions get tagged and left in place; improved versions live
   alongside.** This is the user's preferred pattern (e.g. chart V2s,
   Pillar A v3 → v4 → v5). User picks on review what to delete.

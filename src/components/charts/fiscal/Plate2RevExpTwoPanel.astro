@@ -1,0 +1,331 @@
+---
+/*
+ * Plate2RevExpTwoPanel — ALTERNATE Plate 2 (two-panel small-multiples).
+ *
+ * Comparison companion to Plate2RevenuesPctGDP (the merged two-series overlay).
+ * Renders directly below the merged chart on /fiscal/ so Jay can compare
+ * "two-series overlay vs two-panel small-multiples" ("alternate lives
+ * alongside, user picks").
+ *
+ * LAYOUT: two panels SIDE-BY-SIDE in one plate.
+ *   PANEL A (left): federal REVENUES, % of GDP, 40yr line (frt_revenues_pct_gdp).
+ *   PANEL B (right): federal PROGRAM EXPENSES, % of GDP, 40yr line incl. the
+ *     ~28% COVID spike (frt_program_exp_pct_gdp).
+ *
+ * AXIS MODE: Mode A (SHARED y-domain across both panels — same 10..30% ticks)
+ *   so it is a fair apples-to-apples comparison against the merged overlay: the
+ *   deficit gap between the series is comparable by eye, and the COVID spike
+ *   sits at the same height in both. Only Panel A carries the y-tick LABELS
+ *   (shared scale); Panel B repeats the gridlines but not the numbers, to avoid
+ *   implying a second independent axis.
+ *
+ * LATEST-DOT: each panel is a SINGLE series, so each gets ONE latest-dot at its
+ *   forecast endpoint (canon R2: dot on line charts, at the last plotted point).
+ *
+ * CANON: full-ink chrome (no opacity dimming on data), 12px ticks, dashed `4 2`
+ *   forecast divider + uppercase FORECAST label in EACH panel, hairline frame
+ *   1px, gridlines 0.18 opacity. Direct per-panel series label is a TK
+ *   placeholder in var(--ink-placeholder). Author NO reader prose.
+ *
+ * DATA: fiscal.astro wires data.primary = frt_revenues_pct_gdp (panel-7),
+ *   data.secondary = frt_program_exp_pct_gdp (panel-8).
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---- Data types ----------------------------------------------------------------
+type RawPt = { date: string; value: number | null; is_forecast?: number; fy_label?: string };
+interface Pt { fyLabel: string; value: number; isForecast: boolean }
+
+function extractPts(raw: unknown[] | undefined | null): Pt[] {
+  if (!raw || raw.length === 0) return [];
+  const out: Pt[] = [];
+  for (const r of raw as RawPt[]) {
+    if (r.value === null || r.value === undefined) continue;
+    out.push({
+      fyLabel: r.fy_label ?? r.date.slice(0, 4),
+      value: r.value,
+      isForecast: r.is_forecast === 1,
+    });
+  }
+  return out;
+}
+
+const revPts = extractPts(data?.primary?.data);
+const expPts = extractPts(data?.secondary?.data);
+const hasData = revPts.length > 0 || expPts.length > 0;
+
+// ---- Outer geometry ------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_T = 44;
+const M_B = 40;
+const PANEL_GUTTER = 48;
+const M_L = 56;   // shared-axis y-tick labels (Panel A only)
+const M_R = 96;   // right gutter for Panel B direct label + dot label
+
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_H = PLOT_Y1 - PLOT_Y0;
+
+const innerW = VB_W - M_L - M_R - PANEL_GUTTER;
+const A_W = innerW / 2;
+const B_W = innerW / 2;
+const A_X0 = M_L;
+const A_X1 = A_X0 + A_W;
+const B_X0 = A_X1 + PANEL_GUTTER;
+const B_X1 = B_X0 + B_W;
+
+// ---- SHARED y-domain (Mode A): 10..30%, 5pp strides (matches the merged plate) -
+const Y_MIN = 10;
+const Y_MAX = 30;
+const Y_STEP = 5;
+const ySpan = Y_MAX - Y_MIN;
+const yScale = (v: number): number => PLOT_Y0 + PLOT_H - ((v - Y_MIN) / ySpan) * PLOT_H;
+
+type YTick = { y: number; label: string };
+const yTickVals: number[] = [];
+for (let v = Y_MIN; v <= Y_MAX; v += Y_STEP) yTickVals.push(v);
+const yTicks: YTick[] = yTickVals.map((v, i) => ({
+  y: yScale(v),
+  label: i === yTickVals.length - 1 ? `${v}%` : `${v}`,
+}));
+const gridVals = yTickVals.filter((v) => v > Y_MIN && v < Y_MAX);
+
+// ---- Per-panel x scale ---------------------------------------------------------
+function makeXScale(pts: Pt[], x0: number, w: number) {
+  const n = pts.length;
+  return (i: number): number => x0 + (n > 1 ? (i / (n - 1)) * w : w / 2);
+}
+const aX = makeXScale(revPts, A_X0, A_W);
+const bX = makeXScale(expPts, B_X0, B_W);
+
+// ---- X ticks: every 5 fiscal years + last --------------------------------------
+type XTick = { x: number; label: string };
+function makeXTicks(pts: Pt[], xFn: (i: number) => number): XTick[] {
+  return pts
+    .map((p, i) => ({ p, i }))
+    .filter(({ i }) => i % 5 === 0 || i === pts.length - 1)
+    .map(({ p, i }) => ({ x: xFn(i), label: "'" + p.fyLabel.slice(-2) }));
+}
+const aXTicks = makeXTicks(revPts, aX);
+const bXTicks = makeXTicks(expPts, bX);
+
+// ---- Paths ---------------------------------------------------------------------
+function buildPath(pts: Pt[], xFn: (i: number) => number): string {
+  if (pts.length === 0) return "";
+  return pts.map((p, i) => `${i === 0 ? "M" : "L"}${xFn(i).toFixed(2)},${yScale(p.value).toFixed(2)}`).join(" ");
+}
+const revPath = buildPath(revPts, aX);
+const expPath = buildPath(expPts, bX);
+
+// ---- Forecast dividers (per panel) ---------------------------------------------
+function firstForecastIdx(pts: Pt[]): number {
+  for (let i = 0; i < pts.length; i++) if (pts[i]!.isForecast) return i;
+  return -1;
+}
+function dividerXFor(pts: Pt[], xFn: (i: number) => number): number | null {
+  const fc = firstForecastIdx(pts);
+  return fc > 0 ? (xFn(fc - 1) + xFn(fc)) / 2 : null;
+}
+const aDividerX = dividerXFor(revPts, aX);
+const bDividerX = dividerXFor(expPts, bX);
+
+// ---- Latest-dot per panel (forecast endpoint) ----------------------------------
+const revEnd = revPts.length > 0 ? revPts[revPts.length - 1] : null;
+const expEnd = expPts.length > 0 ? expPts[expPts.length - 1] : null;
+const aDotX = revEnd ? aX(revPts.length - 1) : 0;
+const aDotY = revEnd ? yScale(revEnd.value) : 0;
+const bDotX = expEnd ? bX(expPts.length - 1) : 0;
+const bDotY = expEnd ? yScale(expEnd.value) : 0;
+const aDotLabel = revEnd ? `${revEnd.value.toFixed(1)}%` : "";
+const bDotLabel = expEnd ? `${expEnd.value.toFixed(1)}%` : "";
+
+// ---- aria-label ----------------------------------------------------------------
+const firstFY = (revPts[0] ?? expPts[0])?.fyLabel ?? "";
+const lastFY = revEnd?.fyLabel ?? expEnd?.fyLabel ?? "";
+const ariaLabel =
+  `Two-panel small-multiples on a shared 10-to-30 percent of GDP axis. Left panel: federal ` +
+  `revenues as a percentage of GDP, FY${firstFY} to FY${lastFY}, ending at ${aDotLabel}. ` +
+  `Right panel: federal program expenses as a percentage of GDP over the same window, ending at ` +
+  `${bDotLabel}, with the FY2020-21 COVID-19 spike near 28 percent. The shared axis makes the ` +
+  `revenue-to-expense gap comparable by eye between the panels.`;
+---
+
+{!hasData ? (
+  <PanelEmpty reason="DATA NOT YET WIRED — fiscal.json panel-7 (revenues) + panel-8 (expenses)" />
+) : (
+  <div class="p2tp-chart" data-panel="fiscal-plate-2-alt" data-panel-status="live">
+    <svg
+      class="p2tp-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      <title>[TITLE TK] — Revenues vs program expenses, % of GDP (two-panel)</title>
+
+      {/* ===================== PANEL A — revenues ===================== */}
+      {gridVals.map((v) => (
+        <line class="p2tp-chart__gridline" x1={A_X0.toFixed(2)} y1={yScale(v).toFixed(2)} x2={A_X1.toFixed(2)} y2={yScale(v).toFixed(2)} />
+      ))}
+      {revPath && <path class="p2tp-chart__line" d={revPath} />}
+      {aDividerX !== null && (
+        <line class="p2tp-chart__divider" x1={aDividerX.toFixed(2)} y1={PLOT_Y0.toFixed(2)} x2={aDividerX.toFixed(2)} y2={PLOT_Y1.toFixed(2)} />
+      )}
+      {aDividerX !== null && (
+        <text class="p2tp-chart__forecast-label" x={(aDividerX + 6).toFixed(2)} y={(PLOT_Y0 - 6).toFixed(2)} text-anchor="start">FORECAST</text>
+      )}
+      {revEnd && (
+        <circle class="p2tp-chart__latest-dot" cx={aDotX.toFixed(2)} cy={aDotY.toFixed(2)} r="4">
+          <title>Revenue FY{revEnd.fyLabel}: {aDotLabel} of GDP{revEnd.isForecast ? " (SEU 2026 proj.)" : ""}</title>
+        </circle>
+      )}
+      {revEnd && (
+        <text class="p2tp-chart__latest-label" x={(aDotX - 7).toFixed(2)} y={(aDotY - 9).toFixed(2)} text-anchor="end">{aDotLabel}</text>
+      )}
+      <rect class="p2tp-chart__frame" x={A_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)} width={A_W.toFixed(2)} height={PLOT_H.toFixed(2)} />
+      {/* Shared-axis y-tick labels (Panel A only) */}
+      {yTicks.map((t) => (
+        <text class="p2tp-chart__ytick-label" x={(A_X0 - 6).toFixed(2)} y={(t.y + 4).toFixed(2)} text-anchor="end">{t.label}</text>
+      ))}
+      {aXTicks.map((t) => (
+        <g>
+          <line class="p2tp-chart__xtick" x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)} x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 5).toFixed(2)} />
+          <text class="p2tp-chart__xtick-label" x={t.x.toFixed(2)} y={(PLOT_Y1 + 17).toFixed(2)} text-anchor="middle">{t.label}</text>
+        </g>
+      ))}
+      {/* Panel A direct series label (TK) */}
+      <text class="p2tp-chart__series-label p2tp-chart__series-label--tk" x={A_X0.toFixed(2)} y={(PLOT_Y0 - 22).toFixed(2)} text-anchor="start">[PANEL A LABEL TK: Revenues]</text>
+
+      {/* ===================== PANEL B — program expenses ===================== */}
+      {gridVals.map((v) => (
+        <line class="p2tp-chart__gridline" x1={B_X0.toFixed(2)} y1={yScale(v).toFixed(2)} x2={B_X1.toFixed(2)} y2={yScale(v).toFixed(2)} />
+      ))}
+      {expPath && <path class="p2tp-chart__line" d={expPath} />}
+      {bDividerX !== null && (
+        <line class="p2tp-chart__divider" x1={bDividerX.toFixed(2)} y1={PLOT_Y0.toFixed(2)} x2={bDividerX.toFixed(2)} y2={PLOT_Y1.toFixed(2)} />
+      )}
+      {bDividerX !== null && (
+        <text class="p2tp-chart__forecast-label" x={(bDividerX + 6).toFixed(2)} y={(PLOT_Y0 - 6).toFixed(2)} text-anchor="start">FORECAST</text>
+      )}
+      {expEnd && (
+        <circle class="p2tp-chart__latest-dot" cx={bDotX.toFixed(2)} cy={bDotY.toFixed(2)} r="4">
+          <title>Program expenses FY{expEnd.fyLabel}: {bDotLabel} of GDP{expEnd.isForecast ? " (SEU 2026 proj.)" : ""}</title>
+        </circle>
+      )}
+      {expEnd && (
+        <text class="p2tp-chart__latest-label" x={(bDotX - 7).toFixed(2)} y={(bDotY - 9).toFixed(2)} text-anchor="end">{bDotLabel}</text>
+      )}
+      <rect class="p2tp-chart__frame" x={B_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)} width={B_W.toFixed(2)} height={PLOT_H.toFixed(2)} />
+      {bXTicks.map((t) => (
+        <g>
+          <line class="p2tp-chart__xtick" x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)} x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 5).toFixed(2)} />
+          <text class="p2tp-chart__xtick-label" x={t.x.toFixed(2)} y={(PLOT_Y1 + 17).toFixed(2)} text-anchor="middle">{t.label}</text>
+        </g>
+      ))}
+      {/* Panel B direct series label (TK) */}
+      <text class="p2tp-chart__series-label p2tp-chart__series-label--tk" x={B_X0.toFixed(2)} y={(PLOT_Y0 - 22).toFixed(2)} text-anchor="start">[PANEL B LABEL TK: Program expenses]</text>
+
+    </svg>
+  </div>
+)}
+
+<style>
+  /*
+   * Plate2RevExpTwoPanel — ALT Plate 2, two-panel small-multiples (Mode A).
+   * Shared 10-30% y-domain across both panels. Panel A revenues, Panel B program
+   * expenses. One latest-dot per panel at the forecast endpoint. Forecast divider
+   * + FORECAST label in each panel. Full-ink chrome; no opacity dimming on data.
+   */
+  .p2tp-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+  }
+  .p2tp-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans);
+  }
+  .p2tp-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  .p2tp-chart__line {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .p2tp-chart__divider {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-opacity: 0.40;
+    shape-rendering: crispEdges;
+  }
+  .p2tp-chart__forecast-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+  }
+  .p2tp-chart__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+  .p2tp-chart__latest-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .p2tp-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p2tp-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .p2tp-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p2tp-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+  }
+  .p2tp-chart__series-label {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  /* TK placeholder slot, ink-placeholder color (R9) */
+  .p2tp-chart__series-label--tk {
+    fill: var(--ink-placeholder);
+  }
+</style>

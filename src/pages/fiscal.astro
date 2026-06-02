@@ -1,114 +1,135 @@
 ---
 /*
- * /fiscal/ — coming-soon placeholder.
+ * /fiscal/ — Chartbook page wiring the five new fiscal plates.
  *
- * The full chartbook is still in development. Draft alternatives should live
- * on separate direct-link review routes until one is explicitly promoted.
+ * Plates 1-5 correspond to fiscal.json panel-6 through panel-10.
+ *
+ * PLATE 2 DATA WIRING (merged revenue+expense chart, R2.5):
+ *   Plate2RevenuesPctGDP is the merged two-line chart (revenues vs expenses).
+ *   It receives a combined PanelData where:
+ *     primary   = panel-7 primary (frt_revenues_pct_gdp)
+ *     secondary = panel-8 primary (frt_program_exp_pct_gdp)
+ *   This is composed here before passing to SectionLayout.
+ *
+ * PLATE 3 (Plate3ProgramExpPctGDP) CUT 2026-06-02:
+ *   Redundant with the merged Plate 2 (which already carries the expense line).
+ *   The component file is retained per the "tag and leave" convention but is no
+ *   longer wired into the page or the SectionLayout registry.
+ *
+ * ALTERNATES PRUNED 2026-06-02 (Jay picked the winners):
+ *   - Plate1BalanceComposition (chartKey fiscal-plate-1, original single-panel
+ *     balance) UNWIRED. The two-panel Plate1BalanceTwoPanel is the keeper and now
+ *     occupies the canonical id "plate-1" / chartKey "fiscal-plate-1-alt".
+ *   - Plate2RevExpTwoPanel (chartKey fiscal-plate-2-alt, two-panel rev/exp) UNWIRED.
+ *     The merged two-series Plate2RevenuesPctGDP is the keeper.
+ *   Both losing component files are retained per "tag and leave".
+ *
+ * FINAL RENDER ORDER: plate-1 (balance two-panel) -> plate-2 (rev vs exp merged)
+ *   -> plate-4 (debt/GDP) -> plate-5 (issuance by instrument).
+ *
+ * reader copy (titles, blurbs) is TK — writer + 3 editorial gates come later.
  */
-import BaseLayout from "../layouts/BaseLayout.astro";
-import { sections, site } from "../data/sections";
-import { withBase } from "../lib/urls";
 
-const fiscalSection = sections.find((s) => s.slug === "fiscal");
-const headlineQuestion =
-  fiscalSection?.headlineQuestion ?? "What is Canada's fiscal policy stance?";
+import SectionLayout from "../layouts/SectionLayout.astro";
+import type { Plate } from "../layouts/SectionLayout.astro";
+import { sections } from "../data/sections";
+import panelDataFile from "../../data/site/panel_data/fiscal.json";
+import { pickPanel } from "../components/charts/_shared/panelData";
+import type { PanelData } from "../components/charts/_shared/panelData";
+
+const section = sections.find((s) => s.slug === "fiscal");
+if (!section) {
+  throw new Error("Fiscal section not found in src/data/sections.ts");
+}
+
+const panel6Data  = pickPanel(panelDataFile, 6);
+const panel7Data  = pickPanel(panelDataFile, 7);
+const panel8Data  = pickPanel(panelDataFile, 8);
+const panel9Data  = pickPanel(panelDataFile, 9);
+const panel10Data = pickPanel(panelDataFile, 10);
+
+// ---- Plate 2 combined data: revenues (primary) + expenses (secondary) ----------
+// Plate2RevenuesPctGDP is the merged two-line chart (R2.5).
+// The component reads: data.primary = revenues, data.secondary = expenses.
+const plate2CombinedData: PanelData | null = (panel7Data && panel8Data)
+  ? {
+      ...panel7Data,
+      // Graft panel-8's primary series into the secondary slot so the merged
+      // chart component can read both series from a single data prop.
+      secondary: panel8Data.primary ?? null,
+    }
+  : (panel7Data ?? null);
+
+const plates: Plate[] = [
+  {
+    id: "plate-1",
+    number: "01",
+    indicator: "Budget balance — full history + forecast operating/capital zoom",
+    plateIndexLabel: "Balance",
+    title: "Ottawa is balancing the operating books and borrowing the rest for capital.",
+    interpretation:
+      "The plan is to balance day-to-day spending and borrow only for capital. The operating balance swings from a $26 billion deficit this year to a small surplus by 2028-29; capital investment—$40 to $60 billion annually, booked separately and debt-funded—holds the total in the red. The Parliamentary Budget Officer reads the split more narrowly: on its definition the operating books never reach balance, a $94 billion difference in what counts as capital. Whose accounting wins decides whether this is consolidation or a relabelling.",
+    source: "Department of Finance Canada, Fiscal Reference Tables 2025; Spring Economic Update 2026.",
+    chartKey: "fiscal-plate-1-alt",
+    data: panel6Data,
+    asOfMode: "primary",
+  },
+  {
+    id: "plate-2",
+    number: "02",
+    indicator: "Federal revenues vs program expenses, % of GDP",
+    plateIndexLabel: "Revenue vs Expense",
+    title: "Revenues and program spending converge near 15.5% of GDP—the gap is the deficit.",
+    interpretation:
+      "Where program spending sits above revenue, the government runs a deficit—and spending has led for most of the past two decades. The pandemic pushed the spending line to 28% of GDP in 2020-21, a spike with no peacetime precedent in the series, before it fell back; the forecast has the two converging within half a point near 15.5% of GDP by decade's end. The driver is spending held below GDP growth, not higher taxes.",
+    source: "Department of Finance Canada, Fiscal Reference Tables 2025; Spring Economic Update 2026.",
+    chartKey: "fiscal-plate-2",
+    data: plate2CombinedData,
+    asOfMode: "primary",
+  },
+  {
+    id: "plate-4",
+    number: "04",
+    indicator: "Federal debt, % of GDP",
+    plateIndexLabel: "Debt/GDP",
+    title: "Federal debt has stabilized near 41% of GDP, far below its mid-1990s peak.",
+    interpretation:
+      "Canada's federal debt ratio is elevated but stable—well below its mid-1990s peak. The accumulated deficit holds near 41% of GDP across the forecast; dollar debt keeps climbing past $1.6 trillion, but growing no faster than the economy keeps the ratio flat. The pandemic pushed it to 47% in 2020-21—well below the 66.6% peak of the mid-1990s, before two decades of consolidation cut it to a pre-crisis low of 28%. The level is elevated; the trajectory is flat.",
+    source: "Department of Finance Canada, Fiscal Reference Tables 2025; Spring Economic Update 2026.",
+    chartKey: "fiscal-plate-4",
+    data: panel9Data,
+    asOfMode: "primary",
+  },
+  {
+    id: "plate-5",
+    number: "05",
+    indicator: "Debt outstanding by instrument: bonds, T-bills, retail",
+    plateIndexLabel: "Issuance mix",
+    title: "Gross issuance hits a record $612 billion this fiscal year as the bond program scales up.",
+    interpretation:
+      "Gross market financing is set to reach a record near $612 billion this fiscal year—topping the 2020-21 pandemic peak. The increase is a bond-program story: short and long marketable bonds climb roughly a third from last year, as larger deficits and a heavier refinancing load hit the market. The treasury-bill stock the government carries holds near $285 to $300 billion before trimming back the following year.",
+    source: "Department of Finance Canada, Fiscal Reference Tables 2025.",
+    chartKey: "fiscal-plate-5",
+    data: panel10Data,
+    asOfMode: "primary",
+  },
+];
+
+const pageTitle = "Fiscal";
+const pageDescription =
+  "Canadian fiscal policy chartbook: budget balance composition, revenues and program expenses as a share of GDP, federal debt trajectory, and debt issuance by instrument.";
+
+const lede = section.blurb?.body ?? "";
 ---
-<BaseLayout
-  title={`Fiscal — ${site.name}`}
-  description="Sibley Creek's fiscal policy section. Coming soon."
-  pageClass="coming-soon-page"
->
-  <main class="coming-soon" aria-labelledby="coming-soon-h">
-    <p class="coming-soon__eyebrow">
-      <span class="coming-soon__fig">Section</span>
-      <span class="coming-soon__fig-n">05.</span>
-      <span class="coming-soon__label">Fiscal</span>
-    </p>
-    <h1 id="coming-soon-h" class="coming-soon__h">{headlineQuestion}</h1>
-    <p class="coming-soon__lede">
-      The fiscal section is in development. Check back shortly.
-    </p>
-    <p class="coming-soon__back">
-      <a href={withBase("/overview/")}>Back to the overview</a>
-    </p>
-  </main>
-
-  <style>
-    .coming-soon {
-      max-width: 720px;
-      margin: 96px auto 160px;
-      padding: 0 32px;
-      font-family: var(--font-sans);
-    }
-
-    .coming-soon__eyebrow {
-      margin: 0 0 28px;
-      font-family: var(--font-sans);
-      font-weight: 600;
-      font-size: 10px;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: var(--ink);
-      line-height: 1.4;
-    }
-
-    .coming-soon__fig {
-      color: var(--ink);
-      font-weight: 600;
-    }
-
-    .coming-soon__fig-n {
-      color: var(--accent);
-      font-weight: 800;
-      margin-left: 0.2em;
-    }
-
-    .coming-soon__label {
-      margin-left: 0.6em;
-      color: var(--ink);
-    }
-
-    .coming-soon__h {
-      margin: 0 0 32px;
-      font-family: var(--font-sans);
-      font-weight: 800;
-      font-size: clamp(36px, 6vw, 64px);
-      letter-spacing: -0.01em;
-      line-height: 1.05;
-      color: var(--ink);
-    }
-
-    .coming-soon__lede {
-      margin: 0 0 40px;
-      font-family: var(--font-sans);
-      font-weight: 300;
-      font-size: 18px;
-      line-height: 1.5;
-      color: var(--ink);
-    }
-
-    .coming-soon__back {
-      margin: 0;
-      font-family: var(--font-sans);
-      font-weight: 400;
-      font-size: 14px;
-      line-height: 1.4;
-    }
-
-    .coming-soon__back a {
-      color: var(--ink);
-      text-decoration: none;
-      border-bottom: 1px solid var(--ink);
-    }
-
-    .coming-soon__back a:hover {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-    }
-
-    .coming-soon__back a:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 3px;
-    }
-  </style>
-</BaseLayout>
+<SectionLayout
+  slug="fiscal"
+  sectionIndex={5}
+  sectionLabel="Fiscal"
+  headlineQuestion={section.headlineQuestion}
+  lede={lede}
+  latestReleaseLabel={null}
+  plates={plates}
+  title={pageTitle}
+  description={pageDescription}
+  noindex={true}
+/>

@@ -1,0 +1,517 @@
+---
+/*
+ * Plate4FederalDebtPctGDP — Federal debt (accumulated deficit) as % of GDP.
+ *
+ * EDITORIAL PURPOSE: The sustainability anchor. Long 40-year history showing
+ * the 1990s debt-to-GDP climb (peak 66.6% FY1995-96), the sustained paydown
+ * to a pre-GFC trough (28.2% FY2008-09), the COVID surge (47.2% FY2020-21),
+ * and the SEU 2026 forward path.
+ *
+ * DATA: fiscal.json panel-9, key: frt_federal_debt_pct_gdp
+ *   42 actual points (FY1983-84 to FY2024-25) + 6 forecast (FY2025-26 to FY2030-31).
+ *   is_forecast: 0 = history, 1 = forecast.
+ *
+ * Federal-only basis (NOT general-government gross debt; IMF/OECD general-govt
+ * figures ~91-107% are NOT comparable). Chart carries this in the aria-label.
+ *
+ * FORECAST CONVENTION (R2.1 — vertical dashed divider, not dotted trace):
+ *   Data trace = ONE consistent 1.5px solid-ink line across history + forecast.
+ *   Forecast signal: vertical dashed divider (ink 1px, dash 4 3, 0.40 opacity)
+ *   + "Forecast" micro-caps label above the projection region.
+ *   Red dot (canon R2): 4px MTA red on the last plotted observation (forecast
+ *   endpoint FY2030-31), one per chart. Numeric label above the dot.
+ *
+ * Y-DOMAIN (tight per R2.3):
+ *   Actual range: 28.2%–66.6%. With forecasts: 41.1%–42.3%. Full range ~28%–67%.
+ *   Tight axis: 20% to 70%, 10pp strides. Pre-GFC trough (28.2%) visible with room.
+ *   5 ticks: 20, 30, 40, 50, 60, 70 → 6 ticks, 4 interior gridlines.
+ *
+ * LONG HISTORY: FY1983-84 → FY2030-31. x-ticks every 5 years.
+ *
+ * ANNOTATIONS (words only, not sentences — canon):
+ *   1990s peak: FY1995-96 66.6%
+ *   Pre-GFC trough: FY2008-09 28.2%
+ *   COVID peak: FY2020-21 47.2%
+ *   All wording: [ANNO TK]
+ *
+ * OVERLAP NOTE: Panel6DebtToGDP renders a similar series (Budget 2025 +
+ *   SEU 2026, from 1980). This Plate4 is the A.8/R2.1-conformant version
+ *   reading from pipeline panel-9 (FY1983-84+). Left alongside per spec.
+ *
+ * TITLE: [TITLE TK]
+ * CAPTION: [CAPTION TK]
+ *
+ * CANON COMPLIANCE (Tier-3):
+ *   1. Single trace, pure ink 1.5px solid. No dotted forecast line.
+ *   2. Forecast signal = vertical dashed divider + "Forecast" label (R2.1).
+ *   3. Full 40-year history visible (1990s peak story is the point).
+ *   4. MTA red dot on last plotted observation (forecast endpoint), one per chart (R2).
+ *   5. Latest-point numeric label above red dot.
+ *   6. Reference annotations: 1990s peak, pre-GFC trough, COVID peak (words only).
+ *   7. Hairline frame 1px ink.
+ *   8. 4 interior gridlines, 0.18 opacity.
+ *   9. Plex Mono y-ticks; topmost "%".
+ *  10. Manrope x-ticks every 5 years.
+ *  11. One direct terminus label.
+ *  12. viewBox 720x405.
+ *  13. aria-label states federal-only basis explicitly.
+ *  14. No source/caption/methodology inside SVG.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---- Data extraction -----------------------------------------------------------
+type RawPt = { date: string; value: number | null; is_forecast?: number; fy_label?: string };
+
+interface Pt {
+  fyLabel: string;
+  value: number;
+  isForecast: boolean;
+}
+
+const pts: Pt[] = [];
+
+if (data?.primary?.data && data.primary.data.length > 0) {
+  for (const r of data.primary.data as RawPt[]) {
+    if (r.value === null || r.value === undefined) continue;
+    pts.push({
+      fyLabel: r.fy_label ?? r.date.slice(0, 4),
+      value: r.value,
+      isForecast: r.is_forecast === 1,
+    });
+  }
+}
+
+const hasData = pts.length > 0;
+
+// ---- Geometry ------------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 56;   // canon left margin
+const M_R = 96;   // canon right gutter for the direct terminus label
+const M_T = 44;   // canon top
+const M_B = 40;   // canon bottom
+
+const PLOT_X0 = M_L;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_W  = PLOT_X1 - PLOT_X0;
+const PLOT_H  = PLOT_Y1 - PLOT_Y0;
+
+// ---- Y domain: tight, covers 1990s peak (66.6%) and pre-GFC trough (28.2%) ----
+// Range: ~28%–67% historical + ~41%–42% forecast.
+// Tight axis: 20%–70%, 10pp strides. 6 ticks, 4 interior gridlines.
+const Y_DOM_MIN = 20;
+const Y_DOM_MAX = 70;
+const Y_TICK_STEP = 10;
+const ySpan = Y_DOM_MAX - Y_DOM_MIN;
+
+const yScale = (v: number): number =>
+  PLOT_Y0 + PLOT_H - ((v - Y_DOM_MIN) / ySpan) * PLOT_H;
+
+// ---- X scale (uniform index spacing — annual fiscal years) ---------------------
+const N = pts.length;
+const xOfIndex = (i: number): number =>
+  PLOT_X0 + (N > 1 ? (i / (N - 1)) * PLOT_W : PLOT_W / 2);
+
+// ---- Y ticks -------------------------------------------------------------------
+type YTick = { y: number; label: string };
+const yTickVals: number[] = [];
+for (let v = Y_DOM_MIN; v <= Y_DOM_MAX; v += Y_TICK_STEP) yTickVals.push(v);
+const yTicks: YTick[] = yTickVals.map((v, i) => ({
+  y: yScale(v),
+  label: i === yTickVals.length - 1 ? `${v}%` : `${v}`,
+}));
+const gridlines = yTickVals.filter((v) => v > Y_DOM_MIN && v < Y_DOM_MAX);
+
+// ---- X ticks: nice round END-YEARS on the ~48yr span ---------------------------
+// A Canadian fiscal year is named for the year it ends (FY1983-84 -> 1984,
+// FY2030-31 -> 2031). Single 4-digit round number, no apostrophe, no emphasis.
+// Decade ticks (1990, 2000, 2010, 2020) plus the series end (2031), which sits
+// 11 years clear of 2020 so it never crowds.
+const fyEndYear = (fy: string): number => parseInt(fy.slice(0, 4), 10) + 1;
+type XTick = { x: number; label: string };
+const X_TARGET_ENDYEARS = [1990, 2000, 2010, 2020];
+const seriesEndYear = pts.length > 0 ? fyEndYear(pts[pts.length - 1]!.fyLabel) : null;
+const xTargetSet = new Set<number>(X_TARGET_ENDYEARS);
+if (seriesEndYear !== null) xTargetSet.add(seriesEndYear);
+const xTicks: XTick[] = pts
+  .map((p, i) => ({ i, ey: fyEndYear(p.fyLabel) }))
+  .filter(({ ey }) => xTargetSet.has(ey))
+  .map(({ i, ey }) => ({ x: xOfIndex(i), label: String(ey) }));
+
+// ---- Forecast boundary ---------------------------------------------------------
+const firstForecastIdx = (() => {
+  for (let i = 0; i < pts.length; i++) {
+    if (pts[i]!.isForecast) return i;
+  }
+  return -1;
+})();
+
+// Divider x: midpoint between last actual and first forecast
+const dividerX = firstForecastIdx > 0
+  ? (xOfIndex(firstForecastIdx - 1) + xOfIndex(firstForecastIdx)) / 2
+  : null;
+
+// ---- SVG path — single continuous line ----------------------------------------
+const linePath = pts
+  .map((p, i) => `${i === 0 ? "M" : "L"}${xOfIndex(i).toFixed(2)},${yScale(p.value).toFixed(2)}`)
+  .join(" ");
+
+// ---- Latest-point dot + numeric label (canon R2) -------------------------------
+// The dot sits on the LAST PLOTTED OBSERVATION — the forecast endpoint, not the
+// last actual. One dot per chart. Numeric value label moves with it.
+const dotIdx = pts.length - 1;
+const dotPt = dotIdx >= 0 ? pts[dotIdx] : null;
+const dotX  = dotIdx >= 0 ? xOfIndex(dotIdx) : 0;
+const dotY  = dotPt ? yScale(dotPt.value) : 0;
+const latestLabel = dotPt ? `${dotPt.value.toFixed(1)}%` : "";
+
+// ---- Terminus label (rightmost point) -----------------------------------------
+const terminusPt = pts[pts.length - 1];
+const terminusX  = xOfIndex(pts.length - 1);
+const terminusY  = terminusPt ? yScale(terminusPt.value) : 0;
+
+// ---- Reference annotations (words only — [ANNO TK] placeholders) ---------------
+// 1990s peak: FY1995-96 66.6%
+// Pre-GFC trough: FY2008-09 28.2%
+// COVID peak: FY2020-21 47.2%
+interface AnnotDef { fyLabel: string; word: string; value: string; above: boolean }
+// The 1990s peak (66.6%) sits near the top frame (y~66 against M_T=44), so an
+// "above" callout would clip the top margin. Drop it BELOW the peak vertex, where
+// the line falls away on both sides and there is open space. The other two keep
+// their natural sides (trough below, COVID peak above — both have room).
+// `fyLabel` is the panel-9 data-lookup key (unchanged); the `word` carries the
+// verified noun-phrase tag. The peak word uses the END-YEAR convention to match
+// the date axis: FY1995-96 is named "1996 peak".
+const annotDefs: AnnotDef[] = [
+  { fyLabel: "1995-96", word: "1996 peak", value: "66.6%", above: false },
+  { fyLabel: "2008-09", word: "Pre-crisis low", value: "28.2%", above: false },
+  { fyLabel: "2020-21", word: "Pandemic", value: "47.2%", above: true },
+];
+
+interface AnnotPt { x: number; y: number; word: string; value: string; above: boolean }
+const annotPts: AnnotPt[] = [];
+for (const def of annotDefs) {
+  const idx = pts.findIndex((p) => p.fyLabel === def.fyLabel);
+  if (idx >= 0 && pts[idx]) {
+    annotPts.push({
+      x: xOfIndex(idx),
+      y: yScale(pts[idx]!.value),
+      word: def.word,
+      value: def.value,
+      above: def.above,
+    });
+  }
+}
+
+// ---- Hit areas -----------------------------------------------------------------
+type Hit = { cx: number; cy: number; title: string };
+const hits: Hit[] = pts.map((p, i) => ({
+  cx: xOfIndex(i),
+  cy: yScale(p.value),
+  title: `FY${p.fyLabel}: ${p.value.toFixed(1)}% of GDP (federal)${p.isForecast ? " (SEU 2026 proj.)" : ""}`,
+}));
+
+// ---- aria-label ----------------------------------------------------------------
+const ariaLabel =
+  `Federal debt as a percentage of GDP (federal government only, NOT general government), ` +
+  `FY${pts[0]?.fyLabel ?? ""} to FY${pts[pts.length - 1]?.fyLabel ?? ""}. ` +
+  `1990s peak: 66.6% FY1995-96. Pre-GFC trough: 28.2% FY2008-09. COVID peak: 47.2% FY2020-21. ` +
+  `Series ends at ${latestLabel} (FY${dotPt?.fyLabel ?? ""}, projected). ` +
+  `DoF SEU 2026 projection over the forecast horizon.`;
+---
+
+{!hasData ? (
+  <PanelEmpty reason="DATA NOT YET WIRED — fiscal.json panel-9 frt_federal_debt_pct_gdp" />
+) : (
+  <div class="p4dbt-chart" data-panel="fiscal-plate-4" data-panel-status="live">
+    <svg
+      class="p4dbt-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      <title>Federal debt has stabilized near 41% of GDP, far below its mid-1990s peak. — Federal debt as % of GDP</title>
+
+      {/* Horizontal gridlines */}
+      {gridlines.map((v) => (
+        <line
+          class="p4dbt-chart__gridline"
+          x1={PLOT_X0.toFixed(2)} y1={yScale(v).toFixed(2)}
+          x2={PLOT_X1.toFixed(2)} y2={yScale(v).toFixed(2)}
+        />
+      ))}
+
+      {/* Single continuous line */}
+      {linePath && <path class="p4dbt-chart__line" d={linePath} />}
+
+      {/* Hit areas */}
+      {hits.map((h) => (
+        <circle class="p4dbt-chart__hit" cx={h.cx.toFixed(2)} cy={h.cy.toFixed(2)} r="5">
+          <title>{h.title}</title>
+        </circle>
+      ))}
+
+      {/* Reference annotations — words + values only.
+          LEADER ROUTING (canon): the leader is a short vertical stub that lives in
+          the clear GAP between the data point and the text block — it ends 7px short
+          of the point (canon gap) and stops before the text band, so it never passes
+          through the value digits (the old routing crossed "66.6%" -> "66|6%"). The
+          word sits outermost, the value nearest the point; the leader points at the
+          value block edge, not through it. */}
+      {annotPts.map((a) => {
+        // Text baselines. Word outermost, value nearest the point.
+        const wordY  = a.above ? a.y - 31 : a.y + 43;
+        const valueY = a.above ? a.y - 18 : a.y + 30;
+        // Leader stub: 7px short of the point, stopping before the value text band.
+        const leaderNear = a.above ? a.y - 7  : a.y + 7;   // 7px gap off the point
+        const leaderFar  = a.above ? a.y - 13 : a.y + 18;  // stops short of the text
+        return (
+          <g>
+            <circle class="p4dbt-chart__annot-dot" cx={a.x.toFixed(2)} cy={a.y.toFixed(2)} r="2.5" />
+            <line
+              class="p4dbt-chart__annot-leader"
+              x1={a.x.toFixed(2)} y1={leaderNear.toFixed(2)}
+              x2={a.x.toFixed(2)} y2={leaderFar.toFixed(2)}
+            />
+            <text
+              class="p4dbt-chart__annot-word"
+              x={a.x.toFixed(2)} y={wordY.toFixed(2)}
+              text-anchor="middle"
+            >{a.word}</text>
+            <text
+              class="p4dbt-chart__annot-value"
+              x={a.x.toFixed(2)} y={valueY.toFixed(2)}
+              text-anchor="middle"
+            >{a.value}</text>
+          </g>
+        );
+      })}
+
+      {/* Vertical forecast divider (R2.1) */}
+      {dividerX !== null && (
+        <line
+          class="p4dbt-chart__divider"
+          x1={dividerX.toFixed(2)} y1={PLOT_Y0.toFixed(2)}
+          x2={dividerX.toFixed(2)} y2={PLOT_Y1.toFixed(2)}
+        />
+      )}
+
+      {/* "Forecast" label above projection region (R2.1) */}
+      {dividerX !== null && (
+        <text
+          class="p4dbt-chart__forecast-label"
+          x={(dividerX + 6).toFixed(2)}
+          y={(PLOT_Y0 - 6).toFixed(2)}
+          text-anchor="start"
+        >FORECAST</text>
+      )}
+
+      {/* MTA red dot — last plotted observation (forecast endpoint), one per chart (R2) */}
+      {dotPt && (
+        <circle
+          class="p4dbt-chart__latest-dot"
+          cx={dotX.toFixed(2)}
+          cy={dotY.toFixed(2)}
+          r="4"
+        >
+          <title>FY{dotPt.fyLabel}: {latestLabel}{dotPt.isForecast ? " (SEU 2026 proj.)" : ""}</title>
+        </circle>
+      )}
+
+      {/* Latest-point numeric label (R2.5). Anchored LEFT of the endpoint dot
+          (inside the frame) so it cannot clip the right frame nor collide with the
+          terminus label sharing the gutter at the same endpoint. */}
+      {dotPt && latestLabel && (
+        <text
+          class="p4dbt-chart__latest-label"
+          x={(dotX - 7).toFixed(2)}
+          y={(dotY - 9).toFixed(2)}
+          text-anchor="end"
+        >{latestLabel}</text>
+      )}
+
+      {/* Hairline frame */}
+      <rect
+        class="p4dbt-chart__frame"
+        x={PLOT_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
+        width={PLOT_W.toFixed(2)} height={PLOT_H.toFixed(2)}
+      />
+
+      {/* Y-axis tick labels */}
+      {yTicks.map((t) => (
+        <text
+          class="p4dbt-chart__ytick-label"
+          x={(PLOT_X0 - 6).toFixed(2)}
+          y={(t.y + 4).toFixed(2)}
+          text-anchor="end"
+        >{t.label}</text>
+      ))}
+
+      {/* X-axis tick labels */}
+      {xTicks.map((t) => (
+        <g>
+          <line
+            class="p4dbt-chart__xtick"
+            x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 5).toFixed(2)}
+          />
+          <text
+            class="p4dbt-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 17).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* Direct terminus label */}
+      {terminusPt && (
+        <text
+          class="p4dbt-chart__term-label"
+          x={(terminusX + 8).toFixed(2)}
+          y={(terminusY + 4).toFixed(2)}
+          text-anchor="start"
+        >Federal debt</text>
+      )}
+
+    </svg>
+  </div>
+)}
+
+<style>
+  /*
+   * Plate4FederalDebtPctGDP — Tier-3 single-trace line chart.
+   * Federal debt % of GDP, 40-year history + SEU 2026 forecast.
+   * R2.1-conformant: solid line throughout, vertical dashed divider for forecast signal.
+   * 1990s peak (66.6%) and pre-GFC trough (28.2%) are the story — must fit in axis.
+   */
+  .p4dbt-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+  }
+  .p4dbt-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans);
+  }
+  .p4dbt-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  .p4dbt-chart__line {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .p4dbt-chart__hit {
+    fill: transparent;
+    stroke: none;
+    cursor: default;
+  }
+  .p4dbt-chart__annot-dot {
+    fill: var(--ink);
+    stroke: none;
+  }
+  /* Annotation leader: full 1px pure ink (reference-rule strength), ends 4px short */
+  .p4dbt-chart__annot-leader {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  /* Annotation word: 13px Manrope 400 full ink (placeholder ink while TK) */
+  .p4dbt-chart__annot-word {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 400;
+  }
+  .p4dbt-chart__annot-word--tk {
+    fill: var(--ink-placeholder);
+  }
+  /* Annotation value: real data — Plex Mono 12px 600 (anchor emphasis), full ink */
+  .p4dbt-chart__annot-value {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  /* Vertical dashed divider (R2.1): dash 4 2, opacity 0.40 (structural divider) */
+  .p4dbt-chart__divider {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-opacity: 0.40;
+    shape-rendering: crispEdges;
+  }
+  /* "FORECAST" label (R2.1): recession-label token — Manrope 600 11px, 0.18em, full ink */
+  .p4dbt-chart__forecast-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+  }
+  .p4dbt-chart__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+  .p4dbt-chart__latest-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .p4dbt-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p4dbt-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .p4dbt-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p4dbt-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+  }
+  /* Direct terminus label: canon direct-label — Manrope 600 13px, full ink */
+  .p4dbt-chart__term-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .p4dbt-chart__term-label--tk {
+    fill: var(--ink-placeholder);
+  }
+</style>

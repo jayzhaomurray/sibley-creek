@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Source audit · fiscal</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: #111;
+  background: #f7f6f1;
+  margin: 0;
+}
+.wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 40px;
+  align-items: start;
+}
+header.page-head {
+  grid-column: 1 / -1;
+  border-bottom: 2px solid #111;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+header.page-head h1 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+header.page-head .breadcrumb a {
+  color: #666;
+  text-decoration: none;
+  margin-right: 16px;
+}
+header.page-head .breadcrumb a:hover { color: #000; text-decoration: underline; }
+main {
+  background: white;
+  padding: 32px;
+  border: 1px solid #ddd;
+}
+.headline-q {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #111;
+}
+.section-label {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.abstract {
+  font-size: 17px;
+  line-height: 1.6;
+  border-left: 3px solid #c00;
+  padding-left: 16px;
+  margin: 24px 0 40px 0;
+  color: #222;
+}
+.plate {
+  border-top: 1px solid #ccc;
+  padding: 24px 0;
+}
+.plate-number {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 4px;
+}
+.plate-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 4px 0 10px 0;
+  color: #111;
+}
+.plate-meta {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #777;
+  margin-bottom: 12px;
+}
+.plate-blurb { font-size: 16px; line-height: 1.6; color: #222; }
+.plate-source-line {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #666;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dotted #ccc;
+}
+.claim {
+  background: #fffbcc;
+  padding: 1px 2px;
+  border-bottom: 2px solid #e6c200;
+  cursor: pointer;
+}
+.claim:hover {
+  background: #fff299;
+}
+.claim-pending {
+  background: #ffe5a0;
+  border-bottom: 2px solid #c83a00;
+}
+.claim-pending:hover {
+  background: #ffd680;
+}
+.claim-anchor {
+  color: inherit;
+  text-decoration: none;
+}
+.ledger-ref-link {
+  text-decoration: none;
+}
+.ledger-ref-link:hover .ledger-ref {
+  filter: brightness(1.1);
+  outline: 2px solid #006699;
+}
+/* Flash the target when the user clicks a cross-link, both directions. */
+.claim:target,
+.claim-pending:target {
+  animation: flash-yellow 1.5s ease-out;
+  scroll-margin-top: 80px;
+}
+.ledger-item:target {
+  animation: flash-blue 1.5s ease-out;
+  scroll-margin-top: 80px;
+}
+@keyframes flash-yellow {
+  0% { background: #ff8c00; outline: 3px solid #ff8c00; outline-offset: 2px; }
+  100% { background: inherit; outline: none; }
+}
+@keyframes flash-blue {
+  0% { background: #b3d9ff; outline: 3px solid #006699; outline-offset: 2px; }
+  100% { background: inherit; outline: none; }
+}
+.verify-toolbar {
+  background: #fbe8e8;
+  border: 1px solid #c83a00;
+  padding: 12px 16px;
+  margin-top: 14px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.verify-toolbar .nav-btn {
+  background: white;
+  color: #c83a00;
+  border: 1px solid #c83a00;
+  padding: 6px 12px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  margin-right: 6px;
+}
+.verify-toolbar .nav-btn:hover { background: #c83a00; color: white; }
+.verify-toolbar-counts { line-height: 1.5; }
+.verify-toolbar-counts .amber { color: #c83a00; font-weight: 600; }
+.verify-toolbar-counts .green { color: #2a7a30; font-weight: 600; }
+.verify-toolbar-counts .red { color: #c33; font-weight: 600; }
+.export-btn {
+  background: #006699;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.export-btn:hover { background: #00557e; }
+.export-btn:disabled { background: #888; cursor: not-allowed; }
+.export-toast {
+  font-size: 12px;
+  color: #2a7a30;
+  font-weight: 600;
+  margin-left: 8px;
+  display: none;
+}
+.export-toast.show { display: inline; }
+.ledger-item-pending {
+  border-left: 4px solid #c83a00;
+  padding-left: 8px;
+  background: #fff7e6;
+  margin-top: 8px;
+}
+.ledger-item-pending.decision-approve { border-left-color: #2a7a30; background: #f0f8f0; }
+.ledger-item-pending.decision-reject { border-left-color: #c33; background: #fbe8e8; }
+.ledger-item-pending.flash-target {
+  animation: flash-amber 1.5s ease-out;
+}
+@keyframes flash-amber {
+  0% { background: #ff8c00; outline: 3px solid #ff8c00; outline-offset: 2px; }
+  100% { background: #fff7e6; outline: none; }
+}
+.pending-decision-block { margin-top: 10px; }
+.pending-values, .pending-triangulation, .pending-card-notes {
+  margin: 8px 0;
+  font-size: 12px;
+}
+.pending-triangulation.muted { color: #888; font-style: italic; }
+.secondaries { list-style: none; padding: 0; margin: 4px 0 0 0; }
+.secondary { padding: 6px 8px; background: #f8f7ec; border-left: 2px solid #999; margin-bottom: 4px; font-size: 12px; }
+.secondary-credibility { font-size: 11px; color: #555; margin-top: 2px; }
+.secondary-excerpt { margin: 4px 0 0 0; padding: 4px 8px; background: white; font-style: italic; color: #444; font-size: 11px; line-height: 1.4; }
+.verified-values { list-style: none; padding: 0; margin: 4px 0; }
+.verified-values li { padding: 3px 6px; background: #f3f3ef; margin-bottom: 2px; font-family: var(--font-mono, monospace); font-size: 11px; }
+.verified-values code { background: transparent; font-size: 10px; color: #444; }
+fieldset.decision {
+  border: 1px solid #c83a00;
+  padding: 10px 14px;
+  margin-top: 8px;
+  background: white;
+}
+fieldset.decision legend {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #c83a00;
+  padding: 0 6px;
+}
+fieldset.decision label {
+  display: block;
+  margin: 4px 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+fieldset.decision label input { margin-right: 6px; }
+.comment-row { margin-top: 8px; }
+.comment-row label { font-size: 10px; color: #555; }
+.comment-row textarea {
+  width: 100%;
+  font-family: Georgia, serif;
+  font-size: 11px;
+  padding: 4px 6px;
+  border: 1px solid #c8c0a0;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.claim-fuzzy {
+  /* Fuzzy match — same yellow as a literal phrase match, but with a dashed
+     underline to flag that the citation's phrase: didn't match verbatim and
+     the sidecar should be tightened on the next editorial pass. */
+  border-bottom-style: dashed;
+}
+.claim-sup {
+  color: #b07b00;
+  font-weight: 700;
+  font-size: 0.8em;
+  margin-left: 1px;
+}
+.claim-uncovered {
+  /* No citation matches this token at all — true gap. The audit page surfaces
+     it so the user can either tighten a sidecar phrase or add a new citation. */
+  background: #fbe8e8;
+  padding: 1px 2px;
+  border-bottom: 2px solid #c33;
+  cursor: help;
+}
+.claim-uncovered-sup {
+  color: #c33;
+  font-weight: 700;
+  font-size: 0.85em;
+  margin-left: 1px;
+}
+aside.ledger {
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 16px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+}
+aside.ledger h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+.ledger-group { margin-bottom: 20px; }
+.ledger-group-h {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #555;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ddd;
+}
+.ledger-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.ledger-ref {
+  display: inline-block;
+  background: #e6c200;
+  color: white;
+  padding: 1px 6px;
+  font-weight: 700;
+  font-size: 11px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+.ledger-ref.pipeline { background: #2a7a30; }
+.ledger-ref.derived { background: #888; }
+.ledger-ref.unknown, .ledger-ref.card-missing, .ledger-ref.other { background: #c33; }
+.ledger-phrase {
+  font-style: italic;
+  color: #333;
+  display: block;
+  margin: 4px 0;
+}
+.ledger-source-label { font-weight: 600; color: #222; font-size: 12px; }
+.tier-badge {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  margin-left: 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.tier-pipeline { background: #2a7a30; color: white; }
+.tier-a { background: #2a7a30; color: white; }
+.tier-b { background: #b07b00; color: white; }
+.tier-c { background: #c47000; color: white; }
+.tier-mode3 { background: #8a3a4a; color: white; }
+.tier-pending { background: #c33; color: white; }
+.tier-untagged { background: #777; color: white; }
+.tier-error { background: #c33; color: white; }
+.tier-other { background: #888; color: white; font-style: italic; }
+.no-inline-match {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  margin-left: 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+  background: #c33;
+  color: white;
+  cursor: help;
+}
+.ledger-excerpt {
+  margin: 6px 0;
+  padding: 8px 10px;
+  background: #f3f3ef;
+  color: #444;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 2px solid #999;
+}
+.ledger-meta { font-size: 11px; color: #777; }
+.ledger-link {
+  display: inline-block;
+  margin-top: 4px;
+  color: #006699;
+  text-decoration: none;
+  font-weight: 600;
+}
+.ledger-link:hover { text-decoration: underline; }
+.freshness {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: #eef5f3;
+  border-left: 3px solid #2a7a30;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: #2a4f30;
+}
+.freshness-label { font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
+.freshness-stamp { font-family: var(--font-mono, monospace); margin-left: 6px; }
+.freshness-meta { color: #555; margin-left: 12px; }
+.freshness-hint { display: block; margin-top: 4px; color: #555; font-style: italic; }
+.note-line { font-size: 11px; color: #888; margin-top: 4px; font-style: italic; }
+footer.audit-foot {
+  grid-column: 1 / -1;
+  border-top: 1px solid #ccc;
+  padding: 20px 0;
+  font-size: 12px;
+  color: #777;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+.edit-btn {
+  display: inline-block;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #006699;
+  background: transparent;
+  border: 1px solid #006699;
+  padding: 3px 8px;
+  margin-left: 8px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.edit-btn:hover { background: #006699; color: white; }
+.edit-form {
+  margin-top: 12px;
+  padding: 14px;
+  background: #f8f7ec;
+  border: 1px solid #d8c773;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  display: none;
+}
+.edit-form.open { display: block; }
+.edit-form label {
+  display: block;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #666;
+  margin: 8px 0 4px 0;
+}
+.edit-form textarea, .edit-form input[type="text"] {
+  width: 100%;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 1px solid #c8c0a0;
+  background: white;
+  box-sizing: border-box;
+}
+.edit-form textarea { min-height: 80px; line-height: 1.5; resize: vertical; }
+.edit-form .row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+.edit-form .row .primary {
+  background: #006699;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.edit-form .row .primary:hover { background: #00557e; }
+.edit-form .row .toast {
+  font-size: 12px;
+  color: #2a7a30;
+  font-weight: 600;
+  margin-left: 8px;
+  display: none;
+}
+.edit-form .row .toast.show { display: inline; }
+.edit-form .hint {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+  margin-top: 4px;
+}
+.tile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 32px;
+}
+.tile {
+  border: 1px solid #ddd;
+  padding: 16px;
+  background: #fbfaf5;
+}
+.tile-section-label {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #888;
+  margin-bottom: 6px;
+}
+.tile-line {
+  font-size: 15px;
+  line-height: 1.5;
+  color: #222;
+}
+.dive-body {
+  font-size: 16px;
+  line-height: 1.65;
+  color: #222;
+}
+.dive-body h1, .dive-body h2, .dive-body h3 {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  color: #111;
+  margin-top: 32px;
+}
+.dive-body h1 { font-size: 22px; }
+.dive-body h2 { font-size: 18px; }
+.dive-body h3 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.1em; color: #444; }
+.dive-body p { margin: 12px 0; }
+.dive-body ul, .dive-body ol { margin: 12px 0; padding-left: 24px; }
+.dive-body code { font-family: var(--font-mono, monospace); font-size: 0.92em; background: #f0efe8; padding: 1px 4px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <div class="breadcrumb">
+        <a href="./index.html">← All sections</a>
+        <span style="color:#999">·</span>
+        <a href="https://sibleycreek.ca/fiscal/" target="_blank" rel="noopener">Live page ↗</a>
+      </div>
+      <h1>Source audit · fiscal</h1>
+      
+      <div class="freshness">
+        <span class="freshness-label">Pipeline run:</span>
+        <span class="freshness-stamp">2026-06-02T19:42:49.472564+00:00</span>
+        <span class="freshness-meta">10 panels</span>
+        <span class="freshness-hint">Pipeline-tagged claims read the value as of this run. Click any source link to verify against the live upstream page.</span>
+      </div>
+      
+      <div class="verify-toolbar">
+        <div class="verify-toolbar-counts">
+          <strong>2 claims awaiting your verification.</strong>
+          <span class="amber">2 pending</span> ·
+          <span class="green" id="approved-count">0 approved</span> ·
+          <span class="red" id="rejected-count">0 rejected</span>
+        </div>
+        <div>
+          <button class="nav-btn" onclick="jumpToNextPending()">Next pending ↓</button>
+          <button class="export-btn" id="export-btn" onclick="exportDecisions('fiscal')" disabled>Copy decisions to clipboard</button>
+          <span class="export-toast" id="export-toast">Copied — paste into PowerShell</span>
+        </div>
+      </div>
+    </header>
+    <main>
+      <div class="section-label">Section abstract <button class="edit-btn" onclick="document.getElementById('edit-abstract').classList.toggle('open')">✎ Propose edit</button></div>
+      <h2 class="headline-q">What is Canada's fiscal policy stance?</h2>
+      <div class="abstract">The fiscal stance is mildly expansionary and <span class="claim claim-pending" id="ref-1" data-ref="1"><a href="#ledger-1" class="claim-anchor">stays in deficit through the decade<sup class="claim-sup">[1]</sup></a></span>—the gap narrows because program spending is held below GDP growth, not because revenue rises. Ottawa's own plan <span class="claim claim-pending" id="ref-2" data-ref="2"><a href="#ledger-2" class="claim-anchor">reaches an operating surplus by 2028-29<sup class="claim-sup">[2]</sup></a></span> while booking capital investment separately as debt; record bond issuance funds the difference. <span class="claim" id="ref-3" data-ref="3"><a href="#ledger-3" class="claim-anchor">Federal debt holds near 41% of GDP<sup class="claim-sup">[3]</sup></a></span> through the forecast—<span class="claim" id="ref-4" data-ref="4"><a href="#ledger-4" class="claim-anchor">well below the 66.6% of the mid-1990s<sup class="claim-sup">[4]</sup></a></span>, elevated against the past decade.</div>
+      
+    <div class="edit-form" id="edit-abstract">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="" />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The fiscal stance is mildly expansionary and stays in deficit through the decade—the gap narrows because program spending is held below GDP growth, not because revenue rises. Ottawa's own plan reaches an operating surplus by 2028-29 while booking capital investment separately as debt; record bond issuance funds the difference. Federal debt holds near 41% of GDP through the forecast—well below the 66.6% of the mid-1990s, elevated against the past decade.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'fiscal', 'section-abstract')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      
+      <section class="plate">
+        <div class="plate-number">01 · Balance</div>
+        <h3 class="plate-title">Ottawa is balancing the operating books and borrowing the rest for capital. <button class="edit-btn" onclick="document.getElementById('edit-plate-0').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Budget balance — full history + forecast operating/capital zoom</div>
+        <div class="plate-blurb">The plan is to balance day-to-day spending and borrow only for capital. The operating balance swings from a <span class="claim-uncovered">$26 billion<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> deficit this year to a small surplus by <span class="claim-uncovered">2028-29<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>; capital investment—<span class="claim-uncovered">$40<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> to <span class="claim-uncovered">$60 billion<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> annually, booked separately and debt-funded—holds the total in the red. The Parliamentary Budget Officer reads the split more narrowly: on its definition the operating books never reach balance, a <span class="claim-uncovered">$94 billion<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> difference in what counts as capital. Whose accounting wins decides whether this is consolidation or a relabelling.</div>
+        <div class="plate-source-line">Department of Finance Canada, Fiscal Reference Tables 2025; Spring Economic Update 2026.</div>
+        
+    <div class="edit-form" id="edit-plate-0">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Ottawa is balancing the operating books and borrowing the rest for capital." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">The plan is to balance day-to-day spending and borrow only for capital. The operating balance swings from a $26 billion deficit this year to a small surplus by 2028-29; capital investment—$40 to $60 billion annually, booked separately and debt-funded—holds the total in the red. The Parliamentary Budget Officer reads the split more narrowly: on its definition the operating books never reach balance, a $94 billion difference in what counts as capital. Whose accounting wins decides whether this is consolidation or a relabelling.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'fiscal', 'plate-1')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">02 · Revenue vs Expense</div>
+        <h3 class="plate-title">Revenues and program spending converge near <span class="claim-uncovered">15.5%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> of GDP—the gap is the deficit. <button class="edit-btn" onclick="document.getElementById('edit-plate-1').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Federal revenues vs program expenses, % of GDP</div>
+        <div class="plate-blurb">Where program spending sits above revenue, the government runs a deficit—and spending has led for most of the past two decades. The pandemic pushed the spending line to <span class="claim-uncovered">28%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> of GDP in <span class="claim-uncovered">2020-21<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>, a spike with no peacetime precedent in the series, before it fell back; the forecast has the two converging within half a point near 15.5% of GDP by decade's end. The driver is spending held below GDP growth, not higher taxes.</div>
+        <div class="plate-source-line">Department of Finance Canada, Fiscal Reference Tables 2025; Spring Economic Update 2026.</div>
+        
+    <div class="edit-form" id="edit-plate-1">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Revenues and program spending converge near 15.5% of GDP—the gap is the deficit." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Where program spending sits above revenue, the government runs a deficit—and spending has led for most of the past two decades. The pandemic pushed the spending line to 28% of GDP in 2020-21, a spike with no peacetime precedent in the series, before it fell back; the forecast has the two converging within half a point near 15.5% of GDP by decade's end. The driver is spending held below GDP growth, not higher taxes.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'fiscal', 'plate-2')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">04 · Debt/GDP</div>
+        <h3 class="plate-title">Federal debt has stabilized near <span class="claim-uncovered">41%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> of GDP, far below its mid-1990s peak. <button class="edit-btn" onclick="document.getElementById('edit-plate-2').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Federal debt, % of GDP</div>
+        <div class="plate-blurb">Canada's federal debt ratio is elevated but stable—well below its mid-1990s peak. The accumulated deficit holds near 41% of GDP across the forecast; dollar debt keeps climbing past <span class="claim-uncovered">$1.6 trillion<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>, but growing no faster than the economy keeps the ratio flat. The pandemic pushed it to <span class="claim-uncovered">47%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> in <span class="claim-uncovered">2020-21<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>—well below the <span class="claim-uncovered">66.6%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> peak of the mid-1990s, before two decades of consolidation cut it to a pre-crisis low of <span class="claim-uncovered">28%<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span>. The level is elevated; the trajectory is flat.</div>
+        <div class="plate-source-line">Department of Finance Canada, Fiscal Reference Tables 2025; Spring Economic Update 2026.</div>
+        
+    <div class="edit-form" id="edit-plate-2">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Federal debt has stabilized near 41% of GDP, far below its mid-1990s peak." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Canada's federal debt ratio is elevated but stable—well below its mid-1990s peak. The accumulated deficit holds near 41% of GDP across the forecast; dollar debt keeps climbing past $1.6 trillion, but growing no faster than the economy keeps the ratio flat. The pandemic pushed it to 47% in 2020-21—well below the 66.6% peak of the mid-1990s, before two decades of consolidation cut it to a pre-crisis low of 28%. The level is elevated; the trajectory is flat.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'fiscal', 'plate-4')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+      <section class="plate">
+        <div class="plate-number">05 · Issuance mix</div>
+        <h3 class="plate-title">Gross issuance hits a record <span class="claim-uncovered">$612 billion<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> this fiscal year as the bond program scales up. <button class="edit-btn" onclick="document.getElementById('edit-plate-3').classList.toggle('open')">✎ Propose edit</button></h3>
+        <div class="plate-meta">Debt outstanding by instrument: bonds, T-bills, retail</div>
+        <div class="plate-blurb">Gross market financing is set to reach a record near <span class="claim-uncovered">$612<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> billion this fiscal year—topping the <span class="claim-uncovered">2020-21<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> pandemic peak. The increase is a bond-program story: short and long marketable bonds climb roughly a third from last year, as larger deficits and a heavier refinancing load hit the market. The treasury-bill stock the government carries holds near <span class="claim-uncovered">$285<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> to <span class="claim-uncovered">$300 billion<sup class="claim-uncovered-sup" title="No citation matches this token. Either tighten the sidecar phrase or add a new citation.">⚠</sup></span> before trimming back the following year.</div>
+        <div class="plate-source-line">Department of Finance Canada, Fiscal Reference Tables 2025.</div>
+        
+    <div class="edit-form" id="edit-plate-3">
+      <label>Title (current)</label>
+      <input type="text" data-field="title" value="Gross issuance hits a record $612 billion this fiscal year as the bond program scales up." />
+      <label>Blurb (current)</label>
+      <textarea data-field="body">Gross market financing is set to reach a record near $612 billion this fiscal year—topping the 2020-21 pandemic peak. The increase is a bond-program story: short and long marketable bonds climb roughly a third from last year, as larger deficits and a heavier refinancing load hit the market. The treasury-bill stock the government carries holds near $285 to $300 billion before trimming back the following year.</textarea>
+      <label>Reason for the change</label>
+      <textarea data-field="reason" placeholder="factual correction / wording / cite a new source / etc."></textarea>
+      <div class="row">
+        <button class="primary" onclick="copyEditSpec(this, 'fiscal', 'plate-5')">Copy edit-spec to clipboard</button>
+        <span class="toast">Copied. Paste in your terminal.</span>
+      </div>
+      <div class="hint">The clipboard will contain a structured EDIT REQUEST you paste into chat. Claude applies the change + re-runs Gate 1 if numbers changed.</div>
+    </div>
+      </section>
+    </main>
+    
+    <aside class="ledger">
+      <h2>Claims ledger</h2>
+      <div class="ledger-group">
+               <div class="ledger-group-h">Section abstract</div>
+               
+      <div class="ledger-item ledger-item-pending" id="ledger-1">
+        <a href="#ref-1" class="ledger-ref-link"><span class="ledger-ref card">[1]</span></a>
+        <span class="ledger-source-label">Department of Finance Canada — Spring Economic Update 2026 (FY2025-26 federal deficit as % of GDP)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"stays in deficit through the decade"</div>
+        <div class="ledger-excerpt">Department of Finance Canada, Spring Economic Update 2026, Economic and Fiscal
+Overview (released April 28, 2026): &quot;The 2025-26 deficit is now projected to be
+$66.9 billion—$11.5 billion lower than in Budget 2025—or 2.1 per cent of GDP.
+The deficit is expected to decline to $53.2 billion, or 1.4 per cent of GDP by
+2030-31, consistent with the fiscal anchor.&quot;
+</div>
+        <div class="ledger-meta">Spring Economic Update 2026 (released April 28, 2026) · verified 2026-05-24 · next Budget 2026 (timing TBD; expected fall 2026 or early 2027)</div>
+        <div class="note-line">DoF SEU April 2026 Annex 1 Table A1.7: federal deficit every forecast year, 2.1% of GDP in FY2025-26 fading to 1.4% by FY2030-31.</div>
+        <a class="ledger-link" href="https://budget.canada.ca/update-miseajour/2026/report-rapport/overview-apercu-en.html" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>dof_seu_2026_27_release_date</code>: <strong>2026-04-28</strong></li><li><code>fy2025_26_deficit_cad_bn</code>: <strong>66.9</strong></li><li><code>fy2025_26_deficit_pct_gdp</code>: <strong>2.1</strong></li><li><code>fy2030_31_deficit_cad_bn</code>: <strong>53.2</strong></li><li><code>fy2030_31_deficit_pct_gdp</code>: <strong>1.4</strong></li><li><code>primary_table_reference</code>: <strong>Annex 1, Table A1.7 (Summary Statement of Transactions)</strong></li></ul></div>
+          <div class="pending-triangulation"><strong>Triangulated secondaries:</strong><ul class="secondaries">
+        <li class="secondary">
+          <a href="https://budget.canada.ca/update-miseajour/2026/report-rapport/overview-apercu-en.html" target="_blank" rel="noopener"><strong>Spring Economic Update 2026 — Economic and Fiscal Overview (budget.canada.ca)</strong></a>
+          <div class="secondary-credibility">Department of Finance Canada — primary publisher</div>
+          <blockquote class="secondary-excerpt">The 2025-26 deficit is now projected to be $66.9 billion—$11.5 billion lower than in Budget 2025—or 2.1 per cent of GDP.</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://www.theglobeandmail.com/politics/article-spring-economic-update-francois-philippe-champagne-mark-carney-april/" target="_blank" rel="noopener"><strong>The Globe and Mail — Spring Economic Update coverage</strong></a>
+          <div class="secondary-credibility">Tier-1 Canadian business press; allowlist member</div>
+          <blockquote class="secondary-excerpt">Ottawa announces $6-billion to boost skilled trades, smaller deficit projection of $66.9-billion</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://chamber.ca/policy-matters-what-the-spring-economic-statement-means-for-business/" target="_blank" rel="noopener"><strong>Canadian Chamber of Commerce — Policy Matters on SEU 2026</strong></a>
+          <div class="secondary-credibility">Established trade association policy publication</div>
+          <blockquote class="secondary-excerpt">2025-26 deficit projection of $66.9 billion (2.1% of GDP) — improvement of $11.5 billion from Budget 2025</blockquote>
+        </li></ul></div>
+          <div class="pending-card-notes">Primary canada.ca DoF press-release page returns 403 on WebFetch (WAF), but the
+budget.canada.ca report site is publicly reachable and was fetched cleanly. The
+budget.canada.ca site IS the primary publisher: it hosts the SEU 2026 report
+text in HTML form alongside the bilingual PDF. The figure &quot;2.1 per cent of GDP&quot;
+appears verbatim in the Economic and Fiscal Overview chapter.
+
+The triangulation block carries two independent credible secondaries reproducing
+the same FY2025-26 figure and tabling date:
+  - The Globe and Mail's coverage of the April 28 release
+  - The Canadian Chamber of Commerce policy summary
+Both confirm $66.9bn / 2.1% / April 28, 2026 release.
+
+Tier A: primary HTML reachable, verbatim excerpt captured, value confirmed
+independently by two credible secondaries. The 403 on the canada.ca DoF news
+release is a WAF block on bot fetches, not a publication issue (the page
+resolves cleanly in a browser).
+</div>
+          <fieldset class="decision" data-claim-id="dof_seu_2026_deficit_gdp_share">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-dof_seu_2026_deficit_gdp_share" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-dof_seu_2026_deficit_gdp_share" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-dof_seu_2026_deficit_gdp_share" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-dof_seu_2026_deficit_gdp_share">Comment (required if rejecting):</label>
+              <textarea id="comment-dof_seu_2026_deficit_gdp_share" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="ledger-item ledger-item-pending" id="ledger-2">
+        <a href="#ref-2" class="ledger-ref-link"><span class="ledger-ref card">[2]</span></a>
+        <span class="ledger-source-label">Department of Finance Canada — Spring Economic Update 2026, Day-to-Day Operating Balance projection (Table A1.5)</span><span class="tier-badge tier-a" title="Primary verified — researcher fetched the primary source and extracted the verbatim excerpt">PRIMARY VERIFIED</span>
+        <div class="ledger-phrase">"reaches an operating surplus by 2028-29"</div>
+        <div class="ledger-excerpt">Department of Finance Canada, Spring Economic Update 2026, Annex 1 (Details
+of economic and fiscal projections), Table A1.5 (Day-to-Day Operating
+Balance, in billions of dollars):
+
+Total expenses: FY2025-26 578.3; FY2026-27 595.0; FY2027-28 609.9;
+FY2028-29 623.7; FY2029-30 645.9; FY2030-31 666.9.
+Capital investments (expenses): 34.0; 47.4; 51.2; 51.6; 53.8; 54.2.
+Day-to-day operating expenses: 544.3; 547.6; 558.7; 572.0; 592.2; 612.7.
+Budgetary revenues: 511.5; 529.6; 546.8; 565.9; 589.8; 613.7.
+Capital investments (revenues): 6.5; 7.5; 6.7; 7.0; 6.8; 5.2.
+Day-to-day operating balance: FY2025-26 -26.4; FY2026-27 -10.5;
+FY2027-28 -5.2; FY2028-29 +0.9; FY2029-30 +4.5; FY2030-31 +6.1.
+
+Accompanying text (verbatim): &quot;from 2028-29 through to 2030-31, projected
+revenues are expected to more than offset day-to-day operating spending,
+meeting the government's fiscal anchor of balancing day-to-day operating
+spending with revenues.&quot;
+</div>
+        <div class="ledger-meta">Spring Economic Update 2026 — Annex 1, Table A1.5 (released April 28, 2026) · verified 2026-05-25 · next Budget 2026 (timing TBD)</div>
+        <div class="note-line">DoF SEU April 2026 Annex 1 Table A1.5: day-to-day operating balance crosses zero in FY2028-29 (+$0.9bn), meeting the stated fiscal anchor under DoF's own definition.</div>
+        <a class="ledger-link" href="https://budget.canada.ca/update-miseajour/2026/report-rapport/anx1-en.html#table-a15" target="_blank" rel="noopener">Open source ↗</a>
+        
+        <div class="pending-decision-block">
+          <div class="pending-values"><strong>Data points the card establishes:</strong><ul class="verified-values"><li><code>dof_seu_release_date</code>: <strong>2026-04-28</strong></li><li><code>primary_table_reference</code>: <strong>Annex 1, Table A1.5 (Day-to-Day Operating Balance)</strong></li><li><code>fiscal_anchor_commitment</code>: <strong>Balance day-to-day operating spending with revenues by 2028-29</strong></li><li><code>fiscal_anchor_first_balance_fy</code>: <strong>2028-29</strong></li><li><code>day_to_day_operating_balance_cad_bn</code>: <strong>[object Object]</strong></li><li><code>day_to_day_operating_expenses_cad_bn</code>: <strong>[object Object]</strong></li><li><code>capital_investments_expenses_cad_bn</code>: <strong>[object Object]</strong></li></ul></div>
+          <div class="pending-triangulation"><strong>Triangulated secondaries:</strong><ul class="secondaries">
+        <li class="secondary">
+          <a href="https://budget.canada.ca/update-miseajour/2026/report-rapport/anx1-en.html" target="_blank" rel="noopener"><strong>Spring Economic Update 2026 — Annex 1, Table A1.5 (budget.canada.ca)</strong></a>
+          <div class="secondary-credibility">Department of Finance Canada — primary publisher</div>
+          <blockquote class="secondary-excerpt">Table A1.5 Day-to-Day Operating Balance: 2025-26 -26.4; 2026-27 -10.5; 2027-28 -5.2; 2028-29 0.9; 2029-30 4.5; 2030-31 6.1. From 2028-29 through to 2030-31, projected revenues are expected to more than offset day-to-day operating spending, meeting the government's fiscal anchor of balancing day-to-day operating spending with revenues.</blockquote>
+        </li>
+        <li class="secondary">
+          <a href="https://budget.canada.ca/update-miseajour/2026/report-rapport/overview-apercu-en.html" target="_blank" rel="noopener"><strong>Spring Economic Update 2026 — Overview chapter, Chart 2 (budget.canada.ca)</strong></a>
+          <div class="secondary-credibility">Department of Finance Canada — Overview chapter of same publication</div>
+          <blockquote class="secondary-excerpt">Day-to-day operating deficit: 26, 10, 5, 0, 0, 0 (FY2025-26 through 2030-31, rounded to nearest billion). Total deficit in 2028-29 and 2029-30 attributed entirely to Contribution of capital investments to deficit.</blockquote>
+        </li></ul></div>
+          <div class="pending-card-notes">PRIMARY SOURCE, PRIMARY FETCH. The SEU 2026 Annex 1 HTML returned 200 OK
+on direct WebFetch and contained the full year-by-year operating balance
+decomposition in Table A1.5. The chart (Chart 2 of the Overview page)
+reproduces the same series rounded to the nearest billion.
+
+Note: SEU 2026 (April 2026) is the freshest vintage of the DoF operating
+balance track. It REVISES the Budget 2025 (November 2025) baseline. Per
+user canon &quot;always use the freshest vintage,&quot; plate-4 should use SEU 2026
+numbers, not Budget 2025.
+
+Compared to the PBO reclassification (RP-2526-017-S, Nov 14 2025), the
+SEU 2026 DoF operating balance is materially smaller in every year. PBO
+found $18.1bn operating deficit in 2028-29 using a narrower capital
+definition (IMF GFS 2014); DoF's own April 2026 projection has the
+operating balance at +$0.9bn (small surplus) in the same year. The gap
+reflects (a) PBO's stricter capital definition and (b) better-than-Budget
+2025 economic news between Nov 2025 and April 2026.
+
+Tier A — primary HTML directly fetched and parsed. Triangulation block
+carries the budget.canada.ca Overview page (Chart 2 of the same
+publication, which restates the same series rounded) as a second
+primary-pub cross-reference within the same document.
+</div>
+          <fieldset class="decision" data-claim-id="dof_operating_balance_projection">
+            <legend>Your decision</legend>
+            <label><input type="radio" name="decision-dof_operating_balance_projection" value="pending" checked> Not yet verified</label>
+            <label><input type="radio" name="decision-dof_operating_balance_projection" value="approve"> Approve</label>
+            <label><input type="radio" name="decision-dof_operating_balance_projection" value="reject"> Reject</label>
+            <div class="comment-row">
+              <label for="comment-dof_operating_balance_projection">Comment (required if rejecting):</label>
+              <textarea id="comment-dof_operating_balance_projection" rows="2"></textarea>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="ledger-item" id="ledger-3">
+        <a href="#ref-3" class="ledger-ref-link"><span class="ledger-ref pipeline">[3]</span></a>
+        <span class="ledger-source-label">pipeline:fiscal:panel-9</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"Federal debt holds near 41% of GDP"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">fiscal.json panel-9 frt_federal_debt_pct_gdp: 41.1% FY2025-26 to 41.6% FY2030-31 (forecast-stable), Q1 2031.</div>
+        
+        
+      </div>
+      <div class="ledger-item" id="ledger-4">
+        <a href="#ref-4" class="ledger-ref-link"><span class="ledger-ref pipeline">[4]</span></a>
+        <span class="ledger-source-label">pipeline:fiscal:panel-9</span><span class="tier-badge tier-pipeline" title="Auto-refreshed via the data pipeline; reproducible from primary URL">PIPELINE</span>
+        <div class="ledger-phrase">"well below the 66.6% of the mid-1990s"</div>
+        <div class="ledger-excerpt">Auto-refreshed via the Sibley Creek data pipeline. Click through to verify the upstream source publishes the same value.</div>
+        
+        <div class="note-line">fiscal.json panel-9 frt_federal_debt_pct_gdp: series peak 66.6% at FY1995-96, Q1 2031.</div>
+        
+        
+      </div>
+             </div>
+      
+    </aside>
+  
+    <footer class="audit-foot">
+      Generated 2026-06-02 22:22 · Tagged claims show a yellow highlight with a [N] reference. Hover or click to see the source. Sidebar lists all claims with verbatim excerpts. Sources marked as "pipeline" auto-refresh; "card" entries are managed in editorial/source_cards/registry.yaml. Use "Propose edit" to send a structured EDIT REQUEST back to Claude.
+    </footer>
+  </div>
+  <script>
+    function copyEditSpec(btn, slug, surface) {
+      const form = btn.closest('.edit-form');
+      const title = form.querySelector('[data-field="title"]').value.trim();
+      const body = form.querySelector('[data-field="body"]').value.trim();
+      const reason = form.querySelector('[data-field="reason"]').value.trim();
+      const spec = [
+        'EDIT REQUEST',
+        'section: ' + slug,
+        'surface: ' + surface,
+        '',
+        'proposed_title:',
+        title,
+        '',
+        'proposed_body:',
+        body,
+        '',
+        'reason:',
+        reason,
+      ].join('\n');
+      navigator.clipboard.writeText(spec).then(function () {
+        const toast = btn.parentElement.querySelector('.toast');
+        toast.classList.add('show');
+        setTimeout(function () { toast.classList.remove('show'); }, 2500);
+      });
+    }
+    function updateVerifyTally() {
+      const approved = document.querySelectorAll('input[type=radio][value=approve]:checked').length;
+      const rejected = document.querySelectorAll('input[type=radio][value=reject]:checked').length;
+      const total = document.querySelectorAll('.pending-decision-block fieldset.decision').length;
+      const pending = total - approved - rejected;
+      const pendEl = document.querySelector('.verify-toolbar-counts .amber');
+      const apprEl = document.getElementById('approved-count');
+      const rejEl = document.getElementById('rejected-count');
+      if (pendEl) pendEl.textContent = pending + ' pending';
+      if (apprEl) apprEl.textContent = approved + ' approved';
+      if (rejEl) rejEl.textContent = rejected + ' rejected';
+      document.querySelectorAll('.ledger-item-pending').forEach(function (el) {
+        const fs = el.querySelector('.decision');
+        if (!fs) return;
+        const id = fs.dataset.claimId;
+        const choice = document.querySelector('input[name="decision-' + id + '"]:checked')?.value;
+        el.classList.toggle('decision-approve', choice === 'approve');
+        el.classList.toggle('decision-reject', choice === 'reject');
+      });
+      const btn = document.getElementById('export-btn');
+      if (btn) btn.disabled = (approved + rejected) === 0;
+    }
+    function exportDecisions(surfaceSlug) {
+      const lines = ['# Generated ' + new Date().toISOString().slice(0, 16).replace('T', ' ') + ', surface: ' + surfaceSlug, ''];
+      document.querySelectorAll('.pending-decision-block fieldset.decision').forEach(function (fs) {
+        const id = fs.dataset.claimId;
+        const choice = document.querySelector('input[name="decision-' + id + '"]:checked')?.value;
+        if (choice === 'approve') {
+          lines.push('npm run approve-claim ' + surfaceSlug + ':' + id);
+        } else if (choice === 'reject') {
+          const comment = (document.getElementById('comment-' + id)?.value || '').replace(/"/g, '\\"');
+          lines.push('npm run reject-claim ' + surfaceSlug + ':' + id + (comment ? ' -- --reason "' + comment + '"' : ''));
+        }
+      });
+      const text = lines.join('\n');
+      navigator.clipboard.writeText(text).then(function () {
+        const toast = document.getElementById('export-toast');
+        if (toast) {
+          toast.classList.add('show');
+          setTimeout(function () { toast.classList.remove('show'); }, 2500);
+        }
+      });
+    }
+    function jumpToNextPending() {
+      // Find the first pending card that hasn't been decided yet.
+      const pendingCards = document.querySelectorAll('.ledger-item-pending');
+      for (const card of pendingCards) {
+        const fs = card.querySelector('.decision');
+        if (!fs) continue;
+        const id = fs.dataset.claimId;
+        const approved = document.querySelector('input[name="decision-' + id + '"][value="approve"]:checked');
+        const rejected = document.querySelector('input[name="decision-' + id + '"][value="reject"]:checked');
+        if (!approved && !rejected) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          card.classList.add('flash-target');
+          setTimeout(function () { card.classList.remove('flash-target'); }, 1500);
+          return;
+        }
+      }
+      // All decided — alert.
+      alert('All pending claims on this surface have been marked. Hit "Copy decisions to clipboard" to export.');
+    }
+    document.addEventListener('change', function (e) {
+      if (e.target.matches('input[type=radio]')) updateVerifyTally();
+    });
+    updateVerifyTally();
+  </script>
+</body>
+</html>

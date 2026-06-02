@@ -740,6 +740,157 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
                 "not capital.' "
             ),
         ),
+        # ---- NEW PLATES (fiscal_redo_chart_spec.md Revision 2, 2026-06-02) --------
+        # Panel 6 — Budget balance total ($B, full history) + opex/capex decomposition.
+        # Primary: frt_federal_balance_total (FY1983-84 → FY2030-31, history + SEU 2026 forecast).
+        # Secondary: frt_federal_balance_opex (SEU 2026, forecast only FY2025-26+).
+        # Tertiary: frt_federal_balance_capex (SEU 2026, forecast only FY2025-26+).
+        PanelSpec(
+            panel_id="panel-6", section="fiscal", panel_num=6,
+            file="fiscal/Panel6BalanceOpexCapex.astro",
+            primary=SlotSpec(
+                "frt_federal_balance_total", "derived",
+                label="Total budgetary balance ($B)",
+                unit_override="CAD billions",
+            ),
+            secondary=SlotSpec(
+                "frt_federal_balance_opex", "derived",
+                label="Operating balance ($B, SEU 2026)",
+                unit_override="CAD billions",
+            ),
+            tertiary=SlotSpec(
+                "frt_federal_balance_capex", "derived",
+                label="Capital investment ($B, SEU 2026)",
+                unit_override="CAD billions",
+            ),
+            expected_status="WIRED",
+            notes=(
+                "Plate 6: federal budget balance total (primary) + opex/capex decomposition "
+                "(secondary + tertiary). PRIMARY (frt_federal_balance_total): FRT 2025 Table 1 "
+                "actuals FY2006-07 to FY2024-25 (pypdf extract, Tier A) + SEU 2026 Annex 1 "
+                "A1.7 total-balance forecast FY2025-26 to FY2030-31 (WebFetched + verified, "
+                "Tier A). Units: $B CAD; deficit negative. SECONDARY (frt_federal_balance_opex): "
+                "operating balance, SEU 2026 A1.5. TERTIARY (frt_federal_balance_capex): capital "
+                "investment, SEU 2026 A1.4. Opex/capex exist ONLY from FY2025-26 (Capital "
+                "Budgeting Framework new in Budget 2025); FY2024-25 opex/capex are null "
+                "(pre-framework actual). is_forecast field in each data record (0=history, "
+                "1=projected). Chart-builder guidance: plot total balance bars/line full range; "
+                "overlay opex/capex stacked composition for the forecast segment (FY2025-26+). "
+                "PBO reclassification dispute (~$94B gap, RP-2526-017-S Nov 2025): PBO stricter "
+                "capital definition shows opex deficits in all forecast years. Secondary/tertiary "
+                "= DoF official; PBO view is an annotation, not a series here. "
+                "Source: pipeline/fetch/frt_fiscal_series.py."
+            ),
+        ),
+        # Panel 7 — Federal revenues as % of GDP, long history + SEU 2026 forecast.
+        PanelSpec(
+            panel_id="panel-7", section="fiscal", panel_num=7,
+            file="fiscal/Panel7RevenuesPctGDP.astro",
+            primary=SlotSpec(
+                "frt_revenues_pct_gdp", "derived",
+                label="Federal revenues (% of GDP)",
+                unit_override="% of GDP",
+            ),
+            expected_status="WIRED",
+            notes=(
+                "Plate 7: federal revenues as % of GDP, long history + SEU 2026 forecast. "
+                "History: FRT 2025 Table 2 actuals (Oct-2025 GDP vintage). Forecast: derived "
+                "from SEU 2026 Annex 1 revenues $B / SEU nominal GDP $B (Apr-2026 GDP vintage). "
+                "SEAM: FRT FY2024-25 actual = 16.6%; SEU FY2025-26 forecast = 15.77%. The ~0.9pp "
+                "step is partly genuine projected decline, partly GDP vintage offset. Chart must "
+                "carry vintage-seam annotation at the FY2024-25/FY2025-26 boundary. "
+                "is_forecast field in each record. Matched-pair with panel-8 (program expenses) "
+                "-- chart-builder should use identical y-domain (art-director Plate 2+3 matched-pair "
+                "rule). Source: pipeline/fetch/frt_fiscal_series.py."
+            ),
+        ),
+        # Panel 8 — Federal program expenses as % of GDP, long history + SEU 2026 forecast.
+        PanelSpec(
+            panel_id="panel-8", section="fiscal", panel_num=8,
+            file="fiscal/Panel8ProgramExpPctGDP.astro",
+            primary=SlotSpec(
+                "frt_program_exp_pct_gdp", "derived",
+                label="Program expenses excl. debt charges (% of GDP)",
+                unit_override="% of GDP",
+            ),
+            expected_status="WIRED",
+            notes=(
+                "Plate 8: federal program expenses (excl. net actuarial losses AND excl. public "
+                "debt charges) as % of GDP. Long history + SEU 2026 forecast. History: FRT 2025 "
+                "Table 8 actuals. Forecast: derived from SEU 2026 Annex 1 program-expenses-ex-"
+                "actuarial $B / SEU nominal GDP $B. FY2020-21 = 28.1% is real (COVID spike, not "
+                "a basis break) -- annotate. MATCHED PAIR with panel-7 (revenues): chart-builder "
+                "must use identical y-domain across both plates (art-director Plate 2+3 spec). "
+                "The gap between the two series at any year represents the fiscal surplus/deficit. "
+                "is_forecast field in each record. Source: pipeline/fetch/frt_fiscal_series.py."
+            ),
+        ),
+        # Panel 9 — Federal debt (accumulated deficit) as % of GDP.
+        PanelSpec(
+            panel_id="panel-9", section="fiscal", panel_num=9,
+            file="fiscal/Panel9FederalDebtPctGDP.astro",
+            primary=SlotSpec(
+                "frt_federal_debt_pct_gdp", "derived",
+                label="Federal debt / accumulated deficit (% of GDP)",
+                unit_override="% of GDP",
+            ),
+            expected_status="WIRED",
+            notes=(
+                "Plate 9: federal debt (accumulated deficit) as % of GDP, FY2006-07 to FY2030-31. "
+                "REBUILT CLEAN -- do NOT use data/derived/fiscal_debt_to_gdp.csv (that file "
+                "carries Budget 2025 projections with an incompatible GDP vintage). History: FRT "
+                "2025 Table 2 (Oct-2025 GDP vintage). Forecast: SEU 2026 Annex 1 Table A1.7 "
+                "published %GDP row (Apr-2026 vintage). Seam at FY2024-25/FY2025-26: FRT 41.2% "
+                "-> SEU 41.1% (~0.1pp, benign). Federal-only basis (NOT general-government gross "
+                "debt; Fitch/OECD/IMF general-govt figures ~91-107% are NOT comparable). "
+                "is_forecast field in each record. Historical reference points: pre-GFC trough "
+                "28.2% (FY2008-09), COVID peak 47.2% (FY2020-21). "
+                "Source: pipeline/fetch/frt_fiscal_series.py."
+            ),
+        ),
+        # Panel 10 — Federal GROSS ISSUANCE FLOW by maturity bucket.
+        # REBUILT 2026-06-02: was outstanding market-debt STOCK (frt_issuance_bonds/
+        # tbills/retail); repointed to GROSS ISSUANCE FLOW (frt_issuance_flow_*). The
+        # old stock series remain in pipeline/fetch/frt_fiscal_series.py and as CSVs
+        # but are NO LONGER WIRED to this plate (different metric).
+        PanelSpec(
+            panel_id="panel-10", section="fiscal", panel_num=10,
+            file="fiscal/Panel10IssuanceStock.astro",
+            primary=SlotSpec(
+                "frt_issuance_flow_bonds", "derived",
+                label="Long bonds issued (10yr+, RRB, Green) ($B/FY)",
+                unit_override="CAD billions",
+            ),
+            secondary=SlotSpec(
+                "frt_issuance_flow_bills", "derived",
+                label="Treasury bills (year-end stock) ($B/FY)",
+                unit_override="CAD billions",
+            ),
+            tertiary=SlotSpec(
+                "frt_issuance_flow_notes", "derived",
+                label="Short/medium bonds issued (2/3/5yr) ($B/FY)",
+                unit_override="CAD billions",
+            ),
+            expected_status="WIRED",
+            notes=(
+                "Plate 10: federal GROSS ISSUANCE FLOW by maturity bucket, FY2019-20 to "
+                "FY2026-27. History (FY2019-20 to FY2024-25): Debt Management Report Table 4.1. "
+                "Forecast (FY2025-26, FY2026-27, is_forecast=1): DMS 2025-26 + SEU 2026 Annex 3 "
+                "plan -- chart gets a forecast divider. THREE buckets stacked: BONDS = 10yr+ + "
+                "RRB + Green (= DMR 'Long' + Green); BILLS = treasury bills; NOTES = 2/3/5yr "
+                "bonds (= DMR 'Short'; OUR label, not a GoC instrument class). Reconciliation: "
+                "BILLS+NOTES+BONDS = DMR 'Total Gross Issuance' each year (FY2024-25: 526). "
+                "*** CRITICAL CAVEAT for slot-binding / writer pipeline: the BILLS bucket is the "
+                "year-end T-bill STOCK (DMR's own Table 4.1 convention), NOT gross bill auctions. "
+                "Do NOT label BILLS as 'auctioned'/'issued' in the flow sense (gross bill auctions "
+                "were ~$663B in FY2024-25, ~2.3x the $285B stock). Safe framing follows the DMR "
+                "label: 'gross issuance of bonds and bills.' *** REPLACES the old outstanding-stock "
+                "series (frt_issuance_bonds/tbills/retail), which remain in the module but are no "
+                "longer wired here. Full source ledger: "
+                "claude-ref/research/fiscal_redo/issuance_flow_series.md. "
+                "Source: pipeline/fetch/frt_fiscal_series.py."
+            ),
+        ),
     ],
     "markets": [
         PanelSpec(

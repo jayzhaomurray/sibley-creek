@@ -1,0 +1,668 @@
+---
+/*
+ * /recession-watch/ — standing Recession Watch tracker page.
+ *
+ * Phase A scaffold: page shell with verdict slot (reserved 2-line height),
+ * 2x2 chart grid with cross-hairline, methodology zone.
+ * Charts are placeholder slots; chart components and live data wire in Phase B+.
+ *
+ * Spec: claude-ref/research/recession_watch/visual_spec_phase_a.md
+ *   §7 — page composition
+ *   §7.3 — 2x2 grid with hairline cross, column gap >= 36px, 16:9 slots
+ *   §7.4 — verdict slot: Manrope 200, ~24px, max ~40ch, AS OF stamp, 2-line
+ *           height reserved; NO traffic-light / color chip
+ *   §7.5 — methodology zone with METHODOLOGY / COMPARATORS / SOURCES sub-eyebrows
+ *
+ * Chrome discipline:
+ *   BaseLayout renders VignelliMasthead (top) and VignelliColophon (footer).
+ *   This page body contains ONLY: page header, verdict slot, 2x2 grid,
+ *   methodology zone. No in-body masthead imitation, no in-body footer.
+ *
+ * Container width:
+ *   Inherits section-chartbook width (width: 100%) inside BaseLayout's
+ *   site-shell (max-width: --col-page / 1240px, 40px gutters). This is the
+ *   same container section pages use — no inner max-width invented here.
+ *   The 2x2 chart grid uses an inner max-width cap of --col-wide (1040px)
+ *   for the chart area only, matching section page plate widths.
+ *
+ * 2x2 cross-hairline:
+ *   CSS grid: [chart-left] [40px gap] [chart-right]. Gap column carries
+ *   the vertical hairline via border-left on right-column chart cells.
+ *   Horizontal hairline between rows: a spacer <div> spanning all 3
+ *   columns with a 1px ink top-border. On narrow (<= 720px) the grid
+ *   collapses to single column; gap and horizontal hairline are hidden;
+ *   top-border on each slot replaces the hairline cross.
+ *
+ * SEO:
+ *   Title: "Recession Watch | Sibley Creek"
+ *   Description: Canadian recession probability monitor tracking GDP and
+ *   employment depth and breadth against four historical recessions.
+ */
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import RwCycleChart from "../components/charts/recession-watch/RwCycleChart.astro";
+import rwData from "../../data/site/panel_data/recession_watch.json";
+
+const pageTitle = "Recession Watch";
+const pageDesc =
+  "Real-time Canadian recession monitor. Tracks GDP and employment depth and " +
+  "breadth against the 1981-82, 1990-92, 2008-09, and 2020 recessions. " +
+  "Four cycle-on-cycle overlays with a plain-language verdict.";
+
+// AS OF date — derived from pipeline generatedAt (ISO timestamp from pipeline refresh).
+// Formats as Canadian long-form English: "2 June 2026".
+function fmtAsOf(isoString: string): string {
+  const d = new Date(isoString);
+  return d.toLocaleDateString("en-CA", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+const asOfLabel = fmtAsOf(rwData.generatedAt);
+
+// Metric objects from the pipeline data
+const gdpDepthMetric = rwData.metrics.gdp_depth;
+const gdpBreadthMetric = rwData.metrics.gdp_breadth;
+const empDepthMetric = rwData.metrics.emp_depth;
+const empBreadthMetric = rwData.metrics.emp_breadth;
+
+// COVID off-scale annotation wording is writer-owned (spec §4, wording→writer).
+// Pass empty string to suppress the label text; caret renders structurally.
+// Writer fills this in through the three-gate review before ship.
+// Data anchor: GDP 2020 min = −13.03% at month 4; Emp 2020 min from emp_depth comparator.
+const gdpCovidLowLabel = "";
+const empCovidLowLabel = "";
+---
+<BaseLayout title={pageTitle} description={pageDesc} pageClass="recession-watch-page">
+  <article class="section-chartbook rw" aria-labelledby="rw-heading">
+
+    {/* ============================================================
+        PAGE HEADER
+        Canonical pattern: kicker (section number + name, micro-caps,
+        section-number numeral in MTA red) + H1 at section-header__h
+        weight/size (Manrope 600, clamp(28px,4vw,44px)) + 2px ink rule.
+        This matches SectionPageHeader's kicker + headline + closing
+        rule. No in-body masthead wordmark — that comes from BaseLayout.
+        ============================================================ */}
+    <header class="rw__page-header" aria-labelledby="rw-heading">
+      <p class="rw__kicker">
+        <span class="rw__kicker-tok">Sibley Creek</span>
+        <span class="rw__kicker-sep" aria-hidden="true">|</span>
+        <span class="rw__kicker-tok rw__kicker-num">01</span>
+        <span class="rw__kicker-sep" aria-hidden="true">|</span>
+        <span class="rw__kicker-tok rw__kicker-name">Recession Watch</span>
+      </p>
+
+      <h1 id="rw-heading" class="rw__heading">Recession Watch</h1>
+
+      <hr class="rw__header-rule" aria-hidden="true" />
+    </header>
+
+    {/* ============================================================
+        VERDICT SLOT
+        §7.4: Manrope 200 ~24px, max ~40ch, no color chip.
+        2-line height reserved (min-height) so layout is stable
+        whether the verdict is one line (all-clear) or two (alert).
+        AS OF stamp right-aligned in Plex Mono micro-caps.
+        1px ink rule closes the band.
+        ============================================================ */}
+    <section class="rw__verdict-band" aria-label="Current verdict">
+      <div class="rw__verdict-row">
+        {/* Verdict copy — writer-owned, three-gate review before ship. */}
+        <p class="rw__verdict-text" aria-hidden="true">&nbsp;</p>
+        <p class="rw__verdict-stamp" aria-label={`As of ${asOfLabel}`}>
+          <span class="rw__verdict-stamp-label">As of</span>
+          <span class="rw__verdict-stamp-date">{asOfLabel}</span>
+        </p>
+      </div>
+      <hr class="rw__rule" aria-hidden="true" />
+    </section>
+
+    {/* ============================================================
+        2x2 CHART GRID
+        §7.3: left = depth, right = breadth; top = GDP, bottom = employment.
+        Column gap >= 36px. 1px ink hairline cross dividing rows + cols.
+        Each slot: aspect-ratio 16/9, labelled placeholder.
+        Source line at bottom of whole grid.
+
+        Implementation: CSS grid with an explicit gap column (40px).
+        The horizontal hairline between rows is a full-width <div>
+        spanning all three grid areas (the two chart columns + the
+        gap column) placed as a grid row between chart rows.
+        ============================================================ */}
+    <section class="rw__grid-section" aria-label="Evidence charts">
+      <div class="rw__grid" role="list" aria-label="Four recession-watch charts">
+
+        {/* Two equal columns x two equal rows. Depth left, breadth right;
+            GDP top, employment bottom. The ink cross is drawn in the gaps via
+            pseudo-elements (see CSS) so all four boxes stay identical. */}
+        <div class="rw__chart-slot" role="listitem">
+          <p class="rw__slot-eyebrow">GDP — Depth</p>
+          {/* Chart title — writer-owned copy, three-gate review before ship. */}
+          <p class="rw__chart-title" aria-hidden="true">&nbsp;</p>
+          <RwCycleChart
+            chartType="depth"
+            chartId="gdp-depth"
+            metric={gdpDepthMetric}
+            covidLowLabel={gdpCovidLowLabel}
+            ariaLabel="GDP depth: real GDP percent change since cycle peak. Current episode versus four historical recessions."
+          />
+        </div>
+
+        <div class="rw__chart-slot" role="listitem">
+          <p class="rw__slot-eyebrow">GDP — Breadth</p>
+          {/* Chart title — writer-owned copy, three-gate review before ship. */}
+          <p class="rw__chart-title" aria-hidden="true">&nbsp;</p>
+          <RwCycleChart
+            chartType="breadth"
+            chartId="gdp-breadth"
+            metric={gdpBreadthMetric}
+            ariaLabel="GDP breadth: percent of industries with output below cycle peak. Current episode versus four historical recessions."
+          />
+        </div>
+
+        <div class="rw__chart-slot" role="listitem">
+          <p class="rw__slot-eyebrow">Employment — Depth</p>
+          {/* Chart title — writer-owned copy, three-gate review before ship. */}
+          <p class="rw__chart-title" aria-hidden="true">&nbsp;</p>
+          <RwCycleChart
+            chartType="depth"
+            chartId="emp-depth"
+            metric={empDepthMetric}
+            covidLowLabel={empCovidLowLabel}
+            ariaLabel="Employment depth: total employment percent change since cycle peak. Current episode versus four historical recessions."
+          />
+        </div>
+
+        <div class="rw__chart-slot" role="listitem">
+          <p class="rw__slot-eyebrow">Employment — Breadth</p>
+          {/* Chart title — writer-owned copy, three-gate review before ship. */}
+          <p class="rw__chart-title" aria-hidden="true">&nbsp;</p>
+          <RwCycleChart
+            chartType="breadth"
+            chartId="emp-breadth"
+            metric={empBreadthMetric}
+            ariaLabel="Employment breadth: percent of sectors with employment below cycle-peak level. Current episode versus four historical recessions."
+          />
+        </div>
+
+      </div>{/* /rw__grid */}
+
+      <p class="rw__grid-source"><span class="rw__grid-source-label">Source</span>Statistics Canada, monthly real GDP by industry (Tables 36-10-0434-01 and 36-10-0390-01) and Labour Force Survey (Table 14-10-0355-01); recession dates from the C.D. Howe Institute Business Cycle Council. Author calculations.</p>
+    </section>
+
+    {/* ============================================================
+        METHODOLOGY ZONE
+        §7.5: METHODOLOGY / COMPARATORS / SOURCES sub-eyebrows.
+        Manrope 400 15px body, Plex Mono inline values.
+        Reader-facing — passes the three gates before ship.
+        ============================================================ */}
+    <section class="rw__methodology" aria-labelledby="rw-method-heading">
+      <h2 id="rw-method-heading" class="rw__method-heading">Methodology</h2>
+
+      {/* All methodology prose is writer-gate copy.
+          Five sub-sections per visual_spec_phase_a.md §7.5:
+          (1) metrics in plain words, (2) cycle-peak clock, (3) comparators +
+          exclusions, (4) monitor/not-forecast, (5) revision policy.
+          Body paragraphs are invisible spacers pending writer copy. */}
+
+      <div class="rw__method-block">
+        <p class="rw__method-eyebrow">What we measure</p>
+        <div class="rw__method-body">
+          <p aria-hidden="true">&nbsp;</p>
+        </div>
+      </div>
+
+      <div class="rw__method-block">
+        <p class="rw__method-eyebrow">The cycle-peak clock</p>
+        <div class="rw__method-body">
+          <p aria-hidden="true">&nbsp;</p>
+        </div>
+      </div>
+
+      <div class="rw__method-block">
+        <p class="rw__method-eyebrow">Comparators</p>
+        <div class="rw__method-body">
+          <p aria-hidden="true">&nbsp;</p>
+        </div>
+      </div>
+
+      <div class="rw__method-block">
+        <p class="rw__method-eyebrow">A monitor, not a forecast</p>
+        <div class="rw__method-body">
+          <p aria-hidden="true">&nbsp;</p>
+        </div>
+      </div>
+
+      <div class="rw__method-block">
+        <p class="rw__method-eyebrow">Revisions</p>
+        <div class="rw__method-body">
+          <p aria-hidden="true">&nbsp;</p>
+        </div>
+      </div>
+    </section>
+
+  </article>
+</BaseLayout>
+
+<style>
+  /* ================================================================
+   * /recession-watch/ page — Phase A scaffold.
+   *
+   * Container: inherits section-chartbook (width: 100%) — the same
+   * container used by all section pages inside BaseLayout's site-shell.
+   * No inner max-width invented here; the site-shell provides the
+   * 1240px cap + 40px gutters. Chart grid area uses --col-wide (1040px)
+   * as an inner cap on the grid section only.
+   *
+   * All type, color, spacing from tokens.css. No new token values.
+   * Page header matches SectionPageHeader's kicker + H1 + 2px rule
+   * exactly (same class pattern, same CSS values).
+   * ================================================================ */
+
+  /* ---- Page container (section-chartbook is inherited from the article
+     class; .rw adds vertical padding matching section page rhythm) ---- */
+  .rw {
+    padding-bottom: 72px;
+  }
+
+  /* ================================================================
+     PAGE HEADER
+     Kicker: matches section-header__kicker exactly.
+     H1: matches section-header__h exactly (Manrope 600, clamp size).
+     Closing rule: 2px ink — matches section-header__rule.
+     ================================================================ */
+  .rw__page-header {
+    padding-block: 28px 0;
+    margin-bottom: 0;
+  }
+
+  /* Kicker row — identical token values to section-header__kicker */
+  .rw__kicker {
+    margin: 0 0 18px;
+    display: inline-flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0 10px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .rw__kicker-tok {
+    display: inline-block;
+  }
+  .rw__kicker-sep {
+    color: var(--ink);
+    opacity: 0.32;
+    font-weight: 400;
+  }
+  /* Section-number numeral in MTA red — the brand-signal kicker moment */
+  .rw__kicker-num {
+    color: var(--accent);
+    font-weight: 800;
+  }
+  .rw__kicker-name {
+    font-weight: 800;
+  }
+
+  /* H1 — identical token values to section-header__h */
+  .rw__heading {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(28px, 4vw, 44px);
+    line-height: 1.05;
+    color: var(--ink);
+    text-transform: none;
+  }
+
+  /* 2px closing rule — identical to section-header__rule */
+  .rw__header-rule {
+    border: 0;
+    border-top: 2px solid var(--ink);
+    margin: 28px 0 0;
+  }
+
+  /* ================================================================
+     VERDICT SLOT
+     §7.4: Manrope 200 ExtraLight ~24px, max ~40ch.
+     AS OF stamp: Plex Mono micro-caps, right-aligned.
+     min-height reserves 2-line height so the layout never jumps
+     between a 1-line all-clear and a 2-line fired verdict.
+     ================================================================ */
+  .rw__verdict-band {
+    margin-bottom: 48px;
+  }
+
+  .rw__verdict-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding: 20px 0;
+    /* Reserve 2-line height. 24px font-size * 1.3 lh = ~31px per line;
+       two lines + padding = ~82px min. Deterministic whether verdict is
+       1-line or 2-line. */
+    min-height: 82px;
+  }
+
+  .rw__verdict-text {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 200;         /* Manrope ExtraLight */
+    font-size: 24px;
+    line-height: 1.3;
+    color: var(--ink);
+    max-width: 62ch;
+  }
+
+  .rw__verdict-stamp {
+    margin: 0;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    text-align: right;
+  }
+  .rw__verdict-stamp-label {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .rw__verdict-stamp-date {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* Shared 1px ink hairline rule used in verdict band. */
+  .rw__rule {
+    border: 0;
+    border-top: 1px solid var(--ink);
+    margin: 0;
+  }
+
+  /* ================================================================
+     2x2 CHART GRID
+     §7.3: left = depth, right = breadth; top = GDP, bottom = employment.
+
+     Desktop: 3-column grid — [chart] [gap-40px] [chart].
+     The gap column separates the chart areas; the vertical hairline of
+     the cross is carried by border-left on the right-column chart cells.
+     A spacer div between chart rows holds the horizontal hairline.
+
+     Inner max-width: --col-wide (1040px), centered — matches section
+     plate width so chart rendering aligns with the rest of the site.
+
+     Narrow (<= 720px): 1-column stack in reading order.
+     Each slot gets a top border as the inter-slot separator.
+     ================================================================ */
+  .rw__grid-section {
+    max-width: var(--col-wide);
+    margin-bottom: 56px;
+  }
+
+  .rw__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 40px;
+    row-gap: 40px;
+    position: relative;
+  }
+
+  /* Ink cross-hairline drawn in the gaps via pseudo-elements, so all four
+     chart boxes stay identical in size. Centered because the two columns and
+     two rows are equal. */
+  .rw__grid::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(50% - 0.5px);
+    width: 1px;
+    background: var(--ink);
+  }
+  .rw__grid::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(50% - 0.5px);
+    height: 1px;
+    background: var(--ink);
+  }
+
+  /* ---- Chart slot — identical in every cell ---- */
+  .rw__chart-slot {
+    min-width: 0;
+  }
+
+  .rw__slot-eyebrow {
+    margin: 0 0 8px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+    opacity: 0.55;
+  }
+
+  /* Chart finding-title — the writer's sentence above each chart.
+     Spec §5: Manrope 800 19px, sentence-form, terminal period, names the finding. */
+  .rw__chart-title {
+    margin: 0 0 14px;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 19px;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    max-width: 42ch;
+  }
+
+  /* 16:9 placeholder box — identical in every slot */
+  .rw__slot-box {
+    aspect-ratio: 16 / 9;
+    width: 100%;
+    border: 1px dashed var(--ink);
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .rw__slot-label {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink);
+    opacity: 0.45;
+  }
+  .rw__slot-hint {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--ink);
+    opacity: 0.35;
+    text-align: center;
+    max-width: 28ch;
+  }
+
+  /* ---- Grid source line ---- */
+  .rw__grid-source {
+    margin: 16px 0 0;
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--ink);
+    opacity: 0.65;
+  }
+  .rw__grid-source-label {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-right: 6px;
+  }
+
+  /* ================================================================
+     METHODOLOGY ZONE
+     §7.5: micro-caps sub-eyebrows, Manrope 400 15px body,
+     Plex Mono inline code values.
+     ================================================================ */
+  .rw__methodology {
+    border-top: 1px solid var(--ink);
+    padding-top: 36px;
+    margin-bottom: 48px;
+    max-width: var(--col-wide);
+  }
+
+  /* "About this tracker" h2 — visually subordinate (a11y landmark only);
+     matches the micro-caps treatment on SectionPageHeader "Latest release"
+     label rather than a full display-size h2. */
+  .rw__method-heading {
+    margin: 0 0 28px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+    opacity: 0.55;
+  }
+
+  .rw__method-block {
+    margin-bottom: 28px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--ink);
+  }
+  .rw__method-block:last-child {
+    border-bottom: 0;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  /* Sub-eyebrows: METHODOLOGY / COMPARATORS / SOURCES */
+  .rw__method-eyebrow {
+    margin: 0 0 14px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  .rw__method-body p {
+    margin: 0 0 14px;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink);
+    max-width: 68ch;
+  }
+  .rw__method-body p:last-child {
+    margin-bottom: 0;
+  }
+  .rw__method-body strong {
+    font-weight: 600;
+  }
+  /* Plex Mono inline values (x=0, -6%, etc.) */
+  .rw__method-body code {
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 13px;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--ink);
+  }
+
+  .rw__method-list {
+    margin: 10px 0 14px 0;
+    padding: 0 0 0 1em;
+    list-style: disc;
+  }
+  .rw__method-list li {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .rw__method-list code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink);
+  }
+
+  /* ================================================================
+     NARROW VIEWPORT COLLAPSE (<= 720px)
+     Grid folds to single column in reading order 1->2->3->4.
+     Gap cells and horizontal hairline divider are hidden.
+     A top border on each slot replaces the hairline cross.
+     ================================================================ */
+  @media (max-width: 720px) {
+    /* Collapse to a single column; hide the cross-hairline. */
+    .rw__grid {
+      grid-template-columns: 1fr;
+      row-gap: 0;
+    }
+    .rw__grid::before,
+    .rw__grid::after {
+      display: none;
+    }
+
+    /* Each slot gets a top border as the inter-slot separator */
+    .rw__chart-slot {
+      padding: 24px 0;
+      border-top: 1px solid var(--ink);
+    }
+    .rw__chart-slot:first-child {
+      border-top: 0;
+    }
+
+    /* Verdict row: stack verdict text above stamp */
+    .rw__verdict-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+      min-height: 0;
+    }
+    .rw__verdict-stamp {
+      align-items: flex-start;
+      text-align: left;
+    }
+  }
+</style>
