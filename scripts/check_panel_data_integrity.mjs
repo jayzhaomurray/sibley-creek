@@ -20,13 +20,11 @@
  * 3. Null values inside data records for "value" field -- a null in the
  *    value column is allowed for historical suppression (StatCan uses this
  *    for LFS sub-provincial data, job vacancy pre-2020, etc.), but a null
- *    for the MOST RECENT data point is a staleness signal. We warn (not
- *    fail) on trailing nulls.
+ *    for the MOST RECENT data point is a staleness signal and fails.
  *
  * 4. Staleness -- a series whose most recent date is older than the allowed
- *    threshold for its cadence. WARNS, does not fail by default (stale
- *    data is still valid data; the pipeline failure is upstream). Configurable
- *    via FAIL_ON_STALE below.
+ *    threshold for its cadence. Daily market/yield series fail closed; slower
+ *    release-lag series warn unless explicitly promoted to fail-closed.
  *
  * 5. Sane value ranges -- catches obvious pipeline corruptions (yield of 999%,
  *    TSX of 0, USDCAD of 10). Wide ranges that only fire on egregious errors.
@@ -47,7 +45,7 @@
  * is not valid JSON. See claude-ref/research/data_integrity/root_cause_2026-06-01.md.
  */
 
-import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -56,10 +54,27 @@ const ROOT = join(__dirname, "..");
 const PANEL_DATA_DIR = join(ROOT, "data", "site", "panel_data");
 const SECTIONS_JSON = join(ROOT, "data", "site", "sections.json");
 
-// Set to true to fail the build on staleness violations (in addition to logging).
-// Default false: stale data still renders; a stale build warning is better
-// than a broken deploy. The pipeline failure is the appropriate alert signal.
-const FAIL_ON_STALE = false;
+// Fail-closed on staleness for series whose scheduled refresh cadence is daily.
+// Slower macro releases keep warning-only thresholds unless explicitly listed
+// here; their asOfISO is the reference period, not the publication date.
+const FAIL_ON_STALE = true;
+
+const STALENESS_FAIL_SERIES = new Set([
+  "yield_2yr",
+  "yield_5yr",
+  "yield_10yr",
+  "yield_30yr",
+  "overnight_rate_daily",
+  "fxusdcad",
+  "tsx_composite",
+  "wti",
+  "brent",
+  "us_2yr",
+  "us_10yr",
+  "goc_ust_spread_2y",
+  "goc_ust_spread_10y",
+  "corra_overnight_spread_bps",
+]);
 
 // Per-series sane-value ranges. Catches obvious corruptions.
 // Format: seriesKey -> [min, max]
@@ -83,12 +98,13 @@ const SANE_RANGES = {
   corra_overnight_spread_bps: [-100, 100],
 };
 
-// Staleness thresholds by series frequency (calendar days).
+// Staleness thresholds by series frequency. Daily is business days; other
+// cadences are calendar days because their asOfISO marks a reference period.
 const FRESHNESS_DAYS = {
-  daily:     5,    // 3 business days + 2 weekend buffer
+  daily:     3,    // North American market business days
   weekly:    21,   // 3 weeks
-  monthly:   75,   // StatCan monthly: ~30-55 days post reference month
-  quarterly: 130,  // ~75-100 days post-quarter
+  monthly:   105,  // reference-month stamps can run ~60d after month-end
+  quarterly: 220,  // reference-quarter stamps can run ~90d after quarter-end
   annual:    400,
   irregular: 400,
 };
@@ -137,8 +153,8 @@ const SERIES_STALENESS_OVERRIDES = {
   boc_settlement_balances: 21, boc_total_assets: 21, boc_total_liabilities: 21,
   boc_goc_bonds: 21, boc_tbills: 21, boc_advances: 21,
   boc_repos: 21, boc_reverse_repos: 21, boc_banknotes: 21, boc_goc_deposits: 21,
-  // BoC output gap: quarterly, ~2-3 month post-quarter
-  output_gap_mpr: 120,
+  // BoC output gap: quarterly MPR vintage; can lag when an MPR does not refresh it
+  output_gap_mpr: 270,
   // JVWS: ~75-day lag
   job_vacancy_rate: 90, job_vacancy_level: 90,
   // Housing starts/permits: monthly, ~35-60 day lag for starts, longer for permits
@@ -157,6 +173,15 @@ const SERIES_STALENESS_OVERRIDES = {
   goc_ust_spread_2y: 10, goc_ust_spread_10y: 10,
 };
 
+const SECTION_PRINT_SERIES = {
+  "goc-2y": "yield_2yr",
+  "boc-fed-spread": "goc_ust_spread_2y",
+  "usdcad": "fxusdcad",
+  "goc-10y": "yield_10yr",
+  "tsx-composite": "tsx_composite",
+  "wti": "wti",
+};
+
 const today = new Date();
 today.setHours(0, 0, 0, 0);
 
@@ -165,6 +190,120 @@ function daysSince(dateStr) {
   const d = new Date(dateStr.slice(0, 10));
   if (isNaN(d.getTime())) return null;
   return Math.floor((today - d) / 86400000);
+}
+
+const HOLIDAY_CACHE = new Map();
+
+function dateKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function addDays(d, days) {
+  const out = new Date(d);
+  out.setDate(out.getDate() + days);
+  return out;
+}
+
+function observedFixedHoliday(year, monthIndex, day) {
+  const d = new Date(year, monthIndex, day);
+  if (d.getDay() === 6) return addDays(d, -1);
+  if (d.getDay() === 0) return addDays(d, 1);
+  return d;
+}
+
+function nthWeekdayOfMonth(year, monthIndex, weekday, n) {
+  const d = new Date(year, monthIndex, 1);
+  const offset = (weekday - d.getDay() + 7) % 7;
+  d.setDate(1 + offset + ((n - 1) * 7));
+  return d;
+}
+
+function lastWeekdayOfMonth(year, monthIndex, weekday) {
+  const d = new Date(year, monthIndex + 1, 0);
+  const offset = (d.getDay() - weekday + 7) % 7;
+  d.setDate(d.getDate() - offset);
+  return d;
+}
+
+function easterDate(year) {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = ((19 * a) + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + (2 * e) + (2 * i) - h - k) % 7;
+  const m = Math.floor((a + (11 * h) + (22 * l)) / 451);
+  const month = Math.floor((h + l - (7 * m) + 114) / 31);
+  const day = ((h + l - (7 * m) + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
+}
+
+function marketHolidaySet(year) {
+  if (HOLIDAY_CACHE.has(year)) return HOLIDAY_CACHE.get(year);
+  const holidays = [
+    observedFixedHoliday(year, 0, 1),        // New Year's Day
+    nthWeekdayOfMonth(year, 0, 1, 3),        // MLK Day
+    nthWeekdayOfMonth(year, 1, 1, 3),        // Family Day / Presidents' Day
+    addDays(easterDate(year), -2),           // Good Friday
+    lastWeekdayOfMonth(year, 4, 1),          // US Memorial Day
+    nthWeekdayOfMonth(year, 4, 1, 3),        // Victoria Day
+    observedFixedHoliday(year, 5, 19),       // Juneteenth
+    observedFixedHoliday(year, 6, 1),        // Canada Day
+    observedFixedHoliday(year, 6, 4),        // US Independence Day
+    nthWeekdayOfMonth(year, 7, 1, 1),        // Civic Holiday
+    nthWeekdayOfMonth(year, 8, 1, 1),        // Labour Day
+    observedFixedHoliday(year, 8, 30),       // Truth and Reconciliation Day
+    nthWeekdayOfMonth(year, 9, 1, 2),        // Canadian Thanksgiving / US Columbus Day
+    observedFixedHoliday(year, 10, 11),      // Remembrance Day / US Veterans Day
+    nthWeekdayOfMonth(year, 10, 4, 4),       // US Thanksgiving
+    observedFixedHoliday(year, 11, 25),      // Christmas Day
+    observedFixedHoliday(year, 11, 26),      // Boxing Day
+  ];
+  const set = new Set(holidays.map(dateKey));
+  HOLIDAY_CACHE.set(year, set);
+  return set;
+}
+
+function isMarketHoliday(d) {
+  const key = dateKey(d);
+  const year = d.getFullYear();
+  return marketHolidaySet(year - 1).has(key) ||
+    marketHolidaySet(year).has(key) ||
+    marketHolidaySet(year + 1).has(key);
+}
+
+function isBusinessDay(d) {
+  const day = d.getDay();
+  return day !== 0 && day !== 6 && !isMarketHoliday(d);
+}
+
+function businessDaysSince(dateStr) {
+  if (!dateStr) return null;
+  const start = new Date(dateStr.slice(0, 10));
+  if (isNaN(start.getTime())) return null;
+  start.setHours(0, 0, 0, 0);
+  let count = 0;
+  for (const d = new Date(start); d < today; d.setDate(d.getDate() + 1)) {
+    if (d.getTime() === start.getTime()) continue;
+    if (isBusinessDay(d)) count += 1;
+  }
+  return count;
+}
+
+function ageForCadence(dateStr, freq) {
+  return freq === "daily" ? businessDaysSince(dateStr) : daysSince(dateStr);
+}
+
+function shouldFailStaleness(key) {
+  return FAIL_ON_STALE && STALENESS_FAIL_SERIES.has(key);
 }
 
 // --------------------------------------------------------------------------- #
@@ -209,23 +348,66 @@ function checkSlot(slot, { section, panelId, slotName, violations, warnings }) {
   // Check for trailing null (last value is null = likely stale fetch)
   const lastRecord = slot.data[slot.data.length - 1];
   if (lastRecord && lastRecord.value === null) {
-    warnings.push(
+    violations.push(
       `${section}/${panelId}/${slotName}/${key}: most recent data point has null value (possible stale fetch)`
     );
   }
 
   // Staleness check
-  const age = daysSince(slot.asOfISO);
+  const age = ageForCadence(slot.asOfISO, freq);
   if (age !== null && age > maxAge) {
     const msg =
       `${section}/${panelId}/${slotName}/${key}: ` +
-      `asOfISO=${slot.asOfISO} is ${age}d old (threshold ${maxAge}d for ${freq})`;
-    if (FAIL_ON_STALE) {
+      `asOfISO=${slot.asOfISO} is ${age}${freq === "daily" ? " business " : ""}d old ` +
+      `(threshold ${maxAge}d for ${freq})`;
+    if (shouldFailStaleness(key)) {
       violations.push(msg);
     } else {
       warnings.push(msg);
     }
   }
+}
+
+function checkFiniteNumber(value, path, violations) {
+  if (typeof value !== "number") return;
+  if (!Number.isFinite(value) || Number.isNaN(value)) {
+    violations.push(`${path} = ${value} (NaN or Infinity)`);
+  }
+}
+
+function checkSectionsPayload(payload) {
+  const violations = [];
+  const warnings = [];
+  for (const [section, sectionPayload] of Object.entries(payload.sections ?? {})) {
+    const prints = Array.isArray(sectionPayload.prints) ? sectionPayload.prints : [];
+    for (const print of prints) {
+      const printKey = print.key || "?";
+      checkFiniteNumber(print.valueRaw, `sections/${section}/${printKey}.valueRaw`, violations);
+      checkFiniteNumber(print.priorRaw, `sections/${section}/${printKey}.priorRaw`, violations);
+      if (Array.isArray(print.spark)) {
+        for (let i = 0; i < print.spark.length; i++) {
+          checkFiniteNumber(print.spark[i], `sections/${section}/${printKey}.spark[${i}]`, violations);
+        }
+      }
+
+      const mappedSeries = SECTION_PRINT_SERIES[printKey];
+      if (!mappedSeries) continue;
+      const freq = "daily";
+      const maxAge = SERIES_STALENESS_OVERRIDES[mappedSeries] ?? FRESHNESS_DAYS[freq];
+      const age = ageForCadence(print.asOfISO, freq);
+      if (age !== null && age > maxAge) {
+        const msg =
+          `sections/${section}/${printKey}/${mappedSeries}: ` +
+          `asOfISO=${print.asOfISO} is ${age} business days old (threshold ${maxAge}d)`;
+        if (shouldFailStaleness(mappedSeries)) {
+          violations.push(msg);
+        } else {
+          warnings.push(msg);
+        }
+      }
+    }
+  }
+  return { violations, warnings };
 }
 
 // --------------------------------------------------------------------------- #
@@ -319,7 +501,21 @@ if (existsSync(SECTIONS_JSON)) {
   checkedFiles.push("sections.json");
   try {
     const raw = readFileSync(SECTIONS_JSON, "utf-8");
-    JSON.parse(raw); // throws if invalid
+    const payload = JSON.parse(raw); // throws if invalid
+    const { violations, warnings } = checkSectionsPayload(payload);
+    if (violations.length > 0) {
+      console.error(`\n[check_panel_data_integrity] VIOLATIONS in sections.json:`);
+      for (const v of violations) {
+        console.error(`  ERROR: ${v}`);
+      }
+      totalViolations += violations.length;
+    }
+    if (warnings.length > 0) {
+      for (const w of warnings) {
+        console.warn(`  WARN: ${w}`);
+      }
+      totalWarnings += warnings.length;
+    }
   } catch (e) {
     const raw = readFileSync(SECTIONS_JSON, "utf-8");
     const hasNaN = raw.includes(": NaN") || raw.includes(":NaN");

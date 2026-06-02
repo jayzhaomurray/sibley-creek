@@ -115,9 +115,13 @@ def fetch_series(
             continue
 
     df = pd.DataFrame(records, columns=["date", "value"])
-    if not df.empty:
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
-        df = df.dropna(subset=["date"]).sort_values("date").reset_index(drop=True)
+    if df.empty:
+        raise ValueError(f"FRED {series_id} returned no numeric observations.")
+
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df = df.dropna(subset=["date"]).sort_values("date").reset_index(drop=True)
+    if df.empty:
+        raise ValueError(f"FRED {series_id} returned no parseable dated observations.")
 
     return FredFetchResult(series_id=series_id, data=df)
 
@@ -139,6 +143,8 @@ def fetch_fed_funds_target() -> pd.DataFrame:
     monthly = fetch_series("FEDFUNDS", start_date="1990-01-01").data
     upper = fetch_series("DFEDTARU", start_date="2008-01-01").data
 
+    if monthly.empty:
+        raise ValueError("Fed funds pre-2008 fetch returned empty data.")
     if upper.empty:
         raise ValueError("Fed funds upper-bound post-2008 fetch returned empty data.")
 

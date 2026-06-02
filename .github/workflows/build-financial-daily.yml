@@ -22,14 +22,11 @@
 # defer that decision until the remote lands.
 #
 # Failure handling:
-#   - `python -m pipeline.build_financial` exits non-zero if any series
-#     failed. Per `pipeline.build_financial._safe`, a failure does NOT
-#     prevent the rest of the build from writing successful series to disk;
-#     the non-zero exit is purely a signal so GitHub Actions surfaces the
-#     run as red.
-#   - We continue past that exit code into the commit step so partial
-#     successes are still captured on disk. If everything failed and there
-#     are no diffs, `git diff --quiet` skips the commit cleanly.
+#   - `python -m pipeline.build_financial` exits non-zero if any series failed
+#     or if panel-data integrity fails.
+#   - The workflow stops before the commit step on any failure. Partial
+#     refreshes are not pushed to master, because a stale-but-valid data commit
+#     is the recurrence path this gate is designed to kill.
 
 name: build-financial-daily
 
@@ -101,12 +98,6 @@ jobs:
           # single failure entry (`fred:no-api-key`) per build_financial.py;
           # the rest of the run still completes.
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
-        # `continue-on-error` so a partial-failure exit code from
-        # build_financial does NOT skip the commit step. The job still
-        # surfaces red in the GitHub UI because of the explicit status
-        # propagation in the final step.
-        continue-on-error: true
-        id: build
         run: |
           python -m pipeline.build_financial
 
@@ -115,11 +106,6 @@ jobs:
         # Catches NaN/Infinity/stale data BEFORE it is committed to master
         # and deployed to the live site. This is the systemic gate that
         # prevents the recurring broken-chart class of bug.
-        # continue-on-error: true so the commit step still runs (partial
-        # refreshes should commit what succeeded); the final step surfaces
-        # the failure in the GitHub UI.
-        continue-on-error: true
-        id: integrity
         run: |
           node scripts/check_panel_data_integrity.mjs
 
@@ -145,19 +131,3 @@ jobs:
             git push origin HEAD:master
             echo "Pushed to master; deploy.yml will rebuild and ship."
           fi
-
-      - name: Surface non-zero build outcome
-        # Workspace contract: the commit always tries to land, but the
-        # workflow run reflects the build and integrity step exit codes so
-        # failures are visible in the run list rather than being masked by
-        # the commit step's success.
-        if: steps.build.outcome != 'success' || steps.integrity.outcome != 'success'
-        run: |
-          if [ "${{ steps.build.outcome }}" != "success" ]; then
-            echo "Daily Financial build reported fetch failures; see the build step log."
-          fi
-          if [ "${{ steps.integrity.outcome }}" != "success" ]; then
-            echo "Panel data integrity check FAILED -- NaN/Infinity/stale data detected."
-            echo "The committed data may render broken charts. Check integrity report above."
-          fi
-          exit 1

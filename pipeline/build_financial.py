@@ -154,7 +154,7 @@ def _fred_fetch_one(spec: FredSpec) -> None:
         frequency=spec.frequency,
         notes=spec.notes or None,
     )
-    write_series(df, meta, DATA_RAW)
+    write_series_merge(df, meta, DATA_RAW)
 
 
 def run_fred_catalog(failed: list[str]) -> None:

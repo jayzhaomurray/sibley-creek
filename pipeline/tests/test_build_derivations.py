@@ -19,6 +19,7 @@ import pandas as pd
 import pytest
 
 from pipeline.io import SeriesMeta, write_series
+from pipeline.transform.derivations import partner_share_trajectory
 
 
 def _seed_raw(data_root: Path, name: str, values: list[float], start: str = "2024-01-01") -> None:
@@ -34,6 +35,17 @@ def _seed_raw(data_root: Path, name: str, values: list[float], start: str = "202
         frequency="monthly",
     )
     write_series(df, meta, data_root / "raw")
+
+
+def test_partner_share_trajectory_drops_zero_denominator():
+    dates = pd.to_datetime(["2024-01-01", "2024-02-01", "2024-03-01"])
+    partner = pd.DataFrame({"date": dates, "value": [10.0, 20.0, 30.0]})
+    total = pd.DataFrame({"date": dates, "value": [100.0, 0.0, 60.0]})
+
+    out = partner_share_trajectory(partner, total)
+
+    assert list(out["date"]) == [pd.Timestamp("2024-01-01"), pd.Timestamp("2024-03-01")]
+    assert list(out["value"]) == [pytest.approx(10.0), pytest.approx(50.0)]
 
 
 def test_derive_gdp_views_writes_processed_yoy(tmp_path, monkeypatch):

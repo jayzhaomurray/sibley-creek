@@ -38,7 +38,8 @@ import json
 import logging
 import math
 from dataclasses import dataclass
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -1342,12 +1343,29 @@ SERIES_SANE_RANGES: dict[str, tuple[float, float]] = {
 # A series is stale if its most recent date is more than N calendar days ago.
 # These are defaults; daily market series are held to a tighter standard.
 FRESHNESS_THRESHOLDS_DAYS: dict[str, int] = {
-    "daily":     5,    # 3 business days + 2 weekend buffer
+    "daily":     3,    # North American market business days
     "weekly":    21,   # 3 weeks (BoC balance sheet publishes with ~1-week lag)
-    "monthly":   75,   # StatCan monthly releases are ~30-55 days after ref month
-    "quarterly": 130,  # typical ~75-100 days post-quarter for BoC/StatCan quarterly
+    "monthly":   105,  # reference-month stamps can run ~60d after month-end
+    "quarterly": 220,  # reference-quarter stamps can run ~90d after quarter-end
     "annual":    400,  # annual publications run 3-12 months late
     "irregular": 400,
+}
+
+STALENESS_FAIL_SERIES: set[str] = {
+    "yield_2yr",
+    "yield_5yr",
+    "yield_10yr",
+    "yield_30yr",
+    "overnight_rate_daily",
+    "fxusdcad",
+    "tsx_composite",
+    "wti",
+    "brent",
+    "us_2yr",
+    "us_10yr",
+    "goc_ust_spread_2y",
+    "goc_ust_spread_10y",
+    "corra_overnight_spread_bps",
 }
 
 # Per-series staleness overrides for sources with atypical publication lags.
@@ -1411,8 +1429,8 @@ SERIES_STALENESS_OVERRIDES: dict[str, int] = {
     "boc_goc_bonds": 21, "boc_tbills": 21, "boc_advances": 21,
     "boc_repos": 21, "boc_reverse_repos": 21,
     "boc_banknotes": 21, "boc_goc_deposits": 21,
-    # BoC output gap (MPR vintage): quarterly, 2-3 month post-quarter lag.
-    "output_gap_mpr": 120,
+    # BoC output gap (MPR vintage): can lag when an MPR does not refresh it.
+    "output_gap_mpr": 270,
     # JVWS (StatCan Table 14-10-0325): monthly, ~75-day lag.
     "job_vacancy_rate":  90,
     "job_vacancy_level": 90,
@@ -1435,6 +1453,101 @@ SERIES_STALENESS_OVERRIDES: dict[str, int] = {
     "goc_ust_spread_2y":  10,
     "goc_ust_spread_10y": 10,
 }
+
+
+def _observed_fixed_holiday(year: int, month: int, day: int) -> date:
+    d = date(year, month, day)
+    if d.weekday() == 5:
+        return d - timedelta(days=1)
+    if d.weekday() == 6:
+        return d + timedelta(days=1)
+    return d
+
+
+def _nth_weekday_of_month(year: int, month: int, weekday: int, n: int) -> date:
+    d = date(year, month, 1)
+    offset = (weekday - d.weekday()) % 7
+    return d + timedelta(days=offset + ((n - 1) * 7))
+
+
+def _last_weekday_of_month(year: int, month: int, weekday: int) -> date:
+    if month == 12:
+        d = date(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        d = date(year, month + 1, 1) - timedelta(days=1)
+    offset = (d.weekday() - weekday) % 7
+    return d - timedelta(days=offset)
+
+
+def _easter_date(year: int) -> date:
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = ((19 * a) + b - d - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    l = (32 + (2 * e) + (2 * i) - h - k) % 7
+    m = (a + (11 * h) + (22 * l)) // 451
+    month = (h + l - (7 * m) + 114) // 31
+    day = ((h + l - (7 * m) + 114) % 31) + 1
+    return date(year, month, day)
+
+
+@lru_cache(maxsize=None)
+def _market_holidays(year: int) -> frozenset[date]:
+    holidays = {
+        _observed_fixed_holiday(year, 1, 1),       # New Year's Day
+        _nth_weekday_of_month(year, 1, 0, 3),      # MLK Day
+        _nth_weekday_of_month(year, 2, 0, 3),      # Family Day / Presidents' Day
+        _easter_date(year) - timedelta(days=2),    # Good Friday
+        _last_weekday_of_month(year, 5, 0),        # US Memorial Day
+        _nth_weekday_of_month(year, 5, 0, 3),      # Victoria Day
+        _observed_fixed_holiday(year, 6, 19),      # Juneteenth
+        _observed_fixed_holiday(year, 7, 1),       # Canada Day
+        _observed_fixed_holiday(year, 7, 4),       # US Independence Day
+        _nth_weekday_of_month(year, 8, 0, 1),      # Civic Holiday
+        _nth_weekday_of_month(year, 9, 0, 1),      # Labour Day
+        _observed_fixed_holiday(year, 9, 30),      # Truth and Reconciliation Day
+        _nth_weekday_of_month(year, 10, 0, 2),     # Canadian Thanksgiving / US Columbus Day
+        _observed_fixed_holiday(year, 11, 11),     # Remembrance Day / US Veterans Day
+        _nth_weekday_of_month(year, 11, 3, 4),     # US Thanksgiving
+        _observed_fixed_holiday(year, 12, 25),     # Christmas Day
+        _observed_fixed_holiday(year, 12, 26),     # Boxing Day
+    }
+    return frozenset(holidays)
+
+
+def _is_market_business_day(d: date) -> bool:
+    if d.weekday() >= 5:
+        return False
+    return not (
+        d in _market_holidays(d.year - 1)
+        or d in _market_holidays(d.year)
+        or d in _market_holidays(d.year + 1)
+    )
+
+
+def _business_days_since(as_of_date: date, today: date) -> int:
+    """Count market business days after as_of_date through today-exclusive."""
+    days = 0
+    cursor = as_of_date
+    while cursor < today:
+        cursor = cursor + timedelta(days=1)
+        if cursor >= today:
+            break
+        if _is_market_business_day(cursor):
+            days += 1
+    return days
+
+
+def _age_for_cadence(as_of_date: date, today: date, freq: str) -> int:
+    if freq == "daily":
+        return _business_days_since(as_of_date, today)
+    return (today - as_of_date).days
 
 
 def _check_slot_integrity(
@@ -1487,16 +1600,25 @@ def _check_slot_integrity(
                         f"record[{i}].value={fv:.4g} outside sane range [{lo}, {hi}]"
                     )
 
-    # Check staleness via asOfISO
+    last_record = data[-1]
+    if isinstance(last_record, dict) and last_record.get("value") is None:
+        violations.append(
+            f"{section}/{panel_id}/{slot_name}/{key}: "
+            "most recent data point has null value (possible stale fetch)"
+        )
+
+    # Check staleness via asOfISO. Daily market/yield data fails closed;
+    # slower reference-period series are warning-only in the JS gate.
     as_of = slot.get("asOfISO")
     if as_of:
         try:
             as_of_date = date.fromisoformat(as_of[:10])
-            age_days = (today - as_of_date).days
-            if age_days > max_age_days:
+            age_days = _age_for_cadence(as_of_date, today, freq)
+            if key in STALENESS_FAIL_SERIES and age_days > max_age_days:
+                suffix = " business days" if freq == "daily" else " days"
                 violations.append(
                     f"{section}/{panel_id}/{slot_name}/{key}: "
-                    f"asOfISO={as_of} is {age_days} days old "
+                    f"asOfISO={as_of} is {age_days}{suffix} old "
                     f"(threshold {max_age_days}d for {freq})"
                 )
         except ValueError:
@@ -1580,6 +1702,9 @@ def build_all_panel_data(
             "panel_data: %d integrity violation(s) across %d section(s). "
             "Run `node scripts/check_panel_data_integrity.mjs` for a full report.",
             len(all_violations), len(written),
+        )
+        raise RuntimeError(
+            f"panel_data integrity check failed with {len(all_violations)} violation(s)"
         )
     else:
         logger.info("panel_data: all %d section(s) passed integrity check.", len(written))

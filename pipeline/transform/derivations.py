@@ -48,6 +48,7 @@ def partner_share_trajectory(
     p = partner.set_index("date")["value"].sort_index()
     t = total.set_index("date")["value"].sort_index()
     joined = pd.concat([p.rename("partner"), t.rename("total")], axis=1).dropna()
+    joined = joined[joined["total"] != 0]
     share = (joined["partner"] / joined["total"]) * 100
     out = share.dropna().reset_index()
     out.columns = ["date", "value"]

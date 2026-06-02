@@ -80,6 +80,26 @@ def test_pct_change_at_horizon_is_thin_wrapper():
     assert pct_change_at_horizon(s, 1).iloc[1] == pytest.approx(10.0)
 
 
+def test_percent_transforms_replace_zero_denominator_inf_with_nan():
+    s = _monthly_series([0.0] * 12 + [100.0])
+
+    out = pct_change_at_horizon(s, 1)
+    assert math.isnan(out.iloc[1])
+    assert not np.isinf(out).any()
+
+    yoy = yoy_pct(s, periods_per_year=12)
+    assert math.isnan(yoy.iloc[12])
+    assert not np.isinf(yoy).any()
+
+    annualized = annualize_period_growth(s, period_lag=1, periods_per_year=12)
+    assert math.isnan(annualized.iloc[1])
+    assert not np.isinf(annualized).any()
+
+    qoq = qoq_annualized_pct(pd.Series([0.0, 100.0]))
+    assert math.isnan(qoq.iloc[1])
+    assert not np.isinf(qoq).any()
+
+
 def test_index_to_base_anchors_to_specified_date():
     idx = pd.date_range(start="2020-01-01", periods=4, freq="MS")
     s = pd.Series([50.0, 100.0, 150.0, 200.0], index=idx)
