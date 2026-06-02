@@ -7,6 +7,23 @@
 
 ## What's active right now
 
+### Fiscal chartbook -- branch `fiscal-chartbook` (NOT live yet)
+**Status (2026-06-02 EOD):** Built and saved on branch `fiscal-chartbook` (commit 607b4ae). Live `master` still serves the `/fiscal/` coming-soon placeholder -- do NOT push to master until Jay confirms. Jay: "probably push tomorrow."
+
+**Done:** 4-plate fiscal section -- (1) budget balance operating-vs-capital [two-panel], (2) revenues vs expenses %GDP [merged lines], (3) federal debt %GDP [40yr], (4) gross issuance flow bills/notes/bonds [stacked]. Grey-tint bar language (no hatch), end-year round-number date axes, dashed-divider forecast convention, NO prose inside SVGs (small-mult panels use short subject labels). Reader copy passed all 3 gates and is placed. Pipeline: `pipeline/fetch/frt_fiscal_series.py` static module + panel_data specs; `fiscal.json` materialized.
+
+**To finish before pushing tomorrow:**
+1. Regenerate the 12 `frt_*.csv` (NOT on disk -- only in `git stash@{0}` + regenerable by running `frt_fiscal_series.py`). Run the pipeline to re-materialize.
+2. Final full-page visual review with Jay.
+3. (Optional, offered) Build a prose-in-SVG build guard -- fail build on sentence-length `<text>` in chart SVGs (closes the gap the leakage gate misses).
+4. (Bigger follow-up) Conform the bespoke fiscal plates to the shared `_shared/PanelLiveChart.astro` structure -- root cause of the recurring chart drift this session.
+5. Codex audit before push: the pre-PUSH hook blocks substantial-file pushes without an `editorial/audit_findings/` entry. Run `npm run audit-diff -- --by claude --task "fiscal chartbook"` (or `--no-verify` if Jay approves).
+6. Merge `fiscal-chartbook` -> master = deploys live.
+
+**Backups / incident:** Full session state also sits in `git stash@{0}` -- keep it until the branch is confirmed/pushed, then drop. Today an agent ran `git stash` mid-task and reverted the working tree; recovered via surgical `git checkout stash@{0} -- <files>`. Lesson (now in memory): main Claude runs git ops directly, never via subagents.
+
+---
+
 ### Build-Big trades-gap piece â€” launch flagship
 **Status:** Pre-build. Methodology locked. Reaction sweep confirms the wedge is clean.
 **Lives at:** `work/research/trades_gap/` (the working files Claude references; ask in terminal for specifics)
