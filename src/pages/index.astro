@@ -230,33 +230,30 @@ const latest = latestCommentary();
       </p>
 
       {/*
-        Email capture (interim): POSTs to formsubmit.co, which forwards
-        each submission to jay@sibleycreek.ca. Using the raw-email AJAX
-        endpoint until Jay clicks the activation link in the first
-        formsubmit delivery to that address — after activation, swap to
-        the secure hash from the formsubmit dashboard. Replace
-        formsubmit.co with Kit / Beehiiv / Mailchimp when proper
-        newsletter infra is set up.
+        Email capture: POSTs to the Kit (ConvertKit) form endpoint, which
+        adds the subscriber via double opt-in (Kit sends a confirmation
+        email the reader must click). Custom fields are posted as
+        fields[...]. The generic AJAX handler in BaseLayout intercepts the
+        submit and shows the inline confirmation; no Kit JS needed.
       */}
       <form
         class="v3-sub__form"
-        action="https://formsubmit.co/ajax/jay@sibleycreek.ca"
+        action="https://app.kit.com/forms/9515781/subscriptions"
         method="POST"
         data-formsubmit-ajax
-        data-success-msg="Subscribed. Thanks — first issue lands when it lands."
+        data-success-msg="Almost there — check your inbox to confirm your subscription."
       >
         <label for="v3-sub-email" class="v3-sub__lbl">Email address</label>
         <input
           id="v3-sub-email"
-          name="email"
+          name="email_address"
           class="v3-sub__input"
           type="email"
           placeholder="you@firm.ca"
           autocomplete="email"
           required
         />
-        <input type="hidden" name="_subject" value="Sibley subscriber (splash form)" />
-        <input type="hidden" name="source" value="splash" />
+        <input type="hidden" name="fields[source]" value="splash" />
         <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
         <button class="v3-sub__btn" type="submit">Subscribe →</button>
       </form>
