@@ -36,8 +36,9 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, date, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -1151,7 +1152,13 @@ def _df_to_records(df: pd.DataFrame) -> list[dict]:
     """Render a DataFrame as a list of JSON-safe records.
 
     Date column is ISO-formatted. Other columns are floats / strings / None.
+
+    Safety contract: no NaN or Infinity is ever emitted in the output.
+    Both map to None (JSON null). This prevents invalid JSON output
+    (json.dumps() silently emits 'Infinity'/'NaN' which are not valid
+    JSON; browsers parse them as undefined, producing blank charts).
     """
+    import math
     if df.empty:
         return []
     out: list[dict] = []
@@ -1171,7 +1178,10 @@ def _df_to_records(df: pd.DataFrame) -> list[dict]:
                 except (TypeError, ValueError):
                     rec[c] = None if pd.isna(v) else str(v)
                     continue
-                if pd.isna(fv):
+                # Both NaN and Infinity are disallowed in JSON output.
+                # pd.isna(float('inf')) == False, so we must also check
+                # math.isinf() explicitly.
+                if pd.isna(fv) or math.isinf(fv):
                     rec[c] = None
                 else:
                     rec[c] = fv
@@ -1289,11 +1299,257 @@ def build_section_payload(section: str, data_root: Path) -> dict:
     }
 
 
+# --------------------------------------------------------------------------- #
+# Data integrity validator
+# --------------------------------------------------------------------------- #
+
+# Per-series sane-value ranges. Catches obvious corruptions (e.g. a yield of
+# 999% or a TSX value of 0). These are deliberately wide: the goal is to
+# catch data pipeline failures, not normal macro variability.
+# Format: series_slug -> (min_allowed, max_allowed) or None to skip range check.
+SERIES_SANE_RANGES: dict[str, tuple[float, float]] = {
+    # GoC bond yields (%)
+    "yield_2yr":  (0.0, 25.0),
+    "yield_5yr":  (0.0, 25.0),
+    "yield_10yr": (0.0, 25.0),
+    "yield_30yr": (0.0, 25.0),
+    # Overnight rate (%)
+    "overnight_rate":       (0.0, 25.0),
+    "overnight_rate_daily": (0.0, 25.0),
+    # CPI (index level, 2002=100 base; range reflects post-2002 era)
+    "cpi_all_items":     (90.0, 250.0),
+    "cpi_all_items_nsa": (90.0, 250.0),
+    # USDCAD (spot)
+    "fxusdcad": (0.5, 2.5),
+    # TSX Composite level
+    "tsx_composite": (1000.0, 200000.0),
+    # WTI (USD/bbl)
+    "wti": (0.0, 500.0),
+    # Unemployment rate (%)
+    "unemployment_rate": (0.0, 30.0),
+    # Employment level (millions)
+    "employment_level": (5.0, 30.0),
+    # GoC-UST spreads (percentage points)
+    "goc_ust_spread_2y":  (-10.0, 10.0),
+    "goc_ust_spread_10y": (-10.0, 10.0),
+    # BoC-Fed spread (basis points)
+    "boc_fed_spread_monthly": (-500.0, 500.0),
+    # CORRA spread (basis points)
+    "corra_overnight_spread_bps": (-100.0, 100.0),
+}
+
+# Staleness thresholds by series frequency.
+# A series is stale if its most recent date is more than N calendar days ago.
+# These are defaults; daily market series are held to a tighter standard.
+FRESHNESS_THRESHOLDS_DAYS: dict[str, int] = {
+    "daily":     5,    # 3 business days + 2 weekend buffer
+    "weekly":    21,   # 3 weeks (BoC balance sheet publishes with ~1-week lag)
+    "monthly":   75,   # StatCan monthly releases are ~30-55 days after ref month
+    "quarterly": 130,  # typical ~75-100 days post-quarter for BoC/StatCan quarterly
+    "annual":    400,  # annual publications run 3-12 months late
+    "irregular": 400,
+}
+
+# Per-series staleness overrides for sources with atypical publication lags.
+# StatCan bilateral trade data (Table 12-10-0011-01 customs basis, 27-partner)
+# runs ~90 days behind. CREA HPI runs ~30 days. DoF Fiscal Monitor ~70 days.
+# Override format: series_slug -> max_age_days.
+SERIES_STALENESS_OVERRIDES: dict[str, int] = {
+    # StatCan Table 12-10-0011-01 (customs bilateral trade, 27 partners)
+    # Releases ~60-90 days after reference month.
+    "trade_exports_us_customs":    120,
+    "trade_imports_us_customs":    120,
+    "trade_exports_all_customs":   120,
+    "trade_imports_all_customs":   120,
+    "trade_exports_chn": 120, "trade_imports_chn": 120,
+    "trade_exports_gbr": 120, "trade_imports_gbr": 120,
+    "trade_exports_deu": 120, "trade_imports_deu": 120,
+    "trade_exports_fra": 120, "trade_imports_fra": 120,
+    "trade_exports_nld": 120, "trade_imports_nld": 120,
+    "trade_exports_jpn": 120, "trade_imports_jpn": 120,
+    "trade_exports_mex": 120, "trade_imports_mex": 120,
+    "trade_exports_kor": 120, "trade_imports_kor": 120,
+    "trade_exports_ind": 120, "trade_imports_ind": 120,
+    "trade_exports_aus": 120, "trade_imports_aus": 120,
+    "trade_exports_idn": 120, "trade_imports_idn": 120,
+    "trade_exports_sgp": 120, "trade_imports_sgp": 120,
+    "trade_exports_sau": 120, "trade_imports_sau": 120,
+    "trade_exports_twn": 120, "trade_imports_twn": 120,
+    "trade_exports_hkg": 120, "trade_imports_hkg": 120,
+    # StatCan Table 12-10-0182-01 (sectoral merchandise exports)
+    # Same ~90-day lag as bilateral customs data.
+    "exports_steel_us":      120, "exports_steel_nonus":    120,
+    "exports_aluminum_us":   120, "exports_aluminum_nonus": 120,
+    "exports_softwood_us":   120, "exports_softwood_nonus": 120,
+    "exports_autos_us":      120, "exports_autos_nonus":    120,
+    "exports_gold_total":    120, "exports_gold_uk":        120,
+    "exports_gold_us":       120,
+    # CREA HPI: typically ~30-35 days after reference month. Some geo series
+    # (resales by CMA) have much longer gaps; set conservatively at 270 days.
+    "crea_hpi_canada_yoy":    70, "crea_hpi_toronto_yoy":    70,
+    "crea_hpi_vancouver_yoy": 70, "crea_hpi_montreal_yoy":   70,
+    "crea_hpi_calgary_yoy":   70, "crea_hpi_ottawa_yoy":     70,
+    "crea_hpi_edmonton_yoy":  70,
+    "crea_snlr":              150,
+    "crea_resales":           150, "crea_resales_toronto": 300,
+    "crea_resales_vancouver": 300, "crea_resales_calgary": 300,
+    # CBA mortgage arrears: ~75-day lag.
+    "cba_mortgage_arrears_national": 100,
+    # DoF Fiscal Monitor: ~60-100 days (varies by March year-end vs mid-year).
+    "dof_fiscal_monthly_balance":  120,
+    "dof_fiscal_ytd_balance":      120,
+    "dof_fiscal_ytd_summary":      120,
+    "debt_service_ratio":          120,
+    "debt_service_ratio_band_lo":  120,
+    "debt_service_ratio_band_hi":  120,
+    # IMF WEO: annual publication, ~4-6 months post-year-end.
+    "imf_can_gg_balance_pct_gdp":    400,
+    "imf_can_gg_gross_debt_pct_gdp": 400,
+    # BoC balance sheet: weekly, typically 1-2 week lag.
+    "boc_settlement_balances": 21,
+    "boc_total_assets": 21, "boc_total_liabilities": 21,
+    "boc_goc_bonds": 21, "boc_tbills": 21, "boc_advances": 21,
+    "boc_repos": 21, "boc_reverse_repos": 21,
+    "boc_banknotes": 21, "boc_goc_deposits": 21,
+    # BoC output gap (MPR vintage): quarterly, 2-3 month post-quarter lag.
+    "output_gap_mpr": 120,
+    # JVWS (StatCan Table 14-10-0325): monthly, ~75-day lag.
+    "job_vacancy_rate":  90,
+    "job_vacancy_level": 90,
+    # Housing starts / permits: monthly, ~30-35 day lag for starts, longer for permits.
+    "housing_starts":           75,
+    "units_under_construction": 75,
+    "residential_permits":      120,
+    # Household DSR (StatCan 11-10-0065-01): quarterly, ~75-day lag.
+    "household_dsr": 270,
+    # BoC housing affordability index: quarterly, ~75-day lag.
+    "housing_affordability": 270,
+    # AECO natural gas (Alberta Economic Dashboard): monthly, ~60-day lag.
+    "natural_gas_alberta": 120,
+    # BoC-Fed spread: derived from monthly rate data; same lag as overnight rate.
+    "boc_fed_spread_monthly": 75,
+    # Trade exports total (StatCan 12-10-0119, BOP basis): ~90-day lag.
+    "trade_exports_total": 120,
+    "trade_exports_us":    120,
+    # GoC-UST spreads (derived, limited by FRED DGS2/DGS10 availability)
+    "goc_ust_spread_2y":  10,
+    "goc_ust_spread_10y": 10,
+}
+
+
+def _check_slot_integrity(
+    slot: dict,
+    violations: list[str],
+    today: date,
+    *,
+    section: str,
+    panel_id: str,
+    slot_name: str,
+) -> None:
+    """Check one slot dict for NaN, Infinity, range violations, and staleness."""
+    if slot is None:
+        return
+    key = slot.get("key", "?")
+    data = slot.get("data")
+    if not data:
+        return
+
+    freq = (slot.get("frequency") or "monthly").lower()
+    # Per-series override takes precedence; fall back to frequency-based threshold.
+    max_age_days = SERIES_STALENESS_OVERRIDES.get(
+        key, FRESHNESS_THRESHOLDS_DAYS.get(freq, 400)
+    )
+    sane_range = SERIES_SANE_RANGES.get(key)
+
+    # Check each record value
+    for i, record in enumerate(data):
+        for field, val in record.items():
+            if field == "date":
+                continue
+            if val is None:
+                continue  # Allowed nulls (suppressed historical data, etc.)
+            if not isinstance(val, (int, float)):
+                continue
+            fv = float(val)
+            if math.isnan(fv):
+                violations.append(
+                    f"{section}/{panel_id}/{slot_name}/{key}: record[{i}].{field} is NaN"
+                )
+            elif math.isinf(fv):
+                violations.append(
+                    f"{section}/{panel_id}/{slot_name}/{key}: record[{i}].{field} is Infinity"
+                )
+            elif sane_range is not None and field == "value":
+                lo, hi = sane_range
+                if fv < lo or fv > hi:
+                    violations.append(
+                        f"{section}/{panel_id}/{slot_name}/{key}: "
+                        f"record[{i}].value={fv:.4g} outside sane range [{lo}, {hi}]"
+                    )
+
+    # Check staleness via asOfISO
+    as_of = slot.get("asOfISO")
+    if as_of:
+        try:
+            as_of_date = date.fromisoformat(as_of[:10])
+            age_days = (today - as_of_date).days
+            if age_days > max_age_days:
+                violations.append(
+                    f"{section}/{panel_id}/{slot_name}/{key}: "
+                    f"asOfISO={as_of} is {age_days} days old "
+                    f"(threshold {max_age_days}d for {freq})"
+                )
+        except ValueError:
+            pass  # Unparseable asOfISO; not a validation concern here
+
+
+def validate_panel_data_file(path: Path, today: Optional[date] = None) -> list[str]:
+    """Validate a single panel_data JSON file for NaN, Infinity, range, and staleness.
+
+    Returns a list of violation strings (empty = clean). Does not raise;
+    callers decide whether to warn or fail.
+    """
+    if today is None:
+        today = date.today()
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return [f"{path.name}: invalid JSON ({exc}) -- likely contains NaN or Infinity literals"]
+    except Exception as exc:  # noqa: BLE001
+        return [f"{path.name}: could not read file ({exc})"]
+
+    section = payload.get("section", path.stem)
+    violations: list[str] = []
+
+    for panel_id, panel in payload.get("panels", {}).items():
+        for slot_name in ("primary", "secondary", "tertiary"):
+            slot = panel.get(slot_name)
+            if slot:
+                _check_slot_integrity(
+                    slot, violations, today,
+                    section=section, panel_id=panel_id, slot_name=slot_name,
+                )
+        for extra in panel.get("extras", []):
+            if extra:
+                _check_slot_integrity(
+                    extra, violations, today,
+                    section=section, panel_id=panel_id, slot_name="extra",
+                )
+
+    return violations
+
+
 def build_all_panel_data(
     data_root: Path = DATA_ROOT,
     out_dir: Optional[Path] = None,
 ) -> dict[str, Path]:
     """Emit one panel-data JSON per section.
+
+    After writing each file, runs the data integrity validator. Any violations
+    are logged as errors so the pipeline exits non-zero and the failure is
+    visible in CI. This is the systemic gate that prevents NaN/Infinity/stale
+    data from reaching the deploy step.
 
     Returns: section -> written path.
     """
@@ -1302,12 +1558,32 @@ def build_all_panel_data(
         out_dir = data_root / "site" / "panel_data"
     out_dir.mkdir(parents=True, exist_ok=True)
     written: dict[str, Path] = {}
+    today = date.today()
+    all_violations: list[str] = []
+
     for section in PANEL_SPECS:
         payload = build_section_payload(section, data_root)
         out_path = out_dir / f"{section}.json"
         out_path.write_text(json.dumps(payload, indent=2, sort_keys=False), encoding="utf-8")
         written[section] = out_path
         logger.info("panel_data: wrote %s (%d panels)", out_path, len(payload["panels"]))
+
+        # Validate the file we just wrote
+        violations = validate_panel_data_file(out_path, today=today)
+        if violations:
+            for v in violations:
+                logger.error("panel_data integrity VIOLATION: %s", v)
+            all_violations.extend(violations)
+
+    if all_violations:
+        logger.error(
+            "panel_data: %d integrity violation(s) across %d section(s). "
+            "Run `node scripts/check_panel_data_integrity.mjs` for a full report.",
+            len(all_violations), len(written),
+        )
+    else:
+        logger.info("panel_data: all %d section(s) passed integrity check.", len(written))
+
     return written
 
 

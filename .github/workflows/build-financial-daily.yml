@@ -85,6 +85,15 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r pipeline/requirements.txt
 
+      - name: Set up Node for integrity check
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install Node dependencies (for integrity check)
+        run: npm ci
+
       - name: Run daily Financial build
         env:
           # Secrets are pulled from the repository's Settings -> Secrets.
@@ -100,6 +109,19 @@ jobs:
         id: build
         run: |
           python -m pipeline.build_financial
+
+      - name: Validate panel data integrity
+        # Runs AFTER the financial build writes panel_data/*.json.
+        # Catches NaN/Infinity/stale data BEFORE it is committed to master
+        # and deployed to the live site. This is the systemic gate that
+        # prevents the recurring broken-chart class of bug.
+        # continue-on-error: true so the commit step still runs (partial
+        # refreshes should commit what succeeded); the final step surfaces
+        # the failure in the GitHub UI.
+        continue-on-error: true
+        id: integrity
+        run: |
+          node scripts/check_panel_data_integrity.mjs
 
       - name: Commit and push refreshed data if changed
         # Only commits when the working tree actually diverges from HEAD.
@@ -126,10 +148,16 @@ jobs:
 
       - name: Surface non-zero build outcome
         # Workspace contract: the commit always tries to land, but the
-        # workflow run reflects the build step's exit code so failures
-        # are visible in the run list rather than being masked by the
-        # commit step's success.
-        if: steps.build.outcome != 'success'
+        # workflow run reflects the build and integrity step exit codes so
+        # failures are visible in the run list rather than being masked by
+        # the commit step's success.
+        if: steps.build.outcome != 'success' || steps.integrity.outcome != 'success'
         run: |
-          echo "Daily Financial build reported failures; see the build step log."
+          if [ "${{ steps.build.outcome }}" != "success" ]; then
+            echo "Daily Financial build reported fetch failures; see the build step log."
+          fi
+          if [ "${{ steps.integrity.outcome }}" != "success" ]; then
+            echo "Panel data integrity check FAILED -- NaN/Infinity/stale data detected."
+            echo "The committed data may render broken charts. Check integrity report above."
+          fi
           exit 1

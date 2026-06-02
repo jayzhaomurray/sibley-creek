@@ -82,6 +82,15 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r pipeline/requirements.txt
 
+      - name: Set up Node for integrity check
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install Node dependencies (for integrity check)
+        run: npm ci
+
       - name: Run main pipeline build
         env:
           # FRED is invoked by `build_financial`, not `build`; passed
@@ -92,6 +101,13 @@ jobs:
         id: build
         run: |
           python -m pipeline.build
+
+      - name: Validate panel data integrity
+        # Catches NaN/Infinity/stale data BEFORE commit to master.
+        continue-on-error: true
+        id: integrity
+        run: |
+          node scripts/check_panel_data_integrity.mjs
 
       - name: Commit and push refreshed data if changed
         run: |
@@ -111,7 +127,12 @@ jobs:
           fi
 
       - name: Surface non-zero build outcome
-        if: steps.build.outcome != 'success'
+        if: steps.build.outcome != 'success' || steps.integrity.outcome != 'success'
         run: |
-          echo "Main pipeline build reported failures; see the build step log."
+          if [ "${{ steps.build.outcome }}" != "success" ]; then
+            echo "Main pipeline build reported failures; see the build step log."
+          fi
+          if [ "${{ steps.integrity.outcome }}" != "success" ]; then
+            echo "Panel data integrity check FAILED -- NaN/Infinity/stale data detected."
+          fi
           exit 1

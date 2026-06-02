@@ -11,6 +11,11 @@ Conventions:
       consume "%". Conversion to decimals happens at the boundary if ever needed.
     - NaN handling: we propagate NaN. Leading observations that can't compute
       a window will be NaN, not dropped. Callers can .dropna() if they prefer.
+    - Infinity handling: Infinity is NEVER emitted. Any transform that would
+      produce +/-Inf (zero denominator, division-by-zero in pct_change) instead
+      emits NaN so the callers .dropna() removes the offending row rather than
+      propagating an invalid value into the JSON output. This is the fail-closed
+      contract: a missing data point is better than a broken chart.
     - Source series are never mutated; every function returns a new object.
 """
 
@@ -18,9 +23,24 @@ from __future__ import annotations
 
 from typing import Union
 
+import numpy as np
 import pandas as pd
 
 SeriesLike = Union[pd.Series, pd.DataFrame]
+
+
+def _replace_inf(result: SeriesLike) -> SeriesLike:
+    """Replace +/-Infinity with NaN in any Series or DataFrame.
+
+    Internal helper used by all percent-change functions to enforce the
+    Infinity-free output contract. Zero denominators in pct_change / ratio
+    computations produce Inf; we convert those to NaN so downstream callers
+    see a missing value (which .dropna() or panel_data.py safely handles)
+    rather than invalid JSON output.
+    """
+    if isinstance(result, pd.Series):
+        return result.replace([np.inf, -np.inf], np.nan)
+    return result.replace([np.inf, -np.inf], np.nan)
 
 
 def pct_change_at_horizon(s: SeriesLike, periods: int) -> SeriesLike:
@@ -30,9 +50,9 @@ def pct_change_at_horizon(s: SeriesLike, periods: int) -> SeriesLike:
     For a quarterly series, periods=4 is the YoY; periods=1 is the QoQ.
 
     Equivalent to `s.pct_change(periods) * 100`, but with an explicit name and
-    no surprise about units.
+    no surprise about units. Infinity (zero denominator) is replaced with NaN.
     """
-    return s.pct_change(periods) * 100
+    return _replace_inf(s.pct_change(periods, fill_method=None) * 100)
 
 
 def yoy_pct(s: SeriesLike, *, periods_per_year: int) -> SeriesLike:
@@ -47,8 +67,10 @@ def yoy_pct(s: SeriesLike, *, periods_per_year: int) -> SeriesLike:
     needs a date-aligned shift, not a positional shift. For now, callers who
     need calendar-aware YoY on daily data should use `align_yoy` (TODO when
     a use-case lands) rather than this function.
+
+    Infinity (zero denominator) is replaced with NaN.
     """
-    return s.pct_change(periods_per_year) * 100
+    return _replace_inf(s.pct_change(periods_per_year, fill_method=None) * 100)
 
 
 def qoq_annualized_pct(s: SeriesLike) -> SeriesLike:
@@ -59,8 +81,10 @@ def qoq_annualized_pct(s: SeriesLike) -> SeriesLike:
 
     Assumes `s` is quarterly. If you have monthly data and want a 3-month
     annualized rate, use `annualize_period_growth(s, period_lag=3, periods_per_year=12)`.
+
+    Infinity (zero denominator) is replaced with NaN.
     """
-    return ((s / s.shift(1)) ** 4 - 1) * 100
+    return _replace_inf(((s / s.shift(1)) ** 4 - 1) * 100)
 
 
 def annualize_period_growth(
@@ -72,12 +96,14 @@ def annualize_period_growth(
     monthly series: period_lag=3, periods_per_year=12.
 
     Formula: ( (s_t / s_{t-period_lag}) ** (periods_per_year / period_lag) - 1 ) * 100
+
+    Infinity (zero denominator) is replaced with NaN.
     """
     if period_lag <= 0:
         raise ValueError(f"period_lag must be positive; got {period_lag}")
     if periods_per_year <= 0:
         raise ValueError(f"periods_per_year must be positive; got {periods_per_year}")
-    return ((s / s.shift(period_lag)) ** (periods_per_year / period_lag) - 1) * 100
+    return _replace_inf(((s / s.shift(period_lag)) ** (periods_per_year / period_lag) - 1) * 100)
 
 
 def moving_average(
