@@ -162,16 +162,56 @@ const dayLabel = (iso: string): string => {
 };
 
 // --- Fetch w/ disk cache ----------------------------------------------------
-// Pattern: if the cache file exists and is younger than the TTL, use it
-// directly. Otherwise try to refresh. On any fetch error (including 429
-// rate-limit) fall back to the cached copy regardless of age. Only if
-// there's no cache at all AND the fetch fails do we render the error
-// state. This keeps builds cheap and resilient to FF throttling.
-const cacheAgeMs = (): number | null => {
-  if (!existsSync(FF_CACHE_PATH)) return null;
-  try { return Date.now() - statSync(FF_CACHE_PATH).mtimeMs; }
-  catch { return null; }
+// Freshness is DATA-AWARE, not mtime-aware.
+//
+// Root cause of the original stale-calendar bug: `git checkout` resets every
+// file's mtime to "now", so the mtime-based TTL always passed in CI →
+// the build used whatever was committed and never fetched live. Fixed by
+// inspecting the dates INSIDE the cached XML: the cache is only considered
+// fresh if it contains at least one event whose date falls within the current
+// ISO week. mtime is no longer consulted for freshness; the former FF_CACHE_TTL_MS
+// is retained only as a secondary guard for local dev (rapid re-builds within
+// the same week where data-aware freshness would always pass).
+//
+// Staleness guard: after parsing, if the calendar covers only dates that are
+// entirely in the past, a build warning is emitted. In CI (GITHUB_ACTIONS=true)
+// this becomes a hard error so stale content cannot ship silently.
+
+// Return the ISO week identifier "YYYY-Www" for a given Date.
+const isoWeekKey = (d: Date): string => {
+  // Thursday-based ISO week: shift to Thursday's week, then compute.
+  const tmp = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((tmp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${tmp.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 };
+
+// Parse all event dates from a raw XML string and return the latest one as a
+// Date. Returns null if the XML has no parseable dates.
+const latestEventDate = (rawXml: string): Date | null => {
+  const dateMatches = rawXml.matchAll(/<date><!\[CDATA\[(\d{2}-\d{2}-\d{4})\]\]><\/date>/g);
+  let latest: Date | null = null;
+  for (const m of dateMatches) {
+    const parts = m[1]!.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (!parts) continue;
+    const d = new Date(Date.UTC(
+      parseInt(parts[3]!, 10),
+      parseInt(parts[1]!, 10) - 1,
+      parseInt(parts[2]!, 10),
+    ));
+    if (!latest || d > latest) latest = d;
+  }
+  return latest;
+};
+
+// True if the cached XML covers the CURRENT ISO week.
+const ffCacheCoversCurrentWeek = (rawXml: string): boolean => {
+  const latest = latestEventDate(rawXml);
+  if (!latest) return false;
+  return isoWeekKey(latest) === isoWeekKey(new Date());
+};
+
 const readCache = (): string | null => {
   if (!existsSync(FF_CACHE_PATH)) return null;
   try { return readFileSync(FF_CACHE_PATH, { encoding: "latin1" }); }
@@ -184,11 +224,36 @@ const writeCache = (xml: string): void => {
   } catch { /* swallow — cache is best-effort */ }
 };
 
+// Statistic-only: still read mtime for a secondary local-dev guard so rapid
+// re-builds on the same week don't hammer FF on every `npm run build`. In CI
+// mtime is meaningless (always "now" after git checkout); the data-aware check
+// is the authoritative gate in both environments.
+const cacheAgeMs = (): number | null => {
+  if (!existsSync(FF_CACHE_PATH)) return null;
+  try { return Date.now() - statSync(FF_CACHE_PATH).mtimeMs; }
+  catch { return null; }
+};
+
 let xml: string | null = null;
-const age = cacheAgeMs();
-if (age !== null && age < FF_CACHE_TTL_MS) {
-  xml = readCache();
+// Step 1: read the cache and check data-aware freshness first.
+const cachedXml = readCache();
+const cachedCoversThisWeek = cachedXml !== null && ffCacheCoversCurrentWeek(cachedXml);
+const localAge = cacheAgeMs();
+const withinMttlWindow = localAge !== null && localAge < FF_CACHE_TTL_MS;
+
+if (cachedCoversThisWeek && withinMttlWindow) {
+  // Local dev: cache covers this week AND was written recently. Use it.
+  xml = cachedXml;
+} else if (cachedCoversThisWeek && process.env.GITHUB_ACTIONS !== "true") {
+  // Local dev: cache covers this week but is older than TTL. Use it anyway —
+  // FF data doesn't change mid-week. Only re-fetch if week rolled over.
+  xml = cachedXml;
 }
+// In CI (GITHUB_ACTIONS=true): never use the cache as the primary source
+// regardless of data-aware freshness, because the point of every CI build is
+// to capture any mid-week forecast/previous updates FF pushes. The cache is
+// the fallback-only path.
+
 if (xml === null) {
   try {
     const res = await fetch(FF_URL, {
@@ -196,7 +261,9 @@ if (xml === null) {
     });
     if (!res.ok) {
       ffFetchError = `Forex Factory feed returned HTTP ${res.status}; using cached copy.`;
-      xml = readCache();
+      // Fall back to cache on HTTP error. The data-aware staleness guard
+      // below will catch + warn/error if the cache is for a past week.
+      xml = cachedXml;
     } else {
       const buf = await res.arrayBuffer();
       xml = new TextDecoder("windows-1252").decode(buf);
@@ -204,7 +271,8 @@ if (xml === null) {
     }
   } catch (err) {
     ffFetchError = err instanceof Error ? err.message : "Unknown fetch error";
-    xml = readCache();
+    // Fall back to cache on network error. Same staleness guard applies.
+    xml = cachedXml;
   }
 }
 
@@ -247,6 +315,36 @@ try {
         dateLabel: dayLabel(isoDate),
         events: evs,
       }));
+
+    // ── Staleness guard ──────────────────────────────────────────────────────
+    // After parsing, check that the calendar we're about to render actually
+    // covers the current week. If every event date is in the past, we're
+    // rendering a stale calendar — which is worse than the empty state because
+    // it looks authoritative. Emit a build warning; in CI escalate to a hard
+    // process exit so the stale content cannot ship silently.
+    //
+    // "Past week" criterion: the latest event date in the parsed XML belongs
+    // to an ISO week that is strictly earlier than the current ISO week.
+    const latestInXml = latestEventDate(xml);
+    if (latestInXml !== null) {
+      const xmlWeek = isoWeekKey(latestInXml);
+      const nowWeek = isoWeekKey(new Date());
+      if (xmlWeek < nowWeek) {
+        const msg =
+          `[overview] STALE CALENDAR: FF data covers ISO week ${xmlWeek}; ` +
+          `current week is ${nowWeek}. The calendar being rendered is for a ` +
+          `past week. Check FF fetch path / scheduled refresh workflow.`;
+        if (process.env.GITHUB_ACTIONS === "true") {
+          // Hard fail in CI: stale calendar must not ship.
+          console.error(msg);
+          process.exit(1);
+        } else {
+          // Build warning in local dev — not fatal, but visible.
+          console.warn(msg);
+        }
+      }
+    }
+    // ── end staleness guard ──────────────────────────────────────────────────
   }
 } catch (err) {
   ffFetchError = err instanceof Error ? err.message : "Unknown fetch error";
@@ -549,6 +647,36 @@ const writeNewsCache = (items: NewsItem[], generatedAt = new Date().toISOString(
   } catch { /* best-effort */ }
 };
 
+// Staleness guard for the news cache. Warn (or error in CI) if we're falling
+// back to a cache whose newest item is older than NEWS_MAX_AGE_DAYS. This
+// prevents silently rendering weeks-old headlines as "current" news. The
+// threshold matches NEWS_MAX_AGE_MS so the live-fetch filter and the fallback
+// guard use the same window.
+const NEWS_STALE_WARN_THRESHOLD_MS = NEWS_MAX_AGE_MS;
+const _warnIfNewsCacheStale = (cache: NewsCache): void => {
+  const newest = cache.items.reduce((best, item) => {
+    const t = Date.parse(item.pubDate);
+    return Number.isNaN(t) ? best : Math.max(best, t);
+  }, 0);
+  if (newest === 0) return; // no parseable dates — skip
+  const ageMs = Date.now() - newest;
+  if (ageMs > NEWS_STALE_WARN_THRESHOLD_MS) {
+    const ageDays = Math.round(ageMs / (24 * 60 * 60 * 1000));
+    const msg =
+      `[overview] STALE NEWS CACHE: newest item is ${ageDays} days old ` +
+      `(threshold: ${NEWS_MAX_AGE_DAYS} days). Live fetch failed and the ` +
+      `fallback cache is stale. Check Google News fetch / reporter list.`;
+    if (process.env.GITHUB_ACTIONS === "true") {
+      // Warn-only in CI for news (a broken Google News fetch is less severe
+      // than a broken calendar; the section degrades gracefully). Escalate
+      // to error only if the news section is truly empty.
+      console.warn(msg);
+    } else {
+      console.warn(msg);
+    }
+  }
+};
+
 let newsItems: NewsItem[] = [];
 let newsFromCache = false;
 
@@ -687,6 +815,8 @@ if (newsItems.length === 0) {
         if (stale.wasDeduped) {
           writeNewsCache(stale.items, stale.generatedAt ?? undefined);
         }
+        // Staleness guard for news cache fallback.
+        _warnIfNewsCacheStale(stale);
       }
     }
   } catch (_err) {
@@ -697,6 +827,8 @@ if (newsItems.length === 0) {
       if (stale.wasDeduped) {
         writeNewsCache(stale.items, stale.generatedAt ?? undefined);
       }
+      // Staleness guard for news cache fallback.
+      _warnIfNewsCacheStale(stale);
     }
   }
 }

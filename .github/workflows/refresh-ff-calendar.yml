@@ -1,0 +1,146 @@
+# ----------------------------------------------------------------------------
+# Scheduled Forex Factory calendar cache refresh
+# ----------------------------------------------------------------------------
+#
+# Belt-and-suspenders against the FF live-fetch failing in the Astro build.
+#
+# Root cause context (2026-06-01): overview.astro fetched the FF weekly XML
+# at Astro build time but used mtime to judge cache freshness. `git checkout`
+# resets every file's mtime to "now", so in CI the cache always appeared
+# fresh and the live fetch was skipped. The build rendered whatever stale
+# calendar was committed. The primary fix is data-aware freshness (parse the
+# dates inside the cached XML); this workflow is the secondary insurance layer.
+#
+# What this does:
+#   1. Fetches nfs.faireconomy.media/ff_calendar_thisweek.xml directly using
+#      curl (no Node or Python dependency).
+#   2. Validates the response contains <weeklyevents> (basic XML shape check).
+#   3. Writes data/derived/ff_calendar_cache.xml.
+#   4. Commits and pushes if the file changed. The push triggers deploy.yml
+#      which rebuilds the site with the fresh calendar.
+#
+# Cadence: Mon-Fri at 05:00 UTC (1 AM ET / midnight CT). FF updates their
+# current-week XML every Sunday evening ET, so Monday morning UTC catches the
+# new week reliably. The 05:00 UTC slot is intentionally early — before any
+# scheduled editorial builds — so subsequent builds inherit the fresh cache.
+#
+# The data-aware freshness check in overview.astro means the per-deploy live
+# fetch is still attempted on every build (especially in CI). This workflow
+# is the committed-cache insurance layer: even if a live fetch fails mid-week,
+# the committed cache is guaranteed current-week from the Monday run.
+#
+# Failure handling:
+#   - curl exits non-zero on network failure → workflow fails, email fires.
+#   - XML validation step exits non-zero if the response is not a real FF
+#     calendar → rejects the commit; stale committed cache persists.
+#   - No change in the working tree → no commit, no deploy triggered.
+
+name: refresh-ff-calendar
+
+on:
+  schedule:
+    # Mon-Fri at 05:00 UTC. Catches FF's new-week publish (Sunday ET) with
+    # margin. Also refreshes mid-week for any forecast/previous updates FF
+    # pushes after initial publication.
+    - cron: "0 5 * * 1-5"
+  # Manual trigger for testing or emergency refresh.
+  workflow_dispatch: {}
+
+concurrency:
+  group: refresh-ff-calendar
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch FF weekly calendar XML
+        # --fail: exit non-zero on HTTP 4xx/5xx.
+        # --location: follow redirects.
+        # --max-time: hard timeout so a slow response doesn't hang the job.
+        # --user-agent: identify the request; FF rejects blank UAs.
+        run: |
+          curl \
+            --fail \
+            --location \
+            --max-time 30 \
+            --user-agent "SibleyCreek/1.0 (+https://sibleycreek.ca)" \
+            --output data/derived/ff_calendar_cache.xml \
+            "https://nfs.faireconomy.media/ff_calendar_thisweek.xml"
+
+      - name: Validate XML shape
+        # Reject responses that aren't a real FF calendar (e.g., a 200 HTML
+        # error page, a rate-limit JSON body, or a truncated partial response).
+        # We check for the root element and at least one <event> block.
+        run: |
+          if ! grep -q "<weeklyevents>" data/derived/ff_calendar_cache.xml; then
+            echo "ERROR: downloaded file does not contain <weeklyevents>. Aborting."
+            cat data/derived/ff_calendar_cache.xml | head -20
+            exit 1
+          fi
+          if ! grep -q "<event>" data/derived/ff_calendar_cache.xml; then
+            echo "ERROR: downloaded file contains no <event> blocks. Aborting."
+            exit 1
+          fi
+          echo "XML validation passed."
+          # Log the date range in the file for the job summary.
+          grep -oP '(?<=<date><!\[CDATA\[)\d{2}-\d{2}-\d{4}(?=\]\]>)' \
+            data/derived/ff_calendar_cache.xml | sort -u | head -10 || true
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/derived/ff_calendar_cache.xml
+          if git diff --cached --quiet; then
+            echo "No change in FF calendar cache; skipping commit."
+          else
+            git commit -m "data: refresh FF weekly calendar cache $(date -u +%Y-%m-%dT%H:%MZ)"
+            git pull --rebase origin master
+            git push origin HEAD:master
+            echo "Pushed. deploy.yml will rebuild the site with the fresh calendar."
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASS }}
+          subject: "[Sibley Creek Alert] FF calendar refresh failed (${{ github.run_number }})"
+          to: jayzhaomurray@gmail.com
+          from: ${{ secrets.SMTP_FROM }}
+          body: |
+            WHAT HAPPENED
+            The scheduled Forex Factory calendar cache refresh failed. The
+            committed ff_calendar_cache.xml was NOT updated.
+
+            The Astro build will still attempt a live FF fetch on every deploy
+            (data-aware freshness check in overview.astro). If that also fails,
+            the stale committed cache will be used and the CI staleness guard
+            will fail the build with a visible error.
+
+            WHAT TO DO
+            Check the failed run (link below). Common causes:
+              - FF API down or returning non-200
+              - XML shape changed (new root element)
+              - GitHub Actions network issue
+
+            Run the workflow manually once the issue is resolved:
+            https://github.com/${{ github.repository }}/actions/workflows/refresh-ff-calendar.yml
+
+            DETAILS
+            run_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
