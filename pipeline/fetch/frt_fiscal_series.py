@@ -82,12 +82,45 @@ Series emitted by build_frt_fiscal_series():
   13. frt_issuance_flow_bonds    -- GROSS ISSUANCE FLOW, BONDS bucket ($B/FY) = 10yr +
                                      30yr + ultra-long + RRB + Green (= DMR "Long" +
                                      Green). True gross flow.
+  14. frt_issuance_flow_total    -- DERIVED SLOT: total gross issuance = bills + notes +
+                                     bonds per FY ($B). Plus bond_subtotal = notes + bonds
+                                     column in the same file. Materialized from series
+                                     11/12/13 to back the "$612bn record" / "+31% bond
+                                     buckets" claims. See _derived_slot_queue.yaml entry
+                                     frt_issuance_flow_total.
+  15. frt_operating_balance_dof  -- DoF operating balance per SEU 2026 Annex 1 Table A1.5
+                                     ($B CAD, FY2025-26 to FY2030-31, all forecast).
+                                     Source label: "DoF, Spring Economic Update 2026".
+  16. frt_operating_balance_pbo  -- PBO recast operating balance per PBO RP-2526-017-S
+  17. frt_federal_debt_pct_gdp_pbo -- PBO federal debt (accumulated deficit) % of GDP
+                                     per PBO EFO June 2026 (RP-2627-002-S), Table 2.
+                                     FY2024-25 to FY2030-31, all is_forecast=1.
+                                     Same concept as Series 5 (DoF primary); directly
+                                     comparable on one axis. PBO gap vs DoF ~1pp,
+                                     PBO characterizes own track as "flat."
+                                     Wired as SECONDARY on fiscal panel-9.
+                                     (Nov 2025, Budget 2025 recast, $B CAD, FY2024-25 to
+                                     FY2029-30, all forecast/recast).
+                                     Source label: "PBO recast of Budget 2025".
+                                     CRITICAL VINTAGE CAVEAT: series 15 and 16 are on
+                                     DIFFERENT DoF vintages (SEU 2026 vs Budget 2025).
+                                     They are NOT a clean same-year-subtractable pair.
+                                     See claude-ref/research/fiscal_pbo_split/SOURCE_NOTES.md
+                                     for the vintage-mismatch methodology note.
 
   Series 11/12/13 are a DIFFERENT METRIC from Series 6/7/8: they plot the annual
   GROSS ISSUANCE FLOW (primary-market funding raised each fiscal year), not the
   year-end outstanding STOCK. They replaced Series 6/7/8 on panel-10. Series 6/7/8
   are retained but no longer wired to the issuance plate. Source-of-truth file:
   claude-ref/research/fiscal_redo/issuance_flow_series.md.
+
+  Series 14 (frt_issuance_flow_total) is a derived aggregate of Series 11/12/13.
+  It exists solely to back slot-bound claims; the component series remain the primary
+  inputs for the chart.
+
+  Series 15/16 (frt_operating_balance_dof / frt_operating_balance_pbo) feed panel-11
+  (DoF vs PBO operating balance signed-bars chart). They carry distinct vintage
+  metadata and must never be presented as a same-vintage subtractable pair.
 """
 
 from __future__ import annotations
@@ -782,6 +815,113 @@ ISSUANCE_FLOW_BONDS: list[tuple[str, float, int]] = [
     ("2026-27", 108, 1),   # SEU 2026 Annex 3 plan: 80 (10yr) + 24 (30yr) + 4 (Green)
 ]
 
+
+# ---------------------------------------------------------------------------
+# SERIES 15: DoF operating balance per SEU 2026 ($B, FY2025-26 to FY2030-31)
+# SOURCE: Department of Finance Canada -- Spring Economic Update 2026,
+#         Annex 1, Table A1.5 (Operating Balance)
+# VINTAGE: 2026-04-28 (SEU 2026)
+# URL: https://budget.canada.ca/update-miseajour/2026/report-rapport/anx1-en.html
+# TIER: A (WebFetched + verified by researcher 2026-06-02; same values as
+#          BALANCE_OPEX_CAPEX Series 1 above -- extracted here as a standalone
+#          series so panel-11 can wire to it independently of the opex/capex split)
+# NOTE: These values are identical to the opex_bn column of BALANCE_OPEX_CAPEX.
+#       The series starts at FY2025-26 (first year with an official DoF
+#       operating/capital split under the Capital Budgeting Framework introduced
+#       Budget 2025). FY2024-25 has no official operating-balance figure.
+# UNITS: $B CAD (signed: positive = surplus, negative = deficit)
+# CITATION LABEL: "DoF, Spring Economic Update 2026"
+# ---------------------------------------------------------------------------
+
+# FY label -> (dof_operating_balance_bn, is_forecast)
+OPERATING_BALANCE_DOF: list[tuple[str, float, int]] = [
+    # --- SEU 2026 Annex 1 Table A1.5 (FORECAST: all is_forecast=1) ---
+    ("2025-26", -26.4, 1),   # A1.5: -26.4; total = -66.9 (opex -26.4 + capex -40.5)
+    ("2026-27", -10.5, 1),   # A1.5: -10.5; total = -65.3 (rounding: -10.5-54.9=-65.4)
+    ("2027-28",  -5.2, 1),   # A1.5: -5.2;  total = -63.1
+    ("2028-29",   0.9, 1),   # A1.5: +0.9;  ANCHOR YEAR -- first year operating balance >=0
+    ("2029-30",   4.5, 1),   # A1.5: +4.5
+    ("2030-31",   6.1, 1),   # A1.5: +6.1
+]
+
+# ---------------------------------------------------------------------------
+# SERIES 16: PBO recast operating balance ($B, FY2024-25 to FY2029-30)
+# SOURCE: PBO "Budget 2025: Issues for Parliamentarians," RP-2526-017-S,
+#         14 November 2025. PBO's reclassification of Budget 2025 operating
+#         balance under a stricter international capital standard (IMF GFS 2014).
+# VINTAGE: 2025-11-14 (Budget 2025 recast; NOT a recast of SEU 2026)
+# URL: https://www.pbo-dpb.ca/en/publications/RP-2526-017-S (PBO portal)
+# TIER: A (WebFetched + verified by researcher 2026-06-02; multi-secondary
+#          triangulation via PBO press release, thehub, Investment Executive)
+# CITATION LABEL: "PBO recast of Budget 2025"
+#
+# CRITICAL VINTAGE CAVEAT (from SOURCE_NOTES.md):
+#   The PBO recast is on the BUDGET 2025 vintage (tabled Nov 2024).
+#   The DoF series (OPERATING_BALANCE_DOF above) is on the SEU 2026 vintage
+#   (tabled Apr 2026 -- approximately $11.5bn of better fiscal news vs Budget 2025).
+#   The year-by-year gap between the two series is a COMPOUND of:
+#     (a) the genuine PBO capital reclassification dispute (~$94bn cumulative), AND
+#     (b) ~$11.5bn of improved DoF fiscal news booked between Budget 2025 and SEU 2026.
+#   Do NOT present the gap as if it were purely the classification effect.
+#   The editorial point survives: PBO's recast operating balance never reaches zero
+#   over its published horizon (stays at -17.6 in FY2029-30), regardless of vintage.
+#
+# UNITS: $B CAD (signed: positive = surplus, negative = deficit)
+# HORIZON: FY2024-25 to FY2029-30 (PBO's published window matches Budget 2025 horizon)
+# ---------------------------------------------------------------------------
+
+# FY label -> (pbo_operating_balance_bn, is_forecast)
+OPERATING_BALANCE_PBO: list[tuple[str, float, int]] = [
+    # --- PBO RP-2526-017-S (RECAST/FORECAST: all is_forecast=1) ---
+    # FY2024-25 is PBO's recast baseline year (the first year of the Budget 2025 horizon)
+    ("2024-25", -10.5, 1),   # PBO RP-2526-017-S recast baseline
+    ("2025-26", -45.8, 1),   # PBO recast vs DoF -26.4 (VINTAGE MISMATCH -- see caveat)
+    ("2026-27", -25.3, 1),   # PBO recast
+    ("2027-28", -23.3, 1),   # PBO recast
+    ("2028-29", -18.1, 1),   # PBO recast -- DoF anchor year (+0.9); PBO still -18.1
+    ("2029-30", -17.6, 1),   # PBO recast -- last year of published horizon; never reaches 0
+    # FY2030-31: PBO horizon ends at FY2029-30; no PBO recast value exists
+]
+
+# ---------------------------------------------------------------------------
+# SERIES 17: PBO federal debt (accumulated deficit) as % of GDP
+# SOURCE: Parliamentary Budget Officer -- Economic and Fiscal Outlook – June 2026
+#         (RP-2627-002-S), Table 2 "Summary of the fiscal outlook"
+# VINTAGE: 2026-06-04 (EFO release date)
+# URL: https://www.pbo-dpb.ca/en/publications/RP-2627-002-S--economic-fiscal-outlook-june-2026--perspectives-economiques-financieres-juin-2026
+# TIER: A (extracted from PBO report PDF by dispatcher 2026-06-04; triangulated
+#          against Globe and Mail and BNN Bloomberg same-day coverage)
+# CONCEPT: federal debt (accumulated deficit) % of GDP -- same basis as the DoF
+#          FRT series (Series 5). PBO uses the Government of Canada's own
+#          accumulated-deficit headline measure, not general-government gross debt.
+#          The two series are directly comparable on one axis.
+# PBO OWN CHARACTERIZATION: "flat over the medium term" (p. 9) despite the
+#          41.3 -> 42.5 rise. PBO-DoF gap is ~1pp at the near end, widening
+#          to ~0.9pp by FY2030-31 (DoF 41.6% vs PBO 42.5%). Not a fork --
+#          annotate as a modest premium on the same trajectory.
+# GDP VINTAGE NOTE: PBO uses its own macro projections as denominators; the
+#          GDP denominator differs from both the FRT Oct-2025 vintage (Series 5
+#          history) and the SEU Apr-2026 vintage (Series 5 forecast). The
+#          ~1pp gap vs DoF reflects both higher PBO deficit projections AND
+#          a different GDP denominator. Do NOT present the gap as pure-deficit.
+# HORIZON: FY2024-25 to FY2030-31. FY2024-25 is a PBO estimate (not Public
+#          Accounts final); treat as is_forecast=1.
+# ---------------------------------------------------------------------------
+
+# FY label -> (debt_pct_gdp, is_forecast)
+FEDERAL_DEBT_PCT_GDP_PBO: list[tuple[str, float, int]] = [
+    # --- PBO EFO June 2026 (RP-2627-002-S), Table 2 -- all is_forecast=1 ---
+    # FY2024-25: PBO estimate (not Public Accounts final; PBO states 40.7%)
+    # NOTE: DoF FRT actuals show 41.2% (Oct-2025 GDP vintage); PBO shows 40.7%
+    #       (PBO GDP vintage). Gap here is GDP-vintage driven, not deficit-driven.
+    ("2024-25", 40.7, 1),   # PBO EFO June 2026 Table 2 estimate
+    ("2025-26", 41.3, 1),   # PBO EFO June 2026 Table 2 (vs SEU 41.1%)
+    ("2026-27", 41.6, 1),   # PBO EFO June 2026 Table 2 (vs SEU 41.5%)
+    ("2027-28", 42.4, 1),   # PBO EFO June 2026 Table 2 (vs SEU 41.8%)
+    ("2028-29", 42.6, 1),   # PBO EFO June 2026 Table 2 (vs SEU 41.9%)
+    ("2029-30", 42.6, 1),   # PBO EFO June 2026 Table 2 (vs SEU 41.8%)
+    ("2030-31", 42.5, 1),   # PBO EFO June 2026 Table 2 (vs SEU 41.6%)
+]
 
 # ---------------------------------------------------------------------------
 # CSV + META WRITERS
@@ -1485,6 +1625,356 @@ def build_frt_fiscal_series(out_dir: Optional[Path] = None) -> dict[str, Path]:
     }
     csv_path, _ = _write_csv_and_meta("frt_federal_balance_pct_gdp", rows, meta, out_dir)
     written["frt_federal_balance_pct_gdp"] = csv_path
+
+    # --- Series 14: frt_issuance_flow_total (DERIVED: bills + notes + bonds per FY) ---
+    # Materializes the _derived_slot_queue.yaml entry frt_issuance_flow_total.
+    # Joins ISSUANCE_FLOW_BILLS, ISSUANCE_FLOW_NOTES, ISSUANCE_FLOW_BONDS on fy_label.
+    # Emits: date, value (= total), bond_subtotal (= notes + bonds), is_forecast, fy_label.
+    _bills_map: dict[str, tuple[float, int]] = {fy: (v, f) for fy, v, f in ISSUANCE_FLOW_BILLS}
+    _notes_map: dict[str, tuple[float, int]] = {fy: (v, f) for fy, v, f in ISSUANCE_FLOW_NOTES}
+    _bonds_map: dict[str, tuple[float, int]] = {fy: (v, f) for fy, v, f in ISSUANCE_FLOW_BONDS}
+    _all_fy = sorted(
+        set(_bills_map) | set(_notes_map) | set(_bonds_map),
+        key=lambda s: int(s[:4]),
+    )
+    flow_total_rows = []
+    for fy in _all_fy:
+        bills_val, bills_fc = _bills_map.get(fy, (None, 0))
+        notes_val, notes_fc = _notes_map.get(fy, (None, 0))
+        bonds_val, bonds_fc = _bonds_map.get(fy, (None, 0))
+        if None in (bills_val, notes_val, bonds_val):
+            continue  # only emit rows where all three components are present
+        total = bills_val + notes_val + bonds_val
+        bond_subtotal = notes_val + bonds_val
+        is_fc = 1 if (bills_fc or notes_fc or bonds_fc) else 0
+        flow_total_rows.append({
+            "date": _fy_to_iso(fy),
+            "value": round(total, 1),
+            "bond_subtotal": round(bond_subtotal, 1),
+            "is_forecast": is_fc,
+            "fy_label": fy,
+        })
+    meta = {
+        "name": "frt_issuance_flow_total",
+        "source": (
+            "DERIVED: sum of frt_issuance_flow_bills + frt_issuance_flow_notes + "
+            "frt_issuance_flow_bonds. Component sources: Debt Management Report Table 4.1 "
+            "(history FY2019-20 to FY2024-25) + DMS 2025-26 / SEU 2026 Annex 3 "
+            "(forecast FY2025-26, FY2026-27). Queue entry: editorial/_derived_slot_queue.yaml "
+            "frt_issuance_flow_total (added 2026-06-04)."
+        ),
+        "source_url": (
+            "https://budget.canada.ca/update-miseajour/2026/report-rapport/anx3-en.html"
+        ),
+        "units": "CAD billions per fiscal year",
+        "frequency": "annual",
+        "vintage": (
+            "History: latest-vintage Debt Management Report Table 4.1 (pub. 2020-2025). "
+            "Forecast: DMS 2025-26 (4 Nov 2025) for FY2025-26; SEU 2026 Annex 3 (28 Apr 2026) "
+            "for FY2026-27."
+        ),
+        "fetched_at": now_iso,
+        "schema_version": 1,
+        "is_forecast_field": "is_forecast",
+        "is_forecast_note": (
+            "is_forecast=0 = history (DMR actuals). is_forecast=1 = planned "
+            "(DMS/SEU 2026 plan). Mixed: is_forecast=1 if ANY component is forecast."
+        ),
+        "columns": {
+            "value": "total gross issuance (bills + notes + bonds) $B/FY",
+            "bond_subtotal": "bond-only subtotal (notes + bonds) $B/FY",
+        },
+        "methodology_caveat": (
+            "BILLS bucket = year-end Treasury-bill STOCK (DMR's own convention), NOT gross "
+            "bill auctions. NOTES + BONDS = true gross issuance flow. The 'total' is the "
+            "DMR 'gross issuance of bonds and bills' hybrid headline. See "
+            "frt_issuance_flow_bills.meta.json for the full caveat. "
+            "Verified reference values: FY2020-21 total=590, bond_subtotal=371; "
+            "FY2024-25 total=526, bond_subtotal=241; FY2025-26 total=612, bond_subtotal=316 "
+            "(bond_subtotal 316/241 = +31.1% YoY)."
+        ),
+        "notes": (
+            "Materialized from _derived_slot_queue.yaml entry frt_issuance_flow_total "
+            "(2026-06-04). Backs the '$612bn record', 'tops the 2020-21 peak (590)', "
+            "and '+31% bond buckets' claims on the issuance plate so they read from a "
+            "slot rather than require ad-hoc re-derivation at fact-check time."
+        ),
+    }
+    csv_path, _ = _write_csv_and_meta("frt_issuance_flow_total", flow_total_rows, meta, out_dir)
+    written["frt_issuance_flow_total"] = csv_path
+
+    # --- Series 14b: frt_rev_minus_progexp_pct_gdp (DERIVED: R - E gap per FY) ---
+    # Materializes the _derived_slot_queue.yaml entry frt_rev_minus_progexp_pct_gdp
+    # (added 2026-06-04 by fiscal plate-3 round-2 fact-check).
+    # Joins REVENUES_PCT_GDP and PROGRAM_EXP_PCT_GDP on fy_label.
+    # Emits: date, value (= R - E, positive = revenue ABOVE program expense),
+    #        revenue_pct_gdp, program_exp_pct_gdp, is_forecast, fy_label.
+    # Scalar companions for the count/crossover claims go in the meta (slot-checkable):
+    #   revenue_above_run / crossover_fy / revenue_band_full / revenue_band_forecast.
+    _rev_map: dict[str, tuple[float, int]] = {fy: (v, f) for fy, v, f in REVENUES_PCT_GDP}
+    _exp_map: dict[str, tuple[float, int]] = {fy: (v, f) for fy, v, f in PROGRAM_EXP_PCT_GDP}
+    _re_fy = sorted(set(_rev_map) & set(_exp_map), key=lambda s: int(s[:4]))
+    gap_rows = []
+    for fy in _re_fy:
+        r_val, r_fc = _rev_map[fy]
+        e_val, e_fc = _exp_map[fy]
+        gap_rows.append({
+            "date": _fy_to_iso(fy),
+            "value": round(r_val - e_val, 2),
+            "revenue_pct_gdp": r_val,
+            "program_exp_pct_gdp": e_val,
+            "is_forecast": 1 if (r_fc or e_fc) else 0,
+            "fy_label": fy,
+        })
+    # Scalar companions (computed, then asserted into meta so the slot carries them).
+    # Longest consecutive run of gap > 0 (a tie gap == 0 is NOT "above" and breaks the run).
+    _best_run = (0, None, None)  # (length, start_fy, end_fy)
+    _cur_run = (0, None, None)
+    for row in gap_rows:
+        if row["value"] > 0:
+            _cur_run = (_cur_run[0] + 1, _cur_run[1] or row["fy_label"], row["fy_label"])
+            if _cur_run[0] > _best_run[0]:
+                _best_run = _cur_run
+        else:
+            _cur_run = (0, None, None)
+    # First forecast year where the gap flips from <= 0 back to > 0.
+    _crossover_fy = None
+    _prev_gap = None
+    for row in gap_rows:
+        if row["is_forecast"] and _prev_gap is not None and _prev_gap <= 0 and row["value"] > 0:
+            _crossover_fy = row["fy_label"]
+            break
+        _prev_gap = row["value"]
+    _r_full = [row["revenue_pct_gdp"] for row in gap_rows]
+    _r_fc   = [row["revenue_pct_gdp"] for row in gap_rows if row["is_forecast"]]
+    meta = {
+        "name": "frt_rev_minus_progexp_pct_gdp",
+        "source": (
+            "DERIVED: frt_revenues_pct_gdp minus frt_program_exp_pct_gdp, row-aligned "
+            "on fy_label. Component source: Fiscal Reference Tables 2025 (history) + "
+            "SEU 2026 (forecast). Queue entry: editorial/_derived_slot_queue.yaml "
+            "frt_rev_minus_progexp_pct_gdp (added 2026-06-04)."
+        ),
+        "source_url": (
+            "https://budget.canada.ca/update-miseajour/2026/report-rapport/anx1-en.html"
+        ),
+        "units": "percentage points of GDP (positive = revenue above program expense)",
+        "frequency": "annual",
+        "vintage": "components: FRT 2025 (history) / SEU 2026 (forecast, 2026-04-28)",
+        "fetched_at": now_iso,
+        "schema_version": 1,
+        "is_forecast_field": "is_forecast",
+        "is_forecast_note": "is_forecast=1 if EITHER component row is forecast.",
+        "columns": {
+            "value": "R - E gap, pp of GDP",
+            "revenue_pct_gdp": "federal revenues, % of GDP",
+            "program_exp_pct_gdp": "program expenses (ex public debt charges), % of GDP",
+        },
+        "scalar_companions": {
+            "revenue_above_run_years": _best_run[0],
+            "revenue_above_run_start": _best_run[1],
+            "revenue_above_run_end": _best_run[2],
+            "crossover_fy": _crossover_fy,
+            "revenue_band_full": [min(_r_full), max(_r_full)] if _r_full else None,
+            "revenue_band_forecast": [min(_r_fc), max(_r_fc)] if _r_fc else None,
+        },
+        "methodology_caveat": (
+            "FY2009-10 is a TIE (R = E = 14.0): a tie is NOT 'revenue above' and breaks "
+            "the consecutive run. The pre-2019 revenue-above run is therefore 31-of-32 "
+            "years with one tie, NOT all 32. Program expenses EXCLUDE public debt "
+            "charges, so revenue-above-program-expense does NOT mean budgetary surplus."
+        ),
+        "notes": (
+            "Materialized from _derived_slot_queue.yaml entry frt_rev_minus_progexp_pct_gdp "
+            "(2026-06-04). Backs the plate-3 claims: 'closes the gap from the spending "
+            "side', 'program expenses below revenue by decade's end' (crossover), "
+            "'the relationship that held for thirty years before 2019' (run), and the "
+            "revenue-band characterization ('revenue holds')."
+        ),
+    }
+    csv_path, _ = _write_csv_and_meta("frt_rev_minus_progexp_pct_gdp", gap_rows, meta, out_dir)
+    written["frt_rev_minus_progexp_pct_gdp"] = csv_path
+
+    # --- Series 15: DoF operating balance ($B, SEU 2026, FY2025-26 to FY2030-31) ---
+    rows = [
+        {
+            "date": _fy_to_iso(fy),
+            "value": balance_bn,
+            "is_forecast": is_fc,
+            "fy_label": fy,
+        }
+        for fy, balance_bn, is_fc in OPERATING_BALANCE_DOF
+    ]
+    meta = {
+        "name": "frt_operating_balance_dof",
+        "source": (
+            "Department of Finance Canada -- Spring Economic Update 2026, "
+            "Annex 1, Table A1.5 (Operating Balance)"
+        ),
+        "source_label": "DoF, Spring Economic Update 2026",
+        "source_url": (
+            "https://budget.canada.ca/update-miseajour/2026/"
+            "report-rapport/anx1-en.html"
+        ),
+        "units": "CAD billions (signed: positive = surplus, negative = deficit)",
+        "frequency": "annual",
+        "vintage": "2026-04-28",
+        "fetched_at": now_iso,
+        "schema_version": 1,
+        "is_forecast_field": "is_forecast",
+        "is_forecast_note": (
+            "All points is_forecast=1 (SEU 2026 projection). The Capital Budgeting "
+            "Framework was introduced in Budget 2025; no official pre-FY2025-26 "
+            "operating-balance back-series exists. FY2024-25 has no official "
+            "operating/capital split -- do NOT fabricate a FY2024-25 value."
+        ),
+        "vintage_mismatch_caveat": (
+            "CRITICAL: this series (SEU 2026 vintage, Apr 2026) and "
+            "frt_operating_balance_pbo (Budget 2025 vintage, Nov 2025) are on "
+            "DIFFERENT DoF vintages. The year-by-year gap between them is a compound "
+            "of (a) the PBO capital reclassification dispute (~$94bn cumulative over "
+            "FY2024-25 to FY2029-30) AND (b) ~$11.5bn of improved fiscal news booked "
+            "between Budget 2025 and SEU 2026. Do NOT present the gap as if it is "
+            "purely the classification effect. See SOURCE_NOTES.md in "
+            "claude-ref/research/fiscal_pbo_split/ for full methodology note."
+        ),
+        "notes": (
+            "The operating balance is NOT a naive revenues-minus-expenses subtraction. "
+            "DoF nets capital-investment revenues back in (A1.5 is not derivable from "
+            "A1.7 revenue/expense rows alone). Cite the stated A1.5 row; do not "
+            "reconstruct. Anchor year: FY2028-29 (+0.9 -- first year >= 0). "
+            "Paired with frt_operating_balance_pbo (PBO recast) on panel-11. "
+            "Full context: claude-ref/research/fiscal_pbo_split/SOURCE_NOTES.md."
+        ),
+    }
+    csv_path, _ = _write_csv_and_meta("frt_operating_balance_dof", rows, meta, out_dir)
+    written["frt_operating_balance_dof"] = csv_path
+
+    # --- Series 16: PBO recast operating balance ($B, Budget 2025 recast, FY2024-25 to FY2029-30) ---
+    rows = [
+        {
+            "date": _fy_to_iso(fy),
+            "value": balance_bn,
+            "is_forecast": is_fc,
+            "fy_label": fy,
+        }
+        for fy, balance_bn, is_fc in OPERATING_BALANCE_PBO
+    ]
+    meta = {
+        "name": "frt_operating_balance_pbo",
+        "source": (
+            "Parliamentary Budget Officer -- 'Budget 2025: Issues for Parliamentarians,' "
+            "RP-2526-017-S, 14 November 2025. PBO recast of Budget 2025 operating balance "
+            "under a stricter international capital standard (IMF GFS 2014)."
+        ),
+        "source_label": "PBO recast of Budget 2025",
+        "source_url": "https://www.pbo-dpb.ca/en/publications/RP-2526-017-S",
+        "units": "CAD billions (signed: positive = surplus, negative = deficit)",
+        "frequency": "annual",
+        "vintage": "2025-11-14",
+        "fetched_at": now_iso,
+        "schema_version": 1,
+        "is_forecast_field": "is_forecast",
+        "is_forecast_note": (
+            "All points is_forecast=1 (PBO recast/projection on Budget 2025 baseline). "
+            "Horizon: FY2024-25 to FY2029-30 (Budget 2025's six-year window). "
+            "FY2030-31 does not exist in this series (PBO horizon ends FY2029-30)."
+        ),
+        "vintage_mismatch_caveat": (
+            "CRITICAL: this series (PBO, Budget 2025 vintage, Nov 2025) and "
+            "frt_operating_balance_dof (DoF SEU 2026 vintage, Apr 2026) are on "
+            "DIFFERENT DoF baselines. The gap between them is NOT purely the "
+            "PBO-DoF classification dispute; it also includes ~$11.5bn of improved "
+            "fiscal news DoF booked between Budget 2025 and SEU 2026. "
+            "The editorial point survives: PBO's recast balance never reaches zero "
+            "(stays at -17.6 in FY2029-30, its last year), regardless of vintage. "
+            "See claude-ref/research/fiscal_pbo_split/SOURCE_NOTES.md."
+        ),
+        "reclassification_summary": (
+            "PBO reclassifies ~$94bn (cumulative, ~30%) of Budget 2025's $311.5bn "
+            "capital claim back to operating. Categories reclassified OUT of capital: "
+            "(1) corporate income-tax expenditures, (2) investment tax credits, "
+            "(3) operating subsidies. PBO's recast capital total: $217.3bn (vs DoF $311.5bn). "
+            "All figures from PBO RP-2526-017-S."
+        ),
+        "notes": (
+            "Paired with frt_operating_balance_dof (DoF SEU 2026) on panel-11 (signed bars). "
+            "PBO's recast operating deficit at -17.6 in FY2029-30 means the operating-balance "
+            "fiscal anchor is met ONLY under DoF's own capital definition -- the anchor is "
+            "contingent on the classification the PBO disputes. "
+            "Full context: claude-ref/research/fiscal_pbo_split/SOURCE_NOTES.md."
+        ),
+    }
+    csv_path, _ = _write_csv_and_meta("frt_operating_balance_pbo", rows, meta, out_dir)
+    written["frt_operating_balance_pbo"] = csv_path
+
+    # --- Series 17: PBO federal debt % of GDP (EFO June 2026, FY2024-25 to FY2030-31) ---
+    rows = [
+        {
+            "date": _fy_to_iso(fy),
+            "value": pct,
+            "is_forecast": is_fc,
+            "fy_label": fy,
+        }
+        for fy, pct, is_fc in FEDERAL_DEBT_PCT_GDP_PBO
+    ]
+    meta = {
+        "name": "frt_federal_debt_pct_gdp_pbo",
+        "source": (
+            "Parliamentary Budget Officer -- Economic and Fiscal Outlook - June 2026 "
+            "(RP-2627-002-S), Table 2 'Summary of the fiscal outlook'"
+        ),
+        "source_label": "PBO, June 2026 EFO",
+        "source_url": (
+            "https://www.pbo-dpb.ca/en/publications/RP-2627-002-S--economic-fiscal-"
+            "outlook-june-2026--perspectives-economiques-financieres-juin-2026"
+        ),
+        "units": "% of GDP",
+        "frequency": "annual",
+        "vintage": "2026-06-04",
+        "fetched_at": now_iso,
+        "schema_version": 1,
+        "is_forecast_field": "is_forecast",
+        "is_forecast_note": (
+            "All points is_forecast=1. FY2024-25 is a PBO estimate (not Public Accounts "
+            "final); treated as is_forecast=1 consistent with PBO's own presentation."
+        ),
+        "concept_note": (
+            "Federal debt (accumulated deficit) % of GDP -- same concept as the DoF FRT "
+            "series (frt_federal_debt_pct_gdp). PBO uses the Government of Canada's own "
+            "accumulated-deficit measure, not general-government gross debt. The two series "
+            "are directly comparable on one axis."
+        ),
+        "pbo_characterization": (
+            "PBO states: 'Similar to our September outlook, the federal debt-to-GDP ratio "
+            "is projected to remain flat over the medium term.' (EFO June 2026, p. 9). "
+            "PBO calls its own 41.3->42.5 track FLAT; editorial framing must not overstate "
+            "the DoF-PBO difference as a fork. The gap is a modest ~1pp premium on a "
+            "broadly similar trajectory."
+        ),
+        "gdp_vintage_note": (
+            "PBO uses its own macro projections as GDP denominators; the denominator differs "
+            "from the FRT Oct-2025 vintage (Series 5 history) and the SEU Apr-2026 vintage "
+            "(Series 5 forecast). The ~1pp gap vs DoF SEU reflects both higher PBO deficit "
+            "projections AND a different GDP denominator. Do NOT present the gap as driven "
+            "purely by the deficit difference."
+        ),
+        "comparator_note": (
+            "Companion to frt_federal_debt_pct_gdp (DoF FRT/SEU primary series). "
+            "The DoF SEU forecast shows a peak of ~41.9% in FY2028-29 then a slight decline; "
+            "PBO shows a plateau of 42.4-42.6% from FY2027-28 to FY2029-30. "
+            "Wired as secondary on fiscal panel-9 alongside the DoF primary."
+        ),
+        "triangulation": (
+            "Values extracted from PBO EFO June 2026 (RP-2627-002-S) report PDF by dispatcher "
+            "2026-06-04. Cross-checked against Globe and Mail 2026-06-04 (debt/GDP 42.5% by "
+            "2030-31) and BNN Bloomberg 2026-06-04 coverage. "
+            "Source card: editorial/source_cards/_pending/fiscal/pbo_efo_june2026_debt_gdp.yaml "
+            "(Tier A, status: pending_user)."
+        ),
+    }
+    csv_path, _ = _write_csv_and_meta("frt_federal_debt_pct_gdp_pbo", rows, meta, out_dir)
+    written["frt_federal_debt_pct_gdp_pbo"] = csv_path
 
     logger.info("frt_fiscal: materialized %d series", len(written))
     return written

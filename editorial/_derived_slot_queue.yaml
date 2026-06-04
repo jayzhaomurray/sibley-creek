@@ -145,3 +145,42 @@ queue:
       Feb 2025 Fiscal Monitor via alternative routes; if confirmed, re-open
       this entry (status pending_materialization) and restore the specific
       delta to the abstract.
+
+  - slot_name: frt_issuance_flow_total
+    added_at: 2026-06-04
+    surface: /fiscal/ issuance plate (plate-5) — "$612 billion" record, "tops the 2020-21 peak", "bond buckets +31%" claims
+    source_inputs:
+      - data/site/panel_data/fiscal.json panel issuance primary  (frt_issuance_flow_bonds)
+      - data/site/panel_data/fiscal.json panel issuance secondary (frt_issuance_flow_bills, year-end STOCK)
+      - data/site/panel_data/fiscal.json panel issuance tertiary  (frt_issuance_flow_notes)
+    aggregation_rule: >
+      For each fiscal year FY: total = bills_stock(FY) + notes_flow(FY) + bonds_flow(FY),
+      summing the three existing component slots row-aligned on fy_label. Units $B CAD.
+      NOTE THE HYBRID: the bills leg is a year-end STOCK snapshot, notes+bonds are gross
+      FLOW (DMR's own convention). The total is the DMR "gross issuance of bonds and bills"
+      headline. Also materialize a bond-only subtotal (notes+bonds) so the "roughly a third"
+      / +31% claim reads from a slot rather than ad-hoc subtraction.
+    example_values:
+      - { fy: "2020-21", bills: 219, notes: 264, bonds: 107, total: 590, bond_subtotal: 371 }
+      - { fy: "2024-25", bills: 285, notes: 157, bonds: 84,  total: 526, bond_subtotal: 241 }
+      - { fy: "2025-26", bills: 296, notes: 204, bonds: 112, total: 612, bond_subtotal: 316 }  # bond_subtotal 316/241 = +31.1%
+    status: materialized
+    materialized_at: 2026-06-04
+    materialized_as: data/derived/frt_issuance_flow_total.csv
+    wired_to: >
+      pipeline/fetch/frt_fiscal_series.py build_frt_fiscal_series() Series 14.
+      NOT wired to a panel slot (the component series 11/12/13 remain the chart
+      inputs on panel-10; this CSV backs slot-bound claims only).
+    notes: >
+      Triggered by fiscal regate 2026-06-04. The "$612B", "tops 2020-21 (590)", and
+      "bond buckets climb roughly a third (+31%)" claims all currently require summing
+      three component slots ad-hoc. Materialize total + bond_subtotal so these read
+      directly. Verified once here: FY2025-26 plan total = 612 exact; FY2020-21 = 590;
+      bond_subtotal +31.1% YoY into FY2025-26.
+
+# frt_rev_minus_progexp_pct_gdp: MATERIALIZED 2026-06-04 (entry deleted per protocol).
+# Lives at pipeline/fetch/frt_fiscal_series.py Series 14b ->
+# data/derived/frt_rev_minus_progexp_pct_gdp.csv (+ meta with scalar_companions:
+# revenue_above_run 22yr 1987-88->2008-09 [tie at FY2009-10 breaks it; 31-of-32
+# non-consecutive], crossover_fy 2027-28, revenue_band_full [13.9, 18.0],
+# revenue_band_forecast [15.59, 15.77]).

@@ -1,0 +1,499 @@
+---
+/*
+ * Plate2OperatingDispute — DoF vs PBO operating-balance dispute, grouped signed bars.
+ *
+ * CHART JOB: show that DoF's operating balance climbs through zero by FY2028-29
+ *   while PBO's recast stays below zero in every year. The gap is the dispute.
+ *
+ * DATA: fiscal.json panel-11 ($B, all is_forecast=1)
+ *   primary   = frt_operating_balance_dof   DoF SEU Apr 2026, FY2025-26 → FY2030-31
+ *               -26.4 | -10.5 | -5.2 | +0.9 | +4.5 | +6.1
+ *   secondary = frt_operating_balance_pbo   PBO recast Budget 2025 Nov 2025,
+ *               FY2024-25 → FY2029-30
+ *               -10.5 | -45.8 | -25.3 | -23.3 | -18.1 | -17.6
+ *
+ * VINTAGE MISMATCH (non-negotiable editorial constraint): the two series are
+ *   different vintages with different year coverage — they are NOT a same-year
+ *   subtractable pair. Each series carries a compact vintage label as direct
+ *   labeling. Years where only one series has data show only that series' bar.
+ *   The $94B annotation is the VERIFIED capital-classification wedge (DoF
+ *   $311.5B vs PBO $217.3B of what counts as capital, FY2024-25→2029-30) —
+ *   NOT the cumulative bar-gap, which is a classification/vintage compound
+ *   and lands near the same number by mechanical coincidence.
+ *
+ * FORM: Grouped signed bars — DoF (INK 1.00, left bar of pair) and PBO (MID
+ *   0.55, right bar of pair) per fiscal year. Sole-series years get a single
+ *   bar centred in the year slot. Grey-tint differentiation, no hatch, no texture.
+ *
+ * FORECAST: entire chart is projection-space (both series is_forecast=1 for
+ *   all points). NO forecast divider, NO "FORECAST" label — the vintage labels
+ *   carry the era-signal.
+ *
+ * VINTAGE LABELS (direct labeling in right gutter):
+ *   "DoF (Apr 2026)"      — darker ink label, anchored to last DoF bar (FY2030-31)
+ *   "PBO recast (Nov 2025)" — lighter ink label, anchored to last PBO bar (FY2029-30)
+ *
+ * NUMERIC CALLOUT: compact "$94B capital, reclassified" annotation, free-
+ *   standing in white space above the chart (no leader into the bars — see
+ *   vintage-mismatch note). NOT a sentence — 4 words max.
+ *
+ * ZERO LINE: 1px pure-ink full-opacity per canon.
+ *
+ * Y-DOMAIN: -50 to +10, step 10 ($B). Topmost tick: "+$10B".
+ *   7 ticks at -50,-40,-30,-20,-10,0,+10.
+ *
+ * X-AXIS: 'YY short-year labels per conformance audit. FY2024-25 -> '25,
+ *   FY2025-26 -> '26, etc.
+ *
+ * CANON COMPLIANCE (Tier-3, bespoke bar):
+ *   viewBox 720x405 (16:9), preserveAspectRatio xMidYMid meet
+ *   overflow:visible on wrapper + SVG
+ *   M_L=56 M_R=96 M_T=44 M_B=40 (canon margins)
+ *   y-tick x at PLOT_X0-8, x-tick y at PLOT_Y1+18 (conformance audit fix)
+ *   1px full-opacity zero line (heavier than 0.18-opacity gridlines)
+ *   gridlines 0.18 stroke-opacity
+ *   1px hairline plot frame
+ *   Plex Mono y-ticks, Manrope x-ticks (12px each)
+ *   Direct vintage labels: Manrope 13px, 600/400 weight, pure ink
+ *   No latest-point dot: bars (canon R2 — dot is line/area only)
+ *   No sentences inside SVG; no full source paragraphs
+ *   All color tokens (var(--ink), var(--paper)), no hardcoded hex
+ *
+ * BEM scope: p2od-chart__* (plate-2-operating-dispute)
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---- Data types ----------------------------------------------------------------
+type RawPt = { date: string; value: number | null; is_forecast?: number; fy_label?: string };
+
+interface BarPt {
+  fyLabel: string;      // "2025-26"
+  shortYear: string;    // "'26"
+  endYear: number;      // 2026 (for sort/order)
+  dof: number | null;
+  pbo: number | null;
+}
+
+// Parse both series by fy_label key.
+const dofMap = new Map<string, number>();
+const pboMap = new Map<string, number>();
+
+function ingestSeries(series: { data?: RawPt[] } | undefined, target: Map<string, number>) {
+  if (!series?.data) return;
+  for (const r of series.data) {
+    if (r.value === null || r.value === undefined) continue;
+    const fy = r.fy_label ?? r.date.slice(0, 4);
+    target.set(fy, r.value);
+  }
+}
+ingestSeries(data?.primary as { data?: RawPt[] } | undefined, dofMap);
+ingestSeries(data?.secondary as { data?: RawPt[] } | undefined, pboMap);
+
+// Union of all FYs with at least one value, chronologically by end-year.
+const fyEndYear = (fy: string): number => parseInt(fy.slice(0, 4), 10) + 1;
+const shortYear = (fy: string): string => `'${String(fyEndYear(fy)).slice(2)}`;
+
+const allFYs = Array.from(new Set([...dofMap.keys(), ...pboMap.keys()]))
+  .sort((a, b) => fyEndYear(a) - fyEndYear(b));
+
+const bars: BarPt[] = allFYs.map((fy) => ({
+  fyLabel: fy,
+  shortYear: shortYear(fy),
+  endYear: fyEndYear(fy),
+  dof: dofMap.get(fy) ?? null,
+  pbo: pboMap.get(fy) ?? null,
+}));
+
+const hasData = bars.length > 0;
+
+// ---- Geometry ------------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 56;
+const M_R = 96;   // right gutter: vintage labels live here
+const M_T = 44;
+const M_B = 40;
+
+const PLOT_X0 = M_L;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_W  = PLOT_X1 - PLOT_X0;
+const PLOT_H  = PLOT_Y1 - PLOT_Y0;
+
+// ---- Y domain ------------------------------------------------------------------
+// Data range: -45.8 (PBO FY2025-26) to +6.1 (DoF FY2030-31).
+// Nice domain: -50 to +10, step 10 -> 7 ticks.
+const Y_DOM_MIN = -50;
+const Y_DOM_MAX = 10;
+const Y_TICK_STEP = 10;
+const ySpan = Y_DOM_MAX - Y_DOM_MIN;
+
+const yScale = (v: number): number =>
+  PLOT_Y0 + PLOT_H - ((v - Y_DOM_MIN) / ySpan) * PLOT_H;
+
+// ---- Y ticks -------------------------------------------------------------------
+type YTick = { y: number; label: string };
+const yTickVals: number[] = [];
+for (let v = Y_DOM_MIN; v <= Y_DOM_MAX; v += Y_TICK_STEP) yTickVals.push(v);
+const yTicks: YTick[] = yTickVals.map((v, i) => ({
+  y: yScale(v),
+  label:
+    i === yTickVals.length - 1
+      ? "+$10B"       // topmost tick carries unit
+      : v === 0
+        ? "0"
+        : v > 0
+          ? `+${v}`
+          : `${v}`,
+}));
+// Gridlines: all ticks except y=0 (zero line is a separate element) and bottom tick
+const gridlines = yTickVals.filter((v) => v !== 0 && v !== Y_DOM_MIN);
+
+// ---- Bar geometry (grouped) ----------------------------------------------------
+// Layout: N year-slots, each slot contains up to 2 bars (DoF left, PBO right).
+// Within a slot: BAR_W each with a GAP_INNER between them; outer padding is
+// GAP_OUTER on each side of the slot.
+//
+// UNIFORM WIDTH RULE: every bar — paired or sole — uses BAR_W. A sole-series
+// year leaves an empty slot for the absent series (DoF always left, PBO always
+// right). This preserves slot-consistent series position and prevents sole bars
+// from rendering wider than paired bars.
+const N = bars.length; // 7 years: '25 thru '31 (DoF has 6, PBO has 6, overlap 5)
+const SLOT_W = PLOT_W / N;
+const GAP_OUTER = SLOT_W * 0.10;   // padding each side of slot
+const GAP_INNER = Math.max(SLOT_W * 0.06, 1.5); // gap between the two bars in a pair
+const PAIR_W = SLOT_W - 2 * GAP_OUTER;
+const BAR_W = (PAIR_W - GAP_INNER) / 2; // every bar uses this width — sole or paired
+
+// x left-edge of each bar type within slot i (series-consistent positioning)
+const slotX0 = (i: number): number => PLOT_X0 + i * SLOT_W;
+const dofBarX = (i: number): number => slotX0(i) + GAP_OUTER;
+const pboBarX = (i: number): number => slotX0(i) + GAP_OUTER + BAR_W + GAP_INNER;
+const slotCX  = (i: number): number => slotX0(i) + SLOT_W / 2;
+
+interface BarRect {
+  x: number;
+  w: number;
+  y: number;
+  h: number;
+  series: "dof" | "pbo";
+  fyLabel: string;
+  value: number;
+}
+
+const barRects: BarRect[] = [];
+for (let i = 0; i < bars.length; i++) {
+  const b = bars[i]!;
+  const y0 = yScale(0);
+
+  // DoF always in left slot position; PBO always in right slot position.
+  // Width is BAR_W regardless of whether the other series is present.
+  if (b.dof !== null) {
+    const x = dofBarX(i);
+    const y1 = yScale(b.dof);
+    const [ry, rh] = b.dof >= 0 ? [y1, y0 - y1] : [y0, y1 - y0];
+    if (rh > 0.3) barRects.push({ x, w: BAR_W, y: ry, h: rh, series: "dof", fyLabel: b.fyLabel, value: b.dof });
+  }
+  if (b.pbo !== null) {
+    const x = pboBarX(i);
+    const y1 = yScale(b.pbo);
+    const [ry, rh] = b.pbo >= 0 ? [y1, y0 - y1] : [y0, y1 - y0];
+    if (rh > 0.3) barRects.push({ x, w: BAR_W, y: ry, h: rh, series: "pbo", fyLabel: b.fyLabel, value: b.pbo });
+  }
+}
+
+// ---- X-axis tick labels ('YY) --------------------------------------------------
+type XTick = { x: number; label: string };
+const xTicks: XTick[] = bars.map((b, i) => ({
+  x: slotCX(i),
+  label: b.shortYear,
+}));
+
+// ---- Vintage labels — inside plot, right-anchored ----------------------------
+// Both labels are right-anchored at PLOT_X1 − 4 with text-anchor="end", keeping
+// them fully inside the viewBox at any responsive scale.
+//
+// DoF (Apr 2026): top-right whitespace, above the near-zero late-year DoF bars.
+//   Placed at y = PLOT_Y0 + 14 (inside the upper whitespace above zero line).
+//   The zero line sits at yScale(0) ≈ PLOT_Y0 + 53.5, so y=58 is well clear.
+//
+// PBO recast (Nov 2025): lower-plot whitespace to the right of the '30 PBO bar.
+//   Placed at yScale(−30) ≈ 258 — clear of all bars in the rightmost slots.
+//   Two-line form ("PBO recast" / "(Nov 2025)") keeps each line short.
+//
+// No labelGutterX — gutter approach removed.
+const lastDofIdx = (() => { for (let i = bars.length - 1; i >= 0; i--) if (bars[i]!.dof !== null) return i; return -1; })();
+const lastPboIdx = (() => { for (let i = bars.length - 1; i >= 0; i--) if (bars[i]!.pbo !== null) return i; return -1; })();
+
+const VINTAGE_LABEL_X = PLOT_X1 - 4;  // right-anchored; text-anchor="end" in SVG
+const DOF_LABEL_Y     = PLOT_Y0 + 14; // top-right: above the zero-line whitespace
+const PBO_LABEL_Y     = yScale(-30);   // lower-plot whitespace, ~y=258
+
+// ---- $94B annotation -------------------------------------------------------
+// The $94B figure is the VERIFIED capital-classification wedge (DoF $311.5B vs
+// PBO $217.3B of what counts as capital, FY2024-25→2029-30) — NOT the cumulative
+// bar-gap. Free-standing compact callout (no leader into the bars; a leader
+// would imply the prohibited same-year-delta reading).
+//
+// PLACEMENT: UPPER-LEFT plot interior. The right-side cluster (below the DoF
+// vintage label) collided with the '30/'31 DoF bar tops, which rise to
+// yScale(+4.5) ≈ 74 / yScale(+6.1) ≈ 64 — exactly the y-band a right-anchored
+// second line occupies. The upper-left interior is guaranteed whitespace: the
+// early-year bars ('25–'28) are all below the zero line, so the region between
+// PLOT_Y0 and the zero line is empty there. Left-anchored, it also balances
+// the right-anchored DoF label compositionally.
+const fy2526Idx = bars.findIndex((b) => b.fyLabel === "2025-26");
+const ANNO_X = PLOT_X0 + 10;            // left-anchored in upper-left whitespace
+const ANNO_Y = PLOT_Y0 + 22;            // y = 66: clear of frame, gridlines legible behind
+
+// ---- aria-label ----------------------------------------------------------------
+const firstFY = bars[0]?.fyLabel ?? "";
+const lastFY  = bars[bars.length - 1]?.fyLabel ?? "";
+const ariaLabel =
+  `Federal operating balance dispute: DoF vs PBO projections, FY${firstFY} to FY${lastFY}. ` +
+  `Grouped signed bars per fiscal year. DoF (Spring Economic Update 2026, black bars): ` +
+  `deficit narrows from minus $26.4 billion in FY2025-26, crossing to surplus of $0.9 billion in FY2028-29. ` +
+  `PBO recast (Budget 2025 recast, November 2025, grey bars): deficit persists, ` +
+  `never reaching zero, at minus $17.6 billion in FY2029-30. ` +
+  `Both series are projections. Cumulative gap approximately $94 billion over common years.`;
+---
+
+{!hasData ? (
+  <PanelEmpty reason="DATA NOT YET WIRED — fiscal.json panel-11 frt_operating_balance_dof / frt_operating_balance_pbo" />
+) : (
+  <div class="p2od-chart" data-panel="fiscal-plate-2-dispute" data-panel-status="live">
+    <svg
+      class="p2od-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      <title>DoF sees the operating books balanced by 2029; the PBO says the deficit never clears.</title>
+
+      {/* Horizontal gridlines (excluding zero) */}
+      {gridlines.map((v) => (
+        <line
+          class="p2od-chart__gridline"
+          x1={PLOT_X0.toFixed(2)} y1={yScale(v).toFixed(2)}
+          x2={PLOT_X1.toFixed(2)} y2={yScale(v).toFixed(2)}
+        />
+      ))}
+
+      {/* Zero line — 1px full-opacity, heavier than gridlines */}
+      <line
+        class="p2od-chart__zero-line"
+        x1={PLOT_X0.toFixed(2)} y1={yScale(0).toFixed(2)}
+        x2={PLOT_X1.toFixed(2)} y2={yScale(0).toFixed(2)}
+      />
+
+      {/* DoF bars (INK 1.00 — the primary series) */}
+      {barRects.filter((r) => r.series === "dof").map((r) => (
+        <rect
+          class="p2od-chart__bar-dof"
+          x={r.x.toFixed(2)} y={r.y.toFixed(2)}
+          width={r.w.toFixed(2)} height={r.h.toFixed(2)}
+        >
+          <title>{`FY${r.fyLabel} DoF (SEU Apr 2026): ${r.value >= 0 ? "+" : ""}${r.value.toFixed(1)}B`}</title>
+        </rect>
+      ))}
+
+      {/* PBO bars (MID 0.55 — the secondary series) */}
+      {barRects.filter((r) => r.series === "pbo").map((r) => (
+        <rect
+          class="p2od-chart__bar-pbo"
+          x={r.x.toFixed(2)} y={r.y.toFixed(2)}
+          width={r.w.toFixed(2)} height={r.h.toFixed(2)}
+        >
+          <title>{`FY${r.fyLabel} PBO recast (Nov 2025): ${r.value >= 0 ? "+" : ""}${r.value.toFixed(1)}B`}</title>
+        </rect>
+      ))}
+
+      {/* Hairline plot frame */}
+      <rect
+        class="p2od-chart__frame"
+        x={PLOT_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
+        width={PLOT_W.toFixed(2)} height={PLOT_H.toFixed(2)}
+      />
+
+      {/* Y-axis tick labels (Plex Mono, right-aligned at PLOT_X0-8) */}
+      {yTicks.map((t) => (
+        <text
+          class="p2od-chart__ytick-label"
+          x={(PLOT_X0 - 8).toFixed(2)}
+          y={(t.y + 4).toFixed(2)}
+          text-anchor="end"
+        >{t.label}</text>
+      ))}
+
+      {/* X-axis ticks + 'YY labels (PLOT_Y1+18 per conformance audit) */}
+      {xTicks.map((t) => (
+        <g>
+          <line
+            class="p2od-chart__xtick"
+            x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 5).toFixed(2)}
+          />
+          <text
+            class="p2od-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* Vintage labels — inside plot, right-anchored (text-anchor="end").
+          Placed in the top-right whitespace above the small late-year DoF bars
+          and in the lower-plot whitespace for PBO. No right-gutter overflow risk
+          at any responsive scale. DoF (primary) 600 weight; PBO (secondary)
+          400 weight, two-line form. */}
+      {lastDofIdx >= 0 && (
+        <text
+          class="p2od-chart__vintage-dof"
+          x={VINTAGE_LABEL_X.toFixed(2)}
+          y={DOF_LABEL_Y.toFixed(2)}
+          text-anchor="end"
+        >DoF (Apr 2026)</text>
+      )}
+      {lastPboIdx >= 0 && (
+        <>
+          <text
+            class="p2od-chart__vintage-pbo"
+            x={VINTAGE_LABEL_X.toFixed(2)}
+            y={PBO_LABEL_Y.toFixed(2)}
+            text-anchor="end"
+          >PBO recast</text>
+          <text
+            class="p2od-chart__vintage-pbo"
+            x={VINTAGE_LABEL_X.toFixed(2)}
+            y={(PBO_LABEL_Y + 16).toFixed(2)}
+            text-anchor="end"
+          >(Nov 2025)</text>
+        </>
+      )}
+
+      {/* $94B annotation: compact callout in the upper-left plot interior —
+          guaranteed whitespace (early-year bars all sit below the zero line).
+          Free-standing (no leader): verified capital-classification wedge,
+          not the cumulative bar-gap. 4 words. No sentences. */}
+      {fy2526Idx >= 0 && (
+        <text
+          class="p2od-chart__gap-label"
+          x={ANNO_X.toFixed(2)}
+          y={ANNO_Y.toFixed(2)}
+          text-anchor="start"
+        >$94B capital, reclassified</text>
+      )}
+
+    </svg>
+  </div>
+)}
+
+<style>
+  /*
+   * Plate2OperatingDispute — Tier-3 grouped signed-bar chart.
+   * DoF (INK 1.00, left bar) vs PBO recast (MID 0.55, right bar) per FY.
+   * Vintage mismatch: different year coverage, grouped NOT stacked.
+   * Grey-tint category differentiation per fiscal_bar_language.md §2 — no hatch,
+   * no texture, no color. Full-ink chrome; data tint = category only.
+   * Conforms to PanelLiveChart token set and conformance-audit deltas.
+   */
+  .p2od-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+  .p2od-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans);
+    overflow: visible;
+  }
+  .p2od-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  /* Zero line: 1px pure ink, full opacity — distinguishable from gridlines
+     by opacity alone (canon: heavier means full-opacity, not wider). */
+  .p2od-chart__zero-line {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 1;
+    shape-rendering: crispEdges;
+  }
+  /* DoF bars: INK 1.00 (primary series — the government's own projection). */
+  .p2od-chart__bar-dof {
+    fill: var(--ink);
+    fill-opacity: 1;
+    stroke: none;
+  }
+  /* PBO bars: MID grey 0.55 (secondary series — the independent recast). */
+  .p2od-chart__bar-pbo {
+    fill: var(--ink);
+    fill-opacity: 0.55;
+    stroke: none;
+  }
+  .p2od-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  /* Y-tick labels: Plex Mono 400 12px (data = measurement; canon resolution §10) */
+  .p2od-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .p2od-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  /* X-tick labels: Manrope 400 12px (dates = language, not measurements) */
+  .p2od-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+  }
+  /* Vintage direct labels in right gutter.
+     DoF (600 = primary weight), PBO (400 = secondary weight). 13px = label size. */
+  .p2od-chart__vintage-dof {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .p2od-chart__vintage-pbo {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 400;
+  }
+  /* Gap annotation: compact numeric callout, Plex Mono (it's a measurement).
+     Leader: 1px pure ink, no arrowhead. */
+  .p2od-chart__gap-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+</style>

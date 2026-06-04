@@ -826,6 +826,10 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             ),
         ),
         # Panel 9 — Federal debt (accumulated deficit) as % of GDP.
+        # PRIMARY:   frt_federal_debt_pct_gdp     -- DoF FRT/SEU, 40-year history + SEU forecast
+        # SECONDARY: frt_federal_debt_pct_gdp_pbo -- PBO EFO June 2026 (RP-2627-002-S), Table 2
+        #            FY2024-25 to FY2030-31, all is_forecast=1. Same concept; directly comparable.
+        #            PBO gap vs DoF ~1pp; PBO calls own track "flat over the medium term."
         PanelSpec(
             panel_id="panel-9", section="fiscal", panel_num=9,
             file="fiscal/Panel9FederalDebtPctGDP.astro",
@@ -834,18 +838,30 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
                 label="Federal debt / accumulated deficit (% of GDP)",
                 unit_override="% of GDP",
             ),
+            secondary=SlotSpec(
+                "frt_federal_debt_pct_gdp_pbo", "derived",
+                label="PBO forecast (June 2026 EFO)",
+                unit_override="% of GDP",
+            ),
             expected_status="WIRED",
             notes=(
                 "Plate 9: federal debt (accumulated deficit) as % of GDP, FY2006-07 to FY2030-31. "
                 "REBUILT CLEAN -- do NOT use data/derived/fiscal_debt_to_gdp.csv (that file "
-                "carries Budget 2025 projections with an incompatible GDP vintage). History: FRT "
-                "2025 Table 2 (Oct-2025 GDP vintage). Forecast: SEU 2026 Annex 1 Table A1.7 "
-                "published %GDP row (Apr-2026 vintage). Seam at FY2024-25/FY2025-26: FRT 41.2% "
-                "-> SEU 41.1% (~0.1pp, benign). Federal-only basis (NOT general-government gross "
-                "debt; Fitch/OECD/IMF general-govt figures ~91-107% are NOT comparable). "
-                "is_forecast field in each record. Historical reference points: pre-GFC trough "
-                "28.2% (FY2008-09), COVID peak 47.2% (FY2020-21). "
-                "Source: pipeline/fetch/frt_fiscal_series.py."
+                "carries Budget 2025 projections with an incompatible GDP vintage). "
+                "PRIMARY (frt_federal_debt_pct_gdp): History FRT 2025 Table 2 (Oct-2025 GDP "
+                "vintage). Forecast: SEU 2026 Annex 1 Table A1.7 published %GDP row (Apr-2026 "
+                "vintage). Seam at FY2024-25/FY2025-26: FRT 41.2% -> SEU 41.1% (~0.1pp, benign). "
+                "SECONDARY (frt_federal_debt_pct_gdp_pbo): PBO EFO June 2026 (RP-2627-002-S), "
+                "Table 2. FY2024-25 to FY2030-31, all is_forecast=1. Same concept (federal "
+                "accumulated deficit % GDP); PBO uses own macro denominators. Gap vs DoF ~1pp; "
+                "PBO's own characterization: 'flat over the medium term' (p. 9). "
+                "GDP VINTAGE: PBO denominator differs from both FRT and SEU vintages; the ~1pp "
+                "gap reflects higher PBO deficit projections AND different denominators -- do NOT "
+                "present as purely deficit-driven. "
+                "Federal-only basis (NOT general-government gross debt; Fitch/OECD/IMF general-"
+                "govt figures ~91-107% are NOT comparable). "
+                "Historical reference points: pre-GFC trough 28.2% (FY2008-09), COVID peak "
+                "47.2% (FY2020-21). Source: pipeline/fetch/frt_fiscal_series.py Series 5 + 17."
             ),
         ),
         # Panel 10 — Federal GROSS ISSUANCE FLOW by maturity bucket.
@@ -889,6 +905,54 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
                 "longer wired here. Full source ledger: "
                 "claude-ref/research/fiscal_redo/issuance_flow_series.md. "
                 "Source: pipeline/fetch/frt_fiscal_series.py."
+            ),
+        ),
+        # Panel 11 — DoF vs PBO operating balance (signed bars).
+        # Two series on distinct vintages -- they are NOT a clean same-year-subtractable pair.
+        # PRIMARY:   frt_operating_balance_dof  (DoF, SEU 2026, Apr 2026 vintage, FY2025-26+)
+        # SECONDARY: frt_operating_balance_pbo  (PBO recast of Budget 2025, Nov 2025 vintage,
+        #                                         FY2024-25 to FY2029-30)
+        # Both series sourced from pipeline/fetch/frt_fiscal_series.py Series 15+16.
+        # Vintage labels for chart attribution:
+        #   primary source_label:   "DoF, Spring Economic Update 2026"
+        #   secondary source_label: "PBO recast of Budget 2025"
+        # VINTAGE MISMATCH: the year-by-year gap between the two series is a compound of
+        # (a) the genuine PBO capital reclassification (~$94bn cumulative, ~30% of reported
+        #     capital) AND (b) improved DoF fiscal news booked between Budget 2025 and SEU 2026.
+        # Chart MUST carry a vintage annotation; do NOT present the gap as if purely the
+        # classification effect. See SOURCE_NOTES.md in claude-ref/research/fiscal_pbo_split/.
+        PanelSpec(
+            panel_id="panel-11", section="fiscal", panel_num=11,
+            file="fiscal/Panel11OperatingBalanceDoFvsPBO.astro",
+            primary=SlotSpec(
+                "frt_operating_balance_dof", "derived",
+                label="DoF operating balance (SEU 2026)",
+                unit_override="CAD billions",
+            ),
+            secondary=SlotSpec(
+                "frt_operating_balance_pbo", "derived",
+                label="PBO recast operating balance (Budget 2025)",
+                unit_override="CAD billions",
+            ),
+            expected_status="WIRED",
+            notes=(
+                "Plate 11: DoF vs PBO operating balance, signed-bars chart. "
+                "PRIMARY = frt_operating_balance_dof: DoF SEU 2026 Annex 1 Table A1.5 "
+                "operating balance, FY2025-26 to FY2030-31, all is_forecast=1. "
+                "Source label: 'DoF, Spring Economic Update 2026'. "
+                "SECONDARY = frt_operating_balance_pbo: PBO RP-2526-017-S recast of "
+                "Budget 2025, FY2024-25 to FY2029-30, all is_forecast=1. "
+                "Source label: 'PBO recast of Budget 2025'. "
+                "VINTAGE MISMATCH: the two series are on different DoF vintages (SEU 2026 "
+                "vs Budget 2025). The year-by-year gap is a compound of the PBO "
+                "reclassification dispute (~$94bn cumulative, ~30%) AND ~$11.5bn of "
+                "improved fiscal news booked between Budget 2025 and SEU 2026. "
+                "Chart must carry a vintage annotation; the gap must NOT be presented as "
+                "purely the classification effect. "
+                "DoF anchor: operating balance crosses zero in FY2028-29 (+0.9bn). "
+                "PBO recast: never reaches zero (stays at -17.6bn in FY2029-30, last year). "
+                "Units: CAD billions (positive = surplus, negative = deficit). "
+                "Source: pipeline/fetch/frt_fiscal_series.py Series 15+16."
             ),
         ),
     ],

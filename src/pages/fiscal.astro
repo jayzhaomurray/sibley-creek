@@ -1,33 +1,36 @@
 ---
 /*
- * /fiscal/ — Chartbook page wiring the five new fiscal plates.
+ * /fiscal/ — Chartbook page wiring the five fiscal plates.
  *
- * Plates 1-5 correspond to fiscal.json panel-6 through panel-10.
+ * FINAL SLATE (Jay-approved 2026-06-04):
+ *   plate-1 (01) balance two-panel        — fiscal.json panel-6
+ *   plate-2 (02) DoF-vs-PBO dispute bars  — fiscal.json panel-11 (NEW)
+ *   plate-3 (03) rev vs exp merged lines  — fiscal.json panels 7+8 (combined)
+ *   plate-4 (04) debt/GDP                 — fiscal.json panel-9
+ *   plate-5 (05) issuance by instrument   — fiscal.json panel-10
  *
- * PLATE 2 DATA WIRING (merged revenue+expense chart, R2.5):
+ * PLATE 3 DATA WIRING (merged revenue+expense chart, R2.5):
  *   Plate2RevenuesPctGDP is the merged two-line chart (revenues vs expenses).
  *   It receives a combined PanelData where:
  *     primary   = panel-7 primary (frt_revenues_pct_gdp)
  *     secondary = panel-8 primary (frt_program_exp_pct_gdp)
- *   This is composed here before passing to SectionLayout.
+ *   This is composed here before passing to SectionLayout. (The component
+ *   keeps its historical "Plate2" filename per "tag and leave"; it renders
+ *   as plate-3 in the final slate.)
  *
- * PLATE 3 (Plate3ProgramExpPctGDP) CUT 2026-06-02:
- *   Redundant with the merged Plate 2 (which already carries the expense line).
- *   The component file is retained per the "tag and leave" convention but is no
- *   longer wired into the page or the SectionLayout registry.
+ * PLATE 2 (NEW 2026-06-04): Plate2OperatingDispute, grouped signed bars,
+ *   DoF operating balance (SEU Apr 2026) vs PBO recast (Nov 2025 recast of
+ *   Budget 2025). The two series are different vintages — the component and
+ *   the copy both avoid same-year subtraction; the $94B annotation is the
+ *   verified capital-classification wedge.
  *
- * ALTERNATES PRUNED 2026-06-02 (Jay picked the winners):
- *   - Plate1BalanceComposition (chartKey fiscal-plate-1, original single-panel
- *     balance) UNWIRED. The two-panel Plate1BalanceTwoPanel is the keeper and now
- *     occupies the canonical id "plate-1" / chartKey "fiscal-plate-1-alt".
- *   - Plate2RevExpTwoPanel (chartKey fiscal-plate-2-alt, two-panel rev/exp) UNWIRED.
- *     The merged two-series Plate2RevenuesPctGDP is the keeper.
- *   Both losing component files are retained per "tag and leave".
+ * Plate3ProgramExpPctGDP CUT 2026-06-02 (redundant with the merged rev/exp
+ * chart). Plate1BalanceComposition + Plate2RevExpTwoPanel UNWIRED 2026-06-02
+ * (Jay picked the winners). All losing files retained per "tag and leave".
  *
- * FINAL RENDER ORDER: plate-1 (balance two-panel) -> plate-2 (rev vs exp merged)
- *   -> plate-4 (debt/GDP) -> plate-5 (issuance by instrument).
- *
- * reader copy (titles, blurbs) is TK — writer + 3 editorial gates come later.
+ * Reader copy: passed all three gates (fact / style / surface-fit), two
+ * rounds, 2026-06-04. Plate-2 and plate-4 PBO claims cite source cards
+ * pending user approval — see editorial/source_cards/_pending/fiscal/.
  */
 
 import SectionLayout from "../layouts/SectionLayout.astro";
@@ -47,11 +50,12 @@ const panel7Data  = pickPanel(panelDataFile, 7);
 const panel8Data  = pickPanel(panelDataFile, 8);
 const panel9Data  = pickPanel(panelDataFile, 9);
 const panel10Data = pickPanel(panelDataFile, 10);
+const panel11Data = pickPanel(panelDataFile, 11);
 
-// ---- Plate 2 combined data: revenues (primary) + expenses (secondary) ----------
+// ---- Plate 3 combined data: revenues (primary) + expenses (secondary) ----------
 // Plate2RevenuesPctGDP is the merged two-line chart (R2.5).
 // The component reads: data.primary = revenues, data.secondary = expenses.
-const plate2CombinedData: PanelData | null = (panel7Data && panel8Data)
+const plate3CombinedData: PanelData | null = (panel7Data && panel8Data)
   ? {
       ...panel7Data,
       // Graft panel-8's primary series into the secondary slot so the merged
@@ -65,59 +69,91 @@ const plates: Plate[] = [
     id: "plate-1",
     number: "01",
     indicator: "Budget balance — full history + forecast operating/capital zoom",
-    plateIndexLabel: "Balance",
+    plateIndexLabel: "Operating balance",
     title: "Ottawa is balancing the operating books and borrowing the rest for capital.",
     interpretation:
-      "The plan is to balance day-to-day spending and borrow only for capital. The operating balance swings from a $26 billion deficit this year to a small surplus by 2028-29; capital investment—$40 to $60 billion annually, booked separately and debt-funded—holds the total in the red. The Parliamentary Budget Officer reads the split more narrowly: on its definition the operating books never reach balance, a $94 billion difference in what counts as capital. Whose accounting wins decides whether this is consolidation or a relabelling.",
+      "Ottawa's plan separates the budget in two: balance current operations, borrow only for capital. The operating balance swings from a $26 billion deficit this year to a small surplus by 2028-29. Capital investment—$40 to $60 billion annually, booked separately and debt-funded—holds the total in the red. So the headline deficit persists by design: the government is not aiming to balance the budget, only the operating half of it.",
     source: "Department of Finance Canada, Fiscal Reference Tables 2025; Spring Economic Update 2026.",
     chartKey: "fiscal-plate-1-alt",
     data: panel6Data,
-    asOfMode: "primary",
+    // Explicit: derived as-of reads the forecast endpoint (Mar 2031) as if it
+    // were a data vintage. Stamp the actual vintage instead.
+    asOf: "DoF Apr 2026",
   },
   {
     id: "plate-2",
     number: "02",
-    indicator: "Federal revenues vs program expenses, % of GDP",
-    plateIndexLabel: "Revenue vs Expense",
-    title: "Revenues and program spending converge near 15.5% of GDP—the gap is the deficit.",
+    indicator: "Operating balance under two definitions of capital: DoF vs PBO",
+    plateIndexLabel: "Capital, disputed",
+    title: "Ottawa balances its operating books only on its own definition of capital.",
     interpretation:
-      "Where program spending sits above revenue, the government runs a deficit—and spending has led for most of the past two decades. The pandemic pushed the spending line to 28% of GDP in 2020-21, a spike with no peacetime precedent in the series, before it fell back; the forecast has the two converging within half a point near 15.5% of GDP by decade's end. The driver is spending held below GDP growth, not higher taxes.",
+      "The government's fiscal anchor is a balanced operating budget by 2028-29; on its own books, a small surplus that year gets it there. That promise turns on what counts as capital: corporate tax breaks, investment tax credits, and operating subsidies are all booked there. Re-running Budget 2025 on a stricter, internationally standard definition, the Parliamentary Budget Officer (PBO) moved roughly $94 billion back to operating, where the books never balance. The government has not published those definitions as of May 2026, leaving the PBO unable to verify the anchor holds.",
+    source: "Department of Finance Canada, Spring Economic Update 2026 (Annex 1, Table A1.5); Parliamentary Budget Officer, Budget 2025: Issues for Parliamentarians (RP-2526-017-S, November 2025); PBO Assessment of Spring Economic Update: Fiscal Anchors (NT-2627-002-S, May 2026).",
+    citations: [
+      { phrase: "a small surplus that year gets it there", source: "card:dof_operating_balance_projection", note: "DoF SEU April 2026 Annex 1 Table A1.5: operating balance +$0.9bn FY2028-29." },
+      { phrase: "corporate tax breaks, investment tax credits, and operating subsidies", source: "card:dof_vs_pbo_operating_capital_dispute", note: "PBO RP-2526-017-S: the three categories PBO reclassifies out of capital. 'Tax breaks' = broad render of 'corporate income-tax expenditures' (Gate-1 ruled 'credits' too narrow)." },
+      { phrase: "roughly $94 billion back to operating", source: "card:dof_vs_pbo_operating_capital_dispute", note: "DoF books $311.5bn as capital FY2024-25→2029-30; PBO counts $217.3bn. Cumulative classification wedge $94.2bn. Vintage: recast of Budget 2025 — not a same-year delta against the SEU line." },
+      { phrase: "stricter, internationally standard definition", source: "card:dof_vs_pbo_operating_capital_dispute", note: "IMF Government Finance Statistics 2014 standard, per PBO RP-2526-017-S." },
+      { phrase: "leaving the PBO unable to verify the anchor holds", source: "card:pbo_seu_anchor_assessment_may2026", note: "NT-2627-002-S (May 4, 2026): 'not possible to advise in depth as to how updates... contribute to the government's assertion that this fiscal anchor remains in balance'; 'no additional insights on the definitions used for classification... were provided.'" },
+    ],
+    chartKey: "fiscal-plate-2-dispute",
+    data: panel11Data,
+    // Explicit stamp: derived "as of" would read the projection endpoint
+    // (Mar 2031) as if it were a data vintage. These are the two vintages.
+    asOf: "DoF Apr 2026; PBO Nov 2025",
+  },
+  {
+    id: "plate-3",
+    number: "03",
+    indicator: "Federal revenues vs program expenses, % of GDP",
+    plateIndexLabel: "Revenue vs spending",
+    title: "The deficit narrows from the spending side; revenue holds.",
+    interpretation:
+      "The deficit era is a spending story, not a revenue one. Revenue has hardly moved as a share of GDP—through the pandemic, which drove program spending to a peacetime-record 28% in 2020-21, and through the recovery. The forecast closes the gap from the spending side, returning program expenses below revenue by decade's end and restoring the relationship that held for thirty years before 2019.",
     source: "Department of Finance Canada, Fiscal Reference Tables 2025; Spring Economic Update 2026.",
     chartKey: "fiscal-plate-2",
-    data: plate2CombinedData,
-    asOfMode: "primary",
+    data: plate3CombinedData,
+    asOf: "DoF Apr 2026",
   },
   {
     id: "plate-4",
     number: "04",
     indicator: "Federal debt, % of GDP",
     plateIndexLabel: "Debt/GDP",
-    title: "Federal debt has stabilized near 41% of GDP, far below its mid-1990s peak.",
+    title: "Ottawa and the PBO both see the debt ratio holding flat.",
     interpretation:
-      "Canada's federal debt ratio is elevated but stable—well below its mid-1990s peak. The accumulated deficit holds near 41% of GDP across the forecast; dollar debt keeps climbing past $1.6 trillion, but growing no faster than the economy keeps the ratio flat. The pandemic pushed it to 47% in 2020-21—well below the 66.6% peak of the mid-1990s, before two decades of consolidation cut it to a pre-crisis low of 28%. The level is elevated; the trajectory is flat.",
-    source: "Department of Finance Canada, Fiscal Reference Tables 2025; Spring Economic Update 2026.",
+      "Canada's federal debt ratio is elevated but stable, far below its mid-1990s extreme. The pandemic pushed it to 47% in 2020-21, well under the 66.6% peak that a decade of consolidation had cut to 28%. Where it goes next is not in dispute: Ottawa holds it near 41% through the decade, and the Parliamentary Budget Officer calls its own track flat too, a notch higher in the low-42s. The fight over this budget is not about the debt ratio.",
+    source: "Department of Finance Canada, Fiscal Reference Tables 2025; Spring Economic Update 2026; Parliamentary Budget Officer, Economic and Fiscal Outlook – June 2026 (RP-2627-002-S).",
+    citations: [
+      { phrase: "Ottawa holds it near 41% through the decade", source: "pipeline:fiscal:panel-9", note: "frt_federal_debt_pct_gdp: 41.1% FY2025-26 to 41.6% FY2030-31 (DoF track)." },
+      { phrase: "calls its own track flat too", source: "card:pbo_efo_june2026_debt_gdp", note: "PBO EFO June 2026 p.9: 'Similar to our September outlook, the federal debt-to-GDP ratio is projected to remain flat over the medium term.'" },
+      { phrase: "a notch higher in the low-42s", source: "card:pbo_efo_june2026_debt_gdp", note: "PBO track FY2027-28→2030-31: 42.4, 42.6, 42.6, 42.5 — vs DoF 41.x. Gap 0.1–0.9pp across overlapping years; gap reflects PBO's higher deficits AND a different GDP denominator vintage (do not present as purely deficit-driven)." },
+    ],
     chartKey: "fiscal-plate-4",
     data: panel9Data,
-    asOfMode: "primary",
+    asOf: "DoF Apr 2026; PBO Jun 2026",
   },
   {
     id: "plate-5",
     number: "05",
-    indicator: "Debt outstanding by instrument: bonds, T-bills, retail",
-    plateIndexLabel: "Issuance mix",
-    title: "Gross issuance hits a record $612 billion this fiscal year as the bond program scales up.",
+    indicator: "Gross issuance by maturity bucket: bills, notes, bonds",
+    plateIndexLabel: "Issuance by instrument",
+    title: "The bond program, not bills, drives issuance to a record near $612 billion.",
     interpretation:
-      "Gross market financing is set to reach a record near $612 billion this fiscal year—topping the 2020-21 pandemic peak. The increase is a bond-program story: short and long marketable bonds climb roughly a third from last year, as larger deficits and a heavier refinancing load hit the market. The treasury-bill stock the government carries holds near $285 to $300 billion before trimming back the following year.",
-    source: "Department of Finance Canada, Fiscal Reference Tables 2025.",
+      "The record is a bond-program story. Issuance reaches near $612 billion this fiscal year, topping the 2020-21 pandemic peak, with the increase sitting almost entirely in marketable bonds: short and long tenors together climb roughly a third as larger deficits and a heavier refinancing load hit the market. The bill stock barely moves. The market absorbs the duration, not just the dollars.",
+    source: "Department of Finance Canada, Fiscal Reference Tables 2025; Debt Management Report (gross issuance of bonds and bills).",
+    footnote:
+      "Bills are Treasury bills, money-market instruments maturing in under a year; the figure shown is the year-end bill stock, not annual auction volume, which rolls several times over. Notes group the short marketable-bond sectors (2-, 3- and 5-year), and Bonds group the long sectors (10- and 30-year, plus Green bonds); both are true gross issuance flow for the year. “Notes” is a presentational label, not a Government of Canada instrument class—Canada issues Treasury bills and marketable bonds by tenor.",
     chartKey: "fiscal-plate-5",
     data: panel10Data,
-    asOfMode: "primary",
+    // "Mar 2027" derived stamp = the FY2026-27 plan endpoint, not a vintage.
+    asOf: "DoF Apr 2026",
   },
 ];
 
 const pageTitle = "Fiscal";
 const pageDescription =
-  "Canadian fiscal policy chartbook: budget balance composition, revenues and program expenses as a share of GDP, federal debt trajectory, and debt issuance by instrument.";
+  "Canadian fiscal policy chartbook: budget balance composition, the operating-vs-capital classification dispute, revenues and program expenses as a share of GDP, federal debt trajectory, and debt issuance by instrument.";
 
 const lede = section.blurb?.body ?? "";
 ---
@@ -131,5 +167,6 @@ const lede = section.blurb?.body ?? "";
   plates={plates}
   title={pageTitle}
   description={pageDescription}
+  dateModified={new Date(section.updatedAt).toISOString()}
   noindex={true}
 />

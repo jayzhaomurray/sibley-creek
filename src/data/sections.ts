@@ -553,15 +553,18 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "Apr 24, 2026",
+      date: "Jun 4, 2026",
       body:
-        "The fiscal stance is mildly expansionary and stays in deficit through the decade—the gap narrows because program spending is held below GDP growth, not because revenue rises. Ottawa's own plan reaches an operating surplus by 2028-29 while booking capital investment separately as debt; record bond issuance funds the difference. Federal debt holds near 41% of GDP through the forecast—well below the 66.6% of the mid-1990s, elevated against the past decade.",
+        "The fiscal stance is mildly expansionary and stays in deficit through the decade—the gap narrows because program spending is held below GDP growth, not because revenue rises. Ottawa's own plan reaches an operating surplus by 2028-29, funded by record bond issuance—but the Parliamentary Budget Officer says it cannot verify the surplus, because Ottawa has not disclosed how it sorts operating from capital. Federal debt holds roughly flat near 41% of GDP on the government's plan—42.5% on the watchdog's—two tracks that barely diverge.",
     },
     abstractCitations: [
       { phrase: "stays in deficit through the decade", source: "card:dof_seu_2026_deficit_gdp_share", note: "DoF SEU April 2026 Annex 1 Table A1.7: federal deficit every forecast year, 2.1% of GDP in FY2025-26 fading to 1.4% by FY2030-31." },
       { phrase: "reaches an operating surplus by 2028-29", source: "card:dof_operating_balance_projection", note: "DoF SEU April 2026 Annex 1 Table A1.5: day-to-day operating balance crosses zero in FY2028-29 (+$0.9bn), meeting the stated fiscal anchor under DoF's own definition." },
-      { phrase: "Federal debt holds near 41% of GDP", source: "pipeline:fiscal:panel-9", note: "fiscal.json panel-9 frt_federal_debt_pct_gdp: 41.1% FY2025-26 to 41.6% FY2030-31 (forecast-stable)." },
-      { phrase: "well below the 66.6% of the mid-1990s", source: "pipeline:fiscal:panel-9", note: "fiscal.json panel-9 frt_federal_debt_pct_gdp: series peak 66.6% at FY1995-96." },
+      { phrase: "says it cannot verify the surplus", source: "card:pbo_seu_anchor_assessment_may2026", note: "NT-2627-002-S (May 4, 2026): 'not possible to advise in depth as to how updates... contribute to the government's assertion that this fiscal anchor remains in balance.' The anchor IS the operating surplus, so 'cannot verify the surplus' is a faithful compression (Gate-1 ruled)." },
+      { phrase: "has not disclosed how it sorts operating from capital", source: "card:pbo_seu_anchor_assessment_may2026", note: "Same card: 'no additional insights on the definitions used for classification under the framework were provided.'" },
+      { phrase: "holds roughly flat near 41% of GDP", source: "pipeline:fiscal:panel-9", note: "fiscal.json panel-9 frt_federal_debt_pct_gdp: 41.1% FY2025-26 to 41.6% FY2030-31 (forecast-stable, DoF track)." },
+      { phrase: "42.5% on the watchdog's", source: "card:pbo_efo_june2026_debt_gdp", note: "PBO Economic and Fiscal Outlook – June 2026 (RP-2627-002-S, released 2026-06-04): debt-to-GDP FY2030-31 endpoint 42.5%." },
+      { phrase: "two tracks that barely diverge", source: "card:pbo_efo_june2026_debt_gdp", note: "Gap vs DoF 0.1–0.9pp across all overlapping forecast years; PBO's own characterization: 'projected to remain flat over the medium term' (gate-verified 2026-06-04)." },
     ],
   },
   {
