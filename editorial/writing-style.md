@@ -834,6 +834,37 @@ Both eliminate the worst class of bug — fact-checker missing that
 "six straight" was actually four — by validating the count at build
 time against the underlying data, not by trusting the author's count.
 
+### 4.1k Forecast-language rule — tense and attribution for forward-looking claims
+
+**A forward-looking outcome never appears in bare present indicative as if it were observed fact.** The dividing line is the data vintage: a printed Fiscal Monitor figure is indicative; a budget projection or a PBO outlook endpoint is attributed.
+
+Three acceptable markers:
+
+- **(a) Attribution** — name the source as actor: "Ottawa's plan holds it flat," "the watchdog projects that share climbing to 13%," "the forecast closes the gap," "on the government's plan."
+- **(b) Set-to / is-projected constructions** — "was set to reach," "is projected flat," "is on track to" (only when the source itself projects the outcome).
+- **(c) Horizon framing inside an already-attributed clause** — "by 2030-31" or "through the decade" alone is NOT sufficient; a year-stamp is not a marker. It must be paired with (a) or (b), or sit inside a clause already marked as a forecast.
+
+Observed/actual data keeps the bare indicative. The rule does not apply to historical prints.
+
+**DO:**
+
+- "Ottawa's plan keeps the ratio flat near 41% through the decade." — (a) marker; "Ottawa's plan" is the actor.
+- "The forecast closes the gap from the spending side, returning program expenses below revenue by decade's end." — (a) marker; "the forecast" is the actor.
+- "Under the borrowing plan, gross issuance was set to reach near $612 billion in FY2025-26." — (b) marker + absolute FY label; closed-year plan, outturn not yet published.
+- "The debt ratio is projected flat, and the watchdog agrees it is." — (b) marker; both Ottawa and the PBO project flatness, neither observes it.
+
+**DON'T:**
+
+- "Issuance drives to a record near $612 billion." — bare indicative on a closed-year plan figure, outturn unpublished. FIX: "was set to reach a record near $612 billion under the FY2025-26 borrowing plan."
+- "The trajectory is flat near 41%." — bare indicative on a projected path. FIX: "Ottawa's plan keeps it flat near 41%."
+- "By 2030-31, the deficit narrows." — horizon stamp alone is not a marker. FIX: "The forecast narrows the deficit to X by 2030-31."
+
+**Relative time references** ("this year," "this fiscal year") must resolve correctly against the publication date. Federal fiscal years close March 31; a piece published in April or later cannot say "this year" for a figure that belongs to the year just ended. Use absolute FY labels (`FY2025-26`) for fiscal-year data. A closed year's plan figure is past-tense plan ("was set to reach"), never present indicative (the outturn may not yet be published).
+
+**Superlatives on plan figures** are plan-attributed until the outturn confirms: "a planned record," not "a record." If the outturn publishes and confirms, the superlative loses the qualifier.
+
+Note: the countable-claim and citation-binding rules at §4.1e and §4.1f apply to forecast claims identically. A "first since" or "record" on a projection must be anchored via compute DSL or enumeration card — not the author's count against a draft projection table.
+
 ### 4.1e Research deep-dive titles — thesis statements, not questions
 
 **A deep-dive title is the piece's thesis, asserted in a declarative

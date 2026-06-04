@@ -1,11 +1,28 @@
 ﻿# Sibley Creek â€” operating dashboard
 
-**Last updated:** 2026-05-27 (post-reorg cleanup pass)
+**Last updated:** 2026-06-04 (BoC shadow rate v1 built)
 **Purpose:** I (Claude) read this at session start to load context and surface what matters to Jay in the terminal. Jay doesn't need to open this directly â€” ask me "where are we?" and I'll tell you.
 
 ---
 
 ## What's active right now
+
+### BoC Shadow Policy Rate -- internal tool, v1 BUILT, awaiting Jay's verification
+**Status (2026-06-04):** Built and dry-run complete. Reconstructs the Bank's unpublished rule-implied rate path: ToTEM III policy rule (TR-119 Table 2.3: rho=0.85, phi_pi=4.65, phi_gap=0.4) applied to April 2026 MPR projections. Internal only -- NOT on the site, NOT in pipeline.build (manual quarterly trigger, usdcad pattern). First member of the eventual no-judgment Models section.
+
+**Artifacts:** package `pipeline/shadow_rate/` (26 tests green); punch-in workbook `work/research/shadow_rate/boc_shadow_inputs_2026Q2.xlsx` (3 sheets, source_ref provenance, `verified=FALSE`); chart `work/research/shadow_rate/boc_shadow_path_2026-04.html` (UNVERIFIED watermark); methodology `claude-ref/research/shadow_rate/shadow_rate_methodology_2026-04.md`; output `data/processed/boc_shadow_rate.csv` + sidecar.
+
+**Dry-run result (anchor design, 2026-06-04):** output gap now anchored to BoC's published staff estimate (Valet `INDINF_OUTGAPMPR_Q`, last obs 2025Q4 = -1.0%) and rolled forward by the gap identity to the 2026Q2 seed (= -0.85). Path drifts 2.25% -> ~2.76% peak (2027Q4) -> settles ~2.70%, vs neutral midpoint 2.75 -- slightly lower than the prior placeholder run (more excess supply). Reading unchanged: the Bank's own outlook run through its own rule implies modest tightening back toward neutral; actual stance at 2.25 sits below its own framework's implied path.
+
+**Blocking Jay (the verification gate):**
+1. ~~Replace PLACEHOLDER output-gap range~~ **RESOLVED** by the anchor + roll-forward design: the gap is now fully mechanical from the Bank's published staff estimate (anchor 2025Q4 = -1.0, auto-filled from `data/raw/output_gap_mpr.csv`; Valet refetch on 2026-06-04 found no newer obs). No PDF text needed.
+2. Verify the Table 2/3 transcription against the MPR (seeded from Jay's screenshots).
+3. Flip `verified=TRUE`, re-run `python -m pipeline.shadow_rate.run` -> un-watermarked artifact.
+Confirmed already: MPR date Apr 29 2026; neutral range 2.25-3.25 (unchanged per MPR appendix). NOT committed to git yet.
+
+**Next steps after verification:** market-implied path overlay (CORRA futures) for v1.1; historical backfill with own estimates (later); eventual public Models page.
+
+---
 
 ### Fiscal chartbook -- branch `fiscal-chartbook` (NOT live yet)
 **Status (2026-06-02 EOD):** Built and saved on branch `fiscal-chartbook` (commit 607b4ae). Live `master` still serves the `/fiscal/` coming-soon placeholder -- do NOT push to master until Jay confirms. Jay: "probably push tomorrow."
