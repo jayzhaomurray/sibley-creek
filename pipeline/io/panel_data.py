@@ -907,52 +907,56 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
                 "Source: pipeline/fetch/frt_fiscal_series.py."
             ),
         ),
-        # Panel 11 — DoF vs PBO operating balance (signed bars).
-        # Two series on distinct vintages -- they are NOT a clean same-year-subtractable pair.
-        # PRIMARY:   frt_operating_balance_dof  (DoF, SEU 2026, Apr 2026 vintage, FY2025-26+)
-        # SECONDARY: frt_operating_balance_pbo  (PBO recast of Budget 2025, Nov 2025 vintage,
-        #                                         FY2024-25 to FY2029-30)
-        # Both series sourced from pipeline/fetch/frt_fiscal_series.py Series 15+16.
+        # Panel 11 — Budget 2025 as-presented vs PBO recast operating balance (signed bars).
+        # REDESIGN 2026-06-04: repointed to same-vintage pair (both Nov 2025 Budget 2025
+        # baseline). The year-by-year gap between the two is PURELY the capital-definition
+        # wedge (~$94B cumulative), with no vintage-mismatch compound.
+        # PRIMARY:   frt_operating_balance_b2025 (Budget 2025 as-presented, Nov 2025 vintage,
+        #                                          FY2024-25 to FY2029-30; PBO Table 4 p.7)
+        # SECONDARY: frt_operating_balance_pbo    (PBO recast of Budget 2025, Nov 2025 vintage,
+        #                                          FY2024-25 to FY2029-30; PBO Table 4 p.7)
+        # Both series sourced from pipeline/fetch/frt_fiscal_series.py Series 18+16.
         # Vintage labels for chart attribution:
-        #   primary source_label:   "DoF, Spring Economic Update 2026"
-        #   secondary source_label: "PBO recast of Budget 2025"
-        # VINTAGE MISMATCH: the year-by-year gap between the two series is a compound of
-        # (a) the genuine PBO capital reclassification (~$94bn cumulative, ~30% of reported
-        #     capital) AND (b) improved DoF fiscal news booked between Budget 2025 and SEU 2026.
-        # Chart MUST carry a vintage annotation; do NOT present the gap as if purely the
-        # classification effect. See SOURCE_NOTES.md in claude-ref/research/fiscal_pbo_split/.
+        #   primary source_label:   "Budget 2025, as presented"
+        #   secondary source_label: "Same budget, PBO definition"
+        # NOTE: frt_operating_balance_dof (Series 15, SEU 2026) is RETAINED in the pipeline
+        # for other consumers; it is simply no longer the primary here.
         PanelSpec(
             panel_id="panel-11", section="fiscal", panel_num=11,
             file="fiscal/Panel11OperatingBalanceDoFvsPBO.astro",
             primary=SlotSpec(
-                "frt_operating_balance_dof", "derived",
-                label="DoF operating balance (SEU 2026)",
+                "frt_operating_balance_b2025", "derived",
+                label="Budget 2025, as presented",
                 unit_override="CAD billions",
             ),
             secondary=SlotSpec(
                 "frt_operating_balance_pbo", "derived",
-                label="PBO recast operating balance (Budget 2025)",
+                label="Same budget, PBO definition",
                 unit_override="CAD billions",
             ),
             expected_status="WIRED",
             notes=(
-                "Plate 11: DoF vs PBO operating balance, signed-bars chart. "
-                "PRIMARY = frt_operating_balance_dof: DoF SEU 2026 Annex 1 Table A1.5 "
-                "operating balance, FY2025-26 to FY2030-31, all is_forecast=1. "
-                "Source label: 'DoF, Spring Economic Update 2026'. "
-                "SECONDARY = frt_operating_balance_pbo: PBO RP-2526-017-S recast of "
-                "Budget 2025, FY2024-25 to FY2029-30, all is_forecast=1. "
-                "Source label: 'PBO recast of Budget 2025'. "
-                "VINTAGE MISMATCH: the two series are on different DoF vintages (SEU 2026 "
-                "vs Budget 2025). The year-by-year gap is a compound of the PBO "
-                "reclassification dispute (~$94bn cumulative, ~30%) AND ~$11.5bn of "
-                "improved fiscal news booked between Budget 2025 and SEU 2026. "
-                "Chart must carry a vintage annotation; the gap must NOT be presented as "
-                "purely the classification effect. "
-                "DoF anchor: operating balance crosses zero in FY2028-29 (+0.9bn). "
-                "PBO recast: never reaches zero (stays at -17.6bn in FY2029-30, last year). "
+                "Plate 11 (redesigned 2026-06-04): same-vintage pair comparison -- "
+                "Budget 2025 operating balance as-presented vs PBO recast. "
+                "PRIMARY = frt_operating_balance_b2025: Budget 2025 day-to-day operating "
+                "balance as presented by the Government (PBO RP-2526-017-S Table 4, p.7). "
+                "FY2024-25 to FY2029-30, all is_forecast=1. "
+                "Source label: 'Budget 2025, as presented'. "
+                "SECONDARY = frt_operating_balance_pbo: PBO recast of the same budget "
+                "under a stricter international capital standard (IMF GFS 2014). "
+                "FY2024-25 to FY2029-30, all is_forecast=1. "
+                "Source label: 'Same budget, PBO definition'. "
+                "SINGLE VINTAGE: both series are on the Nov 2025 Budget 2025 baseline. "
+                "NO vintage-mismatch compound. The year-by-year gap is PURELY the "
+                "capital-definition wedge: "
+                "FY2024-25 +6.4, FY2025-26 +12.8, FY2026-27 +16.6, "
+                "FY2027-28 +17.8, FY2028-29 +19.8, FY2029-30 +20.6 => cumulative ~94.0B. "
+                "Government anchor: operating balance crosses zero in FY2028-29 (+1.7B). "
+                "PBO recast: never reaches zero (stays at -17.6B in FY2029-30, last year). "
                 "Units: CAD billions (positive = surplus, negative = deficit). "
-                "Source: pipeline/fetch/frt_fiscal_series.py Series 15+16."
+                "Source: pipeline/fetch/frt_fiscal_series.py Series 18 (primary) + 16 (secondary). "
+                "frt_operating_balance_dof (Series 15, SEU 2026) remains materialized for "
+                "other consumers but is no longer the primary on this panel."
             ),
         ),
     ],

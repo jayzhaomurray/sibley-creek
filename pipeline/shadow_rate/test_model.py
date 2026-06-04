@@ -327,9 +327,12 @@ def test_linear_interpolation_three_quarter_span():
 
 
 # --------------------------------------------------------------------------- #
-# Constant-rate GDP fill within anchor years
+# Residual GDP fill within anchor years
 # --------------------------------------------------------------------------- #
-def test_gdp_constant_fill_within_year():
+def test_gdp_residual_fill_within_year():
+    """2026 has Q1=Q2=1.5 direct and a Q4/Q4 anchor of 1.8. The two missing
+    quarters fill at the residual (4*1.8 - 1.5 - 1.5)/2 = 2.1, so the four
+    quarters average the anchor."""
     quarterly = [
         QuarterlyRow(quarter="2026Q1", core_cpi_yoy_forecast=2.4,
                      total_cpi_yoy_reference=None, gdp_growth_qq_ann_forecast=1.5,
@@ -347,9 +350,49 @@ def test_gdp_constant_fill_within_year():
     gdp = m.build_gdp_path(inp, m.quarter_to_ord("2026Q1"), m.quarter_to_ord("2026Q4"))
     assert gdp[m.quarter_to_ord("2026Q1")] == pytest.approx(1.5)
     assert gdp[m.quarter_to_ord("2026Q2")] == pytest.approx(1.5)
-    # Q3 and Q4 (no direct value) -> year anchor 1.8
-    assert gdp[m.quarter_to_ord("2026Q3")] == pytest.approx(1.8)
-    assert gdp[m.quarter_to_ord("2026Q4")] == pytest.approx(1.8)
+    # Q3 and Q4 (no direct value) -> residual (4*1.8 - 1.5 - 1.5)/2 = 2.1
+    assert gdp[m.quarter_to_ord("2026Q3")] == pytest.approx(2.1)
+    assert gdp[m.quarter_to_ord("2026Q4")] == pytest.approx(2.1)
+    # the four quarters average the anchor
+    yr_avg = sum(gdp[m.quarter_to_ord(f"2026Q{q}")] for q in range(1, 5)) / 4
+    assert yr_avg == pytest.approx(1.8)
+
+
+def test_gdp_constant_fill_no_direct_quarters():
+    """A year with NO direct quarters reduces to the old constant fill: every
+    missing quarter is the anchor itself (residual with zero known terms)."""
+    quarterly = [
+        QuarterlyRow(quarter="2026Q4", core_cpi_yoy_forecast=2.0,
+                     total_cpi_yoy_reference=None, gdp_growth_qq_ann_forecast=None,
+                     anchor_type="q4q4", source_ref="t"),
+    ]
+    annual = [AnnualRow(year=2026, potential_growth_low=0.8, potential_growth_high=1.6,
+                        gdp_q4q4=1.8, source_ref="t")]
+    inp = ShadowInputs(quarterly=quarterly, annual=annual, params=make_params())
+    gdp = m.build_gdp_path(inp, m.quarter_to_ord("2026Q1"), m.quarter_to_ord("2026Q4"))
+    for q in range(1, 5):
+        assert gdp[m.quarter_to_ord(f"2026Q{q}")] == pytest.approx(1.8)
+
+
+def test_gdp_all_direct_year_ignores_anchor():
+    """A year with all four quarters direct ignores the anchor (n_missing=0):
+    no residual fill, the directly-given rates stand even if they don't average
+    the anchor."""
+    quarterly = [
+        QuarterlyRow(quarter=f"2026Q{q}", core_cpi_yoy_forecast=2.0,
+                     total_cpi_yoy_reference=None, gdp_growth_qq_ann_forecast=g,
+                     anchor_type="q4q4" if q == 4 else "quarterly", source_ref="t")
+        for q, g in [(1, 1.0), (2, 2.0), (3, 3.0), (4, 4.0)]
+    ]
+    # anchor 1.8 disagrees with the direct mean (2.5) — must be ignored.
+    annual = [AnnualRow(year=2026, potential_growth_low=0.8, potential_growth_high=1.6,
+                        gdp_q4q4=1.8, source_ref="t")]
+    inp = ShadowInputs(quarterly=quarterly, annual=annual, params=make_params())
+    gdp = m.build_gdp_path(inp, m.quarter_to_ord("2026Q1"), m.quarter_to_ord("2026Q4"))
+    assert gdp[m.quarter_to_ord("2026Q1")] == pytest.approx(1.0)
+    assert gdp[m.quarter_to_ord("2026Q2")] == pytest.approx(2.0)
+    assert gdp[m.quarter_to_ord("2026Q3")] == pytest.approx(3.0)
+    assert gdp[m.quarter_to_ord("2026Q4")] == pytest.approx(4.0)
 
 
 def test_potential_midpoint():

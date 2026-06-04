@@ -165,3 +165,28 @@ https://www.pbo-dpb.ca/en/publications/RP-2627-002-S--economic-fiscal-outlook-ju
 **Surfaces affected:** plate-4 (debt/GDP "trajectory is flat" needs DoF attribution
 + PBO 42.5% counterpoint) and the section blurb's "holds near 41%" clause.
 Writer touch dispatched 2026-06-04; re-gates with the rest.
+
+---
+
+## ADDENDUM 2026-06-04 (evening): Budget 2025 AS-PRESENTED operating track (Table 4)
+
+Fetched by main Claude from RP-2526-017-S PDF (pp. 6-7), same-vintage pair for the
+plate-2 redesign (Jay-approved: "same books, two definitions"):
+
+Table 4 — Day-to-day operating balance, $B, FY2024-25 -> 2029-30:
+- Budget 2025 as presented:      -4.1, -33.0, -8.7, -5.5, +1.7, +3.0  (crosses zero FY2028-29)
+- Same budget, PBO definition:   -10.5, -45.8, -25.3, -23.3, -18.1, -17.6  (never balances)
+- Per-year gaps: 6.4, 12.8, 16.6, 17.8, 19.8, 20.6 -> cumulative 94.0 ~= the $94B wedge.
+  The annotation is now the literal sum of visible pair-gaps. No vintage mismatch remains.
+
+Table 3 cross-check: capital totals 311.6 (B2025) vs 217.4 (PBO defn) — matches card
+values 311.5/217.3 within rounding.
+
+PDF: https://distribution-a617274656661637473.pbo-dpb.ca/190ba7d3612031a7e15f5b45833a685e0e579add5a40fc0d2730ef043aeea0b1
+Page URL: https://www.pbo-dpb.ca/en/publications/RP-2526-017-S--budget-2025-issues-parliamentarians--budget-2025-enjeux-parlementaires
+
+VINTAGE NOTE: plate-2 now deliberately uses Budget 2025 (Nov 2025) for BOTH series —
+the only same-vintage two-definition pair in existence. Freshest-vintage rule satisfied
+per-claim: the CURRENT plan's operating track (SEU Apr 2026) lives on plate-1; the
+definition dispute exists only in the Nov 2025 pair. Vintage drift between the two is
+~$1.2bn/yr avg (NT-2627-002-S) vs a definitional gap of ~$15-20bn/yr.

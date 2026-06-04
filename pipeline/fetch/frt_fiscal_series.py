@@ -108,6 +108,18 @@ Series emitted by build_frt_fiscal_series():
                                      See claude-ref/research/fiscal_pbo_split/SOURCE_NOTES.md
                                      for the vintage-mismatch methodology note.
 
+  18. frt_operating_balance_b2025 -- Budget 2025 operating balance AS PRESENTED
+                                     (Government's own definition, same Nov 2025
+                                     vintage as Series 16). Source: PBO
+                                     RP-2526-017-S Table 4, Budget 2025 column.
+                                     FY2024-25 to FY2029-30, all is_forecast=1.
+                                     Source label: "Budget 2025, as presented".
+                                     SAME-VINTAGE COMPANION to frt_operating_balance_pbo
+                                     (Series 16): both on Nov 2025 Budget 2025 baseline;
+                                     the year-by-year gap between them is PURELY the
+                                     capital-definition wedge (~$94B cumulative).
+                                     No vintage mismatch between 18 and 16.
+
   Series 11/12/13 are a DIFFERENT METRIC from Series 6/7/8: they plot the annual
   GROSS ISSUANCE FLOW (primary-market funding raised each fiscal year), not the
   year-end outstanding STOCK. They replaced Series 6/7/8 on panel-10. Series 6/7/8
@@ -118,9 +130,14 @@ Series emitted by build_frt_fiscal_series():
   It exists solely to back slot-bound claims; the component series remain the primary
   inputs for the chart.
 
-  Series 15/16 (frt_operating_balance_dof / frt_operating_balance_pbo) feed panel-11
-  (DoF vs PBO operating balance signed-bars chart). They carry distinct vintage
-  metadata and must never be presented as a same-vintage subtractable pair.
+  Series 15 (frt_operating_balance_dof) is the SEU 2026 vintage DoF view; it is
+  retained for other consumers and for the SEU-vintage context. Panel-11 PRIMARY
+  was repointed to Series 18 (frt_operating_balance_b2025) on 2026-06-04.
+
+  Series 16/18 (frt_operating_balance_pbo / frt_operating_balance_b2025) feed
+  panel-11 (same-vintage signed-bars chart). Both on the Nov 2025 Budget 2025
+  baseline; the year-by-year gap between them is PURELY the capital-definition
+  wedge (~$94B cumulative). No vintage mismatch between Series 16 and 18.
 """
 
 from __future__ import annotations
@@ -881,6 +898,51 @@ OPERATING_BALANCE_PBO: list[tuple[str, float, int]] = [
     ("2028-29", -18.1, 1),   # PBO recast -- DoF anchor year (+0.9); PBO still -18.1
     ("2029-30", -17.6, 1),   # PBO recast -- last year of published horizon; never reaches 0
     # FY2030-31: PBO horizon ends at FY2029-30; no PBO recast value exists
+]
+
+# ---------------------------------------------------------------------------
+# SERIES 18: Budget 2025 operating balance AS PRESENTED ($B, FY2024-25 to FY2029-30)
+# SOURCE: Parliamentary Budget Officer -- 'Budget 2025: Issues for Parliamentarians'
+#         (RP-2526-017-S, 14 November 2025), Table 4, p. 7 --
+#         "Budget 2025 day-to-day operating balance as presented by the Government"
+#         (the Government's own definition, reproduced verbatim in the PBO report).
+# VINTAGE: 2025-11-14 (Budget 2025 / PBO Table 4 -- same document as Series 16)
+# URL: https://www.pbo-dpb.ca/en/publications/RP-2526-017-S
+# TIER: A (PBO RP-2526-017-S Table 4 p.7; provenance documented in
+#          claude-ref/research/fiscal_pbo_split/SOURCE_NOTES.md final addendum;
+#          verified by dispatcher 2026-06-04)
+# CITATION LABEL: "Budget 2025, as presented"
+#
+# SAME-VINTAGE COMPANION TO SERIES 16 (frt_operating_balance_pbo):
+#   Both series are on the BUDGET 2025 baseline (Nov 2025 vintage). The
+#   year-by-year gaps below sum to ~$94B (the classification wedge):
+#     FY2024-25:  -4.1  vs  -10.5  => gap = +6.4
+#     FY2025-26: -33.0  vs  -45.8  => gap = +12.8  (rounds to stated ~$12.5B)
+#     FY2026-27:  -8.7  vs  -25.3  => gap = +16.6
+#     FY2027-28:  -5.5  vs  -23.3  => gap = +17.8
+#     FY2028-29:  +1.7  vs  -18.1  => gap = +19.8
+#     FY2029-30:  +3.0  vs  -17.6  => gap = +20.6
+#     Cumulative: ~94.0 (= the classification wedge per the PBO report)
+# NO VINTAGE MISMATCH between Series 16 and 18 -- use this pair for the
+# panel-11 "same-vintage comparison" so the gap IS purely the definition wedge.
+#
+# FY2024-25 note: may be near-actual but treat all six years as projection
+# (Budget 2025 vintage), consistent with Series 16 treatment.
+#
+# UNITS: $B CAD (signed: positive = surplus, negative = deficit)
+# HORIZON: FY2024-25 to FY2029-30 (Budget 2025's six-year window)
+# ---------------------------------------------------------------------------
+
+# FY label -> (b2025_operating_balance_bn, is_forecast)
+OPERATING_BALANCE_B2025: list[tuple[str, float, int]] = [
+    # --- Budget 2025 as-presented operating balance (PBO RP-2526-017-S Table 4, p.7) ---
+    # All rows treated as is_forecast=1 (Budget 2025 projection; consistent with Series 16)
+    ("2024-25",  -4.1, 1),   # PBO Table 4: Budget 2025 as-presented; gap vs PBO recast = +6.4
+    ("2025-26", -33.0, 1),   # gap vs PBO recast = +12.8
+    ("2026-27",  -8.7, 1),   # gap vs PBO recast = +16.6
+    ("2027-28",  -5.5, 1),   # gap vs PBO recast = +17.8
+    ("2028-29",   1.7, 1),   # ANCHOR YEAR: first year operating balance > 0 under B2025 definition
+    ("2029-30",   3.0, 1),   # gap vs PBO recast = +20.6; cumulative gap ~94.0
 ]
 
 # ---------------------------------------------------------------------------
@@ -1907,6 +1969,60 @@ def build_frt_fiscal_series(out_dir: Optional[Path] = None) -> dict[str, Path]:
     }
     csv_path, _ = _write_csv_and_meta("frt_operating_balance_pbo", rows, meta, out_dir)
     written["frt_operating_balance_pbo"] = csv_path
+
+    # --- Series 18: Budget 2025 operating balance AS PRESENTED ($B, FY2024-25 to FY2029-30) ---
+    rows = [
+        {
+            "date": _fy_to_iso(fy),
+            "value": balance_bn,
+            "is_forecast": is_fc,
+            "fy_label": fy,
+        }
+        for fy, balance_bn, is_fc in OPERATING_BALANCE_B2025
+    ]
+    meta = {
+        "name": "frt_operating_balance_b2025",
+        "source": (
+            "Parliamentary Budget Officer -- 'Budget 2025: Issues for Parliamentarians' "
+            "(RP-2526-017-S, 14 November 2025), Table 4 -- "
+            "Budget 2025 day-to-day operating balance as presented by the Government"
+        ),
+        "source_label": "Budget 2025, as presented",
+        "source_url": "https://www.pbo-dpb.ca/en/publications/RP-2526-017-S",
+        "units": "CAD billions (signed: positive = surplus, negative = deficit)",
+        "frequency": "annual",
+        "vintage": "2025-11-14 (Budget 2025 / PBO Table 4)",
+        "fetched_at": now_iso,
+        "schema_version": 1,
+        "is_forecast_field": "is_forecast",
+        "is_forecast_note": (
+            "All points is_forecast=1 (Budget 2025 projection; FY2024-25 may be "
+            "near-actual but treated as projection for consistency with the sibling "
+            "PBO recast series, Series 16). Horizon: FY2024-25 to FY2029-30."
+        ),
+        "same_vintage_companion": (
+            "SAME-VINTAGE COMPANION to frt_operating_balance_pbo (Series 16). "
+            "Both series are on the Budget 2025 baseline (Nov 2025 vintage). "
+            "The year-by-year gap between them is PURELY the capital-definition wedge "
+            "(no vintage mismatch): FY2024-25 +6.4, FY2025-26 +12.8, FY2026-27 +16.6, "
+            "FY2027-28 +17.8, FY2028-29 +19.8, FY2029-30 +20.6 => cumulative ~94.0B. "
+            "Use this pair (Series 18 primary + Series 16 secondary) on panel-11 to "
+            "present a clean same-vintage comparison where the gap IS the definition wedge."
+        ),
+        "notes": (
+            "This is the Government's own operating-balance figure from Budget 2025, "
+            "reproduced verbatim in the PBO report. The PBO recast (Series 16) "
+            "reclassifies ~$94B of what the Government calls capital back into operating "
+            "expenses. Under the Government's own definition, the operating balance "
+            "crosses zero in FY2028-29 (+1.7B); under the PBO recast it never reaches "
+            "zero (stays at -17.6B in FY2029-30). "
+            "Provenance: claude-ref/research/fiscal_pbo_split/SOURCE_NOTES.md final addendum, "
+            "verified by dispatcher 2026-06-04. "
+            "Source also documented in panel-11 notes: pipeline/io/panel_data.py."
+        ),
+    }
+    csv_path, _ = _write_csv_and_meta("frt_operating_balance_b2025", rows, meta, out_dir)
+    written["frt_operating_balance_b2025"] = csv_path
 
     # --- Series 17: PBO federal debt % of GDP (EFO June 2026, FY2024-25 to FY2030-31) ---
     rows = [

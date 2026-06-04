@@ -152,12 +152,31 @@ def _interp_formula(o: int, known_rows: dict[int, int]) -> str:
 
 
 def _gdp_formula(o: int, gdp_rows: dict[int, int], year_rows: dict[int, int]) -> str:
-    """Live GDP q/q-ann formula: direct quarterly cell where present, else that
-    year's gdp_q4q4 from the annual sheet."""
+    """Live GDP q/q-ann formula mirroring ``model.build_gdp_path``.
+
+    - Direct quarter: a plain reference to that quarter's cell.
+    - Missing quarter: the **residual** formula
+      ``=(4*annual!D<yr> - quarterly!D<k1> - ...)/n_missing`` referencing the
+      year's directly-given quarter cells, so the four quarters average the
+      year's Q4/Q4 anchor. With zero known quarters this reduces to
+      ``=annual!D<yr>`` (the old constant fill).
+    """
     if o in gdp_rows:
         return f"=quarterly!{_Q_GDP_COL}{gdp_rows[o]}"
     yr = o // 4
-    return f"=annual!{_A_GDPQ4_COL}{year_rows[yr]}"
+    year_start = yr * 4
+    known_refs = [
+        f"quarterly!{_Q_GDP_COL}{gdp_rows[qo]}"
+        for qo in range(year_start, year_start + 4)
+        if qo in gdp_rows
+    ]
+    n_missing = 4 - len(known_refs)
+    anchor_ref = f"annual!{_A_GDPQ4_COL}{year_rows[yr]}"
+    if not known_refs:
+        # constant fill: residual with zero known terms is the anchor itself
+        return f"={anchor_ref}"
+    minus = "".join(f"-{ref}" for ref in known_refs)
+    return f"=(4*{anchor_ref}{minus})/{n_missing}"
 
 
 def _potential_formula(o: int, year_rows: dict[int, int]) -> str:

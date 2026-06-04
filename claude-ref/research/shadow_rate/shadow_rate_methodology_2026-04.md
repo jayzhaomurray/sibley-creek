@@ -74,9 +74,31 @@ anchors. The model fills in the gaps mechanically:
 
 ### GDP growth (drives the gap evolution)
 - **Direct q/q annualized where the MPR gives it** (2025Q3 through 2026Q2).
-- **Later quarters:** a constant q/q-annualized rate within each calendar year,
-  equal to that year's Q4/Q4 anchor (2026 remaining quarters: 1.8; 2027: 1.4;
-  2028: 1.9).
+- **Missing quarters — residual fill.** Each missing quarter of a calendar year
+  is set so the year stays consistent with its published Q4/Q4 anchor:
+
+  ```
+  remaining_rate = (4*gdp_q4q4 - sum(direct_rates_that_year)) / n_missing
+  ```
+
+  applied equally to every missing quarter of that year. This makes the four
+  quarters average the anchor.
+  - **Worked 2026 example:** the MPR gives 2026Q1 = 2026Q2 = 1.5 directly and a
+    2026 Q4/Q4 anchor of 1.8. The two missing quarters fill at
+    `(4*1.8 - 1.5 - 1.5)/2 = 2.1`, so 2026Q3 = 2026Q4 = **2.1** and the year
+    averages 1.8. (The earlier convention filled Q3/Q4 at the anchor 1.8, which
+    *contradicted* the anchor: a year averaging 1.8 with H1 at 1.5 needs H2 near
+    2.1, not 1.8.)
+  - **Years with no direct quarters** reduce to a constant fill — the residual
+    with zero known terms is the anchor itself (2027: 1.4 in every quarter; 2028:
+    1.9 in every quarter, since the MPR gives no direct 2027/2028 quarters).
+  - **Arithmetic-mean approximation.** This treats the year's Q4/Q4 growth as the
+    arithmetic mean of its four q/q-annualized rates. That is exact under
+    summation and a close approximation under compounding (the difference is
+    second-order in the within-year rate dispersion), and it keeps the fill a
+    simple, auditable linear formula on the calc sheet.
+  - **Fail-closed:** a year that needs filling but has no Q4/Q4 anchor raises. A
+    year with all four quarters given directly ignores the anchor (n_missing = 0).
 
 ### Potential growth (the gap's reference)
 - Midpoint of that year's published range (Table 2): 2025 = 2.3 (point
@@ -244,8 +266,13 @@ runtime agreement is what the in-sheet diff columns surface in Excel.)
   - **core CPI:** direct `=quarterly!B<row>` where a value exists; explicit
     linear-interpolation formula `=quarterly!B5+(offset/span)*(quarterly!B6-quarterly!B5)`
     between bracketing known quarters; hold (`=quarterly!B8`) past 2028Q4.
-  - **gdp:** direct `=quarterly!D<row>` where given, else that year's
-    `=annual!D<row>` (gdp_q4q4).
+  - **gdp:** direct `=quarterly!D<row>` where given; else the **residual**
+    formula `=(4*annual!D<yr> - quarterly!D<k1> - quarterly!D<k2>)/n_missing`
+    referencing the year's directly-given quarter cells (e.g. 2026Q3 =
+    `=(4*annual!$D$3-quarterly!$D$4-quarterly!$D$5)/2`), so the four quarters
+    average the year's Q4/Q4 anchor. With zero known quarters this reduces to
+    `=annual!D<yr>` (the constant fill). The python-check/diff columns verify the
+    live formula matches the engine at runtime.
   - **potential:** `=(annual!B<row>+annual!C<row>)/2`.
   - **output gap:** anchor row `=params!$B$<anchor_value>`; each later row
     `=<gap above>+(<gdp this row>-<pot this row>)/4` (t+1 timing, matches engine).

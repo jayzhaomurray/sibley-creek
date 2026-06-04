@@ -97,9 +97,23 @@ def _interp_hold(known: dict[int, float], last_ord: int) -> dict[int, float]:
 def build_gdp_path(inp: ShadowInputs, first_ord: int, last_ord: int) -> dict[int, float]:
     """Dense quarterly GDP q/q-annualized path keyed by quarter ordinal.
 
-    Direct q/q annualized where the quarterly sheet gives it. For later
-    quarters, use a constant q/q-annualized rate within each calendar year
-    equal to that year's Q4/Q4 anchor (from the annual sheet's gdp_q4q4).
+    Direct q/q annualized where the quarterly sheet gives it. Missing quarters
+    of a calendar year are filled by the **residual rule** so the year stays
+    consistent with its published Q4/Q4 anchor:
+
+        remaining_rate = (4*q4q4_anchor - sum(direct_rates_this_year)) / n_missing
+
+    applied equally to every missing quarter of that year. This rests on the
+    arithmetic-mean approximation of the compounding identity: a year's Q4/Q4
+    growth ~= the mean of its four q/q-annualized rates (exact under summation,
+    a close approximation under compounding). So filling the missing quarters at
+    the residual makes the four quarters average the anchor.
+
+    Years with NO direct quarters reduce to the old constant fill (the residual
+    with zero known terms is the anchor itself) — this is the single general rule.
+
+    Fail closed: a year that needs filling but has no Q4/Q4 anchor raises. If a
+    year has all four quarters direct (n_missing == 0) the anchor is ignored.
     """
     direct: dict[int, float] = {}
     for r in inp.quarterly:
@@ -111,19 +125,42 @@ def build_gdp_path(inp: ShadowInputs, first_ord: int, last_ord: int) -> dict[int
         if a.gdp_q4q4 is not None:
             year_q4q4[a.year] = a.gdp_q4q4
 
+    # Per-year residual fill for missing quarters: sum the year's direct rates
+    # over ALL four quarters of the year (not just those in the build window),
+    # and count missing quarters over all four, so the residual matches the
+    # anchor identity regardless of where [first_ord, last_ord] is clipped.
+    year_residual: dict[int, float] = {}
+    for o in range(first_ord, last_ord + 1):
+        if o in direct:
+            continue
+        yr = o // 4
+        if yr in year_residual:
+            continue
+        year_start = yr * 4
+        known_sum = 0.0
+        n_missing = 0
+        for qo in range(year_start, year_start + 4):
+            if qo in direct:
+                known_sum += direct[qo]
+            else:
+                n_missing += 1
+        if n_missing == 0:
+            # All four quarters direct: the anchor is ignored (cannot be needed
+            # — this branch only runs for a missing quarter, so n_missing >= 1).
+            continue
+        if yr not in year_q4q4:
+            raise ValueError(
+                f"no GDP growth available for {ord_to_quarter(o)}: a missing "
+                f"quarter needs filling but year {yr} has no Q4/Q4 anchor"
+            )
+        year_residual[yr] = (4.0 * year_q4q4[yr] - known_sum) / n_missing
+
     out: dict[int, float] = {}
     for o in range(first_ord, last_ord + 1):
         if o in direct:
             out[o] = direct[o]
-            continue
-        yr = o // 4
-        if yr in year_q4q4:
-            out[o] = year_q4q4[yr]
         else:
-            raise ValueError(
-                f"no GDP growth available for {ord_to_quarter(o)}: neither a "
-                f"direct quarterly value nor a Q4/Q4 anchor for {yr}"
-            )
+            out[o] = year_residual[o // 4]
     return out
 
 
