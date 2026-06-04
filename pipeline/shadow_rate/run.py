@@ -140,16 +140,16 @@ def main(argv: list[str] | None = None) -> int:
     print(f"wrote {svg_path}")
     print(f"wrote {html_path}")
 
-    # --- output sheet embedded back into the punch-in workbook ---
+    # --- live-formula calc sheet embedded back into the punch-in workbook ---
     out = write_output_sheet(args.xlsx, res, p)
     if out.used_companion:
         print(
-            f"workbook locked by Excel — output written to companion file "
-            f"{out.path}; close Excel and re-run to embed the 'output' sheet "
+            f"workbook locked by Excel — calc sheet written to companion file "
+            f"{out.path}; close Excel and re-run to embed the 'calc' sheet "
             f"directly in {args.xlsx}"
         )
     else:
-        print(f"wrote 'output' sheet into {out.path}")
+        print(f"wrote 'calc' sheet into {out.path}")
 
     return 0
 

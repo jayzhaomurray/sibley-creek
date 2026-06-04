@@ -213,24 +213,61 @@ screenshots and are treated as authoritative pending Jay's PDF cross-check.
 
 ---
 
-## 7b. Output sheet (in the workbook)
+## 7b. Calc sheet (live formulas, in the workbook)
 
-Every run writes (or replaces) an **`output` sheet** back into the punch-in
-workbook, placed **first** so it is what Jay sees on open. It is a full
-per-quarter audit of the rule step — no live Excel formulas, just a static
-rendering of the values the tested Python engine computed (the engine stays the
-single source of truth).
+Every run writes (or replaces) a **`calc` sheet** back into the punch-in
+workbook, placed **first** so it is what Jay sees on open. It is a dense
+quarterly grid that **reproduces the entire policy path with live Excel
+formulas** referencing the input sheets — change an input and the whole path
+recomputes in Excel. (This replaced the earlier values-only `output` sheet: a
+static rendering gave no ability to audit the arithmetic by hand. The legacy
+`output` sheet is deleted on the next run.)
 
+The **single source of truth for agreement** remains the tested Python engine
+(`pipeline/shadow_rate/model.py`). Each computed column is paired with a static
+`(python)` column carrying the engine's last-run value, and a `diff` column
+`= ABS(formula − python)` with red conditional formatting if the divergence
+exceeds `0.0005`. **That is the audit handshake:** Excel recomputes everything
+live, and the diff columns prove the live formulas match the engine. (openpyxl
+cannot evaluate formulas, so pytest covers structure + reference correctness;
+runtime agreement is what the in-sheet diff columns surface in Excel.)
+
+- **Grid range:** one row per quarter from the **gap anchor quarter (2025Q4)**
+  through **2029Q4** (= the 2028Q4 horizon + 4 quarters of inflation headroom so
+  the terminal quarters' t+4 lookups land on real grid rows). The pre-seed
+  roll-forward region (anchor through the quarter before the seed) carries live
+  gap formulas but **greyed/blank rate cells** — the rule does not iterate
+  before the seed.
+- **Columns (all white cells live):** `quarter | core CPI y/y | gdp q/q ann |
+  potential | output gap | gap (python) | gap diff | pi t+4 | neutral mid |
+  infl term | gap term | bracket | shadow rate R | R (python) | R diff`.
+  - **core CPI:** direct `=quarterly!B<row>` where a value exists; explicit
+    linear-interpolation formula `=quarterly!B5+(offset/span)*(quarterly!B6-quarterly!B5)`
+    between bracketing known quarters; hold (`=quarterly!B8`) past 2028Q4.
+  - **gdp:** direct `=quarterly!D<row>` where given, else that year's
+    `=annual!D<row>` (gdp_q4q4).
+  - **potential:** `=(annual!B<row>+annual!C<row>)/2`.
+  - **output gap:** anchor row `=params!$B$<anchor_value>`; each later row
+    `=<gap above>+(<gdp this row>-<pot this row>)/4` (t+1 timing, matches engine).
+  - **pi t+4:** `=<core CPI cell 4 rows below>`.
+  - **rule decomposition** all reference params cells absolutely (`$`):
+    `neutral mid =(params!$B$low+params!$B$high)/2`;
+    `infl term =params!$phi_pi*(pi_t4-params!$target)`;
+    `gap term =params!$phi_gap*gap`; `bracket = neutral+infl+gap`;
+    `shadow rate R`: seed row `=params!$current_overnight_rate`, each later row
+    `=MAX(params!$rho*<R above>+(1-params!$rho)*<bracket above>,params!$elb_floor)`
+    — R_{t+1} uses quarter t's bracket, mirroring `model._rule_step`.
 - **Header block:** run timestamp; a big red **UNVERIFIED DRAFT** cell while
   `verified=FALSE`; anchor provenance (quarter, value, Valet source); seed
-  quarter + seed rate; R*_nom used; and the rule citation (TR-119 Table 2.3:
-  rho=0.85, phi_pi=4.65, phi_gap=0.40).
-- **Decomposition table**, one row per quarter from the seed to 2028Q4:
-  `quarter | R_t | output gap | core CPI t+4 | gdp q/q ann | potential`, then the
-  step that produces R_{t+1}: `infl term = phi_pi*(pi_t4 - 2.0)`,
-  `gap term = phi_gap*gap_t`, `bracket = R*_nom + infl + gap`,
-  `inertia = rho*R_t`, `step = (1-rho)*bracket + rho*R_t`, and an
-  `ELB binding? (Y/N)` flag. Header row frozen; thin borders; 2-3 decimals.
+  quarter + seed rate; R*_nom; the rule citation (TR-119 Table 2.3: rho=0.85,
+  phi_pi=4.65, phi_gap=0.40); and one explainer line: *"All white cells are live
+  formulas — change an input and the path recomputes. The 'python' columns are
+  the engine's values from the last run; diff columns flag any divergence."*
+  Grid header row frozen; thin borders; 2-4 decimals.
+- **Idempotent regeneration:** the whole `calc` sheet (formulas + fresh python
+  values + timestamp/flag) is rebuilt on every run; the formula references are
+  derived from the input sheets' row order at generation time, so a future MPR
+  regenerates cleanly.
 - **Input sheets are never touched.** The `quarterly` / `annual` / `params`
   sheets are read-only to this writer.
 - **Windows file lock:** if the workbook is open in Excel, openpyxl's save
@@ -245,7 +282,7 @@ single source of truth).
 |---|---|
 | `work/research/shadow_rate/boc_shadow_inputs_2026Q2.xlsx` | punch-in workbook (Jay edits) |
 | `work/research/shadow_rate/boc_shadow_path_2026-04.{svg,html}` | Jay-facing chart |
-| `boc_shadow_inputs_2026Q2.xlsx` → `output` sheet | per-quarter calc decomposition written back on every run (companion `boc_shadow_output_2026Q2.xlsx` if Excel holds the lock) |
+| `boc_shadow_inputs_2026Q2.xlsx` → `calc` sheet | live-formula per-quarter path written back on every run, with python-check + diff columns (companion `boc_shadow_output_2026Q2.xlsx` if Excel holds the lock) |
 | `data/processed/boc_shadow_rate.csv` + `.meta.json` | output series (transform `totem3_taylor_rule_shadow_path`) |
 | `pipeline/shadow_rate/` | inputs / model / chart / run / make_workbook / tests |
 

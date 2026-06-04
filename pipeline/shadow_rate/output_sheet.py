@@ -174,6 +174,10 @@ def _build_calc_ws(wb, res: ShadowResult, p, inp) -> None:
     """Create/replace the ``calc`` sheet in wb (placed first)."""
     if SHEET_NAME in wb.sheetnames:
         del wb[SHEET_NAME]
+    # Remove any legacy values-only "output" sheet from earlier versions so the
+    # final order is exactly ['calc', 'quarterly', 'annual', 'params'].
+    if "output" in wb.sheetnames:
+        del wb["output"]
     ws = wb.create_sheet(SHEET_NAME, index=0)
 
     bold = Font(bold=True, color=_INK)
@@ -303,29 +307,25 @@ def _build_calc_ws(wb, res: ShadowResult, p, inp) -> None:
         # B: core CPI y/y (live)
         ws.cell(row, 2, _interp_formula(o, core_known_rows))
 
-        # C: gdp q/q ann (live)
-        ws.cell(row, 3, _gdp_formula(o, gdp_rows, year_rows))
-
-        # D: potential (live)
-        ws.cell(row, 4, _potential_formula(o, year_rows))
-
-        # E: output gap (live). Anchor row = params anchor value; later rows =
-        # gap above + (gdp - potential)/4 (t+1 timing, matches engine).
-        if o == anchor_ord:
-            ws.cell(row, 5, f"={pref('output_gap_anchor_value')}")
-        elif o <= end_ord:
-            prev = row - 1
-            ws.cell(
-                row, 5,
-                f"={COL_GAP}{prev}+({COL_GDP}{row}-{COL_POT}{row})/4",
-            )
-        else:
-            # past the engine horizon: continue the identity live (no python col)
-            prev = row - 1
-            ws.cell(
-                row, 5,
-                f"={COL_GAP}{prev}+({COL_GDP}{row}-{COL_POT}{row})/4",
-            )
+        # C/D/E: gdp, potential, gap — only through the model horizon (end_ord).
+        # The trailing headroom rows (end_ord+1 .. grid_end) exist solely to host
+        # core-CPI cells for the terminal quarters' t+4 lookups; the annual sheet
+        # has no rows past end_ord's year, so gdp/potential/gap stop here.
+        if o <= end_ord:
+            # C: gdp q/q ann (live)
+            ws.cell(row, 3, _gdp_formula(o, gdp_rows, year_rows))
+            # D: potential (live)
+            ws.cell(row, 4, _potential_formula(o, year_rows))
+            # E: output gap (live). Anchor row = params anchor value; later rows
+            # = gap above + (gdp - potential)/4 (t+1 timing, matches engine).
+            if o == anchor_ord:
+                ws.cell(row, 5, f"={pref('output_gap_anchor_value')}")
+            else:
+                prev = row - 1
+                ws.cell(
+                    row, 5,
+                    f"={COL_GAP}{prev}+({COL_GDP}{row}-{COL_POT}{row})/4",
+                )
 
         # F/G: gap python + diff (only where engine produced a gap)
         if is_gap_row and o in gap_py:
@@ -333,11 +333,10 @@ def _build_calc_ws(wb, res: ShadowResult, p, inp) -> None:
             pyc.fill = _PY_FILL
             ws.cell(row, 7, f"=ABS({COL_GAP}{row}-{COL_GAP_PY}{row})")
 
-        # H: pi t+4 (live) = core CPI cell 4 rows below
-        t4_ord = o + p.inflation_converge_quarters
-        if t4_ord in row_of_ord or t4_ord <= grid_end_ord:
-            # the t+4 row always exists for o <= end_ord because grid extends
-            # end_ord + converge; reference by row offset = converge.
+        # H: pi t+4 (live) = core CPI cell `converge` rows below. The grid runs
+        # to end_ord + converge, so every rate row (o <= end_ord) has its t+4
+        # row on the grid; the trailing headroom rows themselves do not.
+        if o + p.inflation_converge_quarters <= grid_end_ord:
             t4_row = row + p.inflation_converge_quarters
             ws.cell(row, 8, f"={COL_CORE}{t4_row}")
 

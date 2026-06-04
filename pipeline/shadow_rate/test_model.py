@@ -451,11 +451,39 @@ def test_xlsx_roundtrip(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# Output sheet written back into the workbook
+# Live-formula calc sheet written back into the workbook
 # --------------------------------------------------------------------------- #
-def test_output_sheet_written_and_decomposition(tmp_path):
-    """write_output_sheet adds an 'output' sheet (first), preserves inputs, and
-    its decomposition arithmetic matches the model's rule step."""
+def _calc_grid(ws):
+    """Return (header_row_index, {quarter -> {col_letter: value}}) for the grid.
+
+    Reads the calc sheet's grid rows keyed by quarter label, with every column's
+    raw cell value (formula strings or static numbers) under its column letter.
+    """
+    from openpyxl.utils import get_column_letter
+
+    header_idx = None
+    for i, row in enumerate(ws.iter_rows(values_only=True), start=1):
+        if row and row[0] == "quarter":
+            header_idx = i
+            break
+    assert header_idx is not None
+    grid: dict[str, dict[str, object]] = {}
+    for ri in range(header_idx + 1, ws.max_row + 1):
+        q = ws.cell(ri, 1).value
+        if not isinstance(q, str) or "Q" not in q:
+            continue
+        grid[q] = {
+            get_column_letter(ci): ws.cell(ri, ci).value
+            for ci in range(1, ws.max_column + 1)
+        }
+    return header_idx, grid
+
+
+def test_calc_sheet_live_formulas_and_python_handshake(tmp_path):
+    """write_output_sheet adds a live-formula 'calc' sheet (first), preserves the
+    input sheets, writes auditable formulas (interpolation / gap / rate / neutral
+    mid with absolute params refs), and the static 'python' columns match the
+    engine."""
     from openpyxl import load_workbook
 
     from pipeline.shadow_rate.inputs import parse_workbook
@@ -468,7 +496,7 @@ def test_output_sheet_written_and_decomposition(tmp_path):
     p = inp.params
     res = m.run_model(inp, end_quarter="2028Q4")
 
-    # snapshot input-sheet values before writing the output sheet
+    # snapshot input-sheet values before writing the calc sheet
     wb0 = load_workbook(str(xlsx))
     before = {
         name: [r for r in wb0[name].iter_rows(values_only=True)]
@@ -482,9 +510,12 @@ def test_output_sheet_written_and_decomposition(tmp_path):
 
     wb = load_workbook(str(xlsx))
     try:
-        # output sheet exists and is first
+        # calc sheet exists and is FIRST; legacy 'output' sheet is gone.
         assert SHEET_NAME in wb.sheetnames
         assert wb.sheetnames[0] == SHEET_NAME
+        assert "output" not in wb.sheetnames
+        assert wb.sheetnames == ["calc", "quarterly", "annual", "params"]
+
         # input sheets preserved (values unchanged) and still present
         for name in ("quarterly", "annual", "params"):
             assert name in wb.sheetnames
@@ -492,42 +523,65 @@ def test_output_sheet_written_and_decomposition(tmp_path):
             assert after == before[name]
 
         ws = wb[SHEET_NAME]
-        # header block: UNVERIFIED DRAFT cell present (seeded workbook is FALSE)
+
+        # header block: UNVERIFIED DRAFT + provenance + run stamp + handshake line
         cells = [v for row in ws.iter_rows(values_only=True) for v in row]
         assert any(v == "UNVERIFIED DRAFT" for v in cells)
         assert any(isinstance(v, str) and "TR-119 Table 2.3" in v for v in cells)
         assert any(isinstance(v, str) and v.startswith("Run:") for v in cells)
         assert any(isinstance(v, str) and "model.py" in v for v in cells)
+        assert any(
+            isinstance(v, str) and "All white cells are live formulas" in v
+            for v in cells
+        )
 
-        # locate the table header row, then the 2026Q3 quarter would be the first
-        # projected step; verify decomposition of the SEED row (2026Q2) matches.
-        header_idx = None
-        for i, row in enumerate(ws.iter_rows(values_only=True), start=1):
-            if row and row[0] == "quarter":
-                header_idx = i
-                break
-        assert header_idx is not None
+        _, grid = _calc_grid(ws)
 
-        # first data row = seed quarter (2026Q2)
-        rows = list(ws.iter_rows(min_row=header_idx + 1, values_only=True))
-        seed_row = rows[0]
-        assert seed_row[0] == res.seed_quarter
+        # The grid spans the anchor (2025Q4) through the t+4 headroom (2029Q4).
+        assert "2025Q4" in grid and "2029Q4" in grid
 
-        seed_step = res.steps[0]
-        infl_term = p.phi_pi * (seed_step.infl_tp4 - p.inflation_target)
-        gap_term = p.phi_gap * seed_step.gap
-        bracket = p.neutral_nominal_mid + infl_term + gap_term
-        inertia = p.rho * seed_step.rate
-        step_val = (1.0 - p.rho) * bracket + p.rho * seed_step.rate
+        # --- interpolated core-CPI cell (2026Q3): a live linear-interp formula
+        # referencing the bracketing quarterly cells (B5=2026Q2, B6=2026Q4).
+        core_q3 = grid["2026Q3"]["B"]
+        assert isinstance(core_q3, str) and core_q3.startswith("=")
+        assert "quarterly!B5" in core_q3 and "quarterly!B6" in core_q3
 
-        assert seed_row[1] == pytest.approx(round(seed_step.rate, 4), abs=1e-9)
-        assert seed_row[6] == pytest.approx(round(infl_term, 4), abs=1e-9)
-        assert seed_row[7] == pytest.approx(round(gap_term, 4), abs=1e-9)
-        assert seed_row[8] == pytest.approx(round(bracket, 4), abs=1e-9)
-        assert seed_row[9] == pytest.approx(round(inertia, 4), abs=1e-9)
-        assert seed_row[10] == pytest.approx(round(step_val, 4), abs=1e-9)
-        # the step result here equals the NEXT step's rate (no ELB binding)
-        assert step_val == pytest.approx(res.steps[1].rate, abs=1e-9)
+        # --- gap cell (2026Q3): live identity = gap_above + (gdp-pot)/4.
+        gap_q3 = grid["2026Q3"]["E"]
+        assert isinstance(gap_q3, str) and gap_q3.startswith("=")
+        assert "/4" in gap_q3
+
+        # anchor gap row is a direct params ref (absolute).
+        gap_anchor = grid["2025Q4"]["E"]
+        assert isinstance(gap_anchor, str) and gap_anchor.startswith("=params!$B$")
+
+        # --- rate cell (2026Q3): ELB MAX with absolute params refs (rho, elb).
+        rate_q3 = grid["2026Q3"]["M"]
+        assert isinstance(rate_q3, str) and rate_q3.startswith("=MAX(")
+        assert "params!$B$" in rate_q3  # absolute params references
+        # seed rate cell is a direct params ref to the current overnight rate.
+        rate_seed = grid["2026Q2"]["M"]
+        assert isinstance(rate_seed, str) and rate_seed.startswith("=params!$B$")
+
+        # --- neutral-mid cell: (neutral_low + neutral_high)/2 absolute refs.
+        neutral_q3 = grid["2026Q3"]["I"]
+        assert isinstance(neutral_q3, str) and neutral_q3.startswith("=(")
+        assert "params!$B$" in neutral_q3 and ")/2" in neutral_q3
+
+        # pre-seed rows (2025Q4, 2026Q1) have blank rate cells (greyed region).
+        assert grid["2025Q4"]["M"] is None
+        assert grid["2026Q1"]["M"] is None
+
+        # --- python handshake columns are STATIC values matching the engine.
+        # gap python (col F) for the seed quarter.
+        assert grid["2026Q2"]["F"] == pytest.approx(res.steps[0].gap, abs=1e-6)
+        # rate python (col N) for the seed and a later quarter.
+        rate_py = {s.quarter: s.rate for s in res.steps}
+        assert grid["2026Q2"]["N"] == pytest.approx(rate_py["2026Q2"], abs=1e-6)
+        assert grid["2026Q4"]["N"] == pytest.approx(rate_py["2026Q4"], abs=1e-6)
+        # diff columns are formulas (ABS of formula minus python).
+        assert isinstance(grid["2026Q4"]["O"], str) and grid["2026Q4"]["O"].startswith("=ABS(")
+        assert isinstance(grid["2026Q2"]["G"], str) and grid["2026Q2"]["G"].startswith("=ABS(")
     finally:
         wb.close()
 
