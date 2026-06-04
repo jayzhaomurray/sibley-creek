@@ -493,8 +493,6 @@ def test_output_sheet_written_and_decomposition(tmp_path):
 
         ws = wb[SHEET_NAME]
         # header block: UNVERIFIED DRAFT cell present (seeded workbook is FALSE)
-        flat = [c.value for row in ws.iter_rows(values_only=True) for c in
-                [type("X", (), {"value": v})() for v in row]]
         cells = [v for row in ws.iter_rows(values_only=True) for v in row]
         assert any(v == "UNVERIFIED DRAFT" for v in cells)
         assert any(isinstance(v, str) and "TR-119 Table 2.3" in v for v in cells)
@@ -546,18 +544,17 @@ def test_output_sheet_companion_on_lock(tmp_path, monkeypatch):
     inp = parse_workbook(str(xlsx))
     res = m.run_model(inp, end_quarter="2028Q4")
 
-    real_save = osheet.load_workbook(str(xlsx)).save  # not used; just for type
-    calls = {"n": 0}
-    orig_save = type(osheet.load_workbook(str(xlsx))).save
+    from openpyxl.workbook.workbook import Workbook
+
+    orig_save = Workbook.save
 
     def fake_save(self, path):
-        calls["n"] += 1
         # raise only for the primary (inputs) path, succeed for companion
         if str(path).endswith("boc_shadow_inputs_2026Q2.xlsx"):
             raise PermissionError("locked by Excel")
         return orig_save(self, path)
 
-    monkeypatch.setattr(type(osheet.load_workbook(str(xlsx))), "save", fake_save)
+    monkeypatch.setattr(Workbook, "save", fake_save)
     out = osheet.write_output_sheet(str(xlsx), res, inp.params)
     assert out.used_companion is True
     assert out.path.name == "boc_shadow_output_2026Q2.xlsx"

@@ -1,14 +1,18 @@
-"""Write a human-auditable ``output`` sheet back into the punch-in workbook.
+"""Write a live-formula ``calc`` sheet back into the punch-in workbook.
 
 After the model runs, this opens the same workbook Jay edits and writes (or
-replaces) a sheet named ``output`` placed FIRST in the sheet order, so it is
-what Jay sees when he opens the file. The sheet is a full per-quarter
-decomposition of the policy-rule step: every number the engine computed laid
-out so it can be checked by hand in Excel.
+replaces) a sheet named ``calc`` placed FIRST in the sheet order, so it is what
+Jay sees when he opens the file. The sheet is a dense quarterly grid that
+reproduces the entire policy-rule path with **live Excel formulas** referencing
+the input sheets (``quarterly`` / ``annual`` / ``params``). Change an input and
+the whole path recomputes in Excel.
 
-The sheet contains NO live Excel formulas. It is a static rendering of values
-computed by the tested Python engine (``pipeline/shadow_rate/model.py``), which
-remains the single source of truth.
+The single source of truth for *agreement* is the tested Python engine
+(``pipeline/shadow_rate/model.py``). Each formula column is paired with a static
+``... (python)`` column carrying the engine's value from the last run, and a
+``diff`` column = ABS(formula - python) with red conditional formatting if the
+divergence exceeds a tolerance. That is the audit handshake: Excel recomputes
+everything live, and the diff columns prove the live path matches the engine.
 
 The input sheets (``quarterly`` / ``annual`` / ``params``) are never touched.
 
@@ -25,39 +29,92 @@ from datetime import datetime
 from pathlib import Path
 
 from openpyxl import load_workbook
+from openpyxl.formatting.rule import CellIsRule
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from pipeline.shadow_rate.model import ShadowResult, quarter_to_ord
+from pipeline.shadow_rate.model import (
+    ShadowResult,
+    build_core_cpi_path,
+    ord_to_quarter,
+    quarter_to_ord,
+)
 
-SHEET_NAME = "output"
+SHEET_NAME = "calc"
+
+# Diff tolerance for the audit handshake (red fill above this). The grid runs
+# from the gap anchor quarter through the model horizon plus the
+# inflation-convergence headroom, so terminal-quarter t+4 lookups land on real
+# rows; both bounds are derived at build time from the params/result.
+DIFF_TOL = 0.0005
 
 # --- styling primitives (Vignelli-ish restraint: thin grey rules, no fill noise) ---
 _INK = "1A1A1A"
 _GREY = "BFBFBF"
 _HEADER_FILL = PatternFill("solid", fgColor="F2F2F2")
 _RED_FILL = PatternFill("solid", fgColor="C0392B")
+_GREY_FILL = PatternFill("solid", fgColor="EDEDED")
+_PY_FILL = PatternFill("solid", fgColor="FBF7E8")  # faint cream: static engine values
 _THIN = Side(style="thin", color=_GREY)
 _BORDER = Border(left=_THIN, right=_THIN, top=_THIN, bottom=_THIN)
 
 _NUM3 = "0.000"
 _NUM2 = "0.00"
+_NUM4 = "0.0000"
 
-# Table columns: (header, attribute-or-callable, number_format)
-_TABLE_HEADERS = [
-    "quarter",
-    "shadow rate R_t (%)",
-    "output gap (pp)",
-    "core CPI t+4 used (%)",
-    "gdp q/q ann (%)",
-    "potential (%)",
-    "infl term = phi_pi*(pi_t4-2.0)",
-    "gap term = phi_gap*gap_t",
-    "bracket = R*_nom+infl+gap",
-    "inertia = rho*R_t",
-    "step = (1-rho)*bracket+rho*R_t",
-    "ELB binding? (Y/N)",
+# Input-sheet cell geometry (header row 1, data from row 2).
+# quarterly: A quarter | B core | C total | D gdp  (1-indexed -> letters)
+_Q_CORE_COL = "B"
+_Q_GDP_COL = "D"
+# annual: A year | B pot_low | C pot_high | D gdp_q4q4
+_A_LOW_COL = "B"
+_A_HIGH_COL = "C"
+_A_GDPQ4_COL = "D"
+
+
+# Calc-sheet column layout (1-indexed). Keep in sync with _COLS below.
+@dataclass(frozen=True)
+class _Col:
+    idx: int
+    header: str
+    fmt: str | None
+
+
+_COLS = [
+    _Col(1, "quarter", None),
+    _Col(2, "core CPI y/y (%)", _NUM3),
+    _Col(3, "gdp q/q ann (%)", _NUM2),
+    _Col(4, "potential (%)", _NUM2),
+    _Col(5, "output gap (pp)", _NUM3),
+    _Col(6, "gap (python)", _NUM3),
+    _Col(7, "gap diff", _NUM4),
+    _Col(8, "pi t+4 (%)", _NUM3),
+    _Col(9, "neutral mid (%)", _NUM3),
+    _Col(10, "infl term", _NUM3),
+    _Col(11, "gap term", _NUM3),
+    _Col(12, "bracket", _NUM3),
+    _Col(13, "shadow rate R (%)", _NUM3),
+    _Col(14, "R (python)", _NUM3),
+    _Col(15, "R diff", _NUM4),
 ]
+_NCOLS = len(_COLS)
+
+# Convenience: column letters.
+COL_QUARTER = get_column_letter(1)
+COL_CORE = get_column_letter(2)
+COL_GDP = get_column_letter(3)
+COL_POT = get_column_letter(4)
+COL_GAP = get_column_letter(5)
+COL_GAP_PY = get_column_letter(6)
+COL_GAP_DIFF = get_column_letter(7)
+COL_PIT4 = get_column_letter(8)
+COL_NEUTRAL = get_column_letter(9)
+COL_INFL = get_column_letter(10)
+COL_GAPTERM = get_column_letter(11)
+COL_BRACKET = get_column_letter(12)
+COL_RATE = get_column_letter(13)
+COL_RATE_PY = get_column_letter(14)
+COL_RATE_DIFF = get_column_letter(15)
 
 
 @dataclass
@@ -66,30 +123,55 @@ class OutputWriteResult:
     used_companion: bool
 
 
-def _row_decomposition(step, p) -> dict:
-    """Recompute the rule-step decomposition for one quarter, matching model._rule_step.
+# --------------------------------------------------------------------------- #
+# Reference helpers — map a quarter ordinal to a row in an input sheet.
+# --------------------------------------------------------------------------- #
+def _interp_formula(o: int, known_rows: dict[int, int]) -> str:
+    """Live core-CPI formula for quarter ordinal ``o``.
 
-    The reported step is R_{t+1} BEFORE the ELB clamp; ELB binding is flagged
-    when the raw step would fall below the floor.
+    - direct reference if ``o`` is a known quarterly point;
+    - linear interpolation between the bracketing known points otherwise;
+    - hold at the last known point past the final anchor.
     """
-    infl_term = p.phi_pi * (step.infl_tp4 - p.inflation_target)
-    gap_term = p.phi_gap * step.gap
-    bracket = p.neutral_nominal_mid + infl_term + gap_term
-    inertia = p.rho * step.rate
-    raw_step = (1.0 - p.rho) * bracket + p.rho * step.rate
-    elb_binding = raw_step < p.elb_floor
-    return {
-        "infl_term": infl_term,
-        "gap_term": gap_term,
-        "bracket": bracket,
-        "inertia": inertia,
-        "step": raw_step,
-        "elb_binding": elb_binding,
-    }
+    ks = sorted(known_rows)
+    first, last = ks[0], ks[-1]
+    if o in known_rows:
+        return f"=quarterly!{_Q_CORE_COL}{known_rows[o]}"
+    if o > last:
+        return f"=quarterly!{_Q_CORE_COL}{known_rows[last]}"
+    if o < first:
+        # Should never happen: grid starts at the anchor, anchor >= first known.
+        return f"=quarterly!{_Q_CORE_COL}{known_rows[first]}"
+    lo = max(k for k in ks if k < o)
+    hi = min(k for k in ks if k > o)
+    span = hi - lo
+    offset = o - lo
+    lo_ref = f"quarterly!{_Q_CORE_COL}{known_rows[lo]}"
+    hi_ref = f"quarterly!{_Q_CORE_COL}{known_rows[hi]}"
+    return f"={lo_ref}+({offset}/{span})*({hi_ref}-{lo_ref})"
 
 
-def _build_output_ws(wb, res: ShadowResult, p) -> None:
-    """Create/replace the ``output`` sheet in wb (placed first)."""
+def _gdp_formula(o: int, gdp_rows: dict[int, int], year_rows: dict[int, int]) -> str:
+    """Live GDP q/q-ann formula: direct quarterly cell where present, else that
+    year's gdp_q4q4 from the annual sheet."""
+    if o in gdp_rows:
+        return f"=quarterly!{_Q_GDP_COL}{gdp_rows[o]}"
+    yr = o // 4
+    return f"=annual!{_A_GDPQ4_COL}{year_rows[yr]}"
+
+
+def _potential_formula(o: int, year_rows: dict[int, int]) -> str:
+    """Potential = midpoint of that year's low/high range in the annual sheet."""
+    yr = o // 4
+    row = year_rows[yr]
+    return f"=(annual!{_A_LOW_COL}{row}+annual!{_A_HIGH_COL}{row})/2"
+
+
+# --------------------------------------------------------------------------- #
+# Sheet builder
+# --------------------------------------------------------------------------- #
+def _build_calc_ws(wb, res: ShadowResult, p, inp) -> None:
+    """Create/replace the ``calc`` sheet in wb (placed first)."""
     if SHEET_NAME in wb.sheetnames:
         del wb[SHEET_NAME]
     ws = wb.create_sheet(SHEET_NAME, index=0)
@@ -101,13 +183,52 @@ def _build_output_ws(wb, res: ShadowResult, p) -> None:
     draft = not p.verified
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    # --- input-sheet row maps (built from the parsed inputs, in sheet order) ---
+    # quarterly rows: data starts at row 2 in input order.
+    core_known_rows: dict[int, int] = {}
+    gdp_rows: dict[int, int] = {}
+    for i, qr in enumerate(inp.quarterly):
+        row = i + 2
+        o = quarter_to_ord(qr.quarter)
+        core_known_rows[o] = row
+        if qr.gdp_growth_qq_ann_forecast is not None:
+            gdp_rows[o] = row
+    year_rows: dict[int, int] = {a.year: i + 2 for i, a in enumerate(inp.annual)}
+
+    # --- params cell map (key -> row in params sheet) for absolute references ---
+    param_rows: dict[str, int] = {}
+    wp = wb["params"]
+    for ridx, rowvals in enumerate(wp.iter_rows(values_only=True), start=1):
+        if ridx == 1:
+            continue
+        if rowvals and rowvals[0] is not None:
+            param_rows[str(rowvals[0]).strip()] = ridx
+
+    def pref(key: str) -> str:
+        """Absolute reference to a params value cell (column B)."""
+        return f"params!$B${param_rows[key]}"
+
+    # --- grid geometry ---
+    anchor_ord = quarter_to_ord(p.output_gap_anchor_quarter)
+    seed_ord = quarter_to_ord(res.seed_quarter)
+    end_ord = quarter_to_ord(res.steps[-1].quarter)
+    grid_end_ord = end_ord + p.inflation_converge_quarters
+    grid_start_ord = anchor_ord
+
+    # Engine static values, keyed by ordinal, for the python-check columns.
+    gap_py = dict(res.gap_path)  # anchor..end_ord
+    rate_py = {quarter_to_ord(s.quarter): s.rate for s in res.steps}  # seed..end_ord
+    core_full = build_core_cpi_path(inp, grid_end_ord)
+
+    # ------------------------------------------------------------------ #
+    # Header / provenance block
+    # ------------------------------------------------------------------ #
     r = 1
-    ws.cell(r, 1, "BoC Shadow Policy Rate — output").font = title_font
+    ws.cell(r, 1, "BoC Shadow Policy Rate — calc (live Excel formulas)").font = title_font
     r += 1
     ws.cell(r, 1, f"Run: {now}").font = Font(size=9, color="595959")
     r += 1
 
-    # Verified status — big red cell if unverified.
     status_cell = ws.cell(r, 1)
     if draft:
         status_cell.value = "UNVERIFIED DRAFT"
@@ -119,13 +240,12 @@ def _build_output_ws(wb, res: ShadowResult, p) -> None:
         status_cell.font = Font(bold=True, size=12, color="2E7D32")
     r += 2
 
-    # Header / provenance block.
     block = [
         ("Anchor provenance",
          f"output gap anchored at {p.output_gap_anchor_quarter} = "
          f"{p.output_gap_anchor_value:+.2f}pp (source: BoC Valet "
          f"INDINF_OUTGAPMPR_Q, staff output gap, last published obs; "
-         f"rolled forward to seed)"),
+         f"rolled forward to seed via live formulas)"),
         ("Seed quarter / seed rate",
          f"{res.seed_quarter} @ {res.seed_rate:.2f}% (actual overnight rate at MPR)"),
         ("R*_nom (nominal neutral midpoint)",
@@ -141,12 +261,25 @@ def _build_output_ws(wb, res: ShadowResult, p) -> None:
         ws.cell(r, 1, label).font = bold
         ws.cell(r, 2, val)
         r += 1
-    r += 1
 
-    # Decomposition table.
+    # The audit-handshake explainer line.
+    explain = (
+        "All white cells are live formulas — change an input and the path "
+        "recomputes. The 'python' columns are the engine's values from the last "
+        "run; diff columns flag any divergence (red if > 0.0005)."
+    )
+    exp_cell = ws.cell(r, 1, explain)
+    exp_cell.font = note_font
+    exp_cell.alignment = Alignment(wrap_text=True, vertical="top")
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=_NCOLS)
+    r += 2
+
+    # ------------------------------------------------------------------ #
+    # Grid header row
+    # ------------------------------------------------------------------ #
     header_row = r
-    for c, head in enumerate(_TABLE_HEADERS, start=1):
-        cell = ws.cell(header_row, c, head)
+    for c in _COLS:
+        cell = ws.cell(header_row, c.idx, c.header)
         cell.font = bold
         cell.fill = _HEADER_FILL
         cell.border = _BORDER
@@ -154,64 +287,174 @@ def _build_output_ws(wb, res: ShadowResult, p) -> None:
                                    wrap_text=True)
     r += 1
 
-    for step in res.steps:
-        d = _row_decomposition(step, p)
-        values = [
-            (step.quarter, None),
-            (round(step.rate, 4), _NUM3),
-            (round(step.gap, 4), _NUM3),
-            (round(step.infl_tp4, 4), _NUM3),
-            (round(step.gdp_growth, 4), _NUM2),
-            (round(step.potential, 4), _NUM2),
-            (round(d["infl_term"], 4), _NUM3),
-            (round(d["gap_term"], 4), _NUM3),
-            (round(d["bracket"], 4), _NUM3),
-            (round(d["inertia"], 4), _NUM3),
-            (round(d["step"], 4), _NUM3),
-            ("Y" if d["elb_binding"] else "N", None),
-        ]
-        for c, (val, fmt) in enumerate(values, start=1):
-            cell = ws.cell(r, c, val)
+    first_data_row = r
+    row_of_ord: dict[int, int] = {}
+
+    for o in range(grid_start_ord, grid_end_ord + 1):
+        row = r
+        row_of_ord[o] = row
+        is_rate_row = seed_ord <= o <= end_ord
+        is_gap_row = anchor_ord <= o <= end_ord
+
+        # A: quarter label
+        qa = ws.cell(row, 1, ord_to_quarter(o))
+        qa.alignment = Alignment(horizontal="center")
+
+        # B: core CPI y/y (live)
+        ws.cell(row, 2, _interp_formula(o, core_known_rows))
+
+        # C: gdp q/q ann (live)
+        ws.cell(row, 3, _gdp_formula(o, gdp_rows, year_rows))
+
+        # D: potential (live)
+        ws.cell(row, 4, _potential_formula(o, year_rows))
+
+        # E: output gap (live). Anchor row = params anchor value; later rows =
+        # gap above + (gdp - potential)/4 (t+1 timing, matches engine).
+        if o == anchor_ord:
+            ws.cell(row, 5, f"={pref('output_gap_anchor_value')}")
+        elif o <= end_ord:
+            prev = row - 1
+            ws.cell(
+                row, 5,
+                f"={COL_GAP}{prev}+({COL_GDP}{row}-{COL_POT}{row})/4",
+            )
+        else:
+            # past the engine horizon: continue the identity live (no python col)
+            prev = row - 1
+            ws.cell(
+                row, 5,
+                f"={COL_GAP}{prev}+({COL_GDP}{row}-{COL_POT}{row})/4",
+            )
+
+        # F/G: gap python + diff (only where engine produced a gap)
+        if is_gap_row and o in gap_py:
+            pyc = ws.cell(row, 6, round(gap_py[o], 6))
+            pyc.fill = _PY_FILL
+            ws.cell(row, 7, f"=ABS({COL_GAP}{row}-{COL_GAP_PY}{row})")
+
+        # H: pi t+4 (live) = core CPI cell 4 rows below
+        t4_ord = o + p.inflation_converge_quarters
+        if t4_ord in row_of_ord or t4_ord <= grid_end_ord:
+            # the t+4 row always exists for o <= end_ord because grid extends
+            # end_ord + converge; reference by row offset = converge.
+            t4_row = row + p.inflation_converge_quarters
+            ws.cell(row, 8, f"={COL_CORE}{t4_row}")
+
+        # Rate decomposition columns — only for rate rows (seed..end).
+        if is_rate_row:
+            # I: neutral mid = (neutral_low + neutral_high)/2
+            ws.cell(
+                row, 9,
+                f"=({pref('neutral_range_low')}+{pref('neutral_range_high')})/2",
+            )
+            # J: infl term = phi_pi*(pi_t4 - target)
+            ws.cell(
+                row, 10,
+                f"={pref('phi_pi')}*({COL_PIT4}{row}-{pref('inflation_target')})",
+            )
+            # K: gap term = phi_gap*gap
+            ws.cell(row, 11, f"={pref('phi_gap')}*{COL_GAP}{row}")
+            # L: bracket = neutral_mid + infl + gap
+            ws.cell(
+                row, 12,
+                f"={COL_NEUTRAL}{row}+{COL_INFL}{row}+{COL_GAPTERM}{row}",
+            )
+            # M: shadow rate R. Seed row = current overnight; later rows =
+            # MAX(rho*R_above + (1-rho)*bracket_above, elb_floor).
+            if o == seed_ord:
+                ws.cell(row, 13, f"={pref('current_overnight_rate')}")
+            else:
+                prev = row - 1
+                ws.cell(
+                    row, 13,
+                    f"=MAX({pref('rho')}*{COL_RATE}{prev}"
+                    f"+(1-{pref('rho')})*{COL_BRACKET}{prev},{pref('elb_floor')})",
+                )
+            # N/O: rate python + diff
+            if o in rate_py:
+                pyc = ws.cell(row, 14, round(rate_py[o], 6))
+                pyc.fill = _PY_FILL
+                ws.cell(row, 15, f"=ABS({COL_RATE}{row}-{COL_RATE_PY}{row})")
+
+        # Pre-seed roll-forward region: grey the rate-block cells (no iteration
+        # before the seed) so it reads as not-applicable.
+        if o < seed_ord:
+            for cidx in range(9, _NCOLS + 1):
+                ws.cell(row, cidx).fill = _GREY_FILL
+
+        # number formats + borders for the whole row
+        for c in _COLS:
+            cell = ws.cell(row, c.idx)
             cell.border = _BORDER
-            if fmt:
-                cell.number_format = fmt
-            if c == 1 or c == len(values):
-                cell.alignment = Alignment(horizontal="center")
+            if c.fmt and cell.value is not None:
+                cell.number_format = c.fmt
+
         r += 1
 
-    r += 1
+    last_data_row = r - 1
+
+    # ------------------------------------------------------------------ #
+    # Conditional formatting on the diff columns (red if > tolerance)
+    # ------------------------------------------------------------------ #
+    red_text_fill = PatternFill("solid", fgColor="F4CCCC")
+    red_font = Font(color="990000", bold=True)
+    for col in (COL_GAP_DIFF, COL_RATE_DIFF):
+        rng = f"{col}{first_data_row}:{col}{last_data_row}"
+        ws.conditional_formatting.add(
+            rng,
+            CellIsRule(operator="greaterThan", formula=[str(DIFF_TOL)],
+                       fill=red_text_fill, font=red_font),
+        )
+
+    # ------------------------------------------------------------------ #
+    # Footer note
+    # ------------------------------------------------------------------ #
+    note_r = last_data_row + 2
     note = (
-        "Engine: pipeline/shadow_rate/model.py — this sheet shows values computed "
-        "by the tested Python engine; it contains no live formulas (single source "
-        "of truth). Methodology: "
+        "Engine: pipeline/shadow_rate/model.py — single source of truth for "
+        "agreement. White cells are live Excel formulas referencing the "
+        "quarterly / annual / params sheets; the 'python' columns hold the "
+        "engine's last-run values and the diff columns (= ABS(formula-python)) "
+        "go red if any divergence exceeds 0.0005. Grey rate cells in the "
+        "pre-seed roll-forward region (anchor through the quarter before seed) "
+        "are intentionally blank — the rule does not iterate before the seed. "
+        "Methodology: "
         "claude-ref/research/shadow_rate/shadow_rate_methodology_2026-04.md"
     )
-    note_cell = ws.cell(r, 1, note)
+    note_cell = ws.cell(note_r, 1, note)
     note_cell.font = note_font
     note_cell.alignment = Alignment(wrap_text=True, vertical="top")
-    ws.merge_cells(start_row=r, start_column=1,
-                   end_row=r, end_column=len(_TABLE_HEADERS))
+    ws.merge_cells(start_row=note_r, start_column=1,
+                   end_row=note_r, end_column=_NCOLS)
 
-    # Column widths.
-    widths = [9, 12, 12, 12, 11, 11, 16, 14, 16, 13, 18, 12]
-    for c, w in enumerate(widths, start=1):
-        ws.column_dimensions[get_column_letter(c)].width = w
-
-    # Freeze the header row of the table so it stays visible on scroll.
-    ws.freeze_panes = ws.cell(header_row + 1, 1)
+    # ------------------------------------------------------------------ #
+    # Column widths + freeze
+    # ------------------------------------------------------------------ #
+    widths = [9, 13, 13, 11, 13, 12, 9, 11, 12, 11, 11, 11, 14, 12, 9]
+    for c, w in zip(_COLS, widths):
+        ws.column_dimensions[get_column_letter(c.idx)].width = w
+    ws.freeze_panes = ws.cell(first_data_row, 1)
 
 
 def write_output_sheet(xlsx_path: str | Path, res: ShadowResult, p) -> OutputWriteResult:
-    """Write/replace the ``output`` sheet in the workbook at ``xlsx_path``.
+    """Write/replace the ``calc`` sheet in the workbook at ``xlsx_path``.
 
     Preserves the input sheets. On a Windows file lock (workbook open in Excel),
     falls back to a companion file ``boc_shadow_output_<stem-suffix>.xlsx`` in the
     same folder and returns ``used_companion=True``.
+
+    Note: ``p`` is accepted for signature stability with run.py, but the inputs
+    are re-parsed from the workbook so the formula references line up exactly
+    with the live sheet rows (input order is the source of truth for cell refs).
     """
+    from pipeline.shadow_rate.inputs import parse_workbook
+
     xlsx_path = Path(xlsx_path)
+    inp = parse_workbook(xlsx_path)
     wb = load_workbook(xlsx_path)  # full load (not read_only) so we can save back
     try:
-        _build_output_ws(wb, res, p)
+        _build_calc_ws(wb, res, p, inp)
         try:
             wb.save(xlsx_path)
             return OutputWriteResult(path=xlsx_path, used_companion=False)

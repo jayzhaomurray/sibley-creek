@@ -213,12 +213,39 @@ screenshots and are treated as authoritative pending Jay's PDF cross-check.
 
 ---
 
+## 7b. Output sheet (in the workbook)
+
+Every run writes (or replaces) an **`output` sheet** back into the punch-in
+workbook, placed **first** so it is what Jay sees on open. It is a full
+per-quarter audit of the rule step — no live Excel formulas, just a static
+rendering of the values the tested Python engine computed (the engine stays the
+single source of truth).
+
+- **Header block:** run timestamp; a big red **UNVERIFIED DRAFT** cell while
+  `verified=FALSE`; anchor provenance (quarter, value, Valet source); seed
+  quarter + seed rate; R*_nom used; and the rule citation (TR-119 Table 2.3:
+  rho=0.85, phi_pi=4.65, phi_gap=0.40).
+- **Decomposition table**, one row per quarter from the seed to 2028Q4:
+  `quarter | R_t | output gap | core CPI t+4 | gdp q/q ann | potential`, then the
+  step that produces R_{t+1}: `infl term = phi_pi*(pi_t4 - 2.0)`,
+  `gap term = phi_gap*gap_t`, `bracket = R*_nom + infl + gap`,
+  `inertia = rho*R_t`, `step = (1-rho)*bracket + rho*R_t`, and an
+  `ELB binding? (Y/N)` flag. Header row frozen; thin borders; 2-3 decimals.
+- **Input sheets are never touched.** The `quarterly` / `annual` / `params`
+  sheets are read-only to this writer.
+- **Windows file lock:** if the workbook is open in Excel, openpyxl's save
+  raises `PermissionError`; the writer catches it and writes a companion file
+  `boc_shadow_output_2026Q2.xlsx` in the same folder, printing a note to close
+  Excel and re-run to embed. (Implemented in
+  `pipeline/shadow_rate/output_sheet.py`, wired into `run.py` after the chart.)
+
 ## 8. Files
 
 | Path | Purpose |
 |---|---|
 | `work/research/shadow_rate/boc_shadow_inputs_2026Q2.xlsx` | punch-in workbook (Jay edits) |
 | `work/research/shadow_rate/boc_shadow_path_2026-04.{svg,html}` | Jay-facing chart |
+| `boc_shadow_inputs_2026Q2.xlsx` → `output` sheet | per-quarter calc decomposition written back on every run (companion `boc_shadow_output_2026Q2.xlsx` if Excel holds the lock) |
 | `data/processed/boc_shadow_rate.csv` + `.meta.json` | output series (transform `totem3_taylor_rule_shadow_path`) |
 | `pipeline/shadow_rate/` | inputs / model / chart / run / make_workbook / tests |
 
