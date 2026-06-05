@@ -913,6 +913,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "jobs-may-2026",
+    section: "labour",
+    title: "Blowout Canada jobs report shows 88k gain.",
+    publishedAt: "2026-06-05",
+    pdfPath: "/research/commentaries/jobs-may-2026.pdf",
+    excerpt:
+      "Today's jobs data showed strength all across the board, completely making up the employment shortfall from the start of the year. This should dispel much of the recession talk we've heard since last week's GDP release.",
+  },
+  {
     slug: "two-quarter-rule",
     section: "output",
     title: "Two negative quarters of real GDP growth is just a rule of thumb.",
