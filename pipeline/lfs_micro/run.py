@@ -542,7 +542,12 @@ def _write_replication_series(df: pd.DataFrame, latest_month: str) -> tuple[Path
     ]
     out_cols = [c for c in out_cols if c in df.columns]
     out = df[out_cols].copy()
-    out = out.dropna(subset=["underlying_pct"])
+    # Keep rows that have EITHER a smoothed or a raw estimate. The newest
+    # month always has NaN smoothed (centered MA3 needs t+1) but a valid
+    # single-month raw estimate — that raw value IS the release-morning
+    # signal and must not be dropped from the CSV.
+    keep_subset = [c for c in ("underlying_pct", "underlying_raw_pct") if c in out.columns]
+    out = out.dropna(subset=keep_subset, how="all")
     if "date" in out.columns:
         out["date"] = pd.to_datetime(out["date"]).dt.strftime("%Y-%m-%d")
 
@@ -609,8 +614,14 @@ def run(
     pinned_month: Optional[str] = None,
     force_download: bool = False,
     zip_path: Optional[Path] = None,
+    rebuild_outputs: bool = False,
 ) -> int:
-    """Main refresh logic. Returns 0 on success, non-zero on failure."""
+    """Main refresh logic. Returns 0 on success, non-zero on failure.
+
+    rebuild_outputs: skip the no-new-months early exit and rewrite the CSV,
+    workbook, and chart from the existing engine cache (use after a change
+    to output formatting code; computes nothing new).
+    """
 
     # --- Step 1: Discover latest available PUMF month ---
     if pinned_month:
@@ -652,7 +663,7 @@ def run(
     all_expected = _all_yoy_keys(latest_year, latest_month_n)
     missing_engine = [k for k in all_expected if k not in existing_cache]
 
-    if not missing_engine and not force_download:
+    if not missing_engine and not force_download and not rebuild_outputs:
         logger.info("latest is still %s — no new months to compute.", latest_key)
         print(f"latest is still {latest_key}")
         return 0
@@ -814,6 +825,11 @@ def main(argv: list[str] | None = None) -> int:
         "--zip", default=None, metavar="PATH",
         help="Inject a local PUMF zip for the latest month (escape hatch)",
     )
+    parser.add_argument(
+        "--rebuild", action="store_true",
+        help="Rewrite CSV/workbook/chart from the engine cache even if no "
+             "new PUMF month (use after output-code changes)",
+    )
     args = parser.parse_args(argv)
 
     zip_path = Path(args.zip) if args.zip else None
@@ -821,6 +837,7 @@ def main(argv: list[str] | None = None) -> int:
         pinned_month=args.month,
         force_download=args.force_download,
         zip_path=zip_path,
+        rebuild_outputs=args.rebuild,
     )
 
 
