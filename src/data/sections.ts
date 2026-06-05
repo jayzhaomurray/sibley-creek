@@ -378,16 +378,17 @@ export const sections: Section[] = [
     headlineQuestion:
       "Is the labour market loosening?",
     cadence: "Monthly",
-    // Most recent LFS landed May 2, 2026 (April 2026 reference period).
-    updatedAt: Date.UTC(2026, 4, 2, 8, 30),
+    // Most recent LFS landed Jun 5, 2026 (May 2026 reference period).
+    updatedAt: Date.UTC(2026, 5, 5, 8, 30),
     chartSeriesKey: "unrate",
-    heroKicker: "April LFS",
+    heroKicker: "May LFS",
     heroKickerPrefix: "LFS",
     latestReleasePrefix: "LFS",
     tileLine:
-      "Unemployment climbed to 6.9% in April; aggregate hours turned negative Y/Y.",
+      "Hiring snapped back in May and unemployment fell to 6.6%.",
     tileLineCitations: [
-      { phrase: "6.9%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA, April 2026." },
+      { phrase: "Hiring snapped back in May", source: "pipeline:statcan:14-10-0287-01", note: "LFS employment change, SA, May 2026: +87.8k m/m (21.1215M from 21.0337M), largest gain since Dec 2024." },
+      { phrase: "6.6%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA, May 2026." },
     ],
     prints: [
       {
@@ -423,13 +424,15 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "fresh",
-      date: "May 8, 2026",
+      date: "Jun 5, 2026",
       body:
-        "Yes, and the intensive margin is leading. Hours worked are running negative year-over-year while the unemployment rate has drifted up to 6.9%, the pattern of a market that is shedding work before it sheds workers — and one where a population surge is being absorbed straight into not-in-labour-force rather than into jobs. Wages are the lagging piece, with composition-adjusted growth at 3.1% still above where the Bank of Canada wants it, but the cyclical direction is no longer in doubt.",
+        "Not in May — the headline broke the loosening story. Employment jumped 87,800, the fastest gain in a year and a half, lifting jobs to their highest level this year — still shy of December's peak — and pulling the unemployment rate down to 6.6% from 6.9%. Slack clears slowly, so it remains the lagging piece, but the cyclical alarm that followed last week's GDP print now reads overdone.",
     },
     abstractCitations: [
-      { phrase: "unemployment rate has drifted up to 6.9%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA, Apr 2026." },
-      { phrase: "composition-adjusted growth at 3.1%", source: "pipeline:boc:INDINF_LFSMICRO_M", note: "BoC LFS-Micro composition-adjusted wage growth, Y/Y, Mar 2026." },
+      { phrase: "Employment jumped 87,800", source: "pipeline:statcan:14-10-0287-01", note: "LFS employment change, SA, May 2026: 21.1215M minus 21.0337M = +87.8k." },
+      { phrase: "fastest gain in a year and a half", source: "derived", note: "Enumerated LFS m/m employment changes: last gain >= +87.8k was Dec 2024 (+92.7k), 17 months before May 2026." },
+      { phrase: "highest level this year — still shy of December's peak", source: "derived", note: "May 2026 employment 21.1215M exceeds every other 2026 month (Jan 21.1212M the next highest) but sits ~24.5k below Dec 2025 (21.146M). Per the published correction notice: not an all-time high." },
+      { phrase: "down to 6.6% from 6.9%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA: May 6.6%, April 6.9%." },
     ],
   },
   {
