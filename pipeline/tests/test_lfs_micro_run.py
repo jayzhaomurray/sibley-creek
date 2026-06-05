@@ -199,14 +199,53 @@ class TestAssembleSeries:
         assert "raw_mean_pct" in df.columns
         assert "date" in df.columns
 
+    @staticmethod
+    def _with_smoothing(smoothing):
+        """Context manager: temporarily set DEFAULT_SPEC.smoothing in run module."""
+        import contextlib
+
+        @contextlib.contextmanager
+        def _cm():
+            import pipeline.lfs_micro.run as run_mod
+            import pipeline.lfs_micro.spec as spec_mod
+            original = spec_mod.DEFAULT_SPEC
+            patched = spec_mod.Spec(
+                weighted=original.weighted,
+                smoothing=smoothing,
+                ob_reference=original.ob_reference,
+                min_cell_count=original.min_cell_count,
+            )
+            spec_mod.DEFAULT_SPEC = patched
+            run_mod.DEFAULT_SPEC = patched
+            try:
+                yield
+            finally:
+                spec_mod.DEFAULT_SPEC = original
+                run_mod.DEFAULT_SPEC = original
+
+        return _cm()
+
     def test_ma3_edge_months_nan(self):
-        """Centered MA3: first and last months should be NaN (edge)."""
+        """Centered MA3 (when spec'd): first and last months should be NaN (edge)."""
         from pipeline.lfs_micro.run import _assemble_series
         rows = _synthetic_cache_rows(n_months=6)
-        df = _assemble_series(rows)
+        with self._with_smoothing("ma3"):
+            df = _assemble_series(rows)
         # First and last rows should be NaN in underlying_pct (centered MA edge)
         assert pd.isna(df.iloc[0]["underlying_pct"]) or len(df) <= 2
         assert pd.isna(df.iloc[-1]["underlying_pct"]) or len(df) <= 2
+
+    def test_raw_spec_headline_equals_raw_and_covers_latest_month(self):
+        """With smoothing='raw' (default), headline == single-month and the
+        newest month carries a non-NaN headline reading."""
+        from pipeline.lfs_micro.run import _assemble_series
+        rows = _synthetic_cache_rows(n_months=6)
+        with self._with_smoothing("raw"):
+            df = _assemble_series(rows)
+        assert pd.notna(df.iloc[-1]["underlying_pct"])
+        assert np.allclose(
+            df["underlying_pct"].values, df["underlying_raw_pct"].values
+        )
 
     def test_ma3_middle_not_nan(self):
         """Middle months with 12+ months of data should have non-NaN values."""
@@ -267,10 +306,11 @@ class TestAssembleSeries:
         assert "interaction_pct" in df.columns
 
     def test_raw_pct_not_smoothed(self):
-        """Unsmoothed raw columns differ from smoothed headline columns at edges."""
+        """Under ma3, unsmoothed raw columns differ from smoothed headline at edges."""
         from pipeline.lfs_micro.run import _assemble_series
         rows = _synthetic_cache_rows(n_months=6)
-        df = _assemble_series(rows)
+        with self._with_smoothing("ma3"):
+            df = _assemble_series(rows)
         # Smoothed underlying_pct is NaN at edges (MA3); raw is not
         assert pd.isna(df.iloc[0]["underlying_pct"])
         assert pd.notna(df.iloc[0]["underlying_raw_pct"])

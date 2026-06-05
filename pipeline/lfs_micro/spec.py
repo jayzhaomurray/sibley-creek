@@ -90,18 +90,21 @@ class Spec(BaseModel, frozen=True):
         return d
 
 
-# Default Spec — frozen after calibration 2026-06-05.
-# Calibration result: 8-spec grid vs BoC Valet INDINF_LFSMICRO_M over 2016-2026-03.
-# Winner: weighted=True, smoothing=ma3, ob_reference=base.
-# After corruption fix (2026-06-05): RMSE=0.3655 pp, corr=0.9441, n=122 overlap months.
-# Last-18-month RMSE=0.1510 pp after fix (was 0.8458 pp with two corrupted parquets).
-# WLS (weighted) and ma3 smoothing are both strongly preferred over alternatives.
-# Base reference vs current reference: RMSE difference ~0.001 pp; base chosen
-# as it matches the BoC SAN 2024-23 narrative framing more directly.
+# Default Spec — recalibrated 2026-06-05 PM on CLEAN data.
+# The original 2026-06-05 AM grid picked smoothing=ma3, but that grid ran on
+# data later found corrupted (wrong-month parquets): the corruption created
+# huge single-month outliers that MA3 diluted, making MA3 look better. On
+# clean data the unsmoothed series wins decisively:
+#   raw: RMSE=0.1181 pp, corr=0.9966 (n=122)   ma3: RMSE=0.1804 pp, corr=0.9860
+# Roughness check confirms the BoC does not smooth: std of m/m changes is
+# 0.295 pp (BoC) vs 0.293 pp (ours raw) vs 0.165 pp (ours ma3), and the BoC
+# series' change autocorrelation is ~0 (white) — no MA signature.
+# WLS (weighted) strongly preferred over unweighted. Base vs current
+# reference: ~0.001 pp difference; base matches the note's framing.
 # See: claude-ref/research/lfs_micro/calibration_report.md for full diagnosis.
 DEFAULT_SPEC = Spec(
     weighted=True,
-    smoothing="ma3",
+    smoothing="raw",
     ob_reference="base",
     min_cell_count=30,
 )

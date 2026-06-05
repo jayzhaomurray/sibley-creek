@@ -273,6 +273,46 @@ baseline (RMSE delta <0.5bps, corr slightly improved); (3) identification is cle
 (no collinearity issues observed; 276 tests pass). The +0.036pp shift on the Apr 2026
 headline is within the normal month-to-month noise band.
 
+## Recalibration on clean data (2026-06-05 PM): MA3 dropped, raw spec adopted
+
+Jay observed our series looked SMOOTHER than the BoC's published series and
+hypothesized the BoC does not smooth. Confirmed on three independent checks:
+
+| series | std of m/m change | lag-1 autocorr of changes |
+|--------|-------------------|---------------------------|
+| ours raw (single-month) | 0.293 pp | -0.05 (white) |
+| ours centered MA3 | 0.165 pp | +0.65 (MA signature) |
+| BoC INDINF_LFSMICRO_M | 0.295 pp | -0.08 (white) |
+
+The BoC series has exactly the roughness of our unsmoothed estimator and no
+moving-average signature: **the BoC does not smooth.** Fit comparison on clean
+data (overlap 2016-02 to 2026-03):
+
+| spec | RMSE | corr | n |
+|------|------|------|---|
+| raw (unsmoothed) | **0.1178 pp** | **0.9966** | 123 |
+| centered MA3 | 0.1804 pp | 0.9860 | 122 |
+| trailing MA3 | 0.2466 pp | 0.9693 | 121 |
+
+Max abs miss under raw spec: 0.286 pp. DEFAULT_SPEC.smoothing changed to "raw".
+
+**Why the original calibration picked MA3:** the AM grid ran on data later
+found corrupted (wrong-month parquets). The corruption created huge
+single-month outliers; MA3 diluted them across 3 months, so MA3 scored better
+(0.486 vs 0.839 RMSE). The grid was never re-run after the data fix.
+LESSON: a data fix invalidates every calibration decision made on the
+pre-fix data — re-run the grid, not just the series. This also resolves the
+external audit's MA3 objection (the reverse-engineered smoothing choice was
+in fact an artifact).
+
+Consequences of the raw spec:
+- The newest PUMF month now carries a headline reading directly (no T+1 wait);
+  the MA3 timing caveat and the chart's dotted single-month tail are moot
+  (tail code retained, dormant unless spec returns to ma3).
+- CSV _raw_pct columns duplicate the headline columns under this spec
+  (schema kept stable for consumers).
+- Current readings (2026-05 PUMF): Apr 2026 3.172%, May 2026 2.644% y/y.
+
 ## Runtime
 
 Full refresh (download + harmonize + 8-spec grid): 2164 seconds

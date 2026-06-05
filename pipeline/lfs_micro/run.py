@@ -166,8 +166,11 @@ def _load_cache(year_month: str) -> Optional[dict]:
         # Validate that the cache was computed with the current spec
         cached_spec = data.get("spec", {})
         current_spec = DEFAULT_SPEC.as_dict()
-        # Key spec fields that invalidate the cache if changed
-        for field in ("weighted", "smoothing", "ob_reference", "min_cell_count"):
+        # Key spec fields that invalidate the cache if changed.
+        # NOTE: "smoothing" is deliberately NOT compared — cached entries hold
+        # pre-smoothing single-month lp values; smoothing is applied at
+        # assembly time, so a smoothing change does not invalidate them.
+        for field in ("weighted", "ob_reference", "min_cell_count"):
             if cached_spec.get(field) != current_spec.get(field):
                 logger.debug(
                     "Cache miss for %s: spec.%s changed (%s -> %s)",
@@ -310,11 +313,15 @@ def _assemble_series(cache: dict[str, dict]) -> pd.DataFrame:
             f"{_engine_cache_dir()} for corrupt/missing entries."
         )
 
-    # Apply centered MA3 to log-point columns
-    for col in lp_cols:
-        df[col] = df[col].rolling(window=3, center=True, min_periods=3).mean()
-    if "interaction_lp" in df.columns:
-        df["interaction_lp"] = df["interaction_lp"].rolling(window=3, center=True, min_periods=3).mean()
+    # Apply smoothing per the spec. With smoothing="raw" (the recalibrated
+    # default — the BoC series is unsmoothed; see spec.py) the headline
+    # columns equal the single-month values and the newest month carries a
+    # headline reading directly.
+    if DEFAULT_SPEC.smoothing == "ma3":
+        for col in lp_cols:
+            df[col] = df[col].rolling(window=3, center=True, min_periods=3).mean()
+        if "interaction_lp" in df.columns:
+            df["interaction_lp"] = df["interaction_lp"].rolling(window=3, center=True, min_periods=3).mean()
 
     # Convert to pct: smoothed headline columns
     for col in lp_cols:
@@ -559,10 +566,17 @@ def _write_replication_series(df: pd.DataFrame, latest_month: str) -> tuple[Path
         f"ob_reference={spec.ob_reference}. "
         f"Calibrated vs BoC Valet INDINF_LFSMICRO_M. "
         f"Log-points converted to pct via exp()-1. "
-        f"Smoothed columns use centered MA3; unsmoothed (_raw_pct) are pre-MA3 "
-        f"single-month point estimates. "
-        f"MA3 timing: headline month = newest PUMF month minus 1 "
-        f"(centered window requires T+1 which is not yet available). "
+        + (
+            "Headline columns are unsmoothed single-month estimates (the BoC "
+            "series is unsmoothed: matching roughness, no MA signature); "
+            "_raw_pct columns duplicate them under this spec. "
+            if spec.smoothing == "raw" else
+            "Smoothed columns use centered MA3; unsmoothed (_raw_pct) are "
+            "pre-MA3 single-month point estimates. MA3 timing: headline month "
+            "= newest PUMF month minus 1 (centered window requires T+1 which "
+            "is not yet available). "
+        )
+        +
         f"interaction_lp/pct: O-B two-fold residual (total_fitted - underlying - composition). "
         f"raw_mean_pct is weighted mean log-wage growth (geometric mean ratio), "
         f"not the LFS headline arithmetic average wage growth. "
@@ -723,8 +737,11 @@ def run(
         logger.error("No engine results available. Cannot write outputs.")
         return 1
 
-    # --- Step 7: Assemble full series with MA3 + pct conversion ---
-    logger.info("Assembling %d-month series with MA3 smoothing...", len(existing_cache))
+    # --- Step 7: Assemble full series (spec smoothing) + pct conversion ---
+    logger.info(
+        "Assembling %d-month series (smoothing=%s)...",
+        len(existing_cache), DEFAULT_SPEC.smoothing,
+    )
     df = _assemble_series(existing_cache)
 
     if df.empty or "underlying_pct" not in df.columns:
