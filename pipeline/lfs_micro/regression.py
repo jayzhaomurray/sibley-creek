@@ -70,6 +70,12 @@ REGRESSOR_GROUPS: list[tuple[str, str]] = [
     ("cowmain_pub",  "sector"),
     ("estsize",      "estsize"),
     ("mjh",          "multijob"),
+    # Phase B: firm size (BoC SAN 2024-23 explicitly lists both establishment
+    # and firm size as covariates). firmsize uses the same 4-level scale as
+    # estsize but measured at the firm level. Absent from pre-Phase-B parquets
+    # (NaN-filled column); _prepare_categoricals skips columns where all values
+    # are NaN, so old parquets degrade gracefully without firmsize in the design.
+    ("firmsize",     "firmsize"),
 ]
 
 # Map from column name to group label (used in decompose.py)
@@ -220,12 +226,19 @@ def _prepare_categoricals(
         if col not in df.columns:
             continue
 
+        # Skip columns that are entirely NaN (e.g. firmsize in pre-Phase-B parquets).
+        # These contribute no information and would cause downstream issues.
+        if df[col].isna().all():
+            logger.debug("column '%s': all NaN, skipping (absent from this parquet).", col)
+            continue
+
         if category_universe is not None and col in category_universe:
             # Use the provided universe (cross-month conformability)
             cat_universe[col] = list(category_universe[col])
         else:
             # Compute from this DataFrame, dropping thin cells
-            counts = df[col].value_counts()
+            # Drop NaN before counting (NaN rows are excluded from the universe)
+            counts = df[col].dropna().value_counts()
             valid_cats = sorted(counts[counts >= min_cell_count].index.tolist())
             thin_cats = sorted(counts[counts < min_cell_count].index.tolist())
             if thin_cats:
@@ -238,6 +251,7 @@ def _prepare_categoricals(
             cat_universe[col] = valid_cats
 
         # Filter df to only rows with known categories
+        # isin() returns False for NaN values, so NaN rows are excluded here
         df = df[df[col].isin(cat_universe[col])]
 
     return df.reset_index(drop=True), dropped_cells, cat_universe

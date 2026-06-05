@@ -29,6 +29,9 @@ Output schema (canonical column names):
   marstat      int    - marital status, codes 1-6
   immig        int    - immigrant status, codes 1-3
   estsize      int    - establishment size, codes 1-4
+  firmsize     int    - firm size (parallel to estsize, 4 levels), codes 1-4
+                        (absent from parquets downloaded before Phase B; treated
+                        as optional — harmonize() passes None-filled column when absent)
   prov         int    - province code (10-digit StatCan codes)
   cowmain_pub  int    - public(1)/private(2) sector flag (from cowmain filter var)
 """
@@ -67,6 +70,9 @@ _VALID_CODES: dict[str, set] = {
     "marstat":      set(range(1, 7)),         # 1-6
     "immig":        {1, 2, 3},
     "estsize":      {1, 2, 3, 4},
+    # firmsize: same 4-level scale as estsize (1=<20, 2=20-99, 3=100-500, 4=>500)
+    # but measured at the firm rather than establishment level. Codes from PUMF codebook.
+    "firmsize":     {1, 2, 3, 4},
     "prov":         {10, 11, 12, 13, 24, 35, 46, 47, 48, 59},
     "cowmain_pub":  {1, 2},
 }
@@ -79,6 +85,9 @@ _REQUIRED_SOURCE_COLS = [
     "hrlyearn", "finalwt", "lfsstat", "cowmain", "gender", "age_12",
     "educ", "tenure", "noc_43", "naics_21", "union", "ftptmain", "mjh",
     "permtemp", "marstat", "immig", "estsize", "prov",
+    # firmsize is optional: PUMF parquets on disk before Phase B re-download
+    # will not contain it. harmonize() handles its absence gracefully.
+    # "firmsize",  -- NOT added to required; handled in _transform_columns
 ]
 
 
@@ -260,6 +269,21 @@ def _transform_columns(df: pd.DataFrame) -> pd.DataFrame:
     # Establishment size
     out["estsize"] = df["estsize"].astype(int)
 
+    # Firm size (Phase B: BoC SAN 2024-23 covariate).
+    # Optional: parquets downloaded before Phase B re-download do not contain
+    # firmsize. Rows where firmsize is NaN are silently excluded from the
+    # regression by _prepare_categoricals (NaN rows don't match any category).
+    # After re-download this column will be populated for all paid employees.
+    if "firmsize" in df.columns:
+        # firmsize may be NaN for some employees (blank in PUMF = not applicable)
+        # Cast to nullable Int64 to preserve NaN, then astype int drops NaN rows
+        # via the regression filter. Store as object to allow NaN.
+        out["firmsize"] = pd.to_numeric(df["firmsize"], errors="coerce")
+    else:
+        # Column absent (old parquet): fill with NaN so downstream code can
+        # detect its absence and skip it in category universe building.
+        out["firmsize"] = float("nan")
+
     # Province
     out["prov"] = df["prov"].astype(int)
 
@@ -270,12 +294,23 @@ def _transform_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _check_no_nulls(df: pd.DataFrame) -> None:
-    """Raise ValueError if any regressor column contains NaN.
+    """Raise ValueError if any required regressor column contains NaN.
 
     The spike confirmed zero missing among paid employees. If NaN appears,
     the employee filter or an encoding change has introduced a problem.
+
+    Exemption: 'firmsize' is optional (absent from parquets downloaded before
+    Phase B re-download). NaN in firmsize is expected and allowed here; the
+    regression engine handles it by treating any NaN-firmsize row as having
+    no firmsize category, so those rows are excluded from the firmsize dummy
+    block but still contribute to all other regressors.
     """
-    null_cols = [c for c in df.columns if df[c].isna().any()]
+    # firmsize is optional — allow NaN
+    _OPTIONAL_NULLABLE = {"firmsize"}
+    null_cols = [
+        c for c in df.columns
+        if df[c].isna().any() and c not in _OPTIONAL_NULLABLE
+    ]
     if null_cols:
         counts = {c: int(df[c].isna().sum()) for c in null_cols}
         raise ValueError(

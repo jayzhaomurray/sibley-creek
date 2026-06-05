@@ -84,6 +84,7 @@ _KEEP_COLS = [
     "marstat",
     "immig",
     "estsize",
+    "firmsize",   # Phase B: firm size (parallel to estsize; BoC SAN 2024-23 covariate)
     "prov",
 ]
 

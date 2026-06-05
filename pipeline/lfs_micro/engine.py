@@ -65,11 +65,13 @@ from .spec import Spec, DEFAULT_SPEC
 
 logger = logging.getLogger(__name__)
 
-# The regressors that get per-group composition columns in the output
+# The regressors that get per-group composition columns in the output.
+# Order matches REGRESSOR_GROUPS in regression.py (must stay in sync).
 _GROUP_LABELS = [
     "occupation", "education", "tenure", "age", "gender", "union",
     "fullparttime", "province", "jobpermanency", "maritalstatus",
     "immigration", "industry", "sector", "estsize", "multijob",
+    "firmsize",  # Phase B: firm size (BoC SAN 2024-23 covariate)
 ]
 
 

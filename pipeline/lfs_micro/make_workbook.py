@@ -68,6 +68,7 @@ GROUP_LABELS = [
     "occupation", "education", "tenure", "age", "gender", "union",
     "fullparttime", "province", "jobpermanency", "maritalstatus",
     "immigration", "industry", "sector", "estsize", "multijob",
+    "firmsize",  # Phase B: firm size
 ]
 
 
