@@ -14,6 +14,7 @@ Retry policy:
 from __future__ import annotations
 
 import logging
+import ssl
 from typing import Any, Optional
 
 import httpx
@@ -31,10 +32,28 @@ DEFAULT_TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 USER_AGENT = "macro-research-department/0.1 (+https://github.com/jayzhaomurray/macro-research-department)"
 
 
+def _default_ssl_context() -> ssl.SSLContext:
+    """Shared SSL context for all clients, capped at TLS 1.2.
+
+    StatCan WDS's edge began silently dropping httpx's TLS 1.3 ClientHello on
+    2026-06-05 (handshake stalls until connect timeout; TCP connects fine and
+    `requests` to the same URL succeeds). Capping at TLS 1.2 restores instant
+    handshakes. Public-data APIs only, so the TLS 1.2 cap is an acceptable
+    trade for reliability; revisit if upstream behaviour changes.
+    """
+    ctx = ssl.create_default_context()
+    ctx.maximum_version = ssl.TLSVersion.TLSv1_2
+    return ctx
+
+
 def _should_retry(exc: BaseException) -> bool:
     """Retry on network errors and 5xx / 429. Fail fast on other 4xx."""
-    if isinstance(exc, (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout,
-                        httpx.PoolTimeout, httpx.RemoteProtocolError)):
+    # TimeoutException covers ConnectTimeout + ReadTimeout + WriteTimeout +
+    # PoolTimeout. The previous explicit list omitted ConnectTimeout, so TLS
+    # handshake timeouts failed on attempt 1 with no retry (seen 2026-06-05
+    # against StatCan WDS on LFS release morning).
+    if isinstance(exc, (httpx.ConnectError, httpx.TimeoutException,
+                        httpx.RemoteProtocolError)):
         return True
     if isinstance(exc, httpx.HTTPStatusError):
         status = exc.response.status_code
@@ -70,6 +89,7 @@ def get_client(**kwargs: Any) -> httpx.Client:
         timeout=kwargs.pop("timeout", DEFAULT_TIMEOUT),
         headers=headers,
         follow_redirects=True,
+        verify=kwargs.pop("verify", _default_ssl_context()),
         **kwargs,
     )
 

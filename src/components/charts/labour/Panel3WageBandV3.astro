@@ -272,40 +272,41 @@ const recX1 = recVisible ? xScale(Math.min(recEnd, xMax)) : 0;
 
 // ---- Direct-label placement -------------------------------------------
 //
-// Two labels at the right gutter. LFS-Micro is two-line (semibold
-// "Composition-adjusted" + 70%-opacity "BoC's preferred"). LFS-all is
-// one-line ("Headline"). Apr 4.5% vs Mar 3.1% should sit ~1.4pp apart
-// (~14% of the y-range, comfortably above the L6 collision threshold);
-// fall through to a simple natural-y placement and only invoke L6
-// stacking if the gap collapses below LABEL_MIN_DY in some future
-// vintage.
-const LABEL_GAP_X = 10;
+// Labels are RIGHT-GUTTER anchored at a fixed x = PLOT_X1 + LABEL_GAP_X,
+// NOT data-point anchored. Data-point anchoring is fragile: when the
+// latest point reaches the frame's right edge (as it does once a new
+// vintage lands), lastMicro.x ≈ PLOT_X1, so adding a small offset places
+// the label anchor AT the frame line, and long text ("Composition-
+// adjusted") runs back into the plot area.
+//
+// Fixed gutter anchor guarantees all labels start >= PLOT_X1 + LABEL_GAP_X
+// regardless of vintage.
+const LABEL_GAP_X = 6;
+const LABEL_X = PLOT_X1 + LABEL_GAP_X;  // 568 + 6 = 574; fits in 720-width gutter
 
-// LFS-Micro label group (two lines)
-const microLabelX = lastMicro ? lastMicro.x + LABEL_GAP_X : 0;
-const microLabelY = lastMicro ? lastMicro.y + 4 : 0;  // primary line baseline aligned to dot
-const microLabelLine2Y = microLabelY + 14;
+// LFS-Micro label group — three rendered lines:
+//   line1: "Composition-"  at resolvedMicroY
+//   line2: "adjusted"      at resolvedMicroY + 15
+//   line3: "BoC's preferred" at resolvedMicroY + 30
+// The block's vertical extent: [resolvedMicroY - 12, resolvedMicroY + 30 + 4]
+const microLabelY = lastMicro ? lastMicro.y + 4 : 0;
+// microLabelLine2Y retained for clamp only (bottom of three-line block)
+const microLabelLine2Y = microLabelY + 30;
 
 // LFS-all label (one line)
-const allLabelX = lastLfsAll ? lastLfsAll.x + LABEL_GAP_X : 0;
 const allLabelY = lastLfsAll ? lastLfsAll.y + 4 : 0;
 
-// L6 collision check: if the LFS-Micro two-line block overlaps the
-// LFS-all line, push the latter to maintain a 14px minimum from the
-// LFS-Micro block. Order depends on which series sits higher.
+// Collision check: the LFS-Micro block spans [microHi, microLo] in screen y.
+// If the LFS-all label falls inside that band, push it clear.
 let resolvedMicroY = microLabelY;
 let resolvedMicroLine2Y = microLabelLine2Y;
 let resolvedAllY = allLabelY;
 if (lastMicro && lastLfsAll) {
-  const microHi = resolvedMicroY - 10;
-  const microLo = resolvedMicroLine2Y + 4;
-  // If LFS-all sits between (overlap region), push it clear in the
-  // direction that takes it AWAY from the LFS-Micro block. Two
-  // candidates -- above or below the LFS-Micro block -- and we choose
-  // by which side LFS-all is closer to before the push.
+  const microHi = resolvedMicroY - 12;      // top ascender of block
+  const microLo = resolvedMicroLine2Y + 4;  // bottom descender of block
   if (resolvedAllY > microHi - 4 && resolvedAllY < microLo + 4) {
     const naturalAbove = resolvedAllY < (microHi + microLo) / 2;
-    resolvedAllY = naturalAbove ? microHi - 4 : microLo + 14;
+    resolvedAllY = naturalAbove ? microHi - 14 : microLo + 14;
   }
 }
 
@@ -444,19 +445,28 @@ const ariaLabel =
         );
       })}
 
-      {/* Direct labels at line termini, right gutter. */}
+      {/* Direct labels at right gutter. All labels anchored at fixed
+           LABEL_X = PLOT_X1 + LABEL_GAP_X (574px), text-anchor="start".
+           This guarantees no label overlaps the plot frame regardless of
+           where the latest data point falls on the x-axis. */}
       {lastMicro && (
         <>
           <text
             class="wage-v3__label-primary-line1"
-            x={microLabelX.toFixed(2)}
+            x={LABEL_X.toFixed(2)}
             y={resolvedMicroY.toFixed(2)}
             text-anchor="start"
-          >Composition-adjusted</text>
+          >Composition-</text>
+          <text
+            class="wage-v3__label-primary-line1"
+            x={LABEL_X.toFixed(2)}
+            y={(resolvedMicroY + 15).toFixed(2)}
+            text-anchor="start"
+          >adjusted</text>
           <text
             class="wage-v3__label-primary-line2"
-            x={microLabelX.toFixed(2)}
-            y={resolvedMicroLine2Y.toFixed(2)}
+            x={LABEL_X.toFixed(2)}
+            y={(resolvedMicroY + 30).toFixed(2)}
             text-anchor="start"
           >BoC's preferred</text>
         </>
@@ -464,7 +474,7 @@ const ariaLabel =
       {lastLfsAll && (
         <text
           class="wage-v3__label-secondary"
-          x={allLabelX.toFixed(2)}
+          x={LABEL_X.toFixed(2)}
           y={resolvedAllY.toFixed(2)}
           text-anchor="start"
         >Headline</text>

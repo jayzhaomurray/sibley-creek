@@ -378,16 +378,17 @@ export const sections: Section[] = [
     headlineQuestion:
       "Is the labour market loosening?",
     cadence: "Monthly",
-    // Most recent LFS landed May 2, 2026 (April 2026 reference period).
-    updatedAt: Date.UTC(2026, 4, 2, 8, 30),
+    // Most recent LFS landed Jun 5, 2026 (May 2026 reference period).
+    updatedAt: Date.UTC(2026, 5, 5, 8, 30),
     chartSeriesKey: "unrate",
-    heroKicker: "April LFS",
+    heroKicker: "May LFS",
     heroKickerPrefix: "LFS",
     latestReleasePrefix: "LFS",
     tileLine:
-      "Unemployment climbed to 6.9% in April; aggregate hours turned negative Y/Y.",
+      "Hiring snapped back in May and unemployment fell to 6.6%.",
     tileLineCitations: [
-      { phrase: "6.9%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA, April 2026." },
+      { phrase: "Hiring snapped back in May", source: "pipeline:statcan:14-10-0287-01", note: "LFS employment change, SA, May 2026: +87.8k m/m (21.1215M from 21.0337M), largest gain since Dec 2024." },
+      { phrase: "6.6%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA, May 2026." },
     ],
     prints: [
       {
@@ -423,13 +424,15 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "fresh",
-      date: "May 8, 2026",
+      date: "Jun 5, 2026",
       body:
-        "Yes, and the intensive margin is leading. Hours worked are running negative year-over-year while the unemployment rate has drifted up to 6.9%, the pattern of a market that is shedding work before it sheds workers — and one where a population surge is being absorbed straight into not-in-labour-force rather than into jobs. Wages are the lagging piece, with composition-adjusted growth at 3.1% still above where the Bank of Canada wants it, but the cyclical direction is no longer in doubt.",
+        "Not in May — the headline broke the loosening story. Employment jumped 87,800, the fastest gain in a year and a half, lifting jobs to their highest level this year — still shy of December's peak — and pulling the unemployment rate down to 6.6% from 6.9%. Slack clears slowly, so it remains the lagging piece, but the cyclical alarm that followed last week's GDP print now reads overdone.",
     },
     abstractCitations: [
-      { phrase: "unemployment rate has drifted up to 6.9%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA, Apr 2026." },
-      { phrase: "composition-adjusted growth at 3.1%", source: "pipeline:boc:INDINF_LFSMICRO_M", note: "BoC LFS-Micro composition-adjusted wage growth, Y/Y, Mar 2026." },
+      { phrase: "Employment jumped 87,800", source: "pipeline:statcan:14-10-0287-01", note: "LFS employment change, SA, May 2026: 21.1215M minus 21.0337M = +87.8k." },
+      { phrase: "fastest gain in a year and a half", source: "derived", note: "Enumerated LFS m/m employment changes: last gain >= +87.8k was Dec 2024 (+92.7k), 17 months before May 2026." },
+      { phrase: "highest level this year — still shy of December's peak", source: "derived", note: "May 2026 employment 21.1215M exceeds every other 2026 month (Jan 21.1212M the next highest) but sits ~24.5k below Dec 2025 (21.146M). Per the published correction notice: not an all-time high." },
+      { phrase: "down to 6.6% from 6.9%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA: May 6.6%, April 6.9%." },
     ],
   },
   {
@@ -913,9 +916,51 @@ export interface DataCommentary {
    * through to the PDF. Plain text, no markup.
    */
   excerpt: string;
+  /**
+   * Optional correction notice. When present, the commentary wrapper
+   * page renders it as a labelled "Correction" note above the take,
+   * and the Article JSON-LD dateModified picks up correctedAt.
+   * Plain text, no markup.
+   */
+  correction?: string;
+  /** ISO date string (YYYY-MM-DD) the correction was posted. */
+  correctedAt?: string;
+  /**
+   * Optional press coverage of this commentary. Each entry renders as an
+   * "In the news" line on the wrapper page: the outlet name links to the
+   * article. Only add entries where the outlet quoted or cited this
+   * commentary directly.
+   */
+  coverage?: {
+    /** Outlet name as displayed, e.g. "Reuters". */
+    outlet: string;
+    /** URL of the article that quotes the commentary. */
+    url: string;
+    /** ISO date string (YYYY-MM-DD) of the article. */
+    date: string;
+  }[];
 }
 
 export const commentaries: DataCommentary[] = [
+  {
+    slug: "jobs-may-2026",
+    section: "labour",
+    title: "Blowout Canada jobs report shows 88k gain.",
+    publishedAt: "2026-06-05",
+    pdfPath: "/research/commentaries/jobs-may-2026.pdf",
+    excerpt:
+      "Today's jobs data showed strength all across the board, making up most of the employment shortfall from the start of the year. This should dispel much of the recession talk we've heard since last week's GDP release.",
+    correction:
+      "An earlier version of this commentary said May's gain returned employment to an all-time high, completely making up the shortfall from the start of the year. Employment is at its highest level this year but remains about 25,000 short of the December 2025 record. The commentary and PDF have been updated.",
+    correctedAt: "2026-06-05",
+    coverage: [
+      {
+        outlet: "Reuters",
+        url: "https://www.reuters.com/business/world-at-work/canada-adds-87800-jobs-jobless-rate-down-66-beating-may-estimates-2026-06-05/",
+        date: "2026-06-05",
+      },
+    ],
+  },
   {
     slug: "two-quarter-rule",
     section: "output",
