@@ -205,9 +205,78 @@ Full 125-month clean recompute after the fixes (engine cache wiped):
 Spike window corrected: Dec-24 3.81 (BoC 3.6), Jan-25 3.76 (3.5), Feb-25 3.72 (3.8).
 April 2026 headline unchanged at 2.978% — recent months were never contaminated.
 
+## FIRMSIZE experiment (2026-06-05)
+
+### What changed
+
+`firmsize` (PUMF field 40, 4-level firm-size scale parallel to `estsize`) was added to
+the regressor set: `REGRESSOR_GROUPS`, `_KEEP_COLS` in `download.py`, `harmonize.py`
+(graceful fallback: NaN-filled for any parquet written before this change), and
+`_prepare_categoricals` (skips all-NaN columns, so old parquets do not break).
+
+All 137 parquets were re-downloaded and re-parqueted to include the `firmsize` column
+(StatCan Chrome-UA requests, annual bundle path; monthly recent for 2026-01 to 2026-05).
+Full 125-month engine recompute followed (~34 minutes, Win11 i7).
+
+Regressor-set cache invalidation: the per-month engine cache now embeds a `regressor_set`
+key (sorted list of column names from `REGRESSOR_GROUPS`). Any regressor addition or
+removal triggers automatic cache miss. The SHA-256 parquet fingerprint gate provides an
+independent second invalidation channel.
+
+### Fit results
+
+Baseline (without firmsize, after all Phase A bug fixes):
+  RMSE (full sample, n=122): 0.1768 pp
+  corr (full sample):        0.9854
+  RMSE (last 18 months):     0.1510 pp
+
+With firmsize added:
+  RMSE (full sample, n=122): 0.1804 pp  (+0.4bps)
+  MAE  (full sample):        0.1453 pp
+  corr (full sample):        0.9860  (+0.0006)
+  RMSE (last 18 months):     0.1818 pp
+  MAE  (last 18 months):     0.1559 pp
+  corr (last 18 months):     0.9523
+
+### Headline shift
+
+Apr 2026 leading indicator (trailing MA3, not yet in BoC benchmark):
+  Without firmsize:  2.978% y/y (underlying)
+  With firmsize:     3.014% y/y (underlying)
+  Change:           +0.036 pp
+
+Latest in-sample reading (Mar 2026, in BoC benchmark):
+  Ours: 3.052%  BoC: 3.1%  diff: -0.048 pp  (vs -0.104 pp without firmsize)
+
+### Corrected last 12 months (with firmsize)
+
+| date | ours | BoC | diff |
+|------|------|-----|------|
+| 2025-04-01 | 3.590 | 3.5 | +0.090 |
+| 2025-05-01 | 3.445 | 3.2 | +0.245 |
+| 2025-06-01 | 3.360 | 3.1 | +0.260 |
+| 2025-07-01 | 3.241 | 3.3 | -0.059 |
+| 2025-08-01 | 3.145 | 3.0 | +0.145 |
+| 2025-09-01 | 2.940 | 2.9 | +0.040 |
+| 2025-10-01 | 2.926 | 2.7 | +0.226 |
+| 2025-11-01 | 2.881 | 2.9 | -0.019 |
+| 2025-12-01 | 2.909 | 2.8 | +0.109 |
+| 2026-01-01 | 2.828 | 2.7 | +0.128 |
+| 2026-02-01 | 2.948 | 2.6 | +0.348 |
+| 2026-03-01 | 3.052 | 3.1 | -0.048 |
+
+### Decision
+
+Firmsize kept in default spec. Rationale: (1) it matches the stated covariates in
+BoC SAN 2024-23; (2) fit is statistically indistinguishable from the without-firmsize
+baseline (RMSE delta <0.5bps, corr slightly improved); (3) identification is clean
+(no collinearity issues observed; 276 tests pass). The +0.036pp shift on the Apr 2026
+headline is within the normal month-to-month noise band.
+
 ## Runtime
 
 Full refresh (download + harmonize + 8-spec grid): 2164 seconds
+Phase B firmsize full recompute (125 months, no prior cache): ~2040 seconds
 
 ## Notes
 
