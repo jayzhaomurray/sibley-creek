@@ -1600,8 +1600,11 @@ def _check_slot_integrity(
                         f"record[{i}].value={fv:.4g} outside sane range [{lo}, {hi}]"
                     )
 
+    # Multi-column slots (e.g. dof_fiscal_ytd_summary) have no "value" field;
+    # only flag when the key exists and is null — mirrors the JS gate, where
+    # `lastRecord.value === null` is false for a missing key (undefined).
     last_record = data[-1]
-    if isinstance(last_record, dict) and last_record.get("value") is None:
+    if isinstance(last_record, dict) and "value" in last_record and last_record["value"] is None:
         violations.append(
             f"{section}/{panel_id}/{slot_name}/{key}: "
             "most recent data point has null value (possible stale fetch)"
