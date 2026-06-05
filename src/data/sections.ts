@@ -909,6 +909,15 @@ export interface DataCommentary {
    * through to the PDF. Plain text, no markup.
    */
   excerpt: string;
+  /**
+   * Optional correction notice. When present, the commentary wrapper
+   * page renders it as a labelled "Correction" note above the take,
+   * and the Article JSON-LD dateModified picks up correctedAt.
+   * Plain text, no markup.
+   */
+  correction?: string;
+  /** ISO date string (YYYY-MM-DD) the correction was posted. */
+  correctedAt?: string;
 }
 
 export const commentaries: DataCommentary[] = [
@@ -919,7 +928,10 @@ export const commentaries: DataCommentary[] = [
     publishedAt: "2026-06-05",
     pdfPath: "/research/commentaries/jobs-may-2026.pdf",
     excerpt:
-      "Today's jobs data showed strength all across the board, completely making up the employment shortfall from the start of the year. This should dispel much of the recession talk we've heard since last week's GDP release.",
+      "Today's jobs data showed strength all across the board, making up most of the employment shortfall from the start of the year. This should dispel much of the recession talk we've heard since last week's GDP release.",
+    correction:
+      "An earlier version of this commentary said May's gain returned employment to an all-time high, completely making up the shortfall from the start of the year. Employment is at its highest level this year but remains about 25,000 short of the December 2025 record. The commentary and PDF have been updated.",
+    correctedAt: "2026-06-05",
   },
   {
     slug: "two-quarter-rule",

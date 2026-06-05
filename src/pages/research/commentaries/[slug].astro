@@ -93,7 +93,7 @@ const articleLd = JSON.stringify({
   "headline": commentary.title,
   "description": commentary.excerpt,
   "datePublished": commentary.publishedAt,
-  "dateModified": commentary.publishedAt,
+  "dateModified": commentary.correctedAt ?? commentary.publishedAt,
   "url": canonicalHref,
   "mainEntityOfPage": canonicalHref,
   "author": {
@@ -143,6 +143,21 @@ const articleLd = JSON.stringify({
 
       <hr class="commentary__rule" aria-hidden="true" />
     </header>
+
+    {commentary.correction && (
+      <aside class="commentary__correction" role="note" aria-labelledby="correction-h">
+        <h2 id="correction-h" class="commentary__correction-label">
+          Correction
+          {commentary.correctedAt && (
+            <Fragment>
+              <span class="commentary__correction-sep" aria-hidden="true">·</span>
+              <time datetime={commentary.correctedAt}>{displayDateShort(commentary.correctedAt)}</time>
+            </Fragment>
+          )}
+        </h2>
+        <p class="commentary__correction-text">{commentary.correction}</p>
+      </aside>
+    )}
 
     <section class="commentary__take" aria-labelledby="take-h">
       <h2 id="take-h" class="commentary__take-label">The take</h2>
@@ -259,6 +274,49 @@ const articleLd = JSON.stringify({
       border: 0;
       border-top: 2px solid var(--ink);
       margin: 28px 0 0;
+    }
+
+    /* ---- Correction notice ---- */
+    .commentary__correction {
+      margin-top: 28px;
+      padding: 14px 18px;
+      border-left: 3px solid var(--accent);
+      background: color-mix(in srgb, var(--accent) 4%, transparent);
+    }
+    .commentary__correction-label {
+      margin: 0 0 8px;
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0 8px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .commentary__correction-label time {
+      font-family: var(--font-mono);
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      color: var(--ink);
+      opacity: 0.7;
+      font-variant-numeric: tabular-nums;
+    }
+    .commentary__correction-sep {
+      color: var(--ink);
+      opacity: 0.4;
+      font-weight: 400;
+    }
+    .commentary__correction-text {
+      margin: 0;
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--ink);
+      max-width: 62ch;
     }
 
     /* ---- The take ---- */
