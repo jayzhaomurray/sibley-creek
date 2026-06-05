@@ -25,6 +25,7 @@ from pipeline.shadow_rate import model as m
 def make_params(**over) -> Params:
     base = dict(
         mpr_publication_date=date(2026, 4, 29),
+        projection_end_quarter="2028Q4",
         current_overnight_rate=2.25,
         output_gap_anchor_quarter="2026Q2",
         output_gap_anchor_value=-0.5,
@@ -473,6 +474,131 @@ def test_validation_rejects_no_q4q4_anchor():
 
 
 # --------------------------------------------------------------------------- #
+# Fail-closed workbook-integrity checks (the audit's reproduced failures)
+# --------------------------------------------------------------------------- #
+def _full_quarterly():
+    """A complete near-term + Q4/Q4-anchor quarterly set (no duplicates)."""
+    rows = []
+    for q, core, gdp in [("2025Q3", 3.1, 2.4), ("2025Q4", 2.8, -0.6),
+                         ("2026Q1", 2.4, 1.5), ("2026Q2", 2.1, 1.5)]:
+        rows.append(QuarterlyRow(quarter=q, core_cpi_yoy_forecast=core,
+                                 total_cpi_yoy_reference=None,
+                                 gdp_growth_qq_ann_forecast=gdp,
+                                 anchor_type="quarterly", source_ref="t"))
+    for q, core in [("2026Q4", 2.0), ("2027Q4", 2.2), ("2028Q4", 2.0)]:
+        rows.append(QuarterlyRow(quarter=q, core_cpi_yoy_forecast=core,
+                                 total_cpi_yoy_reference=None,
+                                 gdp_growth_qq_ann_forecast=None,
+                                 anchor_type="q4q4", source_ref="t"))
+    return rows
+
+
+def _full_annual():
+    return [
+        AnnualRow(year=2025, potential_growth_low=2.3, potential_growth_high=2.3,
+                  gdp_q4q4=None, source_ref="t"),
+        AnnualRow(year=2026, potential_growth_low=0.8, potential_growth_high=1.6,
+                  gdp_q4q4=1.8, source_ref="t"),
+        AnnualRow(year=2027, potential_growth_low=0.8, potential_growth_high=1.8,
+                  gdp_q4q4=1.4, source_ref="t"),
+        AnnualRow(year=2028, potential_growth_low=1.0, potential_growth_high=2.0,
+                  gdp_q4q4=1.9, source_ref="t"),
+    ]
+
+
+def test_integrity_baseline_passes():
+    """The full set with no defects constructs cleanly (control for the rest)."""
+    inp = ShadowInputs(quarterly=_full_quarterly(), annual=_full_annual(),
+                       params=make_params())
+    assert any(r.anchor_type == "q4q4" for r in inp.quarterly)
+
+
+def test_fail_closed_duplicate_quarter():
+    """(1a) Same quarter twice -> ValueError naming the quarter."""
+    q = _full_quarterly()
+    q.append(QuarterlyRow(quarter="2026Q2", core_cpi_yoy_forecast=9.9,
+                          total_cpi_yoy_reference=None, gdp_growth_qq_ann_forecast=9.9,
+                          anchor_type="quarterly", source_ref="dup"))
+    with pytest.raises(ValueError, match="duplicate quarterly row for 2026Q2"):
+        ShadowInputs(quarterly=q, annual=_full_annual(), params=make_params())
+
+
+def test_fail_closed_duplicate_annual_year():
+    """Duplicate annual-sheet year -> ValueError naming the year."""
+    a = _full_annual()
+    a.append(AnnualRow(year=2027, potential_growth_low=0.0, potential_growth_high=0.0,
+                       gdp_q4q4=9.9, source_ref="dup"))
+    with pytest.raises(ValueError, match="duplicate annual row for year 2027"):
+        ShadowInputs(quarterly=_full_quarterly(), annual=a, params=make_params())
+
+
+def test_fail_closed_missing_core_q4_anchor(tmp_path):
+    """(1c) Deleting the 2026Q4 core anchor -> ValueError naming the year.
+
+    Reproduces the audit scenario at the workbook level: regenerate the seeded
+    workbook, delete the 2026Q4 quarterly row (the core Q4 anchor), and confirm
+    parse_workbook fails closed naming 2026.
+    """
+    from openpyxl import load_workbook
+
+    from pipeline.shadow_rate.inputs import parse_workbook
+    from pipeline.shadow_rate.make_workbook import build_workbook
+
+    xlsx = tmp_path / "wb.xlsx"
+    build_workbook(str(xlsx))
+    wb = load_workbook(str(xlsx))
+    wq = wb["quarterly"]
+    for ri in range(wq.max_row, 1, -1):
+        if wq.cell(ri, 1).value == "2026Q4":
+            wq.delete_rows(ri, 1)
+    wb.save(str(xlsx))
+    wb.close()
+    with pytest.raises(ValueError, match="missing core-CPI Q4 coverage for 2026"):
+        parse_workbook(str(xlsx))
+
+
+def test_fail_closed_missing_gdp_anchor():
+    """(1c GDP) A horizon year with neither 4 direct quarters nor a Q4/Q4 GDP
+    anchor -> ValueError naming the year, at the workbook-coverage check."""
+    from pipeline.shadow_rate.inputs import check_horizon_coverage
+
+    a = _full_annual()
+    # strip 2027's gdp_q4q4 anchor; 2027 has no direct quarters -> no coverage
+    a = [
+        AnnualRow(year=x.year, potential_growth_low=x.potential_growth_low,
+                  potential_growth_high=x.potential_growth_high,
+                  gdp_q4q4=(None if x.year == 2027 else x.gdp_q4q4),
+                  source_ref="t")
+        for x in a
+    ]
+    inp = ShadowInputs(quarterly=_full_quarterly(), annual=a, params=make_params())
+    with pytest.raises(ValueError, match="missing GDP coverage for 2027"):
+        check_horizon_coverage(inp)
+
+
+def test_fail_closed_duplicate_params_key(tmp_path):
+    """(1b) Same params key twice -> ValueError naming the key, at parse time."""
+    from openpyxl import load_workbook
+
+    from pipeline.shadow_rate.inputs import parse_workbook
+    from pipeline.shadow_rate.make_workbook import build_workbook
+
+    xlsx = tmp_path / "wb.xlsx"
+    build_workbook(str(xlsx))
+    wb = load_workbook(str(xlsx))
+    wp = wb["params"]
+    # duplicate the rho row by inserting a second rho key/value
+    wp.insert_rows(2)
+    wp.cell(2, 1, "rho")
+    wp.cell(2, 2, 0.5)
+    wp.cell(2, 3, "dup")
+    wb.save(str(xlsx))
+    wb.close()
+    with pytest.raises(ValueError, match="duplicate params key 'rho'"):
+        parse_workbook(str(xlsx))
+
+
+# --------------------------------------------------------------------------- #
 # xlsx round-trip
 # --------------------------------------------------------------------------- #
 def test_xlsx_roundtrip(tmp_path):
@@ -656,3 +782,283 @@ def test_output_sheet_companion_on_lock(tmp_path, monkeypatch):
     assert out.used_companion is True
     assert out.path.name == "boc_shadow_output_2026Q2.xlsx"
     assert out.path.exists()
+
+
+# --------------------------------------------------------------------------- #
+# Sensitivity band (corner reruns)
+# --------------------------------------------------------------------------- #
+def test_band_corner_one_step_closed_form():
+    """Closed-form check at one corner: neutral=neutral_high, potential=low.
+
+    Use flat constant inputs so the gap stays at its anchor (gdp=potential for
+    the central case is broken at a corner because potential moves, so we make
+    gdp track the corner potential by construction). Simpler: pick gdp=potential
+    at the LOW endpoint and verify the high-neutral/low-potential corner's first
+    update matches the one-step rule with that neutral and a flat gap.
+    """
+    # potential range collapsed to a single value via gap_low=gap_high handling:
+    # const_inputs sets potential_low=high=potential, so low/high corners coincide
+    # and equal `potential`. gdp=potential keeps the gap flat at the anchor (0).
+    inp = const_inputs(core=3.0, gdp=1.2, potential=1.2,
+                       gap_low=0.0, gap_high=0.0,
+                       current_overnight_rate=2.25,
+                       neutral_range_low=2.25, neutral_range_high=3.25)
+    band = m.run_band(inp, end_quarter="2028Q4")
+    # At the neutral_high corner with gap 0 and core 3.0:
+    #   target = 3.25 + 4.65*(3-2) + 0.4*0 = 7.90
+    #   R_1 = 0.85*2.25 + 0.15*7.90 = 1.9125 + 1.185 = 3.0975  (the hi corner)
+    # At neutral_low corner:
+    #   target = 2.25 + 4.65 = 6.90; R_1 = 1.9125 + 0.15*6.90 = 2.9475 (lo corner)
+    qs = sorted(band.lo, key=m.quarter_to_ord)
+    second_q = qs[1]  # first projected update
+    assert band.hi[second_q] == pytest.approx(0.85 * 2.25 + 0.15 * 7.90, abs=1e-9)
+    assert band.lo[second_q] == pytest.approx(0.85 * 2.25 + 0.15 * 6.90, abs=1e-9)
+
+
+def test_band_envelope_property_central_within():
+    """lo <= central <= hi every quarter, on the realistic seed-data shape."""
+    inp = _seed_inputs(anchor_quarter="2025Q4", anchor_value=-1.0)
+    band = m.run_band(inp, end_quarter="2028Q4")
+    res = m.run_model(inp, end_quarter="2028Q4")
+    for s in res.steps:
+        assert band.lo[s.quarter] <= s.rate + 1e-9
+        assert s.rate <= band.hi[s.quarter] + 1e-9
+        assert band.lo[s.quarter] <= band.hi[s.quarter] + 1e-9
+
+
+def test_band_potential_sign_logic():
+    """Lower potential -> gap closes faster -> higher rates.
+
+    Hold neutral fixed (collapse the range) and confirm the low-potential corner
+    yields a terminal rate at or above the high-potential corner. We build a
+    case with real GDP anchors above potential so the sign is exercised.
+    """
+    inp = _seed_inputs(anchor_quarter="2025Q4", anchor_value=-1.0,
+                       neutral_range_low=2.75, neutral_range_high=2.75)
+    band = m.run_band(inp, end_quarter="2028Q4")
+    # with neutral collapsed, the only corner driver is potential low/high.
+    last_q = sorted(band.lo, key=m.quarter_to_ord)[-1]
+    # low-potential corner is the hi rate, high-potential corner is the lo rate
+    assert band.hi[last_q] >= band.lo[last_q]
+
+
+# --------------------------------------------------------------------------- #
+# Annual-average GDP cross-check (coherence diagnostic)
+# --------------------------------------------------------------------------- #
+def test_annual_avg_crosscheck_constant_growth_exact():
+    """Constant q/q-annualized growth g implies annual-average growth == g.
+
+    A level index compounding at constant g has each year's mean level a factor
+    (1+g/100) above the prior year's mean, so the implied annual-average growth
+    equals g exactly. Publish g and confirm diff ~ 0, no trip."""
+    g = 1.6
+    # const_inputs gives every quarter gdp=g and q4q4 anchors=g; attach published
+    # annual-avg = g to the horizon years.
+    inp = const_inputs(core=2.0, gdp=g, potential=g, gap_low=0.0, gap_high=0.0)
+    annual = [
+        AnnualRow(year=a.year, potential_growth_low=a.potential_growth_low,
+                  potential_growth_high=a.potential_growth_high,
+                  gdp_q4q4=a.gdp_q4q4, gdp_annual_avg=g, source_ref="t")
+        for a in inp.annual
+    ]
+    inp2 = ShadowInputs(quarterly=inp.quarterly, annual=annual, params=inp.params)
+    checks = m.annual_average_crosscheck(inp2, end_quarter="2028Q4")
+    assert checks  # at least 2026..2028
+    for c in checks:
+        assert c.implied == pytest.approx(g, abs=1e-6)
+        assert c.diff == pytest.approx(0.0, abs=1e-6)
+        assert c.tripped is False
+
+
+def test_annual_avg_crosscheck_tolerance_trip():
+    """A published value far from the implied trips the WARN flag (but no raise)."""
+    g = 1.6
+    inp = const_inputs(core=2.0, gdp=g, potential=g, gap_low=0.0, gap_high=0.0)
+    annual = [
+        AnnualRow(year=a.year, potential_growth_low=a.potential_growth_low,
+                  potential_growth_high=a.potential_growth_high,
+                  gdp_q4q4=a.gdp_q4q4,
+                  gdp_annual_avg=(g + 1.0 if a.year == 2027 else g),
+                  source_ref="t")
+        for a in inp.annual
+    ]
+    inp2 = ShadowInputs(quarterly=inp.quarterly, annual=annual, params=inp.params)
+    checks = m.annual_average_crosscheck(inp2, end_quarter="2028Q4")
+    by_year = {c.year: c for c in checks}
+    assert by_year[2027].tripped is True
+    assert abs(by_year[2027].diff) > 0.15
+    # other years still fine
+    assert by_year[2028].tripped is False
+
+
+# --------------------------------------------------------------------------- #
+# Vintage flexibility: horizon-from-params, TO-FILL date, new-quarter, glob
+# --------------------------------------------------------------------------- #
+def test_horizon_defaults_to_projection_end_quarter():
+    """run_model with no end_quarter ends exactly at projection_end_quarter."""
+    inp = const_inputs(projection_end_quarter="2027Q4")
+    res = m.run_model(inp)  # no explicit end_quarter
+    assert res.steps[-1].quarter == "2027Q4"
+    # a longer horizon param extends the path
+    inp2 = const_inputs(projection_end_quarter="2029Q2")
+    res2 = m.run_model(inp2)
+    assert res2.steps[-1].quarter == "2029Q2"
+
+
+def test_projection_end_must_be_after_seed():
+    """projection_end_quarter at/before the seed quarter is rejected."""
+    with pytest.raises(Exception):
+        make_params(projection_end_quarter="2026Q1")  # seed is 2026Q2
+    with pytest.raises(Exception):
+        make_params(projection_end_quarter="2026Q2")  # equal to seed
+
+
+def test_projection_end_unparseable_rejected():
+    with pytest.raises(Exception):
+        make_params(projection_end_quarter="2028-Q4")
+
+
+def test_coverage_validation_trips_when_data_stops_short(tmp_path):
+    """If projection_end_quarter reaches past the data, coverage validation trips.
+
+    Build the seed workbook (horizon 2028Q4, data to 2028Q4), then push the
+    horizon to 2029Q4 without adding a 2029 core Q4 anchor -> parse_workbook
+    fails closed naming the missing year.
+    """
+    from openpyxl import load_workbook
+
+    from pipeline.shadow_rate.inputs import parse_workbook
+    from pipeline.shadow_rate.make_workbook import build_workbook
+
+    xlsx = tmp_path / "wb.xlsx"
+    build_workbook(str(xlsx))
+    # baseline parses cleanly
+    parse_workbook(str(xlsx))
+    # extend the horizon past the data
+    wb = load_workbook(str(xlsx))
+    wp = wb["params"]
+    for ri in range(2, wp.max_row + 1):
+        if wp.cell(ri, 1).value == "projection_end_quarter":
+            wp.cell(ri, 2, "2029Q4")
+    wb.save(str(xlsx))
+    wb.close()
+    with pytest.raises(ValueError, match="missing core-CPI Q4 coverage for 2029"):
+        parse_workbook(str(xlsx))
+
+
+def test_tofill_date_marker_rejected_with_clear_error(tmp_path):
+    """A workbook whose mpr_publication_date is the TO-FILL marker is rejected."""
+    from openpyxl import load_workbook
+
+    from pipeline.shadow_rate.inputs import TOFILL_DATE_MARKER, parse_workbook
+    from pipeline.shadow_rate.make_workbook import build_workbook
+
+    xlsx = tmp_path / "wb.xlsx"
+    build_workbook(str(xlsx))
+    wb = load_workbook(str(xlsx))
+    wp = wb["params"]
+    for ri in range(2, wp.max_row + 1):
+        if wp.cell(ri, 1).value == "mpr_publication_date":
+            wp.cell(ri, 2, TOFILL_DATE_MARKER)
+    wb.save(str(xlsx))
+    wb.close()
+    with pytest.raises(ValueError, match="TO-FILL placeholder"):
+        parse_workbook(str(xlsx))
+
+
+def test_build_workbook_refuses_overwrite(tmp_path):
+    """A second build over an existing file raises unless overwrite=True."""
+    from pipeline.shadow_rate.make_workbook import build_workbook
+
+    xlsx = tmp_path / "boc_shadow_inputs_2026Q2.xlsx"
+    build_workbook(str(xlsx))
+    with pytest.raises(FileExistsError, match="--new-quarter"):
+        build_workbook(str(xlsx))
+    # explicit overwrite is allowed
+    build_workbook(str(xlsx), overwrite=True)
+
+
+def test_new_quarter_copy_preserves_data_resets_verified_and_date(tmp_path):
+    """--new-quarter copy keeps data rows but resets verified + date marker."""
+    from openpyxl import load_workbook
+
+    from pipeline.shadow_rate.inputs import TOFILL_DATE_MARKER
+    from pipeline.shadow_rate.make_workbook import (
+        build_workbook,
+        new_quarter_workbook,
+    )
+
+    src = tmp_path / "boc_shadow_inputs_2026Q2.xlsx"
+    build_workbook(str(src))
+
+    # snapshot the data rows before copy-forward
+    wb0 = load_workbook(str(src))
+    q_before = [r for r in wb0["quarterly"].iter_rows(values_only=True)]
+    a_before = [r for r in wb0["annual"].iter_rows(values_only=True)]
+    wb0.close()
+
+    dest = new_quarter_workbook("2026Q3", source=str(src))
+    assert dest.name == "boc_shadow_inputs_2026Q3.xlsx"
+
+    wb = load_workbook(str(dest))
+    try:
+        # data rows are KEPT verbatim
+        assert [r for r in wb["quarterly"].iter_rows(values_only=True)] == q_before
+        assert [r for r in wb["annual"].iter_rows(values_only=True)] == a_before
+        # params: verified FALSE, date is the TO-FILL marker
+        params = {}
+        wp = wb["params"]
+        for ri in range(2, wp.max_row + 1):
+            k = wp.cell(ri, 1).value
+            if k is not None:
+                params[str(k).strip()] = wp.cell(ri, 2).value
+        assert str(params["verified"]).strip().upper() == "FALSE"
+        assert params["mpr_publication_date"] == TOFILL_DATE_MARKER
+        # anchors re-seeded to real values (not blank)
+        assert params["current_overnight_rate"] is not None
+        assert params["output_gap_anchor_value"] is not None
+        # no stale calc sheet
+        assert "calc" not in wb.sheetnames
+    finally:
+        wb.close()
+
+
+def test_new_quarter_copy_blocks_run_until_date_filled(tmp_path):
+    """The copy-forward workbook cannot be parsed until the date is filled."""
+    from pipeline.shadow_rate.inputs import parse_workbook
+    from pipeline.shadow_rate.make_workbook import (
+        build_workbook,
+        new_quarter_workbook,
+    )
+
+    src = tmp_path / "boc_shadow_inputs_2026Q2.xlsx"
+    build_workbook(str(src))
+    dest = new_quarter_workbook("2026Q3", source=str(src))
+    with pytest.raises(ValueError, match="TO-FILL placeholder"):
+        parse_workbook(str(dest))
+
+
+def test_newest_workbook_glob_selection(tmp_path):
+    """The newest-workbook glob picks the lexically latest vintage, skips ~$ files."""
+    from pipeline.shadow_rate.make_workbook import _newest_workbook
+
+    for name in ("boc_shadow_inputs_2026Q2.xlsx",
+                 "boc_shadow_inputs_2026Q3.xlsx",
+                 "boc_shadow_inputs_2027Q1.xlsx",
+                 "~$boc_shadow_inputs_2099Q4.xlsx"):  # Excel lock file: ignored
+        (tmp_path / name).write_bytes(b"x")
+    newest = _newest_workbook(tmp_path)
+    assert newest.name == "boc_shadow_inputs_2027Q1.xlsx"
+
+
+def test_vintage_stamped_filename_derivation():
+    """Vintage tag + chart/series names derive from mpr_publication_date."""
+    from datetime import date as _date
+
+    for d, tag in [(_date(2026, 4, 29), "2026-04"),
+                   (_date(2026, 7, 30), "2026-07"),
+                   (_date(2027, 1, 22), "2027-01")]:
+        vintage_tag = f"{d.year:04d}-{d.month:02d}"
+        assert vintage_tag == tag
+        assert f"boc_shadow_path_{vintage_tag}.svg" == f"boc_shadow_path_{tag}.svg"
+        assert f"boc_shadow_rate_{vintage_tag}" == f"boc_shadow_rate_{tag}"

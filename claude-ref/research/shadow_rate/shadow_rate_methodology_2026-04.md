@@ -1,14 +1,22 @@
-# BoC Shadow Policy Rate — methodology (April 2026 MPR vintage)
+# BoC rule-implied shadow rate — methodology (April 2026 MPR vintage)
 
-Internal Sibley Creek research tool. Reconstructs the Bank of Canada's
-*unpublished* rule-implied policy rate path from the Bank's own published
-outputs, by applying ToTEM III's estimated policy reaction function to the
-April 2026 Monetary Policy Report projections.
+Internal Sibley Creek research tool. This is the **ToTEM III rule-implied policy
+path** computed from the Bank of Canada's own published outputs: it applies
+ToTEM III's estimated policy reaction function (TR-119) to the April 2026
+Monetary Policy Report projections, using transparent interpolation assumptions
+to turn the MPR's sparse rows into a dense quarterly path.
 
-This is a **coherence reading**, not advice or a forecast. The MPR projections
-are themselves conditioned on a policy assumption, so feeding them back through
-the model's own rule tells you what rate path the rule implies *given those
-projections* — it does not tell you what the Bank will do.
+**What this is — and what it is NOT.** The defensible claim is: *the ToTEM III
+rule-implied policy path using the April 2026 MPR projections and transparent
+interpolation assumptions.* This is **NOT** a recovery of the Bank's actual
+internal conditioning path. Two reasons it cannot be:
+
+- The Bank's internal staff overlay **judgmental add-factors** on top of the
+  mechanical rule, so its true internal path differs from the pure rule output.
+- The MPR forecast is itself **conditioned on a market-implied rate path** (the
+  Bank's published convention), not on this rule. Feeding that forecast back
+  through the rule reads out what the rule implies *given those projections* — a
+  **coherence reading**, not advice, not a forecast, and not the Bank's own path.
 
 Status of this vintage: **UNVERIFIED** until Jay checks every transcribed cell
 against the MPR PDF and flips `verified=TRUE` in the workbook params sheet.
@@ -46,9 +54,39 @@ from target, not the contemporaneous reading.
 
 The model reads **core inflation** (average of CPI-trim and CPI-median, per the
 MPR Table 3 footnote), not total CPI. TR-119's rule was estimated on core
-(CPIX-type) inflation deviations, so total CPI would be the wrong input. The
-workbook carries total CPI in a `total_cpi_yoy_reference` column for context
-only; `model.py` never reads it.
+inflation deviations, so total CPI would be the wrong input. The workbook carries
+total CPI in a `total_cpi_yoy_reference` column for context only; `model.py`
+never reads it.
+
+#### Inflation-concept mismatch (the top-ranked input risk)
+
+There is a **concept gap** between the inflation series TR-119's rule was
+estimated on and the series we feed it, and it deserves to be flagged
+prominently because the rule's inflation coefficient is large.
+
+- **What the rule was estimated on:** TR-119's reaction function responds to the
+  **4-quarter-ahead forecast of y/y CPIX** (the Bank's then-preferred core
+  measure during the estimation window).
+- **What we feed it:** the MPR's published core forecast = **the average of
+  CPI-trim and CPI-median**, the Bank's *current* preferred core set. We use this
+  because **CPIX forecasts are no longer published** — the Bank retired CPIX as
+  its operational core measure in favour of the trim/median family, so there is
+  no contemporaneous CPIX forecast to feed.
+- **Why it's the best available mechanical proxy:** trim/median is the closest
+  published successor to CPIX in role (a symmetric-trimmed-mean / weighted-median
+  core gauge the Bank itself uses to read underlying inflation), and it is the
+  only forward-looking core series the MPR actually publishes. Substituting it
+  keeps the input mechanical and sourced rather than reconstructing a defunct
+  CPIX forecast by hand.
+- **Why the gap matters here specifically:** the rule's inflation response
+  coefficient is **phi_pi = 4.65** — every 0.1pp of concept-driven difference
+  between trim/median and a true CPIX forecast is **amplified ~0.47pp** in the
+  rule's target level (before the rho=0.85 smoothing damps the per-quarter step).
+  So any systematic level offset between the two core concepts feeds through with
+  large leverage. The annual-average GDP cross-check (Section 10) and the
+  sensitivity band (Section 9) bound the *growth/neutral* uncertainty, but the
+  inflation-concept gap is a **separate, unbanded** modelling assumption: treat
+  the path's level as conditional on trim/median being an acceptable CPIX proxy.
 
 ### Effective lower bound
 
@@ -177,6 +215,7 @@ seed quarter and (b) GDP/potential data cover it, raising otherwise.
 |---|---|
 | `potential_growth_low` / `_high` | MPR Apr-2026, Table 2 (range for potential output growth); 2025 is a point estimate (2.3) |
 | `gdp_q4q4` | MPR Apr-2026, Table 3 (real GDP y/y Q4/Q4 anchors: 2026 = 1.8, 2027 = 1.4, 2028 = 1.9) |
+| `gdp_annual_avg` | MPR Apr-2026, Table 2 (annual-AVERAGE real GDP growth: 2026 = 1.2, 2027 = 1.6, 2028 = 1.7). Reference-only: used solely for the Section 10 cross-check, never a model input. |
 
 ### params sheet
 | Field | Value | Source / status |
@@ -220,10 +259,13 @@ screenshots and are treated as authoritative pending Jay's PDF cross-check.
 
 ## 7. Known caveats
 
-- **Coherence reading, not advice.** The MPR forecasts are conditioned on a
-  policy path; running them back through the rule reads out the rule's implied
-  rate *given those projections*. It is not the Bank's published rate path and
-  not a recommendation.
+- **Coherence reading, not the Bank's path, not advice.** This is the ToTEM III
+  *rule-implied* path, NOT a recovery of the Bank's actual internal conditioning
+  path. The MPR forecasts are conditioned on a **market-implied rate path** (not
+  on this rule), so running them back through the rule reads out the rule's
+  implied rate *given those projections*. It is neither the Bank's published rate
+  path nor a recommendation. (See the intro for the full statement of the
+  defensible claim.)
 - **Coefficients are historical.** The TR-119 rule was estimated over roughly
   1993Q4-2015Q4. The reaction function may have shifted since.
 - **Judgmental add-factors.** Inside ToTEM the staff overlay judgment
@@ -295,6 +337,12 @@ runtime agreement is what the in-sheet diff columns surface in Excel.)
   values + timestamp/flag) is rebuilt on every run; the formula references are
   derived from the input sheets' row order at generation time, so a future MPR
   regenerates cleanly.
+- **Footer note rows:** below the grid the sheet carries (a) the engine
+  handshake note, (b) a **band note row** — the sensitivity band is
+  engine-computed from the published range corners and is intentionally *not*
+  reproduced as in-sheet formulas (4× the grid; see Section 9), and (c) the
+  **annual-average GDP cross-check** header plus one line per year (implied vs
+  published, with a WARN/ok flag; see Section 10).
 - **Input sheets are never touched.** The `quarterly` / `annual` / `params`
   sheets are read-only to this writer.
 - **Windows file lock:** if the workbook is open in Excel, openpyxl's save
@@ -302,6 +350,132 @@ runtime agreement is what the in-sheet diff columns surface in Excel.)
   `boc_shadow_output_2026Q2.xlsx` in the same folder, printing a note to close
   Excel and re-run to embed. (Implemented in
   `pipeline/shadow_rate/output_sheet.py`, wired into `run.py` after the chart.)
+
+## 9. Sensitivity band (mechanical, engine-computed)
+
+The central path uses the **midpoints** of the published neutral-rate and
+potential-growth ranges. Both range endpoints are real published uncertainty, so
+the engine quantifies how much the path moves across them as a mechanical band.
+
+### Definition
+`model.run_band` reruns the rule path over the **4 corner combinations** of:
+
+```
+{neutral_low, neutral_high}  x  {potential range low, potential range high}
+```
+
+- The **neutral** pick is applied as the nominal neutral midpoint `R*_nom` (the
+  range collapses to that single endpoint).
+- The **potential** pick is applied **consistently to every year**: the "low
+  potential" corner uses each year's published range *low* in all years, the
+  "high potential" corner uses each year's range *high* in all years. The output
+  gap evolves accordingly (the gap's reference path shifts), so the corners
+  differ both through `R*_nom` and through the whole gap trajectory.
+- Per quarter, the band is the **min / max rate across the 4 corner paths**.
+- **Everything else is held at the central case** — core CPI, GDP anchors, the
+  output-gap anchor, and all rule coefficients. The band isolates the
+  neutral × potential sensitivity only.
+
+### Sign logic
+**Lower potential growth → actual growth exceeds potential by more → the output
+gap closes faster → higher rates.** So the highest-rate corner pairs
+`neutral_high` with `potential_low`, and the lowest-rate corner pairs
+`neutral_low` with `potential_high`. The code does not assume this ordering — it
+takes an explicit min/max over all four corners, which stays correct even when
+the ELB floor flattens one corner.
+
+### Audit-quantified sensitivity rankings
+
+| Driver | Path impact (terminal) | Notes |
+|---|---|---|
+| Neutral-rate endpoints (2.25 ↔ 3.25) | **±40bp** | Largest driver; enters `R*_nom` 1-for-1 (×(1−rho) per step, accumulating). |
+| Potential-growth endpoints (range low ↔ high) | **±25-30bp** | Via the gap trajectory; compounds over the horizon. |
+| Output-gap anchor (±0.25pp) | **~8bp** | `phi_gap=0.40` × 0.25 × (1−rho) accumulation. |
+| Inflation interpolation | **interior-only** | Linear fill between published anchors moves only the interior quarters; endpoints are pinned to published values. |
+| GDP residual-fill shape | **~0.01bp** | The arithmetic-mean fill reshapes within-year quarters but preserves the Q4/Q4 anchor; near-zero net effect on the rate path. |
+
+The band is reported in `run.py` stdout (`band_lo`/`band_hi` columns), in the
+output CSV (`date, value, band_lo, band_hi, ...`), and shaded as a light fill
+around the dashed central path in the chart. The **calc sheet does NOT reproduce
+band formulas** (4× the grid is a complexity explosion); it carries a single note
+row pointing here, and the band stays engine-computed.
+
+The inflation-concept gap (Section 1) is a **separate, unbanded** assumption and
+is not part of this envelope.
+
+---
+
+## 10. Annual-average GDP cross-check (coherence diagnostic)
+
+The MPR publishes **annual-AVERAGE** real GDP growth (Table 2: 2026 = 1.2,
+2027 = 1.6, 2028 = 1.7) in addition to the Q4/Q4 figures the model anchors on.
+These are independent published numbers, so the engine cross-checks them against
+the annual averages **implied by its own constructed quarterly path** — a
+coherence diagnostic on the GDP path construction.
+
+### Method
+From the constructed quarterly q/q-annualized GDP path, the engine compounds a
+**quarterly level index** (each quarter's level = prior level × (1 + g/100)^¼),
+then computes each year's annual-average growth as
+`mean(level over that year's 4 quarters) / mean(level over the prior year's 4
+quarters) − 1`.
+
+### Honest handling of the 2025 seam
+Computing the **2026** annual average needs the full **2025** quarterly level
+path as the denominator, but the MPR gives only 2025Q3/Q4 q/q growth — 2025Q1/Q2
+are not available. The engine builds the 2025 level path from the available
+quarters and **flags 2026 as `approximate`**. Years whose full prior-year
+quarterly path is constructed from anchors — **2027 and 2028** — are the strict
+check.
+
+### Tolerance and behaviour
+- **WARN if |implied − published| > 0.15pp** (rounding tolerance ~0.05pp plus
+  within-year fill-shape slack). The warning surfaces in stdout, a calc-sheet
+  note row, and the path-table footer.
+- **It never fails the run.** This is a coherence diagnostic, not validation.
+
+### April 2026 vintage result
+
+| Year | Implied | Published | Diff | Status |
+|---|---|---|---|---|
+| 2026 | 0.972 | 1.20 | −0.228pp | WARN (approximate — 2025 seam) |
+| 2027 | 1.624 | 1.60 | **+0.024pp** | **PASS** |
+| 2028 | 1.713 | 1.70 | **+0.013pp** | **PASS** |
+
+The strict-check years (2027, 2028) agree with the published annual averages to
+within ~0.02pp — the residual-fill GDP construction is coherent with the Bank's
+own annual-average numbers where the full prior-year path is available. The 2026
+gap is expected: the incomplete 2025 denominator and the residual fill's
+within-year shape pull the implied average below the published 1.2.
+
+---
+
+## 7c. Quarterly refresh workflow (vintage-flexible)
+
+The tool is vintage-flexible: the projection horizon and every output stamp are
+read from the workbook, not hard-coded. Each new MPR is a copy-forward, never a
+regenerate. The 5-step ritual:
+
+1. **Copy forward.** `python -m pipeline.shadow_rate.make_workbook --new-quarter
+   2026Q3` reads the newest `boc_shadow_inputs_<YYYY>Q<n>.xlsx`, copies it to the
+   new quarter's file, resets `verified=FALSE`, blanks `mpr_publication_date` to
+   a TO-FILL marker (the runner rejects it until filled), re-seeds the gap anchor
+   and overnight rate from the data tails, and **keeps last quarter's data rows**
+   so you edit in place. (The seed builder refuses to overwrite an existing
+   workbook; copy-forward is the only refresh path.)
+2. **Punch in the new MPR.** Edit the `quarterly` and `annual` rows against the
+   new MPR Tables 2-3 (core CPI, GDP q/q, Q4/Q4 anchors, potential ranges,
+   annual-average GDP), and update each `source_ref` to the new vintage.
+3. **Set horizon + date.** Fill `projection_end_quarter` (the new MPR's last
+   projection quarter, e.g. `2028Q4`) and `mpr_publication_date` (the real
+   publication date). Coverage validation checks the data reaches the horizon.
+4. **Verify.** Check every transcribed cell against the MPR PDF.
+5. **Flip + run.** Set `verified=TRUE`, then `python -m pipeline.shadow_rate.run`
+   (no `--xlsx` needed — it globs the newest workbook). Outputs are
+   vintage-stamped: `boc_shadow_path_<YYYY-MM>.{svg,html}` and a vintage copy
+   `boc_shadow_rate_<YYYY-MM>.csv` accumulate alongside the stable
+   `boc_shadow_rate.csv` (the current vintage, for any site wiring). Past
+   vintages become the track record.
 
 ## 8. Files
 

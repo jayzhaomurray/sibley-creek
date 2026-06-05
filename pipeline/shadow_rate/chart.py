@@ -53,8 +53,14 @@ def render_chart(
     svg_path: str | Path,
     html_path: str | Path,
     history_start_year: int = 2015,
+    band=None,
 ) -> tuple[Path, Path]:
-    """Render the shadow-path chart to SVG + a minimal HTML wrapper."""
+    """Render the shadow-path chart to SVG + a minimal HTML wrapper.
+
+    ``band`` (optional ``BandResult``) shades a light min/max envelope around the
+    dashed central path — the sensitivity band over the published neutral x
+    potential-growth range corners.
+    """
     svg_path = Path(svg_path)
     html_path = Path(html_path)
     svg_path.parent.mkdir(parents=True, exist_ok=True)
@@ -88,6 +94,13 @@ def render_chart(
     # History (solid).
     ax.plot(hist["date"], hist["value"], color=_HISTORY, lw=1.8,
             solid_capstyle="round", zorder=3, label="overnight rate (actual)")
+
+    # Sensitivity band (light fill between corner min/max), under the line.
+    if band is not None:
+        band_lo = [band.lo[s.quarter] for s in res.steps]
+        band_hi = [band.hi[s.quarter] for s in res.steps]
+        ax.fill_between(shadow_x, band_lo, band_hi, color=_SHADOW, alpha=0.10,
+                        lw=0, zorder=2, label="range-corner band")
 
     # Shadow path (dashed), anchored at the seed quarter.
     ax.plot(shadow_x, shadow_y, color=_SHADOW, lw=1.8, ls=(0, (5, 3)),
@@ -123,8 +136,10 @@ def render_chart(
     ax.spines["bottom"].set_color(_MUTE)
     ax.tick_params(colors=_MUTE, labelsize=8)
     ax.set_ylabel("policy rate (%)", color=_INK, fontsize=9)
+    mpr_label = params.mpr_publication_date.strftime("%B %Y")
     ax.set_title(
-        "BoC shadow policy rate — ToTEM III rule on the April 2026 MPR",
+        "BoC rule-implied shadow rate\n"
+        f"ToTEM III rule on {mpr_label} MPR projections",
         color=_INK, fontsize=11, loc="left", pad=12,
     )
     ax.legend(loc="upper left", frameon=False, fontsize=8)
@@ -167,6 +182,8 @@ def _write_html(svg_path: Path, html_path: Path, res: ShadowResult, params) -> N
         else "<span style='color:#2a7'>verified</span>"
     )
 
+    mpr_label = params.mpr_publication_date.strftime("%B %Y")
+
     rows = "".join(
         f"<tr><td>{s.quarter}</td><td>{s.rate:.3f}</td><td>{s.gap:.3f}</td>"
         f"<td>{s.infl_tp4:.3f}</td></tr>"
@@ -178,7 +195,7 @@ def _write_html(svg_path: Path, html_path: Path, res: ShadowResult, params) -> N
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BoC shadow policy rate — {res.seed_quarter}</title>
+<title>BoC rule-implied shadow rate — {res.seed_quarter}</title>
 <style>
   body {{ font-family: -apple-system, Segoe UI, Helvetica, Arial, sans-serif;
           color:#1a1a1a; max-width: 940px; margin: 2rem auto; padding: 0 1rem;
@@ -195,9 +212,9 @@ def _write_html(svg_path: Path, html_path: Path, res: ShadowResult, params) -> N
 </style>
 </head>
 <body>
-<h1>BoC shadow policy rate</h1>
+<h1>BoC rule-implied shadow rate</h1>
 <div class="meta">
-  ToTEM III estimated rule (TR-119) applied to the April 2026 MPR &middot;
+  ToTEM III rule (TR-119) on {mpr_label} MPR projections &middot;
   status: {status} &middot; seed {res.seed_quarter} @ {res.seed_rate:.2f}%
 </div>
 <figure>
@@ -209,11 +226,14 @@ def _write_html(svg_path: Path, html_path: Path, res: ShadowResult, params) -> N
 <tbody>{rows}</tbody>
 </table>
 <p class="note">
-  Internal Sibley Creek research tool. The MPR projections are conditioned on a
-  policy assumption, so this is a coherence reading of the Bank's own published
-  outputs, not advice. Rule coefficients estimated 1993Q4-2015Q4; the Bank's
-  internal path also carries judgmental add-factors. See the methodology note in
-  claude-ref/research/shadow_rate/.
+  Internal Sibley Creek research tool. This is the ToTEM III rule-implied policy
+  path on the {mpr_label} MPR projections with transparent interpolation
+  assumptions &mdash; NOT a recovery of the Bank's actual internal conditioning
+  path. The MPR forecast is itself conditioned on a market-implied rate path, and
+  the Bank's internal path carries judgmental add-factors; rule coefficients were
+  estimated 1993Q4-2015Q4. The shaded band is the mechanical sensitivity envelope
+  across the published neutral and potential-growth range corners. See the
+  methodology note in claude-ref/research/shadow_rate/.
 </p>
 </body>
 </html>

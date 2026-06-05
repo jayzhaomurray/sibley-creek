@@ -9,7 +9,8 @@ floored at the BoC's stated effective lower bound (ELB). Quarterly steps.
 
 Inputs are merged from the punch-in workbook (see inputs.py). This module turns
 the sparse MPR rows into dense quarterly paths, then iterates the rule from the
-MPR quarter (R_0 = current overnight rate) forward to 2028Q4.
+MPR quarter (R_0 = current overnight rate) forward to the workbook's
+projection_end_quarter.
 """
 
 from __future__ import annotations
@@ -205,14 +206,19 @@ class ShadowResult:
     gap_path: dict[int, float]
 
 
-def run_model(inp: ShadowInputs, end_quarter: str = "2028Q4") -> ShadowResult:
+def run_model(inp: ShadowInputs, end_quarter: str | None = None) -> ShadowResult:
     """Iterate the policy rule from the MPR quarter to end_quarter inclusive.
 
     The seed quarter is the calendar quarter containing the MPR publication
     date. R_0 = current_overnight_rate at that quarter. The first projected step
     is the next quarter; iteration ends at end_quarter.
+
+    ``end_quarter`` defaults to the workbook's ``projection_end_quarter`` param,
+    so the horizon travels with the vintage. Callers may still override it.
     """
     p = inp.params
+    if end_quarter is None:
+        end_quarter = p.projection_end_quarter
     seed_q = quarter_of_date(p.mpr_publication_date)
     seed_ord = quarter_to_ord(seed_q)
     end_ord = quarter_to_ord(end_quarter)
@@ -300,3 +306,195 @@ def _rule_step(rate: float, infl_tp4: float, gap: float, p) -> float:
     )
     raw = p.rho * rate + (1.0 - p.rho) * target_level
     return max(raw, p.elb_floor)
+
+
+# --------------------------------------------------------------------------- #
+# Sensitivity band (corner reruns over published input ranges)
+# --------------------------------------------------------------------------- #
+@dataclass
+class BandResult:
+    """Per-quarter min/max envelope of the rule path across input-range corners.
+
+    ``lo`` / ``hi`` are keyed by quarter string and span the same quarters as
+    the central ``ShadowResult.steps``. ``central`` carries the central-case
+    rate for convenience (lo <= central <= hi every quarter).
+    """
+
+    lo: dict[str, float]
+    hi: dict[str, float]
+    central: dict[str, float]
+
+
+def _run_corner(
+    inp: ShadowInputs,
+    end_quarter: str | None,
+    *,
+    neutral_mid: float,
+    potential_pick: str,
+) -> dict[str, float]:
+    """Rerun the rule path holding neutral at ``neutral_mid`` and potential at
+    each year's range low/high (``potential_pick`` in {'low','high'}).
+
+    Only the two sensitivity drivers move; core CPI, GDP anchors, the gap anchor
+    and every coefficient stay at the central case. Returns {quarter: rate}.
+
+    Implementation reuses ``run_model`` by building a shallow-modified inputs
+    bundle: neutral range collapsed to the chosen midpoint, and every annual
+    row's potential range collapsed to its low or high endpoint (so the
+    potential-path midpoint equals that endpoint and the gap evolves
+    accordingly).
+    """
+    p = inp.params
+    params2 = p.model_copy(update={
+        "neutral_range_low": neutral_mid,
+        "neutral_range_high": neutral_mid,
+    })
+    annual2 = []
+    for a in inp.annual:
+        pick = a.potential_growth_low if potential_pick == "low" else a.potential_growth_high
+        annual2.append(a.model_copy(update={
+            "potential_growth_low": pick,
+            "potential_growth_high": pick,
+        }))
+    inp2 = ShadowInputs(quarterly=list(inp.quarterly), annual=annual2, params=params2)
+    res = run_model(inp2, end_quarter=end_quarter)
+    return {s.quarter: s.rate for s in res.steps}
+
+
+def run_band(inp: ShadowInputs, end_quarter: str | None = None) -> BandResult:
+    """Mechanical uncertainty band from the 4 corners of the published ranges.
+
+    Corners = {neutral_low, neutral_high} x {potential low, potential high},
+    where the neutral pick is a single number applied as the neutral midpoint,
+    and the potential pick is applied consistently to ALL years (each year's
+    own range endpoint). Per quarter, lo/hi = min/max rate across the 4 corner
+    paths.
+
+    Sign logic (documented, not relied on by the code): lower potential -> growth
+    exceeds potential more -> the output gap closes faster -> higher rates. So
+    the high-rate corner pairs neutral_high with potential_low, and the low-rate
+    corner pairs neutral_low with potential_high — but we take min/max over all
+    four explicitly rather than assume the ordering, which is robust to the ELB
+    floor flattening one corner.
+
+    Core CPI and all other inputs stay at the central case.
+    """
+    p = inp.params
+    if end_quarter is None:
+        end_quarter = p.projection_end_quarter
+    corners = []
+    for neutral_mid in (p.neutral_range_low, p.neutral_range_high):
+        for potential_pick in ("low", "high"):
+            corners.append(_run_corner(
+                inp, end_quarter,
+                neutral_mid=neutral_mid, potential_pick=potential_pick,
+            ))
+
+    central = {s.quarter: s.rate for s in run_model(inp, end_quarter=end_quarter).steps}
+    quarters = list(central.keys())
+    lo = {q: min(c[q] for c in corners) for q in quarters}
+    hi = {q: max(c[q] for c in corners) for q in quarters}
+    return BandResult(lo=lo, hi=hi, central=central)
+
+
+# --------------------------------------------------------------------------- #
+# Annual-average GDP cross-check (coherence diagnostic)
+# --------------------------------------------------------------------------- #
+@dataclass
+class AnnualAvgCheck:
+    """One year's implied-vs-published annual-average GDP growth comparison."""
+
+    year: int
+    implied: float
+    published: float | None
+    diff: float | None        # implied - published (None if no published value)
+    approximate: bool         # True if the prior-year level path is incomplete
+    tripped: bool             # |diff| > tolerance (False when published is None)
+
+
+ANNUAL_AVG_TOL = 0.15  # pp; rounding ~0.05 + within-year fill-shape slack
+
+
+def annual_average_crosscheck(
+    inp: ShadowInputs,
+    end_quarter: str | None = None,
+    tolerance: float = ANNUAL_AVG_TOL,
+) -> list[AnnualAvgCheck]:
+    """Compare the engine's implied annual-average GDP growth to published.
+
+    From the constructed quarterly q/q-annualized GDP path we compound a level
+    index, then compute each year's annual-average growth = mean(level over the
+    4 quarters of that year) / mean(level over the 4 quarters of the prior year)
+    - 1, expressed in percent.
+
+    Honest handling of the 2025 seam: the MPR gives only 2025Q3/Q4 q/q growth, so
+    the 2025 level path (the denominator for 2026's average) is incomplete. We
+    construct a 2025 level path from the available quarters (treating 2025Q1/Q2
+    as flat at the 2025Q2 level implied by carrying the index back through the two
+    known growth rates), which makes the 2026 implied average APPROXIMATE. Years
+    whose full prior-year quarterly path is constructed from anchors (2027, 2028)
+    are EXACT in this sense and form the strict check; 2026 is reported but
+    flagged ``approximate=True``.
+
+    Published annual-AVERAGE growth comes from the annual sheet's
+    ``gdp_annual_avg`` column (MPR Table 2). Returns one AnnualAvgCheck per
+    horizon year that has a published value.
+    """
+    p = inp.params
+    if end_quarter is None:
+        end_quarter = p.projection_end_quarter
+    seed_year = p.mpr_publication_date.year
+    # Build the GDP path from the earliest quarterly row's year (to capture the
+    # 2025 seam) through the horizon end.
+    first_q_ord = min(quarter_to_ord(r.quarter) for r in inp.quarterly)
+    end_ord = quarter_to_ord(end_quarter)
+    gdp = build_gdp_path(inp, first_q_ord, end_ord)
+
+    # Compound a quarterly level index. Start the index at 100 at the first
+    # available quarter; each q/q-annualized rate g implies a one-quarter level
+    # growth of (1 + g/100)**0.25.
+    ords = sorted(gdp)
+    level: dict[int, float] = {}
+    lvl = 100.0
+    level[ords[0]] = lvl
+    for o in ords[1:]:
+        g = gdp[o]
+        lvl = lvl * (1.0 + g / 100.0) ** 0.25
+        level[o] = lvl
+
+    first_year = ords[0] // 4
+    # year -> list of quarter levels present
+    def year_levels(yr: int) -> list[float]:
+        return [level[o] for o in range(yr * 4, yr * 4 + 4) if o in level]
+
+    published_by_year = {
+        a.year: a.gdp_annual_avg
+        for a in inp.annual
+        if getattr(a, "gdp_annual_avg", None) is not None
+    }
+
+    checks: list[AnnualAvgCheck] = []
+    for yr in range(seed_year, end_ord // 4 + 1):
+        prior = year_levels(yr - 1)
+        cur = year_levels(yr)
+        if len(cur) < 4 or not prior:
+            continue
+        # Approximate when the prior year's quarterly level path is incomplete
+        # (fewer than 4 quarters available — the 2025 seam case for yr=2026).
+        approximate = len(prior) < 4 or (yr - 1) == first_year and len(prior) < 4
+        # Prior-year mean: if incomplete, use the available quarters (honest
+        # approximation; flagged).
+        prior_mean = sum(prior) / len(prior)
+        cur_mean = sum(cur) / len(cur)
+        implied = (cur_mean / prior_mean - 1.0) * 100.0
+        pub = published_by_year.get(yr)
+        diff = None if pub is None else implied - pub
+        tripped = diff is not None and abs(diff) > tolerance
+        if pub is None:
+            continue
+        checks.append(AnnualAvgCheck(
+            year=yr, implied=round(implied, 4), published=pub,
+            diff=round(diff, 4) if diff is not None else None,
+            approximate=approximate, tripped=tripped,
+        ))
+    return checks

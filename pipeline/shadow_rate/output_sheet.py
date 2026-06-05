@@ -247,7 +247,7 @@ def _build_calc_ws(wb, res: ShadowResult, p, inp) -> None:
     # Header / provenance block
     # ------------------------------------------------------------------ #
     r = 1
-    ws.cell(r, 1, "BoC Shadow Policy Rate — calc (live Excel formulas)").font = title_font
+    ws.cell(r, 1, "BoC rule-implied shadow rate — calc (live Excel formulas)").font = title_font
     r += 1
     ws.cell(r, 1, f"Run: {now}").font = Font(size=9, color="595959")
     r += 1
@@ -445,6 +445,54 @@ def _build_calc_ws(wb, res: ShadowResult, p, inp) -> None:
     note_cell.alignment = Alignment(wrap_text=True, vertical="top")
     ws.merge_cells(start_row=note_r, start_column=1,
                    end_row=note_r, end_column=_NCOLS)
+
+    # --- sensitivity-band note row (band is engine-computed, not in-sheet) ---
+    band_r = note_r + 1
+    band_note = (
+        "Sensitivity band: the engine (pipeline/shadow_rate/model.py:run_band) "
+        "reruns the rule over the 4 corners of {neutral_low, neutral_high} x "
+        "{potential-range low, high}; the per-quarter band is the min/max across "
+        "those corners (core CPI / GDP / gap anchor held at the central case). "
+        "Not reproduced as in-sheet formulas to avoid a complexity explosion — "
+        "see methodology Section 9 (band definition + sensitivity rankings)."
+    )
+    band_cell = ws.cell(band_r, 1, band_note)
+    band_cell.font = note_font
+    band_cell.alignment = Alignment(wrap_text=True, vertical="top")
+    ws.merge_cells(start_row=band_r, start_column=1,
+                   end_row=band_r, end_column=_NCOLS)
+
+    # --- annual-average GDP cross-check note + flag rows ---
+    from pipeline.shadow_rate.model import annual_average_crosscheck
+
+    checks = annual_average_crosscheck(inp, end_quarter=res.steps[-1].quarter)
+    cc_r = band_r + 1
+    cc_header = (
+        "Annual-average GDP cross-check (coherence diagnostic, does NOT validate): "
+        "engine-computed implied annual-average real GDP growth from the "
+        "constructed quarterly q/q path vs MPR Table 2 published. WARN if "
+        "|diff| > 0.15pp."
+    )
+    cc_cell = ws.cell(cc_r, 1, cc_header)
+    cc_cell.font = note_font
+    cc_cell.alignment = Alignment(wrap_text=True, vertical="top")
+    ws.merge_cells(start_row=cc_r, start_column=1,
+                   end_row=cc_r, end_column=_NCOLS)
+    for c in checks:
+        cc_r += 1
+        pub = "n/a" if c.published is None else f"{c.published:.2f}"
+        diff = "n/a" if c.diff is None else f"{c.diff:+.3f}"
+        flag = "  *** WARN |diff|>0.15pp ***" if c.tripped else "  ok"
+        approx = " (approx: 2025 seam)" if c.approximate else ""
+        line = (f"  {c.year}: implied {c.implied:.3f}  published {pub}  "
+                f"diff {diff}pp{flag}{approx}")
+        lcell = ws.cell(cc_r, 1, line)
+        lcell.font = Font(
+            italic=True, size=9,
+            color="990000" if c.tripped else "595959",
+        )
+        ws.merge_cells(start_row=cc_r, start_column=1,
+                       end_row=cc_r, end_column=_NCOLS)
 
     # ------------------------------------------------------------------ #
     # Column widths + freeze
