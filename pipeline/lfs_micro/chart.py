@@ -103,6 +103,37 @@ def render_chart(
         zorder=4, label="underlying wage growth (ours, composition-adj.)",
     )
 
+    # Raw single-month extension past the smoothed line's end. The centered
+    # MA3 headline always lags the newest PUMF month by one — on release
+    # morning the freshest signal is the unsmoothed point, so draw it as a
+    # faint dotted tail with an open marker and its own end-label.
+    raw_tail = pd.DataFrame()
+    if "underlying_raw_pct" in rep.columns and rep["underlying_pct"].notna().any():
+        last_smoothed = rep.loc[rep["underlying_pct"].notna(), "date"].max()
+        raw_tail = rep[
+            (rep["date"] >= last_smoothed) & rep["underlying_raw_pct"].notna()
+        ]
+        if len(raw_tail) > 1:
+            ax.plot(
+                raw_tail["date"], raw_tail["underlying_raw_pct"],
+                color=_OURS, lw=1.2, ls=(0, (1, 2)), alpha=0.65,
+                zorder=4, label="newest month, single-month (unsmoothed)",
+            )
+            tail_date = raw_tail["date"].iloc[-1]
+            tail_val = raw_tail["underlying_raw_pct"].iloc[-1]
+            ax.plot(
+                tail_date, tail_val,
+                marker="o", ms=4.5, mfc="white", mec=_OURS, mew=1.2,
+                zorder=5,
+            )
+            ax.annotate(
+                f"{tail_val:.2f}%",
+                xy=(tail_date, tail_val),
+                xytext=(6, 0),
+                textcoords="offset points",
+                color=_OURS, fontsize=9, va="center", alpha=0.8,
+            )
+
     # Direct end-labels
     last_ours_idx = rep["underlying_pct"].dropna().index[-1]
     last_ours_val = rep.loc[last_ours_idx, "underlying_pct"]
