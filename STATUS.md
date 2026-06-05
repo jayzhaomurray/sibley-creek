@@ -20,6 +20,9 @@
 
 ~~Workbook regen pending Excel close~~ **RESOLVED 2026-06-04:** Jay closed Excel; workbook regenerated in place (`gdp_annual_avg` column + `projection_end_quarter` param added; verified=FALSE and all seeds preserved); cross-check now runs live against the real workbook.
 
+**Param-hygiene fix (2026-06-04):** removed `inflation_converge_quarters` as a punch-in field — the t+4 inflation-lookup distance is part of the **rule's definition** (TR-119's (1/4)·Σ_{j=1..4} term), not a user input; a punched-in different value would have silently redefined the rule (the params cell had no spreadsheet dependents). Now a module constant `model.RULE_INFLATION_HORIZON_Q = 4`; dropped from the pydantic model + `make_workbook` seeding + methodology. The parser ACCEPTS the literal legacy key as a deprecated no-op (ignored with a one-line stdout warning), so both the original and Jay's cleaned v2 workbook still parse whether or not the row is deleted. **Tests: 53 green (+2: legacy key parses with warning + identical output; legacy VALUE ignored even at 8).** Calc-sheet header now reads "t+4 lookup (fixed by rule definition)". NOT committed to git.
+- **Run against Jay's cleaned v2 workbook (`--force-unverified`):** runner glob correctly picked **`boc_shadow_inputs_2026Q2_v2.xlsx`** (newest). **v2 parses CLEAN** (Jay's rearrange/clean didn't break headers/required rows); it still carries the legacy `inflation_converge_quarters` row → emits the deprecation warning, value ignored. **Path matches canonical numbers exactly: peak 2.792 @ 2027Q4, settle 2.747, band 2.064-3.430 @ 2028Q4.** **verified=FALSE** in v2 (still draft/watermarked). v2 was **open in Excel** (lock file present) → calc sheet fell back to companion `boc_shadow_output_2026Q2_v2.xlsx`; v2 input sheets untouched.
+
 **Blocking Jay (the verification gate):**
 1. ~~Replace PLACEHOLDER output-gap range~~ **RESOLVED** by the anchor + roll-forward design (anchor 2025Q4 = -1.0, auto-filled from `data/raw/output_gap_mpr.csv`).
 2. Verify the Table 2/3 transcription against the MPR (seeded from Jay's screenshots) -- now including the annual-average GDP row (1.2/1.6/1.7).
@@ -30,20 +33,28 @@ Confirmed already: MPR date Apr 29 2026; neutral range 2.25-3.25 (unchanged per 
 
 ---
 
-### Fiscal chartbook -- branch `fiscal-chartbook` (NOT live yet)
-**Status (2026-06-02 EOD):** Built and saved on branch `fiscal-chartbook` (commit 607b4ae). Live `master` still serves the `/fiscal/` coming-soon placeholder -- do NOT push to master until Jay confirms. Jay: "probably push tomorrow."
+### Fiscal chartbook -- branch `fiscal-chartbook` -- BUILT TO SPEC, SHELVED 2026-06-04
+**Status:** Page is DONE after a full-day iteration cycle with Jay (2026-06-04). Jay's EOD decision: "shelve it for now. we'll publish the page at a later date." Branch pushed to origin at `572d695`. Live `master` still serves the `/fiscal/` coming-soon placeholder. Do NOT merge until Jay says publish.
 
-**Done:** 4-plate fiscal section -- (1) budget balance operating-vs-capital [two-panel], (2) revenues vs expenses %GDP [merged lines], (3) federal debt %GDP [40yr], (4) gross issuance flow bills/notes/bonds [stacked]. Grey-tint bar language (no hatch), end-year round-number date axes, dashed-divider forecast convention, NO prose inside SVGs (small-mult panels use short subject labels). Reader copy passed all 3 gates and is placed. Pipeline: `pipeline/fetch/frt_fiscal_series.py` static module + panel_data specs; `fiscal.json` materialized.
+**What the page is (6 plates; story: plan -> disputed definition -> spending mechanism -> ratio agreed-flat -> carrying cost rises -> record bond program):**
+1. Operating balance two-panel (plan-framing copy)
+2. NEW: Budget 2025 under two definitions, two-panel ("The watchdog thinks Ottawa's definition of capital spending is too loose."; $94B annotation; same-vintage RP-2526-017-S Table 4 pair -- replaced the earlier invalid mixed-vintage SEU-vs-recast chart)
+3. Rev vs spending merged lines (take inverted after fact-check caught a direction error)
+4. Debt/GDP with BOTH forecast tracks (DoF flat 41.6 / PBO low-42s, June 2026 EFO) -- "the fight is not about the debt ratio"
+5. NEW: Carrying cost (debt-service ratio monthly, PBO 13.1% by '31 anchor)
+6. Issuance by instrument ("planned record" $612B; bills/notes/bonds footnote via new ChartbookUnit footnote slot)
 
-**To finish before pushing tomorrow:**
-1. Regenerate the 12 `frt_*.csv` (NOT on disk -- only in `git stash@{0}` + regenerable by running `frt_fiscal_series.py`). Run the pipeline to re-materialize.
-2. Final full-page visual review with Jay.
-3. (Optional, offered) Build a prose-in-SVG build guard -- fail build on sentence-length `<text>` in chart SVGs (closes the gap the leakage gate misses).
-4. (Bigger follow-up) Conform the bespoke fiscal plates to the shared `_shared/PanelLiveChart.astro` structure -- root cause of the recurring chart drift this session.
-5. Codex audit before push: the pre-PUSH hook blocks substantial-file pushes without an `editorial/audit_findings/` entry. Run `npm run audit-diff -- --by claude --task "fiscal chartbook"` (or `--no-verify` if Jay approves).
-6. Merge `fiscal-chartbook` -> master = deploys live.
+All copy through 3 gates (multiple rounds) + Jay line edits; blurbs hard-cut to 40-55W; hed deck rebuilt on the subject-protagonist rule (Ottawa-as-subject once); forecast-language rule authored and CODIFIED as writing-style.md SS4.1k; explicit vintage as-of stamps on all plates; citations slot-bound (35 strict pass at last commit).
 
-**Backups / incident:** Full session state also sits in `git stash@{0}` -- keep it until the branch is confirmed/pushed, then drop. Today an agent ran `git stash` mid-task and reverted the working tree; recovered via surgical `git checkout stash@{0} -- <files>`. Lesson (now in memory): main Claude runs git ops directly, never via subagents.
+**TO PUBLISH LATER (full sequence, in order):**
+1. **Freshness re-check first** (will be stale by then): PBO June 2026 EFO figures (42.5%, 13.1%, $72bn) vs any newer EFO/Fiscal Monitor/Budget; FY-currency of copy ("the fiscal year just ended" framing; FY2025-26 issuance OUTTURN may have published -- "planned record" may become a checkable actual); the PBO's PROMISED independent assessment of the operating anchor (future report per June EFO -- would supersede the May 2026 cannot-verify beat and possibly rework plate-2's land).
+2. **Jay approves 3 pending source cards** (every PBO claim rests on them): `dof_vs_pbo_operating_capital_dispute` (Nov 2025 recast + Table 4 pair + "overly expansive" verbatim), `pbo_efo_june2026_debt_gdp` (June EFO year-by-year debt/GDP + DSR + per-capita), `pbo_seu_anchor_assessment_may2026` (cannot-verify). In `editorial/source_cards/_pending/fiscal/`; `npm run approve-claim` flow.
+3. Overview panel flip: drop the `s.slug !== "fiscal"` filter at `src/pages/index.astro:136` + drop `noindex` in `src/pages/fiscal.astro`. Fiscal blurb/sparkline already gated + wired in sections.ts.
+4. `npm run audit-diff -- --by claude --task "fiscal chartbook"` (pre-push hook requires an audit_findings entry).
+5. Merge `fiscal-chartbook` -> master; verify deploy via the GitHub Actions API (NOT WebFetch).
+6. Post-merge: seed Linux Playwright baselines; diagnose `build-financial-daily` master workflow (failing 2026-06-04 ~10:48, unrelated to branch).
+
+**Known local-only artifacts (not bugs):** sandboxed local pipeline runs log statcan fetch failures + a `dof_fiscal_ytd_summary` null violation (fiscal/panel-1, monetary/panel-6 tertiary) -- CI with network is green. The 2026-06-02 `git stash@{0}` backup is superseded (branch pushed) and can be DROPPED next session.
 
 ---
 
