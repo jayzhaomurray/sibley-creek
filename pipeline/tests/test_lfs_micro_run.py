@@ -231,6 +231,50 @@ class TestAssembleSeries:
         df = _assemble_series({})
         assert df.empty
 
+    def test_calendar_gap_raises(self):
+        """_assemble_series raises RuntimeError when months are non-contiguous."""
+        from pipeline.lfs_micro.run import _assemble_series
+        # Build a cache with a gap: 2016-01, 2016-02, 2016-04 (missing 2016-03)
+        rows = _synthetic_cache_rows(n_months=4)
+        # Remove 2016-03 to create a gap
+        gapped = {k: v for k, v in rows.items() if k != "2016-03"}
+        with pytest.raises(RuntimeError, match="Calendar gap"):
+            _assemble_series(gapped)
+
+    def test_calendar_contiguous_no_raise(self):
+        """_assemble_series does not raise for a contiguous 5-month series."""
+        from pipeline.lfs_micro.run import _assemble_series
+        rows = _synthetic_cache_rows(n_months=5)
+        # Should not raise
+        df = _assemble_series(rows)
+        assert not df.empty
+
+    def test_unsmoothed_raw_pct_columns_present(self):
+        """_assemble_series produces underlying_raw_pct and composition_raw_pct columns."""
+        from pipeline.lfs_micro.run import _assemble_series
+        rows = _synthetic_cache_rows(n_months=6)
+        df = _assemble_series(rows)
+        assert "underlying_raw_pct" in df.columns
+        assert "composition_raw_pct" in df.columns
+        assert "raw_mean_raw_pct" in df.columns
+
+    def test_interaction_lp_column_present(self):
+        """_assemble_series produces interaction_lp (O-B two-fold interaction term)."""
+        from pipeline.lfs_micro.run import _assemble_series
+        rows = _synthetic_cache_rows(n_months=6)
+        df = _assemble_series(rows)
+        assert "interaction_lp" in df.columns
+        assert "interaction_pct" in df.columns
+
+    def test_raw_pct_not_smoothed(self):
+        """Unsmoothed raw columns differ from smoothed headline columns at edges."""
+        from pipeline.lfs_micro.run import _assemble_series
+        rows = _synthetic_cache_rows(n_months=6)
+        df = _assemble_series(rows)
+        # Smoothed underlying_pct is NaN at edges (MA3); raw is not
+        assert pd.isna(df.iloc[0]["underlying_pct"])
+        assert pd.notna(df.iloc[0]["underlying_raw_pct"])
+
 
 # ---------------------------------------------------------------------------
 # Tests: _compute_new_months (requires actual harmonize + engine)
@@ -356,12 +400,29 @@ class TestRunOrchestration:
         from pipeline.lfs_micro import run as run_mod
         import pipeline.lfs_micro.run as run_module
 
-        # Build a 15-month synthetic cache so assemble_series has enough data
-        full_cache = _synthetic_cache_rows(n_months=15, seed=99)
-        latest_key = "2026-03"
-        # Add the pinned month to the cache
-        full_cache[latest_key] = list(full_cache.values())[-1].copy()
-        full_cache[latest_key]["date"] = "2026-03-01"
+        # To make run() enter the output-write path (not short-circuit):
+        # - Pin to 2016-03, so _all_yoy_keys expects [2016-01, 2016-02, 2016-03].
+        # - Provide a cache with only [2016-01, 2016-02] so 2016-03 is "missing".
+        # - Patch _compute_new_months to return a synthetic row for 2016-03.
+        # The assembled series will be [2016-01, 2016-02, 2016-03] = contiguous.
+        pinned_year, pinned_month = 2016, 3
+        latest_key = "2016-03"
+        full_cache = _synthetic_cache_rows(n_months=2, seed=99)  # 2016-01, 2016-02
+        # Build a fake row for the "new" month 2016-03
+        from pipeline.lfs_micro.engine import _GROUP_LABELS
+        fake_new_row = {
+            "date": "2016-03-01",
+            "underlying_lp": 0.035,
+            "composition_lp": 0.005,
+            "raw_mean_lp": 0.040,
+            "total_fitted_lp": 0.038,
+            "n_obs_curr": 55000,
+            "n_obs_base": 54000,
+            "r2_curr": 0.60,
+            "r2_base": 0.61,
+        }
+        for g in _GROUP_LABELS:
+            fake_new_row[f"{g}_comp_lp"] = 0.0002
 
         # Redirect output dirs to tmp_path
         original_processed = run_module._PROCESSED_DIR
@@ -380,35 +441,37 @@ class TestRunOrchestration:
         run_module._RAW_PUMF_DIR = tmp_path / "raw_pumf"
 
         try:
-            with patch.object(run_module, "latest_available_month", return_value=(2026, 3)):
+            with patch.object(run_module, "latest_available_month", return_value=(pinned_year, pinned_month)):
                 with patch.object(run_module, "_load_all_cache", return_value=full_cache):
-                    # Patch _write_replication_series to avoid needing the full CSV infrastructure
-                    with patch.object(run_module, "_write_replication_series") as mock_write:
-                        mock_write.return_value = (
-                            proc_dir / "lfs_micro_replication.csv",
-                            proc_dir / "lfs_micro_replication.meta.json"
-                        )
-                        # Patch workbook and chart writers (they need the CSV)
-                        with patch("pipeline.lfs_micro.output_sheet.write_output_sheet") as mock_wb:
-                            from dataclasses import dataclass
-                            @dataclass
-                            class FakeResult:
-                                path: Path
-                                used_companion: bool
-                            mock_wb.return_value = FakeResult(path=work_dir / "test.xlsx", used_companion=False)
-                            with patch("pipeline.lfs_micro.chart.render_chart") as mock_chart:
-                                mock_chart.return_value = (work_dir / "test.svg", work_dir / "test.html")
-                                result = run_module.run(
-                                    pinned_month="2026-03",
-                                    force_download=False,
-                                )
+                    # Patch _compute_new_months to return the fake row without touching disk
+                    with patch.object(run_module, "_compute_new_months", return_value={"2016-03": fake_new_row}):
+                        # Patch _write_replication_series to avoid needing the full CSV infrastructure
+                        with patch.object(run_module, "_write_replication_series") as mock_write:
+                            mock_write.return_value = (
+                                proc_dir / "lfs_micro_replication.csv",
+                                proc_dir / "lfs_micro_replication.meta.json"
+                            )
+                            # Patch workbook and chart writers (they need the CSV)
+                            with patch("pipeline.lfs_micro.output_sheet.write_output_sheet") as mock_wb:
+                                from dataclasses import dataclass
+                                @dataclass
+                                class FakeResult:
+                                    path: Path
+                                    used_companion: bool
+                                mock_wb.return_value = FakeResult(path=work_dir / "test.xlsx", used_companion=False)
+                                with patch("pipeline.lfs_micro.chart.render_chart") as mock_chart:
+                                    mock_chart.return_value = (work_dir / "test.svg", work_dir / "test.html")
+                                    result = run_module.run(
+                                        pinned_month=latest_key,
+                                        force_download=False,
+                                    )
 
-            assert result == 0
-            # _write_replication_series was called with a non-empty DataFrame
-            assert mock_write.called
-            df_arg = mock_write.call_args[0][0]
-            assert not df_arg.empty
-            assert "underlying_pct" in df_arg.columns
+                assert result == 0
+                # _write_replication_series was called with a non-empty DataFrame
+                assert mock_write.called
+                df_arg = mock_write.call_args[0][0]
+                assert not df_arg.empty
+                assert "underlying_pct" in df_arg.columns
         finally:
             run_module._PROCESSED_DIR = original_processed
             run_module._WORK_DIR = original_work

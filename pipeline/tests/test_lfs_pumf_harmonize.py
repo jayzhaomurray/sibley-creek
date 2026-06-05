@@ -2,6 +2,7 @@
 
 Tests fail-closed behavior on missing columns, bad codes, and NaN.
 Uses harmonize_df() (accepts DataFrame directly) to avoid needing parquet files.
+Also tests harmonize() (reads from parquet) for survyear/survmnth validation.
 """
 
 from __future__ import annotations
@@ -9,7 +10,11 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from pipeline.lfs_pumf.harmonize import harmonize_df, _REQUIRED_SOURCE_COLS
+from pipeline.lfs_pumf.harmonize import (
+    harmonize_df,
+    _REQUIRED_SOURCE_COLS,
+    _validate_survyear_survmnth_on_read,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -165,3 +170,52 @@ def test_harmonize_df_uppercase_columns_normalized():
     result = harmonize_df(df)
     assert len(result) > 0
     assert "wage" in result.columns
+
+
+# ---------------------------------------------------------------------------
+# Phase A item 2: survyear/survmnth validation on read (harmonize path)
+# ---------------------------------------------------------------------------
+
+def test_validate_survyear_survmnth_on_read_passes_when_correct(tmp_path):
+    """No exception when survyear/survmnth match the expected year/month."""
+    df = _make_valid_row(10)
+    df["survyear"] = 2024
+    df["survmnth"] = 6
+    # Should not raise
+    from pathlib import Path
+    _validate_survyear_survmnth_on_read(df, 2024, 6, Path(tmp_path / "2024-06.parquet"))
+
+
+def test_validate_survyear_survmnth_on_read_raises_on_mismatch(tmp_path):
+    """RuntimeError raised when survyear/survmnth disagree with filename."""
+    df = _make_valid_row(10)
+    df["survyear"] = 2026  # wrong year
+    df["survmnth"] = 4     # wrong month
+    from pathlib import Path
+    with pytest.raises(RuntimeError, match="cache integrity check failed"):
+        _validate_survyear_survmnth_on_read(df, 2024, 6, Path(tmp_path / "2024-06.parquet"))
+
+
+def test_validate_survyear_survmnth_on_read_skips_when_cols_absent(tmp_path):
+    """No exception when survyear/survmnth columns are absent (old format)."""
+    df = _make_valid_row(10).drop(columns=["survyear", "survmnth"], errors="ignore")
+    from pathlib import Path
+    # Should not raise
+    _validate_survyear_survmnth_on_read(df, 2024, 6, Path(tmp_path / "2024-06.parquet"))
+
+
+def test_harmonize_parquet_raises_on_survyear_mismatch(tmp_path):
+    """harmonize() raises RuntimeError if parquet filename vs survyear/survmnth disagree."""
+    from pipeline.lfs_pumf.harmonize import harmonize
+    from pathlib import Path
+
+    df = _make_valid_row(100)
+    # Set survyear/survmnth to April 2026 (wrong for a 2024-06 parquet)
+    df["survyear"] = 2026
+    df["survmnth"] = 4
+
+    parquet_path = tmp_path / "2024-06.parquet"
+    df.to_parquet(parquet_path, index=False, engine="pyarrow")
+
+    with pytest.raises(RuntimeError, match="cache integrity check failed"):
+        harmonize(parquet_path, validate_codes=False)

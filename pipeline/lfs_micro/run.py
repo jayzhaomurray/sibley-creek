@@ -43,6 +43,7 @@ Engine cache format: data/raw/lfs_pumf/_engine_cache/{YYYY-MM}.json
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import sys
@@ -117,17 +118,33 @@ def _cache_path(year_month: str) -> Path:
     return d / f"{year_month}.json"
 
 
-def _parquet_fingerprints(year_month: str) -> dict[str, int]:
-    """File-size fingerprints of the parquets behind one y/y result.
+def _sha256_file(path: Path) -> str:
+    """Return the SHA-256 hex digest of a file, or '' if it does not exist."""
+    if not path.exists():
+        return ""
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
-    Keyed on the current month and its t-12 base. If either parquet is
-    later re-downloaded or repaired, its size changes and the cache entry
-    is invalidated. Missing parquet -> size -1 (never matches a real file).
+
+def _parquet_fingerprints(year_month: str) -> dict[str, str]:
+    """SHA-256 content hashes of the parquets behind one y/y result.
+
+    Keyed on the current month and its t-12 base. Content hashing catches
+    re-downloads that produce same-size but different-content files (e.g. a
+    corrected PUMF release from StatCan). Missing parquet -> '' (never matches
+    a real file).
+
+    NOTE: backward-incompatible with the old file-size fingerprints — existing
+    cache entries will all miss once on the first run after this change, then
+    be recomputed and stored with SHA-256 fingerprints.
     """
-    fps: dict[str, int] = {}
+    fps: dict[str, str] = {}
     for key in (year_month, _subtract_12_months(year_month)):
         p = _RAW_PUMF_DIR / f"{key}.parquet"
-        fps[key] = p.stat().st_size if p.exists() else -1
+        fps[key] = _sha256_file(p)
     return fps
 
 
@@ -157,6 +174,17 @@ def _load_cache(year_month: str) -> Optional[dict]:
                     year_month, field, cached_spec.get(field), current_spec.get(field)
                 )
                 return None
+        # Regressor-set invalidation: adding/removing a regressor changes the
+        # design matrix; the spec fields above do not capture this.
+        from pipeline.lfs_micro.regression import REGRESSOR_GROUPS as _REGS
+        current_reg_set = sorted(col for col, _grp in _REGS)
+        cached_reg_set = cached_spec.get("regressor_set", None)
+        if cached_reg_set != current_reg_set:
+            logger.info(
+                "Cache miss for %s: regressor_set changed (%s -> %s)",
+                year_month, cached_reg_set, current_reg_set,
+            )
+            return None
         # Fail-closed: entries must carry parquet fingerprints that match
         # the files on disk, else the inputs may have changed under them.
         if data.get("parquet_fingerprints") != _parquet_fingerprints(year_month):
@@ -201,7 +229,11 @@ def _save_cache(year_month: str, row: dict) -> None:
         )
     p = _cache_path(year_month)
     data = dict(row)
-    data["spec"] = DEFAULT_SPEC.as_dict()
+    spec_dict = DEFAULT_SPEC.as_dict()
+    # Embed regressor set so design-matrix changes invalidate the cache.
+    from pipeline.lfs_micro.regression import REGRESSOR_GROUPS as _REGS
+    spec_dict["regressor_set"] = sorted(col for col, _grp in _REGS)
+    data["spec"] = spec_dict
     data["parquet_fingerprints"] = _parquet_fingerprints(year_month)
     data["computed_at"] = datetime.now(timezone.utc).isoformat()
     # Ensure JSON-serializable
@@ -231,12 +263,19 @@ def _load_all_cache() -> dict[str, dict]:
 def _assemble_series(cache: dict[str, dict]) -> pd.DataFrame:
     """Assemble cached rows into a DataFrame, apply MA3, convert to pct.
 
+    Fail-closed: after sorting, the date index is reindexed to the complete
+    monthly calendar between the first and last computed month. Any gap (a month
+    with no cached result) raises RuntimeError before MA3 is applied, because
+    rolling() on a gapped series would silently treat non-adjacent months as
+    adjacent and produce wrong smoothed values.
+
     Args:
         cache: {YYYY-MM: row_dict} from _load_all_cache() merged with new rows.
 
     Returns:
         DataFrame with date, underlying_pct, composition_pct, raw_mean_pct, etc.
-        (Same schema as lfs_micro_replication.csv)
+        (Same schema as lfs_micro_replication.csv). Also includes unsmoothed
+        _raw_pct columns (pre-MA3 single-month values) and interaction_lp.
     """
     if not cache:
         return pd.DataFrame()
@@ -244,15 +283,53 @@ def _assemble_series(cache: dict[str, dict]) -> pd.DataFrame:
     rows = list(cache.values())
     df = pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
 
-    # Apply centered MA3 to log-point columns
+    # Preserve pre-MA3 single-month log-point values as _raw columns.
     lp_cols = [c for c in df.columns if c.endswith("_lp")]
     for col in lp_cols:
-        df[col] = df[col].rolling(window=3, center=True, min_periods=3).mean()
+        raw_col = col.replace("_lp", "_raw_lp")
+        df[raw_col] = df[col].copy()
 
-    # Convert to pct
+    # Compute interaction term (O-B two-fold: total_fitted - underlying - composition)
+    if all(c in df.columns for c in ("total_fitted_lp", "underlying_lp", "composition_lp")):
+        df["interaction_lp"] = df["total_fitted_lp"] - df["underlying_lp"] - df["composition_lp"]
+
+    # Fail-closed: reindex to complete monthly calendar and check for gaps.
+    # Rolling MA3 on a non-contiguous series treats non-adjacent months as adjacent;
+    # a gap in the middle would silently produce a wrong smoothed value.
+    first_date = pd.Timestamp(df["date"].iloc[0][:10])
+    last_date = pd.Timestamp(df["date"].iloc[-1][:10])
+    expected_months = pd.date_range(first_date, last_date, freq="MS")
+    actual_dates = pd.to_datetime(df["date"].str[:10])
+    missing_months = sorted(set(expected_months) - set(actual_dates))
+    if missing_months:
+        missing_str = ", ".join(d.strftime("%Y-%m") for d in missing_months)
+        raise RuntimeError(
+            f"Calendar gap detected in assembled series: {missing_str}.\n"
+            f"These months are missing from the engine cache. Run with "
+            f"--force-download to recompute, or check the engine cache at "
+            f"{_engine_cache_dir()} for corrupt/missing entries."
+        )
+
+    # Apply centered MA3 to log-point columns
+    for col in lp_cols:
+        df[col] = df[col].rolling(window=3, center=True, min_periods=3).mean()
+    if "interaction_lp" in df.columns:
+        df["interaction_lp"] = df["interaction_lp"].rolling(window=3, center=True, min_periods=3).mean()
+
+    # Convert to pct: smoothed headline columns
     for col in lp_cols:
         pct_col = col.replace("_lp", "_pct")
         df[pct_col] = (np.exp(df[col].astype(float)) - 1.0) * 100.0
+
+    # Convert to pct: unsmoothed raw columns
+    raw_lp_cols = [c for c in df.columns if c.endswith("_raw_lp")]
+    for col in raw_lp_cols:
+        pct_col = col.replace("_raw_lp", "_raw_pct")
+        df[pct_col] = (np.exp(df[col].astype(float)) - 1.0) * 100.0
+
+    # Convert interaction term to pct
+    if "interaction_lp" in df.columns:
+        df["interaction_pct"] = (np.exp(df["interaction_lp"].astype(float)) - 1.0) * 100.0
 
     return df
 
@@ -322,8 +399,12 @@ def _compute_new_months(
             key_curr, frames[key_curr], frames[key_base], DEFAULT_SPEC
         )
         if row is None:
-            logger.error("O-B failed for %s.", key_curr)
-            continue
+            raise RuntimeError(
+                f"O-B decomposition returned None for {key_curr} (vs {key_base}). "
+                f"This is a data integrity or regressor failure — aborting to prevent "
+                f"a calendar gap in the assembled series. "
+                f"Check parquets for {key_curr} and {key_base}."
+            )
 
         _save_cache(key_curr, row)
         new_results[key_curr] = row
@@ -422,10 +503,42 @@ def _inject_zip(zip_path: Path, target_year_month: str) -> Optional[Path]:
 # ---------------------------------------------------------------------------
 
 def _write_replication_series(df: pd.DataFrame, latest_month: str) -> tuple[Path, Path]:
-    """Write stable + vintage-stamped replication CSVs with meta sidecars."""
+    """Write stable + vintage-stamped replication CSVs with meta sidecars.
+
+    CSV column conventions:
+      Smoothed headline columns (centered MA3):
+        underlying_pct, composition_pct, raw_mean_pct, total_fitted_pct
+      Unsmoothed single-month columns (pre-MA3, same calendar month):
+        underlying_raw_pct, composition_raw_pct, raw_mean_raw_pct, total_fitted_raw_pct
+      Interaction term (O-B two-fold residual = total_fitted - underlying - composition):
+        interaction_lp, interaction_pct
+      Diagnostic columns:
+        n_obs_curr, n_obs_base, r2_curr, r2_base
+
+    MA3 timing convention:
+      Headline smoothed columns use a centered 3-month window: the value for
+      month T is the average of (T-1, T, T+1). This means the last available
+      month in the series (newest PUMF) and the first month are always NaN in
+      the smoothed series. The most recent non-NaN headline observation
+      corresponds to newest_PUMF_month - 1.
+
+    Labelling note:
+      'raw_mean_pct' / 'raw_mean_raw_pct' is the weighted mean log-wage growth
+      (geometric mean ratio), NOT the LFS headline arithmetic average hourly
+      wage growth. The column name is kept for CSV consumer compatibility.
+      Human-facing labels (workbook, chart) read "mean log-wage growth
+      (geometric)".
+    """
     out_cols = [
-        "date", "underlying_pct", "composition_pct", "raw_mean_pct",
-        "total_fitted_pct", "n_obs_curr", "n_obs_base", "r2_curr", "r2_base",
+        "date",
+        # Smoothed (MA3) headline columns
+        "underlying_pct", "composition_pct", "raw_mean_pct", "total_fitted_pct",
+        # Unsmoothed single-month columns (pre-MA3)
+        "underlying_raw_pct", "composition_raw_pct", "raw_mean_raw_pct",
+        # Interaction term (O-B two-fold)
+        "interaction_lp", "interaction_pct",
+        # Diagnostics
+        "n_obs_curr", "n_obs_base", "r2_curr", "r2_base",
     ]
     out_cols = [c for c in out_cols if c in df.columns]
     out = df[out_cols].copy()
@@ -441,6 +554,15 @@ def _write_replication_series(df: pd.DataFrame, latest_month: str) -> tuple[Path
         f"ob_reference={spec.ob_reference}. "
         f"Calibrated vs BoC Valet INDINF_LFSMICRO_M. "
         f"Log-points converted to pct via exp()-1. "
+        f"Smoothed columns use centered MA3; unsmoothed (_raw_pct) are pre-MA3 "
+        f"single-month point estimates. "
+        f"MA3 timing: headline month = newest PUMF month minus 1 "
+        f"(centered window requires T+1 which is not yet available). "
+        f"interaction_lp/pct: O-B two-fold residual (total_fitted - underlying - composition). "
+        f"raw_mean_pct is weighted mean log-wage growth (geometric mean ratio), "
+        f"not the LFS headline arithmetic average wage growth. "
+        f"Scope: 2016+ replication (release-morning PUMF tool; not a full-history "
+        f"replication of the published paper). "
         f"Reference: Bounajm/Devakos/Galassi, BoC SAN 2024-23. "
         f"PUMF vintage: {latest_month}."
     )
@@ -646,7 +768,7 @@ def _print_summary(df: pd.DataFrame, latest_key: str) -> None:
     if "composition_pct" in last:
         print(f"  Composition effect:               {last['composition_pct']:.3f}% y/y")
     if "raw_mean_pct" in last:
-        print(f"  Raw mean wage growth:             {last['raw_mean_pct']:.3f}% y/y")
+        print(f"  Mean log-wage growth (geometric): {last['raw_mean_pct']:.3f}% y/y")
     if "n_obs_curr" in last and pd.notna(last.get("n_obs_curr")):
         print(f"  Sample size (current month):      {int(last['n_obs_curr']):,}")
 

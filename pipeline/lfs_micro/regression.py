@@ -332,6 +332,30 @@ def _fix_rank_deficiency(
     return pruned_df, col_names, coef
 
 
+def detect_deficient_columns(X_scaled: np.ndarray, col_names: list[str]) -> list[str]:
+    """Return the column names that are rank-deficient (to be dropped) in X_scaled.
+
+    Uses QR decomposition. Returns the list of column names that would be
+    dropped by _fix_rank_deficiency, without actually modifying anything.
+    Iterative: removes one column at a time from the QR (same order as the fix).
+    """
+    X_arr = X_scaled.copy()
+    names = list(col_names)
+    dropped: list[str] = []
+    while True:
+        _, R = np.linalg.qr(X_arr)
+        diag = np.abs(np.diag(R))
+        threshold = diag.max() * 1e-12
+        bad_idx = np.where(diag < threshold)[0]
+        if len(bad_idx) == 0:
+            break
+        drop_idx = bad_idx[-1]
+        dropped.append(names[drop_idx])
+        X_arr = np.delete(X_arr, drop_idx, axis=1)
+        names = [c for i, c in enumerate(names) if i != drop_idx]
+    return dropped
+
+
 def union_category_universe(
     result_a: RegressionResult,
     result_b: RegressionResult,

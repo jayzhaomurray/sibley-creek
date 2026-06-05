@@ -199,3 +199,71 @@ def test_run_engine_both_reference_conventions_run():
         spec = Spec(weighted=False, smoothing="raw", ob_reference=ref, min_cell_count=5)
         result = run_engine(frames, spec=spec)
         assert not result.empty, f"Empty result for ob_reference='{ref}'"
+
+
+# ---------------------------------------------------------------------------
+# Phase A item 4: deterministic conformability
+# ---------------------------------------------------------------------------
+
+def test_apply_common_column_pruning_identical_months():
+    """When neither month is rank-deficient, _apply_common_column_pruning returns inputs unchanged."""
+    from pipeline.lfs_micro.engine import _apply_common_column_pruning, _subtract_12_months
+    from pipeline.lfs_micro.regression import run_wls, union_category_universe
+
+    spec = Spec(weighted=False, smoothing="raw", min_cell_count=5)
+    df_curr = _make_df(300, seed=42)
+    df_base = _make_df(300, seed=43)
+
+    r_curr_init = run_wls(df_curr, spec_weighted=False, min_cell_count=5)
+    r_base_init = run_wls(df_base, spec_weighted=False, min_cell_count=5)
+    cat_union = union_category_universe(r_curr_init, r_base_init)
+
+    r_curr = run_wls(df_curr, spec_weighted=False, min_cell_count=5, category_universe=cat_union)
+    r_base = run_wls(df_base, spec_weighted=False, min_cell_count=5, category_universe=cat_union)
+
+    r_curr_out, r_base_out = _apply_common_column_pruning(
+        r_curr, r_base, df_curr, df_base, spec, cat_union
+    )
+    # col_names must be identical
+    assert r_curr_out.col_names == r_base_out.col_names
+
+
+def test_compute_one_yoy_produces_conformable_results():
+    """_compute_one_yoy returns a row dict with no conformability error."""
+    from pipeline.lfs_micro.engine import _compute_one_yoy
+
+    spec = Spec(weighted=False, smoothing="raw", min_cell_count=5)
+    df_curr = _make_df(300, seed=10)
+    df_base = _make_df(300, seed=11)
+
+    row = _compute_one_yoy("2026-01", df_curr, df_base, spec)
+    assert row is not None, "_compute_one_yoy returned None (decomposition failed)"
+    assert "underlying_lp" in row
+    assert "composition_lp" in row
+
+
+def test_oaxaca_blinder_raises_on_mismatched_col_names():
+    """oaxaca_blinder raises ValueError when col_names of the two results differ."""
+    from pipeline.lfs_micro.regression import run_wls, RegressionResult
+    from pipeline.lfs_micro.decompose import oaxaca_blinder
+    import numpy as np
+
+    spec = Spec(weighted=False, smoothing="raw", min_cell_count=5)
+    df_a = _make_df(200, seed=1)
+    df_b = _make_df(200, seed=2)
+
+    r_a = run_wls(df_a, spec_weighted=False, min_cell_count=5)
+    r_b = run_wls(df_b, spec_weighted=False, min_cell_count=5)
+
+    # Artificially misalign col_names
+    r_b_bad = RegressionResult(
+        coef=r_b.coef[:len(r_a.col_names)],
+        col_names=r_a.col_names[:-1],  # one fewer column
+        mean_log_wage=r_b.mean_log_wage,
+        mean_X=r_b.mean_X[:len(r_a.col_names) - 1],
+        n_obs=r_b.n_obs,
+        r_squared=r_b.r_squared,
+    )
+
+    with pytest.raises(ValueError, match="col_names"):
+        oaxaca_blinder(r_a, r_b_bad)

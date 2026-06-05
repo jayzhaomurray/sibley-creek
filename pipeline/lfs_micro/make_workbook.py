@@ -174,7 +174,7 @@ def _build_headline_sheet(
         "underlying_ours_%",
         "boc_INDINF_LFSMICRO_M_%",
         "diff_pp",
-        "raw_mean_wage_yoy_%",
+        "mean_log_wage_growth_geometric_%",
         "composition_effect_%",
         "n_obs",
     ]
@@ -359,7 +359,7 @@ def _build_latest_month_sheet(
     _kv("R-squared (current month)", r2_curr, _NUM3)
     r += 1
 
-    _kv("Raw mean wage growth (y/y %)", raw_m, _NUM3)
+    _kv("Mean log-wage growth (geometric, y/y %)", raw_m, _NUM3)
     _kv("Composition effect (%)", comp, _NUM3)
     _kv("Underlying wage growth — ours (y/y %)", underlying, _NUM3)
     _kv("BoC INDINF_LFSMICRO_M (y/y %)", boc_v, _NUM3)
@@ -470,6 +470,14 @@ def _build_params_meta_sheet(
         ("BoC benchmark series", "INDINF_LFSMICRO_M (Valet)"),
         ("BoC benchmark last date", boc.index.max().strftime("%Y-%m") if not boc.empty else "unknown"),
         ("Methodology", "Oaxaca-Blinder two-fold (Bounajm/Devakos/Galassi, BoC SAN 2024-23)"),
+        ("Scope", "2016+ replication (release-morning PUMF tool; not a full-history "
+                  "replication of the published paper)"),
+        ("MA3 timing convention", "Centered 3-month window: month T headline = mean(T-1, T, T+1). "
+                                  "Most recent non-NaN headline = newest_PUMF_month - 1. "
+                                  "Unsmoothed (_raw_pct) columns show single-month point estimates."),
+        ("raw_mean_pct label note", "raw_mean_pct / mean_log_wage_growth_geometric is the "
+                                    "weighted mean log-wage growth (geometric mean ratio). "
+                                    "It is NOT the LFS headline arithmetic average hourly wage growth."),
         ("PUMF source URL", "https://www150.statcan.gc.ca/n1/pub/71m0001x/71m0001x2021001-eng.htm"),
         ("Refreshed at (UTC)", refreshed_at),
         (None, None),

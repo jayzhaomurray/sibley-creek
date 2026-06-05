@@ -78,12 +78,15 @@ def render_chart(
 
     fig, ax = plt.subplots(figsize=(9.0, 5.0))
 
-    # Raw mean wage growth (muted, background reference)
+    # Mean log-wage growth (geometric mean ratio) — muted background reference
+    # NOTE: this is weighted mean log-wage growth, not the LFS headline arithmetic
+    # average hourly wage growth. The column is named raw_mean_pct for CSV
+    # consumer compatibility; the human-facing label uses the correct description.
     if "raw_mean_pct" in rep.columns:
         ax.plot(
             rep["date"], rep["raw_mean_pct"],
             color=_RAW, lw=1.2, ls=(0, (3, 3)),
-            zorder=2, label="raw mean wage growth (y/y %)",
+            zorder=2, label="mean log-wage growth (geometric, y/y %)",
         )
 
     # BoC published series (solid dark)

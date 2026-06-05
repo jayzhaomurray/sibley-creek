@@ -53,7 +53,14 @@ import numpy as np
 import pandas as pd
 
 from .decompose import oaxaca_blinder
-from .regression import RegressionResult, run_wls, union_category_universe
+from .regression import (
+    RegressionResult,
+    _build_design_matrix,
+    _prepare_categoricals,
+    detect_deficient_columns,
+    run_wls,
+    union_category_universe,
+)
 from .spec import Spec, DEFAULT_SPEC
 
 logger = logging.getLogger(__name__)
@@ -150,6 +157,112 @@ def run_engine_from_paths(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+def _apply_common_column_pruning(
+    result_curr: RegressionResult,
+    result_base: RegressionResult,
+    df_curr: pd.DataFrame,
+    df_base: pd.DataFrame,
+    spec: Spec,
+    cat_union: dict,
+) -> tuple[RegressionResult, RegressionResult]:
+    """Enforce identical column sets for the two regressions (conformability fix).
+
+    Strategy:
+      1. Build the sqrt-weight-scaled design matrices for both months using
+         the union category universe.
+      2. Detect rank-deficient columns independently for each month.
+      3. Take the UNION of dropped column names.
+      4. Translate dropped column names back to category exclusions in a
+         pruned cat_universe.
+      5. Re-estimate BOTH months on the pruned universe.
+      6. Belt-and-braces: raise if col_names still mismatch.
+
+    This guarantees identical col_names in the two RegressionResults so
+    oaxaca_blinder never sees a shape mismatch, regardless of whether
+    rank deficiency appears in one month but not the other.
+
+    When neither month has rank deficiency, returns the inputs unchanged
+    (no extra work).
+    """
+    def _build_scaled_X_from_df(df: pd.DataFrame) -> tuple[np.ndarray, list[str]]:
+        """Filter df to cat_union, build design, apply sqrt-weight scaling."""
+        df_clean, _, _ = _prepare_categoricals(
+            df.copy(),
+            min_cell_count=spec.min_cell_count,
+            category_universe=cat_union,
+        )
+        X_df = _build_design_matrix(df_clean, cat_union)
+        if spec.weighted:
+            w = df_clean["weight"].values.astype(float)
+        else:
+            w = np.ones(len(df_clean))
+        sqrt_w = np.sqrt(w)
+        return X_df.values * sqrt_w[:, np.newaxis], list(X_df.columns)
+
+    Xs_curr, cols_curr = _build_scaled_X_from_df(df_curr)
+    Xs_base, cols_base = _build_scaled_X_from_df(df_base)
+
+    dropped_curr = set(detect_deficient_columns(Xs_curr, cols_curr))
+    dropped_base = set(detect_deficient_columns(Xs_base, cols_base))
+    dropped_union = dropped_curr | dropped_base
+
+    if not dropped_union:
+        # No rank deficiency in either month; col_names must already match.
+        # Belt-and-braces: raise if they don't (should never happen after union pass).
+        if result_curr.col_names != result_base.col_names:
+            raise ValueError(
+                f"Design matrix column mismatch with no detected rank deficiency: "
+                f"{len(result_curr.col_names)} vs {len(result_base.col_names)} cols. "
+                f"The union_category_universe pass should have aligned these."
+            )
+        return result_curr, result_base
+
+    # Translate dummy column names back to (regressor_col, category_value) pairs
+    # and build a pruned cat_universe that excludes those categories.
+    # Column name format: "<reg_col>_<cat_str>", e.g. "noc_43_5".
+    pruned_universe = {col: list(cats) for col, cats in cat_union.items()}
+    for col_name in dropped_union:
+        for reg_col in pruned_universe:
+            prefix = f"{reg_col}_"
+            if col_name.startswith(prefix):
+                cat_val_str = col_name[len(prefix):]
+                pruned_universe[reg_col] = [
+                    c for c in pruned_universe[reg_col]
+                    if str(c) != cat_val_str
+                ]
+                break
+
+    logger.info(
+        "Common-column pruning: dropping %d deficient column(s) from both months: %s",
+        len(dropped_union),
+        sorted(dropped_union),
+    )
+
+    # Re-estimate both months on the pruned universe
+    result_curr_pruned = run_wls(
+        df_curr,
+        spec_weighted=spec.weighted,
+        min_cell_count=spec.min_cell_count,
+        category_universe=pruned_universe,
+    )
+    result_base_pruned = run_wls(
+        df_base,
+        spec_weighted=spec.weighted,
+        min_cell_count=spec.min_cell_count,
+        category_universe=pruned_universe,
+    )
+
+    # Belt-and-braces: col_names must now match
+    if result_curr_pruned.col_names != result_base_pruned.col_names:
+        raise ValueError(
+            f"Common-column pruning failed to align design matrices: "
+            f"{len(result_curr_pruned.col_names)} vs {len(result_base_pruned.col_names)} cols "
+            f"after dropping {sorted(dropped_union)}."
+        )
+
+    return result_curr_pruned, result_base_pruned
+
+
 def _compute_one_yoy(
     key_curr: str,
     df_curr: pd.DataFrame,
@@ -190,7 +303,18 @@ def _compute_one_yoy(
             category_universe=cat_union,
         )
 
-        # Oaxaca-Blinder decomposition
+        # Deterministic common-column pruning: detect rank-deficient columns
+        # across BOTH months and re-estimate on the surviving common set.
+        # This is the authoritative conformability fix — the union-category pass
+        # above aligns categories but cannot guarantee both design matrices will
+        # be full-rank. A column deficient in month A but not B would cause the
+        # two col_names lists to diverge inside run_wls._fix_rank_deficiency,
+        # yielding a shape mismatch in oaxaca_blinder.
+        result_curr, result_base = _apply_common_column_pruning(
+            result_curr, result_base, df_curr, df_base, spec, cat_union
+        )
+
+        # Belt-and-braces: oaxaca_blinder raises if col_names still mismatch.
         ob = oaxaca_blinder(result_base, result_curr, ob_reference=spec.ob_reference)
 
     except Exception as exc:

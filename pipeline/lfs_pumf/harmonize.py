@@ -106,9 +106,26 @@ def harmonize(
     Raises:
         ValueError: On any missing required column, unexpected NaN in a
                     regressor, or unmapped category code.
+        RuntimeError: If the parquet filename implies a YYYY-MM but the
+                      embedded survyear/survmnth does not match (corrupt cache).
     """
     df = pd.read_parquet(parquet_path, engine="pyarrow")
     df.columns = df.columns.str.lower()
+
+    # Validate survyear/survmnth against the filename to catch cache corruption.
+    # This re-runs the same check that download.py performs at download time,
+    # catching parquets that were written before the validation existed.
+    # Injected parquets (via --zip escape hatch) intentionally skip the check
+    # at injection time; they still carry correct survyear/survmnth in practice,
+    # but if they don't, raise with a message pointing at the injection.
+    stem = parquet_path.stem  # e.g. "2024-06"
+    if len(stem) == 7 and stem[4] == "-":
+        try:
+            expected_year = int(stem[:4])
+            expected_month = int(stem[5:7])
+            _validate_survyear_survmnth_on_read(df, expected_year, expected_month, parquet_path)
+        except (ValueError, IndexError):
+            pass  # non-YYYY-MM filename (e.g. test fixtures) — skip
 
     _check_required_columns(df)
     df = _apply_employee_filter(df)
@@ -265,6 +282,46 @@ def _check_no_nulls(df: pd.DataFrame) -> None:
             f"PUMF harmonize: unexpected NaN in regression columns after "
             f"employee filter — {counts}. "
             "Check lfsstat/cowmain filter and PUMF encoding."
+        )
+
+
+def _validate_survyear_survmnth_on_read(
+    df: pd.DataFrame,
+    expected_year: int,
+    expected_month: int,
+    parquet_path: Path,
+) -> None:
+    """Fail-closed: survyear/survmnth embedded in the parquet must match YYYY-MM filename.
+
+    Called by harmonize() on every parquet read to catch cache corruption that
+    survived the original download-time check (e.g. parquets written before
+    _validate_survyear_survmnth was added, or manually injected files with the
+    wrong content).
+
+    Raises:
+        RuntimeError: if the embedded survey period does not match the filename.
+    """
+    if "survyear" not in df.columns or "survmnth" not in df.columns:
+        # Cannot validate — old PUMF format or test fixture without these fields.
+        return
+
+    actual_years = df["survyear"].dropna().unique().tolist()
+    actual_months = df["survmnth"].dropna().unique().tolist()
+
+    year_ok = len(actual_years) == 1 and int(actual_years[0]) == expected_year
+    month_ok = len(actual_months) == 1 and int(actual_months[0]) == expected_month
+
+    if not (year_ok and month_ok):
+        raise RuntimeError(
+            f"PUMF cache integrity check failed for {parquet_path.name}.\n"
+            f"  Expected survyear={expected_year} survmnth={expected_month} "
+            f"(from filename {parquet_path.stem}).\n"
+            f"  Got survyear={actual_years} survmnth={actual_months}.\n"
+            f"This parquet contains wrong-month data. Delete it and re-run to "
+            f"force a re-download:\n"
+            f"  del \"{parquet_path}\"\n"
+            f"If this was a manually injected file (--zip), the injected zip "
+            f"must contain data matching the target YYYY-MM."
         )
 
 
