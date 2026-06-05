@@ -159,6 +159,52 @@ NAICS_21 codes are identical between 2015-01 and 2026-04 — Feb 2025 re-release
 - Late month:  2026-04
 - Consistent:  True
 
+## Second divergence diagnosis (2026-06-05 PM): Dec-2024-Feb-2025 spike
+
+Jay spotted a 2025 "headline wage gain" in our series (Dec-24 5.05%, Jan-25 5.00%,
+Feb-25 4.96%) that the BoC's published series did not show (+1.5pp divergence at peak).
+Three distinct bugs found and fixed:
+
+1. **Pytest poisoned the production engine cache** (the direct cause of the spike).
+   `test_lfs_micro_run.py` patched `_RAW_PUMF_DIR` but not `_ENGINE_CACHE_DIR`
+   (separate module global), so a synthetic 2025-01 fixture result (n=325,
+   R^2=0.09, raw y/y 7.15%) was written to the real cache. The centered MA3
+   spread its +3.6pp single-month error across the Dec-Feb readings at ~+1.2pp
+   each. Fixed: cache dir now derived from `_RAW_PUMF_DIR` at call time
+   (`_engine_cache_dir()`), so test isolation is automatic.
+
+2. **Row-misalignment in `run_wls`** when thin-category pruning dropped rows.
+   `_prepare_categoricals` returns a reset-index frame; `log_wage[df_clean.index]`
+   therefore sliced the FIRST m rows of the pre-filter arrays instead of the kept
+   rows — regressing the wrong rows' wages on the design matrix. Hit 2015-02,
+   2016-02, 2021-02, 2022-02 (R^2 0.004 vs normal ~0.61), poisoning those pairs'
+   decompositions. Fixed: y and weights now derived from the filtered frame itself.
+
+3. **`_fix_rank_deficiency` returned the sqrt-weight-SCALED design matrix** as if
+   unscaled; callers computed `mean_X` (composition shares) and R^2 from it.
+   Never observed firing in production (no rank-deficient months in the clean
+   data) but would silently poison any month it touched. Fixed: returns the
+   pruned unscaled matrix.
+
+Hardening added to `run.py`:
+- Cache entries carry `parquet_fingerprints` (file sizes of the current + t-12
+  parquets); mismatch or absence = cache miss. A repaired parquet now
+  auto-invalidates its downstream results.
+- Plausibility gate: entries with n_obs < 20,000 or R^2 < 0.40 are refused at
+  save time (RuntimeError, fail-closed) and treated as misses at load time.
+
+Full 125-month clean recompute after the fixes (engine cache wiped):
+
+| metric | after parquet fix (AM) | after engine fixes (PM) |
+|--------|------------------------|-------------------------|
+| RMSE (full sample) | 0.3655 pp | **0.1768 pp** |
+| corr (full sample) | 0.9441 | **0.9854** |
+| RMSE (last 18 months) | 0.1510 pp | **0.1510 pp** |
+| max abs diff anywhere | ~2.2 pp | **0.540 pp** (2017-04) |
+
+Spike window corrected: Dec-24 3.81 (BoC 3.6), Jan-25 3.76 (3.5), Feb-25 3.72 (3.8).
+April 2026 headline unchanged at 2.978% — recent months were never contaminated.
+
 ## Runtime
 
 Full refresh (download + harmonize + 8-spec grid): 2164 seconds

@@ -385,8 +385,9 @@ class SupportingPrintSpec:
 
 # Per-section supporting prints. Each tuple is ordered; the homepage tile
 # renders them in declaration order, after the section's primary print.
-# An entry whose primary CSV is not on disk yields a sentinel print with TK
-# strings (we still emit the row so the tile layout doesn't shift around).
+# An entry whose primary CSV is not on disk is silently dropped (returns None
+# from _build_supporting_print; filtered by the caller). No TK sentinels
+# are emitted -- the check_tk_in_dist build gate catches any regressions.
 SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
     "output": (
         SupportingPrintSpec(
@@ -1169,11 +1170,14 @@ def _apply_supporting_transform(
 
 
 def _build_supporting_print(spec: SupportingPrintSpec, data_root: Path) -> dict | None:
-    """Build one supporting print entry, or a TK sentinel if data is missing.
+    """Build one supporting print entry, or None if data is missing.
 
-    Always returns a dict with the SectionPrint shape; tile layout never
-    shifts. Missing/unavailable data is conveyed via value/delta='TK' and
-    an `available: False` flag so the loader can recognize the sentinel.
+    Returns a complete dict on success. Returns None when the underlying CSV
+    is absent, malformed, or the transform yields fewer than 2 observations.
+    The caller's append loop filters None, so missing series are silently
+    dropped from prints[]. This prevents TK placeholder strings from reaching
+    sections.json and rendering as visible placeholders on /overview/.
+    (Behavior changed 2026-05-28, commit 779d695.)
     """
     primary = _read_series(spec.primary_series, spec.primary_dir, data_root)
     secondary: Optional[_LoadedSeries] = None

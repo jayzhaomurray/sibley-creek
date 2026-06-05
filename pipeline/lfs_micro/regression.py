@@ -127,27 +127,27 @@ def run_wls(
     """
     df = df.copy()
 
-    # Log-transform the wage (raw dollars, already divided by 100 in harmonize)
-    # log(wage) is finite for wage > 0; harmonize ensures wage > 0.
-    log_wage = np.log(df["wage"].values.astype(float))
-
-    # Weights: sqrt for the WLS scaling trick
-    if spec_weighted:
-        weights = df["weight"].values.astype(float)
-    else:
-        weights = np.ones(len(df), dtype=float)
-
-    sqrt_w = np.sqrt(weights)
-
-    # Drop empty cells and build design matrix
+    # Drop empty cells FIRST, then derive y and weights from the filtered
+    # frame itself. df_clean has a reset RangeIndex, so indexing arrays
+    # built from the pre-filter df by df_clean.index silently selects the
+    # WRONG rows whenever thin-category pruning dropped any (observed:
+    # 2015-02/2016-02/2021-02/2022-02 — misaligned y vs X gave R^2~0.004
+    # and a poisoned O-B decomposition).
     df_clean, dropped_cells, cat_universe = _prepare_categoricals(
         df, min_cell_count=min_cell_count, category_universe=category_universe
     )
 
-    # If rows were dropped due to cell pruning, realign log_wage and sqrt_w
-    log_wage = log_wage[df_clean.index]
-    sqrt_w = sqrt_w[df_clean.index]
-    weights_clean = weights[df_clean.index]
+    # Log-transform the wage (raw dollars, already divided by 100 in harmonize)
+    # log(wage) is finite for wage > 0; harmonize ensures wage > 0.
+    log_wage = np.log(df_clean["wage"].values.astype(float))
+
+    # Weights: sqrt for the WLS scaling trick
+    if spec_weighted:
+        weights_clean = df_clean["weight"].values.astype(float)
+    else:
+        weights_clean = np.ones(len(df_clean), dtype=float)
+
+    sqrt_w = np.sqrt(weights_clean)
 
     X = _build_design_matrix(df_clean, cat_universe)
 
@@ -321,9 +321,14 @@ def _fix_rank_deficiency(
 
     coef, _, _, _ = np.linalg.lstsq(X_arr, y_scaled, rcond=None)
 
-    # Return pruned X as a DataFrame (unscaled would require sqrt_w, caller
-    # only needs col_names; return X_arr as proxy)
-    pruned_df = pd.DataFrame(X_arr, columns=col_names)
+    # Return the pruned UNSCALED design matrix: the caller computes mean_X
+    # (composition shares), fitted values, and R^2 from it. Returning the
+    # sqrt-weight-scaled array here poisoned the O-B decomposition for any
+    # rank-deficient month (observed: 2016-02, 2022-02 — degenerate R^2,
+    # wrong composition shares).
+    if not hasattr(X_df, "columns"):
+        raise TypeError("X_df must be a DataFrame with named columns")
+    pruned_df = X_df[col_names].copy()
     return pruned_df, col_names, coef
 
 

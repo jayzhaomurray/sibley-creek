@@ -81,7 +81,6 @@ logger = logging.getLogger("lfs_micro.run")
 # ---------------------------------------------------------------------------
 
 _RAW_PUMF_DIR = _PROJECT_ROOT / "data" / "raw" / "lfs_pumf"
-_ENGINE_CACHE_DIR = _RAW_PUMF_DIR / "_engine_cache"
 _PROCESSED_DIR = _PROJECT_ROOT / "data" / "processed"
 _WORK_DIR = _PROJECT_ROOT / "work" / "research" / "lfs_micro"
 
@@ -90,14 +89,58 @@ _WORK_DIR = _PROJECT_ROOT / "work" / "research" / "lfs_micro"
 # Engine cache: per-month JSON files
 # ---------------------------------------------------------------------------
 
+# Plausibility floors for cached engine results. A monthly LFS employee
+# sample is ~37-58k and the wage regression R^2 sits around 0.61; entries
+# far below these were computed from truncated/corrupted inputs (observed
+# 2026-06: a stale 2025-01 entry with n=325, R^2=0.09 inflated the headline
+# by +1.5pp across the Dec-Feb MA3 window). Implausible entries are treated
+# as cache misses and recomputed.
+_MIN_PLAUSIBLE_N_OBS = 20_000
+_MIN_PLAUSIBLE_R2 = 0.40
+
+
+def _engine_cache_dir() -> Path:
+    """Engine cache dir, derived from _RAW_PUMF_DIR at call time.
+
+    Derived (not a module-level constant) so tests that patch _RAW_PUMF_DIR
+    get an isolated cache too. A previous module-level binding meant pytest
+    runs wrote synthetic engine results into the PRODUCTION cache — the
+    source of the stale 2025-01 entry that inflated the Dec-Feb headline.
+    """
+    return _RAW_PUMF_DIR / "_engine_cache"
+
+
 def _cache_path(year_month: str) -> Path:
     """Return the cache JSON path for a YYYY-MM key."""
-    _ENGINE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    return _ENGINE_CACHE_DIR / f"{year_month}.json"
+    d = _engine_cache_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    return d / f"{year_month}.json"
+
+
+def _parquet_fingerprints(year_month: str) -> dict[str, int]:
+    """File-size fingerprints of the parquets behind one y/y result.
+
+    Keyed on the current month and its t-12 base. If either parquet is
+    later re-downloaded or repaired, its size changes and the cache entry
+    is invalidated. Missing parquet -> size -1 (never matches a real file).
+    """
+    fps: dict[str, int] = {}
+    for key in (year_month, _subtract_12_months(year_month)):
+        p = _RAW_PUMF_DIR / f"{key}.parquet"
+        fps[key] = p.stat().st_size if p.exists() else -1
+    return fps
 
 
 def _load_cache(year_month: str) -> Optional[dict]:
-    """Return cached engine result for year_month, or None if not cached."""
+    """Return cached engine result for year_month, or None if not cached.
+
+    Treated as a miss (recompute) when:
+      - the spec changed,
+      - the underlying parquets changed since the entry was computed
+        (file-size fingerprint mismatch, or no fingerprint recorded),
+      - the entry is implausible (tiny sample / degenerate R^2),
+        which marks a result computed from corrupted input.
+    """
     p = _cache_path(year_month)
     if not p.exists():
         return None
@@ -114,6 +157,26 @@ def _load_cache(year_month: str) -> Optional[dict]:
                     year_month, field, cached_spec.get(field), current_spec.get(field)
                 )
                 return None
+        # Fail-closed: entries must carry parquet fingerprints that match
+        # the files on disk, else the inputs may have changed under them.
+        if data.get("parquet_fingerprints") != _parquet_fingerprints(year_month):
+            logger.info(
+                "Cache miss for %s: parquet fingerprint mismatch (inputs changed).",
+                year_month,
+            )
+            return None
+        # Plausibility gate: reject garbage computed from corrupted input.
+        if (
+            min(data.get("n_obs_curr", 0), data.get("n_obs_base", 0)) < _MIN_PLAUSIBLE_N_OBS
+            or min(data.get("r2_curr", 0.0), data.get("r2_base", 0.0)) < _MIN_PLAUSIBLE_R2
+        ):
+            logger.warning(
+                "Cache miss for %s: implausible entry (n_obs=%s/%s, r2=%s/%s) — recomputing.",
+                year_month,
+                data.get("n_obs_curr"), data.get("n_obs_base"),
+                data.get("r2_curr"), data.get("r2_base"),
+            )
+            return None
         return data
     except Exception as exc:
         logger.warning("Failed to load cache for %s: %s", year_month, exc)
@@ -121,10 +184,25 @@ def _load_cache(year_month: str) -> Optional[dict]:
 
 
 def _save_cache(year_month: str, row: dict) -> None:
-    """Save one engine result row to the per-month cache."""
+    """Save one engine result row to the per-month cache.
+
+    Refuses to persist implausible rows — a result computed from corrupted
+    input must fail loudly at compute time, not poison the series later.
+    """
+    if (
+        min(row.get("n_obs_curr", 0), row.get("n_obs_base", 0)) < _MIN_PLAUSIBLE_N_OBS
+        or min(row.get("r2_curr", 0.0), row.get("r2_base", 0.0)) < _MIN_PLAUSIBLE_R2
+    ):
+        raise RuntimeError(
+            f"Implausible engine result for {year_month} "
+            f"(n_obs={row.get('n_obs_curr')}/{row.get('n_obs_base')}, "
+            f"r2={row.get('r2_curr')}/{row.get('r2_base')}) — refusing to cache. "
+            f"Check the parquet inputs for {year_month} and its t-12 base."
+        )
     p = _cache_path(year_month)
     data = dict(row)
     data["spec"] = DEFAULT_SPEC.as_dict()
+    data["parquet_fingerprints"] = _parquet_fingerprints(year_month)
     data["computed_at"] = datetime.now(timezone.utc).isoformat()
     # Ensure JSON-serializable
     for k, v in data.items():
@@ -136,9 +214,9 @@ def _save_cache(year_month: str, row: dict) -> None:
 def _load_all_cache() -> dict[str, dict]:
     """Load all cached engine results. Returns {YYYY-MM: row_dict}."""
     results: dict[str, dict] = {}
-    if not _ENGINE_CACHE_DIR.exists():
+    if not _engine_cache_dir().exists():
         return results
-    for f in sorted(_ENGINE_CACHE_DIR.glob("*.json")):
+    for f in sorted(_engine_cache_dir().glob("*.json")):
         key = f.stem
         row = _load_cache(key)
         if row is not None:

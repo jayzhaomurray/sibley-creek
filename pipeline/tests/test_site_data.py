@@ -411,34 +411,32 @@ def test_supporting_prints_catalog_covers_every_section():
         assert len(keys) == len(set(keys)), f"{slug}: duplicate supporting print key in {keys}"
 
 
-def test_supporting_prints_tk_sentinel_when_source_missing(tmp_path):
+def test_supporting_prints_dropped_when_source_missing(tmp_path):
     """If a supporting print's underlying CSV is not on disk, the print is
-    still emitted as a TK sentinel with `available: False`. This keeps the
-    homepage tile layout (one row per canon key) stable across pipeline runs.
+    silently dropped from prints[]. This is the behavior since commit 779d695
+    ("pipeline: skip missing-data tiles instead of emitting TK sentinels"),
+    which replaced TK-sentinel emission to prevent visible placeholder strings
+    on /overview/. The check_tk_in_dist build gate catches any regressions
+    where TK strings reach sections.json.
     """
     data_root = tmp_path / "data"
     _seed_minimal_pipeline(data_root)
     payload = build_site_data(data_root)
 
     # inflation: cpi-yoy primary is real; core-trim/median/breadth supporting
-    # series were not seeded -> TK sentinels expected.
+    # series were not seeded -> they must be absent from prints[], not TK rows.
     inflation = payload["sections"]["inflation"]
     keys = [p["key"] for p in inflation["prints"]]
     assert keys[0] == "cpi-yoy"
-    assert "core-trim-yoy" in keys
-    assert "core-median-yoy" in keys
-    assert "cpi-breadth-gt3" in keys
-
+    # Primary is present with a real value.
     by_key = {p["key"]: p for p in inflation["prints"]}
-    # Primary is real
     assert by_key["cpi-yoy"]["value"] != "TK"
     assert by_key["cpi-yoy"].get("available", True) is True
-    # Supporting (no seed) are TK
+    # Supporting series without seeded CSVs must be absent entirely.
     for k in ("core-trim-yoy", "core-median-yoy", "cpi-breadth-gt3"):
-        assert by_key[k]["value"] == "TK"
-        assert by_key[k]["delta"] == "TK"
-        assert by_key[k]["available"] is False
-        assert by_key[k]["spark"] == []
+        assert k not in keys, (
+            f"{k} must be dropped when CSV missing, not emitted as TK sentinel"
+        )
 
 
 def test_supporting_print_yoy_transform(tmp_path):

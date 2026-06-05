@@ -1,11 +1,20 @@
 ﻿# Sibley Creek â€” operating dashboard
 
-**Last updated:** 2026-06-04 (BoC shadow rate v1 built + post-audit hardening)
+**Last updated:** 2026-06-05 (May LFS: commentary published + corrected, labour section refreshed, Reuters citation)
 **Purpose:** I (Claude) read this at session start to load context and surface what matters to Jay in the terminal. Jay doesn't need to open this directly â€” ask me "where are we?" and I'll tell you.
 
 ---
 
 ## What's active right now
+
+### Labour section refreshed to May 2026 LFS — pushed 2026-06-05 (master `a3e7370`)
+All 8 labour surfaces rewritten (tileLine, abstract, 6 plates) — the May print INVERTED the prior "loosening on the intensive margin" thesis (UR 6.6%, +87.8k, hours Y/Y flipped positive). Full 3-round writer + 3-gate loop; Jay reviewed every text before push; carries the correction framing (highest level this year, ~25k short of Dec 2025 — no all-time-high / shortfall-erased claims). Labour is now the splash hero ("May LFS"). Showcase PNGs re-rendered from the corrected PDF (pre-correction take was still on the splash until this push). New Tier-A card `statcan_daily_lfs_2026-05`. Data refresh: May LFS, Mar JVWS (vacancy 2.8%, spread −3.9pp), May wages (3.0% Y/Y, sharp cooling — LFS-Micro still Mar 3.1%, verified vs Valet directly), Jun 5 dailies. Pipeline fix shipped: `_http.py` TLS 1.2 cap (StatCan edge drops httpx TLS 1.3 handshakes — matches the PUMF finding) + retry now covers ConnectTimeout. **Watch:** deploy of `a3e7370` (monitor running at push time). **Follow-up idea surfaced to Jay:** once May PUMF lands, the lfs-micro replication can print a composition-adjusted wage read weeks before the BoC updates LFS-Micro — strong follow-up note to the wage plate.
+
+### jobs-may-2026 commentary — CORRECTED 2026-06-05, live
+Original overstated the level claim (said employment "back at all-time high" / shortfall "completely" made up; actual: highest level of 2026, ~25k short of the Dec 2025 record, most of the shortfall made up). Corrected PDF (`work/published/commentaries/lfs-2026-06-05-correct.pdf`, Jay's second export — first re-export still carried the all-time-high line) swapped in at `/research/commentaries/jobs-may-2026.pdf`; correction notice + updated excerpt shipped via master `bbcd301` from the `mrd-publish` worktree; deploy green; live-verified. `DataCommentary` now supports reusable `correction`/`correctedAt` fields (notice renders above the take; JSON-LD dateModified follows). **Open question:** if the subscriber blast went out with the old PDF, a follow-up note may be warranted — asked Jay, no answer yet.
+
+### FIRST TIER-1 PRESS CITATION — Reuters quoted the May LFS commentary (2026-06-05)
+Reuters jobs-day story quotes Jay by name ("chief economist at macroeconomic research firm Sibley Creek"). "In the news" coverage block shipped on the jobs-may-2026 wrapper page via master `35f4ca0` (reusable `DataCommentary.coverage` field; renders between take and PDF CTA); deploy green, live-verified. **Follow-ups triggered, awaiting Jay:** (1) Google Alerts setup — first-real-citation trigger now met; (2) check whether the Reuters piece hyperlinks sibleycreek.ca — if linkless, same-day note to the reporter asking for the link; (3) BetaKit intro via Sibin — "real news angle" trigger arguably met; (4) /about press block + eventual splash press strip — revisit at 2-3 tier-1 citations.
 
 ### BoC rule-implied shadow rate -- internal tool, v1 BUILT + post-audit hardening done, awaiting Jay's verification
 **Status (2026-06-04):** Built, dry-run complete, **post-audit fixes applied**. The **ToTEM III rule-implied policy path** (TR-119 Table 2.3: rho=0.85, phi_pi=4.65, phi_gap=0.4) on April 2026 MPR projections with transparent interpolation assumptions. Renamed throughout from "reconstructs the Bank's unpublished path" to "BoC rule-implied shadow rate" -- the methodology now states explicitly this does NOT recover the Bank's internal conditioning path (judgment add-factors; MPR is conditioned on a market-implied rate path). Internal only -- NOT on the site, NOT in pipeline.build (manual quarterly trigger, usdcad pattern). First member of the eventual no-judgment Models section.
@@ -25,7 +34,9 @@
 
 **VERIFICATION GATE PASSED (2026-06-04 EOD):** Jay verified the transcription, deleted the deprecated param row, and flipped `verified=TRUE` in v2. Real (un-watermarked) run completed against `boc_shadow_inputs_2026Q2_v2.xlsx`: canonical path (2.25 -> peak 2.792 @ 2027Q4 -> settle 2.747; band 2.064-3.430 @ 2028Q4) written to `data/processed/boc_shadow_rate.csv` + vintage copy `boc_shadow_rate_2026-04.csv`; un-watermarked chart at `work/research/shadow_rate/boc_shadow_path_2026-04.html`. **v1 is DONE.** Calc sheet embedded in v2 after Excel closed (companion file obsolete, can be deleted). **IN GIT (2026-06-04 EOD):** merged to master via branch `boc-shadow-rate` (a02c460, merge e5aa119) and PUSHED to origin; content-identical copies on `fiscal-chartbook` (through 4cfb92c) so the eventual fiscal merge is clean except this STATUS file. Workbook + charts are gitignored (disk only). Local checkout now on master.
 
-**Next steps after verification:** market-implied path overlay (CORRA futures) for v1.1; historical backfill with own estimates (later); eventual public Models page.
+**Backtest built (2026-06-05, informational-only):** `pipeline/shadow_rate/backtest.py` + `vintages/` (agent-transcribed MPR vintages Jul-2021 -> Jan-2026, NO verification gates per Jay -- rigor scales with surface). 18 vintages + live run; Apr-2025 excluded (two-scenario Report, no base case -> hold-rule artifact). Porcupine chart + skill metrics at `work/research/shadow_rate/backtest/boc_shadow_backtest.html`. **Skill vs random walk: h=1 0.96, h=2 0.78, h=4 0.60, h=8 0.33; dir hit 0.71.** 65 tests green. NOT committed yet.
+
+**Next steps after verification:** market-implied path overlay (CORRA futures) for v1.1; eventual public Models page.
 
 ---
 
@@ -197,3 +208,13 @@ Raw research INPUTS (PDFs, datasets) used during planning â†’ live in `clau
 - `.gitignore` updated: `business/` â†’ `work/`
 - Subscriber pull verified working at new paths
 - Plan document at `work/reorg_plan_2026-05-26.md` if you ever want to read the full audit
+
+## lfs-micro (2026-06-05)
+- Tool COMPLETE on branch lfs-micro: BoC LFS-micro wage-growth replication (SAN 2024-23, Oaxaca-Blinder on LFS PUMF).
+- Calibrated vs INDINF_LFSMICRO_M: RMSE 0.177pp full sample, 0.151pp last 18 months, corr 0.985. Spec: weighted, centered MA3, base-period reference.
+- First live run 2026-06-05: May PUMF posted 8:30:40 ET (zero lag vs Daily). April 2026 reading 2.98% y/y vs BoC's published March 3.1%; May single-month 2.63%.
+- 2026-06-05 PM: Jay spotted a false Dec-24-Feb-25 spike in our series. Root causes found+fixed: (1) pytest wrote a synthetic 2025-01 result into the production engine cache (test isolation bug); (2) row-misalignment in run_wls when thin-category pruning dropped rows; (3) rank-deficiency fixer returned the scaled matrix. Cache hardened: parquet fingerprints + plausibility gate (n>=20k, R2>=0.4, fail-closed). Full 125-month clean recompute done. Details: claude-ref/research/lfs_micro/calibration_report.md.
+- Refresh: python -m pipeline.lfs_micro.run (seconds per new month via engine cache). Workbook: work/research/lfs_micro/lfs_micro_replication.xlsx.
+- Nowcast tier DESCOPED (PUMF is same-minute as Daily); scoping banked at claude-ref/research/lfs_micro/nowcast_inputs_scoping.md.
+- Unrelated: test_site_data TK-sentinel test was stale vs Jay's intentional 779d695 change (supporting prints now dropped, not TK'd, when source missing); test updated to match. 191 tests pass.
+- PENDING: Jay reviews workbook + corrected comparison chart -> merge lfs-micro to master.

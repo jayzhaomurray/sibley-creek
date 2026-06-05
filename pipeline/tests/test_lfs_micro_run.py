@@ -90,9 +90,9 @@ class TestEngineCache:
         from pipeline.lfs_micro.engine import _GROUP_LABELS
         import pipeline.lfs_micro.run as run_mod
 
-        # Redirect cache dir to tmp_path
-        original = run_mod._ENGINE_CACHE_DIR
-        run_mod._ENGINE_CACHE_DIR = tmp_path
+        # Redirect the raw dir to tmp_path (cache dir is derived from it)
+        original = run_mod._RAW_PUMF_DIR
+        run_mod._RAW_PUMF_DIR = tmp_path
         try:
             row = {
                 "date": "2025-01-01",
@@ -116,8 +116,9 @@ class TestEngineCache:
             assert loaded["n_obs_curr"] == 55000
             assert "spec" in loaded
             assert "computed_at" in loaded
+            assert "parquet_fingerprints" in loaded
         finally:
-            run_mod._ENGINE_CACHE_DIR = original
+            run_mod._RAW_PUMF_DIR = original
 
     def test_spec_invalidation_clears_cache(self, tmp_path):
         from pipeline.lfs_micro.run import _save_cache, _load_cache
@@ -125,9 +126,9 @@ class TestEngineCache:
         from pipeline.lfs_micro.spec import Spec
         import pipeline.lfs_micro.spec as spec_mod
 
-        original_cache_dir = run_mod._ENGINE_CACHE_DIR
+        original_raw_dir = run_mod._RAW_PUMF_DIR
         original_spec = spec_mod.DEFAULT_SPEC
-        run_mod._ENGINE_CACHE_DIR = tmp_path
+        run_mod._RAW_PUMF_DIR = tmp_path
         try:
             row = {
                 "date": "2025-01-01",
@@ -154,7 +155,7 @@ class TestEngineCache:
             loaded = _load_cache("2025-01")
             assert loaded is None, "Cache should be invalidated when spec changes"
         finally:
-            run_mod._ENGINE_CACHE_DIR = original_cache_dir
+            run_mod._RAW_PUMF_DIR = original_raw_dir
             spec_mod.DEFAULT_SPEC = original_spec
             run_mod.DEFAULT_SPEC = original_spec
 
@@ -162,8 +163,8 @@ class TestEngineCache:
         from pipeline.lfs_micro.run import _save_cache
         import pipeline.lfs_micro.run as run_mod
 
-        original = run_mod._ENGINE_CACHE_DIR
-        run_mod._ENGINE_CACHE_DIR = tmp_path
+        original = run_mod._RAW_PUMF_DIR
+        run_mod._RAW_PUMF_DIR = tmp_path
         try:
             row = {
                 "date": "2025-01-01",
@@ -177,11 +178,11 @@ class TestEngineCache:
                 "r2_base": 0.61,
             }
             _save_cache("2025-01", row)
-            raw = json.loads((tmp_path / "2025-01.json").read_text())
+            raw = json.loads((tmp_path / "_engine_cache" / "2025-01.json").read_text())
             # NaN must be serialized as null, not as a bare NaN token
             assert raw["underlying_lp"] is None
         finally:
-            run_mod._ENGINE_CACHE_DIR = original
+            run_mod._RAW_PUMF_DIR = original
 
 
 # ---------------------------------------------------------------------------
@@ -278,7 +279,13 @@ class TestComputeNewMonths:
         df_curr_raw.to_parquet(pumf_dir / "2025-01.parquet", index=False)
 
         original_dir = run_mod._RAW_PUMF_DIR
+        original_n_floor = run_mod._MIN_PLAUSIBLE_N_OBS
+        original_r2_floor = run_mod._MIN_PLAUSIBLE_R2
         run_mod._RAW_PUMF_DIR = pumf_dir
+        # Synthetic fixture is far smaller/noisier than a real LFS month;
+        # relax the plausibility floors that guard the production cache.
+        run_mod._MIN_PLAUSIBLE_N_OBS = 0
+        run_mod._MIN_PLAUSIBLE_R2 = -1.0
         try:
             results = _compute_new_months(["2025-01"], {})
             assert "2025-01" in results, "Expected result for 2025-01"
@@ -289,6 +296,8 @@ class TestComputeNewMonths:
             assert r["n_obs_curr"] > 0
         finally:
             run_mod._RAW_PUMF_DIR = original_dir
+            run_mod._MIN_PLAUSIBLE_N_OBS = original_n_floor
+            run_mod._MIN_PLAUSIBLE_R2 = original_r2_floor
 
     def test_missing_base_month_skipped(self, tmp_path):
         """When the base month parquet is missing, the month is skipped gracefully."""
@@ -365,9 +374,10 @@ class TestRunOrchestration:
         run_module._PROCESSED_DIR = proc_dir
         run_module._WORK_DIR = work_dir
 
-        # Also redirect _ENGINE_CACHE_DIR so _save_cache writes to tmp
-        original_cache = run_module._ENGINE_CACHE_DIR
-        run_module._ENGINE_CACHE_DIR = tmp_path / "_engine_cache"
+        # Also redirect the raw dir so _save_cache writes to a tmp cache
+        # (the engine cache dir is derived from _RAW_PUMF_DIR)
+        original_cache = run_module._RAW_PUMF_DIR
+        run_module._RAW_PUMF_DIR = tmp_path / "raw_pumf"
 
         try:
             with patch.object(run_module, "latest_available_month", return_value=(2026, 3)):
@@ -402,7 +412,7 @@ class TestRunOrchestration:
         finally:
             run_module._PROCESSED_DIR = original_processed
             run_module._WORK_DIR = original_work
-            run_module._ENGINE_CACHE_DIR = original_cache
+            run_module._RAW_PUMF_DIR = original_cache
 
 
 # ---------------------------------------------------------------------------
