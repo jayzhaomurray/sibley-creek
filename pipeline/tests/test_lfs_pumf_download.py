@@ -118,6 +118,22 @@ def test_extract_monthly_from_zip_bytes_wrong_month_annual():
     assert df is not None  # fallback finds the single CSV
 
 
+def test_extract_monthly_from_zip_bytes_nested_path_2025_style():
+    """2025 annual bundle stores CSVs with a directory prefix: '2025-CSV.zip/pub0125.csv'."""
+    year, month = 2025, 1
+    yy = str(year)[2:]
+    # Build zip with nested path (as StatCan 2025 bundle does)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        for m in range(1, 13):
+            nested_name = f"2025-CSV.zip/pub{m:02d}{yy}.csv"
+            zf.writestr(nested_name, _make_csv_bytes(5, year, m))
+    zip_bytes = buf.getvalue()
+    df = _extract_monthly_from_zip_bytes(zip_bytes, year, month)
+    assert df is not None
+    assert len(df) == 5
+
+
 def test_extract_monthly_from_zip_bytes_missing_month():
     """Requesting month 7 from an annual zip that only has months 1-6 returns None."""
     buf = io.BytesIO()

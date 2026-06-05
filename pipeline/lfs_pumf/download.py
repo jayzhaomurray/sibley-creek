@@ -315,16 +315,21 @@ def _extract_monthly_from_zip_bytes(
 
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
         names = zf.namelist()
-        csv_names = [n for n in names if n.lower().endswith(".csv") and "/" not in n]
+        # CSV entries can be at the top level OR nested one directory deep
+        # (e.g. 2025 annual bundle stores: "2025-CSV.zip/pub0125.csv").
+        # Normalise by taking the basename of each path entry.
+        csv_names = [n for n in names if n.lower().endswith(".csv")
+                     and not n.lower().startswith("documents")]
 
-        # Exact match first
+        # Exact match on basename (ignore any leading directory component)
         matched = None
         for n in csv_names:
-            if n.lower() == target_name.lower():
+            basename = n.split("/")[-1]
+            if basename.lower() == target_name.lower():
                 matched = n
                 break
 
-        # For a monthly zip with a single CSV, accept any single CSV
+        # For a monthly zip with a single CSV, accept any single CSV entry
         if matched is None and len(csv_names) == 1:
             matched = csv_names[0]
 

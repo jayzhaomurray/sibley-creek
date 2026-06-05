@@ -40,7 +40,7 @@ class SanityError(Exception):
 # Thresholds
 # ---------------------------------------------------------------------------
 
-_MIN_PAID_EMPLOYEE_ROWS = 40_000   # COVID lows; strict spike: 55k
+_MIN_PAID_EMPLOYEE_ROWS = 30_000   # COVID lockdown lows (Apr-May 2020: ~37k); spike normal: 55k
 _MAX_PAID_EMPLOYEE_ROWS = 120_000  # headroom for sample expansion
 _MIN_EMPLOYEE_SHARE = 0.30
 _MAX_EMPLOYEE_SHARE = 0.70
