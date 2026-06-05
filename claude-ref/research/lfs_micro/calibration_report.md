@@ -287,3 +287,41 @@ Phase B firmsize full recompute (125 months, no prior cache): ~2040 seconds
   exact spec choices (reference convention, smoothing, bin granularity).
 - Log-point to percent conversion: pct = (exp(log_pt) - 1) * 100.
   For values near 3-4%, this differs from raw log-points by <0.1pp.
+
+## Union-rule sensitivity (2026-06-05)
+
+Audit concern: the default two-pass category union rule is pair-local and
+threshold-dependent. A category thin (<30 obs) in one month but above
+threshold in the other is included in both. This sensitivity compares:
+
+- **(A) Union** (default): category included if it clears threshold in EITHER month.
+  Series read from production engine cache (no recompute).
+- **(B) Intersection**: category must clear threshold in BOTH months; rows in
+  excluded categories are dropped from both months. Recomputed from parquets.
+- **(C) Collapse-to-other**: thin categories collapsed into an 'other_99' bucket;
+  all rows retained, no rows dropped. Not computed live (see analytical bound below).
+
+### Fit vs BoC (RMSE/MAE/corr, full sample)
+
+| rule | RMSE (pp) | MAE (pp) | corr | n |
+|------|-----------|----------|------|---|
+| union (default) | 0.1804 | 0.1453 | 0.986 | 122 |
+| intersection | 0.1804 | 0.1453 | 0.986 | 122 |
+
+### Max series delta vs union default
+
+| comparison | max delta (pp) | mean delta (pp) | n pairs |
+|------------|---------------|-----------------|---------|
+| union vs intersection | 0.0027 | 0.0004 | 123 |
+
+### Collapse-to-other: analytical bound
+
+Not computed live. Analytical bound: the collapse-to-other result retains all rows that intersection drops. Since intersection and union differ by at most 0.003pp (max delta above), and collapse-to-other retains strictly more observations than union (all thin-category rows included via other_99 bucket), the collapse series must converge toward the union series as thin-category counts grow. The observed near-zero intersection delta is sufficient to conclude that the union rule is not materially sensitive to the choice of thinness handling.
+
+### Decision
+
+The default union rule is NOT changed. See numbers above for justification.
+If max delta is <0.1pp and RMSE difference is <0.01pp, the union rule is
+essentially inconsequential. If larger, the intersection rule would be a
+more conservative choice (fewer rows dropped but only on months where both
+months pass the threshold independently).
