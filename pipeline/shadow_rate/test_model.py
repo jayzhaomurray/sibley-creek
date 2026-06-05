@@ -35,7 +35,6 @@ def make_params(**over) -> Params:
         phi_pi=4.65,
         phi_gap=0.40,
         inflation_target=2.0,
-        inflation_converge_quarters=4,
         elb_floor=0.25,
         verified=False,
     )
@@ -617,6 +616,70 @@ def test_xlsx_roundtrip(tmp_path):
     res = m.run_model(inp, end_quarter="2028Q4")
     assert res.seed_quarter == "2026Q2"
     assert res.steps[0].rate == pytest.approx(inp.params.current_overnight_rate)
+
+
+# --------------------------------------------------------------------------- #
+# Deprecated inflation_converge_quarters param: accepted as an ignored no-op
+# --------------------------------------------------------------------------- #
+def _add_param_row(xlsx, key, value, source_ref="legacy"):
+    """Insert a params key/value row just below the header of a workbook."""
+    from openpyxl import load_workbook
+
+    wb = load_workbook(str(xlsx))
+    wp = wb["params"]
+    wp.insert_rows(2)
+    wp.cell(2, 1, key)
+    wp.cell(2, 2, value)
+    wp.cell(2, 3, source_ref)
+    wb.save(str(xlsx))
+    wb.close()
+
+
+def test_legacy_converge_key_parses_with_warning_and_identical_output(tmp_path, capsys):
+    """A workbook carrying the legacy inflation_converge_quarters key parses (with
+    a deprecation warning) and yields output identical to one without the key."""
+    from pipeline.shadow_rate.inputs import parse_workbook
+    from pipeline.shadow_rate.make_workbook import build_workbook
+
+    base = tmp_path / "base.xlsx"
+    legacy = tmp_path / "legacy.xlsx"
+    build_workbook(str(base))
+    build_workbook(str(legacy))
+    _add_param_row(legacy, "inflation_converge_quarters", 4)
+
+    capsys.readouterr()  # clear
+    inp_legacy = parse_workbook(str(legacy))
+    out = capsys.readouterr().out
+    assert "deprecated" in out.lower() and "inflation_converge_quarters" in out
+
+    inp_base = parse_workbook(str(base))
+    # the legacy key is not a model field, so it cannot leak into params
+    assert not hasattr(inp_legacy.params, "inflation_converge_quarters")
+
+    res_base = m.run_model(inp_base, end_quarter="2028Q4")
+    res_legacy = m.run_model(inp_legacy, end_quarter="2028Q4")
+    assert [s.rate for s in res_legacy.steps] == [s.rate for s in res_base.steps]
+    assert [s.infl_tp4 for s in res_legacy.steps] == [s.infl_tp4 for s in res_base.steps]
+
+
+def test_legacy_converge_key_value_is_ignored(tmp_path):
+    """The legacy key's VALUE is ignored: setting it to 8 (a different horizon)
+    produces a path identical to the no-key fixture — the t+4 horizon is fixed."""
+    from pipeline.shadow_rate.inputs import parse_workbook
+    from pipeline.shadow_rate.make_workbook import build_workbook
+
+    base = tmp_path / "base.xlsx"
+    poisoned = tmp_path / "poisoned.xlsx"
+    build_workbook(str(base))
+    build_workbook(str(poisoned))
+    _add_param_row(poisoned, "inflation_converge_quarters", 8)
+
+    inp_base = parse_workbook(str(base))
+    inp_poisoned = parse_workbook(str(poisoned))
+    res_base = m.run_model(inp_base, end_quarter="2028Q4")
+    res_poisoned = m.run_model(inp_poisoned, end_quarter="2028Q4")
+    assert [s.rate for s in res_poisoned.steps] == [s.rate for s in res_base.steps]
+    assert [s.infl_tp4 for s in res_poisoned.steps] == [s.infl_tp4 for s in res_base.steps]
 
 
 # --------------------------------------------------------------------------- #

@@ -15,7 +15,7 @@ Sheet schema (each sheet carries a ``source_ref`` provenance column):
   params:    key/value rows (mpr_publication_date, current_overnight_rate,
              output_gap_anchor_quarter, output_gap_anchor_value,
              neutral_range_low/high, rho, phi_pi,
-             phi_gap, inflation_target, inflation_converge_quarters,
+             phi_gap, inflation_target,
              elb_floor, verified) each with a source_ref
 """
 
@@ -128,7 +128,6 @@ class Params(BaseModel):
     phi_pi: float = Field(4.65, ge=0.0, le=20.0)
     phi_gap: float = Field(0.40, ge=0.0, le=10.0)
     inflation_target: float = Field(2.0, ge=0.0, le=10.0)
-    inflation_converge_quarters: int = Field(4, ge=1, le=40)
     elb_floor: float = Field(0.25, ge=-1.0, le=5.0)
     verified: bool = False
 
@@ -436,8 +435,14 @@ def _parse_annual(ws) -> list[AnnualRow]:
 # the rest are floats.
 _PARAM_DATE_KEYS = {"mpr_publication_date"}
 _PARAM_BOOL_KEYS = {"verified"}
-_PARAM_INT_KEYS = {"inflation_converge_quarters"}
+_PARAM_INT_KEYS: set[str] = set()
 _PARAM_STR_KEYS = {"output_gap_anchor_quarter", "projection_end_quarter"}
+
+# Deprecated params keys: accepted as no-ops (ignored with a one-line warning) so
+# both the original and Jay's cleaned workbooks still parse. The t+4 inflation
+# horizon is now fixed by the rule definition (model.RULE_INFLATION_HORIZON_Q),
+# not a punch-in field.
+_PARAM_DEPRECATED_KEYS = {"inflation_converge_quarters"}
 
 
 def _parse_params(ws) -> Params:
@@ -451,7 +456,7 @@ def _parse_params(ws) -> Params:
         "current_overnight_rate",
         "output_gap_anchor_quarter", "output_gap_anchor_value",
         "neutral_range_low", "neutral_range_high", "rho", "phi_pi", "phi_gap",
-        "inflation_target", "inflation_converge_quarters", "elb_floor",
+        "inflation_target", "elb_floor",
         "verified",
     }
     for raw in ws.iter_rows(min_row=2, values_only=True):
@@ -461,6 +466,14 @@ def _parse_params(ws) -> Params:
         if key is None:
             continue
         key = str(key).strip()
+        if key in _PARAM_DEPRECATED_KEYS:
+            # Deprecated no-op: ignore the value entirely (the t+4 horizon is
+            # fixed by the rule definition). Keeps old/cleaned workbooks parseable.
+            print(
+                f"warning: params key {key!r} is deprecated and ignored; the t+4 "
+                f"horizon is fixed by the rule definition"
+            )
+            continue
         if key in _known:
             if key in seen_keys:
                 raise ValueError(

@@ -48,7 +48,11 @@ with the estimated coefficients:
 
 The rule is forward-looking in inflation (t+4) — this matches TR-119's
 estimation, where the rule responds to the *projected* deviation of inflation
-from target, not the contemporaneous reading.
+from target, not the contemporaneous reading. The four-quarter-ahead lookup is
+part of the **rule's definition** (TR-119's (1/4)·Σ_{j=1..4} E_t π_{t+j} term),
+fixed in code as `model.RULE_INFLATION_HORIZON_Q`, **not** a punch-in parameter;
+the deprecated `inflation_converge_quarters` workbook field was removed
+2026-06-04 (now accepted as an ignored no-op for backward compatibility).
 
 ### Inflation input = CORE, not total CPI
 
@@ -226,7 +230,6 @@ seed quarter and (b) GDP/potential data cover it, raising otherwise.
 | `output_gap_anchor_quarter` / `output_gap_anchor_value` | 2025Q4 / -1.0 | **BoC Valet `INDINF_OUTGAPMPR_Q`** (staff output gap, current MPR vintage), last published observation. Auto-filled by `make_workbook.py` from the tail of `data/raw/output_gap_mpr.csv`; rolled forward to the seed quarter by the gap identity (Section 3). |
 | `rho` / `phi_pi` / `phi_gap` | 0.85 / 4.65 / 0.40 | BoC Technical Report 119, Table 2.3 |
 | `inflation_target` | 2.0 | BoC 2% CPI inflation target |
-| `inflation_converge_quarters` | 4 | TR-119 rule horizon (t+4) |
 | `elb_floor` | 0.25 | BoC effective lower bound statements, 2009 & Apr 2020 |
 | `verified` | FALSE | flip to TRUE only after checking every cell vs the MPR PDF |
 

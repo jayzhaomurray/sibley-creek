@@ -34,6 +34,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 from pipeline.shadow_rate.model import (
+    RULE_INFLATION_HORIZON_Q,
     ShadowResult,
     build_core_cpi_path,
     ord_to_quarter,
@@ -235,7 +236,7 @@ def _build_calc_ws(wb, res: ShadowResult, p, inp) -> None:
     anchor_ord = quarter_to_ord(p.output_gap_anchor_quarter)
     seed_ord = quarter_to_ord(res.seed_quarter)
     end_ord = quarter_to_ord(res.steps[-1].quarter)
-    grid_end_ord = end_ord + p.inflation_converge_quarters
+    grid_end_ord = end_ord + RULE_INFLATION_HORIZON_Q
     grid_start_ord = anchor_ord
 
     # Engine static values, keyed by ordinal, for the python-check columns.
@@ -277,7 +278,8 @@ def _build_calc_ws(wb, res: ShadowResult, p, inp) -> None:
         ("Rule citation",
          f"ToTEM III, TR-119 Table 2.3: rho={p.rho}, phi_pi={p.phi_pi}, "
          f"phi_gap={p.phi_gap}; inflation target {p.inflation_target:.1f}%, "
-         f"ELB floor {p.elb_floor:.2f}%, t+{p.inflation_converge_quarters} lookup"),
+         f"ELB floor {p.elb_floor:.2f}%, "
+         f"t+{RULE_INFLATION_HORIZON_Q} lookup (fixed by rule definition)"),
         ("MPR publication date", p.mpr_publication_date.isoformat()),
     ]
     for label, val in block:
@@ -355,8 +357,8 @@ def _build_calc_ws(wb, res: ShadowResult, p, inp) -> None:
         # H: pi t+4 (live) = core CPI cell `converge` rows below. The grid runs
         # to end_ord + converge, so every rate row (o <= end_ord) has its t+4
         # row on the grid; the trailing headroom rows themselves do not.
-        if o + p.inflation_converge_quarters <= grid_end_ord:
-            t4_row = row + p.inflation_converge_quarters
+        if o + RULE_INFLATION_HORIZON_Q <= grid_end_ord:
+            t4_row = row + RULE_INFLATION_HORIZON_Q
             ws.cell(row, 8, f"={COL_CORE}{t4_row}")
 
         # Rate decomposition columns — only for rate rows (seed..end).

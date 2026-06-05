@@ -20,6 +20,13 @@ from dataclasses import dataclass
 from pipeline.shadow_rate.inputs import ShadowInputs
 
 
+# The forward inflation-lookup distance is part of the RULE'S DEFINITION, not a
+# user input. TR-119 Table 2.3's inflation term is the four-quarter-ahead mean
+# (1/4)*Sum_{j=1..4} E_t pi_{t+j}, approximated here by the single t+4 forecast;
+# changing it would silently redefine the rule, so it is fixed in code.
+RULE_INFLATION_HORIZON_Q = 4
+
+
 # --------------------------------------------------------------------------- #
 # Quarter arithmetic helpers
 # --------------------------------------------------------------------------- #
@@ -241,7 +248,7 @@ def run_model(inp: ShadowInputs, end_quarter: str | None = None) -> ShadowResult
     # Inflation must be available out to the LAST update's t+4 lookup. The final
     # rate produced is at end_ord, set by the update at (end_ord - 1) which reads
     # inflation at (end_ord - 1 + converge). Build with headroom.
-    horizon = p.inflation_converge_quarters
+    horizon = RULE_INFLATION_HORIZON_Q
     # Need inflation out to the terminal quarter's own t+4 lookup (for the
     # reported infl_tp4 column), which is the furthest forward read.
     last_infl_ord = end_ord + horizon

@@ -90,7 +90,6 @@ PARAM_ROWS_TEMPLATE = [
     ("phi_pi", 4.65, REF_TR119),
     ("phi_gap", 0.40, REF_TR119),
     ("inflation_target", 2.0, "BoC 2% CPI inflation target"),
-    ("inflation_converge_quarters", 4, "TR-119 rule horizon (t+4)"),
     ("elb_floor", 0.25, REF_ELB),
     ("verified", "FALSE", "Jay flips to TRUE after checking every cell vs MPR PDF"),
 ]
