@@ -120,6 +120,10 @@ def get_month(
     df, source_url, fetched_at = _fetch_month_df(year, month)
     df = _trim_columns(df)
 
+    # Integrity check: survyear/survmnth must match the requested month.
+    # This catches spike-cache contamination and single-CSV fallback mis-extraction.
+    _validate_survyear_survmnth(df, year, month, source_url)
+
     df.to_parquet(parquet_path, index=False, engine="pyarrow")
     _write_meta(parquet_path, year, month, source_url, fetched_at, len(df))
 
@@ -329,7 +333,9 @@ def _extract_monthly_from_zip_bytes(
                 matched = n
                 break
 
-        # For a monthly zip with a single CSV, accept any single CSV entry
+        # For a monthly zip with a single CSV, accept any single CSV entry.
+        # NOTE: this fallback does NOT validate the filename — survyear/survmnth
+        # integrity check in get_month() catches contamination after extraction.
         if matched is None and len(csv_names) == 1:
             matched = csv_names[0]
 
@@ -352,6 +358,43 @@ def _trim_columns(df: pd.DataFrame) -> pd.DataFrame:
     """
     keep = [c for c in _KEEP_COLS if c in df.columns]
     return df[keep].copy()
+
+
+def _validate_survyear_survmnth(
+    df: pd.DataFrame,
+    year: int,
+    month: int,
+    source_url: str,
+) -> None:
+    """Fail-closed check: survyear and survmnth must match the requested month.
+
+    The single-CSV fallback in _extract_monthly_from_zip_bytes accepts any CSV
+    when the target filename is missing — this can silently yield a different
+    month's data (e.g. Apr 2026 data written as Jun 2024 or Apr 2025).
+
+    Raises:
+        RuntimeError: if the embedded year/month does not match.
+    """
+    if "survyear" not in df.columns or "survmnth" not in df.columns:
+        # Cannot validate — trust the filename (old PUMF formats pre-2015 may lack these)
+        return
+
+    actual_years = df["survyear"].dropna().unique().tolist()
+    actual_months = df["survmnth"].dropna().unique().tolist()
+
+    year_ok = len(actual_years) == 1 and int(actual_years[0]) == year
+    month_ok = len(actual_months) == 1 and int(actual_months[0]) == month
+
+    if not (year_ok and month_ok):
+        raise RuntimeError(
+            f"PUMF integrity check failed for {year:04d}-{month:02d}.\n"
+            f"  Source: {source_url}\n"
+            f"  Expected survyear={year} survmnth={month}.\n"
+            f"  Got     survyear={actual_years} survmnth={actual_months}.\n"
+            f"This is typically caused by the single-CSV fallback extracting the wrong "
+            f"month from a cached spike zip, or StatCan serving a different month. "
+            f"Delete the cached annual zip and retry, or pass force=True."
+        )
 
 
 def _write_meta(

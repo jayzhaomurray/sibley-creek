@@ -91,12 +91,14 @@ class Spec(BaseModel, frozen=True):
 
 
 # Default Spec — frozen after calibration 2026-06-05.
-# Calibration result: 8-spec grid vs BoC Valet INDINF_LFSMICRO_M over 2016-2025
-# Winner: weighted=True, smoothing=ma3, ob_reference=base
-# RMSE=0.42 pp, corr=0.939, n=100 overlap months
+# Calibration result: 8-spec grid vs BoC Valet INDINF_LFSMICRO_M over 2016-2026-03.
+# Winner: weighted=True, smoothing=ma3, ob_reference=base.
+# After corruption fix (2026-06-05): RMSE=0.3655 pp, corr=0.9441, n=122 overlap months.
+# Last-18-month RMSE=0.1510 pp after fix (was 0.8458 pp with two corrupted parquets).
 # WLS (weighted) and ma3 smoothing are both strongly preferred over alternatives.
-# Base reference vs current reference: RMSE difference ~0.004 pp; base chosen
+# Base reference vs current reference: RMSE difference ~0.001 pp; base chosen
 # as it matches the BoC SAN 2024-23 narrative framing more directly.
+# See: claude-ref/research/lfs_micro/calibration_report.md for full diagnosis.
 DEFAULT_SPEC = Spec(
     weighted=True,
     smoothing="ma3",
