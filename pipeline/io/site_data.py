@@ -672,12 +672,33 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
             ),
         ),
     ),
-    # "fiscal" debt-service-share tile removed 2026-05-28: raw CSVs
-    # (public_debt_charges_ytd, revenues_ytd) are not present in data/raw/,
-    # which caused the partner_share transform to fall back to "TK" and
-    # render as visible placeholders on /overview/. Restore this entry
-    # once the upstream DoF Fiscal Monitor pipeline writes those CSVs.
-    "fiscal": (),
+    # "fiscal" debt-service-share print restored 2026-06-05. The 2026-05-28
+    # removal note cited missing raw CSVs (public_debt_charges_ytd,
+    # revenues_ytd) for a partner_share transform; the ratio is now
+    # materialized directly as data/derived/debt_service_ratio.csv (monthly,
+    # already in %, public debt charges / revenues, 12m trailing — the same
+    # series the /fiscal/ plate-5 chart reads), so no transform is needed.
+    "fiscal": (
+        SupportingPrintSpec(
+            key="debt-service-share",
+            indicator="Debt service / revenues",
+            primary_series="debt_service_ratio",
+            primary_dir="derived",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="month-year",
+            notes=(
+                "Public debt charges as a share of federal revenues, monthly, "
+                "12m trailing, derived in the fiscal pipeline (same series as "
+                "the /fiscal/ debt-service plate). Delta is m/m in percentage "
+                "points. Rising share = more of each revenue dollar consumed "
+                "by interest."
+            ),
+        ),
+    ),
     "markets": (
         SupportingPrintSpec(
             key="goc-10y",
