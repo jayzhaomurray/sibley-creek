@@ -164,6 +164,28 @@ const articleLd = JSON.stringify({
       <p class="commentary__excerpt">{commentary.excerpt}</p>
     </section>
 
+    {commentary.coverage && commentary.coverage.length > 0 && (
+      <aside class="commentary__coverage" aria-labelledby="coverage-h">
+        <h2 id="coverage-h" class="commentary__coverage-label">In the news</h2>
+        <ul class="commentary__coverage-list">
+          {commentary.coverage.map((c) => (
+            <li class="commentary__coverage-item">
+              <a
+                class="commentary__coverage-outlet"
+                href={c.url}
+                rel="noopener"
+              >{c.outlet}</a>
+              <span class="commentary__coverage-line"> quoted this commentary</span>
+              <span class="commentary__coverage-sep" aria-hidden="true">·</span>
+              <time class="commentary__coverage-date" datetime={c.date}>
+                {displayDateShort(c.date)}
+              </time>
+            </li>
+          ))}
+        </ul>
+      </aside>
+    )}
+
     <div class="commentary__cta">
       <a
         class="commentary__pdf-link"
@@ -341,6 +363,62 @@ const articleLd = JSON.stringify({
       line-height: 1.60;
       color: var(--ink);
       max-width: 60ch;
+    }
+
+    /* ---- In the news (press coverage) ---- */
+    .commentary__coverage {
+      margin-top: 30px;
+    }
+    .commentary__coverage-label {
+      margin: 0 0 10px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .commentary__coverage-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .commentary__coverage-item {
+      font-family: var(--font-sans);
+      font-weight: 400;
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--ink);
+    }
+    .commentary__coverage-outlet {
+      font-weight: 600;
+      color: var(--ink);
+      text-decoration: none;
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 1px;
+      transition:
+        color 80ms linear,
+        border-color 80ms linear;
+    }
+    .commentary__coverage-outlet:hover {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .commentary__coverage-outlet:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+    .commentary__coverage-sep {
+      opacity: 0.4;
+      margin: 0 4px;
+    }
+    .commentary__coverage-date {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      opacity: 0.7;
+      font-variant-numeric: tabular-nums;
     }
 
     /* ---- PDF download CTA ---- */

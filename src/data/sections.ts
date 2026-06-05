@@ -918,6 +918,20 @@ export interface DataCommentary {
   correction?: string;
   /** ISO date string (YYYY-MM-DD) the correction was posted. */
   correctedAt?: string;
+  /**
+   * Optional press coverage of this commentary. Each entry renders as an
+   * "In the news" line on the wrapper page: the outlet name links to the
+   * article. Only add entries where the outlet quoted or cited this
+   * commentary directly.
+   */
+  coverage?: {
+    /** Outlet name as displayed, e.g. "Reuters". */
+    outlet: string;
+    /** URL of the article that quotes the commentary. */
+    url: string;
+    /** ISO date string (YYYY-MM-DD) of the article. */
+    date: string;
+  }[];
 }
 
 export const commentaries: DataCommentary[] = [
@@ -932,6 +946,13 @@ export const commentaries: DataCommentary[] = [
     correction:
       "An earlier version of this commentary said May's gain returned employment to an all-time high, completely making up the shortfall from the start of the year. Employment is at its highest level this year but remains about 25,000 short of the December 2025 record. The commentary and PDF have been updated.",
     correctedAt: "2026-06-05",
+    coverage: [
+      {
+        outlet: "Reuters",
+        url: "https://www.reuters.com/business/world-at-work/canada-adds-87800-jobs-jobless-rate-down-66-beating-may-estimates-2026-06-05/",
+        date: "2026-06-05",
+      },
+    ],
   },
   {
     slug: "two-quarter-rule",
