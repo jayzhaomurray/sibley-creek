@@ -90,9 +90,13 @@ class Spec(BaseModel, frozen=True):
         return d
 
 
-# Default Spec — overwritten by calibrate.py once calibration is complete.
-# The "base" reference convention and WLS match the BoC SAN 2024-23 description
-# most closely. Calibration may update smoothing.
+# Default Spec — frozen after calibration 2026-06-05.
+# Calibration result: 8-spec grid vs BoC Valet INDINF_LFSMICRO_M over 2016-2025
+# Winner: weighted=True, smoothing=ma3, ob_reference=base
+# RMSE=0.42 pp, corr=0.939, n=100 overlap months
+# WLS (weighted) and ma3 smoothing are both strongly preferred over alternatives.
+# Base reference vs current reference: RMSE difference ~0.004 pp; base chosen
+# as it matches the BoC SAN 2024-23 narrative framing more directly.
 DEFAULT_SPEC = Spec(
     weighted=True,
     smoothing="ma3",
