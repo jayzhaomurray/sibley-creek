@@ -939,6 +939,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "boc-preview-june-2026",
+    section: "monetary",
+    title: "The Bank of Canada is set to hold in June.",
+    publishedAt: "2026-06-08",
+    pdfPath: "/research/commentaries/boc-preview-june-2026.pdf",
+    excerpt:
+      "We expect the Bank to hold for a fifth straight meeting on Wednesday. Looking further out, markets are pricing too many hikes: our estimate of the Bank's internal rate path settles 25 to 50 basis points below what the market expects.",
+  },
+  {
     slug: "jobs-may-2026",
     section: "labour",
     title: "Blowout Canada jobs report shows 88k gain.",
