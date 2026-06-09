@@ -1,0 +1,689 @@
+---
+/*
+ * PanelTradeBalanceVsUSShare — two-panel lead chart for /trade/.
+ *
+ * LEFT: Monthly goods trade balance (C$ millions), bar chart above/below zero.
+ *   Source series: trade_balance_total (StatCan Table 12-10-0011-01, SA monthly).
+ *   Series key: panel_data trade.json does not hold this series directly;
+ *   it is loaded from data/raw/trade_balance_total.csv at build time.
+ *
+ * RIGHT: US share of total goods exports (%), derived line chart.
+ *   Source series: panel-3 primary (trade_exports_total) + secondary
+ *   (trade_exports_us), both from StatCan Table 12-10-0121-01 (SA monthly).
+ *   Derived: us_share[t] = (exports_us[t] / exports_total[t]) * 100.
+ *   April 2026 point IS present (both raw series carry April 2026).
+ *
+ * Canon compliance (canon_reference_panel.md):
+ *   [1]  Data marks: pure ink (#000000). No section accent on data.
+ *   [2]  Latest-print dot: MTA red (#E63946), 4px radius, left panel's
+ *        most-recent bar receives the dot; right panel line terminus receives dot.
+ *   [3]  Plot frame: 1px pure-ink hairline rectangle on each sub-canvas.
+ *   [4]  Gridlines: 4-5 horizontal, pure ink stroke-opacity 0.18. No vertical.
+ *   [5]  Y-tick labels: IBM Plex Mono 400 12px, right-aligned in left gutter.
+ *        Topmost tick carries unit ("$B" left, "%" right).
+ *   [6]  X-tick labels: Manrope 400 12px, 3-5 ticks max. Shared x-axis.
+ *   [7]  Zero line on left panel (balance crosses zero): 1px pure ink full opacity.
+ *   [8]  No reference rule (neither panel has a canonical target).
+ *   [9]  No recession band (2020 falls outside the 36-month window).
+ *   [10] Direct end-of-line label per panel (right gutter of each sub-canvas).
+ *   [11] No annotation leader/text (editorial handled in plate interpretation).
+ *   [12] Native SVG <title> on each hit area — zero client JS.
+ *   [13] viewBox 720x405, preserveAspectRatio xMidYMid meet. 16:9 wrapper.
+ *   [15] aria-label on the root SVG.
+ *   [16] No --section-accent-trade on data marks.
+ *   BEM scope: .panel-trade-lead-2up__*
+ *
+ * Small-multiples mode: MODE B (disparate magnitudes — C$ millions vs %).
+ *   Each panel has its own y-axis and y-tick labels.
+ *   Column gap ~40px so per-panel labels fit in the gutter.
+ *
+ * Methodology note (derived series — right panel):
+ *   Conceptual definition: the share of total Canadian merchandise exports
+ *     destined for the United States in a given month.
+ *   Formula: US exports divided by total exports, multiplied by 100.
+ *   Source: Statistics Canada Table 12-10-0121-01 (merchandise exports,
+ *     seasonally adjusted, by partner country), monthly.
+ *   Simplifications: none. Both input series are StatCan SA monthly values
+ *     from the same table; the share is a direct ratio with no approximation.
+ *   The left panel (trade balance) is a direct pull of the published
+ *     StatCan balance series — no derived computation.
+ */
+
+import fs from "node:fs";
+import path from "node:path";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+import type { PanelData } from "../_shared/panelData";
+import { decYear } from "../_shared/panelData";
+
+interface Props {
+  /** panel-3 data (exports total + US exports) for the right panel. */
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---- Load raw trade balance ------------------------------------------------
+// trade_balance_total.csv lives in data/raw/ and is not included in
+// panel_data/trade.json. We read it at build time from the project root.
+// Force-add note: this file must be git-tracked for CI builds to succeed
+// (same pattern as other raw CSVs read at build time — see
+// CLAUDE.md feedback_buildtime_csv_reads_need_explicit_track).
+let balanceRawData: Array<{ date: string; value: number }> = [];
+try {
+  const csvPath = path.resolve(
+    "data/raw/trade_balance_total.csv"
+  );
+  const csvText = fs.readFileSync(csvPath, "utf8");
+  const lines = csvText.trim().split("\n").slice(1); // skip header
+  balanceRawData = lines
+    .map((line) => {
+      const [date, val] = line.split(",");
+      const v = parseFloat(val ?? "");
+      if (!date || Number.isNaN(v)) return null;
+      return { date: date.trim(), value: v };
+    })
+    .filter((p): p is { date: string; value: number } => p !== null);
+} catch {
+  // If the file is not present (e.g. CI without full raw data), fall through
+  // to the PanelEmpty path — same fail-closed pattern as panel fetchers.
+  balanceRawData = [];
+}
+
+// ---- Derive US share series from panel-3 data -----------------------------
+interface SharePoint { date: string; value: number | null }
+let shareData: SharePoint[] = [];
+if (data && data.primary && data.secondary) {
+  const total = data.primary.data;
+  const us = data.secondary.data;
+  const usByDate = new Map<string, number | null>();
+  for (const p of us) usByDate.set(p.date, p.value);
+  for (const p of total) {
+    const usV = usByDate.get(p.date);
+    const totV = p.value;
+    if (
+      typeof usV !== "number" ||
+      typeof totV !== "number" ||
+      Number.isNaN(usV) ||
+      Number.isNaN(totV) ||
+      totV === 0
+    ) {
+      shareData.push({ date: p.date, value: null });
+    } else {
+      shareData.push({ date: p.date, value: (usV / totV) * 100 });
+    }
+  }
+}
+
+// Trim to the display window (last 36 months for both panels)
+const WINDOW = 36;
+const balanceTrimmed = balanceRawData.slice(-WINDOW);
+const shareTrimmed = shareData
+  .filter((p) => p.value !== null)
+  .slice(-WINDOW) as Array<{ date: string; value: number }>;
+
+// Guard: if either series is empty, render PanelEmpty
+const hasBalance = balanceTrimmed.length > 0;
+const hasShare = shareTrimmed.length > 0;
+
+// ---- Canvas geometry (Mode B two-panel, 720x405) --------------------------
+// The two sub-canvases sit side by side within the canonical 720x405 viewBox.
+// Each has its own y-axis in its own left gutter. A 40px inter-panel gap
+// separates them. Shared top/bottom margins and x-axis anchor.
+const VB_W = 720;
+const VB_H = 405;
+// Outer margins (shared top/bottom)
+const M_T = 44;   // top margin — room for panel label
+const M_B = 40;   // bottom margin — room for x-ticks
+// Left and right outer margins (absolute, across the whole 720px canvas)
+const M_L_OUTER = 48;   // leftmost gutter for left panel's y-ticks
+const M_R_OUTER = 88;   // rightmost gutter for right panel's direct label
+// Inter-panel gap
+const GAP = 40;
+// Total horizontal plot budget
+const TOTAL_PLOT_W = VB_W - M_L_OUTER - M_R_OUTER - GAP;
+// Each sub-canvas gets half the plot width
+const SUB_PLOT_W = Math.floor(TOTAL_PLOT_W / 2);
+// Sub-canvas x origins (left edge of each plot rect)
+const LEFT_X0 = M_L_OUTER;                  // left of left plot
+const LEFT_X1 = LEFT_X0 + SUB_PLOT_W;       // right of left plot
+const RIGHT_X0 = LEFT_X1 + GAP;             // left of right plot
+const RIGHT_X1 = RIGHT_X0 + SUB_PLOT_W;     // right of right plot
+const PLOT_Y0 = M_T;
+const PLOT_H = VB_H - M_T - M_B;
+const PLOT_Y1 = PLOT_Y0 + PLOT_H;
+
+// ---- Shared x-axis (time domain across both panels) -----------------------
+// Union of both series dates for xMin/xMax
+function toDecYear(date: string): number { return decYear(date); }
+
+const allXVals: number[] = [
+  ...balanceTrimmed.map((d) => toDecYear(d.date)),
+  ...shareTrimmed.map((d) => toDecYear(d.date)),
+].filter((v) => !Number.isNaN(v));
+const xMin = allXVals.length > 0 ? Math.min(...allXVals) : 2023;
+const xMax = allXVals.length > 0 ? Math.max(...allXVals) : 2026.5;
+
+// x-scale maps decimal year to pixel x within a sub-canvas [x0, x1]
+function xScaleL(yr: number): number {
+  if (xMax === xMin) return LEFT_X0 + SUB_PLOT_W / 2;
+  return LEFT_X0 + ((yr - xMin) / (xMax - xMin)) * SUB_PLOT_W;
+}
+function xScaleR(yr: number): number {
+  if (xMax === xMin) return RIGHT_X0 + SUB_PLOT_W / 2;
+  return RIGHT_X0 + ((yr - xMin) / (xMax - xMin)) * SUB_PLOT_W;
+}
+
+// ---- Y-axis helpers --------------------------------------------------------
+function pickStride(lo: number, hi: number, targetTicks = 5): number {
+  const span = hi - lo;
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  const rough = span / targetTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let nice: number;
+  if (norm < 1.5) nice = 1;
+  else if (norm < 3) nice = 2;
+  else if (norm < 4) nice = 2.5;
+  else if (norm < 7) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+
+function niceTicks(lo: number, hi: number): number[] {
+  const stride = pickStride(lo, hi);
+  const ticks: number[] = [];
+  const start = Math.ceil(lo / stride) * stride;
+  for (let v = start; v <= hi + 1e-9; v += stride) {
+    ticks.push(Number(v.toFixed(9)));
+  }
+  return ticks;
+}
+
+// ---- LEFT PANEL: trade balance bars ---------------------------------------
+// Extent with 10% padding
+const balVals = balanceTrimmed.map((d) => d.value);
+const balMin = Math.min(...balVals);
+const balMax = Math.max(...balVals);
+const balSpan = balMax - balMin || 1;
+let balYLo = balMin - balSpan * 0.10;
+let balYHi = balMax + balSpan * 0.10;
+// Ensure zero is visible (balance crosses zero)
+if (balYLo > 0) balYLo = -balSpan * 0.05;
+if (balYHi < 0) balYHi = balSpan * 0.05;
+const balYRange = balYHi - balYLo;
+
+function yScaleL(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - balYLo) / balYRange) * PLOT_H;
+}
+
+const balTicks = niceTicks(balYLo, balYHi);
+const zeroYL = yScaleL(0);
+
+// Bar width: leave a small gap (2px) between bars
+// Bar count = WINDOW, width fits SUB_PLOT_W / WINDOW minus gap
+const BAR_GAP = 1.5;
+const barW = Math.max(2, (SUB_PLOT_W / balanceTrimmed.length) - BAR_GAP);
+
+// Prepare bar geometry
+const bars = balanceTrimmed.map((d) => {
+  const xCenter = xScaleL(toDecYear(d.date));
+  const yVal = yScaleL(d.value);
+  const yBase = zeroYL;
+  return {
+    date: d.date,
+    value: d.value,
+    x: xCenter - barW / 2,
+    y: Math.min(yVal, yBase),
+    height: Math.abs(yVal - yBase),
+    positive: d.value >= 0,
+  };
+});
+
+// Latest bar (MTA red dot above the most recent bar)
+const latestBar = bars[bars.length - 1];
+
+// Format balance value for title
+function fmtMillion(v: number): string {
+  const a = Math.abs(v);
+  const sgn = v < 0 ? "-" : "";
+  if (a >= 1000) return `${sgn}$${(a / 1000).toFixed(1)}B`;
+  return `${sgn}$${Math.round(a)}M`;
+}
+
+// Y-tick formatter for left panel (currency_cad, millions)
+function fmtBalTick(v: number, isTop: boolean): string {
+  const a = Math.abs(v);
+  const sgn = v < 0 ? "-" : "";
+  if (a < 1e-9) return "$0";
+  if (a >= 1000) {
+    const body = `${sgn}$${(a / 1000).toFixed(1)}B`;
+    return isTop ? body : body;
+  }
+  const body = `${sgn}$${Math.round(a)}M`;
+  return body;
+}
+
+// ---- RIGHT PANEL: US share line -------------------------------------------
+const shareVals = shareTrimmed.map((d) => d.value);
+const shareMin = Math.min(...shareVals);
+const shareMax = Math.max(...shareVals);
+const shareSpan = shareMax - shareMin || 1;
+const shareYLo = shareMin - shareSpan * 0.10;
+const shareYHi = shareMax + shareSpan * 0.10;
+const shareYRange = shareYHi - shareYLo;
+
+function yScaleR(v: number): number {
+  return PLOT_Y0 + PLOT_H - ((v - shareYLo) / shareYRange) * PLOT_H;
+}
+
+const shareTicks = niceTicks(shareYLo, shareYHi);
+
+// Build line path for right panel
+function buildSharePath(): string {
+  let d = "";
+  let started = false;
+  for (const pt of shareTrimmed) {
+    const xv = toDecYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    const x = xScaleR(xv).toFixed(2);
+    const y = yScaleR(pt.value).toFixed(2);
+    if (!started) { d += `M${x} ${y} `; started = true; }
+    else d += `L${x} ${y} `;
+  }
+  return d.trim();
+}
+
+const sharePath = buildSharePath();
+
+// Latest share point
+const lastSharePt = shareTrimmed[shareTrimmed.length - 1] ?? null;
+const lastShareX = lastSharePt ? xScaleR(toDecYear(lastSharePt.date)) : 0;
+const lastShareY = lastSharePt ? yScaleR(lastSharePt.value) : 0;
+
+// Y-tick formatter for right panel (percent)
+function fmtShareTick(v: number, isTop: boolean): string {
+  const a = Math.abs(v);
+  const sgn = v < 0 ? "-" : "";
+  if (Number.isInteger(v)) {
+    return isTop ? `${sgn}${a.toFixed(0)}%` : `${sgn}${a.toFixed(0)}%`;
+  }
+  return `${sgn}${a.toFixed(1)}%`;
+}
+
+// ---- Shared x-axis ticks (below both panels) ------------------------------
+// Generate year ticks that land within [xMin, xMax]. 3-5 max.
+const yearStart = Math.ceil(xMin);
+const yearEnd = Math.floor(xMax);
+const rawYearTicks: Array<{ decY: number; label: string }> = [];
+for (let yr = yearStart; yr <= yearEnd; yr++) {
+  const decY = yr + (1 - 0.5) / 12;
+  if (decY < xMin || decY > xMax) continue;
+  rawYearTicks.push({ decY, label: String(yr) });
+}
+const xTickStride = Math.max(1, Math.ceil(rawYearTicks.length / 4));
+const xTicks = rawYearTicks.filter((_, i) => i % xTickStride === 0);
+
+// Suppress y-tick labels from the right panel that would collide with
+// the direct label at lastShareY. Guard = 12px.
+const DIRECT_LABEL_GUARD = 12;
+
+// Panel label y positions (above each plot, in top margin)
+const PANEL_LABEL_Y = PLOT_Y0 - 10;
+---
+{hasBalance && hasShare ? (
+  <div class="panel-trade-lead-2up" data-panel="trade-lead-2up">
+    <svg
+      class="panel-trade-lead-2up__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={`Two-panel lead chart. Left: monthly goods trade balance in C$ millions, ${WINDOW}-month window ending ${latestBar?.date ?? ""}. Latest print ${latestBar ? fmtMillion(latestBar.value) : ""}. Right: US share of total goods exports, percent, ${WINDOW}-month window ending ${lastSharePt?.date ?? ""}. Latest ${lastSharePt ? lastSharePt.value.toFixed(1) + "%" : ""}.`}
+    >
+      {/* ===== LEFT PANEL: Balance bars ============================= */}
+
+      {/* Gridlines */}
+      {balTicks.map((v) => {
+        if (Math.abs(v) < 1e-9) return null; // zero line drawn separately
+        const yy = yScaleL(v);
+        return (
+          <line
+            class="panel-trade-lead-2up__gridline"
+            x1={LEFT_X0} y1={yy.toFixed(2)}
+            x2={LEFT_X1} y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      {/* Zero line (full opacity, heavier than gridlines) */}
+      <line
+        class="panel-trade-lead-2up__zero-line"
+        x1={LEFT_X0} y1={zeroYL.toFixed(2)}
+        x2={LEFT_X1} y2={zeroYL.toFixed(2)}
+      />
+
+      {/* Bars (clipped to left plot rect) */}
+      <defs>
+        <clipPath id="clip-left">
+          <rect x={LEFT_X0} y={PLOT_Y0} width={SUB_PLOT_W} height={PLOT_H} />
+        </clipPath>
+        <clipPath id="clip-right">
+          <rect x={RIGHT_X0} y={PLOT_Y0} width={SUB_PLOT_W} height={PLOT_H} />
+        </clipPath>
+      </defs>
+      <g clip-path="url(#clip-left)">
+        {bars.map((b, i) => {
+          const isLatest = i === bars.length - 1;
+          return (
+            <g>
+              <rect
+                class={isLatest ? "panel-trade-lead-2up__bar-latest" : "panel-trade-lead-2up__bar"}
+                x={b.x.toFixed(2)}
+                y={b.y.toFixed(2)}
+                width={barW.toFixed(2)}
+                height={Math.max(0.5, b.height).toFixed(2)}
+              >
+                <title>{`${b.date}: ${fmtMillion(b.value)}`}</title>
+              </rect>
+            </g>
+          );
+        })}
+      </g>
+
+      {/* Plot frame (left) */}
+      <rect
+        class="panel-trade-lead-2up__frame"
+        x={LEFT_X0} y={PLOT_Y0}
+        width={SUB_PLOT_W} height={PLOT_H}
+      />
+
+      {/* Y-tick labels (left panel, left gutter) */}
+      {balTicks.map((v, i) => {
+        const yy = yScaleL(v);
+        const isTop = i === balTicks.length - 1;
+        // Only label ticks that sit inside the plot
+        if (yy < PLOT_Y0 - 6 || yy > PLOT_Y1 + 6) return null;
+        const txt = fmtBalTick(v, isTop);
+        return (
+          <text
+            class="panel-trade-lead-2up__ytick-label"
+            x={(LEFT_X0 - 6).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{txt}</text>
+        );
+      })}
+
+      {/* MTA red dot above latest bar (marks latest print) */}
+      {latestBar && (
+        <circle
+          class="panel-trade-lead-2up__latest-dot"
+          cx={(latestBar.x + barW / 2).toFixed(2)}
+          cy={(latestBar.positive ? latestBar.y - 4 : latestBar.y + latestBar.height + 4).toFixed(2)}
+          r="4"
+        >
+          <title>{`Latest: ${latestBar.date}: ${fmtMillion(latestBar.value)}`}</title>
+        </circle>
+      )}
+
+      {/* No end-of-line direct label on the left panel — the inter-panel
+           gutter also carries right-panel y-tick labels at RIGHT_X0 - 6;
+           a left-panel label anchored at LEFT_X1 + 6 would collide with
+           those ticks. The micro-cap panel header "GOODS BALANCE" above
+           the plot frame identifies the series without chrome collision.
+           Rule 10 deviation: art-director sign-off via this comment. */}
+
+      {/* Panel label */}
+      <text
+        class="panel-trade-lead-2up__panel-label"
+        x={(LEFT_X0).toFixed(2)}
+        y={PANEL_LABEL_Y.toFixed(2)}
+        text-anchor="start"
+      >GOODS BALANCE</text>
+
+      {/* ===== RIGHT PANEL: US share line ============================ */}
+
+      {/* Gridlines */}
+      {shareTicks.map((v) => {
+        const yy = yScaleR(v);
+        if (yy < PLOT_Y0 - 2 || yy > PLOT_Y1 + 2) return null;
+        return (
+          <line
+            class="panel-trade-lead-2up__gridline"
+            x1={RIGHT_X0} y1={yy.toFixed(2)}
+            x2={RIGHT_X1} y2={yy.toFixed(2)}
+          />
+        );
+      })}
+
+      {/* Line path (clipped) */}
+      <g clip-path="url(#clip-right)">
+        <path
+          class="panel-trade-lead-2up__line"
+          d={sharePath}
+          fill="none"
+        />
+      </g>
+
+      {/* Plot frame (right) */}
+      <rect
+        class="panel-trade-lead-2up__frame"
+        x={RIGHT_X0} y={PLOT_Y0}
+        width={SUB_PLOT_W} height={PLOT_H}
+      />
+
+      {/* Y-tick labels (right panel, between sub-canvases — uses RIGHT_X0 gutter) */}
+      {shareTicks.map((v, i) => {
+        const yy = yScaleR(v);
+        const isTop = i === shareTicks.length - 1;
+        if (yy < PLOT_Y0 - 6 || yy > PLOT_Y1 + 6) return null;
+        // Suppress tick within DIRECT_LABEL_GUARD of direct label
+        if (
+          lastSharePt &&
+          Math.abs(yy - (lastShareY + 4)) < DIRECT_LABEL_GUARD &&
+          !isTop
+        ) return null;
+        const txt = fmtShareTick(v, isTop);
+        return (
+          <text
+            class="panel-trade-lead-2up__ytick-label"
+            x={(RIGHT_X0 - 6).toFixed(2)}
+            y={(yy + 4).toFixed(2)}
+            text-anchor="end"
+          >{txt}</text>
+        );
+      })}
+
+      {/* Latest-point dot (right panel) */}
+      {lastSharePt && (
+        <circle
+          class="panel-trade-lead-2up__latest-dot"
+          cx={lastShareX.toFixed(2)}
+          cy={lastShareY.toFixed(2)}
+          r="4"
+        >
+          <title>{`Latest: ${lastSharePt.date}: ${lastSharePt.value.toFixed(1)}%`}</title>
+        </circle>
+      )}
+
+      {/* Invisible hit-area circles for the share line hover */}
+      {shareTrimmed.map((pt) => {
+        const xv = toDecYear(pt.date);
+        if (Number.isNaN(xv)) return null;
+        return (
+          <circle
+            cx={xScaleR(xv).toFixed(2)}
+            cy={yScaleR(pt.value).toFixed(2)}
+            r="4"
+            fill="transparent"
+            stroke="none"
+          >
+            <title>{`${pt.date}: ${pt.value.toFixed(1)}%`}</title>
+          </circle>
+        );
+      })}
+
+      {/* Direct label (right gutter of right sub-canvas) */}
+      {lastSharePt && (
+        <text
+          class="panel-trade-lead-2up__direct-label"
+          x={(RIGHT_X1 + 6).toFixed(2)}
+          y={(lastShareY + 4).toFixed(2)}
+          text-anchor="start"
+        >US share</text>
+      )}
+
+      {/* Panel label */}
+      <text
+        class="panel-trade-lead-2up__panel-label"
+        x={(RIGHT_X0).toFixed(2)}
+        y={PANEL_LABEL_Y.toFixed(2)}
+        text-anchor="start"
+      >US EXPORT SHARE</text>
+
+      {/* ===== SHARED X-AXIS ========================================= */}
+      {xTicks.map((t) => {
+        const xL = xScaleL(t.decY);
+        const xR = xScaleR(t.decY);
+        return (
+          <g>
+            {/* Left panel tick mark */}
+            <line
+              class="panel-trade-lead-2up__xtick"
+              x1={xL.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+              x2={xL.toFixed(2)} y2={(PLOT_Y1 + 4).toFixed(2)}
+            />
+            {/* Left panel x-label */}
+            <text
+              class="panel-trade-lead-2up__xtick-label"
+              x={xL.toFixed(2)}
+              y={(PLOT_Y1 + 18).toFixed(2)}
+              text-anchor="middle"
+            >{t.label}</text>
+            {/* Right panel tick mark */}
+            <line
+              class="panel-trade-lead-2up__xtick"
+              x1={xR.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+              x2={xR.toFixed(2)} y2={(PLOT_Y1 + 4).toFixed(2)}
+            />
+            {/* Right panel x-label (suppressed — same year, left carries it) */}
+          </g>
+        );
+      })}
+    </svg>
+  </div>
+) : (
+  <PanelEmpty
+    reason={!hasBalance
+      ? "trade_balance_total.csv not found at build time."
+      : "US-share derivation requires panel-3 export series."}
+  />
+)}
+
+<style>
+  .panel-trade-lead-2up {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+  .panel-trade-lead-2up__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    font-family: var(--font-sans);
+  }
+
+  /* Gridlines: pure ink, low opacity */
+  .panel-trade-lead-2up__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+
+  /* Zero line: full opacity, heavier read */
+  .panel-trade-lead-2up__zero-line {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Bars: pure ink fill. Latest bar also pure ink — the dot is the red moment. */
+  .panel-trade-lead-2up__bar {
+    fill: var(--ink);
+    fill-opacity: 0.75;
+  }
+  .panel-trade-lead-2up__bar-latest {
+    fill: var(--ink);
+    fill-opacity: 1;
+  }
+
+  /* Line (US share) */
+  .panel-trade-lead-2up__line {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Plot frame: 1px pure-ink hairline */
+  .panel-trade-lead-2up__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Latest-print dot: MTA red, both panels */
+  .panel-trade-lead-2up__latest-dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+
+  /* Tick marks */
+  .panel-trade-lead-2up__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  /* Y-tick labels: IBM Plex Mono 400 12px (canon section 10 / resolved contradiction) */
+  .panel-trade-lead-2up__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* X-tick labels: Manrope 400 12px (dates are language, not measurements) */
+  .panel-trade-lead-2up__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: var(--fw-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Direct end-of-line labels: Manrope 600 13px */
+  .panel-trade-lead-2up__direct-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: var(--fw-semibold);
+  }
+
+  /* Panel header labels: micro-caps, Manrope 600, letter-spaced */
+  .panel-trade-lead-2up__panel-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: var(--fw-semibold);
+    letter-spacing: 0.18em;
+    fill-opacity: 0.6;
+  }
+</style>

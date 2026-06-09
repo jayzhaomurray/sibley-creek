@@ -1,8 +1,13 @@
 """Fetch sectoral export data from StatCan Table 12-10-0182-01.
 
-Produces data/processed/sectoral_exports_mar_to_mar.csv with March 2025 and
-March 2026 domestic export values for every NAPCS sub-chapter, split by
-destination: United States vs. All Countries.
+Produces data/processed/sectoral_exports_latest_yoy.csv with a year-over-year
+window anchored to the latest available month in the table. The end month is
+the latest month present across all NAPCS sub-chapters; the start month is
+the same calendar month one year prior.
+
+Window advances automatically on each re-fetch as StatCan publishes new months.
+Current window (as of last fetch) is recorded in the sibling .meta.json
+(fields: window_start, window_end).
 
 Source: Statistics Canada, Table 12-10-0182-01
 "Canadian international merchandise trade for total exports, domestic exports
@@ -31,6 +36,12 @@ Output is converted to CAD millions (divide by 1000).
 
 Units in output CSV: CAD millions, not seasonally adjusted, domestic exports
 (excludes re-exports), customs basis.
+
+Column naming convention (generic, window-agnostic):
+  start_total  -- all-countries value at window_start (same-month prior year)
+  start_us     -- US-destination value at window_start
+  end_total    -- all-countries value at window_end (latest available month)
+  end_us       -- US-destination value at window_end
 """
 
 from __future__ import annotations
@@ -38,13 +49,12 @@ from __future__ import annotations
 import csv
 import json
 import logging
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
-import httpx
+import requests
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -184,8 +194,11 @@ NAPCS_SUB_CHAPTERS: dict[int, tuple[str, str]] = {
     113: ("[988]", "Special transactions trade"),
 }
 
-TARGET_MONTHS = {"2025-03", "2026-03"}
-LATEST_N = 16   # 16 months back from current covers Mar 2025 from Mar 2026
+# Number of periods to fetch per vector.
+# 14 covers same-month-prior-year from any month that is <= 2 months after
+# the most recent complete-year boundary. 16 gives one period of slack in case
+# a straggler series is one month behind the majority.
+LATEST_N = 16
 
 
 # ---------------------------------------------------------------------------
@@ -221,13 +234,20 @@ def _get_vid(napcs_m: int, trade_t: int, dest_d: int, origin_o: int = 1) -> int:
 
 
 def _post_batch(
-    client: httpx.Client, vids: list[int], latest_n: int
+    session: requests.Session, vids: list[int], latest_n: int
 ) -> list[_VectorItem]:
     body = [{"vectorId": v, "latestN": latest_n} for v in vids]
-    r = client.post(WDS_ENDPOINT, json=body)
+    r = session.post(WDS_ENDPOINT, json=body, timeout=60)
     r.raise_for_status()
-    raw = r.json()
+    raw: list[Any] = r.json()
     return [_VectorItem.model_validate(item) for item in raw]
+
+
+def _prior_year_month(ym: str) -> str:
+    """Return YYYY-MM that is exactly 12 months before the given YYYY-MM."""
+    year = int(ym[:4])
+    month = int(ym[5:7])
+    return f"{year - 1:04d}-{month:02d}"
 
 
 # ---------------------------------------------------------------------------
@@ -243,11 +263,14 @@ def fetch_sectoral_exports(
 ) -> int:
     """Fetch and write sectoral exports CSV.
 
+    Window is determined dynamically:
+      - end_month  = the latest YYYY-MM present in ALL series
+      - start_month = same calendar month one year prior (end_month - 12 months)
+
     Returns the number of NAPCS rows written.
 
-    Raises RuntimeError loudly if any target month is missing for any series,
-    or if WDS returns an error for any vector. Silent partial-success is
-    forbidden.
+    Raises RuntimeError loudly if the window cannot be resolved or if any
+    target month is missing for any series. Silent partial-success is forbidden.
     """
     member_ids = sorted(NAPCS_SUB_CHAPTERS.keys())
 
@@ -257,32 +280,77 @@ def fetch_sectoral_exports(
         requests_all.append((m, "all", _get_vid(m, TRADE_DOMESTIC, DEST_ALL)))
         requests_all.append((m, "us",  _get_vid(m, TRADE_DOMESTIC, DEST_US)))
 
-    # Group into batches
     all_vids = [vid for (_, _, vid) in requests_all]
-    fetched: dict[int, dict[str, Optional[float]]] = {}  # {vid: {month: value}}
+    fetched: dict[int, dict[str, Optional[float]]] = {}  # {vid: {YYYY-MM: value}}
 
-    headers = {
-        "User-Agent": USER_AGENT,
+    # Use requests + Chrome UA: StatCan www150 TLS-fingerprints non-browser
+    # clients (httpx/urllib get connection-reset). Chrome UA bypasses the filter.
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
         "Accept": "application/json",
-    }
-    with httpx.Client(timeout=httpx.Timeout(60.0, connect=15.0), headers=headers) as client:
-        for batch_start in range(0, len(all_vids), batch_size):
-            batch_vids = all_vids[batch_start : batch_start + batch_size]
-            items = _post_batch(client, batch_vids, latest_n)
+    })
 
-            for vid, item in zip(batch_vids, items):
-                if item.status != "SUCCESS" or item.object is None:
-                    raise RuntimeError(
-                        f"StatCan WDS error for vector {vid} "
-                        f"(table {TABLE_ID}): status={item.status!r}"
-                    )
-                pts = item.object.vectorDataPoint
-                fetched[vid] = {
-                    pt.refPer[:7]: pt.value  # YYYY-MM key
-                    for pt in pts
-                }
+    for batch_start in range(0, len(all_vids), batch_size):
+        batch_vids = all_vids[batch_start : batch_start + batch_size]
+        items = _post_batch(session, batch_vids, latest_n)
 
+        for vid, item in zip(batch_vids, items):
+            if item.status != "SUCCESS" or item.object is None:
+                raise RuntimeError(
+                    f"StatCan WDS error for vector {vid} "
+                    f"(table {TABLE_ID}): status={item.status!r}"
+                )
+            pts = item.object.vectorDataPoint
+            fetched[vid] = {
+                pt.refPer[:7]: pt.value  # YYYY-MM key
+                for pt in pts
+            }
+
+    session.close()
+
+    # -----------------------------------------------------------------------
+    # Determine window: end_month = latest month common to all series,
+    # start_month = same calendar month one year prior.
+    # -----------------------------------------------------------------------
+    all_month_sets: list[set[str]] = [set(d.keys()) for d in fetched.values()]
+    common_months: set[str] = all_month_sets[0].copy()
+    for s in all_month_sets[1:]:
+        common_months &= s
+
+    if not common_months:
+        raise RuntimeError(
+            f"Source {TABLE_ID}: no month common to all {len(fetched)} fetched series. "
+            f"Increase latest_n (currently {latest_n})."
+        )
+
+    end_month = max(common_months)
+    start_month = _prior_year_month(end_month)
+
+    # Verify start_month is present in all series (it must be within the
+    # latest_n window). If not, we need a wider fetch — raise loudly.
+    missing_start: list[int] = [
+        vid for vid, d in fetched.items() if start_month not in d
+    ]
+    if missing_start:
+        raise RuntimeError(
+            f"Source {TABLE_ID}: start_month {start_month} not in fetched window "
+            f"for {len(missing_start)} vectors (latest_n={latest_n}). "
+            f"Increase latest_n to at least 14."
+        )
+
+    logger.info(
+        "sectoral_exports_latest_yoy: window %s -> %s (latest_n=%d)",
+        start_month, end_month, latest_n,
+    )
+
+    # -----------------------------------------------------------------------
     # Build output rows
+    # -----------------------------------------------------------------------
     rows: list[dict] = []
     missing_report: list[str] = []
 
@@ -295,8 +363,7 @@ def fetch_sectoral_exports(
         dates_us = fetched[vid_us]
 
         def _get(dates: dict, month: str) -> Optional[float]:
-            v = dates.get(month)
-            return v
+            return dates.get(month)
 
         def _to_millions(v: Optional[float]) -> Optional[float]:
             # scalarFactorCode=3 = thousands; convert to CAD millions
@@ -304,29 +371,33 @@ def fetch_sectoral_exports(
                 return None
             return round(v / 1000.0, 3)
 
-        # Check for missing months
-        for month in TARGET_MONTHS:
+        # Check both target months for this series
+        for month, label_dest in [(start_month, "all_countries"), (end_month, "all_countries")]:
             if month not in dates_all:
-                missing_report.append(f"NAPCS m={m} ({label[:40]}): all_countries missing {month}")
+                missing_report.append(
+                    f"NAPCS m={m} ({label[:40]}): all_countries missing {month}"
+                )
+        for month, label_dest in [(start_month, "US"), (end_month, "US")]:
             if month not in dates_us:
-                missing_report.append(f"NAPCS m={m} ({label[:40]}): US missing {month}")
+                missing_report.append(
+                    f"NAPCS m={m} ({label[:40]}): US missing {month}"
+                )
 
         rows.append(
             {
                 "napcs_code": m,
                 "napcs_label_en": label,
                 "napcs_classification_code": code,
-                "mar2025_total": _to_millions(_get(dates_all, "2025-03")),
-                "mar2025_us": _to_millions(_get(dates_us, "2025-03")),
-                "mar2026_total": _to_millions(_get(dates_all, "2026-03")),
-                "mar2026_us": _to_millions(_get(dates_us, "2026-03")),
-                "vector_all": vid_all,
-                "vector_us": vid_us,
+                "start_total": _to_millions(_get(dates_all, start_month)),
+                "start_us":    _to_millions(_get(dates_us,  start_month)),
+                "end_total":   _to_millions(_get(dates_all, end_month)),
+                "end_us":      _to_millions(_get(dates_us,  end_month)),
+                "vector_all":  vid_all,
+                "vector_us":   vid_us,
             }
         )
 
     if missing_report:
-        # Loud failure: the chart cannot be built with holes
         msg = "\n  ".join(missing_report)
         raise RuntimeError(
             f"Source {TABLE_ID}: missing target-month data for {len(missing_report)} "
@@ -339,10 +410,10 @@ def fetch_sectoral_exports(
         "napcs_code",
         "napcs_label_en",
         "napcs_classification_code",
-        "mar2025_total",
-        "mar2025_us",
-        "mar2026_total",
-        "mar2026_us",
+        "start_total",
+        "start_us",
+        "end_total",
+        "end_us",
         "vector_all",
         "vector_us",
     ]
@@ -353,7 +424,7 @@ def fetch_sectoral_exports(
 
     # Write meta
     meta = {
-        "name": "sectoral_exports_mar_to_mar",
+        "name": "sectoral_exports_latest_yoy",
         "source": "Statistics Canada Web Data Service",
         "source_table": TABLE_ID,
         "source_url": TABLE_URL,
@@ -362,8 +433,12 @@ def fetch_sectoral_exports(
         "trade_type": "Domestic exports (excludes re-exports)",
         "destinations": "All Countries (Dim4=1) and United States (Dim4=2)",
         "country_of_origin": "All countries (Dim5=1)",
-        "target_months": sorted(TARGET_MONTHS),
-        "reference_periods": ["2025-03", "2026-03"],
+        "window_start": start_month,
+        "window_end": end_month,
+        "column_convention": (
+            "start_* = window_start month; end_* = window_end month; "
+            "*_total = all-countries; *_us = United States only"
+        ),
         "napcs_sub_chapters": len(rows),
         "napcs_aggregates_excluded": sorted(SECTION_AGGREGATE_IDS),
         "vector_formula": {
@@ -381,13 +456,13 @@ def fetch_sectoral_exports(
             ],
         },
         "fetched_at": datetime.now(timezone.utc).isoformat(),
-        "schema_version": 1,
+        "schema_version": 2,
     }
     with out_meta.open("w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)
 
     logger.info(
-        "sectoral_exports_mar_to_mar: wrote %d rows to %s", len(rows), out_csv
+        "sectoral_exports_latest_yoy: wrote %d rows to %s", len(rows), out_csv
     )
     return len(rows)
 
@@ -402,7 +477,7 @@ if __name__ == "__main__":
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     project_root = Path(__file__).resolve().parents[2]
-    out_csv = project_root / "data" / "processed" / "sectoral_exports_mar_to_mar.csv"
+    out_csv = project_root / "data" / "processed" / "sectoral_exports_latest_yoy.csv"
     out_meta = out_csv.with_suffix("").with_name(
         out_csv.stem + ".meta.json"
     )

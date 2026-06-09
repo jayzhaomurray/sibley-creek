@@ -1,14 +1,14 @@
 ---
 /*
- * PanelTradeReorientationScatter — "Export reorientation: Mar 2025 to Mar 2026"
+ * PanelTradeReorientationScatter — Export reorientation scatter, latest YoY window
  *
  * Chart type: Scatter plot, 720x405 (16:9).
  *
  * Each dot is one NAPCS sub-chapter (100 sectors).
- *   X-axis (linear):       delta_us   = mar2026_us   - mar2025_us   (CAD M)
- *   Y-axis (signed-sqrt):  delta_nonus = (mar2026_total - mar2026_us) -
- *                                        (mar2025_total - mar2025_us)  (CAD M)
- *   Dot area:              sqrt(mar2026_total), mapped to r=[2,13]px
+ *   X-axis (linear):       delta_us    = end_us    - start_us    (CAD M)
+ *   Y-axis (signed-sqrt):  delta_nonus = (end_total - end_us) -
+ *                                        (start_total - start_us)  (CAD M)
+ *   Dot area:              sqrt(end_total), mapped to r=[2,13]px
  *
  * Y-axis uses signed-sqrt transform: y = sign(v) * sqrt(|v|) * K.
  * Gold's delta_nonus is +4,784 (CAD M); the next-largest is +816 (oil).
@@ -45,16 +45,17 @@
  *   - viewBox 720x405. No client JS.
  *
  * Methodology note (direct derivation, no external source beyond StatCan):
- *   delta_us    = mar2026_us - mar2025_us
- *   delta_nonus = (mar2026_total - mar2026_us) - (mar2025_total - mar2025_us)
+ *   delta_us    = end_us - start_us
+ *   delta_nonus = (end_total - end_us) - (start_total - start_us)
  *   Both are first-differences of published StatCan 12-10-0182-01 monthly
  *   export values by NAPCS sub-chapter. No smoothing; no seasonal adjustment.
- *   Year-over-year snapshot comparison: March 2025 vs March 2026.
+ *   Year-over-year snapshot comparison: window_start vs window_end (from meta).
+ *   Window advances automatically as StatCan publishes new months.
  *
- * Data: data/processed/sectoral_exports_mar_to_mar.csv
+ * Data: data/processed/sectoral_exports_latest_yoy.csv
  *   100 rows, one per NAPCS sub-chapter.
  *   Columns: napcs_code, napcs_label_en, napcs_classification_code,
- *            mar2025_total, mar2025_us, mar2026_total, mar2026_us,
+ *            start_total, start_us, end_total, end_us,
  *            vector_all, vector_us
  */
 
@@ -63,16 +64,16 @@ import { resolve } from "node:path";
 
 // ---- CSV parse ---------------------------------------------------------------
 interface RawRow {
-  code: number;
-  label: string;
-  tot25: number;
-  us25:  number;
-  tot26: number;
-  us26:  number;
+  code:      number;
+  label:     string;
+  tot_start: number;
+  us_start:  number;
+  tot_end:   number;
+  us_end:    number;
 }
 
 function parseCsv(): RawRow[] {
-  const p = resolve(process.cwd(), "data", "processed", "sectoral_exports_mar_to_mar.csv");
+  const p = resolve(process.cwd(), "data", "processed", "sectoral_exports_latest_yoy.csv");
   let txt: string;
   try {
     txt = readFileSync(p, "utf-8");
@@ -88,12 +89,12 @@ function parseCsv(): RawRow[] {
     const m = line.match(/^(\d+),\"?([^",]+(?:,[^"]+)?)\"?,\[[^\]]+\],([\d.]+),([\d.]+),([\d.]+),([\d.]+)/);
     if (!m) continue;
     out.push({
-      code:  parseInt(m[1]!, 10),
-      label: m[2]!.trim(),
-      tot25: parseFloat(m[3]!),
-      us25:  parseFloat(m[4]!),
-      tot26: parseFloat(m[5]!),
-      us26:  parseFloat(m[6]!),
+      code:      parseInt(m[1]!, 10),
+      label:     m[2]!.trim(),
+      tot_start: parseFloat(m[3]!),
+      us_start:  parseFloat(m[4]!),
+      tot_end:   parseFloat(m[5]!),
+      us_end:    parseFloat(m[6]!),
     });
   }
   return out;
@@ -105,16 +106,16 @@ interface ScatterDot {
   label:       string;
   delta_us:    number;  // CAD M
   delta_nonus: number;  // CAD M
-  size:        number;  // mar2026_total, CAD M (for radius)
+  size:        number;  // end_total, CAD M (for radius)
 }
 
 const raw = parseCsv();
 const dots: ScatterDot[] = raw.map((r) => ({
   code:        r.code,
   label:       r.label,
-  delta_us:    r.us26  - r.us25,
-  delta_nonus: (r.tot26 - r.us26) - (r.tot25 - r.us25),
-  size:        r.tot26,
+  delta_us:    r.us_end   - r.us_start,
+  delta_nonus: (r.tot_end - r.us_end) - (r.tot_start - r.us_start),
+  size:        r.tot_end,
 }));
 
 // ---- Labeled sectors ---------------------------------------------------------
@@ -140,9 +141,9 @@ const PLOT_W = VB_W - M_L - M_R;  // 636
 const PLOT_H = VB_H - M_T - M_B;  // 313
 
 // ---- X scale: linear ---------------------------------------------------------
-// Data range: -1247 to +589. Extend to -1400 / +700 for headroom.
-const X_LO = -1400;
-const X_HI =  700;
+// Apr 2025->Apr 2026 data range: -276 to +2210. Extend to -400 / +2400.
+const X_LO = -400;
+const X_HI = 2400;
 
 function xPx(v: number): number {
   return M_L + ((v - X_LO) / (X_HI - X_LO)) * PLOT_W;
@@ -150,17 +151,18 @@ function xPx(v: number): number {
 
 // ---- Y scale: linear ---------------------------------------------------------
 // Linear because gold is the editorial story — let it dwarf everything else.
-// Range fits data with light padding: -400 to +5200 (gold ~4784).
+// Apr 2025->Apr 2026 range: -261 to +2481 (gold). Pad to -400 / +2800.
 const Y_LO = -400;
-const Y_HI = 5200;
+const Y_HI = 2800;
 
 function yPx(v: number): number {
   return M_T + PLOT_H - ((v - Y_LO) / (Y_HI - Y_LO)) * PLOT_H;
 }
 
 // ---- Dot radius: sqrt(size) mapped to [2, 13] --------------------------------
+// SQRT_SIZE_MAX anchored to crude oil (NAPCS 13), the largest sector by end_total.
 const SQRT_SIZE_MIN = Math.sqrt(2.6);
-const SQRT_SIZE_MAX = Math.sqrt(12761);
+const SQRT_SIZE_MAX = Math.sqrt(15239);
 
 function dotR(size: number): number {
   const s = Math.sqrt(Math.max(size, 0));
@@ -168,11 +170,11 @@ function dotR(size: number): number {
 }
 
 // ---- Axis tick definitions ---------------------------------------------------
-// Y-axis: linear ticks at 1000-CAD-M increments
-const Y_TICKS_RAW = [0, 1000, 2000, 3000, 4000, 5000];
+// Y-axis: linear ticks at 500-CAD-M increments (gold tops at ~2481)
+const Y_TICKS_RAW = [0, 500, 1000, 1500, 2000, 2500];
 
-// X-axis: evenly spaced linear ticks
-const X_TICKS_RAW = [-1200, -800, -400, 0, 400];
+// X-axis: ticks spanning -400 to +2400 (most data is positive; light negative anchor)
+const X_TICKS_RAW = [-200, 0, 500, 1000, 1500, 2000];
 
 function fmtAxisNum(v: number): string {
   if (v === 0) return "0";
@@ -213,13 +215,13 @@ const carsR  = dotR(carsDot.size);
     preserveAspectRatio="xMidYMid meet"
     role="img"
     aria-label={[
-      "Scatter chart: Canadian export reorientation by sector, March 2025 to March 2026.",
+      "Scatter chart: Canadian export reorientation by sector, year-over-year.",
       "X-axis: change in exports to the US (CAD millions).",
       "Y-axis: change in exports to non-US markets (CAD billions).",
-      `Gold (NAPCS 35): US change ${goldDot.delta_us.toFixed(0)}, non-US change +${goldDot.delta_nonus.toFixed(0)}.`,
-      `Oil (NAPCS 13): US change ${oilDot.delta_us.toFixed(0)}, non-US change +${oilDot.delta_nonus.toFixed(0)}.`,
-      `Natural gas (NAPCS 14): US change +${gasDot.delta_us.toFixed(0)}, non-US change ${gasDot.delta_nonus.toFixed(0)}.`,
-      `Cars (NAPCS 81): US change ${carsDot.delta_us.toFixed(0)}, non-US change +${carsDot.delta_nonus.toFixed(0)}.`,
+      `Gold (NAPCS 35): US change ${goldDot.delta_us.toFixed(0)}, non-US change ${goldDot.delta_nonus >= 0 ? "+" : ""}${goldDot.delta_nonus.toFixed(0)}.`,
+      `Oil (NAPCS 13): US change ${oilDot.delta_us.toFixed(0)}, non-US change ${oilDot.delta_nonus >= 0 ? "+" : ""}${oilDot.delta_nonus.toFixed(0)}.`,
+      `Natural gas (NAPCS 14): US change ${gasDot.delta_us.toFixed(0)}, non-US change ${gasDot.delta_nonus.toFixed(0)}.`,
+      `Cars (NAPCS 81): US change ${carsDot.delta_us.toFixed(0)}, non-US change ${carsDot.delta_nonus >= 0 ? "+" : ""}${carsDot.delta_nonus.toFixed(0)}.`,
     ].join(" ")}
   >
 
@@ -229,7 +231,7 @@ const carsR  = dotR(carsDot.size);
       x={M_L + PLOT_W / 2}
       y={M_T - 30}
       text-anchor="middle"
-    >CHANGE IN EXPORTS, MARCH 2025 TO 2026</text>
+    >CHANGE IN EXPORTS, APRIL 2025 TO 2026</text>
 
     {/* ---- Y-axis label (vertical, left of plot) — unit descriptor ----------- */}
     <text

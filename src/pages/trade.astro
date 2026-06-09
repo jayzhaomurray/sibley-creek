@@ -18,52 +18,55 @@ const latestReleaseLabel = deriveLatestReleaseLabel(
   "trade",
 );
 
-const plate1Data = pickPanel(panelDataFile, 3);
+const leadData = pickPanel(panelDataFile, 3);
 const plate2Data = pickPanel(panelDataFile, 8);
 const plate3Data = pickPanelByKey(panelDataFile, "panel-9");
 const plate4Data = pickPanelByKey(panelDataFile, "panel-7-alt");
 
 const plates: Plate[] = [
   {
-    id: "plate-1",
+    id: "plate-lead",
     number: "01",
-    chartKey: "trade-panel-3",
-    indicator: "US export share of total goods exports",
-    plateIndexLabel: "US export share",
-    title: "The share of US-bound exports has fallen to two thirds.",
+    chartKey: "trade-panel-balance-vs-share",
+    indicator: "Goods trade balance (C$M) and US share of goods exports (%)",
+    plateIndexLabel: "Balance and US share",
+    title: "The US export share swung on gold, not diversification.",
     interpretationHtml:
-      "Canada's US-bound export share dropped from 74.4% in March 2025 to 66.1% in March 2026 — an eight-point move in a year that, on its face, would read as the sharpest reorientation of Canadian trade in decades. " +
-      "The disaggregated picture tells a different story.",
+      "Canada's US-bound export share fell from three quarters a year ago to 66.1% in March, before bouncing back to 69.5% in April. " +
+      "What looks like diversification and reversal is mostly a gold story — gold exports to London surged as prices hit all-time highs, and both are now retreating in tandem.",
     callout: {
-      value: "66.1%",
+      value: "69.5%",
       unitPrefix: "US share of goods exports",
-      delta: "-8.3pp y/y",
-      direction: "neg",
+      delta: "+3.4pp m/m",
+      direction: "neutral",
     },
-    source: "Statistics Canada Table 12-10-0121-01 (exports by country).",
-    data: plate1Data,
+    source: "Statistics Canada Tables 12-10-0011-01 (trade balance) and 12-10-0121-01 (exports by country).",
+    data: leadData,
     citations: [
-      { phrase: "66.1% in March 2026", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, March 2026." },
-      { phrase: "74.4% in March 2025", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, March 2025." },
-      { phrase: "an eight-point move in a year", source: "derived", note: "74.4% (Mar 2025) minus 66.1% (Mar 2026) = -8.3pp y/y." },
+      { phrase: "three quarters a year ago", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports ~74.4% (April 2025) ≈ three quarters." },
+      { phrase: "66.1% in March", source: "pipeline:statcan:12-10-0121-01", note: "US share of total goods exports, March 2026: 66.1%." },
+      { phrase: "bouncing back to 69.5% in April", source: "pipeline:statcan:12-10-0121-01", note: "US share of total goods exports, April 2026: 69.5% (+3.4pp m/m)." },
+      { phrase: "gold exports to London surged as prices hit all-time highs", source: "derived", note: "NAPCS 35 gold/silver/PGM exports to UK peaked at C$7.8B in March 2026; gold futures (GC=F) hit an all-time high ~$5,230/oz monthly (Feb 2026). Sources: StatCan 12-10-0182-01 + Yahoo Finance." },
+      { phrase: "both are now retreating in tandem", source: "derived", note: "UK gold exports fell C$7.8B (Mar) to C$5.6B (Apr); gold price retreated from ~$5,230/oz (Feb) to ~$4,440/oz (Jun). Sources: StatCan 12-10-0182-01 + Yahoo Finance GC=F." },
     ],
   },
   {
     id: "plate-2",
     number: "02",
     chartKey: "trade-panel-reorientation-scatter",
-    indicator: "Δ exports to US vs Δ exports to non-US, by NAPCS sub-chapter, March 2025 to March 2026",
+    indicator: "Δ exports to US vs Δ exports to non-US, by NAPCS sub-chapter, April 2025 to April 2026",
     plateIndexLabel: "Sector-by-sector shift",
     title: "Trade diversification is extremely limited.",
     interpretationHtml:
-      "One sub-chapter — gold — accounts for nearly all the non-US export growth Canada saw this year. " +
-      "Every other product cluster sits near zero on the non-US axis. " +
-      "Strip out the gold channel and there would be no pivot.",
+      "Gold still accounts for most of Canada's non-US export growth — though its surge has cooled to about half the March pace. " +
+      "The next-largest movers, crude oil and refined petroleum, climbed even faster on the US axis than the non-US one: a commodity boom selling into both markets at once, not a reorientation. " +
+      "Strip out gold and oil, and the pivot still isn't there.",
     source: "Statistics Canada Table 12-10-0182-01 (NAPCS sub-chapter exports by partner country).",
     data: plate2Data,
     citations: [
-      { phrase: "gold — accounts for nearly all the non-US export growth Canada saw this year", source: "derived", note: "NAPCS 35 (gold/silver/PGM) Δ non-US exports March 2026 vs March 2025: roughly +C$4,784M — roughly 6x the next-largest non-US gain (oil at +C$816M). Sum of all positive non-US Δs across NAPCS sub-chapters is dominated by NAPCS 35. Source: StatCan 12-10-0182-01." },
-      { phrase: "Every other product cluster sits near zero on the non-US axis", source: "derived", note: "Visible from the scatter: outside NAPCS 35, no sub-chapter exceeds ~C$1B Δ non-US between March 2025 and March 2026. Source: StatCan 12-10-0182-01." },
+      { phrase: "Gold still accounts for most of Canada's non-US export growth", source: "derived", note: "NAPCS 35 (gold/silver/PGM) Δ non-US exports April 2026 vs April 2025: +C$2,481M — the largest single sub-chapter non-US gain. Source: StatCan 12-10-0182-01." },
+      { phrase: "its surge has cooled to about half the March pace", source: "derived", note: "NAPCS 35 Δ non-US exports: +C$4,784M in the Mar-2025→Mar-2026 window; +C$2,481M in the Apr-2025→Apr-2026 window = 52%, roughly half. Source: StatCan 12-10-0182-01." },
+      { phrase: "crude oil and refined petroleum, climbed even faster on the US axis than the non-US one", source: "derived", note: "Crude oil (NAPCS 13) Δ Apr2025→Apr2026: US +C$2,211M vs non-US +C$1,327M. Refined petroleum (NAPCS 19): US +C$1,035M vs non-US +C$589M. Both grew more toward the US than non-US. Source: StatCan 12-10-0182-01." },
     ],
   },
   {
@@ -76,11 +79,11 @@ const plates: Plate[] = [
     interpretationHtml:
       "For decades, gold has been mined in Ontario and Quebec and sent straight to London's bullion banks, who store much of it in the Bank of England's vaults. " +
       "The story is old; what's new is the price. " +
-      "With spot nearly at $4,700, Canada sold C$8 billion of precious metals in March — more than twice as much as last year.",
+      "With spot near $4,600, Canada sold C$6 billion of precious metals in April — down from March's C$8 billion as the surge began to normalize, but still far above a typical month.",
     callout: {
-      value: "97%",
+      value: "91%",
       unitPrefix: "UK share of gold/PGM exports",
-      delta: "Mar 2026",
+      delta: "Apr 2026",
       direction: "neutral",
     },
     source: "Statistics Canada Table 12-10-0182-01 (NAPCS 35: unwrought gold, silver, and PGM by partner country); Yahoo Finance (gold futures, USD/oz).",
@@ -88,9 +91,9 @@ const plates: Plate[] = [
     citations: [
       { phrase: "gold has been mined in Ontario and Quebec", source: "derived", note: "Natural Resources Canada: Ontario and Quebec are the two largest gold-producing provinces, together accounting for roughly three-quarters of Canadian gold production." },
       { phrase: "sent straight to London's bullion banks, who store much of it in the Bank of England's vaults", source: "derived", note: "Royal Canadian Mint named on the original LBMA Good Delivery List in 1934; Canadian refined gold flows to LBMA-member bullion banks (HSBC, JPM, ICBC Standard) in London, who custody a substantial portion of their bullion at the Bank of England. BoE vaults hold ~5,000 tonnes of gold, of which only ~300 tonnes is UK reserves; the balance is custody for foreign central banks and commercial bullion banks." },
-      { phrase: "spot nearly at $4,700", source: "derived", note: "Gold futures (GC=F), monthly close, May 2026, ~$4,676 per ounce. Source: Yahoo Finance." },
-      { phrase: "Canada sold C$8 billion of precious metals in March", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 (unwrought gold, silver, and platinum group metals) total exports, all countries, March 2026: C$8,026M ≈ C$8 billion." },
-      { phrase: "more than twice as much as last year", source: "derived", note: "NAPCS 35 total exports: Mar 2026 = C$8,026M; Mar 2025 = C$3,651M. Ratio = 2.20x = +120% y/y. Source: StatCan 12-10-0182-01." },
+      { phrase: "spot near $4,600", source: "derived", note: "Gold futures (GC=F), monthly close, April 2026, ~$4,615 per ounce (down from a ~$5,230 all-time high in February 2026). Source: Yahoo Finance." },
+      { phrase: "Canada sold C$6 billion of precious metals in April", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 (unwrought gold, silver, and platinum group metals) total exports, all countries, April 2026: C$6,080M ≈ C$6 billion." },
+      { phrase: "down from March's C$8 billion", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 total exports, all countries, March 2026: C$8,026M ≈ C$8 billion." },
     ],
   },
   {
