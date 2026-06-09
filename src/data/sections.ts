@@ -939,6 +939,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "trade-2026-06-09",
+    section: "trade",
+    title: "Oil exports boost Canada's trade surplus.",
+    publishedAt: "2026-06-09",
+    pdfPath: "/research/commentaries/trade-2026-06-09.pdf",
+    excerpt:
+      "Canada is selling more to the world, with exports hitting an all-time high of C$75 billion in April. Still, the month's export gains were driven by higher sales to the US, going against Prime Minister Carney's aim to diversify trade.",
+  },
+  {
     slug: "boc-preview-june-2026",
     section: "monetary",
     title: "The Bank of Canada is set to hold in June.",
