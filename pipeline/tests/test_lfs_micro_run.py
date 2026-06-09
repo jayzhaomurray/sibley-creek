@@ -159,6 +159,106 @@ class TestEngineCache:
             spec_mod.DEFAULT_SPEC = original_spec
             run_mod.DEFAULT_SPEC = original_spec
 
+    def test_methodology_version_bump_invalidates_cache(self, tmp_path):
+        """Bumping engine.METHODOLOGY_VERSION must invalidate every cached month."""
+        from pipeline.lfs_micro.run import _save_cache, _load_cache
+        import pipeline.lfs_micro.run as run_mod
+        import pipeline.lfs_micro.engine as engine_mod
+
+        original_raw_dir = run_mod._RAW_PUMF_DIR
+        original_version = engine_mod.METHODOLOGY_VERSION
+        run_mod._RAW_PUMF_DIR = tmp_path
+        try:
+            row = {
+                "date": "2025-01-01",
+                "underlying_lp": 0.035,
+                "composition_lp": 0.005,
+                "raw_mean_lp": 0.040,
+                "total_fitted_lp": 0.038,
+                "n_obs_curr": 55000,
+                "n_obs_base": 54000,
+                "r2_curr": 0.60,
+                "r2_base": 0.61,
+            }
+            _save_cache("2025-01", row)
+
+            # Same version -> hit
+            assert _load_cache("2025-01") is not None
+
+            # Bump the code version -> miss
+            engine_mod.METHODOLOGY_VERSION = original_version + 1
+            assert _load_cache("2025-01") is None, (
+                "Cache must be invalidated when METHODOLOGY_VERSION is bumped"
+            )
+
+            # Restore -> hit again (entry itself untouched)
+            engine_mod.METHODOLOGY_VERSION = original_version
+            assert _load_cache("2025-01") is not None
+        finally:
+            run_mod._RAW_PUMF_DIR = original_raw_dir
+            engine_mod.METHODOLOGY_VERSION = original_version
+
+    def test_cache_entry_without_version_is_miss(self, tmp_path):
+        """Legacy entries (no methodology_version key) never match — fail closed."""
+        from pipeline.lfs_micro.run import _save_cache, _load_cache
+        import pipeline.lfs_micro.run as run_mod
+
+        original_raw_dir = run_mod._RAW_PUMF_DIR
+        run_mod._RAW_PUMF_DIR = tmp_path
+        try:
+            row = {
+                "date": "2025-01-01",
+                "underlying_lp": 0.035,
+                "composition_lp": 0.005,
+                "raw_mean_lp": 0.040,
+                "total_fitted_lp": 0.038,
+                "n_obs_curr": 55000,
+                "n_obs_base": 54000,
+                "r2_curr": 0.60,
+                "r2_base": 0.61,
+            }
+            _save_cache("2025-01", row)
+
+            # Strip the version key from the JSON on disk (simulates a
+            # pre-2026-06-09 entry).
+            p = tmp_path / "_engine_cache" / "2025-01.json"
+            data = json.loads(p.read_text(encoding="utf-8"))
+            del data["methodology_version"]
+            p.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+            assert _load_cache("2025-01") is None, (
+                "Entries without a methodology_version must be treated as misses"
+            )
+        finally:
+            run_mod._RAW_PUMF_DIR = original_raw_dir
+
+    def test_saved_cache_records_methodology_version(self, tmp_path):
+        from pipeline.lfs_micro.run import _save_cache
+        import pipeline.lfs_micro.run as run_mod
+        import pipeline.lfs_micro.engine as engine_mod
+
+        original = run_mod._RAW_PUMF_DIR
+        run_mod._RAW_PUMF_DIR = tmp_path
+        try:
+            row = {
+                "date": "2025-01-01",
+                "underlying_lp": 0.035,
+                "composition_lp": 0.005,
+                "raw_mean_lp": 0.040,
+                "total_fitted_lp": 0.038,
+                "n_obs_curr": 55000,
+                "n_obs_base": 54000,
+                "r2_curr": 0.60,
+                "r2_base": 0.61,
+            }
+            _save_cache("2025-01", row)
+            raw = json.loads(
+                (tmp_path / "_engine_cache" / "2025-01.json").read_text()
+            )
+            assert raw["methodology_version"] == engine_mod.METHODOLOGY_VERSION
+        finally:
+            run_mod._RAW_PUMF_DIR = original
+
     def test_nan_in_cache_row_serialized_as_null(self, tmp_path):
         from pipeline.lfs_micro.run import _save_cache
         import pipeline.lfs_micro.run as run_mod

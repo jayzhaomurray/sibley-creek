@@ -65,6 +65,36 @@ from .spec import Spec, DEFAULT_SPEC
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# METHODOLOGY_VERSION — engine-cache code-version key.
+#
+# The per-month engine cache (run.py; data/raw/lfs_pumf/_engine_cache/) keys
+# on the raw-parquet SHA-256 fingerprints, the Spec fields, the regressor
+# set, AND this constant. The fingerprints catch DATA changes; this constant
+# is the ONLY thing that catches CODE changes.
+#
+# >>> BUMP THIS (+1) ON ANY CHANGE TO NUMBERS-PRODUCING LOGIC IN:          <<<
+# >>>   pipeline/lfs_pumf/harmonize.py   (recodes, filters, tenure bins)   <<<
+# >>>   pipeline/lfs_micro/regression.py (design matrix, WLS, pruning)     <<<
+# >>>   pipeline/lfs_micro/decompose.py  (O-B formulas)                    <<<
+# >>>   pipeline/lfs_micro/engine.py     (_compute_one_yoy and helpers)    <<<
+#
+# Forgetting to bump leaves old months cached under the old methodology while
+# new months compute under the new one — a silently mixed series (the exact
+# failure mode flagged MAJOR-1 in the 2026-06-09 code-correctness audit).
+#
+# This is deliberately a manual constant, NOT a hash of the source files:
+# hashing would nuke the full cache (a ~36-minute recompute) on every comment
+# or docstring edit. A bump invalidates every cached month; the recompute
+# flows through the normal plausibility gates in run.py (_load_cache /
+# _save_cache refuse implausible entries).
+#
+# History:
+#   1  2026-06-09  introduced (audit fix). Methodology unchanged since the
+#                  2026-06-05 full rebuild; the one-time recompute under this
+#                  key was verified value-identical to the prior series.
+METHODOLOGY_VERSION = 1
+
 # The regressors that get per-group composition columns in the output.
 # Order matches REGRESSOR_GROUPS in regression.py (must stay in sync).
 _GROUP_LABELS = [

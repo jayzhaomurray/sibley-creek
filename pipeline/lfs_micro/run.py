@@ -35,7 +35,9 @@ Engine cache format: data/raw/lfs_pumf/_engine_cache/{YYYY-MM}.json
     "r2_curr": float,
     "r2_base": float,
     "<group>_comp_lp": float,   # per GROUP_LABELS
-    "spec": { ... },            # serialized Spec
+    "spec": { ... },            # serialized Spec + regressor_set
+    "methodology_version": int, # engine.METHODOLOGY_VERSION at compute time
+    "parquet_fingerprints": { "YYYY-MM": sha256, ... },
     "computed_at": "ISO timestamp"
   }
 """
@@ -67,6 +69,7 @@ from pipeline.lfs_pumf.download import (  # noqa: E402
 )
 from pipeline.lfs_pumf.harmonize import harmonize  # noqa: E402
 from pipeline.lfs_pumf.sanity import SanityError, run_sanity_checks  # noqa: E402
+import pipeline.lfs_micro.engine as _engine_mod  # noqa: E402
 from pipeline.lfs_micro.engine import _compute_one_yoy, _GROUP_LABELS  # noqa: E402
 from pipeline.lfs_micro.spec import DEFAULT_SPEC  # noqa: E402
 
@@ -152,9 +155,13 @@ def _load_cache(year_month: str) -> Optional[dict]:
     """Return cached engine result for year_month, or None if not cached.
 
     Treated as a miss (recompute) when:
-      - the spec changed,
+      - the spec changed (weighted / ob_reference / min_cell_count),
+      - the regressor set changed,
+      - engine.METHODOLOGY_VERSION changed (a code edit to harmonize /
+        regression / decompose / engine logic — see the bump instructions
+        on the constant in pipeline/lfs_micro/engine.py),
       - the underlying parquets changed since the entry was computed
-        (file-size fingerprint mismatch, or no fingerprint recorded),
+        (SHA-256 content-fingerprint mismatch, or no fingerprint recorded),
       - the entry is implausible (tiny sample / degenerate R^2),
         which marks a result computed from corrupted input.
     """
@@ -186,6 +193,19 @@ def _load_cache(year_month: str) -> Optional[dict]:
             logger.info(
                 "Cache miss for %s: regressor_set changed (%s -> %s)",
                 year_month, cached_reg_set, current_reg_set,
+            )
+            return None
+        # Methodology code-version invalidation: parquet fingerprints catch
+        # DATA changes; this catches CODE changes (harmonize / regression /
+        # decompose / engine edits). Entries without a recorded version
+        # (pre-2026-06-09) never match.
+        if data.get("methodology_version") != _engine_mod.METHODOLOGY_VERSION:
+            logger.info(
+                "Cache miss for %s: methodology_version %s != current %s "
+                "(engine/harmonize/regression/decompose code changed) — recomputing.",
+                year_month,
+                data.get("methodology_version"),
+                _engine_mod.METHODOLOGY_VERSION,
             )
             return None
         # Fail-closed: entries must carry parquet fingerprints that match
@@ -237,6 +257,9 @@ def _save_cache(year_month: str, row: dict) -> None:
     from pipeline.lfs_micro.regression import REGRESSOR_GROUPS as _REGS
     spec_dict["regressor_set"] = sorted(col for col, _grp in _REGS)
     data["spec"] = spec_dict
+    # Code-version key: see METHODOLOGY_VERSION in engine.py (bump on any
+    # harmonize/regression/decompose/engine logic change).
+    data["methodology_version"] = _engine_mod.METHODOLOGY_VERSION
     data["parquet_fingerprints"] = _parquet_fingerprints(year_month)
     data["computed_at"] = datetime.now(timezone.utc).isoformat()
     # Ensure JSON-serializable
