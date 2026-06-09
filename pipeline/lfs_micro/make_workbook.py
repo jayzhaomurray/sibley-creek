@@ -478,13 +478,40 @@ def _build_params_meta_sheet(
     # Diagnosis conclusion
     diagnosis = _calibration_conclusion()
 
+    # Smoothing rows are spec-conditional: under smoothing="raw" (the
+    # recalibrated default) the old unconditional MA3 boilerplate misdescribed
+    # the series (audit 2026-06-09 MINOR-2).
+    if DEFAULT_SPEC.smoothing == "ma3":
+        smoothing_timing_row = (
+            "MA3 timing convention",
+            "Centered 3-month window applied to the y/y log-point series: "
+            "month T headline = mean(T-1, T, T+1). Most recent non-NaN "
+            "headline = newest PUMF month - 1. Unsmoothed (_raw_pct) columns "
+            "show single-month point estimates.",
+        )
+        smoothing_caveat_row = (
+            "Caveat: MA3 smoothing",
+            "Centered 3-month MA applied to the y/y log-point series (after "
+            "y/y differencing, before pct conversion). Edge months (first and "
+            "newest) are NaN in the smoothed headline columns.",
+        )
+    else:
+        smoothing_timing_row = (
+            "Smoothing",
+            "None (spec smoothing='raw'; the BoC series is unsmoothed — "
+            "matching roughness, no MA signature). Headline columns are "
+            "single-month estimates; the newest PUMF month carries a headline "
+            "value directly. _raw_pct columns duplicate the headline under "
+            "this spec.",
+        )
+        smoothing_caveat_row = None
+
     params = [
         # Spec
         ("SPEC: weighted", str(DEFAULT_SPEC.weighted)),
         ("SPEC: smoothing", DEFAULT_SPEC.smoothing),
         ("SPEC: ob_reference", DEFAULT_SPEC.ob_reference),
         ("SPEC: min_cell_count", DEFAULT_SPEC.min_cell_count),
-        ("SPEC: tenure_bins", str(list(DEFAULT_SPEC.tenure_bins))),
         (None, None),
         # Units convention (audit 2026-06-09)
         ("UNITS convention", "Ours: geometric percent, (exp(lp)-1)*100 — the honest reader-facing "
@@ -510,9 +537,7 @@ def _build_params_meta_sheet(
         ("Methodology", "Oaxaca-Blinder two-fold (Bounajm/Devakos/Galassi, BoC SAN 2024-23)"),
         ("Scope", "2016+ replication (release-morning PUMF tool; not a full-history "
                   "replication of the published paper)"),
-        ("MA3 timing convention", "Centered 3-month window: month T headline = mean(T-1, T, T+1). "
-                                  "Most recent non-NaN headline = newest_PUMF_month - 1. "
-                                  "Unsmoothed (_raw_pct) columns show single-month point estimates."),
+        smoothing_timing_row,
         ("raw_mean_pct label note", "raw_mean_pct / mean_log_wage_growth_geometric is the "
                                     "weighted mean log-wage growth (geometric mean ratio). "
                                     "It is NOT the LFS headline arithmetic average hourly wage growth."),
@@ -530,13 +555,14 @@ def _build_params_meta_sheet(
                                       "this conversion — it publishes the log points directly. At 3.5% "
                                       "growth the two conventions differ by ~+0.06pp, growing with the "
                                       "level; see the UNITS convention row."),
-        ("Caveat: MA3 smoothing", "Centered 3-month MA applied to monthly O-B results "
-                                  "before y/y differencing. Edge months (latest) use trailing MA or "
-                                  "raw point estimate; note in headline sheet."),
+        smoothing_caveat_row,  # None under raw spec; filtered below
         (None, None),
         # Divergence diagnosis
         ("Divergence diagnosis summary", diagnosis),
     ]
+    # Drop spec-conditional rows that don't apply (None placeholders carrying
+    # no (key, value) tuple).
+    params = [p for p in params if p is not None]
 
     # Column headers
     ws.cell(1, 1, "parameter").font = _HEADER_FONT

@@ -796,6 +796,107 @@ class TestMakeWorkbook:
             wb_mod._ENGINE_CACHE_DIR = original_cache
             wb_mod._CALIBRATION_REPORT = original_report
 
+    @staticmethod
+    def _minimal_csvs(tmp_path):
+        """Write minimal replication + BoC CSVs; return (rep_csv, boc_csv)."""
+        dates = pd.date_range("2024-01-01", periods=12, freq="MS")
+        rep_df = pd.DataFrame({
+            "date": dates.strftime("%Y-%m-%d"),
+            "underlying_pct": [3.0] * 12,
+            "composition_pct": [0.5] * 12,
+            "raw_mean_pct": [3.5] * 12,
+            "total_fitted_pct": [3.5] * 12,
+            "n_obs_curr": [55000] * 12,
+            "n_obs_base": [54000] * 12,
+            "r2_curr": [0.60] * 12,
+            "r2_base": [0.61] * 12,
+        })
+        boc_df = pd.DataFrame({
+            "date": dates.strftime("%Y-%m-%d"),
+            "value": [2.9] * 12,
+        })
+        rep_csv = tmp_path / "rep.csv"
+        boc_csv = tmp_path / "boc.csv"
+        rep_df.to_csv(rep_csv, index=False)
+        boc_df.to_csv(boc_csv, index=False)
+        return rep_csv, boc_csv
+
+    def _params_meta_cells(self, tmp_path, smoothing: str) -> list:
+        """Build a workbook under the given smoothing spec; return all
+        params_meta cell values as a flat list of strings."""
+        from pipeline.lfs_micro.make_workbook import build_workbook
+        import pipeline.lfs_micro.make_workbook as wb_mod
+        import pipeline.lfs_micro.spec as spec_mod
+        from openpyxl import load_workbook as opxl_load
+
+        rep_csv, boc_csv = self._minimal_csvs(tmp_path)
+
+        original_rep = wb_mod._REPLICATION_CSV
+        original_boc = wb_mod._BOC_CSV
+        original_cache = wb_mod._ENGINE_CACHE_DIR
+        original_report = wb_mod._CALIBRATION_REPORT
+        original_spec = spec_mod.DEFAULT_SPEC
+        wb_mod._REPLICATION_CSV = rep_csv
+        wb_mod._BOC_CSV = boc_csv
+        wb_mod._ENGINE_CACHE_DIR = tmp_path / "_engine_cache"
+        wb_mod._CALIBRATION_REPORT = tmp_path / "nope.md"
+        spec_mod.DEFAULT_SPEC = spec_mod.Spec(
+            weighted=original_spec.weighted,
+            smoothing=smoothing,
+            ob_reference=original_spec.ob_reference,
+            min_cell_count=original_spec.min_cell_count,
+        )
+
+        out_path = tmp_path / f"wb_{smoothing}.xlsx"
+        try:
+            build_workbook(out_path, overwrite=True)
+            wb = opxl_load(out_path)
+            ws = wb["params_meta"]
+            cells = [
+                str(c.value) for row in ws.iter_rows() for c in row
+                if c.value is not None
+            ]
+            wb.close()
+            return cells
+        finally:
+            wb_mod._REPLICATION_CSV = original_rep
+            wb_mod._BOC_CSV = original_boc
+            wb_mod._ENGINE_CACHE_DIR = original_cache
+            wb_mod._CALIBRATION_REPORT = original_report
+            spec_mod.DEFAULT_SPEC = original_spec
+
+    def test_params_meta_raw_spec_has_no_ma3_boilerplate(self, tmp_path):
+        """Audit MINOR-2: under smoothing='raw' the params_meta sheet must not
+        ship MA3 timing/caveat rows contradicting the spec."""
+        cells = self._params_meta_cells(tmp_path, smoothing="raw")
+        joined = " | ".join(cells)
+        assert "MA3 timing convention" not in joined
+        assert "Caveat: MA3 smoothing" not in joined
+        # The raw-spec description is present instead
+        assert any("Smoothing" == c for c in cells)
+        assert "smoothing='raw'" in joined
+        # tenure_bins is dead config (audit MINOR-1) — must not be printed
+        assert "tenure_bins" not in joined
+
+    def test_params_meta_ma3_spec_keeps_ma3_rows(self, tmp_path):
+        """Under smoothing='ma3' the MA3 rows ARE present, with the corrected
+        description (MA applied to the y/y log-point series)."""
+        cells = self._params_meta_cells(tmp_path, smoothing="ma3")
+        joined = " | ".join(cells)
+        assert "MA3 timing convention" in joined
+        assert "Caveat: MA3 smoothing" in joined
+        assert "y/y log-point series" in joined
+
+    def test_spec_has_no_tenure_bins_field(self):
+        """Spec.tenure_bins was dead config (audit MINOR-1) — removed. Tenure
+        bins live in harmonize.py; changing them requires a
+        METHODOLOGY_VERSION bump."""
+        from pipeline.lfs_micro.spec import Spec
+        s = Spec()
+        assert "tenure_bins" not in s.model_dump()
+        assert "tenure_bins" not in s.as_dict()
+        assert not hasattr(s, "tenure_bins")
+
     def test_build_workbook_raises_on_existing_without_overwrite(self, tmp_path):
         """build_workbook() raises FileExistsError when file exists and overwrite=False."""
         from pipeline.lfs_micro.make_workbook import build_workbook

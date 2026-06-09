@@ -15,6 +15,8 @@ Spec (frozen pydantic model):
   weighted:      bool   - use WLS weights (True) or OLS (False)
   smoothing:     str    - "raw" | "ma3" (3-month centred moving average)
   ob_reference:  str    - "base" | "current" (Oaxaca-Blinder reference period)
-  tenure_bins:   list   - bin edges for tenure (default [0,12,36,60,120,inf])
   min_cell_count: int   - minimum observations per cell for inclusion
+
+Tenure brackets are hardcoded in lfs_pumf/harmonize.py (_bin_tenure), not a
+Spec parameter; changing them requires an engine.METHODOLOGY_VERSION bump.
 """

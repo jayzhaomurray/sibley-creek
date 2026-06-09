@@ -25,24 +25,25 @@ Parameters:
                  Underlying  = X_t' * delta_B
     Both are valid; the note doesn't specify explicitly. Calibration picks.
 
-  tenure_bins (list[float]):
-    Bin edges for tenure in months. Default: [0, 12, 36, 60, 120, inf].
-    Must have at least 2 edges. The resulting labels are auto-derived from
-    the edges by harmonize.py (_TENURE_BINS / _TENURE_LABELS).
-    Note: changing bins invalidates existing parquet caches (re-harmonize needed).
-
   min_cell_count (int):
     Minimum number of observations required in a tenure bin (or any other
     categorical cell) for it to be included in the regression. Cells with
     fewer observations are dropped and their dummy is excluded from the
     design matrix. Logged when triggered.
+
+Note on tenure binning: the tenure brackets ([0,12,36,60,120,inf) months)
+are hardcoded in pipeline/lfs_pumf/harmonize.py (_bin_tenure) — they are a
+harmonization decision, not a Spec parameter. A former Spec.tenure_bins
+field was dead configuration (never threaded through to harmonize, excluded
+from cache invalidation; audit 2026-06-09 MINOR-1) and was removed. To
+change the bins, edit harmonize.py and bump engine.METHODOLOGY_VERSION.
 """
 
 from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 
 class Spec(BaseModel, frozen=True):
@@ -51,43 +52,11 @@ class Spec(BaseModel, frozen=True):
     weighted: bool = True
     smoothing: Literal["raw", "ma3"] = "raw"
     ob_reference: Literal["base", "current"] = "base"
-    tenure_bins: tuple[float, ...] = (0.0, 12.0, 36.0, 60.0, 120.0, float("inf"))
     min_cell_count: int = Field(default=30, ge=1)
-
-    @model_validator(mode="after")
-    def validate_tenure_bins(self) -> "Spec":
-        if len(self.tenure_bins) < 2:
-            raise ValueError("tenure_bins must have at least 2 edges.")
-        for i in range(1, len(self.tenure_bins)):
-            if self.tenure_bins[i] <= self.tenure_bins[i - 1]:
-                raise ValueError(
-                    f"tenure_bins must be strictly increasing; "
-                    f"got {self.tenure_bins[i-1]} >= {self.tenure_bins[i]}."
-                )
-        return self
-
-    @property
-    def tenure_labels(self) -> list[str]:
-        """Human-readable label for each tenure bracket (n_bins - 1 labels)."""
-        edges = self.tenure_bins
-        labels = []
-        for i in range(len(edges) - 1):
-            lo = int(edges[i])
-            hi = edges[i + 1]
-            if hi == float("inf"):
-                labels.append(f"{lo}m+")
-            else:
-                labels.append(f"{lo}-{int(hi)-1}m")
-        return labels
 
     def as_dict(self) -> dict:
         """Return a JSON-serializable dict of all parameters."""
-        d = self.model_dump()
-        # Convert tuple to list and handle inf for JSON
-        d["tenure_bins"] = [
-            v if v != float("inf") else None for v in self.tenure_bins
-        ]
-        return d
+        return self.model_dump()
 
 
 # Default Spec — recalibrated 2026-06-05 PM on CLEAN data.

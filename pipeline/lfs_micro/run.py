@@ -12,7 +12,8 @@ Flow:
   4. Compute engine results for new month(s) ONLY, using the per-month cache
      at data/raw/lfs_pumf/_engine_cache/{YYYY-MM}.json for all prior months.
      This keeps a monthly refresh to seconds rather than 36 minutes.
-  5. Assemble the full series (cached + new), apply MA3 smoothing, convert to pct.
+  5. Assemble the full series (cached + new), apply the spec's smoothing
+     (none under the default smoothing="raw"), convert to geometric pct.
   6. Rewrite outputs:
        data/processed/lfs_micro_replication.csv + meta sidecar
        vintage-stamped copy: data/processed/lfs_micro_replication_<YYYY-MM>.csv
