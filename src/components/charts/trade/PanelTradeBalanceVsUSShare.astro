@@ -256,7 +256,7 @@ function fmtBalTick(v: number, isTop: boolean): string {
   const sgn = v < 0 ? "-" : "";
   if (a < 1e-9) return "$0";
   if (a >= 1000) {
-    const body = `${sgn}$${(a / 1000).toFixed(1)}B`;
+    const body = `${sgn}$${(a / 1000).toFixed(1).replace(/\.0$/, "")}B`;
     return isTop ? body : body;
   }
   const body = `${sgn}$${Math.round(a)}M`;
@@ -268,7 +268,7 @@ const shareVals = shareTrimmed.map((d) => d.value);
 const shareMin = Math.min(...shareVals);
 const shareMax = Math.max(...shareVals);
 const shareSpan = shareMax - shareMin || 1;
-const shareYLo = shareMin - shareSpan * 0.10;
+const shareYLo = Math.floor(shareMin / 5) * 5;
 const shareYHi = shareMax + shareSpan * 0.10;
 const shareYRange = shareYHi - shareYLo;
 
@@ -276,7 +276,16 @@ function yScaleR(v: number): number {
   return PLOT_Y0 + PLOT_H - ((v - shareYLo) / shareYRange) * PLOT_H;
 }
 
-const shareTicks = niceTicks(shareYLo, shareYHi);
+// Integer 5%-step ticks (no decimals, even spacing) within the share domain.
+const SHARE_STRIDE = 5;
+const shareTicks: number[] = [];
+for (
+  let v = Math.ceil(shareYLo / SHARE_STRIDE) * SHARE_STRIDE;
+  v <= shareYHi + 1e-9;
+  v += SHARE_STRIDE
+) {
+  shareTicks.push(v);
+}
 
 // Build line path for right panel
 function buildSharePath(): string {
