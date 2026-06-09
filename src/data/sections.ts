@@ -637,17 +637,17 @@ export const sections: Section[] = [
     headlineQuestion:
       "Is Canada's trade pivot working?",
     cadence: "Monthly + event",
-    // March merch-trade release landed May 5, 2026.
-    updatedAt: Date.UTC(2026, 4, 5, 8, 30),
+    // April merch-trade release landed June 9, 2026.
+    updatedAt: Date.UTC(2026, 5, 9, 12, 30),
     chartSeriesKey: "trade-balance",
-    heroKicker: "March balance",
+    heroKicker: "April balance",
     heroKickerPrefix: "Trade balance",
     latestReleasePrefix: "Merchandise trade",
     tileLine:
-      "Goods balance flipped to $1.8B surplus in March; US export share fell to 66.1%.",
+      "Goods surplus widened to $2.7B in April; US export share bounced back to 69.5%.",
     tileLineCitations: [
-      { phrase: "$1.8B surplus in March", source: "pipeline:statcan:12-10-0119-01", note: "Goods trade balance, March 2026 monthly print: +$1,779M (swung from -$5,113M deficit in February)." },
-      { phrase: "66.1%", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, March 2026." },
+      { phrase: "$2.7B", source: "pipeline:statcan:12-10-0119-01", note: "Goods trade balance, April 2026: +$2,720.9M (March revised +$1,753M; February -$5,187M deficit)." },
+      { phrase: "69.5%", source: "pipeline:statcan:12-10-0119-01", note: "US share of total Canadian goods exports, April 2026: 50,851.7 / 73,173.2 = 69.5%." },
     ],
     tileChartKind: "bars",
     prints: [
