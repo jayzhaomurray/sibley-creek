@@ -690,16 +690,16 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "May 6, 2026",
+      date: "June 9, 2026",
       body:
-        "Not really. The US export share dropped from three quarters to two thirds in a year, but most of that is gold being routed to London at record prices; strip it out and the underlying share is down about three percentage points. Among the tariffed sectors, only aluminum has meaningfully diversified — autos lost over a billion dollars in US sales with almost no offset elsewhere.",
+        "Not really. A year ago the US took three-quarters of Canada's goods exports; by March it had slid to two-thirds — but almost entirely because gold was being routed to London at record prices, not because anything diversified. In April the share bounced back to 69.5% as the gold flow eased. Strip the gold out and the underlying US share has held near 75% all year.",
     },
     abstractCitations: [
-      { phrase: "from three quarters to two thirds in a year", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports: 74.4% (Mar 2025) ≈ three quarters; 66.1% (Mar 2026) ≈ two thirds." },
-      { phrase: "gold being routed to London at record prices", source: "derived", note: "NAPCS 35 (unwrought gold, silver, PGM) total exports March 2026: C$8.0B, of which C$7.8B (97.4%) to UK. Gold futures (GC=F) May 2026 monthly close ~$4,676/oz, a record. Sources: StatCan 12-10-0182-01 + Yahoo Finance GC=F." },
-      { phrase: "the underlying share is down about three percentage points", source: "derived", note: "Ex-gold US share: Mar 2025 = 77.7%; Mar 2026 = 74.6%; Δ = -3.1pp. NAPCS 35 stripped from both numerator and denominator. Sources: StatCan 12-10-0121-01 + 12-10-0182-01." },
-      { phrase: "only aluminum has meaningfully diversified", source: "derived", note: "Aluminum (NAPCS 32+38) US share: Mar 2025 = 96.9%; Mar 2026 = 86.0%; Δ = -10.9pp. Steel, softwood, cars each shed under 5pp. Source: StatCan 12-10-0182-01." },
-      { phrase: "autos lost over a billion dollars in US sales with almost no offset elsewhere", source: "derived", note: "NAPCS 81 (passenger cars and light trucks) Δ exports Mar 2026 vs Mar 2025: US -C$1,247M; non-US +C$42M. Source: StatCan 12-10-0182-01." },
+      { phrase: "three-quarters", source: "pipeline:statcan:12-10-0119-01", note: "US share of total Canadian goods exports ~74.4% (Mar 2025) ≈ three-quarters." },
+      { phrase: "two-thirds", source: "pipeline:statcan:12-10-0119-01", note: "US share fell to 66.3% (Mar 2026) ≈ two-thirds." },
+      { phrase: "gold was being routed to London at record prices", source: "derived", note: "NAPCS 35 (unwrought gold, silver, PGM) exports to UK: C$7.8B of C$8.0B total (97%) in Mar 2026; gold futures (GC=F) near record ~$4,676/oz. Sources: StatCan 12-10-0182-01 + Yahoo Finance GC=F." },
+      { phrase: "bounced back to 69.5%", source: "pipeline:statcan:12-10-0119-01", note: "US share of total goods exports, April 2026: 50,851.7 / 73,173.2 = 69.5% (March 66.3%)." },
+      { phrase: "held near 75% all year", source: "derived", note: "Ex-gold US export share = (US exports − gold-to-US) / (total exports − total gold). Clean customs basis ~73.8–76.7% across the trailing 12 months; ~75.6% in April 2026. Sources: StatCan 12-10-0011-01 + 12-10-0182-01." },
     ],
   },
   {
