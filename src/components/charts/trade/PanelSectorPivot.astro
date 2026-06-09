@@ -1,6 +1,6 @@
 ---
 /*
- * PanelSectorPivot — "US share of sector exports: Mar 2025 → Mar 2026"
+ * PanelSectorPivot — "US share of sector exports: Apr 2025 → Apr 2026"
  *
  * Chart type: Slopegraph (Tufte two-snapshot ranking-change form).
  * Two columns: MAR 2025 (left) and MAR 2026 (right).
@@ -15,7 +15,7 @@
  * Copper: code path present; picks up automatically when
  *   data/processed/exports_copper_us.csv + exports_copper_nonus.csv land on disk.
  *
- * Sort order: by Δ US share (Mar 2025 → Mar 2026), ascending (biggest
+ * Sort order: by Δ US share (Apr 2025 → Apr 2026), ascending (biggest
  *   diversifiers on top, concentrators on bottom).
  *
  * Visual canon (design/design-system.md v1.0):
@@ -24,8 +24,8 @@
  *   - All other sectors: pure ink (#000) throughout.
  *   - 1.5px slope line per sector.
  *   - 4px dots at each end.
- *   - Left of left dot: Mar 2025 % value, text-anchor="end"
- *   - Right of right dot: Mar 2026 % value, then sector label, text-anchor="start"
+ *   - Left of left dot: Apr 2025 % value, text-anchor="end"
+ *   - Right of right dot: Apr 2026 % value, then sector label, text-anchor="start"
  *   - Column headers "MAR 2025" / "MAR 2026" in Manrope micro-caps above columns
  *   - Two vertical reference lines (the column spines)
  *   - No gridlines, no legend, no caption, no JS
@@ -108,8 +108,8 @@ const SECTOR_DEFS: SectorDef[] = [
 
 interface SectorSlope {
   label: string;
-  share25: number;   // Mar 2025 US share, %
-  share26: number;   // Mar 2026 US share, %
+  share25: number;   // Apr 2025 US share, %
+  share26: number;   // Apr 2026 US share, %
   delta: number;     // share26 - share25, pp
 }
 
@@ -120,10 +120,10 @@ for (const def of SECTOR_DEFS) {
   const nonData = readProcessedCsv(`exports_${def.key}_nonus`);
   if (usData.length === 0 || nonData.length === 0) continue; // copper skipped until data lands
 
-  const us25  = monthValue(usData,  "2025-03");
-  const non25 = monthValue(nonData, "2025-03");
-  const us26  = monthValue(usData,  "2026-03");
-  const non26 = monthValue(nonData, "2026-03");
+  const us25  = monthValue(usData,  "2025-04");
+  const non25 = monthValue(nonData, "2025-04");
+  const us26  = monthValue(usData,  "2026-04");
+  const non26 = monthValue(nonData, "2026-04");
 
   if (us25 === null || non25 === null || us26 === null || non26 === null) continue;
   if (us25 + non25 === 0 || us26 + non26 === 0) continue;
@@ -165,11 +165,11 @@ const PLOT_W = VB_W - M_L - M_R;   // 320 — slopes span center ~44% of viewBox
 const PLOT_H = VB_H - M_T - M_B;   // 321
 
 // Two column x-positions (the slopegraph "spines")
-const X_LEFT  = M_L;                // Mar 2025 column (x=200)
-const X_RIGHT = M_L + PLOT_W;       // Mar 2026 column (x=520)
+const X_LEFT  = M_L;                // Apr 2025 column (x=200)
+const X_RIGHT = M_L + PLOT_W;       // Apr 2026 column (x=520)
 
 // Y-scale: hardcoded to just-fit the data with margin.
-// Aluminum Mar 2026 = 86%; other sectors 86-97%; copper (when added) ~82%.
+// Aluminum Apr 2026 = 86%; other sectors 86-97%; copper (when added) ~82%.
 // 79-99 gives comfortable top + bottom clearance.
 const Y_LO = 79;
 const Y_HI = 99;
@@ -179,8 +179,8 @@ function yPx(share: number): number {
 }
 
 // ---- Label collision avoidance (right side only) -----------------------------
-// Left side: Mar 2025 % value is pinned to dot y — no spreading needed.
-// Right side: Mar 2026 % value + sector label group needs spreading when two
+// Left side: Apr 2025 % value is pinned to dot y — no spreading needed.
+// Right side: Apr 2026 % value + sector label group needs spreading when two
 //   right dots share the same y-coordinate (e.g. aluminum 86% and steel 86%).
 interface LabelPos { share: number; nominalY: number; adjustedY: number; label: string }
 
@@ -244,7 +244,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
     viewBox={`0 0 ${VB_W} ${VB_H}`}
     preserveAspectRatio="xMidYMid meet"
     role="img"
-    aria-label={`Slopegraph: US share of total exports by Section 232 tariffed sector, March 2025 to March 2026. ${slopes.map(s => `${s.label}: ${fmtShare(s.share25)} to ${fmtShare(s.share26)}`).join("; ")}.`}
+    aria-label={`Slopegraph: US share of total exports by Section 232 tariffed sector, April 2025 to April 2026. ${slopes.map(s => `${s.label}: ${fmtShare(s.share25)} to ${fmtShare(s.share26)}`).join("; ")}.`}
   >
 
     {/* ---- Column spine rules (the two vertical reference lines) ----------- */}
@@ -311,7 +311,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
             stroke={markColor}
           />
 
-          {/* Left dot — Mar 2025 */}
+          {/* Left dot — Apr 2025 */}
           <circle
             class="sg-chart__dot sg-chart__dot--left"
             cx={X_LEFT}
@@ -319,10 +319,10 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
             r={DOT_R}
             fill={markColor}
           >
-            <title>{`${s.label} Mar 2025: ${fmtShare(s.share25)} US share`}</title>
+            <title>{`${s.label} Apr 2025: ${fmtShare(s.share25)} US share`}</title>
           </circle>
 
-          {/* Left percent value — Mar 2025, pinned to dot y, text-anchor="end" */}
+          {/* Left percent value — Apr 2025, pinned to dot y, text-anchor="end" */}
           <text
             class="sg-chart__pct-label"
             x={X_LEFT - DOT_R - PCT_GAP}
@@ -331,7 +331,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
             fill={markColor}
           >{fmtPct(s.share25)}</text>
 
-          {/* Right dot — Mar 2026 */}
+          {/* Right dot — Apr 2026 */}
           <circle
             class="sg-chart__dot sg-chart__dot--right"
             cx={X_RIGHT}
@@ -339,7 +339,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
             r={DOT_R}
             fill={markColor}
           >
-            <title>{`${s.label} Mar 2026: ${fmtShare(s.share26)} US share`}</title>
+            <title>{`${s.label} Apr 2026: ${fmtShare(s.share26)} US share`}</title>
           </circle>
 
           {/* Right leader line from right-side group to dot (if label shifted) */}
@@ -353,7 +353,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
             />
           )}
 
-          {/* Right percent value — Mar 2026, text-anchor="start" */}
+          {/* Right percent value — Apr 2026, text-anchor="start" */}
           <text
             class="sg-chart__pct-label"
             x={pctRightX}
@@ -362,7 +362,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
             fill={markColor}
           >{fmtPct(s.share26)}</text>
 
-          {/* Sector label — right of Mar 2026 percent value */}
+          {/* Sector label — right of Apr 2026 percent value */}
           <text
             class="sg-chart__sector-label"
             x={sectorLabelX}
@@ -381,7 +381,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
 <style>
   /*
    * PanelSectorPivot — Vignelli slopegraph.
-   * Two-snapshot US-share comparison: Mar 2025 → Mar 2026.
+   * Two-snapshot US-share comparison: Apr 2025 → Apr 2026.
    * Aluminum: MTA red treatment (line, both dots, percent values, sector label).
    * All other sectors: pure ink throughout.
    * Color is applied via inline fill/stroke attributes in the JSX map;
