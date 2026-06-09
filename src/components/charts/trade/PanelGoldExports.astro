@@ -19,8 +19,7 @@
  *   Y-axis: USD, topmost tick carries "$" prefix.
  *   Direct label: "USD/oz" (Manrope 600).
  *
- * Window: 2020-01 through latest available for exports (2026-03);
- * gold price through 2026-05.
+ * Window: 2020-01 through latest available for exports and gold price.
  *
  * Mode B per-panel y-axis (units differ: CAD M vs USD/oz).
  * Left panel y-ticks in left gutter (M_OUT_L).
@@ -149,14 +148,17 @@ function computeAxisScale(
 // ---- Left panel (exports) y-axis ---------------------------------------------
 const totalVals = total.map((p) => p.value);
 const ukVals    = uk.map((p) => p.value);
+const priceVals = price.map((p) => p.value);
 const leftAxis  = computeAxisScale([...totalVals, ...ukVals], 4);
 
 // ---- Right panel (price) y-axis — fixed floor at $1000, explicit ticks ------
 // Floor fixed at 1000 so the 2020 values (~$1564) sit comfortably above the
-// base and the top tick at $5000 gives headroom above the May-2026 ~$4676 read.
+// base. Keep the ceiling above the latest full price path so high 2026 prints
+// do not escape the clipped plot area.
 const RP_Y_LO = 1000;
-const RP_Y_HI = 5200; // headroom above May-2026 reading of ~4676
-const RP_TICKS = [1000, 2000, 3000, 4000, 5000];
+const RP_Y_HI = Math.max(5500, Math.ceil((Math.max(...priceVals, 0) + 200) / 100) * 100);
+const RP_TICKS = [1000, 2000, 3000, 4000, 5000, RP_Y_HI]
+  .filter((v, i, arr) => v <= RP_Y_HI && arr.indexOf(v) === i);
 const rightAxis = { yLo: RP_Y_LO, yHi: RP_Y_HI, ticks: RP_TICKS };
 
 // ---- Tick formatter ----------------------------------------------------------
@@ -242,8 +244,14 @@ function buildPath(
   for (const pt of pts) {
     const xv = decYear(pt.date);
     if (Number.isNaN(xv)) { started = false; continue; }
-    const px = xScale(xv).toFixed(2);
-    const py = yScale(pt.value).toFixed(2);
+    const x = xScale(xv);
+    const y = yScale(pt.value);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      started = false;
+      continue;
+    }
+    const px = x.toFixed(2);
+    const py = y.toFixed(2);
     d += started ? `L${px} ${py} ` : `M${px} ${py} `;
     started = true;
   }
@@ -306,9 +314,33 @@ const xTicks: XTick[] = X_TICK_YEARS
   .filter((t): t is XTick => t !== null);
 
 // ---- Latest values (for aria-label) -----------------------------------------
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+function fmtMonthYear(dateStr: string): string {
+  const [ys, ms] = dateStr.split("-");
+  const y = parseInt(ys ?? "", 10);
+  const m = parseInt(ms ?? "", 10);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) return dateStr.slice(0, 7);
+  return `${MONTH_NAMES[m - 1]} ${y}`;
+}
+
 const latestTotalFmt = Math.round(totalLast.value).toLocaleString();
 const latestPriceFmt = Math.round(priceLast.value).toLocaleString();
-const latestDate = totalLast.date.slice(0, 7);
+const latestTotalMonth = fmtMonthYear(totalLast.date);
+const latestPriceMonth = fmtMonthYear(priceLast.date);
 ---
 
 <div class="gep-chart" data-panel="alt-trade-gold">
@@ -317,7 +349,7 @@ const latestDate = totalLast.date.slice(0, 7);
     viewBox={`0 0 ${VB_W} ${VB_H}`}
     preserveAspectRatio="xMidYMid meet"
     role="img"
-    aria-label={`Two-panel composite: left panel shows Canadian gold and PGM exports to all countries and to the UK, monthly CAD millions, January 2020 to March 2026; total exports reached ${latestTotalFmt} million in March 2026 with the UK absorbing 97 percent. Right panel shows gold price in USD per ounce through May 2026 at ${latestPriceFmt}.`}
+    aria-label={`Two-panel composite: left panel shows Canadian gold and PGM exports to all countries and to the UK, monthly CAD millions, January 2020 to ${latestTotalMonth}; total exports reached ${latestTotalFmt} million in ${latestTotalMonth} with the UK absorbing 97 percent. Right panel shows gold price in USD per ounce through ${latestPriceMonth} at ${latestPriceFmt}.`}
   >
 
     <!-- =====================================================================
