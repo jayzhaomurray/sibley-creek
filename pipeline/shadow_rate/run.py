@@ -29,6 +29,7 @@ import pandas as pd  # noqa: E402
 from pipeline.io import SeriesMeta, write_series  # noqa: E402
 from pipeline.shadow_rate.chart import render_chart  # noqa: E402
 from pipeline.shadow_rate.inputs import parse_workbook  # noqa: E402
+from pipeline.shadow_rate.market_path import fetch_market_path  # noqa: E402
 from pipeline.shadow_rate.model import (  # noqa: E402
     annual_average_crosscheck,
     run_band,
@@ -115,6 +116,36 @@ def _print_crosscheck(checks) -> None:
     print()
 
 
+def _print_market(market, res) -> None:
+    """Print the market-implied path beside the rule path over shared quarters."""
+    if market is None:
+        print("Market-implied path (CORRA futures): unavailable "
+              "(fetch failed or --no-market); chart omits the dotted line.\n")
+        return
+    rule_by_q = {s.quarter: s.rate for s in res.steps}
+    by_q = market.by_quarter()
+    shared = [s.quarter for s in res.steps if s.quarter in by_q]
+    print("Market-implied policy path (three-month CORRA futures, Montreal "
+          "Exchange):")
+    print(f"  CORRA->target spread (trailing {market.spread_window_days} bus. days): "
+          f"{market.spread:+.4f} pp  (implied_target = implied_corra - spread)")
+    print(f"  {'quarter':<9}{'mkt tgt%':>10}{'rule%':>9}{'rule-mkt':>10}"
+          f"   contract")
+    print("  " + "-" * 56)
+    contract_by_q = {c.quarter: c.contract for c in market.contracts}
+    for q in shared:
+        mkt = by_q[q]
+        rule = rule_by_q[q]
+        print(f"  {q:<9}{mkt:>10.3f}{rule:>9.3f}{rule - mkt:>+10.3f}"
+              f"   {contract_by_q.get(q, '')}")
+    extra = [c for c in market.contracts if c.quarter not in rule_by_q]
+    if extra:
+        tail = ", ".join(f"{c.quarter} {c.implied_target:.2f}%" for c in extra)
+        print(f"  (futures extend beyond the rule horizon: {tail})")
+    print("  rule-mkt > 0 => the rule prescribes a higher rate than the market "
+          "prices.\n")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="BoC rule-implied shadow rate (ToTEM III rule on the latest MPR)")
@@ -126,6 +157,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--end-quarter", default=None,
                         help="last projected quarter "
                              "(default: workbook projection_end_quarter)")
+    parser.add_argument("--no-market", action="store_true",
+                        help="skip the market-implied (CORRA futures) overlay "
+                             "fetch (offline runs / tests)")
     args = parser.parse_args(argv)
 
     xlsx = Path(args.xlsx) if args.xlsx else _newest_workbook()
@@ -148,6 +182,11 @@ def main(argv: list[str] | None = None) -> int:
     checks = annual_average_crosscheck(inp, end_quarter=args.end_quarter)
     _print_table(res, p, band)
     _print_crosscheck(checks)
+
+    # Market-implied path (CORRA futures): fetched after the model, before the
+    # chart. Any scrape/fetch failure returns None and the chart degrades cleanly.
+    market = None if args.no_market else fetch_market_path()
+    _print_market(market, res)
 
     draft = not p.verified
     if draft:
@@ -219,7 +258,8 @@ def main(argv: list[str] | None = None) -> int:
     # --- chart (vintage-stamped filenames) ---
     svg_out = OUT_CHART_DIR / f"boc_shadow_path_{vintage_tag}.svg"
     html_out = OUT_CHART_DIR / f"boc_shadow_path_{vintage_tag}.html"
-    svg_path, html_path = render_chart(res, p, svg_out, html_out, band=band)
+    svg_path, html_path = render_chart(res, p, svg_out, html_out, band=band,
+                                       market=market)
     print(f"wrote {svg_path}")
     print(f"wrote {html_path}")
 

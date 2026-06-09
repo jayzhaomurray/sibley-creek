@@ -28,6 +28,7 @@ _HISTORY = "#1a1a1a"
 _SHADOW = "#c0392b"
 _BAND = "#3a6ea5"
 _MUTE = "#888888"
+_MARKET = "#2c6e49"  # market-implied path (dotted), distinct from the red rule path
 
 
 def _quarter_to_date(q: str) -> date:
@@ -54,12 +55,17 @@ def render_chart(
     html_path: str | Path,
     history_start_year: int = 2015,
     band=None,
+    market=None,
 ) -> tuple[Path, Path]:
     """Render the shadow-path chart to SVG + a minimal HTML wrapper.
 
     ``band`` (optional ``BandResult``) shades a light min/max envelope around the
     dashed central path — the sensitivity band over the published neutral x
     potential-growth range corners.
+
+    ``market`` (optional ``MarketPath`` from market_path.py) overlays the
+    contemporaneous market-implied policy path (three-month CORRA futures) as a
+    DOTTED line. When None, the chart renders exactly as before.
     """
     svg_path = Path(svg_path)
     html_path = Path(html_path)
@@ -106,6 +112,27 @@ def render_chart(
     ax.plot(shadow_x, shadow_y, color=_SHADOW, lw=1.8, ls=(0, (5, 3)),
             zorder=4, label="rule-implied shadow path")
     ax.scatter([shadow_x[0]], [shadow_y[0]], color=_SHADOW, s=18, zorder=5)
+
+    # Market-implied path (dotted), CORRA-futures derived. Plotted only over the
+    # quarters that overlap the shadow horizon so the two paths are comparable.
+    if market is not None and market.contracts:
+        shadow_quarters = {s.quarter for s in res.steps}
+        mkt = [c for c in market.contracts if c.quarter in shadow_quarters]
+        if mkt:
+            mkt_x = [_quarter_to_date(c.quarter) for c in mkt]
+            mkt_y = [c.implied_target for c in mkt]
+            ax.plot(mkt_x, mkt_y, color=_MARKET, lw=1.6, ls=(0, (1, 2)),
+                    zorder=4, label="market-implied (CORRA futures)")
+            ax.annotate(
+                f"{mkt_y[-1]:.2f}%",
+                xy=(mkt_x[-1], mkt_y[-1]),
+                xytext=(6, 0),
+                textcoords="offset points",
+                color=_MARKET,
+                fontsize=9,
+                va="center",
+                fontweight="bold",
+            )
 
     # Direct end-label for the shadow path.
     ax.annotate(
@@ -163,11 +190,12 @@ def render_chart(
     fig.savefig(svg_path, format="svg")
     plt.close(fig)
 
-    _write_html(svg_path, html_path, res, params)
+    _write_html(svg_path, html_path, res, params, market=market)
     return svg_path, html_path
 
 
-def _write_html(svg_path: Path, html_path: Path, res: ShadowResult, params) -> None:
+def _write_html(svg_path: Path, html_path: Path, res: ShadowResult, params,
+                market=None) -> None:
     """Wrap the SVG inline in a minimal self-contained HTML page."""
     svg_text = svg_path.read_text(encoding="utf-8")
     # strip XML prolog/doctype so the SVG embeds cleanly inline
@@ -183,6 +211,19 @@ def _write_html(svg_path: Path, html_path: Path, res: ShadowResult, params) -> N
     )
 
     mpr_label = params.mpr_publication_date.strftime("%B %Y")
+
+    market_note = ""
+    if market is not None and market.contracts:
+        market_note = (
+            f' The dotted line is the market-implied policy path from three-month '
+            f'CORRA futures (Montreal Exchange / TMX), implied rate = 100 &minus; '
+            f'settlement, adjusted to a target-rate basis by the trailing-'
+            f'{market.spread_window_days}-business-day mean CORRA&minus;target '
+            f'spread of {market.spread:+.3f} pp. Because the MPR forecast is itself '
+            f'conditioned on a market-implied rate path, the rule-vs-market gap is '
+            f'the interesting object: it is the rule&rsquo;s prescription net of '
+            f'what the market already prices.'
+        )
 
     rows = "".join(
         f"<tr><td>{s.quarter}</td><td>{s.rate:.3f}</td><td>{s.gap:.3f}</td>"
@@ -232,7 +273,7 @@ def _write_html(svg_path: Path, html_path: Path, res: ShadowResult, params) -> N
   path. The MPR forecast is itself conditioned on a market-implied rate path, and
   the Bank's internal path carries judgmental add-factors; rule coefficients were
   estimated 1993Q4-2015Q4. The shaded band is the mechanical sensitivity envelope
-  across the published neutral and potential-growth range corners. See the
+  across the published neutral and potential-growth range corners.{market_note} See the
   methodology note in claude-ref/research/shadow_rate/.
 </p>
 </body>

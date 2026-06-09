@@ -480,6 +480,75 @@ regenerate. The 5-step ritual:
    `boc_shadow_rate.csv` (the current vintage, for any site wiring). Past
    vintages become the track record.
 
+## 11. Market-implied path overlay (CORRA futures)
+
+The chart and run now carry a third element beside the rule path and the actual
+overnight history: the contemporaneous **market-implied** policy path, drawn as a
+dotted green line labelled "market-implied (CORRA futures)". Built by
+`pipeline/shadow_rate/market_path.py`; fetched live on every run (skip with
+`--no-market`).
+
+**Source.** The Montreal Exchange (TMX) three-month CORRA futures quote table,
+symbol CRA: `https://www.m-x.ca/en/trading/data/quotes?symbol=CRA`. A single
+polite HTTP GET through the repo's shared httpx client (`pipeline/fetch/_http.py`,
+`get_text`). One plain HTML table, one row per quarterly contract month
+(Mar/Jun/Sep/Dec) out to ~Dec 2028. We key columns off the header row, so an
+upstream column re-order does not silently mis-read the settlement.
+
+**Conversion.** Implied three-month CORRA for a contract = `100 - settlement`
+(standard IMM 100-minus-rate quote convention).
+
+**Contract-month -> reference-quarter mapping.** A three-month CORRA future
+references the compounding window that begins at the contract month's IMM date and
+runs ~three months forward (a "March 2026" future compounds CORRA roughly
+mid-March to mid-June 2026). We assign each contract the calendar quarter that
+*begins at* the contract month:
+
+    Mar YYYY -> YYYY Q2     Jun YYYY -> YYYY Q3
+    Sep YYYY -> YYYY Q4     Dec YYYY -> (YYYY+1) Q1
+
+This lines the futures-implied rate up with the quarter over which it is the
+prevailing overnight rate — the same quarter the shadow path labels — so the two
+paths are directly comparable quarter-for-quarter.
+
+**Spread adjustment (CORRA -> target).** CORRA is an overnight *funding* rate that
+trades a few basis points around the Bank's target for the overnight rate, so the
+futures price an instrument that is not the policy rate itself. We estimate a
+constant adjustment
+
+    spread = mean(CORRA_daily - overnight_target) over the trailing 60 business days
+
+(Valet daily CORRA `AVG.INTWO` vs `data/processed/overnight_rate_target.csv`,
+forward-filled onto the CORRA dates), and define `implied_target = implied_corra -
+spread`. The spread is small and typically slightly positive — CORRA usually sits
+at or a hair above target; the live 2026-06 read was **+0.029 pp**. Typical
+magnitude is roughly -5 to 0 bp historically; the current small positive value
+reflects CORRA printing just above target in the trailing window.
+
+**The conditioning caveat (why the divergence is the interesting object).** The
+MPR projection that feeds the *rule* path is itself **conditioned on a
+market-implied rate path** — the Bank builds its forecast assuming policy follows
+roughly what markets price. So the market-implied path is, to first order, the
+conditioning assumption *behind* the MPR numbers, while the rule path is what the
+ToTEM III reaction function *prescribes* given those same MPR projections. The
+gap between them (`rule - market`, printed each run) is therefore the rule's
+prescription net of what the market already prices in — not two independent
+forecasts disagreeing, but the reaction function pulling against the conditioning
+path. A positive gap says the rule wants a higher rate than the curve implies.
+
+**Output + graceful failure.** Writes `data/raw/corra_futures_curve.csv` +
+`.meta.json` (ADR-0002 sidecar: contract, quarter, settlement, implied_corra,
+implied_target, fetched_at). Any scrape/fetch/parse error returns `None` with a
+one-line stdout warning; the chart then renders exactly as before (no dotted
+line) and the run prints an "unavailable" notice. Nothing downstream breaks.
+
+**Scrape fragility.** The read depends on the TMX page exposing the CRA quotes as
+server-rendered HTML in one `<table>` with a `Month` and a `Settl. price` header.
+If TMX moves the quotes behind a JS/XHR endpoint, renames headers, or splits the
+table, the parser raises and the overlay drops out cleanly (rule path still
+ships). Settlement prices are end-of-previous-session; intraday moves are not
+reflected.
+
 ## 8. Files
 
 | Path | Purpose |
@@ -488,7 +557,9 @@ regenerate. The 5-step ritual:
 | `work/research/shadow_rate/boc_shadow_path_2026-04.{svg,html}` | Jay-facing chart |
 | `boc_shadow_inputs_2026Q2.xlsx` → `calc` sheet | live-formula per-quarter path written back on every run, with python-check + diff columns (companion `boc_shadow_output_2026Q2.xlsx` if Excel holds the lock) |
 | `data/processed/boc_shadow_rate.csv` + `.meta.json` | output series (transform `totem3_taylor_rule_shadow_path`) |
-| `pipeline/shadow_rate/` | inputs / model / chart / run / make_workbook / tests |
+| `data/raw/corra_futures_curve.csv` + `.meta.json` | market-implied path from CORRA futures (transform `corra_futures_implied_policy_path`) |
+| `pipeline/shadow_rate/market_path.py` | CORRA-futures scrape + conversion + spread adjustment (Section 11) |
+| `pipeline/shadow_rate/` | inputs / model / chart / run / market_path / make_workbook / tests |
 
 Run: `python -m pipeline.shadow_rate.run` (real, requires `verified=TRUE`) or
 `python -m pipeline.shadow_rate.run --force-unverified` (watermarked draft).
