@@ -87,6 +87,10 @@ logger = logging.getLogger("lfs_micro.run")
 _RAW_PUMF_DIR = _PROJECT_ROOT / "data" / "raw" / "lfs_pumf"
 _PROCESSED_DIR = _PROJECT_ROOT / "data" / "processed"
 _WORK_DIR = _PROJECT_ROOT / "work" / "research" / "lfs_micro"
+# BoC Valet INDINF_LFSMICRO_M benchmark. UNITS: log points (100*dlog), as
+# published — NOT geometric percent. Convert (exp(lp/100)-1)*100 before
+# comparing against our geometric headline. Module-level so tests can patch.
+_BOC_BENCHMARK_CSV = _PROJECT_ROOT / "data" / "raw" / "lfs_micro.csv"
 
 
 # ---------------------------------------------------------------------------
@@ -588,7 +592,10 @@ def _write_replication_series(df: pd.DataFrame, latest_month: str) -> tuple[Path
         f"Spec: weighted={spec.weighted}, smoothing={spec.smoothing}, "
         f"ob_reference={spec.ob_reference}. "
         f"Calibrated vs BoC Valet INDINF_LFSMICRO_M. "
-        f"Log-points converted to pct via exp()-1. "
+        f"UNITS: headline columns are geometric percent, (exp(lp)-1)*100. "
+        f"The BoC publishes INDINF_LFSMICRO_M in log points (100*dlog); "
+        f"convert (exp(lp/100)-1)*100 before comparing, or compare lp-vs-lp "
+        f"(canonical fidelity metric; see calibrate.py). "
         + (
             "Headline columns are unsmoothed single-month estimates (the BoC "
             "series is unsmoothed: matching roughness, no MA signature); "
@@ -806,8 +813,16 @@ def run(
 
 
 def _print_summary(df: pd.DataFrame, latest_key: str) -> None:
-    """Print a brief summary to stdout."""
-    from pipeline.fetch.boc import fetch_series
+    """Print a brief summary to stdout.
+
+    Units discipline: our headline (underlying_pct) is geometric percent,
+    (exp(lp)-1)*100. The BoC publishes INDINF_LFSMICRO_M in log points
+    (100*dlog), so the BoC value is converted lp -> geometric before any
+    diff, and each number is labelled with its convention. The diff is
+    printed only when the BoC has a value for OUR latest month — never a
+    cross-month diff (audit MINOR-3: if the BoC ever led the PUMF, the old
+    code diffed different months).
+    """
     print()
     print(f"=== LFS-micro refresh: {latest_key} ===")
 
@@ -815,27 +830,42 @@ def _print_summary(df: pd.DataFrame, latest_key: str) -> None:
     last = df_sorted[df_sorted["underlying_pct"].notna()].iloc[-1]
 
     print(f"Latest month in replication: {last['date'][:7]}")
-    print(f"  Underlying wage growth (ours):    {last['underlying_pct']:.3f}% y/y")
+    print(f"  Underlying wage growth (ours, geometric %): {last['underlying_pct']:.3f}% y/y")
     if "composition_pct" in last:
-        print(f"  Composition effect:               {last['composition_pct']:.3f}% y/y")
+        print(f"  Composition effect (geometric %):           {last['composition_pct']:.3f}% y/y")
     if "raw_mean_pct" in last:
-        print(f"  Mean log-wage growth (geometric): {last['raw_mean_pct']:.3f}% y/y")
+        print(f"  Mean log-wage growth (geometric %):         {last['raw_mean_pct']:.3f}% y/y")
     if "n_obs_curr" in last and pd.notna(last.get("n_obs_curr")):
-        print(f"  Sample size (current month):      {int(last['n_obs_curr']):,}")
+        print(f"  Sample size (current month):                {int(last['n_obs_curr']):,}")
 
-    # Compare to BoC if available
+    # Compare to BoC if available — same month, same units only.
     try:
-        boc = pd.read_csv(
-            _PROJECT_ROOT / "data" / "raw" / "lfs_micro.csv",
-            parse_dates=["date"]
-        )
+        boc = pd.read_csv(_BOC_BENCHMARK_CSV, parse_dates=["date"])
         boc_latest_date = boc["date"].max()
         boc_latest_val = float(boc.loc[boc["date"] == boc_latest_date, "value"].iloc[0])
-        print(f"  BoC INDINF_LFSMICRO_M ({boc_latest_date.strftime('%Y-%m')}): {boc_latest_val:.1f}% y/y")
+        print(
+            f"  BoC INDINF_LFSMICRO_M ({boc_latest_date.strftime('%Y-%m')}): "
+            f"{boc_latest_val:.1f} log points (as published)"
+        )
         last_date = pd.Timestamp(last["date"][:10])
-        if last_date in boc.set_index("date").index:
-            diff = last["underlying_pct"] - boc_latest_val
-            print(f"  Difference (ours minus BoC):      {diff:+.3f} pp")
+        boc_idx = boc.set_index("date")["value"]
+        if last_date in boc_idx.index:
+            boc_same_lp = float(boc_idx.loc[last_date])
+            boc_same_geo = (np.exp(boc_same_lp / 100.0) - 1.0) * 100.0
+            diff = float(last["underlying_pct"]) - boc_same_geo
+            print(
+                f"  BoC at {last_date.strftime('%Y-%m')}: {boc_same_lp:.1f} lp "
+                f"= {boc_same_geo:.3f}% geometric"
+            )
+            print(
+                f"  Difference at {last_date.strftime('%Y-%m')} "
+                f"(ours geo minus BoC lp->geo): {diff:+.3f} pp"
+            )
+        else:
+            print(
+                f"  No same-month BoC value for {last_date.strftime('%Y-%m')} "
+                f"(BoC latest: {boc_latest_date.strftime('%Y-%m')}) — no diff printed."
+            )
     except Exception:
         pass
 

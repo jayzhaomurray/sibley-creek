@@ -19,6 +19,7 @@ import matplotlib
 matplotlib.use("Agg")  # headless
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import numpy as np
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).parents[2]
@@ -41,9 +42,17 @@ def _load_replication() -> pd.DataFrame:
 
 
 def _load_boc() -> pd.DataFrame:
+    """Load the BoC benchmark and convert to chart units.
+
+    The BoC publishes INDINF_LFSMICRO_M in log points (100*dlog); our headline
+    is geometric percent ((exp(lp)-1)*100). 'value' keeps the published log
+    points; 'value_geo' is the lp -> geometric conversion used for plotting so
+    both lines are in the same units.
+    """
     csv = PROJECT_ROOT / "data" / "raw" / "lfs_micro.csv"
     df = pd.read_csv(csv, parse_dates=["date"])
     df = df.sort_values("date").reset_index(drop=True)
+    df["value_geo"] = (np.exp(df["value"].astype(float) / 100.0) - 1.0) * 100.0
     return df
 
 
@@ -89,11 +98,12 @@ def render_chart(
             zorder=2, label="mean log-wage growth (geometric, y/y %)",
         )
 
-    # BoC published series (solid dark)
+    # BoC published series (solid dark), converted lp -> geometric so it is
+    # in the same units as our headline line.
     ax.plot(
-        boc["date"], boc["value"],
+        boc["date"], boc["value_geo"],
         color=_BOC, lw=1.8, solid_capstyle="round",
-        zorder=3, label="BoC INDINF_LFSMICRO_M",
+        zorder=3, label="BoC INDINF_LFSMICRO_M (lp converted to geometric %)",
     )
 
     # Ours (dashed red — composition-adjusted)
@@ -150,8 +160,8 @@ def render_chart(
         fontweight="bold",
     )
 
-    last_boc_idx = boc["value"].dropna().index[-1]
-    last_boc_val = boc.loc[last_boc_idx, "value"]
+    last_boc_idx = boc["value_geo"].dropna().index[-1]
+    last_boc_val = boc.loc[last_boc_idx, "value_geo"]
     last_boc_date = boc.loc[last_boc_idx, "date"]
 
     ax.annotate(
@@ -174,7 +184,7 @@ def render_chart(
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
     ax.xaxis.set_major_locator(mdates.YearLocator())
 
-    ax.set_ylabel("y/y % change", color=_INK, fontsize=9)
+    ax.set_ylabel("y/y % change (geometric)", color=_INK, fontsize=9)
     ax.set_title(
         "LFS-micro: composition-adjusted underlying wage growth\n"
         f"O-B replication of BoC SAN 2024-23 | PUMF vintage {vintage_tag}",
@@ -204,22 +214,27 @@ def _write_html(
              and not ln.lstrip().startswith("<!DOCTYPE")]
     svg_inline = "\n".join(lines)
 
-    # Build table of last 24 months for both series
-    boc_idx = boc.set_index("date")["value"]
+    # Build table of last 24 months for both series. Same-units comparison:
+    # the BoC publishes log points; show the published lp value AND the
+    # lp -> geometric conversion; diff is geo minus geo.
+    boc_lp_idx = boc.set_index("date")["value"]
+    boc_geo_idx = boc.set_index("date")["value_geo"]
     rep_idx = rep.set_index("date")["underlying_pct"].dropna()
-    common = rep_idx.index.intersection(boc_idx.index)
+    common = rep_idx.index.intersection(boc_lp_idx.index)
     rows_data = sorted(common, reverse=True)[:24]
 
     rows_html = ""
     for d in rows_data:
         ours = rep_idx.loc[d]
-        boc_v = boc_idx.loc[d]
-        diff = ours - boc_v
+        boc_lp = boc_lp_idx.loc[d]
+        boc_geo = boc_geo_idx.loc[d]
+        diff = ours - boc_geo
         diff_style = "color:#c0392b" if abs(diff) > 0.3 else ""
         rows_html += (
             f"<tr><td>{d.strftime('%Y-%m')}</td>"
             f"<td>{ours:.3f}</td>"
-            f"<td>{boc_v:.1f}</td>"
+            f"<td>{boc_lp:.1f}</td>"
+            f"<td>{boc_geo:.3f}</td>"
             f"<td style='{diff_style}'>{diff:+.3f}</td></tr>\n"
         )
 
@@ -255,18 +270,21 @@ def _write_html(
 {svg_inline}
 </figure>
 <table>
-<caption>Last 24 months: ours vs BoC published (y/y %)</caption>
-<thead><tr><th>month</th><th>ours %</th><th>BoC %</th><th>diff pp</th></tr></thead>
+<caption>Last 24 months: ours vs BoC (same units: geometric y/y %; BoC publishes log points)</caption>
+<thead><tr><th>month</th><th>ours % (geo)</th><th>BoC (lp, as published)</th><th>BoC % (lp&rarr;geo)</th><th>diff pp (geo)</th></tr></thead>
 <tbody>{rows_html}</tbody>
 </table>
 <p class="note">
   Internal Sibley Creek research tool. Composition-adjusted underlying wage growth
   from a weighted OLS Oaxaca-Blinder decomposition of log-wage regressions on LFS
   PUMF monthly cross-sections. Methodology: Bounajm, Devakos, and Galassi, BoC
-  Staff Analytical Note 2024-23. The dashed red line is our replication; the solid
-  black line is the BoC&rsquo;s published INDINF_LFSMICRO_M. Differences reflect
-  spec choices (smoothing, reference convention, bin granularity).
-  See claude-ref/research/lfs_micro/calibration_report.md for diagnosis.
+  Staff Analytical Note 2024-23. The dashed red line is our replication (geometric
+  percent, (exp(lp)&minus;1)&times;100); the solid black line is the BoC&rsquo;s
+  published INDINF_LFSMICRO_M, which the Bank publishes in log points
+  (100&times;&Delta;log) and which is converted lp&rarr;geometric here so both
+  lines are in the same units. Residual differences reflect PUMF category
+  granularity vs the master files, BoC 0.1pp publication rounding, and
+  estimation noise. See claude-ref/research/lfs_micro/calibration_report.md.
 </p>
 </body>
 </html>

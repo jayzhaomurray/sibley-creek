@@ -7,7 +7,7 @@ Orchestrates the full pipeline for a range of months:
     2. Compute the union category universe (conformable design matrices).
     3. Run WLS regression on both months.
     4. Run the Oaxaca-Blinder decomposition.
-    5. Convert log-points to percent (exp()-1) for BoC series comparability.
+    5. Convert log-points to geometric percent (exp()-1) for the headline.
     6. Accumulate results.
 
 Output DataFrame columns (one row per month):
@@ -25,16 +25,25 @@ Output DataFrame columns (one row per month):
   <group>_comp_lp   Per-group contribution to composition (log-points),
                     one column per regressor group in REGRESSOR_GROUPS
 
-Note on log-points vs percent:
-  The BoC's INDINF_LFSMICRO_M series is published as y/y percent change.
-  Our decomposition yields log-points (natural log). For small changes the
-  difference is negligible (<0.1pp for values near 3-4%), but we convert
-  consistently for comparability:
-    underlying_pct = (exp(underlying_lp) - 1.0) * 100
-  The sign convention matches: positive = wage growth.
+Note on log-points vs percent (UNITS — read before comparing to the BoC):
+  The BoC publishes INDINF_LFSMICRO_M in LOG POINTS (100*dlog), not
+  geometric percent. Established by residual forensics 2026-06-09:
+  comparing in matching units removes a systematic, level-dependent
+  ~+0.05pp convexity bias and improves the fit from RMSE 0.1178pp to
+  0.0885pp (bias +0.088 -> +0.037pp).
 
-  Calibration in calibrate.py compares against the BoC series to verify
-  the scale is correct and determine whether smoothing improves the fit.
+  Our reader-facing headline stays in geometric percent — the honest
+  "percent" a reader expects:
+    underlying_pct = (exp(underlying_lp) - 1.0) * 100
+
+  Every comparison against the BoC series must be same-units:
+    - lp-vs-lp: ours underlying_lp*100 vs BoC as published
+      (the CANONICAL fidelity metric; see calibrate.py), or
+    - geo-vs-geo: BoC converted (exp(lp/100)-1)*100 vs our headline
+      (run.py summary, workbook, chart).
+
+  Calibration in calibrate.py scores both conventions against the BoC
+  series; the lp-vs-lp numbers are canonical.
 
 Smoothing (ma3):
   If spec.smoothing == "ma3", a 3-month centred moving average is applied
@@ -397,11 +406,13 @@ def _apply_ma3(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _convert_lp_to_pct(df: pd.DataFrame) -> pd.DataFrame:
-    """Convert log-point columns to y/y percent change.
+    """Convert log-point columns to geometric y/y percent change.
 
     Formula: pct = (exp(lp) - 1.0) * 100
-    Multiplied by 100 so the scale matches the BoC Valet series
-    (published as percent, not fraction).
+
+    NOTE: the BoC publishes INDINF_LFSMICRO_M in log points (100*dlog) and
+    does NOT apply this conversion — never compare these pct columns to the
+    BoC series directly (see the module docstring units note).
 
     NaN values (edge of MA window) propagate as NaN in the pct columns.
     """

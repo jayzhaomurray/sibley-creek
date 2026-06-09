@@ -17,8 +17,20 @@ What this module does:
      (8 combinations total)
 
   4. Score each candidate against data/raw/lfs_micro.csv (BoC Valet
-     INDINF_LFSMICRO_M, monthly y/y %) over the overlap window.
+     INDINF_LFSMICRO_M, monthly) over the overlap window.
      Metrics: RMSE, MAE, Pearson correlation.
+
+     UNITS: the BoC publishes INDINF_LFSMICRO_M in LOG POINTS (100*dlog),
+     not geometric percent — established by residual forensics 2026-06-09
+     (matching units removes a level-dependent +0.05pp convexity bias;
+     RMSE 0.1178 -> 0.0885pp). Scoring is therefore done in BOTH unit
+     conventions:
+       lp-vs-lp:   ours underlying_lp*100 vs BoC as published
+                   <- the CANONICAL fidelity metric (grid winner selection)
+       geo-vs-geo: ours underlying_pct (exp(lp)-1)*100 vs BoC converted
+                   (exp(lp/100)-1)*100
+     Our reader-facing headline series stays in geometric percent — the
+     honest "percent" — but no comparison against the BoC may mix units.
 
   5. NAICS spot-check: compare NAICS_21 code distributions between a
      2015 month and 2026-04 to verify the Feb 2025 re-release consistently
@@ -196,14 +208,54 @@ def harmonize_all_months(
 def _load_boc_benchmark() -> pd.Series:
     """Load BoC Valet INDINF_LFSMICRO_M from local CSV.
 
-    Returns a Series indexed by ISO date strings (YYYY-MM-01) with float values
-    (y/y percent change).
+    Returns a Series indexed by ISO date strings (YYYY-MM-01) with float
+    values. UNITS: log points (100*dlog), as published by the BoC — NOT
+    geometric percent. See the module docstring.
     """
     df = pd.read_csv(_BOC_BENCHMARK_PATH, parse_dates=["date"])
     df = df.set_index("date").sort_index()
     # Normalize index to YYYY-MM-01 strings for alignment
     df.index = df.index.strftime("%Y-%m-01")
     return df["value"].astype(float)
+
+
+def _lp_to_geometric(lp_values) -> np.ndarray:
+    """Convert log-point y/y values (100*dlog, the BoC publication convention)
+    to geometric percent: (exp(lp/100) - 1) * 100."""
+    return (np.exp(np.asarray(lp_values, dtype=float) / 100.0) - 1.0) * 100.0
+
+
+def _score_both_conventions(
+    replication: pd.DataFrame,
+    benchmark: pd.Series,
+) -> dict:
+    """Score ours vs the BoC in BOTH unit conventions (never mixed).
+
+    Args:
+        replication: Engine output (needs 'date', 'underlying_lp',
+                     'underlying_pct').
+        benchmark:   BoC Valet series in log points, as published.
+
+    Returns:
+        {"lp": score_dict, "geo": score_dict} where each score_dict is the
+        _score() output. "lp" compares our underlying_lp*100 against the BoC
+        values as published — the CANONICAL fidelity metric. "geo" compares
+        our geometric headline against the BoC converted lp -> geometric.
+    """
+    empty = {"rmse": np.nan, "mae": np.nan, "corr": np.nan, "n_overlap": 0}
+    if replication.empty or "underlying_lp" not in replication.columns:
+        return {"lp": dict(empty), "geo": dict(empty)}
+
+    rep_lp = replication.copy()
+    rep_lp["underlying_lp100"] = rep_lp["underlying_lp"].astype(float) * 100.0
+    lp_scores = _score(rep_lp, benchmark, col="underlying_lp100")
+
+    bench_geo = pd.Series(
+        _lp_to_geometric(benchmark.values), index=benchmark.index
+    )
+    geo_scores = _score(replication, bench_geo, col="underlying_pct")
+
+    return {"lp": lp_scores, "geo": geo_scores}
 
 
 def _score(
@@ -323,13 +375,14 @@ def naics_spot_check(
 def _last_12_comparison(
     replication: pd.DataFrame,
     benchmark: pd.Series,
-    col: str = "underlying_pct",
 ) -> list[dict]:
-    """Return per-month comparison for the last 12 available months."""
-    if replication.empty or col not in replication.columns:
+    """Per-month comparison for the last 12 months, lp-vs-lp (same units).
+
+    Ours: underlying_lp × 100. BoC: as published (log points)."""
+    if replication.empty or "underlying_lp" not in replication.columns:
         return []
 
-    rep = replication.set_index("date")[col].dropna()
+    rep = (replication.set_index("date")["underlying_lp"].astype(float) * 100.0).dropna()
     common = rep.index.intersection(benchmark.index)
     if common.empty:
         return []
@@ -350,6 +403,7 @@ def _write_report(
     grid_results: list[dict],
     winner_spec: Spec,
     winner_scores: dict,
+    winner_scores_geo: dict,
     winner_series: pd.DataFrame,
     benchmark: pd.Series,
     naics_check: dict,
@@ -367,24 +421,29 @@ def _write_report(
         f"",
         f"## Calibration grid results",
         f"",
-        f"Benchmark: BoC Valet `INDINF_LFSMICRO_M` (y/y %, monthly)",
+        f"Benchmark: BoC Valet `INDINF_LFSMICRO_M` (monthly, published in LOG POINTS, 100×Δlog).",
+        f"Grid scored lp-vs-lp (ours underlying_lp×100 vs BoC as published) — the",
+        f"CANONICAL fidelity metric. geo-vs-geo (ours exp()−1 vs BoC converted",
+        f"(exp(lp/100)−1)×100) reported alongside. Units are never mixed.",
         f"Overlap window: 2016-01 onwards (PUMF y/y starts 2016 with 2015 base year)",
         f"",
-        "| weighted | smoothing | ob_reference | RMSE | MAE | corr | n |",
-        "|----------|-----------|--------------|------|-----|------|---|",
+        "| weighted | smoothing | ob_reference | RMSE (lp) | MAE (lp) | corr (lp) | RMSE (geo) | n |",
+        "|----------|-----------|--------------|-----------|----------|-----------|------------|---|",
     ]
 
     for r in sorted(grid_results, key=lambda x: x.get("rmse", 99) or 99):
         spec = r["spec"]
         scores = r["scores"]
+        scores_geo = r.get("scores_geo", {})
         rmse = f"{scores.get('rmse', 'n/a')}" if scores.get("rmse") is not None else "n/a"
         mae = f"{scores.get('mae', 'n/a')}" if scores.get("mae") is not None else "n/a"
         corr = f"{scores.get('corr', 'n/a')}" if scores.get("corr") is not None else "n/a"
+        rmse_geo = f"{scores_geo.get('rmse', 'n/a')}" if scores_geo.get("rmse") is not None else "n/a"
         n = scores.get("n_overlap", "n/a")
         marker = " **WINNER**" if r.get("winner") else ""
         lines.append(
             f"| {spec.weighted} | {spec.smoothing} | {spec.ob_reference} "
-            f"| {rmse} | {mae} | {corr} | {n} |{marker}"
+            f"| {rmse} | {mae} | {corr} | {rmse_geo} | {n} |{marker}"
         )
 
     lines += [
@@ -396,16 +455,23 @@ def _write_report(
         f"- ob_reference: {winner_spec.ob_reference}",
         f"- min_cell_count: {winner_spec.min_cell_count}",
         "",
-        f"RMSE: {winner_scores.get('rmse')} pp",
-        f"MAE:  {winner_scores.get('mae')} pp",
-        f"corr: {winner_scores.get('corr')}",
+        "Fit, lp-vs-lp (CANONICAL — both series in log points ×100):",
+        f"- RMSE: {winner_scores.get('rmse')} pp",
+        f"- MAE:  {winner_scores.get('mae')} pp",
+        f"- corr: {winner_scores.get('corr')}",
+        "",
+        "Fit, geo-vs-geo (both series in geometric percent; BoC converted lp→geo):",
+        f"- RMSE: {winner_scores_geo.get('rmse')} pp",
+        f"- MAE:  {winner_scores_geo.get('mae')} pp",
+        f"- corr: {winner_scores_geo.get('corr')}",
+        "",
         f"Overlap: {winner_scores.get('overlap_start')} to {winner_scores.get('overlap_end')} "
         f"(n={winner_scores.get('n_overlap')})",
         "",
-        "## Last 12 months comparison (ours vs BoC)",
+        "## Last 12 months comparison (ours vs BoC, both in log points ×100)",
         "",
-        "| date | ours | BoC | diff |",
-        "|------|------|-----|------|",
+        "| date | ours (lp) | BoC (lp) | diff |",
+        "|------|-----------|----------|------|",
     ]
 
     for row in _last_12_comparison(winner_series, benchmark):
@@ -440,11 +506,14 @@ def _write_report(
         "",
         "- Composition effect captures employment-share shifts across categories.",
         "- Underlying wage growth = wage-return changes for a fixed worker mix.",
-        "- BoC SAN 2024-23 uses y/y % on the same PUMF data; near-exact replication",
+        "- BoC SAN 2024-23 uses the same PUMF data; near-exact replication",
         "  is achievable since we use the same source. Residual divergence comes from",
-        "  exact spec choices (reference convention, smoothing, bin granularity).",
-        "- Log-point to percent conversion: pct = (exp(log_pt) - 1) * 100.",
-        "  For values near 3-4%, this differs from raw log-points by <0.1pp.",
+        "  category granularity (PUMF coarser than master files), BoC 0.1pp",
+        "  publication rounding, and estimation noise.",
+        "- UNITS: the BoC publishes log points (100×Δlog); residual forensics",
+        "  2026-06-09 established this (matching units removes the level-dependent",
+        "  convexity bias). Our reader-facing headline stays geometric percent:",
+        "  pct = (exp(log_pt) - 1) * 100. Comparisons are always same-units.",
     ]
 
     report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -505,6 +574,7 @@ def run_calibration(
     grid_results = []
     best_spec = None
     best_scores = {"rmse": float("inf")}
+    best_scores_geo = {"rmse": float("nan")}
     best_series = None
 
     for i, spec in enumerate(specs, 1):
@@ -514,18 +584,24 @@ def run_calibration(
         )
         try:
             series = run_engine(frames, spec=spec)
-            scores = _score(series, benchmark, col="underlying_pct")
+            # lp-vs-lp is the canonical fidelity metric (BoC publishes log
+            # points); geo-vs-geo is reported alongside. Never mix units.
+            both = _score_both_conventions(series, benchmark)
+            scores = both["lp"]
+            scores_geo = both["geo"]
         except Exception as exc:
             logger.error("    Engine failed: %s", exc)
             scores = {"rmse": np.nan, "mae": np.nan, "corr": np.nan, "n_overlap": 0}
+            scores_geo = dict(scores)
             series = pd.DataFrame()
 
         logger.info(
-            "    RMSE=%.3f MAE=%.3f corr=%.3f n=%d",
+            "    lp-vs-lp RMSE=%.3f MAE=%.3f corr=%.3f n=%d (geo-vs-geo RMSE=%.3f)",
             scores.get("rmse") or float("nan"),
             scores.get("mae") or float("nan"),
             scores.get("corr") or float("nan"),
             scores.get("n_overlap", 0),
+            scores_geo.get("rmse") or float("nan"),
         )
 
         is_winner = (
@@ -536,11 +612,13 @@ def run_calibration(
         if is_winner:
             best_spec = spec
             best_scores = scores
+            best_scores_geo = scores_geo
             best_series = series
 
         grid_results.append({
             "spec": spec,
             "scores": scores,
+            "scores_geo": scores_geo,
             "winner": False,  # updated below
         })
 
@@ -555,7 +633,7 @@ def run_calibration(
     runtime_sec = time.time() - t0
     logger.info(
         "=== Winner: weighted=%s smoothing=%s ob_ref=%s "
-        "RMSE=%.3f corr=%.3f (%.0fs) ===",
+        "lp-vs-lp RMSE=%.3f corr=%.3f (%.0fs) ===",
         best_spec.weighted, best_spec.smoothing, best_spec.ob_reference,
         best_scores["rmse"], best_scores["corr"], runtime_sec
     )
@@ -566,6 +644,7 @@ def run_calibration(
         grid_results=grid_results,
         winner_spec=best_spec,
         winner_scores=best_scores,
+        winner_scores_geo=best_scores_geo,
         winner_series=best_series,
         benchmark=benchmark,
         naics_check=naics_check,
@@ -612,10 +691,13 @@ def _write_replication_series(
             f"LFS PUMF monthly cross-sections. "
             f"Spec: weighted={spec.weighted}, smoothing={spec.smoothing}, "
             f"ob_reference={spec.ob_reference}. "
-            f"Calibrated vs BoC Valet INDINF_LFSMICRO_M: "
+            f"Calibrated vs BoC Valet INDINF_LFSMICRO_M (published in log "
+            f"points, 100*dlog), compared lp-vs-lp (canonical): "
             f"RMSE={scores.get('rmse')}pp, corr={scores.get('corr')}, "
             f"n_overlap={scores.get('n_overlap')}. "
-            f"Log-points converted to pct via exp()-1. "
+            f"This series' headline columns are geometric percent: "
+            f"pct = (exp(lp)-1)*100. Do not compare to the BoC series "
+            f"without matching units. "
             f"Reference: Bounajm/Devakos/Galassi, BoC SAN 2024-23."
         ),
         transform="oaxaca_blinder_lfs_micro",

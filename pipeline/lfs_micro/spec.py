@@ -101,6 +101,10 @@ class Spec(BaseModel, frozen=True):
 # series' change autocorrelation is ~0 (white) — no MA signature.
 # WLS (weighted) strongly preferred over unweighted. Base vs current
 # reference: ~0.001 pp difference; base matches the note's framing.
+# UNITS (2026-06-09 audit): the BoC publishes the series in log points
+# (100*dlog); compared same-units (lp-vs-lp) this spec's fit is RMSE
+# 0.0885 pp, bias +0.037 pp — the 0.1178 figure above mixed conventions
+# (our exp()-1 vs their lp). lp-vs-lp is the canonical fidelity metric.
 # See: claude-ref/research/lfs_micro/calibration_report.md for full diagnosis.
 DEFAULT_SPEC = Spec(
     weighted=True,

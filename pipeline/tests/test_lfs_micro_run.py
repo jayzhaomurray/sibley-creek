@@ -619,6 +619,119 @@ class TestRunOrchestration:
 
 
 # ---------------------------------------------------------------------------
+# Tests: _print_summary (units conversion + same-month guard)
+# ---------------------------------------------------------------------------
+
+class TestPrintSummary:
+    @staticmethod
+    def _summary_df(latest: str = "2026-03-01") -> pd.DataFrame:
+        dates = pd.date_range(end=latest, periods=3, freq="MS")
+        return pd.DataFrame({
+            "date": dates.strftime("%Y-%m-%d"),
+            "underlying_pct": [3.4, 3.5, 3.6],
+            "composition_pct": [0.4, 0.5, 0.5],
+            "raw_mean_pct": [3.9, 4.0, 4.1],
+            "n_obs_curr": [55000, 55000, 55000],
+        })
+
+    @staticmethod
+    def _boc_csv(tmp_path, last_date: str, last_value: float) -> Path:
+        dates = pd.date_range(end=last_date, periods=6, freq="MS")
+        df = pd.DataFrame({
+            "date": dates.strftime("%Y-%m-%d"),
+            "value": [3.2, 3.3, 3.4, 3.4, 3.5, last_value],
+        })
+        p = tmp_path / "lfs_micro.csv"
+        df.to_csv(p, index=False)
+        return p
+
+    def test_same_month_diff_uses_lp_to_geo_conversion(self, tmp_path, capsys):
+        """When the BoC has our latest month, the diff converts lp -> geometric."""
+        from pipeline.lfs_micro.run import _print_summary
+        import pipeline.lfs_micro.run as run_mod
+
+        df = self._summary_df(latest="2026-03-01")
+        boc_csv = self._boc_csv(tmp_path, "2026-03-01", 3.5)
+
+        original = run_mod._BOC_BENCHMARK_CSV
+        run_mod._BOC_BENCHMARK_CSV = boc_csv
+        try:
+            _print_summary(df, "2026-03")
+        finally:
+            run_mod._BOC_BENCHMARK_CSV = original
+
+        out = capsys.readouterr().out
+        # BoC published value labelled as log points
+        assert "log points" in out
+        # Converted value: (exp(3.5/100)-1)*100 = 3.562
+        boc_geo = (np.exp(3.5 / 100.0) - 1.0) * 100.0
+        assert f"{boc_geo:.3f}% geometric" in out
+        # Diff is ours_geo - boc_geo at the SAME month
+        expected_diff = 3.6 - boc_geo
+        assert f"{expected_diff:+.3f} pp" in out
+        assert "Difference at 2026-03" in out
+        assert "No same-month BoC value" not in out
+
+    def test_no_same_month_boc_value_prints_guard_not_diff(self, tmp_path, capsys):
+        """If the BoC lacks our latest month (either side leads), no cross-month
+        diff is printed — the guard message names both months instead."""
+        from pipeline.lfs_micro.run import _print_summary
+        import pipeline.lfs_micro.run as run_mod
+
+        # Ours runs to 2026-05; BoC only to 2026-03.
+        df = self._summary_df(latest="2026-05-01")
+        boc_csv = self._boc_csv(tmp_path, "2026-03-01", 3.5)
+
+        original = run_mod._BOC_BENCHMARK_CSV
+        run_mod._BOC_BENCHMARK_CSV = boc_csv
+        try:
+            _print_summary(df, "2026-05")
+        finally:
+            run_mod._BOC_BENCHMARK_CSV = original
+
+        out = capsys.readouterr().out
+        assert "No same-month BoC value for 2026-05" in out
+        assert "BoC latest: 2026-03" in out
+        assert "Difference" not in out
+
+    def test_boc_leading_pumf_does_not_cross_month_diff(self, tmp_path, capsys):
+        """Audit MINOR-3 regression: BoC ahead of the PUMF. Our latest month
+        exists in the BoC index, so a diff IS printed — but it must use the
+        BoC value AT OUR month, not the BoC's newer latest value."""
+        from pipeline.lfs_micro.run import _print_summary
+        import pipeline.lfs_micro.run as run_mod
+
+        # Ours runs to 2026-01; BoC runs to 2026-03 (values differ by month).
+        df = self._summary_df(latest="2026-01-01")
+        # BoC: ..., 2026-01 = 3.5, 2026-02 = 3.5, 2026-03 = 9.9 (poison value:
+        # if the code diffs against BoC-latest, the diff will be wildly wrong)
+        dates = pd.date_range(end="2026-03-01", periods=6, freq="MS")
+        boc_df = pd.DataFrame({
+            "date": dates.strftime("%Y-%m-%d"),
+            "value": [3.3, 3.4, 3.5, 3.5, 3.5, 9.9],
+        })
+        boc_csv = tmp_path / "lfs_micro.csv"
+        boc_df.to_csv(boc_csv, index=False)
+
+        original = run_mod._BOC_BENCHMARK_CSV
+        run_mod._BOC_BENCHMARK_CSV = boc_csv
+        try:
+            _print_summary(df, "2026-01")
+        finally:
+            run_mod._BOC_BENCHMARK_CSV = original
+
+        out = capsys.readouterr().out
+        # 2026-01 BoC value is 3.5 lp (4th of the 6 dates: 2025-10..2026-03)
+        boc_geo = (np.exp(3.5 / 100.0) - 1.0) * 100.0
+        expected_diff = 3.6 - boc_geo
+        assert "Difference at 2026-01" in out
+        assert f"{expected_diff:+.3f} pp" in out
+        # The poison 9.9 latest value must not enter the diff
+        poison_diff = 3.6 - (np.exp(9.9 / 100.0) - 1.0) * 100.0
+        assert f"{poison_diff:+.3f} pp" not in out
+
+
+# ---------------------------------------------------------------------------
 # Tests: make_workbook (fixture-based)
 # ---------------------------------------------------------------------------
 
@@ -739,11 +852,24 @@ class TestMakeWorkbook:
             wb = opxl_load(out_path)
             ws = wb["headline"]
             headers = [c.value for c in ws[1]]
+            # First data row (newest month): check the units conversion
+            row2 = [c.value for c in ws[2]]
             wb.close()
+            # Convention-labelled headers (audit 2026-06-09: BoC publishes
+            # log points; ours is geometric; diff must be same-units)
             assert "date" in headers
-            assert "underlying_ours_%" in headers
-            assert "boc_INDINF_LFSMICRO_M_%" in headers
-            assert "diff_pp" in headers
+            assert "underlying_ours_geo_%" in headers
+            assert "boc_INDINF_LFSMICRO_M_lp" in headers
+            assert "boc_lp_to_geo_%" in headers
+            assert "diff_pp_geo" in headers
+            # BoC lp = 2.9 -> geo = (exp(0.029)-1)*100 = 2.942; diff = 3.0 - geo
+            boc_geo = round((np.exp(2.9 / 100.0) - 1.0) * 100.0, 3)
+            i_lp = headers.index("boc_INDINF_LFSMICRO_M_lp")
+            i_geo = headers.index("boc_lp_to_geo_%")
+            i_diff = headers.index("diff_pp_geo")
+            assert row2[i_lp] == pytest.approx(2.9, abs=1e-9)
+            assert row2[i_geo] == pytest.approx(boc_geo, abs=1e-6)
+            assert row2[i_diff] == pytest.approx(round(3.0 - boc_geo, 3), abs=1e-6)
         finally:
             wb_mod._REPLICATION_CSV = original_rep
             wb_mod._BOC_CSV = original_boc

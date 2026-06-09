@@ -170,11 +170,15 @@ def _build_headline_sheet(
     # Sort descending (newest first) — last 24 at top, scrollable
     dates = sorted(common, reverse=True)
 
+    # UNITS: ours is geometric percent ((exp(lp)-1)*100); the BoC publishes
+    # log points (100*dlog). The published lp value is shown as-is AND
+    # converted lp -> geometric; the diff is computed same-units (geo - geo).
     headers = [
         "date",
-        "underlying_ours_%",
-        "boc_INDINF_LFSMICRO_M_%",
-        "diff_pp",
+        "underlying_ours_geo_%",
+        "boc_INDINF_LFSMICRO_M_lp",
+        "boc_lp_to_geo_%",
+        "diff_pp_geo",
         "mean_log_wage_growth_geometric_%",
         "composition_effect_%",
         "n_obs",
@@ -184,20 +188,25 @@ def _build_headline_sheet(
 
     for d in dates:
         r_row = rep_idx.loc[d] if d in rep_idx.index else None
-        boc_v = float(boc.loc[d]) if d in boc.index else None
+        boc_lp = float(boc.loc[d]) if d in boc.index else None
+        boc_geo = (
+            round((np.exp(boc_lp / 100.0) - 1.0) * 100.0, 3)
+            if boc_lp is not None else None
+        )
         if r_row is None:
             continue
 
         underlying = round(float(r_row["underlying_pct"]), 3) if pd.notna(r_row.get("underlying_pct")) else None
         raw_m = round(float(r_row["raw_mean_pct"]), 3) if "raw_mean_pct" in r_row and pd.notna(r_row.get("raw_mean_pct")) else None
         comp = round(float(r_row["composition_pct"]), 3) if "composition_pct" in r_row and pd.notna(r_row.get("composition_pct")) else None
-        diff = round(underlying - boc_v, 3) if (underlying is not None and boc_v is not None) else None
+        diff = round(underlying - boc_geo, 3) if (underlying is not None and boc_geo is not None) else None
         n_obs = int(r_row["n_obs_curr"]) if "n_obs_curr" in r_row and pd.notna(r_row.get("n_obs_curr")) else None
 
         ws.append([
             d.strftime("%Y-%m"),
             underlying,
-            boc_v,
+            boc_lp,
+            boc_geo,
             diff,
             raw_m,
             comp,
@@ -205,7 +214,7 @@ def _build_headline_sheet(
         ])
 
     # Format numeric columns
-    for row in ws.iter_rows(min_row=2, min_col=2, max_col=6):
+    for row in ws.iter_rows(min_row=2, min_col=2, max_col=7):
         for c in row:
             if c.value is not None:
                 c.number_format = _NUM3
@@ -213,7 +222,7 @@ def _build_headline_sheet(
     _apply_body_style(ws, 2, ws.max_row, len(headers))
 
     # Highlight diff column: positive diff = light green, negative = light red
-    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=4, max_col=4):
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=5, max_col=5):
         for c in row:
             if c.value is not None and isinstance(c.value, (int, float)):
                 if c.value > 0.2:
@@ -221,11 +230,11 @@ def _build_headline_sheet(
                 elif c.value < -0.2:
                     c.fill = _HIGHLIGHT_NEG
 
-    _autosize(ws, {1: 10, 2: 18, 3: 24, 4: 10, 5: 20, 6: 18, 7: 10})
+    _autosize(ws, {1: 10, 2: 20, 3: 24, 4: 16, 5: 12, 6: 20, 7: 18, 8: 10})
     ws.freeze_panes = "A2"
     ws.row_dimensions[1].height = 20
 
-    # --- Native LineChart (ours vs BoC) ---
+    # --- Native LineChart (ours vs BoC, same units: geometric %) ---
     # Data runs from row 2 downward (newest first).
     # Only include months where both series have values (first len(common) rows).
     n_data = len(dates)
@@ -236,9 +245,9 @@ def _build_headline_sheet(
         chart.height = 12
         chart.width = 22
 
-        # Col B: ours; Col C: BoC
+        # Col B: ours (geo); Col D: BoC converted lp -> geo (same units)
         ref_ours = Reference(ws, min_col=2, min_row=1, max_row=n_data + 1)
-        ref_boc = Reference(ws, min_col=3, min_row=1, max_row=n_data + 1)
+        ref_boc = Reference(ws, min_col=4, min_row=1, max_row=n_data + 1)
         ref_dates = Reference(ws, min_col=1, min_row=2, max_row=n_data + 1)
 
         chart.add_data(ref_ours, titles_from_data=True)
@@ -329,11 +338,17 @@ def _build_latest_month_sheet(
 
     r_row = rep_idx.loc[latest_rep]
     key = latest_rep.strftime("%Y-%m")
-    boc_v = float(boc.loc[latest_rep]) if latest_rep in boc.index else None
+    # BoC publishes log points; convert lp -> geometric before diffing
+    # against our geometric headline (same-month, same-units only).
+    boc_lp = float(boc.loc[latest_rep]) if latest_rep in boc.index else None
+    boc_geo = (
+        round((np.exp(boc_lp / 100.0) - 1.0) * 100.0, 4)
+        if boc_lp is not None else None
+    )
     underlying = float(r_row["underlying_pct"]) if pd.notna(r_row.get("underlying_pct")) else None
     raw_m = float(r_row["raw_mean_pct"]) if pd.notna(r_row.get("raw_mean_pct")) else None
     comp = float(r_row["composition_pct"]) if pd.notna(r_row.get("composition_pct")) else None
-    diff = round(underlying - boc_v, 3) if (underlying is not None and boc_v is not None) else None
+    diff = round(underlying - boc_geo, 3) if (underlying is not None and boc_geo is not None) else None
     n_curr = int(r_row["n_obs_curr"]) if pd.notna(r_row.get("n_obs_curr")) else None
     n_base = int(r_row["n_obs_base"]) if pd.notna(r_row.get("n_obs_base")) else None
     r2_curr = float(r_row["r2_curr"]) if pd.notna(r_row.get("r2_curr")) else None
@@ -361,10 +376,11 @@ def _build_latest_month_sheet(
     r += 1
 
     _kv("Mean log-wage growth (geometric, y/y %)", raw_m, _NUM3)
-    _kv("Composition effect (%)", comp, _NUM3)
-    _kv("Underlying wage growth — ours (y/y %)", underlying, _NUM3)
-    _kv("BoC INDINF_LFSMICRO_M (y/y %)", boc_v, _NUM3)
-    _kv("Difference (ours minus BoC, pp)", diff, _NUM3)
+    _kv("Composition effect (geometric %)", comp, _NUM3)
+    _kv("Underlying wage growth — ours (geometric %)", underlying, _NUM3)
+    _kv("BoC INDINF_LFSMICRO_M (log points, as published)", boc_lp, _NUM3)
+    _kv("BoC converted lp -> geometric (%)", boc_geo, _NUM3)
+    _kv("Difference, same units (ours geo minus BoC geo, pp)", diff, _NUM3)
     r += 1
 
     # Decomposition arithmetic
@@ -430,21 +446,33 @@ def _build_params_meta_sheet(
     latest_rep = rep_idx.index.max() if not rep_idx.empty else None
     pumf_vintage = latest_rep.strftime("%Y-%m") if latest_rep is not None else "unknown"
 
-    # Compute current fit stats
+    # Compute current fit stats — in BOTH unit conventions, never mixed.
+    # Ours (CSV) is geometric percent; the BoC publishes log points (100*dlog).
+    #   lp-vs-lp:   ours back-converted 100*ln(1 + pct/100) vs BoC as published
+    #               <- CANONICAL fidelity metric (audit 2026-06-09)
+    #   geo-vs-geo: ours as stored vs BoC converted (exp(lp/100)-1)*100
     common = rep_idx.index.intersection(boc.index)
     if len(common) >= 2:
-        diff = rep_idx.loc[common, "underlying_pct"] - boc.loc[common]
-        rmse_full = float(np.sqrt((diff.dropna() ** 2).mean()))
-        mae_full = float(diff.dropna().abs().mean())
-        corr_full = float(rep_idx.loc[common, "underlying_pct"].dropna().corr(boc.loc[common]))
-        n_overlap = int(diff.dropna().count())
-        # Last 18 months
+        ours_geo = rep_idx.loc[common, "underlying_pct"].astype(float)
+        boc_lp = boc.loc[common].astype(float)
+        ours_lp = 100.0 * np.log(1.0 + ours_geo / 100.0)
+        boc_geo = (np.exp(boc_lp / 100.0) - 1.0) * 100.0
+
+        diff_lp = (ours_lp - boc_lp).dropna()
+        diff_geo = (ours_geo - boc_geo).dropna()
+        rmse_lp = float(np.sqrt((diff_lp ** 2).mean()))
+        mae_lp = float(diff_lp.abs().mean())
+        corr_lp = float(ours_lp.dropna().corr(boc_lp))
+        rmse_geo = float(np.sqrt((diff_geo ** 2).mean()))
+        mae_geo = float(diff_geo.abs().mean())
+        n_overlap = int(diff_lp.count())
+        # Last 18 months (lp-vs-lp, canonical)
         cutoff = common.max() - pd.DateOffset(months=18)
-        recent = diff.dropna()[diff.dropna().index >= cutoff]
+        recent = diff_lp[diff_lp.index >= cutoff]
         rmse_18 = float(np.sqrt((recent ** 2).mean())) if len(recent) >= 2 else float("nan")
         mae_18 = float(recent.abs().mean()) if len(recent) >= 2 else float("nan")
     else:
-        rmse_full = mae_full = corr_full = rmse_18 = mae_18 = float("nan")
+        rmse_lp = mae_lp = corr_lp = rmse_geo = mae_geo = rmse_18 = mae_18 = float("nan")
         n_overlap = 0
 
     # Diagnosis conclusion
@@ -458,13 +486,22 @@ def _build_params_meta_sheet(
         ("SPEC: min_cell_count", DEFAULT_SPEC.min_cell_count),
         ("SPEC: tenure_bins", str(list(DEFAULT_SPEC.tenure_bins))),
         (None, None),
-        # Calibration stats
-        ("RMSE (full sample, pp)", round(rmse_full, 4)),
-        ("MAE (full sample, pp)", round(mae_full, 4)),
-        ("Correlation (full sample)", round(corr_full, 4)),
+        # Units convention (audit 2026-06-09)
+        ("UNITS convention", "Ours: geometric percent, (exp(lp)-1)*100 — the honest reader-facing "
+                             "percent. BoC INDINF_LFSMICRO_M: log points (100*dlog), as published. "
+                             "All ours-vs-BoC numbers in this workbook are same-units: either "
+                             "lp-vs-lp (canonical fidelity metric) or with the BoC converted "
+                             "lp -> geometric, as labelled. Mixing conventions injects a "
+                             "level-dependent ~+0.05pp convexity artifact."),
+        # Calibration stats — lp-vs-lp is canonical
+        ("RMSE lp-vs-lp (canonical, full sample, pp)", round(rmse_lp, 4)),
+        ("MAE lp-vs-lp (full sample, pp)", round(mae_lp, 4)),
+        ("Correlation lp-vs-lp (full sample)", round(corr_lp, 4)),
+        ("RMSE geo-vs-geo (full sample, pp)", round(rmse_geo, 4)),
+        ("MAE geo-vs-geo (full sample, pp)", round(mae_geo, 4)),
         ("Overlap n (months)", n_overlap),
-        ("RMSE (last 18 months, pp)", round(rmse_18, 4)),
-        ("MAE (last 18 months, pp)", round(mae_18, 4)),
+        ("RMSE lp-vs-lp (last 18 months, pp)", round(rmse_18, 4)),
+        ("MAE lp-vs-lp (last 18 months, pp)", round(mae_18, 4)),
         (None, None),
         # Provenance
         ("PUMF vintage (latest month)", pumf_vintage),
@@ -488,9 +525,11 @@ def _build_params_meta_sheet(
                                      "and the BoC now use the revised series so this is not a source of "
                                      "current divergence. Verify: NAICS_21 codes are consistent across all "
                                      "PUMF months (confirmed in calibration)."),
-        ("Caveat: log-pt conversion", "Underlying growth is computed in log-points, "
-                                      "then converted via (exp(lp)-1)*100. "
-                                      "For values near 3%, this differs from raw log-pts by <0.05pp."),
+        ("Caveat: log-pt conversion", "Underlying growth is computed in log-points, then converted "
+                                      "via (exp(lp)-1)*100 for our headline. The BoC does NOT apply "
+                                      "this conversion — it publishes the log points directly. At 3.5% "
+                                      "growth the two conventions differ by ~+0.06pp, growing with the "
+                                      "level; see the UNITS convention row."),
         ("Caveat: MA3 smoothing", "Centered 3-month MA applied to monthly O-B results "
                                   "before y/y differencing. Edge months (latest) use trailing MA or "
                                   "raw point estimate; note in headline sheet."),
