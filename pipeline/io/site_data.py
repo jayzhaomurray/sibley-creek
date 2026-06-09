@@ -312,8 +312,8 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
     ),
     "trade": SectionConfig(
         slug="trade",
-        primary_series="trade_balance_total_3m_ma",
-        primary_dir="processed",
+        primary_series="trade_balance_total",
+        primary_dir="raw",
         unit_display="B",  # rendered as e.g. "-$2.3B"
         value_decimals=1,
         delta_decimals=1,
