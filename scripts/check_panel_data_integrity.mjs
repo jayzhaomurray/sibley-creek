@@ -520,6 +520,20 @@ function checkPanelDataFile(filePath) {
     for (const extra of panel.extras ?? []) {
       checkSlot(extra, { section, panelId, slotName: "extra", violations, warnings });
     }
+    // Co-dated alignment signal (WARN, never fail): panel_data.py trimmed a
+    // group of single-snapshot series (e.g. the GoC curve maturities) to their
+    // common latest date because the source published them mis-dated. Benign
+    // when transient (one-day Valet lag); investigate if it persists.
+    const coDated = panel.coDatedAlignment;
+    if (coDated && Object.keys(coDated.trimmedFrom ?? {}).length > 0) {
+      const trims = Object.entries(coDated.trimmedFrom)
+        .map(([k, d]) => `${k} (had ${d})`).join(", ");
+      warnings.push(
+        `${section}/${panelId}: co-dated alignment trimmed ${trims} to common date ` +
+        `${coDated.alignedTo} -- upstream published the group mis-dated; benign if ` +
+        `transient, investigate if persistent`
+      );
+    }
   }
 
   return { section, violations, warnings };
