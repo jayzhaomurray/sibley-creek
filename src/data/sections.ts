@@ -946,6 +946,13 @@ export const commentaries: DataCommentary[] = [
     pdfPath: "/research/commentaries/trade-2026-06-09.pdf",
     excerpt:
       "Canada is selling more to the world, with exports hitting an all-time high of C$75 billion in April. Still, the month's export gains were driven by higher sales to the US, going against Prime Minister Carney's aim to diversify trade.",
+    coverage: [
+      {
+        outlet: "Financial Post",
+        url: "https://financialpost.com/news/economy/biggest-knock-canada-trade-carney-economic-pillars",
+        date: "2026-06-09",
+      },
+    ],
   },
   {
     slug: "boc-preview-june-2026",
