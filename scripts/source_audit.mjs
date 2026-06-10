@@ -28,10 +28,43 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
+import { renderSectionProse } from "../src/lib/prose/loader.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
+
+// ---------------------------------------------------------------------------
+// Mechanical prose resolution (src/lib/prose)
+// ---------------------------------------------------------------------------
+// Sections cut over to the deterministic prose renderer carry no string
+// literals in their surface fields — the .astro plates and the sections.ts
+// tileLine / blurb.body are expressions like `prose.surfaces["<id>"].text`
+// (optionally wrapped in an escape helper). Resolve those expressions to
+// the LIVE rendered text so this audit annotates the same prose readers
+// see and slot-bound citations anchor against real values. A render fault
+// throws and fails the audit run — a broken template must never ship.
+const PROSE_EXPR_RE = /\b[A-Za-z_$][\w$]*\.surfaces\[\s*["']([a-z0-9_-]+)["']\s*\]\.text\b/;
+const PROSE_RENDER_CACHE = new Map();
+function renderedProseSurfaces(slug) {
+  if (!PROSE_RENDER_CACHE.has(slug)) {
+    PROSE_RENDER_CACHE.set(slug, renderSectionProse(slug, { root: repoRoot }).surfaces);
+  }
+  return PROSE_RENDER_CACHE.get(slug);
+}
+/**
+ * If `rawText` is a prose-renderer expression, return the rendered surface
+ * text for `slug`; otherwise return `rawText` unchanged. Hand-authored
+ * string literals never match the pattern, so non-mechanical sections
+ * never trigger a render.
+ */
+function resolveProseExpression(slug, rawText) {
+  if (!rawText) return rawText;
+  const m = String(rawText).match(PROSE_EXPR_RE);
+  if (!m) return rawText;
+  const surface = renderedProseSurfaces(slug)[m[1]];
+  return surface ? surface.text : rawText;
+}
 
 const REGISTRY_PATH = path.join(repoRoot, "editorial", "source_cards", "registry.yaml");
 const PAGES_DIR = path.join(repoRoot, "src", "pages");
@@ -347,14 +380,17 @@ function extractPlates(sectionAstroPath) {
     const source = extractField(objText, "source");
     const chartKey = extractField(objText, "chartKey");
     const citations = extractField(objText, "citations");
+    // Mechanical sections: title / interpretationHtml are renderer
+    // expressions, not string literals — resolve to the live rendered text.
+    const pageSlug = path.basename(sectionAstroPath, ".astro");
     plates.push({
       id: id?.text ?? null,
       number: number?.text ?? null,
       indicator: indicator?.text ?? null,
       plateIndexLabel: plateIndexLabel?.text ?? null,
       asOf: asOf?.text ?? null,
-      title: title?.text ?? null,
-      interpretationHtml: interpretationHtml?.text ?? null,
+      title: resolveProseExpression(pageSlug, title?.text ?? null),
+      interpretationHtml: resolveProseExpression(pageSlug, interpretationHtml?.text ?? null),
       source: source?.text ?? null,
       chartKey: chartKey?.text ?? null,
       citations: citations ? parseCitations(citations.text) : [],
@@ -412,6 +448,14 @@ function extractTileLine(slug) {
   if (tlMatch) {
     const tlStart = tlMatch.index + tlMatch[0].length;
     tileLine = extractStringChain(slice, tlStart).text;
+    if (!tileLine) {
+      // Mechanical sections: tileLine is a renderer expression, not a
+      // string literal — resolve to the live rendered text.
+      const lineEnd = slice.indexOf("\n", tlStart);
+      const rawLine = slice.slice(tlStart, lineEnd === -1 ? slice.length : lineEnd);
+      const resolved = resolveProseExpression(slug, rawLine);
+      tileLine = resolved !== rawLine ? resolved : null;
+    }
   }
   let citations = [];
   const cMatch = slice.match(/tileLineCitations:\s*\[/);
@@ -442,6 +486,14 @@ function extractSectionAbstract(slug) {
   if (bodyMatch) {
     const bodyStart = bodyMatch.index + bodyMatch[0].length;
     abstract = extractStringChain(slice, bodyStart).text;
+    if (!abstract) {
+      // Mechanical sections: blurb.body is a renderer expression, not a
+      // string literal — resolve to the live rendered text.
+      const lineEnd = slice.indexOf("\n", bodyStart);
+      const rawLine = slice.slice(bodyStart, lineEnd === -1 ? slice.length : lineEnd);
+      const resolved = resolveProseExpression(slug, rawLine);
+      abstract = resolved !== rawLine ? resolved : null;
+    }
   }
   // ALSO extract `abstractCitations:` if it exists on this section (added below).
   let abstractCitations = [];
@@ -1026,6 +1078,10 @@ function formatSlotValue(value, fmt) {
   // integer percent; "{0.2}" = two decimals no unit; "{0.1}-point" = one
   // decimal, hyphen-point suffix; etc. Default: "{0.1}%".
   //
+  // A "," immediately after the precision adds thousands separators:
+  // "{int,}" -> "34,412"; "{0.2,}" -> "34,411.69". Needed for index-level
+  // slots (TSX) whose prose renders with comma grouping.
+  //
   // Format spec for DATE values (returned by prior_above/prior_below): any
   // spec containing date tokens like "{quarter}", "{month_year}", "{month}",
   // "{year}" — substituted from the ISO date string.
@@ -1039,16 +1095,21 @@ function formatSlotValue(value, fmt) {
     return value;
   }
   // Numeric input.
-  const m = spec.match(/^\{(int|\d*\.?\d+)\}(.*)$/);
+  const m = spec.match(/^\{(int|\d*\.?\d+)(,)?\}(.*)$/);
   if (!m) return null;
   const precision = m[1];
-  const suffix = m[2] || "";
+  const comma = m[2] === ",";
+  const suffix = m[3] || "";
   let formatted;
   if (precision === "int") {
-    formatted = String(Math.round(value));
+    formatted = comma
+      ? Math.round(value).toLocaleString("en-US")
+      : String(Math.round(value));
   } else if (precision.startsWith("0.")) {
     const decimals = (precision.split(".")[1] || "0").length;
-    formatted = value.toFixed(decimals);
+    formatted = comma
+      ? value.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+      : value.toFixed(decimals);
   } else {
     formatted = String(value);
   }
@@ -2915,7 +2976,8 @@ function renderSplashPage(registry, now) {
     if (!tileLine) continue;
     const ref = sectionFreshestDate(slug);
     checkLengthBudget(`splash · ${slug} tile`, "tile-line", tileLine);
-    const annotated = annotateProse(tileLine, citations || [], registry, null, `splash · ${slug} tile`);
+    // Pass the section's panel slots so slot-bound tile citations resolve.
+    const annotated = annotateProse(tileLine, citations || [], registry, null, `splash · ${slug} tile`, loadPanelSlots(slug));
     annotated.resolved.forEach((r) => { r.note = augmentNoteWithDate(r.note, r.source, ref); });
     tiles.push({ slug, tileLine, annotated, referenceDate: ref });
   }

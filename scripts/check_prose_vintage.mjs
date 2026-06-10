@@ -53,7 +53,9 @@ const DEFAULT_MAX_LAG_DAYS = 35;
  *                         default window.
  */
 const SECTION_CONFIG = {
-  // markets: { mechanical: true },  // enable at the mechanical-prose cutover
+  // Cut over 2026-06-10: /markets/ prose renders from
+  // editorial/prose_templates/markets.yaml on every build.
+  markets: { mechanical: true },
 };
 
 // ---------------------------------------------------------------------------
