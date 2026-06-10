@@ -264,7 +264,12 @@ const tabTitle = title === site.name ? site.name : `${title} | ${site.name}`;
             const backupAction = form.getAttribute('data-backup-action');
             if (backupAction) {
               try {
-                const bd = new FormData(form);
+                // FormSubmit 500s on bracket-style keys (fields[source]) —
+                // flatten them to bare names for the backup leg only.
+                const bd = new FormData();
+                for (const [k, v] of new FormData(form).entries()) {
+                  bd.append(k.replace(/^fields\[(.+)\]$/, '$1'), v);
+                }
                 bd.append('_subject', 'New Sibley Creek subscriber (backup catcher)');
                 const b = await fetch(backupAction, {
                   method: 'POST',
