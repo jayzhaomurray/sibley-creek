@@ -94,9 +94,15 @@ jobs:
       - name: Run daily Financial build
         env:
           # Secrets are pulled from the repository's Settings -> Secrets.
-          # If FRED_API_KEY is unset the build logs a warning and records a
-          # single failure entry (`fred:no-api-key`) per build_financial.py;
-          # the rest of the run still completes.
+          # If FRED_API_KEY is unset the build records a `fred:no-api-key`
+          # failure entry and exits non-zero -- this HARD-FAILS the run and
+          # blocks the commit step. Intentional: a missing key must stay
+          # loud (8 silent failures accumulated 2026-05-30..06-09 before the
+          # key was set; do not soften this to warn-and-continue).
+          # SMTP notification secrets are NOT configured for this repo; the
+          # pipeline's failure-notification path logs a warning and skips
+          # cleanly when SMTP_HOST/SMTP_PORT are absent (see
+          # pipeline/notifications/send.py).
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: |
           python -m pipeline.build_financial

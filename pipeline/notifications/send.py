@@ -156,8 +156,15 @@ def send_notification(
         False if suppressed (disabled type or dedup).
 
     Raises:
-        KeyError: if SMTP_HOST or SMTP_PORT are missing and dry-run is off.
         smtplib.SMTPException: on delivery failure.
+
+    Note:
+        If SMTP_HOST / SMTP_PORT are unset and dry-run is off, the send is
+        skipped cleanly with a logged warning (returns False, ledger entry
+        error="smtp-not-configured"). The notification channel being
+        unconfigured must never crash or mask the pipeline failure it is
+        trying to report (observed in CI: KeyError 'SMTP_HOST' ERROR-logged
+        on every failed build-financial-daily run, 2026-05-30..06-09).
     """
     # Check disabled types
     if event_type in _disabled_types():
@@ -177,6 +184,29 @@ def send_notification(
 
     full_subject = _build_subject(severity, subject)
     dry_run = os.environ.get("SIBLEY_NOTIFICATIONS_DRY_RUN", "0") == "1"
+
+    # SMTP-not-configured guard: skip cleanly instead of raising KeyError.
+    # CI does not have SMTP secrets configured; an unconfigured channel is a
+    # warning condition, not an error -- erroring here pollutes the log of
+    # the underlying failure this notification is reporting.
+    if not dry_run and not (os.environ.get("SMTP_HOST") and os.environ.get("SMTP_PORT")):
+        logger.warning(
+            "notification skipped (SMTP not configured: SMTP_HOST/SMTP_PORT "
+            "unset): type=%s severity=%s subject=%s",
+            event_type, severity, full_subject,
+        )
+        append_event({
+            "type": event_type,
+            "severity": severity,
+            "subject": full_subject,
+            "body_preview": body[:200],
+            "dedupe_key": dedupe_key,
+            "details": details or {},
+            "sent": False,
+            "dry_run": dry_run,
+            "error": "smtp-not-configured",
+        })
+        return False
 
     sent = False
     error_msg: Optional[str] = None
