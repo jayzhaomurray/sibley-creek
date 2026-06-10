@@ -726,7 +726,7 @@ export const sections: Section[] = [
     accentVar: "--section-accent-markets",
     kicker: "Yields, spreads, the loonie, and the cost of capital.",
     headlineQuestion:
-      "How are financial markets affecting Canada?",
+      "Where are Canadian markets trading?",
     cadence: "Daily (light) + weekly synthesis",
     // Data-derived: panel_data generatedAt from the same render pass that
     // produces the prose. No hand-maintained stamp.
