@@ -120,6 +120,15 @@ jobs:
         run: |
           node scripts/check_panel_data_integrity.mjs
 
+      - name: Validate raw/meta git tracking
+        # The fetch step above just wrote .meta.json sidecars to data/raw.
+        # If any sidecar of a tracked CSV is not itself tracked, clean
+        # checkouts rebuild degraded panel data (frequency falls back to
+        # "monthly", source nulls -- markets audit F4). Fail here, before
+        # the commit step can propagate the gap.
+        run: |
+          node scripts/check_raw_tracked.mjs
+
       - name: Commit and push refreshed data if changed
         # Only commits when the working tree actually diverges from HEAD.
         # `git diff --quiet` returns non-zero if there are unstaged
