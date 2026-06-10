@@ -454,11 +454,11 @@ export const sections: Section[] = [
     headlineQuestion:
       "What is Canada's monetary policy stance?",
     cadence: "Event-driven + monthly",
-    // Apr 29 rate decision is the primary event; daily yields refresh
+    // Jun 10 rate decision is the primary event; daily yields refresh
     // continuously but the policy stance is anchored to the rate decision.
-    updatedAt: Date.UTC(2026, 3, 29, 14, 0),
+    updatedAt: Date.UTC(2026, 5, 10, 14, 0),
     chartSeriesKey: "policy-rate",
-    heroKicker: "April rate decision",
+    heroKicker: "June rate decision",
     // Policy's primary event is the rate decision, not the pipeline's
     // monthly `policy-rate` print. heroKickerPrefix is hand-set to the
     // event-month phrasing; the page-level "Latest release" date is
@@ -466,17 +466,18 @@ export const sections: Section[] = [
     // decision doesn't sit in `prints[]` directly.
     heroKickerPrefix: "Rate decision",
     latestReleasePrefix: "BoC rate decision",
-    latestReleaseDateOverride: "Apr 29, 2026",
+    latestReleaseDateOverride: "Jun 10, 2026",
     tileLine:
-      "BoC parked at the floor of neutral, 150 bps below the Fed and holding.",
+      "BoC held at the floor of neutral, 150 bps below the Fed — now calling it a dilemma.",
     tileLineCitations: [
       { phrase: "floor of neutral", source: "card:boc_mpr_neutral_range", note: "BoC stated nominal neutral range 2.25-3.25%; overnight at 2.25% sits at the floor." },
-      { phrase: "150 bps below the Fed", source: "derived", note: "BoC overnight 2.25% minus Fed upper bound 3.75% = -150 bps." },
+      { phrase: "150 bps below the Fed", source: "derived", note: "BoC overnight 2.25% minus Fed upper bound 3.75% = -150 bps. Confirm Fed level against backend's June refresh." },
+      { phrase: "calling it a dilemma", source: "derived", note: "Verbatim, BoC June 10 2026 rate decision press release: 'Economic weakness combined with rising inflation is a dilemma for monetary policy.' FLAG: migrate to the June 10 statement source card when it lands." },
     ],
     prints: [
       {
         // Pipeline produces a real value for this row (BoC overnight rate,
-        // currently 2.25% Apr 2026); loader overwrites canon scaffold with
+        // currently 2.25% Jun 2026); loader overwrites canon scaffold with
         // real data before render. TK is a fallback marker.
         key: "policy-rate",
         indicator: "BoC overnight rate",
@@ -516,14 +517,17 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "Apr 29, 2026",
+      date: "Jun 10, 2026",
       body:
-        "On hold. The Bank of Canada has stayed at 2.25% through four straight decisions, sitting at the floor of its 2.25 to 3.25% neutral range. Activity is softening at the same time the Iran-war oil shock is feeding energy inflation. The call hinges on persistence — how long the Strait of Hormuz stays closed, and whether the shock seeps into expectations.",
+        "A hold without a lean. The Bank of Canada held at 2.25% — the floor of its 2.25 to 3.25% neutral range — for a fifth straight decision, and swapped April's easing lean for what it now calls a dilemma: growth is softening while energy has pushed inflation back toward 3%. Cutting risks entrenching the overshoot; hiking risks deepening the slowdown. The Bank named triggers in both directions and said policy may need to be nimble.",
     },
     abstractCitations: [
-      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, Apr 29 2026 FAD decision, via Valet V39079." },
-      { phrase: "four straight decisions", source: "card:boc_fad_holds_post_oct_2025_cut", expected_count: 4, note: "Enumerated FAD holds since Oct 29, 2025 cut: Dec 10, Jan 28, Mar 18, Apr 29." },
+      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, Jun 10 2026 FAD decision, via Valet V39079." },
+      { phrase: "fifth straight decision", source: "card:boc_fad_holds_post_oct_2025_cut", expected_count: 5, note: "Enumerated FAD holds since Oct 29, 2025 cut: Dec 10, Jan 28, Mar 18, Apr 29, Jun 10." },
       { phrase: "2.25 to 3.25% neutral range", source: "card:boc_mpr_neutral_range" },
+      { phrase: "calls a dilemma", source: "derived", note: "Verbatim, BoC June 10 2026 rate decision press release: 'Economic weakness combined with rising inflation is a dilemma for monetary policy.' April's easing lean ('a policy rate close to current settings looks appropriate') was deleted from the June statement. FLAG: migrate to the June 10 statement source card when it lands." },
+      { phrase: "inflation back toward 3%", source: "derived", note: "CPI rose to 2.8% y/y in April; BoC June 10 statement expects CPI to 'hover close to 3% in coming months before easing gradually toward 2%', with oil roughly $10/bbl above the April MPR assumption." },
+      { phrase: "may need to be nimble", source: "derived", note: "Verbatim, BoC June 10 2026 press release: 'monetary policy may need to be nimble.'" },
     ],
   },
   {
