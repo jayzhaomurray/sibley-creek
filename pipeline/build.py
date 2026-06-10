@@ -2176,12 +2176,50 @@ def derive_labour_force_ex_npr() -> None:
     write_series(out, meta, DATA_PROCESSED)
 
 
+def derive_overnight_rate_target() -> None:
+    """Materialize data/processed/overnight_rate_target.csv from raw overnight_rate.
+
+    History: the BoC catalog key was renamed overnight_rate_target ->
+    overnight_rate, but two downstream consumers kept the old processed name
+    as their contract:
+        - pipeline/io/site_data.py (monetary section primary tile)
+        - scripts/render_policy_paths_chart.mjs
+    Until 2026-06-10 nothing regenerated the processed file after the rename,
+    so the monetary tile silently pinned to the last pre-rename vintage
+    (April 2026). This identity passthrough keeps the on-disk contract stable
+    and re-vintages it on every monthly build.
+    """
+    raw = _read_raw("overnight_rate")
+    if raw is None:
+        raise RuntimeError(
+            "derive_overnight_rate_target: data/raw/overnight_rate.csv missing "
+            "-- run the BoC Valet non-daily catalog fetch first"
+        )
+    spec = BOC_VALET_SERIES["overnight_rate"]
+    meta = SeriesMeta(
+        name="overnight_rate_target",
+        source="Bank of Canada Valet API",
+        source_url=f"https://www.bankofcanada.ca/valet/observations/{spec.series_key}/json",
+        source_id=spec.series_key,
+        units="% (target rate)",
+        frequency="monthly",
+        notes=(
+            "Bank of Canada overnight rate target, end-of-month, long history. "
+            "Identity passthrough of data/raw/overnight_rate.csv kept under the "
+            "legacy processed name (site_data monetary primary + policy-paths "
+            "chart contract). For daily resolution post-2009 use Valet V39079."
+        ),
+        transform="identity",
+    )
+    write_series(raw[["date", "value"]], meta, DATA_PROCESSED)
+
+
 def derive_boc_fed_spread_monthly() -> None:
     """BoC overnight-rate-target minus Fed funds target upper-bound, monthly, bps.
 
     Aggregation rule (per editorial/_derived_slot_queue.yaml 2026-05-13):
         For each calendar month M:
-          1. BoC value  = last row in overnight_rate_target.csv falling in M
+          1. BoC value  = last row in overnight_rate.csv falling in M
              (series is monthly; month-end alignment avoids intra-month
              transients on sequential BoC/Fed announcement days).
           2. Fed value  = last daily observation in fed_funds.csv falling in M
@@ -2189,19 +2227,22 @@ def derive_boc_fed_spread_monthly() -> None:
           3. spread_bps = (BoC_pp - Fed_pp) * 100
 
     Inputs:
-        data/raw/overnight_rate_target.csv  -- monthly, BoC overnight rate (%)
-        data/raw/fed_funds.csv              -- daily, Fed funds target upper bound (%)
+        data/raw/overnight_rate.csv  -- monthly, BoC overnight rate target (%)
+            (catalog key renamed from overnight_rate_target; fixed 2026-06-10
+            after the derivation silently skipped / consumed a stale legacy
+            file under the old name)
+        data/raw/fed_funds.csv       -- daily, Fed funds target upper bound (%)
 
     Output:
         data/processed/boc_fed_spread_monthly.csv
             date, value -- month-start ISO dates, spread in basis points (signed).
     """
-    boc_df = _read_raw("overnight_rate_target")
+    boc_df = _read_raw("overnight_rate")
     fed_df = _read_raw("fed_funds")
     if boc_df is None or fed_df is None:
         logger.warning(
             "derive_boc_fed_spread_monthly skipped: missing inputs "
-            "(overnight_rate_target=%s fed_funds=%s)",
+            "(overnight_rate=%s fed_funds=%s)",
             boc_df is not None,
             fed_df is not None,
         )
@@ -2963,6 +3004,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     _safe("derive_federal_fiscal_ytd", derive_federal_fiscal_ytd, failed)
     _safe("derive_fiscal_plate2_band", derive_fiscal_plate2_band, failed)
     _safe("derive_labour_force_ex_npr", derive_labour_force_ex_npr, failed)
+    _safe("derive_overnight_rate_target", derive_overnight_rate_target, failed)
     _safe("derive_boc_fed_spread_monthly", derive_boc_fed_spread_monthly, failed)
     _safe("derive_sectoral_exports_by_destination", derive_sectoral_exports_by_destination, failed)
     _safe("derive_gold_exports", derive_gold_exports, failed)
