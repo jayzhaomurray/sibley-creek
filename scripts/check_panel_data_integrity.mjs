@@ -29,6 +29,16 @@
  * 5. Sane value ranges -- catches obvious pipeline corruptions (yield of 999%,
  *    TSX of 0, USDCAD of 10). Wide ranges that only fire on egregious errors.
  *
+ * 6. Meta-fallback signatures (added 2026-06-09, markets audit F4/item 9) --
+ *    a raw- or processed-tier slot with source: null means panel regen could
+ *    not read the .meta.json sidecar; in that state frequency also fell back
+ *    to "monthly", which silently swapped a daily series onto the 105-day
+ *    monthly staleness threshold (the gate was structurally blind to daily
+ *    staleness). Two hard failures close this class: null source on a
+ *    raw/processed slot, and any series in the fail-closed daily set
+ *    reporting a frequency other than "daily". With the frequency correct,
+ *    the existing 3-business-day daily threshold binds.
+ *
  * Wiring
  * ------
  * Added to npm run build BEFORE astro check && astro build, so bad data fails
@@ -340,6 +350,25 @@ function checkSlot(slot, { section, panelId, slotName, violations, warnings }) {
   const freq = (slot.frequency || "monthly").toLowerCase();
   const maxAge = SERIES_STALENESS_OVERRIDES[key] ?? (FRESHNESS_DAYS[freq] ?? 400);
   const sane = SANE_RANGES[key];
+
+  // Meta-fallback signatures (see header item 6). A raw/processed-tier slot
+  // always gets its source from the .meta.json sidecar; null means the
+  // sidecar was missing/unreadable at regen time and the frequency tag on
+  // this slot is a fallback, not a fact.
+  if ((slot.tier === "raw" || slot.tier === "processed") && !slot.source) {
+    violations.push(
+      `${section}/${panelId}/${slotName}/${key}: source is null on a ${slot.tier}-tier slot ` +
+      `(.meta.json sidecar missing at panel regen; frequency tag untrustworthy -- ` +
+      `run check_raw_tracked.mjs and git add -f the meta sibling)`
+    );
+  }
+  if (STALENESS_FAIL_SERIES.has(key) && freq !== "daily") {
+    violations.push(
+      `${section}/${panelId}/${slotName}/${key}: frequency="${freq}" but this series is daily ` +
+      `(meta-fallback signature; the ${FRESHNESS_DAYS[freq] ?? 400}d ${freq} staleness ` +
+      `threshold would never trip for a stale daily series)`
+    );
+  }
 
   // Check each record
   for (let i = 0; i < slot.data.length; i++) {
