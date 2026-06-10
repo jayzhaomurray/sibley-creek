@@ -1,0 +1,499 @@
+# =============================================================================
+# /markets/ prose templates — predicate-gated, data-driven, no writer in loop
+# =============================================================================
+# Authored 2026-06-09 (content-writer). Register: markets-descriptive (ratified
+# canon) — values, ranges, shifts; NO thesis layer, no causal narrative.
+#
+# Core contract honoured throughout: every variant's `when:` predicate ENTAILS
+# its `text:` phrasing. Duration words ("held", "throughout the past month")
+# are gated on min/max over the window, not on the latest value. Magnitude
+# words ("little changed", "swung") carry explicit numeric bounds. Numeric
+# literals appear only inside predicates and as predicate-guaranteed round-
+# number references in text (e.g. "above US$100" only when min(wti,21) >= 100).
+#
+# Window conventions: N is trading-day observations. 5 ~ one week,
+# 21 ~ one month, 63 ~ three months, 250 ~ one year.
+#
+# UNITS NOTE (for fact-checker): pct_change() return units (percent, i.e. 1.0
+# = 1%, vs fraction 0.01 = 1%) are not pinned in the DSL contract. Every use
+# below assumes PERCENT units and appears ONLY in variants whose predicate
+# requires a LARGE move (|pct_change| >= 2 or 3). Under the fraction reading
+# those predicates can never fire, so the variant silently drops to a factual
+# fallback — fail-safe in both directions. pct_change is NEVER used in a
+# "little changed" predicate (where the fraction reading would fire falsely);
+# all small-move bounds use delta() in raw price units instead.
+#
+# Yields are stored in percent (3.53); bps(delta(...)) converts pp moves to
+# basis points. The curve chart plots 2y/5y/10y; no 30y anywhere in this file.
+# The DSL has no arithmetic between expressions, so spread CHANGES (e.g.
+# "steepened by N bps") are entailed via conjunctions on the legs:
+# Δspread = Δ10y − Δ2y, so (Δ2y <= −5 && Δ10y >= 0) ⇒ spread widened >= 5 bps.
+# These conjunctions are sufficient, not necessary — some true steepenings
+# won't fire the variant, but no false steepening ever can.
+# =============================================================================
+
+section: markets
+
+slots:
+  usdcad: fxusdcad
+  tsx: tsx_composite
+  wti: wti
+  y2: yield_2yr
+  y5: yield_5yr
+  y10: yield_10yr
+
+surfaces:
+
+  # ===========================================================================
+  # PLATE 1 — ENERGY / WTI (front-month CL=F via Yahoo)
+  # ===========================================================================
+
+  plate-energy-title:
+    required: true
+    variants:
+      # Held above 100 every close of the window — "held ... for the past
+      # month" needs the floor, not the latest print.
+      - when: 'min(wti, 21) > 100'
+        text: "Oil has held above US$100 for the past month."
+      # Every close of the window below 90.
+      - when: 'max(wti, 21) < 90'
+        text: "Oil has held below US$90 for the past month."
+      # Whole window contained in [90, 100).
+      - when: 'min(wti, 21) >= 90 && max(wti, 21) < 100'
+        text: "Oil has held in the US$90s for the past month."
+      # Closed at/above 100 within the window AND now closes below 90: both
+      # endpoints of the claim are guaranteed; the traverse is the takeaway.
+      - when: 'max(wti, 21) > 100 && latest(wti) < 90'
+        text: "Oil has gone from above US$100 to below US$90 inside a month."
+      # Was at/above 100 within the window, now below it. "Back below" is
+      # entailed: the >=100 close is strictly earlier than the sub-100 latest.
+      - when: 'max(wti, 21) > 100 && latest(wti) < 100'
+        text: "Oil is back below US$100."
+      # Latest >= 100 but (variant 1 failed) some close in the window was
+      # below 100 — a crossing happened inside the window.
+      - when: 'latest(wti) > 100'
+        text: "Oil has crossed above US$100."
+      # Plain current-state claim; unconditionally true under its predicate.
+      - when: 'latest(wti) < 90'
+        text: "Oil is trading below US$90."
+      # Terminal fallback — pure slot-rendered fact.
+      - when: 'true'
+        text: "WTI crude is at {latest(wti)|usd}."
+
+  plate-energy-prose:
+    required: true
+    sentences:
+      # S1 — the close plus a one-week comparator. Direction word gated on the
+      # actual sign of the move; the equality branch is the only path to the
+      # "unchanged" fallback.
+      - variants:
+          - when: 'latest(wti) > at(wti, "T-5")'
+            text: 'WTI crude closed at {latest(wti)|usd} on {latest_date(wti)|month_day}, up from {at(wti, "T-5")|usd} a week earlier.'
+          - when: 'latest(wti) < at(wti, "T-5")'
+            text: 'WTI crude closed at {latest(wti)|usd} on {latest_date(wti)|month_day}, down from {at(wti, "T-5")|usd} a week earlier.'
+          - when: 'true'
+            text: 'WTI crude closed at {latest(wti)|usd} on {latest_date(wti)|month_day}, unchanged from a week earlier.'
+      # S2 — the month's path. Most specific regime first; terminal is the
+      # tautologically true min–max range (informative, never false).
+      - variants:
+          # Floor of the window at/above 100 — "throughout" earned.
+          - when: 'min(wti, 21) > 100'
+            text: "Crude has held above US$100 throughout the past month, trading between {min(wti, 21)|usd} and {max(wti, 21)|usd}."
+          # Closes both below 90 and at/above 100 inside one window: a range
+          # of at least US$10 (>10%), which licenses "swung", and trading on
+          # both sides of both round lines is literal.
+          - when: 'max(wti, 21) > 100 && min(wti, 21) < 90'
+            text: "The contract has swung between {min(wti, 21)|usd} and {max(wti, 21)|usd} over the past month, trading on both sides of the US$90 and US$100 lines."
+          # High at/above 100 occurred strictly before a sub-100 latest.
+          - when: 'max(wti, 21) > 100 && latest(wti) < 100'
+            text: "The contract traded as high as {max(wti, 21)|usd} over the past month before falling back below US$100."
+          # Now at/above 100, with a sub-100 close inside the window.
+          - when: 'latest(wti) > 100 && min(wti, 21) < 100'
+            text: "The contract has climbed above US$100 from a one-month low of {min(wti, 21)|usd}."
+          # Terminal: the observed range, true by construction.
+          - when: 'true'
+            text: "Over the past month the contract has traded between {min(wti, 21)|usd} and {max(wti, 21)|usd}."
+
+  plate-energy-callout-value:
+    required: true
+    variants:
+      - when: 'true'
+        text: "{latest(wti)|usd}"
+
+  plate-energy-callout-prefix:
+    required: true
+    variants:
+      # The plotted instrument is CL=F front-month futures (not FRED spot) —
+      # label accordingly (audit F8).
+      - when: 'true'
+        text: "WTI front-month"
+
+  plate-energy-callout-delta:
+    required: true
+    variants:
+      # Direction gated on sign with a US$0.50 floor (~0.5% at current
+      # levels); below that the honest label is "little changed".
+      - when: 'delta(wti, 5) >= 0.5'
+        text: "up {abs(delta(wti, 5))|usd} on the week"
+      - when: 'delta(wti, 5) <= -0.5'
+        text: "down {abs(delta(wti, 5))|usd} on the week"
+      # Reached only when |weekly move| < US$0.50.
+      - when: 'true'
+        text: "little changed on the week"
+
+  # ===========================================================================
+  # PLATE 2 — USDCAD (BoC Valet FXUSDCAD)
+  # ===========================================================================
+
+  plate-fx-title:
+    required: true
+    variants:
+      # Every close of the month at/above 1.40.
+      - when: 'min(usdcad, 21) > 1.40'
+        text: "USDCAD has held above 1.40 for the past month."
+      # Current-state claim only — no duration implied.
+      - when: 'latest(usdcad) > 1.40'
+        text: "USDCAD is trading above the 1.40 line."
+      # latest >= max(63) means no higher close in ~3 months (max includes
+      # the latest, so >= is tie-tolerant) ⇒ CAD at its weakest close of the
+      # window. "Slid" (a sustained move, not a one-day jump) is earned by
+      # the additional >= 1 cent rise over the month.
+      - when: 'latest(usdcad) >= max(usdcad, 63) && delta(usdcad, 21) >= 0.01'
+        text: "USDCAD has climbed to a three-month high."
+      # Same superlative without the sustained-move qualifier. Ties count as
+      # "at its weakest" (matching, not exceeding, the window extreme).
+      - when: 'latest(usdcad) >= max(usdcad, 63)'
+        text: "USDCAD is at a three-month high."
+      # Mirror: CAD strongest close of ~3 months, with a sustained move.
+      - when: 'latest(usdcad) <= min(usdcad, 63) && delta(usdcad, 21) <= -0.01'
+        text: "USDCAD has fallen to a three-month low."
+      - when: 'latest(usdcad) <= min(usdcad, 63)'
+        text: "USDCAD is at a three-month low."
+      # Band claims on the 0.02 grid: BOTH edges predicate-guaranteed
+      # (containment of every close in the window), per craft-bar rule 1.
+      - when: 'min(usdcad, 21) >= 1.38 && max(usdcad, 21) <= 1.40'
+        text: "USDCAD has held inside a 1.38–1.40 band for the past month."
+      - when: 'min(usdcad, 21) >= 1.36 && max(usdcad, 21) <= 1.38'
+        text: "USDCAD has held inside a 1.36–1.38 band for the past month."
+      - when: 'min(usdcad, 21) >= 1.34 && max(usdcad, 21) <= 1.36'
+        text: "USDCAD has held inside a 1.34–1.36 band for the past month."
+      # Directional month: >= 1.5 cents endpoint-to-endpoint.
+      - when: 'delta(usdcad, 21) >= 0.015'
+        text: "The Canadian dollar has weakened over the past month."
+      - when: 'delta(usdcad, 21) <= -0.015'
+        text: "The Canadian dollar has strengthened over the past month."
+      # Explicit small-move bound: endpoint change within ±0.004 (~0.3%).
+      # Claim is endpoint-scoped ("from a month ago"), not path-scoped, so
+      # intra-month swings cannot falsify it.
+      - when: 'abs(delta(usdcad, 21)) <= 0.004'
+        text: "USDCAD is little changed from a month ago."
+      # Terminal fallback.
+      - when: 'true'
+        text: "USDCAD is at {latest(usdcad)|fx4}."
+
+  plate-fx-prose:
+    required: true
+    sentences:
+      # S1 — close plus one-month comparator, direction gated on sign.
+      - variants:
+          - when: 'delta(usdcad, 21) > 0'
+            text: 'USDCAD closed at {latest(usdcad)|fx4} on {latest_date(usdcad)|month_day}, up from {at(usdcad, "T-21")|fx4} a month earlier.'
+          - when: 'delta(usdcad, 21) < 0'
+            text: 'USDCAD closed at {latest(usdcad)|fx4} on {latest_date(usdcad)|month_day}, down from {at(usdcad, "T-21")|fx4} a month earlier.'
+          - when: 'true'
+            text: 'USDCAD closed at {latest(usdcad)|fx4} on {latest_date(usdcad)|month_day}, unchanged from a month earlier.'
+      # S2 — regime detail. "That" refers to S1's close, which always renders.
+      - variants:
+          # Whole month at/above the 1.40 line.
+          - when: 'min(usdcad, 21) > 1.40'
+            text: "The pair has held above the 1.40 line throughout the past month."
+          # Three-month-high close AND within one cent of 1.40 — both halves
+          # of "just below the 1.40 line" are guaranteed (1.39 <= x < 1.40).
+          - when: 'latest(usdcad) >= max(usdcad, 63) && between(latest(usdcad), 1.39, 1.3999)'
+            text: "That is the pair's highest close in at least three months, just below the 1.40 line."
+          - when: 'latest(usdcad) >= max(usdcad, 63)'
+            text: "That is the pair's highest close in at least three months."
+          - when: 'latest(usdcad) <= min(usdcad, 63)'
+            text: "That is the pair's lowest close in at least three months."
+          # Terminal: observed one-month range, true by construction.
+          - when: 'true'
+            text: "Over the past month the pair has traded between {min(usdcad, 21)|fx4} and {max(usdcad, 21)|fx4}."
+
+  plate-fx-callout-value:
+    required: true
+    variants:
+      - when: 'true'
+        text: "{latest(usdcad)|fx4}"
+
+  plate-fx-callout-prefix:
+    required: true
+    variants:
+      - when: 'true'
+        text: "USDCAD"
+
+  plate-fx-callout-delta:
+    required: true
+    variants:
+      # 5-pip floor on the weekly move; below it, "little changed" is honest.
+      - when: 'delta(usdcad, 5) >= 0.0005'
+        text: "up {abs(delta(usdcad, 5))|fx4} on the week"
+      - when: 'delta(usdcad, 5) <= -0.0005'
+        text: "down {abs(delta(usdcad, 5))|fx4} on the week"
+      - when: 'true'
+        text: "little changed on the week"
+
+  # ===========================================================================
+  # PLATE 3 — S&P/TSX COMPOSITE (Yahoo ^GSPTSE)
+  # ===========================================================================
+
+  plate-tsx-title:
+    required: true
+    variants:
+      # latest >= max over ~a year of closes (tie-tolerant). "At least a
+      # year" because the window, not the full history, bounds the claim.
+      - when: 'latest(tsx) >= max(tsx, 250)'
+        text: "The TSX has closed at its highest level in at least a year."
+      # Closed at/above 35,000 within the month AND now at least ~400 points
+      # (>1%) below the line — "pulled back" and "topping" both guaranteed.
+      - when: 'max(tsx, 21) > 35000 && latest(tsx) <= 34600'
+        text: "The TSX has pulled back after topping 35,000."
+      # Every close of the month at/above 35,000.
+      - when: 'min(tsx, 21) > 35000'
+        text: "The TSX has held above 35,000 for the past month."
+      - when: 'latest(tsx) > 35000'
+        text: "The TSX is trading above 35,000."
+      # pct_change assumed percent-units; >= 2 (%) gate. Under fraction units
+      # this never fires (fail-safe; see units note in header).
+      - when: 'pct_change(tsx, 21) >= 2'
+        text: "The TSX is up {pct_change(tsx, 21)|one_dec}% over the past month."
+      - when: 'pct_change(tsx, 21) <= -2'
+        text: "The TSX is down {abs(pct_change(tsx, 21))|one_dec}% over the past month."
+      # Every close of the month at/above 34,000.
+      - when: 'min(tsx, 21) > 34000'
+        text: "The TSX has held above 34,000 for the past month."
+      # Terminal fallback.
+      - when: 'true'
+        text: "The S&P/TSX Composite is at {latest(tsx)|thousands}."
+
+  plate-tsx-prose:
+    required: true
+    sentences:
+      # S1 — close (source precision, two decimals) plus one-week comparator.
+      - variants:
+          - when: 'latest(tsx) > at(tsx, "T-5")'
+            text: 'The S&P/TSX Composite closed at {latest(tsx)|thousands2} on {latest_date(tsx)|month_day}, up from {at(tsx, "T-5")|thousands2} a week earlier.'
+          - when: 'latest(tsx) < at(tsx, "T-5")'
+            text: 'The S&P/TSX Composite closed at {latest(tsx)|thousands2} on {latest_date(tsx)|month_day}, down from {at(tsx, "T-5")|thousands2} a week earlier.'
+          - when: 'true'
+            text: 'The S&P/TSX Composite closed at {latest(tsx)|thousands2} on {latest_date(tsx)|month_day}, unchanged from a week earlier.'
+      # S2 — the month's shape.
+      - variants:
+          - when: 'latest(tsx) >= max(tsx, 250)'
+            text: "That is the index's highest close in at least a year."
+          - when: 'min(tsx, 21) > 35000'
+            text: "The index has held above 35,000 throughout the past month, trading between {min(tsx, 21)|thousands} and {max(tsx, 21)|thousands}."
+          # A >= 35,000 close exists in the window and is strictly earlier
+          # than the sub-35,000 latest — "come off" and "slipping back below"
+          # both follow.
+          - when: 'max(tsx, 21) > 35000 && latest(tsx) < 35000'
+            text: "The index has come off a one-month high of {max(tsx, 21)|thousands}, slipping back below the 35,000 line."
+          # Terminal: observed range, true by construction.
+          - when: 'true'
+            text: "Over the past month the index has traded between {min(tsx, 21)|thousands} and {max(tsx, 21)|thousands}."
+
+  plate-tsx-callout-value:
+    required: true
+    variants:
+      - when: 'true'
+        text: "{latest(tsx)|thousands}"
+
+  plate-tsx-callout-prefix:
+    required: true
+    variants:
+      - when: 'true'
+        text: "S&P/TSX Composite"
+
+  plate-tsx-callout-delta:
+    required: true
+    variants:
+      # 100-point floor (~0.3% at current levels) before naming a direction.
+      - when: 'delta(tsx, 5) >= 100'
+        text: "up {abs(delta(tsx, 5))|int} points on the week"
+      - when: 'delta(tsx, 5) <= -100'
+        text: "down {abs(delta(tsx, 5))|int} points on the week"
+      - when: 'true'
+        text: "little changed on the week"
+
+  # ===========================================================================
+  # PLATE 4 — GoC CURVE (2y / 5y / 10y, BoC Valet; matches the plotted chart)
+  # ===========================================================================
+  # Steepen/flatten thresholds: a named regime needs >= 5 bps of guaranteed
+  # spread change (entailed via leg conjunctions — see header). "Across the
+  # curve" claims require all three plotted maturities to satisfy the bound.
+
+  plate-curve-title:
+    required: true
+    variants:
+      # Inversion is the headline regime whenever it holds.
+      - when: 'spread(y10, y2) < 0'
+        text: "The GoC curve is inverted—the 10-year yields less than the 2-year."
+      # Parallel shift up: all three maturities up >= 5 bps on the month.
+      - when: 'bps(delta(y2, 21)) >= 5 && bps(delta(y5, 21)) >= 5 && bps(delta(y10, 21)) >= 5'
+        text: "GoC yields are higher across the curve than a month ago."
+      - when: 'bps(delta(y2, 21)) <= -5 && bps(delta(y5, 21)) <= -5 && bps(delta(y10, 21)) <= -5'
+        text: "GoC yields are lower across the curve than a month ago."
+      # Short-led steepening: 2y down >= 5 bps while 10y flat-to-higher
+      # ⇒ 2s10s wider by >= 5 bps, and the short end did the moving.
+      - when: 'bps(delta(y2, 21)) <= -5 && bps(delta(y10, 21)) >= 0 && bps(delta(y10, 21)) < 5'
+        text: "The GoC curve has steepened over the past month, led by falling short rates."
+      # Long-led steepening: 10y up >= 5 bps while 2y flat-to-lower.
+      - when: 'bps(delta(y10, 21)) >= 5 && bps(delta(y2, 21)) <= 0 && bps(delta(y2, 21)) > -5'
+        text: "The GoC curve has steepened over the past month, led by rising long rates."
+      # Short-led flattening: 2y up >= 5 bps while 10y flat-to-lower.
+      - when: 'bps(delta(y2, 21)) >= 5 && bps(delta(y10, 21)) <= 0 && bps(delta(y10, 21)) > -5'
+        text: "The GoC curve has flattened over the past month, led by rising short rates."
+      # Long-led flattening: 10y down >= 5 bps while 2y flat-to-higher.
+      - when: 'bps(delta(y10, 21)) <= -5 && bps(delta(y2, 21)) >= 0 && bps(delta(y2, 21)) < 5'
+        text: "The GoC curve has flattened over the past month, led by falling long rates."
+      # All three maturities within ±5 bps of a month ago.
+      - when: 'abs(bps(delta(y2, 21))) < 5 && abs(bps(delta(y5, 21))) < 5 && abs(bps(delta(y10, 21))) < 5'
+        text: "The GoC curve is little changed from a month ago."
+      # Terminal fallback.
+      - when: 'true'
+        text: "The GoC 10-year is at {latest(y10)|pct2}."
+
+  plate-curve-prose:
+    required: true
+    sentences:
+      # S1 — the three plotted levels, dated to the 10y series' own close.
+      # Pure fact; single unconditional variant.
+      - variants:
+          - when: 'true'
+            text: "The GoC 2-year closed at {latest(y2)|pct2}, the 5-year at {latest(y5)|pct2}, and the 10-year at {latest(y10)|pct2} on {latest_date(y10)|month_day}."
+      # S2 — the spread and the month's move. The inversion branch sits
+      # first, so every later branch sees spread >= 0 (safe for plain int
+      # rendering of the spread).
+      - variants:
+          - when: 'spread(y10, y2) < 0'
+            text: "The curve is inverted, with the 10-year {abs(bps(spread(y10, y2)))|int} bps below the 2-year."
+          # Short-led steepening with a genuinely quiet long end (|Δ10y| <=
+          # 2 bps earns "little changed").
+          - when: 'spread(y10, y2) > 0 && bps(delta(y2, 21)) <= -5 && between(bps(delta(y10, 21)), -2, 2)'
+            text: "The 2-year is down {abs(bps(delta(y2, 21)))|int} bps over the past month while the 10-year is little changed, leaving the 2s10s spread at {bps(spread(y10, y2))|int} bps."
+          # Long-led steepening with a quiet short end.
+          - when: 'spread(y10, y2) > 0 && bps(delta(y10, 21)) >= 5 && between(bps(delta(y2, 21)), -2, 2)'
+            text: "The 10-year is up {bps(delta(y10, 21))|int} bps over the past month while the 2-year is little changed, leaving the 2s10s spread at {bps(spread(y10, y2))|int} bps."
+          # Parallel up: both quoted legs positive under the predicate, so
+          # plain int rendering is safe.
+          - when: 'bps(delta(y2, 21)) >= 5 && bps(delta(y5, 21)) >= 5 && bps(delta(y10, 21)) >= 5'
+            text: "Yields are up across the curve from a month ago—{bps(delta(y2, 21))|int} bps at the 2-year and {bps(delta(y10, 21))|int} bps at the 10-year."
+          - when: 'bps(delta(y2, 21)) <= -5 && bps(delta(y5, 21)) <= -5 && bps(delta(y10, 21)) <= -5'
+            text: "Yields are down across the curve from a month ago—{abs(bps(delta(y2, 21)))|int} bps at the 2-year and {abs(bps(delta(y10, 21)))|int} bps at the 10-year."
+          # All three within ±5 bps of a month ago.
+          - when: 'abs(bps(delta(y2, 21))) < 5 && abs(bps(delta(y5, 21))) < 5 && abs(bps(delta(y10, 21))) < 5'
+            text: "All three maturities sit within a few basis points of their levels a month ago."
+          # Terminal: spread level. Reached only past the inversion branch,
+          # so the value is >= 0.
+          - when: 'true'
+            text: "The 2s10s spread sits at {bps(spread(y10, y2))|int} bps."
+
+  plate-curve-callout-value:
+    required: true
+    variants:
+      - when: 'true'
+        text: "{latest(y10)|pct2}"
+
+  plate-curve-callout-prefix:
+    required: true
+    variants:
+      - when: 'true'
+        text: "GoC 10-year"
+
+  plate-curve-callout-delta:
+    required: true
+    variants:
+      # 2 bps floor before naming a direction on the monthly move.
+      - when: 'bps(delta(y10, 21)) >= 2'
+        text: "up {bps(delta(y10, 21))|int} bps on the month"
+      - when: 'bps(delta(y10, 21)) <= -2'
+        text: "down {abs(bps(delta(y10, 21)))|int} bps on the month"
+      - when: 'true'
+        text: "little changed on the month"
+
+  # ===========================================================================
+  # PAGE LEDE — synthesis across the four markets.
+  # House rule: generalize when markets agree, separate when they diverge.
+  # S1 pairs CAD and oil (joint variants when both have a clear month
+  # direction); S2 is equities; S3 is the curve. Dated via the USDCAD close
+  # in S1. Oil is quoted undated (its latest close can postdate the FX close,
+  # so stamping it with the FX date would misattribute the value).
+  # ===========================================================================
+
+  lede:
+    required: true
+    sentences:
+      - variants:
+          # CAD weaker (>= 1 cent on the month) + oil down >= 3% on the month.
+          # "Alongside" claims co-occurrence only — no causal link.
+          - when: 'delta(usdcad, 21) >= 0.01 && pct_change(wti, 21) <= -3'
+            text: "The Canadian dollar has weakened over the past month alongside softer oil—USDCAD closed at {latest(usdcad)|fx4} on {latest_date(usdcad)|month_day}, with WTI crude at {latest(wti)|usd}."
+          # Divergence: CAD weaker while oil firmed >= 3%.
+          - when: 'delta(usdcad, 21) >= 0.01 && pct_change(wti, 21) >= 3'
+            text: "The Canadian dollar has weakened over the past month while oil firmed—USDCAD closed at {latest(usdcad)|fx4} on {latest_date(usdcad)|month_day}, with WTI crude at {latest(wti)|usd}."
+          - when: 'delta(usdcad, 21) <= -0.01 && pct_change(wti, 21) >= 3'
+            text: "The Canadian dollar has strengthened over the past month alongside firmer oil—USDCAD closed at {latest(usdcad)|fx4} on {latest_date(usdcad)|month_day}, with WTI crude at {latest(wti)|usd}."
+          - when: 'delta(usdcad, 21) <= -0.01 && pct_change(wti, 21) <= -3'
+            text: "The Canadian dollar has strengthened over the past month while oil softened—USDCAD closed at {latest(usdcad)|fx4} on {latest_date(usdcad)|month_day}, with WTI crude at {latest(wti)|usd}."
+          # Terminal: plain facts, dated.
+          - when: 'true'
+            text: "USDCAD closed at {latest(usdcad)|fx4} on {latest_date(usdcad)|month_day}; WTI crude is at {latest(wti)|usd}."
+      - variants:
+          - when: 'latest(tsx) >= max(tsx, 250)'
+            text: "The S&P/TSX Composite, at {latest(tsx)|thousands}, is at its highest close in at least a year."
+          # "Topping 35,000 within the month" guaranteed by max(21) >= 35000;
+          # "pulled back" by the sub-35,000 latest.
+          - when: 'max(tsx, 21) > 35000 && latest(tsx) <= 34600'
+            text: "The S&P/TSX Composite has pulled back to {latest(tsx)|thousands} after topping 35,000 within the month."
+          # Percent-units assumption; large-move gates only (see header note).
+          - when: 'pct_change(tsx, 21) >= 2'
+            text: "The S&P/TSX Composite is up {pct_change(tsx, 21)|one_dec}% on the month at {latest(tsx)|thousands}."
+          - when: 'pct_change(tsx, 21) <= -2'
+            text: "The S&P/TSX Composite is down {abs(pct_change(tsx, 21))|one_dec}% on the month at {latest(tsx)|thousands}."
+          - when: 'true'
+            text: "The S&P/TSX Composite stands at {latest(tsx)|thousands}."
+      - variants:
+          - when: 'spread(y10, y2) < 0'
+            text: "The GoC curve is inverted, with the 10-year {abs(bps(spread(y10, y2)))|int} bps below the 2-year."
+          # Widening entailed by either leg conjunction (Δspread >= 5 bps in
+          # both branches); spread >= 0 here because the inversion branch
+          # runs first, so the quoted level renders cleanly.
+          - when: '(bps(delta(y2, 21)) <= -5 && bps(delta(y10, 21)) >= 0) || (bps(delta(y10, 21)) >= 5 && bps(delta(y2, 21)) <= 0)'
+            text: "On the curve, the GoC 2s10s spread has widened to {bps(spread(y10, y2))|int} bps over the past month."
+          - when: '(bps(delta(y2, 21)) >= 5 && bps(delta(y10, 21)) <= 0) || (bps(delta(y10, 21)) <= -5 && bps(delta(y2, 21)) >= 0)'
+            text: "On the curve, the GoC 2s10s spread has narrowed to {bps(spread(y10, y2))|int} bps over the past month."
+          - when: 'true'
+            text: "The GoC 2-year sits at {latest(y2)|pct2} and the 10-year at {latest(y10)|pct2}."
+
+  # ===========================================================================
+  # SPLASH TILE LINE — hard budget 85 characters RENDERED, worst case.
+  # Worst-case audits (realistic widths: fx4 = 6 chars, thousands = 6,
+  # usd0 = 6, pct2 = 5):
+  #   v1: "USDCAD 1.4047—weakest CAD close in three months; WTI US$108,
+  #        TSX 35,217."  = 71 chars.
+  #   v2: "Oil holds above US$100—WTI US$109; USDCAD 1.3947, TSX 35,217." = 61.
+  #   v3: "USDCAD 1.3947, TSX 34,412, WTI US$90, GoC 10y 3.53%." = 53.
+  # All under 85 even with a 7-char TSX (100,000+).
+  # ===========================================================================
+
+  tileline:
+    required: true
+    variants:
+      # Tie-tolerant three-month superlative, as on the FX title.
+      - when: 'latest(usdcad) >= max(usdcad, 63)'
+        text: "USDCAD {latest(usdcad)|fx4}—weakest CAD close in three months; WTI {latest(wti)|usd0}, TSX {latest(tsx)|thousands}."
+      # Month-long floor at/above 100 earns "holds above".
+      - when: 'min(wti, 21) >= 100'
+        text: "Oil holds above US$100—WTI {latest(wti)|usd0}; USDCAD {latest(usdcad)|fx4}, TSX {latest(tsx)|thousands}."
+      # Terminal: pure data line.
+      - when: 'true'
+        text: "USDCAD {latest(usdcad)|fx4}, TSX {latest(tsx)|thousands}, WTI {latest(wti)|usd0}, GoC 10y {latest(y10)|pct2}."

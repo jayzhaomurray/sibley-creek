@@ -94,11 +94,16 @@ jobs:
       - name: Run daily Financial build
         env:
           # Secrets are pulled from the repository's Settings -> Secrets.
-          # If FRED_API_KEY is unset the build records a `fred:no-api-key`
-          # failure entry and exits non-zero -- this HARD-FAILS the run and
-          # blocks the commit step. Intentional: a missing key must stay
-          # loud (8 silent failures accumulated 2026-05-30..06-09 before the
-          # key was set; do not soften this to warn-and-continue).
+          # Exit policy for a missing FRED_API_KEY (ratified 2026-06-09,
+          # markets audit F3): WARN AND CONTINUE. Hard-failing on the
+          # missing key blocked the commit step for ALL sources -- 8 silent
+          # failures accumulated 2026-05-30..06-09 during which no BoC /
+          # Yahoo refresh landed either. The loudness now comes from the
+          # right place: FRED-backed series (us_2yr, us_10yr,
+          # goc_ust_spread_*) are in the integrity gate's fail-closed
+          # staleness set, so a persistently-missing key fails this
+          # workflow within days, naming the stale series, while the other
+          # sources keep refreshing in the meantime.
           # SMTP notification secrets are NOT configured for this repo; the
           # pipeline's failure-notification path logs a warning and skips
           # cleanly when SMTP_HOST/SMTP_PORT are absent (see
@@ -114,6 +119,15 @@ jobs:
         # prevents the recurring broken-chart class of bug.
         run: |
           node scripts/check_panel_data_integrity.mjs
+
+      - name: Validate raw/meta git tracking
+        # The fetch step above just wrote .meta.json sidecars to data/raw.
+        # If any sidecar of a tracked CSV is not itself tracked, clean
+        # checkouts rebuild degraded panel data (frequency falls back to
+        # "monthly", source nulls -- markets audit F4). Fail here, before
+        # the commit step can propagate the gap.
+        run: |
+          node scripts/check_raw_tracked.mjs
 
       - name: Commit and push refreshed data if changed
         # Only commits when the working tree actually diverges from HEAD.

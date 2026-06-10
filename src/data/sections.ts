@@ -42,6 +42,17 @@
  * editorial-director (blurbs, deep-dive titles) in subsequent passes.
  */
 
+import { renderSectionProse } from "../lib/prose";
+
+/*
+ * Mechanical prose (markets): the markets tileLine and blurb.body are NOT
+ * hand-authored strings — they render at build time from
+ * editorial/prose_templates/markets.yaml against live panel data, the same
+ * render the /markets/ page consumes. Single source of truth: the template.
+ * A template/render fault throws at import time and fails the build.
+ */
+const marketsProse = renderSectionProse("markets");
+
 export type SectionSlug =
   | "output"
   | "inflation"
@@ -715,21 +726,25 @@ export const sections: Section[] = [
     accentVar: "--section-accent-markets",
     kicker: "Yields, spreads, the loonie, and the cost of capital.",
     headlineQuestion:
-      "How are financial markets affecting Canada?",
+      "Where are Canadian markets trading?",
     cadence: "Daily (light) + weekly synthesis",
-    // Markets data refreshes daily; latest BoC noon-rate stamp May 8, 2026.
-    updatedAt: Date.UTC(2026, 4, 8, 21, 0),
+    // Data-derived: panel_data generatedAt from the same render pass that
+    // produces the prose. No hand-maintained stamp.
+    updatedAt: marketsProse.generatedAt ? Date.parse(marketsProse.generatedAt) : 0,
     chartSeriesKey: "usdcad",
     heroKicker: "Weekly close",
     // Markets refreshes daily; the kicker phrase "Daily close" + the
-    // pipeline's daily-cadence date reads as the current convention
-    // ("Daily close May 8, 2026").
+    // pipeline's daily-cadence date reads as the current convention.
     heroKickerPrefix: "Daily close",
     latestReleasePrefix: "Daily close",
-    tileLine:
-      "USDCAD closed the week at 1.369 as the Canada-US 2y spread held near -98 bps.",
+    // Mechanically rendered (see marketsProse above). Citations are
+    // slot-bound (writing-style.md §4.1e): the splash tile line quotes the
+    // latest USDCAD, WTI, and TSX closes, all slot-interpolated.
+    tileLine: marketsProse.surfaces["tileline"].text,
     tileLineCitations: [
-      { phrase: "-98 bps", source: "derived", note: "GoC 2y 2.94% minus UST 2y 3.92% = -98 bps. Inputs: BoC Valet yield_2yr and FRED DGS2, May 7 2026." },
+      { slot: "fxusdcad", at: "latest", value_format: "{0.0000}", context: "", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close (BoC Valet FXUSDCAD), latest observation." },
+      { slot: "wti", at: "latest", value_format: "{int}", context: "", source: "pipeline:yahoo:wti", note: "WTI front-month (CL=F) daily close, latest observation, rendered to whole dollars on the tile." },
+      { slot: "tsx_composite", at: "latest", value_format: "{int,}", context: "", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close (Yahoo ^GSPTSE), latest observation, rendered to whole points on the tile." },
     ],
     prints: [
       {
@@ -772,20 +787,17 @@ export const sections: Section[] = [
       spark: [],
       },
     ],
+    // Mechanically rendered lede (the /markets/ page header reads the same
+    // surface directly from its own render). No date stamp: the prose is a
+    // function of the data and carries its own as-of phrasing.
     blurb: {
       kind: "last",
-      date: "May 13, 2026",
-      body:
-        "USDCAD has spent the past month inside a 1.36 to 1.38 band, closing at 1.3686 on May 8. The 10y GoC yield is at 3.53%, with the front end up roughly 10 bps over the past two weeks. WTI round-tripped to a US$109.76 peak on May 4 and settled at US$101.12 on May 13; the TSX Composite is near 34,000.",
+      body: marketsProse.surfaces["lede"].text,
     },
     abstractCitations: [
-      { phrase: "USDCAD has spent the past month inside a 1.36 to 1.38 band", source: "pipeline:boc:fxusdcad", note: "USDCAD daily-close range across April 13 to May 12, 2026: 1.357 to 1.388 per BoC Valet FXUSDCAD." },
-      { phrase: "closing at 1.3686 on May 8", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close, May 8, 2026 per BoC Valet FXUSDCAD." },
-      { phrase: "10y GoC yield is at 3.53%", source: "pipeline:boc:yield_10yr", note: "GoC 10y benchmark yield, latest daily close." },
-      { phrase: "front end up roughly 10 bps over the past two weeks", source: "pipeline:boc:yield_2yr", note: "GoC 2y up roughly 10 bps over the trailing 2-week window (~2.83 to 2.93)." },
-      { phrase: "WTI round-tripped to a US$109.76 peak on May 4", source: "pipeline:yahoo:wti", note: "WTI spot daily-close peak in early May 2026: 109.76 on May 4. Subsequent close on May 13 at 101.12 returned the price to early-month levels." },
-      { phrase: "settled at US$101.12 on May 13", source: "pipeline:yahoo:wti", note: "WTI spot, May 13, 2026 daily close." },
-      { phrase: "TSX Composite is near 34,000", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close, May 12 2026 (33,994.87), via Yahoo Finance ^GSPTSE." },
+      { slot: "fxusdcad", at: "latest", value_format: "{0.0000}", context: "", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close (BoC Valet FXUSDCAD), latest observation." },
+      { slot: "wti", at: "latest", value_format: "{0.00}", context: "", source: "pipeline:yahoo:wti", note: "WTI front-month (CL=F) daily close, latest observation." },
+      { slot: "tsx_composite", at: "latest", value_format: "{int,}", context: "", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close (Yahoo ^GSPTSE), latest observation." },
     ],
   },
 ];

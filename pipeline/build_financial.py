@@ -158,15 +158,31 @@ def _fred_fetch_one(spec: FredSpec) -> None:
 
 
 def run_fred_catalog(failed: list[str]) -> None:
-    """Run every FRED catalog entry. Skips silently if FRED_API_KEY is unset.
+    """Run every FRED catalog entry. Warns and skips if FRED_API_KEY is unset.
 
-    Per `pipeline/fetch/fred.py`, the absence of a key raises ValueError;
-    we treat that as a logged warning + a single failure entry, so the user
-    sees "FRED skipped: no API key" rather than a stack trace.
+    Exit policy (ratified 2026-06-09, markets audit F3): a MISSING key is a
+    degraded-mode warning, not a build failure. Counting it as a failure made
+    the daily CI run exit 1, which skipped the commit step, which meant no
+    automated refresh of ANY source (BoC, Yahoo included) ever landed --
+    a missing comparator feed silently froze the whole markets page.
+
+    This is not a silent-staleness hole: FRED-backed series (us_2yr, us_10yr,
+    goc_ust_spread_*) are in the integrity gate's fail-closed staleness set
+    (scripts/check_panel_data_integrity.mjs), so if the key stays missing the
+    build starts failing loudly within days -- with a message naming the
+    stale series instead of blocking every other source's refresh.
+
+    Real fetch errors with a key present still fail per-series via _safe().
     """
     if not fred.get_api_key():
-        logger.warning("FRED_API_KEY is not set; skipping all %d FRED series", len(FRED_SERIES))
-        failed.append("fred:no-api-key")
+        logger.warning(
+            "FRED_API_KEY is not set; skipping all %d FRED series. "
+            "Degraded mode: FRED-backed series will go stale and the "
+            "panel-data integrity gate will fail loudly once they exceed "
+            "their staleness thresholds. Set the key (repo Settings -> "
+            "Secrets -> FRED_API_KEY) to restore the feed.",
+            len(FRED_SERIES),
+        )
         return
     for name, spec in FRED_SERIES.items():
         _safe(f"fred:{name}", lambda s=spec: _fred_fetch_one(s), failed)

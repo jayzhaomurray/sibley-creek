@@ -1257,6 +1257,98 @@ def _collect_source_files(spec: "PanelSpec", data_root: Path) -> list[str]:
     return sorted(paths)
 
 
+# --------------------------------------------------------------------------- #
+# Co-dated slot groups
+# --------------------------------------------------------------------------- #
+
+# Series that are quoted together as a single-date snapshot must share a final
+# observation date. The markets curve prose stamps all three maturities with
+# one date ("The GoC 2-year closed at X, the 5-year at Y, and the 10-year at
+# Z on {date}") -- BoC Valet can publish one maturity a day behind the others,
+# and in that state the sentence would assert a close on a date that maturity
+# never printed (fact-check gate item B3, 2026-06-09).
+#
+# Resolution: degrade gracefully, do NOT fail the build. Trim each series in
+# the group to the most recent date ALL of them share, so the prose quotes a
+# coherent, truthful single-date snapshot (one day stale at worst) and the
+# chart plots the same aligned curve. A benign one-day Valet lag must never
+# take the page down. When trimming occurs the panel carries a
+# `coDatedAlignment` record so scripts/check_panel_data_integrity.mjs can
+# WARN (visibility for a persistent lag) without failing the build.
+#
+# Scope is deliberately per-panel-group: only series quoted as one snapshot
+# are co-dated. Do not add unrelated series (e.g. yield_30yr is on the curve
+# chart but never date-stamped in prose; a 30y publish lag should not degrade
+# the headline maturities).
+CO_DATED_SLOT_GROUPS: dict[tuple[str, str], tuple[str, ...]] = {
+    ("markets", "panel-3"): ("yield_2yr", "yield_5yr", "yield_10yr"),
+}
+
+
+def _align_co_dated_slots(panel_obj: dict, group: tuple[str, ...],
+                          *, section: str, panel_id: str) -> None:
+    """Trim a panel's co-dated slots to their most recent common date.
+
+    Mutates the slot payloads in place. No-op when the group's final
+    observation dates already agree, or when fewer than two group members
+    are present. Composes with upstream guards: the intraday-partial guard
+    (pipeline/fetch/yahoo.py) has already dropped partial bars before data
+    lands on disk, so this sees completed closes only.
+
+    On trim, records `panel_obj["coDatedAlignment"]` with the aligned-to
+    date and which series lost trailing observations -- the integrity gate
+    surfaces this as a WARN so a persistent upstream lag is visible in
+    build logs rather than silent.
+    """
+    members: list[dict] = []
+    named = [panel_obj.get(n) for n in ("primary", "secondary", "tertiary")]
+    for payload in named + list(panel_obj.get("extras") or []):
+        if payload and payload.get("key") in group and payload.get("data"):
+            members.append(payload)
+    if len(members) < 2:
+        return
+
+    latest_by_key = {m["key"]: m["data"][-1]["date"] for m in members}
+    if len(set(latest_by_key.values())) == 1:
+        return  # already co-dated; nothing to do
+
+    # Most recent date present in EVERY member (robust to mid-series gaps,
+    # not just a trailing one-day lag).
+    common_dates = set(r["date"] for r in members[0]["data"])
+    for m in members[1:]:
+        common_dates &= {r["date"] for r in m["data"]}
+    if not common_dates:
+        # Pathological (windowed series with zero overlap). Leave data as-is;
+        # the staleness / trailing-null integrity checks will surface the
+        # underlying problem. Log loudly either way.
+        logger.error(
+            "panel_data: %s/%s co-dated group %s has NO common observation "
+            "date -- cannot align; latest dates: %s",
+            section, panel_id, group, latest_by_key,
+        )
+        return
+
+    common = max(common_dates)  # ISO dates: lexicographic == chronological
+    trimmed_from: dict[str, str] = {}
+    for m in members:
+        last = m["data"][-1]["date"]
+        if last > common:
+            m["data"] = [r for r in m["data"] if r["date"] <= common]
+            m["asOfISO"] = m["data"][-1]["date"]
+            trimmed_from[m["key"]] = last
+
+    panel_obj["coDatedAlignment"] = {
+        "group": sorted(latest_by_key),
+        "alignedTo": common,
+        "trimmedFrom": trimmed_from,
+    }
+    logger.warning(
+        "panel_data: %s/%s co-dated alignment trimmed %s to common date %s "
+        "(upstream published maturities mis-dated: %s)",
+        section, panel_id, sorted(trimmed_from), common, latest_by_key,
+    )
+
+
 def build_section_payload(section: str, data_root: Path) -> dict:
     """Build the per-section panel data payload for one section."""
     specs = PANEL_SPECS.get(section, [])
@@ -1288,6 +1380,10 @@ def build_section_payload(section: str, data_root: Path) -> dict:
                 meta_payload = _read_metadata(spec.metadata_path, data_root)
                 if meta_payload is not None:
                     panel_obj["metadata"] = meta_payload
+            co_dated_group = CO_DATED_SLOT_GROUPS.get((section, spec.panel_id))
+            if co_dated_group is not None:
+                _align_co_dated_slots(panel_obj, co_dated_group,
+                                      section=section, panel_id=spec.panel_id)
         except Exception as exc:  # noqa: BLE001
             logger.error("panel_data: panel %s/%s construction failed: %s: %s",
                          section, spec.panel_id, type(exc).__name__, exc)

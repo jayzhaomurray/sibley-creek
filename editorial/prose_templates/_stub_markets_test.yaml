@@ -1,0 +1,70 @@
+# ============================================================================
+# TEST FIXTURE -- NOT READER COPY. DO NOT WIRE INTO ANY PAGE.
+# ============================================================================
+# Exercises every DSL feature of the prose-template renderer against the real
+# markets panel data: all expression functions, predicate forms, and named
+# formats. Every text string is prefixed STUB so reader-copy-leakage tooling
+# and humans can spot it instantly. The production template is markets.yaml
+# (writer-owned, three review gates).
+#
+# Consumed by: scripts/render_prose.mjs --template ... (manual smoke check)
+#              scripts/test_prose_renderer.mjs (CI)
+# ============================================================================
+section: markets
+slots:
+  usdcad: fxusdcad
+  tsx: tsx_composite
+  wti: wti
+  y2: yield_2yr
+  y5: yield_5yr
+  y10: yield_10yr
+
+surfaces:
+  plate-energy-title:
+    required: true
+    variants:
+      - when: "latest(wti) > 100"
+        text: "STUB wti above 100 at {latest(wti)|usd}"
+      - when: "between(latest(wti), 60, 100)"
+        text: "STUB wti mid-range at {latest(wti)|usd} on {latest_date(wti)|month_day}"
+      - when: "true"
+        text: "STUB wti fallback near {latest(wti)|usd0}"
+
+  plate-energy-callout-value:
+    variants:
+      - when: "true"
+        text: "{latest(wti)|usd}"
+
+  plate-energy-callout-delta:
+    variants:
+      - when: "abs(pct_change(wti, 5)) >= 0"
+        text: "{pct_change(wti, 5)|pct1} 1w"
+
+  plate-energy-prose:
+    required: true
+    sentences:
+      - variants:
+          - when: "pct_change(wti, 21) < 0 && !(latest(wti) >= max(wti, 21))"
+            text: "STUB wti down {abs(pct_change(wti, 21))|one_dec} percent over the month."
+          - when: "true"
+            text: "STUB wti monthly change {pct_change(wti, 21)|pct1}, latest {latest(wti)|usd}."
+      - variants:
+          - when: "latest(wti) > 200"
+            text: "STUB impossible sentence; must drop silently."
+
+  lede:
+    required: true
+    sentences:
+      - variants:
+          - when: "true"
+            text: "STUB usdcad {latest(usdcad)|fx4} ({delta(usdcad, 5)|two_dec} 1w), tsx {latest(tsx)|thousands} ({delta(tsx, 5)|int_signed} 1w), 2s10s {bps(spread(y10, y2))|int} bps, as of {latest_date(usdcad)|month_day_year}."
+      - variants:
+          - when: "min(wti, 5) <= latest(wti) || latest(wti) == at(wti, \"T-0\")"
+            text: "STUB 2y at {latest(y2)|pct2}, 5y at {latest(y5)|two_dec}, week-ago wti {at(wti, \"T-5\")|usd}."
+
+  tileline:
+    variants:
+      - when: "spread(y10, y2) >= 0"
+        text: "STUB curve positive at {bps(spread(y10, y2))|int} bps; tsx {latest(tsx)|thousands2}."
+      - when: "true"
+        text: "STUB curve inverted at {bps(spread(y10, y2))|int} bps."

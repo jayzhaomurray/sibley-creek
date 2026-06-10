@@ -36,6 +36,21 @@
  * local cache) will have source_files: []. This script skips those panels
  * -- there is nothing to verify. check_panel_data_wired.mjs catches the
  * downstream consequence (null primary) in that case.
+ *
+ * Meta-sibling pass (added 2026-06-09, markets audit F4)
+ * -------------------------------------------------------
+ * A tracked CSV with an UNTRACKED .meta.json sibling is the exact poison
+ * that degraded the live markets panel data: a clean checkout (CI, the
+ * mrd-publish worktree) reads the CSV but finds no meta, so panel regen
+ * falls back to frequency "monthly" (wrong staleness threshold, collapsed
+ * history window) and nulls source/units/sourceId. So, second pass: for
+ * every git-tracked data/{raw,processed,derived}/<name>.csv, if
+ * <name>.meta.json exists on disk but is NOT git-tracked, fail with the
+ * filename. Limitation: in a clean checkout the untracked meta does not
+ * exist on disk, so this pass cannot fire there -- it fires where the
+ * pipeline actually runs (local repo, worktree, and the daily CI job right
+ * after build_financial writes the metas), which is before any commit can
+ * propagate the gap.
  */
 
 import { readFileSync, existsSync } from "node:fs";
@@ -185,7 +200,56 @@ if (failures > 0) {
   process.exit(1);
 }
 
+// --------------------------------------------------------------------------- #
+// Meta-sibling pass: tracked CSV + on-disk-but-untracked .meta.json = fail.
+// See header comment ("Meta-sibling pass") for the degraded-panel mechanism.
+// --------------------------------------------------------------------------- #
+
+const DATA_DIRS = ["data/raw", "data/processed", "data/derived"];
+
+let trackedDataFiles;
+try {
+  trackedDataFiles = new Set(
+    execSync(`git ls-files ${DATA_DIRS.join(" ")}`, {
+      cwd: ROOT,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    })
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+  );
+} catch (e) {
+  console.error(`[check_raw_tracked] ERROR: git ls-files failed for meta-sibling pass: ${e.message}`);
+  process.exit(1);
+}
+
+let metaFailures = 0;
+
+for (const trackedPath of trackedDataFiles) {
+  if (!trackedPath.endsWith(".csv")) continue;
+  const metaRel = trackedPath.replace(/\.csv$/, ".meta.json");
+  if (trackedDataFiles.has(metaRel)) continue; // tracked: fine
+  // join() handles the forward slashes from git ls-files on Windows
+  if (!existsSync(join(ROOT, metaRel))) continue; // never fetched here: cannot verify
+  console.error(
+    `[check_raw_tracked] ERROR: ${metaRel} exists on disk but is NOT tracked by git.\n` +
+    `  Its CSV sibling ${trackedPath} IS tracked, so clean checkouts (CI, worktrees)\n` +
+    `  rebuild panel data with frequency fallback "monthly" and source: null.\n` +
+    `  Fix: git add -f ${metaRel}`
+  );
+  metaFailures++;
+}
+
+if (metaFailures > 0) {
+  console.error(
+    `\n[check_raw_tracked] FAIL: ${metaFailures} .meta.json sibling(s) of tracked CSVs are not tracked by git.`
+  );
+  process.exit(1);
+}
+
 console.log(
   `[check_raw_tracked] OK: ${pathToPanels.size} source file(s) across ` +
-  `${references.length} wired panel reference(s) are all tracked by git.`
+  `${references.length} wired panel reference(s) are all tracked by git; ` +
+  `meta-sibling pass clean.`
 );

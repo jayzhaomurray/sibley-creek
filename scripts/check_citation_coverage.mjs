@@ -40,6 +40,15 @@ const RESEARCH_DIR = path.join(repoRoot, "editorial", "published");
 const RESEARCH_CITATIONS_DIR = path.join(repoRoot, "editorial", "source_cards", "research");
 const ALL_SECTIONS = ["gdp", "inflation", "labour", "housing", "policy", "markets", "trade"];
 
+// Mechanically rendered sections (src/lib/prose): coverage by construction
+// via prose renderer + slot binding — every figure in the prose is
+// slot-interpolated from panel_data at build time, and the page's surface
+// fields are expressions (prose.surfaces[...].text) this script's static
+// tokenizer cannot see. The audit-time anchoring of their slot-bound
+// citations is enforced by scripts/source_audit.mjs, which resolves the
+// rendered text. Intentional exemption, not tokenizer-blindness.
+const MECHANICAL_SECTIONS = new Set(["markets"]);
+
 // ---------------------------------------------------------------------------
 // Parser (copied from source_audit.mjs - share via lib once both stabilize)
 // ---------------------------------------------------------------------------
@@ -587,6 +596,11 @@ function main() {
   for (const slug of sections) {
     const pagePath = path.join(PAGES_DIR, `${slug}.astro`);
     if (!fs.existsSync(pagePath)) continue;
+
+    if (MECHANICAL_SECTIONS.has(slug)) {
+      console.error(`  (${slug}: mechanical prose — coverage by construction via prose renderer + slot binding; see source_audit.mjs)`);
+      continue;
+    }
 
     const { abstract, abstractCitations, tileLine, tileLineCitations } = extractSectionAbstract(slug);
     const plates = extractPlates(pagePath);

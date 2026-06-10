@@ -6,6 +6,24 @@ import panelDataFile from "../../data/site/panel_data/markets.json";
 import sectionsJson from "../../data/site/sections.json";
 import { pickPanel, type PanelData } from "../components/charts/_shared/panelData";
 import { deriveLatestReleaseLabel, formatAsOf } from "../components/section/_shared/derivedLabels";
+import { renderSectionProse } from "../lib/prose";
+
+// Mechanical prose: every reader-facing sentence on this page is rendered
+// at build time from editorial/prose_templates/markets.yaml against live
+// panel data (src/lib/prose). No hand-authored copy below. A template or
+// render fault throws here and fails the build — a broken template must
+// never ship as stale or empty text.
+const prose = renderSectionProse("markets");
+
+// The renderer emits literal text (raw "&", real en-dashes). Downstream,
+// ChartbookUnit injects `interpretationHtml` via set:html WITHOUT escaping
+// (it treats the field as author-supplied HTML), so escape HTML-significant
+// characters at this boundary: "S&P/TSX" -> "S&amp;P/TSX". Titles, callout
+// fields, and the lede render as text nodes (escaped by the framework or
+// the component) and must NOT be double-escaped here.
+function escapeProseHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 
 const section = sections.find((s) => s.slug === "markets");
 if (!section) {
@@ -49,6 +67,11 @@ const latestReleaseLabel = latestDisplayedDate
   ? `${section.latestReleasePrefix ?? "Daily close"}, ${latestDisplayedDate}`
   : defaultLatestReleaseLabel;
 
+// Citations are SLOT-BOUND (writing-style.md §4.1e): one entry per
+// panel-data slot the plate draws on. Mechanically-rendered prose cannot
+// contain an unverified figure — every number is slot-interpolated by the
+// renderer — so the citation binds the slot itself and auto-tracks the
+// live value through every refresh. No phrase-bound or `derived` entries.
 const plates: Plate[] = [
   {
     id: "plate-1",
@@ -56,48 +79,42 @@ const plates: Plate[] = [
     chartKey: "markets-panel-6",
     indicator: "WTI oil price",
     plateIndexLabel: "Energy",
-    title: "Oil prices are still over $100 per barrel, even with the ceasefire.",
-    interpretationHtml:
-      "WTI closed at US$101.12 on May 13, off a US$109.76 peak on May 4. " +
-      "Crude has stayed above US$100 since the war in Iran pushed prices up earlier this spring, and the ceasefire has unwound part of the move but not all of it.",
+    title: prose.surfaces["plate-energy-title"].text,
+    interpretationHtml: escapeProseHtml(prose.surfaces["plate-energy-prose"].text),
     callout: {
-      value: "US$101.12",
-      unitPrefix: "WTI spot",
-      delta: "May 13 close",
+      value: prose.surfaces["plate-energy-callout-value"].text,
+      unitPrefix: prose.surfaces["plate-energy-callout-prefix"].text,
+      delta: prose.surfaces["plate-energy-callout-delta"].text,
       direction: "neutral",
     },
     source:
-      "Yahoo Finance (CL=F) via Sibley Creek pipeline.",
+      "Yahoo Finance (CL=F) via Sibley Creek.",
     data: panel6Data,
     citations: [
-      { phrase: "WTI closed at US$101.12 on May 13", source: "pipeline:yahoo:wti", note: "WTI spot, May 13, 2026 daily close." },
-      { phrase: "off a US$109.76 peak on May 4", source: "pipeline:yahoo:wti", note: "WTI spot, May 4, 2026 daily close — the early-May high." },
-      { phrase: "Crude has stayed above US$100", source: "pipeline:yahoo:wti", note: "WTI daily closes have remained above US$100 since the late-April / early-May spike (May 4 peak: $109.76; May 13: $101.12)." },
-      { phrase: "the war in Iran pushed prices up earlier this spring", source: "derived", note: "Iran-related Middle East conflict drove WTI higher through April-May 2026. Geopolitical context referenced in BoC April 2026 MPR (conditional on Middle East outcome) and CSCE Q1 2026 supplement (Middle East war survey window March 26 - April 2, 2026)." },
-      { phrase: "the ceasefire has unwound part of the move but not all of it", source: "derived", note: "WTI fell from May 4 peak of $109.76 to $101.12 by May 13 — a partial retracement but still well above the pre-spike $90s range." },
+      { slot: "wti", at: "latest", value_format: "{0.00}", context: "", source: "pipeline:yahoo:wti", note: "WTI front-month (CL=F) daily close, latest observation. All WTI figures in this plate render from this series." },
+      { slot: "wti", at: "T-5", value_format: "{0.00}", context: "", source: "pipeline:yahoo:wti", note: "WTI front-month close five trading days back — the one-week comparator in the plate prose." },
     ],
   },
   {
     id: "plate-2",
     number: "02",
     chartKey: "markets-panel-1",
-    indicator: "USDCAD spot",
+    indicator: "USDCAD",
     plateIndexLabel: "CAD",
-    title: "The loonie has settled into a range well below last fall's stress reach.",
-    interpretationHtml:
-      "USDCAD closed the week at 1.3686, weaker by about a cent from 1.3576 on May 1. " +
-      "The pair has spent the past month inside a 1.36 to 1.38 band, well below the 1.42 stress reach of late 2025.",
+    title: prose.surfaces["plate-fx-title"].text,
+    interpretationHtml: escapeProseHtml(prose.surfaces["plate-fx-prose"].text),
     callout: {
-      value: "1.3686",
-      unitPrefix: "USDCAD spot",
-      delta: "+0.0110 w/w",
+      value: prose.surfaces["plate-fx-callout-value"].text,
+      unitPrefix: prose.surfaces["plate-fx-callout-prefix"].text,
+      delta: prose.surfaces["plate-fx-callout-delta"].text,
       direction: "neutral",
     },
     source:
       "Bank of Canada Valet (FXUSDCAD).",
     data: panel1Data,
     citations: [
-      { phrase: "1.42 stress reach of late 2025", source: "pipeline:boc:fxusdcad", note: "USDCAD daily high reached ~1.42 in late 2025; year token covered here." },
+      { slot: "fxusdcad", at: "latest", value_format: "{0.0000}", context: "", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close (BoC Valet FXUSDCAD), latest observation. All USDCAD figures in this plate render from this series." },
+      { slot: "fxusdcad", at: "T-21", value_format: "{0.0000}", context: "", source: "pipeline:boc:fxusdcad", note: "USDCAD close 21 trading days back — the one-month comparator in the plate prose." },
     ],
   },
   {
@@ -106,22 +123,19 @@ const plates: Plate[] = [
     chartKey: "markets-panel-2",
     indicator: "S&P/TSX Composite",
     plateIndexLabel: "Equities",
-    title: "The TSX is holding above 34,000.",
-    interpretationHtml:
-      "The S&amp;P/TSX Composite closed at 33,994.87 on May 12, off slightly from 34,077.76 on May 8 and 34,138.90 in early March. " +
-      "The index has spent the past two months in a narrow band around the 34,000 line.",
+    title: prose.surfaces["plate-tsx-title"].text,
+    interpretationHtml: escapeProseHtml(prose.surfaces["plate-tsx-prose"].text),
     callout: {
-      value: "33,995",
-      unitPrefix: "TSX Composite, May 12",
-      delta: "-83 d/d",
+      value: prose.surfaces["plate-tsx-callout-value"].text,
+      unitPrefix: prose.surfaces["plate-tsx-callout-prefix"].text,
+      delta: prose.surfaces["plate-tsx-callout-delta"].text,
       direction: "neutral",
     },
-    source: "Yahoo Finance (^GSPTSE) via Sibley Creek pipeline.",
+    source: "Yahoo Finance (^GSPTSE) via Sibley Creek.",
     data: panel2Data,
     citations: [
-      { phrase: "33,994.87 on May 12", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close, May 12, 2026, via Yahoo Finance ^GSPTSE." },
-      { phrase: "34,077.76 on May 8", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close, May 8, 2026." },
-      { phrase: "34,138.90 in early March", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close, early March 2026 (March 1 reading)." },
+      { slot: "tsx_composite", at: "latest", value_format: "{0.00,}", context: "", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close (Yahoo ^GSPTSE), latest observation. All TSX figures in this plate render from this series." },
+      { slot: "tsx_composite", at: "T-5", value_format: "{0.00,}", context: "", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite close five trading days back — the one-week comparator in the plate prose." },
     ],
   },
   {
@@ -130,39 +144,33 @@ const plates: Plate[] = [
     chartKey: "markets-panel-3",
     indicator: "GoC yield curve",
     plateIndexLabel: "GoC curve",
-    title: "The yield curve has shifted up across the board.",
-    interpretationHtml:
-      "The GoC 10y sits at 3.54%, with the 2y at 2.93%, the 5y at 3.19%, and the 30y at 3.90%. " +
-      "Yields are higher across the curve over the past month — the 2y is up about 14 bps and the 10y about 8 — and the 2s10s spread sits at 61 bps.",
+    title: prose.surfaces["plate-curve-title"].text,
+    interpretationHtml: escapeProseHtml(prose.surfaces["plate-curve-prose"].text),
     callout: {
-      value: "3.54%",
-      unitPrefix: "GoC 10y",
-      delta: "+8 bps over past month",
+      value: prose.surfaces["plate-curve-callout-value"].text,
+      unitPrefix: prose.surfaces["plate-curve-callout-prefix"].text,
+      delta: prose.surfaces["plate-curve-callout-delta"].text,
       direction: "neutral",
     },
     source:
-      "Bank of Canada Valet (BD.CDN.2YR / 5YR / 10YR / LONG.DQ.YLD).",
+      "Bank of Canada Valet (BD.CDN.2YR / 5YR / 10YR).",
     data: panel3Data,
     citations: [
-      { phrase: "GoC 10y sits at 3.54%", source: "pipeline:boc:yield_10yr", note: "GoC 10y benchmark yield, latest daily close (May 11, 2026)." },
-      { phrase: "2y at 2.93%", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, latest daily close (May 11, 2026)." },
-      { phrase: "5y at 3.19%", source: "pipeline:boc:yield_5yr", note: "GoC 5y benchmark yield, latest daily close (May 11, 2026)." },
-      { phrase: "30y at 3.90%", source: "pipeline:boc:yield_30yr", note: "GoC long (~30y) benchmark yield, latest daily close." },
-      { phrase: "the 2y is up about 14 bps", source: "derived", note: "GoC 2y: Apr 13 = 2.79%, May 11 = 2.93%, Δ = +14 bps. Source: BoC Valet yield_2yr." },
-      { phrase: "the 10y about 8", source: "derived", note: "GoC 10y: Apr 13 = 3.46%, May 11 = 3.54%, Δ = +8 bps. Source: BoC Valet yield_10yr." },
-      { phrase: "2s10s spread sits at 61 bps", source: "derived", note: "10y (3.54%) - 2y (2.93%) = 61 bps, May 11, 2026. Spread was 67 bps on Apr 13; modestly narrower over the month (mild bear flattening) but essentially stable in the low 60s." },
+      { slot: "yield_2yr", at: "latest", value_format: "{0.00}%", context: "", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, latest daily close." },
+      { slot: "yield_5yr", at: "latest", value_format: "{0.00}%", context: "", source: "pipeline:boc:yield_5yr", note: "GoC 5y benchmark yield, latest daily close." },
+      { slot: "yield_10yr", at: "latest", value_format: "{0.00}%", context: "", source: "pipeline:boc:yield_10yr", note: "GoC 10y benchmark yield, latest daily close." },
     ],
   },
 ];
 
 const pageTitle = "Markets";
 const pageDescription =
-  "Canadian financial markets chartbook: USDCAD, Government of Canada yield curve, credit spreads, TSX, and WTI crude oil.";
+  "Canadian financial markets chartbook: USDCAD, Government of Canada yield curve, TSX, and WTI crude oil.";
 
-// Lede reads the same editorial blurb the auto-blurb pipeline writes for the
-// splash tile (sections.ts -> section.blurb.body). Single source of truth: a
-// release-day fan-out updates one field and both surfaces refresh.
-const lede = section.blurb?.body ?? "";
+// Page lede: rendered surface from the same template/render pass as the
+// plates. sections.ts derives its markets blurb.body and tileLine from the
+// identical render, so every markets surface shares one source of truth.
+const lede = prose.surfaces["lede"].text;
 ---
 <SectionLayout
   slug="markets"

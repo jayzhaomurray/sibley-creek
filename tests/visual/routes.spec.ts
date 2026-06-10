@@ -35,19 +35,31 @@ interface RouteCase {
   path: string;
   /** Snapshot filename stem; underscored so PNGs sort by section. */
   name: string;
+  /**
+   * Extra settle wait (ms) before capture, for pages with one-shot JS
+   * animation that must finish (and freeze) before two consecutive
+   * screenshots can be stable.
+   */
+  settleMs?: number;
 }
 
 const ROUTES: RouteCase[] = [
-  { path: "/", name: "00_home" },
-  { path: "/gdp/", name: "01_gdp" },
+  // Splash hero map animation is a one-shot that freezes at ~8.5s; wait it
+  // out so toHaveScreenshot can get two stable frames.
+  { path: "/", name: "00_home", settleMs: 9500 },
+  // /gdp/ and /policy/ are meta-refresh redirect stubs (slugs renamed to
+  // /output/ and /monetary/ on master). Screenshotting a 0-second redirect
+  // is a race — shoot the real routes instead.
+  { path: "/output/", name: "01_output" },
   { path: "/inflation/", name: "02_inflation" },
   { path: "/labour/", name: "03_labour" },
-  { path: "/policy/", name: "04_policy" },
+  { path: "/monetary/", name: "04_monetary" },
   { path: "/markets/", name: "05_markets" },
   { path: "/trade/", name: "06_trade" },
   { path: "/housing/", name: "07_housing" },
   { path: "/overview/", name: "09_overview" },
-  { path: "/overview-with-fiscal/", name: "10_overview_with_fiscal" },
+  // /overview-with-fiscal/ removed: the draft page was deleted on master
+  // (commit cf2bcb9) after fiscal folded into /overview/; the route 404s.
   { path: "/research/", name: "08_research_index" },
   // When at least one deep dive is promoted to editorial/published/, add the
   // matching /research/<slug>/ route back here. The spec covers only routes
@@ -84,6 +96,13 @@ const MASK_SELECTORS = [
   "[data-colophon]",
   ".hero-as-of",
   "[data-hero-as-of]",
+  // Splash hero Canada-map animation (one-shot JS over ~8.5s): the capture
+  // lands on a nondeterministic frame. Mask the art, keep the hero copy.
+  ".v3-hero__art",
+  // Splash showcase 02 chartbook carousel rotates forever — never produces
+  // two stable consecutive frames. Mask the rotating slides + URL chip.
+  ".v3-carousel",
+  "[data-carousel-url]",
 ];
 
 function maskLocators(page: import("@playwright/test").Page): Locator[] {
@@ -98,6 +117,21 @@ for (const route of ROUTES) {
     // a 404 baseline and silently pass.)
     expect(response, `no response for ${route.path}`).not.toBeNull();
     expect(response!.status(), `unexpected status for ${route.path}`).toBe(200);
+
+    // Prime lazy-loaded images: fullPage capture scrolls the document, and
+    // `loading="lazy"` images (splash showcase screencaps) decode mid-shot
+    // otherwise — Playwright then can't get two stable consecutive frames.
+    await page.evaluate(async () => {
+      const step = window.innerHeight;
+      for (let y = 0; y < document.body.scrollHeight; y += step) {
+        window.scrollTo(0, y);
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      window.scrollTo(0, 0);
+    });
+    await page.waitForLoadState("networkidle");
+
+    if (route.settleMs) await page.waitForTimeout(route.settleMs);
 
     // Belt-and-suspenders: section pages are tall stacks of panels.
     // `fullPage: true` paints the entire scroll height. The viewport
