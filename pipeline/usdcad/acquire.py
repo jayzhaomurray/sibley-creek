@@ -348,7 +348,7 @@ def fetch_block_b(api_key: Optional[str] = None) -> dict[str, pd.Series]:
 
     # B7: LME Copper (FRED PCOPPUSDM -- monthly; Yahoo HG=F for daily)
     try:
-        copper = fetch_daily_close("HG=F")
+        copper = fetch_daily_close("HG=F", range_="max")  # full history (START_DATE 2005); was the implicit default before 10y became the fetcher default
         b7 = _align_daily(copper.data, lag_bdays=1)
         b7.name = "B7_copper_spot"
         _write_csv_meta("B7_copper", pd.DataFrame({"date": b7.index, "value": b7.values}),
@@ -839,7 +839,7 @@ def fetch_block_g(api_key: Optional[str] = None) -> dict[str, pd.Series]:
 
     # G3: EUR/USD (Yahoo EURUSD=X)
     try:
-        eurusd = fetch_daily_close("EURUSD=X")
+        eurusd = fetch_daily_close("EURUSD=X", range_="max")  # full history (START_DATE 2005)
         g3 = _align_daily(eurusd.data)
         g3.name = "G3_eurusd"
         _write_csv_meta("G3_eurusd", pd.DataFrame({"date": g3.index, "value": g3.values}),
@@ -851,7 +851,7 @@ def fetch_block_g(api_key: Optional[str] = None) -> dict[str, pd.Series]:
 
     # G4: USD/JPY (Yahoo JPY=X)
     try:
-        usdjpy = fetch_daily_close("JPY=X")
+        usdjpy = fetch_daily_close("JPY=X", range_="max")  # full history (START_DATE 2005)
         g4 = _align_daily(usdjpy.data)
         g4.name = "G4_usdjpy"
         _write_csv_meta("G4_usdjpy", pd.DataFrame({"date": g4.index, "value": g4.values}),
@@ -1157,7 +1157,7 @@ def fetch_block_l(api_key: Optional[str] = None) -> dict[str, pd.Series]:
 
     # L1: China CSI 300 proxy (FXI ETF via Yahoo)
     try:
-        fxi = fetch_daily_close("FXI")
+        fxi = fetch_daily_close("FXI", range_="max")  # full history (START_DATE 2005)
         l1 = _align_daily(fxi.data)
         # Take log return 5d
         l1_ret = np.log(l1 / l1.shift(5))
@@ -1183,7 +1183,7 @@ def fetch_block_l(api_key: Optional[str] = None) -> dict[str, pd.Series]:
 
     # AUD/USD as commodity-currency peer (for I11 proxy)
     try:
-        audusd = fetch_daily_close("AUDUSD=X")
+        audusd = fetch_daily_close("AUDUSD=X", range_="max")  # full history (START_DATE 2005)
         aud_s = _align_daily(audusd.data)
         usdcad_path = Path(__file__).parents[2] / "data" / "raw" / "usdcad.csv"
         if not usdcad_path.exists():

@@ -81,12 +81,17 @@ class YahooFetchResult:
     data: pd.DataFrame  # columns: date, value (adjusted close where available, else close)
 
 
-def fetch_daily_close(symbol: str, *, range_: str = "max") -> YahooFetchResult:
+def fetch_daily_close(symbol: str, *, range_: str = "10y") -> YahooFetchResult:
     """Fetch daily closes for one Yahoo symbol.
 
     Args:
         symbol: e.g. "^GSPTSE", "^GSPC", "GC=F".
-        range_: Yahoo `range` parameter; default "max" pulls full available history.
+        range_: Yahoo `range` parameter; default "10y".
+            WARNING on "max": Yahoo silently downsamples `range=max +
+            interval=1d` to quarterly for ^GSPTSE (verified 2026-05-19) and
+            returns mixed-cadence frames for CL=F / BZ=F futures. Pass
+            range_="max" only if you have verified the symbol returns true
+            daily cadence at max range and you genuinely need >10y.
 
     Returns:
         YahooFetchResult with columns date, value. Value is adjusted close
