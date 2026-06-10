@@ -245,6 +245,21 @@ const tabTitle = title === site.name ? site.name : `${title} | ${site.name}`;
                 headers: { Accept: 'application/json' },
               });
               if (resp.ok) {
+                // Kit (ConvertKit) anti-bot guard: the forms endpoint can
+                // return 200 with {status:"quarantined", url:...} when the
+                // POST lacks Kit's embed token. The subscription is held
+                // until the subscriber passes the guard challenge at that
+                // URL — so follow it, exactly like Kit's own embed script
+                // does. Without this, the form showed success while Kit
+                // silently dropped the signup. FormSubmit responses carry
+                // no `status` field, so contact/advisory forms fall
+                // through to the inline confirmation unchanged.
+                let data = null;
+                try { data = await resp.clone().json(); } catch (_) {}
+                if (data && data.status === 'quarantined' && data.url) {
+                  window.location.assign(data.url);
+                  return;
+                }
                 const msg = form.getAttribute('data-success-msg') ||
                   'Subscribed. Thanks — first issue lands when it lands.';
                 const p = document.createElement('p');
