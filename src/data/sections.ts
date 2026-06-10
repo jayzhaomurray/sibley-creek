@@ -951,6 +951,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "boc-2026-06-10",
+    section: "monetary",
+    title: "The Bank of Canada holds at 2.25% and keeps its guidance.",
+    publishedAt: "2026-06-10",
+    pdfPath: "/research/commentaries/boc-2026-06-10.pdf",
+    excerpt:
+      "The Bank of Canada is getting closer to ending its hold, and will likely not wait longer than September to pick a direction. Officials were clear that the most important indicators to watch are core inflation, the share of the CPI basket running above 3%, and medium-to-long-term inflation expectations.",
+  },
+  {
     slug: "trade-2026-06-09",
     section: "trade",
     title: "Oil exports boost Canada's trade surplus.",
