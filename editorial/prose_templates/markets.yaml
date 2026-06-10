@@ -53,32 +53,32 @@ surfaces:
     variants:
       # Held above 100 every close of the window — "held ... for the past
       # month" needs the floor, not the latest print.
-      - when: 'min(wti, 21) >= 100'
+      - when: 'min(wti, 21) > 100'
         text: "Oil has held above US$100 for the past month."
       # Every close of the window below 90.
       - when: 'max(wti, 21) < 90'
-        text: "WTI has spent the past month below US$90."
+        text: "Oil has held below US$90 for the past month."
       # Whole window contained in [90, 100).
       - when: 'min(wti, 21) >= 90 && max(wti, 21) < 100'
-        text: "WTI has held in the US$90s for the past month."
+        text: "Oil has held in the US$90s for the past month."
       # Closed at/above 100 within the window AND now closes below 90: both
       # endpoints of the claim are guaranteed; the traverse is the takeaway.
-      - when: 'max(wti, 21) >= 100 && latest(wti) < 90'
+      - when: 'max(wti, 21) > 100 && latest(wti) < 90'
         text: "Oil has gone from above US$100 to below US$90 inside a month."
       # Was at/above 100 within the window, now below it. "Back below" is
       # entailed: the >=100 close is strictly earlier than the sub-100 latest.
-      - when: 'max(wti, 21) >= 100 && latest(wti) < 100'
+      - when: 'max(wti, 21) > 100 && latest(wti) < 100'
         text: "Oil is back below US$100."
       # Latest >= 100 but (variant 1 failed) some close in the window was
       # below 100 — a crossing happened inside the window.
-      - when: 'latest(wti) >= 100'
-        text: "WTI has crossed above US$100."
+      - when: 'latest(wti) > 100'
+        text: "Oil has crossed above US$100."
       # Plain current-state claim; unconditionally true under its predicate.
       - when: 'latest(wti) < 90'
-        text: "WTI is trading below US$90."
+        text: "Oil is trading below US$90."
       # Terminal fallback — pure slot-rendered fact.
       - when: 'true'
-        text: "WTI crude closed at {latest(wti)|usd} on {latest_date(wti)|month_day}."
+        text: "WTI crude is at {latest(wti)|usd}."
 
   plate-energy-prose:
     required: true
@@ -97,22 +97,22 @@ surfaces:
       # tautologically true min–max range (informative, never false).
       - variants:
           # Floor of the window at/above 100 — "throughout" earned.
-          - when: 'min(wti, 21) >= 100'
+          - when: 'min(wti, 21) > 100'
             text: "Crude has held above US$100 throughout the past month, trading between {min(wti, 21)|usd} and {max(wti, 21)|usd}."
           # Closes both below 90 and at/above 100 inside one window: a range
           # of at least US$10 (>10%), which licenses "swung", and trading on
           # both sides of both round lines is literal.
-          - when: 'max(wti, 21) >= 100 && min(wti, 21) < 90'
+          - when: 'max(wti, 21) > 100 && min(wti, 21) < 90'
             text: "The contract has swung between {min(wti, 21)|usd} and {max(wti, 21)|usd} over the past month, trading on both sides of the US$90 and US$100 lines."
           # High at/above 100 occurred strictly before a sub-100 latest.
-          - when: 'max(wti, 21) >= 100 && latest(wti) < 100'
-            text: "The front month traded as high as {max(wti, 21)|usd} over the past month before falling back below US$100."
+          - when: 'max(wti, 21) > 100 && latest(wti) < 100'
+            text: "The contract traded as high as {max(wti, 21)|usd} over the past month before falling back below US$100."
           # Now at/above 100, with a sub-100 close inside the window.
-          - when: 'latest(wti) >= 100 && min(wti, 21) < 100'
-            text: "The front month has climbed back above US$100 from a one-month low of {min(wti, 21)|usd}."
+          - when: 'latest(wti) > 100 && min(wti, 21) < 100'
+            text: "The contract has climbed above US$100 from a one-month low of {min(wti, 21)|usd}."
           # Terminal: the observed range, true by construction.
           - when: 'true'
-            text: "Over the past month the front month has traded between {min(wti, 21)|usd} and {max(wti, 21)|usd}."
+            text: "Over the past month the contract has traded between {min(wti, 21)|usd} and {max(wti, 21)|usd}."
 
   plate-energy-callout-value:
     required: true
@@ -149,26 +149,26 @@ surfaces:
     required: true
     variants:
       # Every close of the month at/above 1.40.
-      - when: 'min(usdcad, 21) >= 1.40'
+      - when: 'min(usdcad, 21) > 1.40'
         text: "USDCAD has held above 1.40 for the past month."
       # Current-state claim only — no duration implied.
-      - when: 'latest(usdcad) >= 1.40'
+      - when: 'latest(usdcad) > 1.40'
         text: "USDCAD is trading above the 1.40 line."
       # latest >= max(63) means no higher close in ~3 months (max includes
       # the latest, so >= is tie-tolerant) ⇒ CAD at its weakest close of the
       # window. "Slid" (a sustained move, not a one-day jump) is earned by
       # the additional >= 1 cent rise over the month.
       - when: 'latest(usdcad) >= max(usdcad, 63) && delta(usdcad, 21) >= 0.01'
-        text: "The loonie has slid to a three-month low against the US dollar."
+        text: "USDCAD has climbed to a three-month high."
       # Same superlative without the sustained-move qualifier. Ties count as
       # "at its weakest" (matching, not exceeding, the window extreme).
       - when: 'latest(usdcad) >= max(usdcad, 63)'
-        text: "The Canadian dollar is at its weakest close in at least three months."
+        text: "USDCAD is at a three-month high."
       # Mirror: CAD strongest close of ~3 months, with a sustained move.
       - when: 'latest(usdcad) <= min(usdcad, 63) && delta(usdcad, 21) <= -0.01'
-        text: "The loonie has climbed to a three-month high against the US dollar."
+        text: "USDCAD has fallen to a three-month low."
       - when: 'latest(usdcad) <= min(usdcad, 63)'
-        text: "The Canadian dollar is at its strongest close in at least three months."
+        text: "USDCAD is at a three-month low."
       # Band claims on the 0.02 grid: BOTH edges predicate-guaranteed
       # (containment of every close in the window), per craft-bar rule 1.
       - when: 'min(usdcad, 21) >= 1.38 && max(usdcad, 21) <= 1.40'
@@ -189,7 +189,7 @@ surfaces:
         text: "USDCAD is little changed from a month ago."
       # Terminal fallback.
       - when: 'true'
-        text: "USDCAD closed at {latest(usdcad)|fx4} on {latest_date(usdcad)|month_day}."
+        text: "USDCAD is at {latest(usdcad)|fx4}."
 
   plate-fx-prose:
     required: true
@@ -205,7 +205,7 @@ surfaces:
       # S2 — regime detail. "That" refers to S1's close, which always renders.
       - variants:
           # Whole month at/above the 1.40 line.
-          - when: 'min(usdcad, 21) >= 1.40'
+          - when: 'min(usdcad, 21) > 1.40'
             text: "The pair has held above the 1.40 line throughout the past month."
           # Three-month-high close AND within one cent of 1.40 — both halves
           # of "just below the 1.40 line" are guaranteed (1.39 <= x < 1.40).
@@ -229,7 +229,7 @@ surfaces:
     required: true
     variants:
       - when: 'true'
-        text: "USDCAD spot"
+        text: "USDCAD"
 
   plate-fx-callout-delta:
     required: true
@@ -255,25 +255,25 @@ surfaces:
         text: "The TSX has closed at its highest level in at least a year."
       # Closed at/above 35,000 within the month AND now at least ~400 points
       # (>1%) below the line — "pulled back" and "topping" both guaranteed.
-      - when: 'max(tsx, 21) >= 35000 && latest(tsx) <= 34600'
+      - when: 'max(tsx, 21) > 35000 && latest(tsx) <= 34600'
         text: "The TSX has pulled back after topping 35,000."
       # Every close of the month at/above 35,000.
-      - when: 'min(tsx, 21) >= 35000'
+      - when: 'min(tsx, 21) > 35000'
         text: "The TSX has held above 35,000 for the past month."
-      - when: 'latest(tsx) >= 35000'
+      - when: 'latest(tsx) > 35000'
         text: "The TSX is trading above 35,000."
       # pct_change assumed percent-units; >= 2 (%) gate. Under fraction units
       # this never fires (fail-safe; see units note in header).
       - when: 'pct_change(tsx, 21) >= 2'
         text: "The TSX is up {pct_change(tsx, 21)|one_dec}% over the past month."
       - when: 'pct_change(tsx, 21) <= -2'
-        text: "The TSX has fallen {abs(pct_change(tsx, 21))|one_dec}% over the past month."
+        text: "The TSX is down {abs(pct_change(tsx, 21))|one_dec}% over the past month."
       # Every close of the month at/above 34,000.
-      - when: 'min(tsx, 21) >= 34000'
+      - when: 'min(tsx, 21) > 34000'
         text: "The TSX has held above 34,000 for the past month."
       # Terminal fallback.
       - when: 'true'
-        text: "The S&P/TSX Composite closed at {latest(tsx)|thousands} on {latest_date(tsx)|month_day}."
+        text: "The S&P/TSX Composite is at {latest(tsx)|thousands}."
 
   plate-tsx-prose:
     required: true
@@ -290,12 +290,12 @@ surfaces:
       - variants:
           - when: 'latest(tsx) >= max(tsx, 250)'
             text: "That is the index's highest close in at least a year."
-          - when: 'min(tsx, 21) >= 35000'
+          - when: 'min(tsx, 21) > 35000'
             text: "The index has held above 35,000 throughout the past month, trading between {min(tsx, 21)|thousands} and {max(tsx, 21)|thousands}."
           # A >= 35,000 close exists in the window and is strictly earlier
           # than the sub-35,000 latest — "come off" and "slipping back below"
           # both follow.
-          - when: 'max(tsx, 21) >= 35000 && latest(tsx) < 35000'
+          - when: 'max(tsx, 21) > 35000 && latest(tsx) < 35000'
             text: "The index has come off a one-month high of {max(tsx, 21)|thousands}, slipping back below the 35,000 line."
           # Terminal: observed range, true by construction.
           - when: 'true'
@@ -344,23 +344,23 @@ surfaces:
         text: "GoC yields are lower across the curve than a month ago."
       # Short-led steepening: 2y down >= 5 bps while 10y flat-to-higher
       # ⇒ 2s10s wider by >= 5 bps, and the short end did the moving.
-      - when: 'bps(delta(y2, 21)) <= -5 && bps(delta(y10, 21)) >= 0'
+      - when: 'bps(delta(y2, 21)) <= -5 && bps(delta(y10, 21)) >= 0 && bps(delta(y10, 21)) < 5'
         text: "The GoC curve has steepened over the past month, led by falling short rates."
       # Long-led steepening: 10y up >= 5 bps while 2y flat-to-lower.
-      - when: 'bps(delta(y10, 21)) >= 5 && bps(delta(y2, 21)) <= 0'
+      - when: 'bps(delta(y10, 21)) >= 5 && bps(delta(y2, 21)) <= 0 && bps(delta(y2, 21)) > -5'
         text: "The GoC curve has steepened over the past month, led by rising long rates."
       # Short-led flattening: 2y up >= 5 bps while 10y flat-to-lower.
-      - when: 'bps(delta(y2, 21)) >= 5 && bps(delta(y10, 21)) <= 0'
+      - when: 'bps(delta(y2, 21)) >= 5 && bps(delta(y10, 21)) <= 0 && bps(delta(y10, 21)) > -5'
         text: "The GoC curve has flattened over the past month, led by rising short rates."
       # Long-led flattening: 10y down >= 5 bps while 2y flat-to-higher.
-      - when: 'bps(delta(y10, 21)) <= -5 && bps(delta(y2, 21)) >= 0'
+      - when: 'bps(delta(y10, 21)) <= -5 && bps(delta(y2, 21)) >= 0 && bps(delta(y2, 21)) < 5'
         text: "The GoC curve has flattened over the past month, led by falling long rates."
       # All three maturities within ±5 bps of a month ago.
       - when: 'abs(bps(delta(y2, 21))) < 5 && abs(bps(delta(y5, 21))) < 5 && abs(bps(delta(y10, 21))) < 5'
         text: "The GoC curve is little changed from a month ago."
       # Terminal fallback.
       - when: 'true'
-        text: "The GoC 10-year closed at {latest(y10)|pct2} on {latest_date(y10)|month_day}."
+        text: "The GoC 10-year is at {latest(y10)|pct2}."
 
   plate-curve-prose:
     required: true
@@ -414,11 +414,11 @@ surfaces:
     variants:
       # 2 bps floor before naming a direction on the monthly move.
       - when: 'bps(delta(y10, 21)) >= 2'
-        text: "up {bps(delta(y10, 21))|int} bps over the past month"
+        text: "up {bps(delta(y10, 21))|int} bps on the month"
       - when: 'bps(delta(y10, 21)) <= -2'
-        text: "down {abs(bps(delta(y10, 21)))|int} bps over the past month"
+        text: "down {abs(bps(delta(y10, 21)))|int} bps on the month"
       - when: 'true'
-        text: "little changed over the past month"
+        text: "little changed on the month"
 
   # ===========================================================================
   # PAGE LEDE — synthesis across the four markets.
@@ -452,7 +452,7 @@ surfaces:
             text: "The S&P/TSX Composite, at {latest(tsx)|thousands}, is at its highest close in at least a year."
           # "Topping 35,000 within the month" guaranteed by max(21) >= 35000;
           # "pulled back" by the sub-35,000 latest.
-          - when: 'max(tsx, 21) >= 35000 && latest(tsx) < 35000'
+          - when: 'max(tsx, 21) > 35000 && latest(tsx) <= 34600'
             text: "The S&P/TSX Composite has pulled back to {latest(tsx)|thousands} after topping 35,000 within the month."
           # Percent-units assumption; large-move gates only (see header note).
           - when: 'pct_change(tsx, 21) >= 2'
