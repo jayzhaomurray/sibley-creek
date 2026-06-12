@@ -428,42 +428,6 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
                                               "in employment_level (the headcount measure) isolates the per-worker-hours "
                                               "channel. Powers the hours-vs-headcount Labour plate (panel-2c)."
                                           )),
-    # Provincial LFS unemployment rates (Table 14-10-0287). Resolved 2026-05-11 via WDS
-    # getCubeMetadata + getSeriesInfoFromCubePidCoord. Coordinate template: {GEO}.7.1.1.1.1.0.0.0.0
-    # = Geo; Unemployment rate; Total - Gender; 15+; Estimate; Seasonally adjusted. UOM 239 (Rate %).
-    # NOTE: Canada-level unemployment_rate (v2062815) is already wired above under name
-    # "unemployment_rate"; we mirror it here as "lfs_ca_unemployment_rate" so chart panels that
-    # iterate {CA,QC,ON,AB,BC} get a uniform slug set.
-    "lfs_ca_unemployment_rate":    StatcanSpec("lfs_ca_unemployment_rate", 2062815, "14-10-0287-01",
-                                               "%", "monthly", "labour", sa=True,
-                                               notes=(
-                                                   "Canada; Unemployment rate; Total - Gender; 15+; Estimate; SA. "
-                                                   "Cube coord 1.7.1.1.1.1.0.0.0.0. Companion slug for provincial set."
-                                               )),
-    "lfs_qc_unemployment_rate":    StatcanSpec("lfs_qc_unemployment_rate", 2063760, "14-10-0287-01",
-                                               "%", "monthly", "labour", sa=True,
-                                               notes=(
-                                                   "Quebec; Unemployment rate; Total - Gender; 15+; Estimate; SA. "
-                                                   "Cube coord 6.7.1.1.1.1.0.0.0.0. Resolved 2026-05-11."
-                                               )),
-    "lfs_on_unemployment_rate":    StatcanSpec("lfs_on_unemployment_rate", 2063949, "14-10-0287-01",
-                                               "%", "monthly", "labour", sa=True,
-                                               notes=(
-                                                   "Ontario; Unemployment rate; Total - Gender; 15+; Estimate; SA. "
-                                                   "Cube coord 7.7.1.1.1.1.0.0.0.0. Resolved 2026-05-11."
-                                               )),
-    "lfs_ab_unemployment_rate":    StatcanSpec("lfs_ab_unemployment_rate", 2064516, "14-10-0287-01",
-                                               "%", "monthly", "labour", sa=True,
-                                               notes=(
-                                                   "Alberta; Unemployment rate; Total - Gender; 15+; Estimate; SA. "
-                                                   "Cube coord 10.7.1.1.1.1.0.0.0.0. Resolved 2026-05-11."
-                                               )),
-    "lfs_bc_unemployment_rate":    StatcanSpec("lfs_bc_unemployment_rate", 2064705, "14-10-0287-01",
-                                               "%", "monthly", "labour", sa=True,
-                                               notes=(
-                                                   "British Columbia; Unemployment rate; Total - Gender; 15+; Estimate; SA. "
-                                                   "Cube coord 11.7.1.1.1.1.0.0.0.0. Resolved 2026-05-11."
-                                               )),
     # Unemployment by duration of search (Table 14-10-0342-01).
     # Resolved 2026-05-12 via getCubeMetadata + getSeriesInfoFromCubePidCoord.
     # Cube title: "Duration of unemployment, monthly, seasonally adjusted".

@@ -73,14 +73,14 @@ def _seed_minimal_pipeline(data_root: Path) -> None:
             "release_date": "2026-04-15",
         },
     )
-    # labour -> raw/lfs_ca_unemployment_rate
+    # labour -> raw/unemployment_rate
     _write_pair(
-        data_root, "raw", "lfs_ca_unemployment_rate",
+        data_root, "raw", "unemployment_rate",
         _monthly_df([5.6, 5.7, 5.8, 5.9, 6.0, 6.0, 6.1, 6.2, 6.3, 6.4, 6.5,
                      6.5, 6.6, 6.7, 6.8, 6.7, 6.8, 6.9, 6.8, 6.7, 6.8, 6.7,
                      6.7, 6.9], start="2024-05-01"),
         {
-            "name": "lfs_ca_unemployment_rate", "source": "Statistics Canada",
+            "name": "unemployment_rate", "source": "Statistics Canada",
             "source_url": "https://example.invalid/lfs", "source_id": "v2062815",
             "units": "%", "frequency": "monthly",
             "fetched_at": "2026-05-11T00:00:00+00:00",

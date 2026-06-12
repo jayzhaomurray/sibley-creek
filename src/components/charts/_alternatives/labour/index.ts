@@ -29,12 +29,9 @@ import Alt_Panel2LabourSharesOfPop from "./Alt_Panel2LabourSharesOfPop.astro";
 import Alt_Panel2LabourStocksYoY from "./Alt_Panel2LabourStocksYoY.astro";
 
 import Panel1LFSHeadlineIndexed from "../../labour/Panel1LFSHeadlineIndexed.astro";
-import Panel6RegionalSmallMultiples from "../../labour/Panel6RegionalSmallMultiples.astro";
-import Panel6RegionalSpreadBars from "./Panel6RegionalSpreadBars.astro";
 
 const labourPanel1Data = pickPanel(labourPanelData, 1);
 const labourPanel2Data = pickPanel(labourPanelData, 2);
-const labourPanel6Data = pickPanel(labourPanelData, 6);
 
 export const entries: ChartShelfEntry[] = [
   {
@@ -160,29 +157,5 @@ export const entries: ChartShelfEntry[] = [
       "lfs_unemployment_rate.csv + lfs_employment_rate.csv + lfs_participation_rate.csv, all rebased to Feb 2020.",
     data: labourPanel1Data,
     addedAt: "2026-05-12",
-  },
-  {
-    Component: Panel6RegionalSmallMultiples,
-    file: "labour/Panel6RegionalSmallMultiples.astro",
-    title:
-      "Provincial unemployment, 2x2 levels with Canada as reference",
-    whatDifferent:
-      "Each panel shows the provincial rate as the protagonist line with the national rate as a dashed reference per the aggregate-vs-component canon.",
-    whyBetter:
-      "User preferred the deviation-from-national framing (spread bars) for the production version; this is the level-comparison alternative kept for reference.",
-    dataFields: "lfs_{on,qc,bc,ab,ca}_unemployment_rate.csv",
-    data: labourPanel6Data,
-    addedAt: "2026-05-12",
-  },
-  {
-    Component: Panel6RegionalSpreadBars,
-    file: "labour/Panel6RegionalSpreadBars.astro",
-    title: "Panel6RegionalSpreadBars (retired from production — TODO describe)",
-    whatDifferent:
-      "TODO: describe what made this version distinct.",
-    whyBetter:
-      "TODO: describe what won out and why this was parked.",
-    dataFields: "TODO: list source panel_data slot or CSV file(s).",
-    addedAt: "2026-05-13",
   },
 ];

@@ -23,7 +23,7 @@ Section-to-vector mapping (audit target for editorial-director)
 ---------------------------------------------------------------
 output     -> data/processed/gdp_monthly_yoy.csv  (if landed)  | reference: 1.6 (potential growth midpoint, BoC MPR)
 inflation  -> data/processed/cpi_all_items_nsa_yoy.csv         | reference: 2.0 (BoC target). NSA, matches StatCan headline.
-labour     -> data/raw/lfs_ca_unemployment_rate.csv            | reference: None (no consensus NAIRU on the tile)
+labour     -> data/raw/unemployment_rate.csv                  | reference: None (no consensus NAIRU on the tile)
 housing    -> data/processed/crea_hpi_canada_yoy.csv (if landed)| reference: 0.0 (nominal zero -- price level stationarity)
 monetary   -> data/processed/overnight_rate_target.csv         | reference: 2.75 (BoC neutral-rate midpoint, Apr 2026 MPR)
 fiscal     -> data/processed/federal_budget_ytd.csv            | reference: 0.0 (balanced budget neutral)
@@ -210,11 +210,10 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
     ),
     "labour": SectionConfig(
         slug="labour",
-        # Researcher resolution pending on whether to aggregate provincials
-        # or use the national LFS UR. Wire the national LFS UR (v2062815)
-        # for v1; the provincials are also on disk if needed for a more
-        # nuanced read later.
-        primary_series="lfs_ca_unemployment_rate",
+        # National LFS unemployment rate (StatCan v2062815, SA). This is the
+        # same series the live labour charts consume; sourced directly here
+        # rather than via a duplicate "lfs_ca" slug.
+        primary_series="unemployment_rate",
         primary_dir="raw",
         unit_display="%",
         value_decimals=1,
