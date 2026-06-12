@@ -962,6 +962,13 @@ export const commentaries: DataCommentary[] = [
     pdfPath: "/research/commentaries/boc-2026-06-10.pdf",
     excerpt:
       "The Bank of Canada is getting closer to ending its hold, and will likely not wait longer than September to pick a direction. Officials were clear that the most important indicators to watch are core inflation, the share of the CPI basket running above 3%, and medium-to-long-term inflation expectations.",
+    coverage: [
+      {
+        outlet: "Financial Post",
+        url: "https://financialpost.com/news/bank-of-canada-end-interest-rate-pause",
+        date: "2026-06-11",
+      },
+    ],
   },
   {
     slug: "trade-2026-06-09",
