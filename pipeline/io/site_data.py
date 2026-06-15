@@ -58,6 +58,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1168,6 +1169,17 @@ def _apply_supporting_transform(
     return out_df
 
 
+class SupportingPrintTrackingError(RuntimeError):
+    """A SUPPORTING_PRINTS spec's CSV is absent from every data tier in CI.
+
+    Raised as a deliberate fail-fast signal: the per-print try/except in the
+    caller swallows ordinary build errors, but lets this one propagate so an
+    untracked supporting-print CSV halts the build with a clear message rather
+    than silently dropping the print (which re-renders as a canon 'TK' fallback
+    and freezes deploy at the leakage gate).
+    """
+
+
 def _build_supporting_print(spec: SupportingPrintSpec, data_root: Path) -> dict | None:
     """Build one supporting print entry, or None if data is missing.
 
@@ -1178,6 +1190,33 @@ def _build_supporting_print(spec: SupportingPrintSpec, data_root: Path) -> dict 
     sections.json and rendering as visible placeholders on /overview/.
     (Behavior changed 2026-05-28, commit 779d695.)
     """
+    # Tracking guard: every SUPPORTING_PRINTS spec is hand-authored, so a spec'd
+    # CSV that is absent from every data tier during a CI build is a git-tracking
+    # error (the file is gitignored under data/raw/* and was never force-added),
+    # NOT an intentional editorial gap. Left silent, the dropped print is
+    # re-injected as a canon "TK" fallback by the frontend loader and only
+    # surfaces at the post-build leakage gate as a cryptic failure that freezes
+    # deploy. Fail early and name the file instead. (Caused the multi-day deploy
+    # freeze of 2026-06-15: current_account_balance.csv was never tracked.)
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        for series, tier in (
+            (spec.primary_series, spec.primary_dir),
+            (spec.secondary_series, spec.secondary_dir or spec.primary_dir),
+        ):
+            if series is None:
+                continue
+            tiers = [tier] + [t for t in ("processed", "derived", "raw") if t != tier]
+            if not any((data_root / t / f"{series}.csv").exists() for t in tiers):
+                raise SupportingPrintTrackingError(
+                    f"Supporting-print CSV '{series}.csv' (spec key '{spec.key}') is "
+                    f"absent from every data tier in CI. It is almost certainly "
+                    f"untracked under data/raw/* -- force-add it "
+                    f"(git add -f data/raw/{series}.csv data/raw/{series}.meta.json) "
+                    f"so the fresh CI checkout includes it. Untracked supporting-print "
+                    f"CSVs drop the print, which renders a canon 'TK' fallback and "
+                    f"fails the deploy leakage gate."
+                )
+
     primary = _read_series(spec.primary_series, spec.primary_dir, data_root)
     secondary: Optional[_LoadedSeries] = None
     if spec.secondary_series is not None:
@@ -1346,6 +1385,10 @@ def _build_section(cfg: SectionConfig, data_root: Path) -> dict:
             built = _build_supporting_print(supporting, data_root)
             if built is not None:
                 prints.append(built)
+        except SupportingPrintTrackingError:
+            # Deliberate fail-fast: an untracked supporting-print CSV must halt
+            # the CI build, not be swallowed like a transient series gap.
+            raise
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "site_data: supporting print %s/%s failed: %s: %s -- tile skipped",
@@ -1428,6 +1471,11 @@ def build_site_data(
         cfg = SECTION_CONFIGS[slug]
         try:
             sections[slug] = _build_section(cfg, data_root)
+        except SupportingPrintTrackingError:
+            # Untracked supporting-print CSV: fail the whole build, don't degrade
+            # the section to an empty-prints error stub (which would leak a canon
+            # 'TK' and freeze deploy at the leakage gate).
+            raise
         except Exception as exc:  # noqa: BLE001
             logger.error(
                 "site_data: section '%s' construction failed: %s: %s",
