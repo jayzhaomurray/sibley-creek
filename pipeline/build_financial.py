@@ -56,6 +56,7 @@ from pipeline.catalog.indeed_series import IndeedSpec
 from pipeline.catalog.yahoo_series import YahooSpec
 from pipeline.fetch import boc, fred, indeed_hiring_lab, yahoo
 from pipeline.io import SeriesMeta, build_site_data, write_series, write_series_merge
+from pipeline.io.input_tracking import verify_print_inputs_tracked
 from pipeline.io.panel_data import build_all_panel_data
 from pipeline.transform.derivations import goc_ust_spread
 
@@ -449,6 +450,14 @@ def main() -> int:
     # so sections.json + markets.json carried stale "available: false" / null
     # primary slots until the next full pipeline.build run. These two calls
     # close that gap: the daily financial run is now fully self-contained.
+    # Prophylactic: every declared print input must be git-tracked before we
+    # regenerate sections.json. An untracked input is absent in a clean CI
+    # checkout, silently drops its print, and freezes the deploy at the leakage
+    # gate. NOT wrapped in _safe -- this must halt the run before a degraded
+    # sections.json is written and committed. See pipeline/io/input_tracking.py.
+    logger.info("--- Verifying declared print inputs are git-tracked ---")
+    verify_print_inputs_tracked()
+
     logger.info("--- Site data bundle (financial refresh) ---")
     _safe("build_site_data", lambda: build_site_data(ROOT / "data"), failed)
 

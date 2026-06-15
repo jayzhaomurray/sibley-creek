@@ -24,6 +24,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  issues: write
 
 # Allow one concurrent deployment; queue subsequent pushes so a fast
 # follow-up doesn't kill an in-flight publish.
@@ -106,44 +107,68 @@ jobs:
         with:
           path: ./dist
 
-      # Phase 1 monitoring: fire an email if any build step above failed.
-      # Covers ALL failure classes: Astro build errors, JS build-gate trips
-      # (check_panel_data_wired, check_tk_in_dist, check_sections_slug_alignment,
-      # check_label_budgets, check_buildtime_file_refs, text-overlap gate), and
-      # any future steps added to this job. Requires GitHub Secrets:
-      #   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
-      # See docs/notifications.md for setup instructions.
-      - name: Notify on build failure
+      # Failure alert: open (or refresh) a GitHub Issue when any build step
+      # above fails. Covers ALL failure classes: Astro build errors and every
+      # JS build-gate trip (check_tk_in_dist, check_reader_copy_leakage,
+      # check_panel_data_wired, check_raw_tracked, slug-alignment, label
+      # budgets, text-overlap, etc.). Uses the built-in GITHUB_TOKEN -- NO SMTP
+      # secrets required. The prior dawidd6/action-send-mail step errored on
+      # every failure ("Input required and not supplied: from") because
+      # SMTP_FROM was never configured, so a 4-day deploy freeze (2026-06-11..15)
+      # went completely unalerted. An Issue is deduped by the `deploy-failure`
+      # label and self-resolves on the next green build (step below).
+      - name: Open or refresh deploy-failure issue
         if: failure()
-        uses: dawidd6/action-send-mail@v3
+        uses: actions/github-script@v7
         with:
-          server_address: ${{ secrets.SMTP_HOST }}
-          server_port: ${{ secrets.SMTP_PORT }}
-          username: ${{ secrets.SMTP_USER }}
-          password: ${{ secrets.SMTP_PASS }}
-          subject: "[Sibley Creek Alert] Deploy build failed (${{ github.workflow }} #${{ github.run_number }})"
-          to: jayzhaomurray@gmail.com
-          from: ${{ secrets.SMTP_FROM }}
-          body: |
-            WHAT HAPPENED
-            The Sibley Creek GitHub Actions deploy build failed on one or
-            more steps. The site is still serving the last successful build.
+          script: |
+            const { owner, repo } = context.repo;
+            const sha = context.sha.slice(0, 8);
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const body = [
+              `**Deploy build failed** on commit \`${sha}\` (run #${context.runNumber}, trigger: ${context.eventName}).`,
+              ``,
+              `The site is still serving the **last successful build** — visitors see no change, but any new data/content is **NOT live** until this is fixed.`,
+              ``,
+              `Open the run, find the failed step, fix the cause, and push (or re-run): ${runUrl}`,
+            ].join("\n");
+            const existing = await github.rest.issues.listForRepo({
+              owner, repo, state: "open", labels: "deploy-failure", per_page: 1,
+            });
+            if (existing.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: existing.data[0].number, body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner, repo,
+                title: "🚨 Deploy build failing — site not updating",
+                body,
+                labels: ["deploy-failure"],
+              });
+            }
 
-            WHAT VISITORS SEE
-            No change. Visitors see the last successfully-deployed version.
-            No data corruption occurred.
-
-            WHAT TO DO
-            Open the failed run link below. Check which step failed and
-            review the error output. Fix the underlying cause and either
-            push a new commit or re-run the workflow manually.
-
-            DETAILS
-            workflow: ${{ github.workflow }}
-            run_number: ${{ github.run_number }}
-            trigger: ${{ github.event_name }}
-            commit: ${{ github.sha }}
-            run_url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      # Self-resolve: when the build is green, close any open deploy-failure
+      # issue so a stale alert never lingers. Runs only if such an issue exists,
+      # so green runs don't spam.
+      - name: Resolve deploy-failure issue on success
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const open = await github.rest.issues.listForRepo({
+              owner, repo, state: "open", labels: "deploy-failure", per_page: 10,
+            });
+            for (const issue of open.data) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: issue.number,
+                body: `Recovered: build green on commit \`${context.sha.slice(0,8)}\` (run #${context.runNumber}). Closing.`,
+              });
+              await github.rest.issues.update({
+                owner, repo, issue_number: issue.number, state: "closed",
+              });
+            }
 
   deploy:
     needs: build

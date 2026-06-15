@@ -91,6 +91,15 @@ jobs:
       - name: Install Node dependencies (for integrity check)
         run: npm ci
 
+      - name: Verify declared print inputs are git-tracked
+        # Fast-fail BEFORE the build. An untracked declared input
+        # (data/raw/* is gitignored) is absent in this clean checkout, would
+        # silently drop its print, and freeze the deploy at the leakage gate.
+        # Also runs inside pipeline.build; this surfaces it early. See
+        # pipeline/io/input_tracking.py.
+        run: |
+          python -m pipeline.io.input_tracking
+
       - name: Run main pipeline build
         env:
           # FRED is invoked by `build_financial`, not `build`; passed

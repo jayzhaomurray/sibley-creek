@@ -91,6 +91,15 @@ jobs:
       - name: Install Node dependencies (for integrity check)
         run: npm ci
 
+      - name: Verify declared print inputs are git-tracked
+        # Fast-fail BEFORE the long fetch run. An untracked declared input
+        # (data/raw/* is gitignored) is absent in this clean checkout, would
+        # silently drop its print, and freeze the deploy at the leakage gate.
+        # The same check also runs inside pipeline.build_financial; this step
+        # surfaces it early and visibly. See pipeline/io/input_tracking.py.
+        run: |
+          python -m pipeline.io.input_tracking
+
       - name: Run daily Financial build
         env:
           # Secrets are pulled from the repository's Settings -> Secrets.

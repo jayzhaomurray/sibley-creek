@@ -66,6 +66,7 @@ from pipeline.catalog.statcan_series import StatcanSpec, get_url as statcan_url
 from pipeline.fetch import alberta, boc, cba_arrears, cpi_basket, cpi_components, crea, dof_fiscal, imf_weo, statcan
 from pipeline.fetch._http import get_client as _http_get_client
 from pipeline.io import SeriesMeta, build_site_data, write_series
+from pipeline.io.input_tracking import verify_print_inputs_tracked
 from pipeline.io.panel_data import build_all_panel_data
 from pipeline.transform import yoy_pct
 from pipeline.transform.derivations import (
@@ -3029,6 +3030,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     #    build time. Per-section failures are absorbed inside build_site_data
     #    (a missing series yields a sentinel entry, not an exception), so
     #    this step never sinks the whole pipeline build.
+    # Prophylactic: declared print inputs must be git-tracked, else a clean CI
+    # checkout drops the print and freezes the deploy. Halt before writing a
+    # degraded sections.json. See pipeline/io/input_tracking.py.
+    logger.info("--- Verifying declared print inputs are git-tracked ---")
+    verify_print_inputs_tracked()
+
     logger.info("--- Site data bundle ---")
     DATA_SITE.mkdir(parents=True, exist_ok=True)
     _safe("build_site_data", lambda: build_site_data(DATA_ROOT), failed)
