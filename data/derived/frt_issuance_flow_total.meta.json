@@ -1,0 +1,18 @@
+{
+  "name": "frt_issuance_flow_total",
+  "source": "DERIVED: sum of frt_issuance_flow_bills + frt_issuance_flow_notes + frt_issuance_flow_bonds. Component sources: Debt Management Report Table 4.1 (history FY2019-20 to FY2024-25) + DMS 2025-26 / SEU 2026 Annex 3 (forecast FY2025-26, FY2026-27). Queue entry: editorial/_derived_slot_queue.yaml frt_issuance_flow_total (added 2026-06-04).",
+  "source_url": "https://budget.canada.ca/update-miseajour/2026/report-rapport/anx3-en.html",
+  "units": "CAD billions per fiscal year",
+  "frequency": "annual",
+  "vintage": "History: latest-vintage Debt Management Report Table 4.1 (pub. 2020-2025). Forecast: DMS 2025-26 (4 Nov 2025) for FY2025-26; SEU 2026 Annex 3 (28 Apr 2026) for FY2026-27.",
+  "fetched_at": "2026-06-16T20:05:10.855146+00:00",
+  "schema_version": 1,
+  "is_forecast_field": "is_forecast",
+  "is_forecast_note": "is_forecast=0 = history (DMR actuals). is_forecast=1 = planned (DMS/SEU 2026 plan). Mixed: is_forecast=1 if ANY component is forecast.",
+  "columns": {
+    "value": "total gross issuance (bills + notes + bonds) $B/FY",
+    "bond_subtotal": "bond-only subtotal (notes + bonds) $B/FY"
+  },
+  "methodology_caveat": "BILLS bucket = year-end Treasury-bill STOCK (DMR's own convention), NOT gross bill auctions. NOTES + BONDS = true gross issuance flow. The 'total' is the DMR 'gross issuance of bonds and bills' hybrid headline. See frt_issuance_flow_bills.meta.json for the full caveat. Verified reference values: FY2020-21 total=590, bond_subtotal=371; FY2024-25 total=526, bond_subtotal=241; FY2025-26 total=603, bond_subtotal=317 (bond_subtotal 317/241 = +31.5% YoY).",
+  "notes": "Materialized from _derived_slot_queue.yaml entry frt_issuance_flow_total (2026-06-04). Backs the '$603bn record', 'tops the 2020-21 peak (590)', and '+31% bond buckets' claims on the issuance plate so they read from a slot rather than require ad-hoc re-derivation at fact-check time."
+}

@@ -1,114 +1,196 @@
 ---
 /*
- * /fiscal/ — coming-soon placeholder.
+ * /fiscal/ — Chartbook page wiring the six fiscal plates.
  *
- * The full chartbook is still in development. Draft alternatives should live
- * on separate direct-link review routes until one is explicitly promoted.
+ * FINAL SLATE (Story-A merge 2026-06-10; base slate Jay-approved 2026-06-04):
+ *   plate-1 (01) balance two-panel        — fiscal.json panel-6
+ *   plate-2 (02) DoF-vs-PBO dispute bars  — fiscal.json panel-11
+ *   plate-3 (03) rev vs exp merged lines  — fiscal.json panels 7+8 (combined)
+ *   plate-4 (04) debt diptych             — fiscal.json panel-9 (debt/GDP)
+ *                                           + data/derived/frt_debt_charges_pct_revenues.csv
+ *                                           (annual carrying cost, read inside the component)
+ *   plate-5 (05) issuance by instrument   — fiscal.json panel-10
+ *
+ * STORY-A MERGE (2026-06-10): the former plate-4 (debt/GDP,
+ * Plate4FederalDebtPctGDP) and plate-5 (monthly debt-service ratio,
+ * Panel2DebtServiceRatio) are REPLACED by one merged diptych
+ * (Plate4DebtDiptych, chartKey fiscal-debt-diptych) per the approved
+ * story_a.png mockup. The right panel now uses the ANNUAL FRT/PBO
+ * carrying-cost series, not the monthly fiscal-monitor ratio. Losing
+ * components retained per "tag and leave".
+ *
+ * PLATE 3 DATA WIRING (merged revenue+expense chart, R2.5):
+ *   Plate2RevenuesPctGDP is the merged two-line chart (revenues vs expenses).
+ *   It receives a combined PanelData where:
+ *     primary   = panel-7 primary (frt_revenues_pct_gdp)
+ *     secondary = panel-8 primary (frt_program_exp_pct_gdp)
+ *   This is composed here before passing to SectionLayout. (The component
+ *   keeps its historical "Plate2" filename per "tag and leave"; it renders
+ *   as plate-3 in the final slate.)
+ *
+ * PLATE 2 (NEW 2026-06-04): Plate2OperatingDispute, grouped signed bars,
+ *   DoF operating balance (SEU Apr 2026) vs PBO recast (Nov 2025 recast of
+ *   Budget 2025). The two series are different vintages — the component and
+ *   the copy both avoid same-year subtraction; the $94B annotation is the
+ *   verified capital-classification wedge.
+ *
+ * Plate3ProgramExpPctGDP CUT 2026-06-02 (redundant with the merged rev/exp
+ * chart). Plate1BalanceComposition + Plate2RevExpTwoPanel UNWIRED 2026-06-02
+ * (Jay picked the winners). All losing files retained per "tag and leave".
+ *
+ * Reader copy: passed all three gates (fact / style / surface-fit), two
+ * rounds, 2026-06-04. Plate-2 and plate-4 PBO claims cite source cards
+ * pending user approval — see editorial/source_cards/_pending/fiscal/.
  */
-import BaseLayout from "../layouts/BaseLayout.astro";
-import { sections, site } from "../data/sections";
-import { withBase } from "../lib/urls";
 
-const fiscalSection = sections.find((s) => s.slug === "fiscal");
-const headlineQuestion =
-  fiscalSection?.headlineQuestion ?? "What is Canada's fiscal policy stance?";
+import SectionLayout from "../layouts/SectionLayout.astro";
+import type { Plate } from "../layouts/SectionLayout.astro";
+import { sections } from "../data/sections";
+import panelDataFile from "../../data/site/panel_data/fiscal.json";
+import { pickPanel } from "../components/charts/_shared/panelData";
+import type { PanelData } from "../components/charts/_shared/panelData";
+
+const section = sections.find((s) => s.slug === "fiscal");
+if (!section) {
+  throw new Error("Fiscal section not found in src/data/sections.ts");
+}
+
+const panel6Data  = pickPanel(panelDataFile, 6);
+const panel7Data  = pickPanel(panelDataFile, 7);
+const panel8Data  = pickPanel(panelDataFile, 8);
+const panel9Data  = pickPanel(panelDataFile, 9);
+const panel10Data = pickPanel(panelDataFile, 10);
+const panel11Data = pickPanel(panelDataFile, 11);
+
+// ---- Plate 3 combined data: revenues (primary) + expenses (secondary) ----------
+// Plate2RevenuesPctGDP is the merged two-line chart (R2.5).
+// The component reads: data.primary = revenues, data.secondary = expenses.
+const plate3CombinedData: PanelData | null = (panel7Data && panel8Data)
+  ? {
+      ...panel7Data,
+      // Graft panel-8's primary series into the secondary slot so the merged
+      // chart component can read both series from a single data prop.
+      secondary: panel8Data.primary ?? null,
+    }
+  : (panel7Data ?? null);
+
+const plates: Plate[] = [
+  {
+    id: "plate-1",
+    number: "01",
+    indicator: "Budget balance — full history, plus the operating-capital forecast",
+    plateIndexLabel: "Operating balance",
+    title: "Ottawa plans to balance day-to-day spending and borrow only for capital.",
+    interpretation:
+      "The operating balance is set to swing from deficit to a small surplus by 2028-29; capital investment of $40 to $60 billion a year keeps the headline balance in the red.",
+    source: "Department of Finance.",
+    citations: [
+      { phrase: "2028-29", source: "card:claim_dof_operating_surplus_2028_29", note: "SEU 2026 Annex 1 Table A1.5: day-to-day operating balance first turns positive in FY2028-29 (+$0.9bn)." },
+      { phrase: "$40 to $60 billion", source: "card:claim_dof_capital_investment_40_60", note: "SEU 2026 Annex 1 Table A1.4 total capital investments: $40.5bn to $60.6bn over FY2025-26 to FY2030-31." },
+    ],
+    chartKey: "fiscal-plate-1-alt",
+    data: panel6Data,
+    // Explicit: derived as-of reads the forecast endpoint (Mar 2031) as if it
+    // were a data vintage. Stamp the actual vintage instead.
+    asOf: "Apr 2026 (DoF) / Nov 2025 (PBO)",
+  },
+  {
+    id: "plate-2",
+    number: "02",
+    indicator: "Budget 2025 operating balance under two definitions of capital",
+    plateIndexLabel: "Capital, disputed",
+    title: "The budget watchdog says the government misclassifies operating costs as capital.",
+    interpretation:
+      "The government's books show day-to-day spending balancing by 2028-29. But the PBO counts tax breaks and subsidies as everyday spending — moving $94 billion back into operating expenses over the plan's six years, and keeping the operating books in deficit through 2029-30.",
+    source: "Parliamentary Budget Officer.",
+    citations: [
+      { phrase: "misclassifies operating costs as capital", source: "card:claim_pbo_capital_def_too_loose", note: "Plain-English render of PBO RP-2526-017-S p.1 verbatim: 'the Government's definition of capital investments is overly expansive' — i.e. expenses the PBO would treat as operating are booked as capital. Attributed via 'The watchdog thinks.'" },
+      { phrase: "balancing by 2028-29", source: "card:claim_dof_balancing_2028_29", note: "RP-2526-017-S Table 4, row 1 (Budget 2025 as presented): −4.1, −33.0, −8.7, −5.5, +1.7, +3.0 — first positive FY2028-29 at +$1.7bn." },
+      { phrase: "tax breaks and subsidies as everyday spending", source: "card:claim_pbo_tax_breaks_subsidies", note: "The categories PBO reclassifies out of capital: corporate income-tax expenditures ('tax breaks' per Gate-1 ruling), investment tax credits, operating subsidies." },
+      { phrase: "$94 billion back into operating expenses over the plan's six years", source: "card:claim_pbo_94bn_reclassified", note: "Cumulative classification wedge $94.2bn over FY2024-25→2029-30 (DoF $311.5bn capital vs PBO $217.3bn). Attributed via trailing 'the Parliamentary Budget Officer says.'" },
+      { phrase: "in deficit through 2029-30", source: "card:claim_pbo_deficit_through_2029_30", note: "Table 4, row 2 (same budget, PBO definition): −10.5, −45.8, −25.3, −23.3, −18.1, −17.6 — all negative. 'Would' marks the conditional (under PBO's definition)." },
+    ],
+    chartKey: "fiscal-plate-2-dispute",
+    data: panel11Data,
+    // One document read two ways — stamp names the document + recast vintage.
+    asOf: "Apr 2026",
+  },
+  {
+    id: "plate-3",
+    number: "03",
+    indicator: "Federal revenues vs program expenses, % of GDP",
+    plateIndexLabel: "Revenue vs spending",
+    title: "As spending falls, revenues hold flat.",
+    interpretation:
+      "Whatever the definition fight, the deficit is forecast to narrow from reduced spending, not higher revenues. Projected revenues hold near 16% of GDP, while spending is set to fall to 15% by 2030-31.",
+    source: "Department of Finance.",
+    citations: [
+      { phrase: "Projected revenues hold near 16% of GDP", source: "card:claim_dof_revenue_program_spending_pct_gdp", note: "FY2030-31 forecast revenue share is 15.67% of GDP." },
+      { phrase: "spending is set to fall to 15% by 2030-31", source: "card:claim_dof_revenue_program_spending_pct_gdp", note: "FY2030-31 forecast program expenses are 15.10% of GDP, rounded to 15%." },
+    ],
+    chartKey: "fiscal-plate-2",
+    data: plate3CombinedData,
+    asOf: "Apr 2026",
+  },
+  {
+    // Plate-4 caption re-gated 2026-06-16 (fact / style / surface-fit) ahead of publish.
+    id: "plate-4",
+    number: "04",
+    indicator: "Federal debt, % of GDP, and debt charges, % of revenue",
+    plateIndexLabel: "Debt & carrying cost",
+    title: "Debt rises modestly, but servicing costs climb faster.",
+    interpretation:
+      "Debt-to-GDP sits at 41.2% and is set to rise by about 1 to 2 percentage points. But debt servicing costs will rise faster: interest payments will rise from 10 to 13 cents per revenue dollar by 2030-31.",
+    source: "Department of Finance; Parliamentary Budget Officer.",
+    citations: [
+      { phrase: "Debt-to-GDP sits at 41.2%", source: "pipeline:fiscal:panel-9", note: "frt_federal_debt_pct_gdp: FY2024-25 last actual is 41.2%." },
+      { phrase: "rise by about 1 to 2 percentage points", source: "card:claim_pbo_debt_gdp_flat_low42s", note: "DoF rises from 41.1% in FY2025-26 to a 41.9% FY2028-29 peak, about 0.8pp; PBO rises from 40.7% in FY2024-25 to a 42.6% FY2028-29/2029-30 peak, about 1.9pp. The phrase frames the envelope across the two tracks." },
+      { phrase: "debt servicing costs will rise faster", source: "card:claim_dof_dsr_13c_2030", note: "Carrying cost rises from 10.5% of revenue in FY2024-25 to 13.2% by FY2030-31 on the DoF-derived track, a larger relative increase than the debt-to-GDP ratio." },
+      { phrase: "interest payments will rise from 10 to 13 cents per revenue dollar by 2030-31", source: "card:claim_dof_dsr_13c_2030", note: "FRT/PBO/DoF annual carrying-cost series: FY2024-25 is 10.5%; DoF SEU 2026 implies 13.2% by FY2030-31 and PBO's same concept is 13.1%, rounded in prose to 10 to 13 cents." },
+    ],
+    chartKey: "fiscal-debt-diptych",
+    data: panel9Data,
+    asOf: "Apr 2026 (DoF) / Jun 2026 (PBO)",
+  },
+  {
+    id: "plate-5",
+    number: "05",
+    indicator: "Gross issuance by maturity: Treasury bills and bonds",
+    plateIndexLabel: "Issuance by instrument",
+    title: "Gross issuance is set to ease.",
+    interpretation:
+      "The government plans $566 billion of gross debt issuance in 2026-27, down from last year's $603 billion. Three quarters will be used to refinance maturing debt, while the rest reflects new borrowing.",
+    source: "Department of Finance.",
+    citations: [
+      { phrase: "$566 billion of gross debt issuance in 2026-27", source: "card:claim_dof_2026_27_refinancing_share", note: "SEU 2026 Annex 3: projected 2026-27 gross domestic issuance is $566bn. Live copy uses 'gross debt issuance' as a reader-facing paraphrase of the domestic bonds-and-bills program shown in the chart." },
+      { phrase: "down from last year's $603 billion", source: "card:claim_dof_gross_issuance_603_2025_26", note: "SEU 2026 Annex 3 Table A3.2: 2025-26 estimated total domestic issuance = $603bn." },
+      { phrase: "Three quarters will be used to refinance maturing debt", source: "card:claim_dof_2026_27_refinancing_share", note: "SEU 2026 Annex 3: $433bn of $566bn 2026-27 gross domestic issuance refinances maturing debt, 77%, rounded to three quarters." },
+      { phrase: "the rest reflects new borrowing", source: "card:claim_dof_2026_27_refinancing_share", note: "SEU 2026 Annex 3: the remaining $133bn is projected financial requirements, i.e. the part not refinancing maturing debt." },
+    ],
+    footnote:
+      "The Treasury-bill figure is the year-end stock, not annual auction volume.",
+    chartKey: "fiscal-plate-5",
+    data: panel10Data,
+    // "Mar 2027" derived stamp = the FY2026-27 plan endpoint, not a vintage.
+    asOf: "Apr 2026",
+  },
+];
+
+const pageTitle = "Fiscal";
+const pageDescription =
+  "Canadian fiscal policy chartbook: deficits, the operating-capital dispute, revenues and spending, federal debt, carrying costs, and gross issuance.";
+
+const lede = section.blurb?.body ?? "";
 ---
-<BaseLayout
-  title={`Fiscal — ${site.name}`}
-  description="Sibley Creek's fiscal policy section. Coming soon."
-  pageClass="coming-soon-page"
->
-  <main class="coming-soon" aria-labelledby="coming-soon-h">
-    <p class="coming-soon__eyebrow">
-      <span class="coming-soon__fig">Section</span>
-      <span class="coming-soon__fig-n">05.</span>
-      <span class="coming-soon__label">Fiscal</span>
-    </p>
-    <h1 id="coming-soon-h" class="coming-soon__h">{headlineQuestion}</h1>
-    <p class="coming-soon__lede">
-      The fiscal section is in development. Check back shortly.
-    </p>
-    <p class="coming-soon__back">
-      <a href={withBase("/overview/")}>Back to the overview</a>
-    </p>
-  </main>
-
-  <style>
-    .coming-soon {
-      max-width: 720px;
-      margin: 96px auto 160px;
-      padding: 0 32px;
-      font-family: var(--font-sans);
-    }
-
-    .coming-soon__eyebrow {
-      margin: 0 0 28px;
-      font-family: var(--font-sans);
-      font-weight: 600;
-      font-size: 10px;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: var(--ink);
-      line-height: 1.4;
-    }
-
-    .coming-soon__fig {
-      color: var(--ink);
-      font-weight: 600;
-    }
-
-    .coming-soon__fig-n {
-      color: var(--accent);
-      font-weight: 800;
-      margin-left: 0.2em;
-    }
-
-    .coming-soon__label {
-      margin-left: 0.6em;
-      color: var(--ink);
-    }
-
-    .coming-soon__h {
-      margin: 0 0 32px;
-      font-family: var(--font-sans);
-      font-weight: 800;
-      font-size: clamp(36px, 6vw, 64px);
-      letter-spacing: -0.01em;
-      line-height: 1.05;
-      color: var(--ink);
-    }
-
-    .coming-soon__lede {
-      margin: 0 0 40px;
-      font-family: var(--font-sans);
-      font-weight: 300;
-      font-size: 18px;
-      line-height: 1.5;
-      color: var(--ink);
-    }
-
-    .coming-soon__back {
-      margin: 0;
-      font-family: var(--font-sans);
-      font-weight: 400;
-      font-size: 14px;
-      line-height: 1.4;
-    }
-
-    .coming-soon__back a {
-      color: var(--ink);
-      text-decoration: none;
-      border-bottom: 1px solid var(--ink);
-    }
-
-    .coming-soon__back a:hover {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-    }
-
-    .coming-soon__back a:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 3px;
-    }
-  </style>
-</BaseLayout>
+<SectionLayout
+  slug="fiscal"
+  sectionIndex={5}
+  sectionLabel="Fiscal"
+  headlineQuestion={section.headlineQuestion}
+  lede={lede}
+  latestReleaseLabel={null}
+  plates={plates}
+  title={pageTitle}
+  description={pageDescription}
+  dateModified={new Date(section.updatedAt).toISOString()}
+/>

@@ -1,0 +1,505 @@
+---
+/*
+ * Plate4DebtDiptych — "Story A" merged diptych: federal debt %GDP (left) |
+ * debt charges % of revenues (right). Replaces the separate plate-4
+ * (Plate4FederalDebtPctGDP) + plate-5 (Panel2DebtServiceRatio) pair; both
+ * losing files retained per "tag and leave".
+ *
+ * VISUAL SPEC: direct port of scripts/render_story_a_v2.mjs (full variant),
+ * the Jay-approved mockup at claude-ref/process/fiscal_mockups/story_a.png.
+ * Same two-panel layout, full window FY1983-84 -> FY2030-31, both forecast
+ * lines bridging from the FY2024-25 actual anchor, red dots on the actuals,
+ * FORECAST dividers, PBO/DoF + 10.5%/13.1% furniture labels.
+ *
+ * HARD CANON: the SVG carries data, axes, tick labels, dividers, dots and
+ * short furniture labels ONLY. NO title, NO source line, NO as-of/metadata
+ * text, NO prose sentence inside the canvas — ever. Title / interpretation /
+ * source / asOf are PAGE-TEMPLATE slots rendered around the chart by
+ * SectionLayout/ChartbookUnit. (The mockup script's bottom "Sources:" text
+ * was a violation; it does NOT exist here and must not come back.)
+ *
+ * DATA
+ *  Left panel — fiscal.json panel-9 (passed via the `data` prop):
+ *    primary   = frt_federal_debt_pct_gdp
+ *                42 actuals FY1983-84..FY2024-25 (last actual 41.2) +
+ *                6 DoF forecasts FY2025-26..FY2030-31 (SEU Apr 2026, end 41.6).
+ *    secondary = frt_federal_debt_pct_gdp_pbo (PBO EFO Jun 2026, end 42.5).
+ *                PBO's own FY2024-25 point (40.7) is the SAME debt level on a
+ *                later GDP-vintage denominator — NOT a forecast disagreement.
+ *                It is DROPPED from the render; the PBO dashed line bridges
+ *                from the shared FY2024-25 actual anchor (41.2) instead.
+ *                (Per story_a_data.json render_guidance, backend-verified.)
+ *  Right panel — data/derived/frt_debt_charges_pct_revenues.csv plus
+ *    frt_debt_charges_pct_revenues_dof.csv, read at build time (git-tracked
+ *    on this branch — resolves in a clean checkout; NOT in gitignored data/raw).
+ *    Gross public debt charges as % of total budgetary revenues, annual
+ *    fiscal-year: FRT 2025 Table 13 history (FY1983-84..FY2024-25, last actual
+ *    10.5) + PBO EFO Jun 2026 forecast (end 13.1) and DoF SEU 2026 derived
+ *    forecast from Annex 1 Table A1.7 public debt charges / revenues (end 13.2).
+ *    ANNUAL series — replaces the monthly fiscal-monitor debt_service_ratio
+ *    (panel-2); do not mix the two.
+ *
+ * GEOMETRY (mockup-exact): viewBox 720x384; plot band y 44..356; panels
+ * x 46..352 and 398..704; shared x-window 1983.3..2031.7 (FY end-years),
+ * x-ticks 1990/2000/2010/2020/2030; left y 26..68 ticks 30/40/50/60;
+ * right y 0..40 ticks 10/20/30/40 + bare "0" at the base. Top tick carries
+ * the "%" suffix. Solid 1.5px ink actuals; DoF forecast dashed 6 4 at 1.5px;
+ * PBO dashed 4 2 at 1px; MTA-red 4px dot on each panel's last actual;
+ * dashed FORECAST divider at the anchor year in both panels.
+ */
+
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import type { PanelData } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---- Data extraction -----------------------------------------------------------
+type RawPt = { date: string; value: number | null; is_forecast?: number; fy_label?: string };
+
+interface Pt {
+  endYear: number; // FY end year, e.g. "2025-03-31" -> 2025 (FY2024-25)
+  fy: string;
+  value: number;
+  isForecast: boolean;
+}
+
+const toPts = (rows: RawPt[] | undefined | null): Pt[] => {
+  const out: Pt[] = [];
+  if (!rows) return out;
+  for (const r of rows) {
+    if (r.value === null || r.value === undefined) continue;
+    const endYear = parseInt(r.date.slice(0, 4), 10);
+    if (Number.isNaN(endYear)) continue;
+    out.push({
+      endYear,
+      fy: r.fy_label ?? r.date.slice(0, 4),
+      value: r.value,
+      isForecast: r.is_forecast === 1,
+    });
+  }
+  return out;
+};
+
+// Left panel: DoF (primary) + PBO (secondary) from panel-9
+const dofPts = toPts(data?.primary?.data as RawPt[] | undefined);
+const dofAct = dofPts.filter((p) => !p.isForecast);
+const anchor1 = dofAct.length > 0 ? dofAct[dofAct.length - 1]! : null; // FY2024-25, 41.2
+// DoF forecast path leads with the actual anchor so the dashed line is continuous.
+const dofFc = anchor1 ? [anchor1, ...dofPts.filter((p) => p.isForecast)] : [];
+
+// PBO: drop every point at/before the anchor year (= the 40.7 own-vintage
+// FY2024-25 estimate), bridge from the shared actual anchor instead.
+const pboRaw = toPts(data?.secondary?.data as RawPt[] | undefined);
+const pboFc = anchor1
+  ? [
+      { ...anchor1, isForecast: false }, // bridge point (41.2, NOT a PBO number)
+      ...pboRaw.filter((p) => p.endYear > anchor1.endYear),
+    ]
+  : [];
+
+// Right panel: annual carrying-cost series from the git-tracked derived CSV.
+// Build-time read; fails soft to the PanelEmpty state if the file is absent.
+let ccPts: Pt[] = [];
+try {
+  const csvPath = resolve(process.cwd(), "data", "derived", "frt_debt_charges_pct_revenues.csv");
+  const lines = readFileSync(csvPath, "utf-8").split(/\r?\n/).filter((l) => l.length > 0);
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i]!.split(",");
+    if (cols.length < 4) continue;
+    const date = cols[0]!.trim();
+    const value = Number(cols[1]);
+    const isFc = cols[2]!.trim() === "1";
+    const fy = cols[3]!.trim();
+    if (!date || Number.isNaN(value)) continue;
+    ccPts.push({ endYear: parseInt(date.slice(0, 4), 10), fy, value, isForecast: isFc });
+  }
+} catch {
+  ccPts = [];
+}
+const ccAct = ccPts.filter((p) => !p.isForecast);
+const anchor2 = ccAct.length > 0 ? ccAct[ccAct.length - 1]! : null; // FY2024-25, 10.5
+const ccFc = anchor2 ? [anchor2, ...ccPts.filter((p) => p.isForecast)] : [];
+
+let ccDofPts: Pt[] = [];
+try {
+  const csvPath = resolve(process.cwd(), "data", "derived", "frt_debt_charges_pct_revenues_dof.csv");
+  const lines = readFileSync(csvPath, "utf-8").split(/\r?\n/).filter((l) => l.length > 0);
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i]!.split(",");
+    if (cols.length < 4) continue;
+    const date = cols[0]!.trim();
+    const value = Number(cols[1]);
+    const isFc = cols[2]!.trim() === "1";
+    const fy = cols[3]!.trim();
+    if (!date || Number.isNaN(value)) continue;
+    ccDofPts.push({ endYear: parseInt(date.slice(0, 4), 10), fy, value, isForecast: isFc });
+  }
+} catch {
+  ccDofPts = [];
+}
+const ccDofFc = anchor2
+  ? [
+      { ...anchor2, isForecast: false },
+      ...ccDofPts.filter((p) => p.endYear > anchor2.endYear),
+    ]
+  : [];
+
+const hasData = dofAct.length > 0 && ccAct.length > 0 && anchor1 !== null && anchor2 !== null && ccDofFc.length > 1;
+
+// ---- Geometry (mockup-exact: render_story_a_v2.mjs full variant) ----------------
+const VB_W = 720;
+const VB_H = 384;
+const Y0 = 44;
+const Y1 = 356;
+const PH = Y1 - Y0;
+const XMIN = 1983.3;
+const XMAX = 2031.7;
+const X_YEARS = [1990, 2000, 2010, 2020, 2030];
+const ANCHOR_YR = anchor1 ? anchor1.endYear : 2025;
+
+interface PanelSpec {
+  X0: number;
+  X1: number;
+  lo: number;
+  hi: number;
+  ticks: number[];
+  zero: boolean;
+  title: string;
+}
+const PANELS: PanelSpec[] = [
+  { X0: 46, X1: 352, lo: 26, hi: 68, ticks: [30, 40, 50, 60], zero: false, title: "FEDERAL DEBT, % OF GDP" },
+  { X0: 398, X1: 704, lo: 0, hi: 40, ticks: [10, 20, 30, 40], zero: true, title: "DEBT CHARGES, % OF REVENUES" },
+];
+
+const f = (n: number): string => n.toFixed(2);
+const xScaleFor = (p: PanelSpec) => (y: number) => p.X0 + ((y - XMIN) / (XMAX - XMIN)) * (p.X1 - p.X0);
+const yScaleFor = (p: PanelSpec) => (v: number) => Y0 + ((p.hi - v) / (p.hi - p.lo)) * PH;
+const pathOf = (pts: Pt[], X: (y: number) => number, Y: (v: number) => number): string =>
+  pts.map((p, i) => `${i === 0 ? "M" : "L"}${f(X(p.endYear))} ${f(Y(p.value))}`).join(" ");
+
+// ---- Per-panel render model ------------------------------------------------------
+interface TickY { y: number; label: string }
+interface TickX { x: number; label: string }
+interface Mark { x: number; y: number; text: string; cls: "dl" | "dl2" | "monoval"; anchor: "start" | "end" }
+interface Hit { cx: number; cy: number; title: string }
+
+interface PanelModel {
+  spec: PanelSpec;
+  yTicks: TickY[];
+  zeroTick: TickY | null;
+  xTicks: TickX[];
+  dividerX: number;
+  actPath: string;
+  fcPath: string;
+  secPath: string | null;
+  dot: { x: number; y: number; title: string };
+  marks: Mark[];
+  hits: Hit[];
+}
+
+const panels: PanelModel[] = [];
+
+if (hasData) {
+  for (const [pi, spec] of PANELS.entries()) {
+    const X = xScaleFor(spec);
+    const Y = yScaleFor(spec);
+    const topTick = spec.ticks[spec.ticks.length - 1]!;
+
+    const yTicks: TickY[] = spec.ticks.map((t) => ({
+      y: Y(t),
+      label: t === topTick ? `${t}%` : `${t}`,
+    }));
+    const zeroTick: TickY | null = spec.zero ? { y: Y(0), label: "0" } : null;
+    const xTicks: TickX[] = X_YEARS.map((xy) => ({ x: X(xy), label: String(xy) }));
+
+    const marks: Mark[] = [];
+    const hits: Hit[] = [];
+    let actPath = "";
+    let fcPath = "";
+    let secPath: string | null = null;
+    let dot = { x: 0, y: 0, title: "" };
+
+    if (pi === 0) {
+      actPath = pathOf(dofAct, X, Y);
+      fcPath = pathOf(dofFc, X, Y);
+      secPath = pboFc.length > 1 ? pathOf(pboFc, X, Y) : null;
+      dot = {
+        x: X(anchor1!.endYear),
+        y: Y(anchor1!.value),
+        title: `FY${anchor1!.fy}: ${anchor1!.value.toFixed(1)}% of GDP (last actual)`,
+      };
+      // End-of-line labels: PBO above its endpoint, DoF below its endpoint.
+      const pboEnd = pboFc[pboFc.length - 1]!;
+      const dofEnd = dofFc[dofFc.length - 1]!;
+      marks.push({ x: spec.X1 - 2, y: Y(pboEnd.value) - 10, text: "PBO", cls: "dl2", anchor: "end" });
+      marks.push({ x: spec.X1 - 2, y: Y(dofEnd.value) + 16, text: "DoF", cls: "dl", anchor: "end" });
+      for (const p of dofPts)
+        hits.push({ cx: X(p.endYear), cy: Y(p.value), title: `FY${p.fy}: ${p.value.toFixed(1)}% of GDP${p.isForecast ? " (DoF SEU Apr 2026 proj.)" : ""}` });
+      for (const p of pboFc)
+        if (p.isForecast)
+          hits.push({ cx: X(p.endYear), cy: Y(p.value), title: `FY${p.fy}: ${p.value.toFixed(1)}% of GDP (PBO EFO Jun 2026 proj.)` });
+    } else {
+      actPath = pathOf(ccAct, X, Y);
+      fcPath = pathOf(ccDofFc, X, Y);
+      secPath = ccFc.length > 1 ? pathOf(ccFc, X, Y) : null;
+      dot = {
+        x: X(anchor2!.endYear),
+        y: Y(anchor2!.value),
+        title: `FY${anchor2!.fy}: ${anchor2!.value.toFixed(1)}% of revenues (last actual)`,
+      };
+      for (const p of ccPts)
+        hits.push({ cx: X(p.endYear), cy: Y(p.value), title: `FY${p.fy}: ${p.value.toFixed(1)}% of revenues${p.isForecast ? " (PBO EFO Jun 2026 proj.)" : ""}` });
+      for (const p of ccDofFc)
+        if (p.isForecast)
+          hits.push({ cx: X(p.endYear), cy: Y(p.value), title: `FY${p.fy}: ${p.value.toFixed(1)}% of revenues (DoF SEU Apr 2026 proj., derived)` });
+    }
+
+    panels.push({
+      spec,
+      yTicks,
+      zeroTick,
+      xTicks,
+      dividerX: X(ANCHOR_YR),
+      actPath,
+      fcPath,
+      secPath,
+      dot,
+      marks,
+      hits,
+    });
+  }
+}
+
+// ---- aria-label ------------------------------------------------------------------
+const ariaLabel = hasData
+  ? `Two-panel chart, FY1983-84 to FY2030-31, forecasts past the dashed dividers. ` +
+    `Left: federal debt as a percentage of GDP (federal government only, NOT general government). ` +
+    `Last actual ${anchor1!.value.toFixed(1)}% (FY${anchor1!.fy}); DoF (SEU Apr 2026) projects ` +
+    `${dofFc[dofFc.length - 1]!.value.toFixed(1)}% and PBO (EFO Jun 2026) ${pboFc[pboFc.length - 1]!.value.toFixed(1)}% by FY2030-31, after both remain in a narrow range. ` +
+    `Right: gross public debt charges as a percentage of total budgetary revenues. ` +
+    `Last actual ${anchor2!.value.toFixed(1)}% (FY${anchor2!.fy}); DoF projects ${ccDofFc[ccDofFc.length - 1]!.value.toFixed(1)}% and PBO projects ${ccFc[ccFc.length - 1]!.value.toFixed(1)}% by FY2030-31, a rising carrying cost even though the debt ratio remains in a narrow range.`
+  : "";
+---
+
+{!hasData ? (
+  <PanelEmpty reason="DATA NOT YET WIRED — fiscal.json panel-9 + data/derived/frt_debt_charges_pct_revenues*.csv" />
+) : (
+  <div class="p4dd-chart" data-panel="fiscal-debt-diptych" data-panel-status="live">
+    <svg
+      class="p4dd-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      {panels.map((pm) => (
+        <g>
+          {/* Panel furniture title — short subject label, not prose */}
+          <text class="p4dd-chart__ptitle" x={pm.spec.X0} y={Y0 - 24}>{pm.spec.title}</text>
+
+          {/* Gridlines + y-tick labels */}
+          {pm.yTicks.map((t) => (
+            <g>
+              <line
+                class="p4dd-chart__grid"
+                x1={pm.spec.X0} y1={f(t.y)}
+                x2={pm.spec.X1} y2={f(t.y)}
+              />
+              <text class="p4dd-chart__ytick" x={pm.spec.X0 - 8} y={f(t.y + 4)} text-anchor="end">{t.label}</text>
+            </g>
+          ))}
+          {pm.zeroTick && (
+            <text class="p4dd-chart__ytick" x={pm.spec.X0 - 8} y={f(pm.zeroTick.y + 4)} text-anchor="end">{pm.zeroTick.label}</text>
+          )}
+
+          {/* Forecast divider at the last actual (FY2024-25); label above the frame.
+              Right-anchored at pm.spec.X1 − 2 so the text always sits inside the panel
+              and never overflows the SVG viewBox (the right panel's divider sits near
+              x=662 leaving only ~54px to the 720px viewBox edge — not enough for the
+              "FORECAST" string at start-anchored position). */}
+          <line class="p4dd-chart__div" x1={f(pm.dividerX)} y1={Y0} x2={f(pm.dividerX)} y2={Y1} />
+          <text class="p4dd-chart__divlab" x={f(pm.spec.X1 - 2)} y={Y0 - 7} text-anchor="end">FORECAST</text>
+
+          {/* Series: solid actuals, dashed DoF/PBO forecasts */}
+          <path class="p4dd-chart__line" d={pm.actPath} />
+          <path class="p4dd-chart__line-fc" d={pm.fcPath} />
+          {pm.secPath && <path class="p4dd-chart__line-sec" d={pm.secPath} />}
+
+          {/* MTA red dot — the panel's last ACTUAL data point */}
+          <circle class="p4dd-chart__dot" cx={f(pm.dot.x)} cy={f(pm.dot.y)} r="4">
+            <title>{pm.dot.title}</title>
+          </circle>
+
+          {/* Furniture labels: PBO / DoF / latest + endpoint values */}
+          {pm.marks.map((m) => (
+            <text
+              class={`p4dd-chart__${m.cls}`}
+              x={f(m.x)} y={f(m.y)}
+              text-anchor={m.anchor}
+            >{m.text}</text>
+          ))}
+
+          {/* Hit areas (hover tooltips only — invisible) */}
+          {pm.hits.map((h) => (
+            <circle class="p4dd-chart__hit" cx={f(h.cx)} cy={f(h.cy)} r="5">
+              <title>{h.title}</title>
+            </circle>
+          ))}
+
+          {/* Hairline frame */}
+          <rect
+            class="p4dd-chart__frame"
+            x={pm.spec.X0} y={Y0}
+            width={pm.spec.X1 - pm.spec.X0} height={PH}
+          />
+
+          {/* X-axis tick marks + labels */}
+          {pm.xTicks.map((t) => (
+            <g>
+              <line class="p4dd-chart__rule" x1={f(t.x)} y1={Y1} x2={f(t.x)} y2={Y1 + 4} />
+              <text class="p4dd-chart__xtick" x={f(t.x)} y={Y1 + 19} text-anchor="middle">{t.label}</text>
+            </g>
+          ))}
+        </g>
+      ))}
+    </svg>
+  </div>
+)}
+
+<style>
+  /*
+   * Plate4DebtDiptych — Story-A diptych, mockup-exact port of
+   * render_story_a_v2.mjs CSS classes onto site CSS vars.
+   * No vector-effect: the mockup renders at native viewBox scale and the
+   * chart slot is ~viewBox width; stroke scaling is negligible and matching
+   * the approved pixels wins.
+   */
+  .p4dd-chart {
+    width: 100%;
+    aspect-ratio: 720 / 384;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+  .p4dd-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans);
+    overflow: visible;
+  }
+  .p4dd-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p4dd-chart__grid {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.16;
+    shape-rendering: crispEdges;
+  }
+  .p4dd-chart__rule {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  /* Solid actuals: 1.5px pure ink */
+  .p4dd-chart__line {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    fill: none;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  /* Primary (DoF / carrying-cost) forecast: 1.5px dashed 6 4 */
+  .p4dd-chart__line-fc {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    fill: none;
+    stroke-linejoin: round;
+    stroke-dasharray: 6 4;
+  }
+  /* Secondary (PBO debt track) forecast: 1px dashed 4 2 */
+  .p4dd-chart__line-sec {
+    stroke: var(--ink);
+    stroke-width: 1;
+    fill: none;
+    stroke-linejoin: round;
+    stroke-dasharray: 4 2;
+  }
+  /* MTA red latest-actual dot — the only red mark on the chart */
+  .p4dd-chart__dot {
+    fill: var(--accent);
+    stroke: none;
+  }
+  .p4dd-chart__hit {
+    fill: transparent;
+    stroke: none;
+    cursor: default;
+  }
+  /* Forecast divider: 1px dashed 4 2 at 0.55 */
+  .p4dd-chart__div {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-opacity: 0.55;
+    shape-rendering: crispEdges;
+  }
+  .p4dd-chart__divlab {
+    fill: var(--ink);
+    fill-opacity: 0.55;
+    font-family: var(--font-sans);
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+  }
+  .p4dd-chart__ptitle {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+  }
+  .p4dd-chart__ytick {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .p4dd-chart__xtick {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+  }
+  /* Primary end-of-line label (DoF): 13px 600 full ink */
+  .p4dd-chart__dl {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  /* Secondary end-of-line label (PBO): 12px 400 */
+  .p4dd-chart__dl2 {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+  }
+  /* Numeric value labels: Plex Mono 12px */
+  .p4dd-chart__monoval {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+</style>

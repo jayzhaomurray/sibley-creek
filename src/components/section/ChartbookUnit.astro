@@ -83,6 +83,12 @@ interface Props {
   /** Source citation, eg "Statistics Canada Table 36-10-0434-01." */
   source: string;
   /**
+   * Optional definitional footnote rendered above the source line, eg
+   * instrument-category definitions for a stacked-bar plate. Plain text;
+   * keep to one or two lines.
+   */
+  footnote?: string;
+  /**
    * Whether to render the chart slot or a dashed-border placeholder.
    * Set false on sections (Housing, Policy, Markets, Trade) where the
    * chart components have not yet landed. Default: true.
@@ -100,6 +106,7 @@ const {
   interpretationHtml,
   callout,
   source,
+  footnote,
   hasChart = true,
 } = Astro.props;
 
@@ -279,6 +286,9 @@ const asOfHtml = asOfHasTkToken ? substituteTkInText(asOf as string) : null;
 
   {/* Source line */}
   <footer class="chartbook-unit__foot">
+    {footnote && (
+      <p class="chartbook-unit__footnote">{footnote}</p>
+    )}
     <p class="chartbook-unit__source">
       <span class="chartbook-unit__source-label">Source:</span>
       <span class="chartbook-unit__source-text">{source}</span>
@@ -492,6 +502,15 @@ const asOfHtml = asOfHasTkToken ? substituteTkInText(asOf as string) : null;
   .chartbook-unit__foot {
     margin-top: var(--s-5);
   }
+  .chartbook-unit__footnote {
+    margin: 0 0 6px;
+    font-family: var(--font-mono);
+    font-weight: 400;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--ink);
+  }
+
   .chartbook-unit__source {
     margin: 0;
     font-family: var(--font-mono);

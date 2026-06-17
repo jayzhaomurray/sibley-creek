@@ -42,17 +42,6 @@
  * editorial-director (blurbs, deep-dive titles) in subsequent passes.
  */
 
-import { renderSectionProse } from "../lib/prose";
-
-/*
- * Mechanical prose (markets): the markets tileLine and blurb.body are NOT
- * hand-authored strings — they render at build time from
- * editorial/prose_templates/markets.yaml against live panel data, the same
- * render the /markets/ page consumes. Single source of truth: the template.
- * A template/render fault throws at import time and fails the build.
- */
-const marketsProse = renderSectionProse("markets");
-
 export type SectionSlug =
   | "output"
   | "inflation"
@@ -248,6 +237,9 @@ export const sections: Section[] = [
     latestReleasePrefix: "Monthly GDP by industry",
     tileLine:
       "Growth slowed to 0.4% in March, driven by the goods sector.",
+    tileLineCitations: [
+      { phrase: "0.4% in March", source: "pipeline:statcan:gdp_monthly_yoy", note: "Monthly real GDP y/y: 0.41% Mar 2026, down from 0.78% Feb 2026 (data/processed/gdp_monthly_yoy.csv)." },
+    ],
     prints: [
       {
         // Real GDP y/y is the primary print — first row, matches the
@@ -454,11 +446,11 @@ export const sections: Section[] = [
     headlineQuestion:
       "What is Canada's monetary policy stance?",
     cadence: "Event-driven + monthly",
-    // Jun 10 rate decision is the primary event; daily yields refresh
+    // Apr 29 rate decision is the primary event; daily yields refresh
     // continuously but the policy stance is anchored to the rate decision.
-    updatedAt: Date.UTC(2026, 5, 10, 14, 0),
+    updatedAt: Date.UTC(2026, 3, 29, 14, 0),
     chartSeriesKey: "policy-rate",
-    heroKicker: "June rate decision",
+    heroKicker: "April rate decision",
     // Policy's primary event is the rate decision, not the pipeline's
     // monthly `policy-rate` print. heroKickerPrefix is hand-set to the
     // event-month phrasing; the page-level "Latest release" date is
@@ -466,18 +458,17 @@ export const sections: Section[] = [
     // decision doesn't sit in `prints[]` directly.
     heroKickerPrefix: "Rate decision",
     latestReleasePrefix: "BoC rate decision",
-    latestReleaseDateOverride: "Jun 10, 2026",
+    latestReleaseDateOverride: "Apr 29, 2026",
     tileLine:
-      "BoC held at the floor of neutral, 150 bps below the Fed — now calling it a dilemma.",
+      "BoC parked at the floor of neutral, 150 bps below the Fed and holding.",
     tileLineCitations: [
       { phrase: "floor of neutral", source: "card:boc_mpr_neutral_range", note: "BoC stated nominal neutral range 2.25-3.25%; overnight at 2.25% sits at the floor." },
-      { phrase: "150 bps below the Fed", source: "derived", note: "BoC overnight 2.25% minus Fed upper bound 3.75% = -150 bps. Confirm Fed level against backend's June refresh." },
-      { phrase: "calling it a dilemma", source: "derived", note: "Verbatim, BoC June 10 2026 rate decision press release: 'Economic weakness combined with rising inflation is a dilemma for monetary policy.' FLAG: migrate to the June 10 statement source card when it lands." },
+      { phrase: "150 bps below the Fed", source: "derived", note: "BoC overnight 2.25% minus Fed upper bound 3.75% = -150 bps." },
     ],
     prints: [
       {
         // Pipeline produces a real value for this row (BoC overnight rate,
-        // currently 2.25% Jun 2026); loader overwrites canon scaffold with
+        // currently 2.25% Apr 2026); loader overwrites canon scaffold with
         // real data before render. TK is a fallback marker.
         key: "policy-rate",
         indicator: "BoC overnight rate",
@@ -517,17 +508,14 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "Jun 10, 2026",
+      date: "Apr 29, 2026",
       body:
-        "A hold without a lean. The Bank of Canada held at 2.25% — the floor of its 2.25 to 3.25% neutral range — for a fifth straight decision, and swapped April's easing lean for what it now calls a dilemma: growth is softening while energy has pushed inflation back toward 3%. Cutting risks entrenching the overshoot; hiking risks deepening the slowdown. The Bank named triggers in both directions and said policy may need to be nimble.",
+        "On hold. The Bank of Canada has stayed at 2.25% through five straight decisions, sitting at the floor of its 2.25 to 3.25% neutral range. Activity is softening at the same time the Iran-war oil shock is feeding energy inflation. The call hinges on persistence — how long the Strait of Hormuz stays closed, and whether the shock seeps into expectations.",
     },
     abstractCitations: [
-      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, Jun 10 2026 FAD decision, via Valet V39079." },
-      { phrase: "fifth straight decision", source: "card:boc_fad_holds_post_oct_2025_cut", expected_count: 5, note: "Enumerated FAD holds since Oct 29, 2025 cut: Dec 10, Jan 28, Mar 18, Apr 29, Jun 10." },
+      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, Apr 29 2026 FAD decision, via Valet V39079." },
+      { phrase: "five straight decisions", source: "card:boc_fad_holds_post_oct_2025_cut", expected_count: 5, note: "Enumerated FAD holds since Oct 29, 2025 cut: Dec 10, Jan 28, Mar 18, Apr 29, Jun 10." },
       { phrase: "2.25 to 3.25% neutral range", source: "card:boc_mpr_neutral_range" },
-      { phrase: "calls a dilemma", source: "derived", note: "Verbatim, BoC June 10 2026 rate decision press release: 'Economic weakness combined with rising inflation is a dilemma for monetary policy.' April's easing lean ('a policy rate close to current settings looks appropriate') was deleted from the June statement. FLAG: migrate to the June 10 statement source card when it lands." },
-      { phrase: "inflation back toward 3%", source: "derived", note: "CPI rose to 2.8% y/y in April; BoC June 10 statement expects CPI to 'hover close to 3% in coming months before easing gradually toward 2%', with oil roughly $10/bbl above the April MPR assumption." },
-      { phrase: "may need to be nimble", source: "derived", note: "Verbatim, BoC June 10 2026 press release: 'monetary policy may need to be nimble.'" },
     ],
   },
   {
@@ -547,7 +535,7 @@ export const sections: Section[] = [
     tileLine:
       "Federal deficit pencils in a fade from 2.1% to 1.4% of GDP across the horizon.",
     tileLineCitations: [
-      { phrase: "2.1% to 1.4% of GDP", source: "card:dof_seu_2026_deficit_gdp_share", note: "DoF SEU April 2026 Annex 1 Table A1.7: federal deficit 2.1% of GDP in FY2025-26 fading to 1.4% by FY2030-31." },
+      { phrase: "2.1% to 1.4% of GDP", source: "card:claim_dof_deficit_gdp_share", note: "DoF SEU April 2026 Annex 1 Table A1.7: federal deficit 2.1% of GDP in FY2025-26 fading to 1.4% by FY2030-31." },
     ],
     prints: [
       {
@@ -571,15 +559,17 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "Apr 24, 2026",
+      date: "Jun 4, 2026",
       body:
-        "Fiscal stance is mildly expansionary, penciled in to fade from 2.1% to 1.4% of GDP across the horizon. The government's stated commitment to balance day-to-day operating spending by FY2028-29 holds under its own classification of operating vs capital. The PBO disagrees: reclassifying $94 billion the government calls capital leaves the operating balance still in deficit by $18 billion that year.",
+        "Fiscal policy is modestly stimulative. Carney's government is running a larger deficit than he inherited, but nothing near pandemic-level extremes. The government has split the budget in two and says it will balance the operating books by 2028-29. The PBO disputes this, suggesting the government has misclassified C$94 billion in operating expenses as capital investment.",
     },
     abstractCitations: [
-      { phrase: "fade from 2.1% to 1.4% of GDP", source: "card:dof_seu_2026_deficit_gdp_share", note: "DoF SEU April 2026 Annex 1 Table A1.7: federal deficit 2.1% of GDP in FY2025-26 to 1.4% by FY2030-31." },
-      { phrase: "balance day-to-day operating spending by FY2028-29", source: "card:dof_operating_balance_projection", note: "DoF SEU April 2026 Annex 1 Table A1.5: day-to-day operating balance crosses zero in FY2028-29 (+$0.9bn), meeting the stated fiscal anchor under DoF's own definition." },
-      { phrase: "reclassifying $94 billion", source: "card:pbo_operating_capital_reclassification_nov_2025", note: "PBO Budget 2025 review (RP-2526-017-S, Nov 14 2025): PBO reclassifies $94bn of DoF's claimed capital ($311.5bn) as operating under international standard." },
-      { phrase: "operating balance still in deficit by $18 billion", source: "card:pbo_operating_capital_reclassification_nov_2025", note: "PBO RP-2526-017-S: under PBO's reclassification, the FY2028-29 operating deficit is -$18.1bn (DoF says +$0.9bn surplus)." },
+      { phrase: "Fiscal policy is modestly stimulative", source: "card:claim_dof_deficit_larger_than_handoff_below_pandemic", note: "Analytical read backed by the deficit widening from C$36.3bn in FY2024-25 to C$66.9bn in FY2025-26." },
+      { phrase: "larger deficit than he inherited", source: "card:claim_dof_deficit_larger_than_handoff_below_pandemic", note: "DoF FRT/SEU: FY2024-25 actual deficit C$36.3bn; FY2025-26 forecast deficit C$66.9bn." },
+      { phrase: "nothing near pandemic-level extremes", source: "card:claim_dof_deficit_larger_than_handoff_below_pandemic", note: "DoF FRT/SEU: FY2025-26 forecast deficit C$66.9bn vs FY2020-21 pandemic deficit C$327.7bn." },
+      { phrase: "balance the operating books by 2028-29", source: "card:claim_dof_operating_surplus_2028_29", note: "DoF SEU April 2026 Annex 1 Table A1.5: day-to-day operating balance crosses zero in FY2028-29 (+$0.9bn)." },
+      { phrase: "PBO disputes this", source: "card:claim_pbo_anchor_cannot_verify", note: "PBO May 2026 fiscal-anchor assessment says it is not possible to advise in depth on how the updates support the government's assertion that the operating-balance anchor remains in balance." },
+      { phrase: "suggesting the government has misclassified C$94 billion in operating expenses as capital investment", source: "card:claim_pbo_94bn_reclassified", note: "PBO RP-2526-017-S: PBO's capital total is C$217.3bn versus Budget 2025's C$311.5bn over FY2024-25 to FY2029-30, a roughly C$94bn wedge." },
     ],
   },
   {
@@ -652,17 +642,17 @@ export const sections: Section[] = [
     headlineQuestion:
       "Is Canada's trade pivot working?",
     cadence: "Monthly + event",
-    // April merch-trade release landed June 9, 2026.
-    updatedAt: Date.UTC(2026, 5, 9, 12, 30),
+    // March merch-trade release landed May 5, 2026.
+    updatedAt: Date.UTC(2026, 4, 5, 8, 30),
     chartSeriesKey: "trade-balance",
-    heroKicker: "April balance",
+    heroKicker: "March balance",
     heroKickerPrefix: "Trade balance",
     latestReleasePrefix: "Merchandise trade",
     tileLine:
-      "Goods surplus widened to $2.7B in April; US export share bounced back to 69.5%.",
+      "Goods balance flipped to $1.8B surplus in March; US export share fell to 66.1%.",
     tileLineCitations: [
-      { phrase: "$2.7B", source: "pipeline:statcan:12-10-0119-01", note: "Goods trade balance, April 2026: +$2,720.9M (March revised +$1,753M; February -$5,187M deficit)." },
-      { phrase: "69.5%", source: "pipeline:statcan:12-10-0119-01", note: "US share of total Canadian goods exports, April 2026: 50,851.7 / 73,173.2 = 69.5%." },
+      { phrase: "$1.8B surplus in March", source: "pipeline:statcan:12-10-0119-01", note: "Goods trade balance, March 2026 monthly print: +$1,779M (swung from -$5,113M deficit in February)." },
+      { phrase: "66.1%", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, March 2026." },
     ],
     tileChartKind: "bars",
     prints: [
@@ -705,16 +695,16 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "June 9, 2026",
+      date: "May 6, 2026",
       body:
-        "Not really. A year ago the US took three-quarters of Canada's goods exports; by March it had slid to two-thirds — but almost entirely because gold was being routed to London at record prices, not because anything diversified. In April the share bounced back to 69.5% as the gold flow eased. Strip the gold out and the underlying US share has held near 75% all year.",
+        "Not really. The US export share dropped from three quarters to two thirds in a year, but most of that is gold being routed to London at record prices; strip it out and the underlying share is down about three percentage points. Among the tariffed sectors, only aluminum has meaningfully diversified — autos lost over a billion dollars in US sales with almost no offset elsewhere.",
     },
     abstractCitations: [
-      { phrase: "three-quarters", source: "pipeline:statcan:12-10-0119-01", note: "US share of total Canadian goods exports ~74.4% (Mar 2025) ≈ three-quarters." },
-      { phrase: "two-thirds", source: "pipeline:statcan:12-10-0119-01", note: "US share fell to 66.3% (Mar 2026) ≈ two-thirds." },
-      { phrase: "gold was being routed to London at record prices", source: "derived", note: "NAPCS 35 (unwrought gold, silver, PGM) exports to UK: C$7.8B of C$8.0B total (97%) in Mar 2026; gold futures (GC=F) near record ~$4,676/oz. Sources: StatCan 12-10-0182-01 + Yahoo Finance GC=F." },
-      { phrase: "bounced back to 69.5%", source: "pipeline:statcan:12-10-0119-01", note: "US share of total goods exports, April 2026: 50,851.7 / 73,173.2 = 69.5% (March 66.3%)." },
-      { phrase: "held near 75% all year", source: "derived", note: "Ex-gold US export share = (US exports − gold-to-US) / (total exports − total gold). Clean customs basis ~73.8–76.7% across the trailing 12 months; ~75.6% in April 2026. Sources: StatCan 12-10-0011-01 + 12-10-0182-01." },
+      { phrase: "from three quarters to two thirds in a year", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports: 74.4% (Mar 2025) ≈ three quarters; 66.1% (Mar 2026) ≈ two thirds." },
+      { phrase: "gold being routed to London at record prices", source: "derived", note: "NAPCS 35 (unwrought gold, silver, PGM) total exports March 2026: C$8.0B, of which C$7.8B (97.4%) to UK. Gold futures (GC=F) May 2026 monthly close ~$4,676/oz, a record. Sources: StatCan 12-10-0182-01 + Yahoo Finance GC=F." },
+      { phrase: "the underlying share is down about three percentage points", source: "derived", note: "Ex-gold US share: Mar 2025 = 77.7%; Mar 2026 = 74.6%; Δ = -3.1pp. NAPCS 35 stripped from both numerator and denominator. Sources: StatCan 12-10-0121-01 + 12-10-0182-01." },
+      { phrase: "only aluminum has meaningfully diversified", source: "derived", note: "Aluminum (NAPCS 32+38) US share: Mar 2025 = 96.9%; Mar 2026 = 86.0%; Δ = -10.9pp. Steel, softwood, cars each shed under 5pp. Source: StatCan 12-10-0182-01." },
+      { phrase: "autos lost over a billion dollars in US sales with almost no offset elsewhere", source: "derived", note: "NAPCS 81 (passenger cars and light trucks) Δ exports Mar 2026 vs Mar 2025: US -C$1,247M; non-US +C$42M. Source: StatCan 12-10-0182-01." },
     ],
   },
   {
@@ -730,25 +720,21 @@ export const sections: Section[] = [
     accentVar: "--section-accent-markets",
     kicker: "Yields, spreads, the loonie, and the cost of capital.",
     headlineQuestion:
-      "Where are Canadian markets trading?",
+      "How are financial markets affecting Canada?",
     cadence: "Daily (light) + weekly synthesis",
-    // Data-derived: panel_data generatedAt from the same render pass that
-    // produces the prose. No hand-maintained stamp.
-    updatedAt: marketsProse.generatedAt ? Date.parse(marketsProse.generatedAt) : 0,
+    // Markets data refreshes daily; latest BoC noon-rate stamp May 8, 2026.
+    updatedAt: Date.UTC(2026, 4, 8, 21, 0),
     chartSeriesKey: "usdcad",
     heroKicker: "Weekly close",
     // Markets refreshes daily; the kicker phrase "Daily close" + the
-    // pipeline's daily-cadence date reads as the current convention.
+    // pipeline's daily-cadence date reads as the current convention
+    // ("Daily close May 8, 2026").
     heroKickerPrefix: "Daily close",
     latestReleasePrefix: "Daily close",
-    // Mechanically rendered (see marketsProse above). Citations are
-    // slot-bound (writing-style.md §4.1e): the splash tile line quotes the
-    // latest USDCAD, WTI, and TSX closes, all slot-interpolated.
-    tileLine: marketsProse.surfaces["tileline"].text,
+    tileLine:
+      "USDCAD closed the week at 1.369 as the Canada-US 2y spread held near -98 bps.",
     tileLineCitations: [
-      { slot: "fxusdcad", at: "latest", value_format: "{0.0000}", context: "", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close (BoC Valet FXUSDCAD), latest observation." },
-      { slot: "wti", at: "latest", value_format: "{int}", context: "", source: "pipeline:yahoo:wti", note: "WTI front-month (CL=F) daily close, latest observation, rendered to whole dollars on the tile." },
-      { slot: "tsx_composite", at: "latest", value_format: "{int,}", context: "", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close (Yahoo ^GSPTSE), latest observation, rendered to whole points on the tile." },
+      { phrase: "-98 bps", source: "derived", note: "GoC 2y 2.94% minus UST 2y 3.92% = -98 bps. Inputs: BoC Valet yield_2yr and FRED DGS2, May 7 2026." },
     ],
     prints: [
       {
@@ -791,17 +777,20 @@ export const sections: Section[] = [
       spark: [],
       },
     ],
-    // Mechanically rendered lede (the /markets/ page header reads the same
-    // surface directly from its own render). No date stamp: the prose is a
-    // function of the data and carries its own as-of phrasing.
     blurb: {
       kind: "last",
-      body: marketsProse.surfaces["lede"].text,
+      date: "May 13, 2026",
+      body:
+        "USDCAD has spent the past month inside a 1.36 to 1.38 band, closing at 1.3686 on May 8. The 10y GoC yield is at 3.53%, with the front end up roughly 10 bps over the past two weeks. WTI round-tripped to a US$109.76 peak on May 4 and settled at US$101.12 on May 13; the TSX Composite is near 34,000.",
     },
     abstractCitations: [
-      { slot: "fxusdcad", at: "latest", value_format: "{0.0000}", context: "", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close (BoC Valet FXUSDCAD), latest observation." },
-      { slot: "wti", at: "latest", value_format: "{0.00}", context: "", source: "pipeline:yahoo:wti", note: "WTI front-month (CL=F) daily close, latest observation." },
-      { slot: "tsx_composite", at: "latest", value_format: "{int,}", context: "", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close (Yahoo ^GSPTSE), latest observation." },
+      { phrase: "USDCAD has spent the past month inside a 1.36 to 1.38 band", source: "pipeline:boc:fxusdcad", note: "USDCAD daily-close range across April 13 to May 12, 2026: 1.357 to 1.388 per BoC Valet FXUSDCAD." },
+      { phrase: "closing at 1.3686 on May 8", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close, May 8, 2026 per BoC Valet FXUSDCAD." },
+      { phrase: "10y GoC yield is at 3.53%", source: "pipeline:boc:yield_10yr", note: "GoC 10y benchmark yield, latest daily close." },
+      { phrase: "front end up roughly 10 bps over the past two weeks", source: "pipeline:boc:yield_2yr", note: "GoC 2y up roughly 10 bps over the trailing 2-week window (~2.83 to 2.93)." },
+      { phrase: "WTI round-tripped to a US$109.76 peak on May 4", source: "pipeline:fred:DCOILWTICO", note: "WTI spot daily-close peak in early May 2026: 109.76 on May 4. Subsequent close on May 13 at 101.12 returned the price to early-month levels." },
+      { phrase: "settled at US$101.12 on May 13", source: "pipeline:fred:DCOILWTICO", note: "WTI spot, May 13, 2026 daily close." },
+      { phrase: "TSX Composite is near 34,000", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close, May 12 2026 (33,994.87), via Yahoo Finance ^GSPTSE." },
     ],
   },
 ];
@@ -954,47 +943,6 @@ export interface DataCommentary {
 }
 
 export const commentaries: DataCommentary[] = [
-  {
-    slug: "boc-2026-06-10",
-    section: "monetary",
-    title: "The Bank of Canada holds at 2.25% and keeps its guidance.",
-    publishedAt: "2026-06-10",
-    pdfPath: "/research/commentaries/boc-2026-06-10.pdf",
-    excerpt:
-      "The Bank of Canada is getting closer to ending its hold, and will likely not wait longer than September to pick a direction. Officials were clear that the most important indicators to watch are core inflation, the share of the CPI basket running above 3%, and medium-to-long-term inflation expectations.",
-    coverage: [
-      {
-        outlet: "Financial Post",
-        url: "https://financialpost.com/news/bank-of-canada-end-interest-rate-pause",
-        date: "2026-06-11",
-      },
-    ],
-  },
-  {
-    slug: "trade-2026-06-09",
-    section: "trade",
-    title: "Oil exports boost Canada's trade surplus.",
-    publishedAt: "2026-06-09",
-    pdfPath: "/research/commentaries/trade-2026-06-09.pdf",
-    excerpt:
-      "Canada is selling more to the world, with exports hitting an all-time high of C$75 billion in April. Still, the month's export gains were driven by higher sales to the US, going against Prime Minister Carney's aim to diversify trade.",
-    coverage: [
-      {
-        outlet: "Financial Post",
-        url: "https://financialpost.com/news/economy/biggest-knock-canada-trade-carney-economic-pillars",
-        date: "2026-06-09",
-      },
-    ],
-  },
-  {
-    slug: "boc-preview-june-2026",
-    section: "monetary",
-    title: "The Bank of Canada is set to hold in June.",
-    publishedAt: "2026-06-08",
-    pdfPath: "/research/commentaries/boc-preview-june-2026.pdf",
-    excerpt:
-      "We expect the Bank to hold for a fifth straight meeting on Wednesday. Looking further out, markets are pricing too many hikes: our estimate of the Bank's internal rate path settles 25 to 50 basis points below what the market expects.",
-  },
   {
     slug: "jobs-may-2026",
     section: "labour",
@@ -1191,8 +1139,8 @@ export const splashHero: {
     { phrase: "0.4%", source: "pipeline:statcan:36-10-0434-01", note: "Real GDP by industry, Y/Y, March 2026 monthly print." },
     { phrase: "the job market slackens", source: "derived", note: "LFS data: unemployment rate has drifted up to 6.9% (April 2026) with aggregate hours worked negative year-over-year; intensive margin is leading the loosening." },
     { phrase: "core inflation sits at target", source: "derived", note: "Preferred cores (CPI-trim, CPI-median) near 2% in April 2026; CPI-trim 2.2%, CPI-median 2.3%." },
-    { phrase: "Gas prices are high due to the closing of the Strait of Hormuz", source: "derived", note: "Geopolitical context — editorial claim, source card pending." },
-    { phrase: "immigration reforms", source: "derived", note: "IRCC 2026-2028 Immigration Levels Plan (announced November 2025) caps permanent residents at 380,000 per year with sub-caps on international students and temporary workers; PR card in editorial/source_cards/_pending/per-capita-output/ pending user verification." },
+    { phrase: "Gas prices are high due to the closing of the Strait of Hormuz", source: "card:iran_oil_conflict_2026_05", note: "User-confirmed Tier B card: Strait of Hormuz impasse -> global oil -> Canadian gasoline transmission (CIBC Week Ahead May 18-22 2026, multi-author)." },
+    { phrase: "immigration reforms", source: "card:ircc_levels_plan_2026_2028", note: "IRCC 2026-2028 Immigration Levels Plan (announced November 2025) caps permanent residents at 380,000 per year with sub-caps on international students and temporary workers. Card in _pending/per-capita-output/ — gate blocks until user-approved." },
     { phrase: "tariffs", source: "card:pp_section_232_steel_alum_50pct", note: "US Section 232 measures (50% steel and aluminum since June 2025, copper added April 2026); broader tariff stack and USMCA review covered in trade section." },
     { phrase: "Population growth has levelled off", source: "pipeline:statcan:17-10-0009-01", note: "Quarterly population Y/Y peaked at 3.18% in Q2 2024 and printed -0.25% in Q1 2026 per StatCan demographic estimates." },
     { phrase: "new exports are narrowly redirecting away from the US", source: "derived", note: "US share of Canadian merchandise exports moved from ~76% (2024 average) to ~66% (March 2026) per StatCan 12-10-0121-01 — the shift is real but concentrated in gold." },

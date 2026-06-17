@@ -15,18 +15,25 @@
  *
  * Visual decisions:
  *   - Primary: 1.5px solid black line. MTA red 4px dot at latest.
- *   - Band: SVG <path> filled with rgba(21,23,26,0.06) ink wash (same as
- *     recession band opacity). Band renders BELOW the data line in z-order.
- *   - PBO forecast endpoint (13.2% by 2030-31): 1px dashed black reference
- *     rule, labelled "PBO 2030-31" in Manrope 600 12px to the right.
+ *   - Band: SUPPRESSED. The pipeline emits only 43 months of primary history
+ *     (Feb 2022 – Mar 2026). A valid 5-year trailing min/max band requires
+ *     5 years of prior history — none exists for any point before Feb 2027.
+ *     The band series additionally wraps lo values for the last two months to
+ *     the earliest available observation (6.24%), producing a broken polygon.
+ *     Suppressing the band is the only honest treatment.
+ *   - PBO forecast endpoint (13.1% by 2030-31): 1px dashed black horizontal
+ *     reference rule across the full plot width, labelled "PBO: 13.1% by '31"
+ *     in Manrope 600 12px, right-aligned inside the frame.
+ *   - X-domain: confined to the actual data range (2022–Mar 2026). The PBO
+ *     anchor label carries the 2030-31 horizon — no empty forecast space.
  *   - Window: full available history (no artificial crop — ratio trend is
  *     the editorial story; showing the 2022-2026 rise is essential).
  *   - No legend. Direct end-of-line label: "Debt service / revenues".
  *
  * Source card: editorial/source_cards/_pending/fiscal/plate-2.yaml
  *   Tier A. DoF Fiscal Monitor Feb 2026: public debt charges $49.3bn YTD.
- *   PBO Main Estimates 2026-27 (May 7, 2026): ratio rises from 10.6% to
- *   13.2% of revenues by 2030-31.
+ *   PBO Economic and Fiscal Outlook – June 2026 (RP-2627-002-S): ratio rises
+ *   from 10.5% (2024-25) to 13.1% of revenues by 2030-31.
  *
  * Canon compliance (Tier-3):
  *   1. Data line: var(--ink), 1.5px solid.
@@ -70,10 +77,13 @@ const PLOT_W  = PLOT_X1 - PLOT_X0;
 const PLOT_H  = PLOT_Y1 - PLOT_Y0;
 
 // ---- PBO forecast anchor ----------------------------------------------------
-// PBO Main Estimates 2026-27 (May 7, 2026): ratio reaches 13.2% by 2030-31.
-// This is a fixed editorial constant, source-verified in plate-2.yaml.
-const PBO_FORECAST_PCT  = 13.2;
-const PBO_FORECAST_YEAR = 2030.5; // mid-FY 2030-31
+// PBO Economic and Fiscal Outlook – June 2026 (RP-2627-002-S): ratio reaches
+// 13.1% by 2030-31 (from 10.5% in 2024-25). Supersedes May 2026 Main Estimates
+// figure of 13.2%. Source-verified: editorial/source_cards/_pending/fiscal/
+// claim_pbo_dsr_13c_2030.yaml, field debt_service_ratio_2030_31_pct: 13.1.
+const PBO_FORECAST_PCT  = 13.1;
+// PBO_FORECAST_YEAR intentionally not used in x-domain: x-axis is confined
+// to actual data. The '31 horizon is carried by the reference rule label.
 
 // ---- Helpers ----------------------------------------------------------------
 type SeriesPoint = { date: string; value: number | null };
@@ -116,22 +126,21 @@ if (hasPrimary) {
     (p: SeriesPoint) => typeof p.value === "number" && Number.isFinite(p.value)
   );
 
-  // Secondary = band low edge; tertiary = band high edge (optional)
-  const bandLo: SeriesPoint[] = data!.secondary?.data ?? [];
-  const bandHi: SeriesPoint[] = (data as any)?.tertiary?.data ?? [];
+  // Secondary and tertiary carry the band series which are suppressed — see
+  // "Band path — SUPPRESSED" comment below. Variables not read.
 
   // ---- x-domain --------------------------------------------------------------
+  // Confined to actual data range — the PBO anchor is a horizontal reference
+  // rule, not a projected data point. No empty forecast space to the right.
   const xVals = pts.map((p) => decYear(p.date)).filter((v) => !isNaN(v));
   const xMin  = Math.min(...xVals);
   const xMax  = Math.max(...xVals);
-  // Also include PBO forecast year in x-domain so the ref point is visible
-  const xDomMax = Math.max(xMax, PBO_FORECAST_YEAR);
-  const xRange  = xDomMax - xMin || 1;
+  const xRange  = xMax - xMin || 1;
 
-  // Extend slightly so lines don't crowd frame edges
-  const xPad    = xRange * 0.01;
-  const xDomMin = xMin - xPad;
-  const xDomSpan = (xDomMax + xPad) - xDomMin;
+  // Extend slightly so the line's terminal dot doesn't crowd the right frame
+  const xPad    = xRange * 0.015;
+  const xDomMin = xMin - xPad * 0.5;
+  const xDomSpan = (xMax + xPad) - xDomMin;
 
   const xScale = (xv: number): number =>
     PLOT_X0 + ((xv - xDomMin) / xDomSpan) * PLOT_W;
@@ -164,7 +173,7 @@ if (hasPrimary) {
 
   // ---- X ticks (year labels, 4-5 max) ----------------------------------------
   const yearMin = Math.floor(xMin);
-  const yearMax = Math.ceil(xDomMax);
+  const yearMax = Math.ceil(xMax);
   const yearCount = yearMax - yearMin;
   // Pick a stride so we get ~4-5 labels
   const yearStride = yearCount <= 6 ? 1 : yearCount <= 10 ? 2 : 5;
@@ -182,27 +191,14 @@ if (hasPrimary) {
     xTicks.push({ x: xScale(xv), label: String(y) });
   }
 
-  // ---- Band path (if lo and hi series present) --------------------------------
-  if (bandLo.length > 0 && bandHi.length > 0) {
-    // Build the band as a closed polygon: lo forward, hi backward
-    const loFiltered = bandLo.filter(
-      (p) => typeof p.value === "number" && Number.isFinite(p.value)
-    );
-    const hiFiltered = bandHi.filter(
-      (p) => typeof p.value === "number" && Number.isFinite(p.value)
-    );
-    if (loFiltered.length > 0 && hiFiltered.length > 0) {
-      const forwardParts = loFiltered.map((p) => {
-        const xv = decYear(p.date);
-        return `${xScale(xv).toFixed(2)},${yScale(p.value as number).toFixed(2)}`;
-      });
-      const backwardParts = [...hiFiltered].reverse().map((p) => {
-        const xv = decYear(p.date);
-        return `${xScale(xv).toFixed(2)},${yScale(p.value as number).toFixed(2)}`;
-      });
-      bandPath = `M${forwardParts[0]} L${forwardParts.slice(1).join(" L")} L${backwardParts.join(" L")} Z`;
-    }
-  }
+  // ---- Band path — SUPPRESSED -------------------------------------------------
+  // The pipeline emits only 43 months of primary history (Feb 2022 – Mar 2026).
+  // A 5-year trailing min/max band requires 5 years of prior data for every
+  // displayed point; none exists before Feb 2027. The band series additionally
+  // wraps lo values for the trailing two months back to the earliest primary
+  // observation (6.24%), producing a broken polygon with "drooping legs."
+  // bandPath remains "" — the <path> element is not rendered.
+  // (bandLo and bandHi are intentionally unused here.)
 
   // ---- Line path -------------------------------------------------------------
   const pathParts = pts.map((p, i) => {
@@ -239,7 +235,7 @@ if (hasPrimary) {
   }
 
   // ---- aria-label ------------------------------------------------------------
-  ariaLabel = `Federal debt service as share of total revenues, monthly ratio, ${pts[0]!.date} to ${lastPt.date}. Latest: ${latestVal.toFixed(1)}%. PBO forecast: 13.2% by 2030-31.`;
+  ariaLabel = `Federal debt service as share of total revenues, monthly ratio, ${pts[0]!.date} to ${lastPt.date}. Latest: ${latestVal.toFixed(1)}%. PBO forecast: 13.1% by 2030-31.`;
 }
 ---
 
@@ -281,7 +277,7 @@ if (hasPrimary) {
             x={(PLOT_X1 - 4).toFixed(2)}
             y={pboLabelY.toFixed(2)}
             text-anchor="end"
-          >PBO 2030-31</text>
+          >PBO: 13.1% by '31</text>
         </>
       )}
 
@@ -321,7 +317,7 @@ if (hasPrimary) {
       {yTicks.map((t) => (
         <text
           class="p2dsr-chart__ytick-label"
-          x={(PLOT_X0 - 6).toFixed(2)}
+          x={(PLOT_X0 - 8).toFixed(2)}
           y={(t.y + 4).toFixed(2)}
           text-anchor="end"
         >{t.label}</text>
@@ -338,7 +334,7 @@ if (hasPrimary) {
           <text
             class="p2dsr-chart__xtick-label"
             x={t.x.toFixed(2)}
-            y={(PLOT_Y1 + 16).toFixed(2)}
+            y={(PLOT_Y1 + 18).toFixed(2)}
             text-anchor="middle"
           >{t.label}</text>
         </g>
@@ -366,12 +362,14 @@ if (hasPrimary) {
     width: 100%;
     aspect-ratio: 16 / 9;
     background-color: var(--paper);
+    overflow: visible;
   }
   .p2dsr-chart__svg {
     display: block;
     width: 100%;
     height: 100%;
     font-family: var(--font-sans);
+    overflow: visible;
   }
 
   /* Gridlines */

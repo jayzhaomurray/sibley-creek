@@ -105,6 +105,17 @@ import FiscalPanel4OperatingBalance from "../components/charts/fiscal/Panel4Oper
 import FiscalPanel4ProvincialDebt from "../components/charts/fiscal/Panel4ProvincialDebt.astro";
 import FiscalPanel5OperatingCapital from "../components/charts/fiscal/Panel5OperatingCapital.astro";
 import FiscalPanel6DebtToGDP from "../components/charts/fiscal/Panel6DebtToGDP.astro";
+import FiscalPlate1BalanceTwoPanel from "../components/charts/fiscal/Plate1BalanceTwoPanel.astro";
+import FiscalPlate2RevenuesPctGDP from "../components/charts/fiscal/Plate2RevenuesPctGDP.astro";
+// Plate3ProgramExpPctGDP CUT 2026-06-02 (redundant with merged Plate 2). File
+// retained per "tag and leave"; no longer imported or registered.
+// Plate1BalanceComposition (original single-panel balance) + Plate2RevExpTwoPanel
+// (two-panel rev/exp ALT) UNWIRED 2026-06-02 — Jay picked the two-panel balance
+// and the merged two-series rev/exp. Both files retained per "tag and leave".
+import FiscalPlate4FederalDebtPctGDP from "../components/charts/fiscal/Plate4FederalDebtPctGDP.astro";
+import FiscalPlate4DebtDiptych from "../components/charts/fiscal/Plate4DebtDiptych.astro";
+import FiscalPlate5IssuanceByInstrument from "../components/charts/fiscal/Plate5IssuanceByInstrument.astro";
+import FiscalPlate2OperatingDispute from "../components/charts/fiscal/Plate2OperatingDispute.astro";
 
 /*
  * chartRegistry — single source of truth mapping plate.chartKey to the
@@ -118,7 +129,7 @@ import FiscalPanel6DebtToGDP from "../components/charts/fiscal/Panel6DebtToGDP.a
  * bindings. The registry holds ONLY the live mappings the section pages
  * dispatch through.
  */
-export type ChartKey = "gdp-panel-1" | "gdp-panel-2" | "gdp-panel-3" | "gdp-panel-4" | "gdp-panel-5" | "inflation-panel-1" | "inflation-panel-2" | "inflation-panel-3" | "inflation-panel-4" | "inflation-panel-5" | "inflation-panel-6" | "labour-panel-1" | "labour-panel-2" | "labour-panel-3" | "labour-panel-4" | "labour-panel-5" | "labour-panel-6" | "housing-panel-1" | "housing-panel-2" | "housing-panel-3" | "housing-panel-6" | "housing-panel-7" | "policy-panel-1" | "policy-panel-2" | "policy-panel-4" | "policy-panel-5" | "policy-panel-6" | "policy-panel-7" | "fiscal-panel-1" | "fiscal-panel-2" | "fiscal-panel-debt-service" | "fiscal-panel-3" | "fiscal-panel-4" | "fiscal-panel-provincial-debt" | "fiscal-panel-5" | "fiscal-panel-6" | "markets-panel-1" | "markets-panel-2" | "markets-panel-3" | "markets-panel-6" | "trade-panel-3" | "trade-panel-sector-pivot" | "trade-panel-gold" | "trade-panel-reorientation-scatter" | "trade-panel-balance-vs-share";
+export type ChartKey = "gdp-panel-1" | "gdp-panel-2" | "gdp-panel-3" | "gdp-panel-4" | "gdp-panel-5" | "inflation-panel-1" | "inflation-panel-2" | "inflation-panel-3" | "inflation-panel-4" | "inflation-panel-5" | "inflation-panel-6" | "labour-panel-1" | "labour-panel-2" | "labour-panel-3" | "labour-panel-4" | "labour-panel-5" | "labour-panel-6" | "housing-panel-1" | "housing-panel-2" | "housing-panel-3" | "housing-panel-6" | "housing-panel-7" | "policy-panel-1" | "policy-panel-2" | "policy-panel-4" | "policy-panel-5" | "policy-panel-6" | "policy-panel-7" | "fiscal-panel-1" | "fiscal-panel-2" | "fiscal-panel-debt-service" | "fiscal-panel-3" | "fiscal-panel-4" | "fiscal-panel-provincial-debt" | "fiscal-panel-5" | "fiscal-panel-6" | "fiscal-plate-1-alt" | "fiscal-plate-2" | "fiscal-plate-2-dispute" | "fiscal-plate-4" | "fiscal-debt-diptych" | "fiscal-plate-5" | "markets-panel-1" | "markets-panel-2" | "markets-panel-3" | "markets-panel-6" | "trade-panel-3" | "trade-panel-sector-pivot" | "trade-panel-gold" | "trade-panel-reorientation-scatter" | "trade-panel-balance-vs-share";
 
 const chartRegistry: Record<ChartKey, any> = {
   "gdp-panel-1": Panel1HeadlineGDP,
@@ -157,6 +168,12 @@ const chartRegistry: Record<ChartKey, any> = {
   "fiscal-panel-provincial-debt": FiscalPanel4ProvincialDebt,
   "fiscal-panel-5": FiscalPanel5OperatingCapital,
   "fiscal-panel-6": FiscalPanel6DebtToGDP,
+  "fiscal-plate-1-alt": FiscalPlate1BalanceTwoPanel,
+  "fiscal-plate-2": FiscalPlate2RevenuesPctGDP,
+  "fiscal-plate-2-dispute": FiscalPlate2OperatingDispute,
+  "fiscal-plate-4": FiscalPlate4FederalDebtPctGDP,
+  "fiscal-debt-diptych": FiscalPlate4DebtDiptych,
+  "fiscal-plate-5": FiscalPlate5IssuanceByInstrument,
   "markets-panel-1": MarketsPanel1CAD,
   "markets-panel-2": MarketsPanel2Equities,
   "markets-panel-3": MarketsPanel2GoCCurve,
@@ -236,6 +253,8 @@ export interface Plate {
   callout?: PlateCallout;
   /** Source citation. */
   source: string;
+  /** Optional definitional footnote rendered above the source line. */
+  footnote?: string;
   /** Optional chart-builder dispatch key. Omitted -> placeholder. */
   chartKey?: ChartKey;
   /**
@@ -314,6 +333,7 @@ interface Props {
   description: string;
   canonical?: string;
   ogImage?: string;
+  dateModified?: string;
   /**
    * When true, emits `<meta name="robots" content="noindex,nofollow" />`.
    * Use for team-review / draft variants of a section page that should be
@@ -335,6 +355,7 @@ const {
   description,
   canonical,
   ogImage,
+  dateModified,
   noindex = false,
 } = Astro.props;
 
@@ -346,42 +367,43 @@ const plateIndex = plates.map((p) => ({
 }));
 
 /*
- * QAPage JSON-LD for AEO / LLM answer-engine indexing.
+ * Section chartbook JSON-LD.
  *
- * Each section page is built around a canonical anchor question (the H1
- * headlineQuestion) answered by the section lede. This maps directly onto
- * schema.org QAPage / Question / Answer — the structure LLM crawlers
- * (ChatGPT search, Perplexity, Google AI Overviews) use for answer
- * attribution. The canonical URL comes from Astro.site + slug.
- *
- * acceptedAnswer.upvoteCount: 1 is schema.org's convention for "at least
- * one accepted answer" on a QAPage (required for Google's rich-result
- * eligibility; the count is editorial, not a user-vote count on a static
- * publication site).
+ * Section pages are editorial chartbooks: a topic page, a headline question,
+ * a lede, and a sequence of chart plates. They are not community Q&A pages,
+ * so use CollectionPage + ItemList rather than QAPage / Question / Answer.
  */
 const sectionCanonical = canonical
   ?? (Astro.site ? new URL(`/${slug}/`, Astro.site).toString() : `/${slug}/`);
+const sectionDateModified = dateModified ?? "2026-05-20T00:00:00.000Z";
 
-const qaPageLd = JSON.stringify({
+const sectionPageLd = JSON.stringify({
   "@context": "https://schema.org",
-  "@type": "QAPage",
-  "name": headlineQuestion,
+  "@type": "CollectionPage",
+  "@id": `${sectionCanonical}#section-chartbook`,
   "url": sectionCanonical,
+  "headline": headlineQuestion,
+  "name": `${sectionLabel} chartbook`,
+  "description": lede,
+  "dateModified": sectionDateModified,
+  "inLanguage": "en-CA",
+  "author": {
+    "@id": `${site.url}/#jay-zhao-murray`
+  },
   "publisher": {
     "@id": `${site.url}/#organization`
   },
   "mainEntity": {
-    "@type": "Question",
-    "name": headlineQuestion,
-    "answerCount": 1,
-    "acceptedAnswer": {
-      "@type": "Answer",
-      "text": lede,
-      "url": sectionCanonical,
-      "author": {
-        "@id": `${site.url}/#jay-zhao-murray`
-      }
-    }
+    "@type": "ItemList",
+    "name": `${sectionLabel} chartbook plates`,
+    "numberOfItems": plates.length,
+    "itemListElement": plates.map((plate, index) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "url": `${sectionCanonical}#${plate.id}`,
+      "name": plate.title,
+      "description": plate.indicator,
+    }))
   }
 });
 ---
@@ -393,10 +415,9 @@ const qaPageLd = JSON.stringify({
   pageClass={`section-page section-page--${slug}`}
 >
   <Fragment slot="head">
-    {/* QAPage structured data: maps the section's headline question + lede
-        onto schema.org Question/Answer for AEO indexing. Skipped on noindex
-        pages — no point structuring data we don't want indexed. */}
-    {!noindex && <script type="application/ld+json" set:html={qaPageLd} />}
+    {/* Section chartbook structured data. Skipped on noindex pages because
+        these draft/review surfaces should not be indexed. */}
+    {!noindex && <script type="application/ld+json" set:html={sectionPageLd} />}
     {noindex && <meta name="robots" content="noindex,nofollow" />}
   </Fragment>
 
@@ -454,6 +475,7 @@ const qaPageLd = JSON.stringify({
             interpretationHtml={plate.interpretationHtml}
             callout={composedCallout}
             source={plate.source}
+            footnote={plate.footnote}
             hasChart={hasChart}
           >
             {hasChart && (() => {

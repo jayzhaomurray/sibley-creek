@@ -1,0 +1,512 @@
+---
+/*
+ * Plate5IssuanceByInstrument — Federal gross issuance flow by maturity bucket,
+ * stacked bars, FY2019-20 to FY2026-27 (history + forecast).
+ *
+ * METRIC (rebuilt 2026-06-02): GROSS ISSUANCE FLOW by maturity bucket, $B —
+ * NOT outstanding stock. Three buckets stack to the annual gross-issuance total.
+ *
+ * DATA: fiscal.json panel-10 ($B, FY2019-20 -> FY2026-27, 8 years)
+ *   primary   = frt_issuance_flow_bonds  — long bonds (10/30yr/ultra/RRB/Green), $B
+ *   secondary = frt_issuance_flow_bills  — treasury bills bucket, $B
+ *   tertiary  = frt_issuance_flow_notes  — short/medium bonds (2/3/5yr), $B
+ *   FY2025-26 and FY2026-27 carry is_forecast: 1; FY2019-20 -> FY2024-25 are history.
+ *
+ * LABEL CAVEAT: the BILLS bucket is year-end T-bill STOCK, not gross auctions.
+ *   Do NOT author reader prose implying bills were "auctioned"/"issued." The
+ *   "Bills" gutter label is a category label, not prose, and is fine.
+ *
+ * UNIT: $B already in source (no /1000). Totals run ~280B (FY2019-20) to ~603B
+ *   (FY2025-26 forecast). Tight axis: 0 to 650B.
+ *
+ * STACKED BAR LAYOUT (bottom to top), grey-tint ink-density ramp:
+ *   Bottom: Bills  — FAINT 0.28 (light grey), largest bucket by height.
+ *   Middle: Notes  — MID 0.55 (mid grey).
+ *   Top:    Bonds  — INK 1.00 (black), the lead instrument.
+ *   Monotonic dark->light down the stack; 1px --paper white hairline between segments.
+ *
+ * FORM: Stacked vertical bars, three buckets per year, differentiated by
+ *   grey-tint ink-density (per fiscal_bar_language.md §2), NOT texture, NOT hue.
+ *   Bars keep ONE consistent tint across the actual/forecast boundary — the
+ *   divider + label carries the forecast signal, NOT bar tint or dimming.
+ *
+ * FORECAST CONVENTION (house standard, matches Plate4 R2.1):
+ *   Single vertical dashed divider (ink 1px, dash 4 2, opacity 0.40) at the
+ *   actual/forecast boundary + uppercase "FORECAST" label (Manrope 600, 11px,
+ *   0.18em, full ink, no small-caps, no opacity) above the projection region.
+ *
+ * NUMERIC VALUE CALLOUT (current forecast = FY2026-27, total 566B):
+ *   No red dot (canon R2: latest-point dot is line/area only, never on bars).
+ *   Plex Mono 12px "$566B" numeric callout above the current fiscal-year bar.
+ *
+ * Y-DOMAIN (tight): 0 to 650B, step 130 -> ticks 0,130,260,390,520,650.
+ *   Topmost tick carries "$" -> "$650B"; intermediate ticks bare.
+ *
+ * TITLE: [TITLE TK]   CAPTION: [CAPTION TK]
+ *
+ * CANON COMPLIANCE (Tier-3): full-ink chrome (no opacity on ticks/marks/labels),
+ *   x/y-tick labels 12px, margins M_L=56 M_R=96 M_T=44 M_B=40, topmost y-tick
+ *   carries "$", 'YY short-year x-ticks full ink. Matches PanelLiveChart tokens.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---- Data types ----------------------------------------------------------------
+type RawPt = { date: string; value: number | null; is_forecast?: number; fy_label?: string };
+
+interface BarPt {
+  fyLabel: string;
+  bonds: number;    // $B  (long bonds)
+  bills: number;    // $B  (treasury bills bucket)
+  notes: number;    // $B  (short/medium bonds)
+  total: number;    // $B
+  isForecast: boolean;
+}
+
+// Build lookup maps from the three series, keeping forecast records this time.
+const bondsMap = new Map<string, number>();
+const billsMap = new Map<string, number>();
+const notesMap = new Map<string, number>();
+const fcastMap = new Map<string, boolean>();
+
+function ingest(series: { data?: RawPt[] } | undefined, target: Map<string, number>) {
+  if (!series?.data) return;
+  for (const r of series.data) {
+    if (r.value === null || r.value === undefined) continue;
+    const fy = r.fy_label ?? r.date.slice(0, 4);
+    target.set(fy, r.value);
+    if (r.is_forecast === 1) fcastMap.set(fy, true);
+    else if (!fcastMap.has(fy)) fcastMap.set(fy, false);
+  }
+}
+ingest(data?.primary as { data?: RawPt[] } | undefined, bondsMap);   // long bonds
+ingest(data?.secondary as { data?: RawPt[] } | undefined, billsMap); // bills bucket
+ingest(data?.tertiary as { data?: RawPt[] } | undefined, notesMap);  // short/medium notes
+
+// Union of all FYs with at least one value, chronologically sorted.
+const allFYs = Array.from(
+  new Set([...bondsMap.keys(), ...billsMap.keys(), ...notesMap.keys()])
+).sort();
+
+const bars: BarPt[] = allFYs.map((fy) => {
+  const bonds = bondsMap.get(fy) ?? 0;
+  const bills = billsMap.get(fy) ?? 0;
+  const notes = notesMap.get(fy) ?? 0;
+  return {
+    fyLabel: fy,
+    bonds,
+    bills,
+    notes,
+    total: bonds + bills + notes,
+    isForecast: fcastMap.get(fy) === true,
+  };
+});
+
+const hasData = bars.length > 0;
+
+// ---- Geometry ------------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 56;   // canon left margin
+const M_R = 96;   // canon right gutter for "Bonds"/"Notes"/"Bills" segment labels
+const M_T = 44;   // canon top
+const M_B = 40;   // canon bottom
+
+const PLOT_X0 = M_L;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_W  = PLOT_X1 - PLOT_X0;
+const PLOT_H  = PLOT_Y1 - PLOT_Y0;
+
+// ---- Y domain: tight to the data ($B) ------------------------------------------
+// Totals range ~280B (FY2019-20) to ~603B (FY2025-26 F). Tight axis: 0 to 650B.
+const Y_DOM_MIN = 0;
+const Y_DOM_MAX = 650;   // $B
+const Y_TICK_STEP = 130; // $B -> 0,130,260,390,520,650
+const ySpan = Y_DOM_MAX - Y_DOM_MIN;
+
+const yScale = (v: number): number =>
+  PLOT_Y0 + PLOT_H - ((v - Y_DOM_MIN) / ySpan) * PLOT_H;
+
+// ---- Bar geometry --------------------------------------------------------------
+const N = bars.length;
+const BAR_TOTAL_W = PLOT_W / N;
+const BAR_GAP = BAR_TOTAL_W * 0.15;
+const BAR_W = BAR_TOTAL_W - BAR_GAP;
+
+const barX  = (i: number): number => PLOT_X0 + i * BAR_TOTAL_W + BAR_GAP / 2;
+const barCX = (i: number): number => barX(i) + BAR_W / 2;
+
+// ---- Y ticks -------------------------------------------------------------------
+type YTick = { y: number; label: string };
+const yTickVals: number[] = [];
+for (let v = Y_DOM_MIN; v <= Y_DOM_MAX; v += Y_TICK_STEP) yTickVals.push(v);
+const yTicks: YTick[] = yTickVals.map((v, i) => ({
+  y: yScale(v),
+  // Topmost tick carries "$"; intermediate ticks bare.
+  label: i === yTickVals.length - 1 ? `$${v}B` : `${v}`,
+}));
+const gridlines = yTickVals.filter((v) => v > Y_DOM_MIN && v < Y_DOM_MAX);
+
+// ---- X ticks: END-YEAR round numbers, every two years -------------------------
+// A Canadian fiscal year is named for the year it ends (FY2019-20 -> 2020,
+// FY2026-27 -> 2027). On this short 8-bar axis, label every-two end-years
+// (2020, 2022, 2024, 2026) — evenly spaced, no apostrophe, no emphasis, no
+// adjacent-year crowding.
+const fyEndYear = (fy: string): number => parseInt(fy.slice(0, 4), 10) + 1;
+type XTick = { x: number; label: string };
+const xTicks: XTick[] = bars
+  .map((b, i) => ({ i, ey: fyEndYear(b.fyLabel) }))
+  .filter(({ ey }) => ey % 2 === 0)
+  .map(({ i, ey }) => ({ x: barCX(i), label: String(ey) }));
+
+// ---- Segment rectangles --------------------------------------------------------
+type SegName = "bills" | "notes" | "bonds";
+interface SegRect {
+  x: number; y: number; w: number; h: number;
+  segment: SegName;
+  fyLabel: string;
+  value: number;
+}
+
+// Stack bottom -> top: bills, notes, bonds.
+const STACK_ORDER: SegName[] = ["bills", "notes", "bonds"];
+
+const segRects: SegRect[] = [];
+for (let i = 0; i < bars.length; i++) {
+  const bar = bars[i]!;
+  const x = barX(i);
+  const w = BAR_W;
+  let stackBottom = 0;
+  for (const seg of STACK_ORDER) {
+    const v = bar[seg];
+    if (v <= 0) continue;
+    const y0 = yScale(stackBottom);
+    const y1 = yScale(stackBottom + v);
+    const h = y0 - y1;
+    if (h > 0.3) {
+      segRects.push({ x, y: y1, w, h, segment: seg, fyLabel: bar.fyLabel, value: v });
+    }
+    stackBottom += v;
+  }
+}
+
+// ---- Actual / forecast boundary ------------------------------------------------
+const firstForecastIdx = (() => {
+  for (let i = 0; i < bars.length; i++) if (bars[i]!.isForecast) return i;
+  return -1;
+})();
+// Divider x: midpoint of the gap between last actual bar and first forecast bar.
+const dividerX = firstForecastIdx > 0
+  ? (barX(firstForecastIdx - 1) + BAR_W + barX(firstForecastIdx)) / 2
+  : null;
+
+// ---- Current fiscal-year bar numeric label -------------------------------------
+const currentBarIdx = bars.length - 1;
+const currentBar = currentBarIdx >= 0 ? bars[currentBarIdx]! : null;
+const currentLabelX = currentBar ? barCX(currentBarIdx) : 0;
+const currentLabelY = currentBar ? yScale(currentBar.total) : 0;
+const totalLabel = currentBar ? `$${Math.round(currentBar.total)}B` : "";
+
+// ---- In-gutter segment labels (anchored to the LAST bar's three segments) ------
+// The labels live in the right gutter (just past the frame) and must align to the
+// segment mid-heights of the RIGHTMOST bar (FY2026-27) — the bar physically next
+// to the gutter — so the reader maps texture -> name on the adjacent bar. Anchoring
+// to the last ACTUAL bar (mid-chart, behind the forecast divider) detaches the
+// labels from the segments they name; the rightmost bar is the correct anchor.
+const lastBar = bars.length > 0 ? bars[bars.length - 1]! : null;
+let billsLabelY = PLOT_Y1 - 20;
+let notesLabelY = PLOT_Y1 - 50;
+let bondsLabelY = PLOT_Y1 - 80;
+if (lastBar) {
+  const b = lastBar;
+  billsLabelY = (yScale(0) + yScale(b.bills)) / 2;
+  notesLabelY = (yScale(b.bills) + yScale(b.bills + b.notes)) / 2;
+  bondsLabelY = (yScale(b.bills + b.notes) + yScale(b.total)) / 2;
+}
+// Sit the labels in the gutter just past the right frame (PLOT_X1), not abutting
+// the last-actual bar mid-chart.
+const labelX = PLOT_X1 + 8;
+
+// ---- aria-label ----------------------------------------------------------------
+const ariaLabel =
+  `Federal gross issuance flow by maturity bucket, FY${bars[0]?.fyLabel ?? ""} to FY${bars[bars.length - 1]?.fyLabel ?? ""}. ` +
+  `Stacked bars, three buckets per year: treasury bills (light grey, bottom), short and medium bonds (mid grey, middle), long bonds (black, top), in $B. ` +
+  `FY2024-25 is the last actual; FY2026-27 is the current forecast, total ${totalLabel}.`;
+---
+
+{!hasData ? (
+  <PanelEmpty reason="DATA NOT YET WIRED — fiscal.json panel-10 frt_issuance_flow_bills/notes/bonds" />
+) : (
+  <div class="p5iss-chart" data-panel="fiscal-plate-5" data-panel-status="live">
+    <svg
+      class="p5iss-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      <title>Gross issuance eases to $566 billion in 2026-27 after peaking at $603 billion in 2025-26. — Federal gross issuance flow by maturity bucket</title>
+
+      {/* Horizontal gridlines */}
+      {gridlines.map((v) => (
+        <line
+          class="p5iss-chart__gridline"
+          x1={PLOT_X0.toFixed(2)} y1={yScale(v).toFixed(2)}
+          x2={PLOT_X1.toFixed(2)} y2={yScale(v).toFixed(2)}
+        />
+      ))}
+
+      {/* Bar segments — ONE consistent style across the actual/forecast boundary */}
+      {segRects.map((seg) => {
+        const titleText = `FY${seg.fyLabel} ${seg.segment}: $${seg.value.toFixed(0)}B`;
+        const cls =
+          seg.segment === "bonds" ? "p5iss-chart__bar-bonds"
+          : seg.segment === "notes" ? "p5iss-chart__bar-notes"
+          : "p5iss-chart__bar-bills";
+        return (
+          <rect class={cls} x={seg.x.toFixed(2)} y={seg.y.toFixed(2)}
+            width={seg.w.toFixed(2)} height={seg.h.toFixed(2)}>
+            <title>{titleText}</title>
+          </rect>
+        );
+      })}
+
+      {/* Vertical forecast divider (house convention) */}
+      {dividerX !== null && (
+        <line
+          class="p5iss-chart__divider"
+          x1={dividerX.toFixed(2)} y1={PLOT_Y0.toFixed(2)}
+          x2={dividerX.toFixed(2)} y2={PLOT_Y1.toFixed(2)}
+        />
+      )}
+
+      {/* "FORECAST" label above the projection region */}
+      {dividerX !== null && (
+        <text
+          class="p5iss-chart__forecast-label"
+          x={(dividerX + 6).toFixed(2)}
+          y={(PLOT_Y0 - 6).toFixed(2)}
+          text-anchor="start"
+        >FORECAST</text>
+      )}
+
+      {/* Current-total numeric value callout — anchored above the FY2026-27 bar.
+          No red dot: canon R2 restricts the latest-point dot to line/area charts. */}
+      {currentBar && totalLabel && (
+        <text
+          class="p5iss-chart__latest-label"
+          x={currentLabelX.toFixed(2)}
+          y={(currentLabelY - 10).toFixed(2)}
+          text-anchor="middle"
+        >{totalLabel}</text>
+      )}
+
+      {/* Hairline frame */}
+      <rect
+        class="p5iss-chart__frame"
+        x={PLOT_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
+        width={PLOT_W.toFixed(2)} height={PLOT_H.toFixed(2)}
+      />
+
+      {/* Y-axis tick labels */}
+      {yTicks.map((t) => (
+        <text
+          class="p5iss-chart__ytick-label"
+          x={(PLOT_X0 - 8).toFixed(2)}
+          y={(t.y + 4).toFixed(2)}
+          text-anchor="end"
+        >{t.label}</text>
+      ))}
+
+      {/* X-axis tick labels */}
+      {xTicks.map((t) => (
+        <g>
+          <line
+            class="p5iss-chart__xtick"
+            x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 5).toFixed(2)}
+          />
+          <text
+            class="p5iss-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 18).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* Segment labels in right gutter — each prefixed with a TINT swatch so the
+          reader maps grey-density -> instrument (categories now separate by tint,
+          not texture). Aligned to the rightmost bar's three segment mid-heights. */}
+      {lastBar && (
+        <>
+          <rect class="p5iss-chart__swatch-bonds"
+            x={labelX.toFixed(2)} y={(bondsLabelY - 5).toFixed(2)} width="9" height="9" />
+          <text class="p5iss-chart__seg-label-bonds"
+            x={(labelX + 14).toFixed(2)} y={(bondsLabelY + 4).toFixed(2)} text-anchor="start"
+          >10–30 yr</text>
+          <rect class="p5iss-chart__swatch-notes"
+            x={labelX.toFixed(2)} y={(notesLabelY - 5).toFixed(2)} width="9" height="9" />
+          <text class="p5iss-chart__seg-label-notes"
+            x={(labelX + 14).toFixed(2)} y={(notesLabelY + 4).toFixed(2)} text-anchor="start"
+          >2–5 yr</text>
+          <rect class="p5iss-chart__swatch-bills"
+            x={labelX.toFixed(2)} y={(billsLabelY - 5).toFixed(2)} width="9" height="9" />
+          <text class="p5iss-chart__seg-label-bills"
+            x={(labelX + 14).toFixed(2)} y={(billsLabelY + 4).toFixed(2)} text-anchor="start"
+          >T-bills</text>
+        </>
+      )}
+
+    </svg>
+  </div>
+)}
+
+<style>
+  /*
+   * Plate5IssuanceByInstrument — Tier-3 stacked bar chart.
+   * Gross issuance flow by maturity bucket: FY2019-20 -> FY2026-27 (history + forecast).
+   * Grey-tint ramp: bills FAINT 0.28, notes MID 0.55, bonds INK 1.00 (dark on top);
+   * 1px --paper hairline between segments. Tint = category, never forecast.
+   * Forecast signal = vertical dashed divider + "FORECAST" label; bars stay one tint.
+   * Full-ink chrome (no opacity on ticks/marks/labels) — canon tokens, no drift.
+   */
+  .p5iss-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+    overflow: visible;
+  }
+  .p5iss-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans);
+    overflow: visible;
+  }
+  .p5iss-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  /* Grey-tint ink-density ramp (replaces texture; per fiscal_bar_language.md §2).
+     Monotonic dark->light down the stack: bonds (top) INK 1.00 = lead instrument,
+     notes (mid) MID 0.55, bills (bottom) FAINT 0.28. Tint = category, never
+     forecast. No --paper stroke: a full-rect white outline read as stripey
+     black/white banding (Jay 2026-06-02); the monotonic tint ramp separates the
+     segments on its own. */
+  .p5iss-chart__bar-bonds {
+    fill: var(--ink);
+    fill-opacity: 1;
+    stroke: none;
+  }
+  .p5iss-chart__bar-notes {
+    fill: var(--ink);
+    fill-opacity: 0.55;
+    stroke: none;
+  }
+  .p5iss-chart__bar-bills {
+    fill: var(--ink);
+    fill-opacity: 0.28;
+    stroke: none;
+  }
+  /* Vertical dashed divider (house convention): dash 4 2, opacity 0.40 */
+  .p5iss-chart__divider {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-opacity: 0.40;
+    shape-rendering: crispEdges;
+  }
+  /* "FORECAST" label: Manrope 600 11px, 0.18em, full ink, no opacity */
+  .p5iss-chart__forecast-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+  }
+  .p5iss-chart__latest-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .p5iss-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p5iss-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .p5iss-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p5iss-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+  }
+  /* Gutter tint swatches — same ramp as the bar segments, so the legend reads
+     as a tint key. Hairline outline keeps the faint bills swatch visible on paper. */
+  .p5iss-chart__swatch-bonds {
+    fill: var(--ink);
+    fill-opacity: 1;
+    stroke: var(--ink);
+    stroke-width: 0.5;
+    shape-rendering: crispEdges;
+  }
+  .p5iss-chart__swatch-notes {
+    fill: var(--ink);
+    fill-opacity: 0.55;
+    stroke: var(--ink);
+    stroke-width: 0.5;
+    shape-rendering: crispEdges;
+  }
+  .p5iss-chart__swatch-bills {
+    fill: var(--ink);
+    fill-opacity: 0.28;
+    stroke: var(--ink);
+    stroke-width: 0.5;
+    shape-rendering: crispEdges;
+  }
+  /* Segment labels: hierarchy by WEIGHT, full ink, 13px (canon direct-label ladder) */
+  .p5iss-chart__seg-label-bonds {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 400;
+  }
+  .p5iss-chart__seg-label-notes {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 400;
+  }
+  .p5iss-chart__seg-label-bills {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 400;
+  }
+</style>

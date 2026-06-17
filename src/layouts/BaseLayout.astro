@@ -238,47 +238,6 @@ const tabTitle = title === site.name ? site.name : `${title} | ${site.name}`;
             const btn = form.querySelector('[type="submit"]');
             const btnText = btn ? btn.textContent : '';
             if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
-            const showSuccess = () => {
-              const msg = form.getAttribute('data-success-msg') ||
-                'Subscribed. Thanks — first issue lands when it lands.';
-              const p = document.createElement('p');
-              p.className = 'formsubmit-success';
-              p.setAttribute('role', 'status');
-              p.textContent = msg;
-              // Opt-in: if data-formsubmit-replace-section is set on the
-              // form, replace the closest <section> instead of just the
-              // form. Use this when the form's section also contains
-              // intro text that goes stale once the user submits.
-              const target = form.hasAttribute('data-formsubmit-replace-section')
-                ? (form.closest('section') || form)
-                : form;
-              target.replaceWith(p);
-            };
-            // Belt-and-suspenders capture: forms with `data-backup-action`
-            // (the Kit subscribe forms) ALSO post to the FormSubmit email
-            // catcher so Jay gets every address directly, even if Kit
-            // quarantines or drops the signup. Backup success is enough to
-            // show the subscriber a success state — the list can be
-            // reconciled by hand; a lost address cannot.
-            let backupOk = false;
-            const backupAction = form.getAttribute('data-backup-action');
-            if (backupAction) {
-              try {
-                // FormSubmit 500s on bracket-style keys (fields[source]) —
-                // flatten them to bare names for the backup leg only.
-                const bd = new FormData();
-                for (const [k, v] of new FormData(form).entries()) {
-                  bd.append(k.replace(/^fields\[(.+)\]$/, '$1'), v);
-                }
-                bd.append('_subject', 'New Sibley Creek subscriber (backup catcher)');
-                const b = await fetch(backupAction, {
-                  method: 'POST',
-                  body: bd,
-                  headers: { Accept: 'application/json' },
-                });
-                backupOk = b.ok;
-              } catch (_) {}
-            }
             try {
               const resp = await fetch(form.action, {
                 method: 'POST',
@@ -286,29 +245,24 @@ const tabTitle = title === site.name ? site.name : `${title} | ${site.name}`;
                 headers: { Accept: 'application/json' },
               });
               if (resp.ok) {
-                // Kit (ConvertKit) anti-bot guard: the forms endpoint can
-                // return 200 with {status:"quarantined", url:...} when the
-                // POST lacks Kit's embed token. The subscription is held
-                // until the subscriber passes the guard challenge at that
-                // URL — so follow it, exactly like Kit's own embed script
-                // does. Without this, the form showed success while Kit
-                // silently dropped the signup. FormSubmit responses carry
-                // no `status` field, so contact/advisory forms fall
-                // through to the inline confirmation unchanged.
-                let data = null;
-                try { data = await resp.clone().json(); } catch (_) {}
-                if (data && data.status === 'quarantined' && data.url) {
-                  window.location.assign(data.url);
-                  return;
-                }
-                showSuccess();
+                const msg = form.getAttribute('data-success-msg') ||
+                  'Subscribed. Thanks — first issue lands when it lands.';
+                const p = document.createElement('p');
+                p.className = 'formsubmit-success';
+                p.setAttribute('role', 'status');
+                p.textContent = msg;
+                // Opt-in: if data-formsubmit-replace-section is set on the
+                // form, replace the closest <section> instead of just the
+                // form. Use this when the form's section also contains
+                // intro text that goes stale once the user submits.
+                const target = form.hasAttribute('data-formsubmit-replace-section')
+                  ? (form.closest('section') || form)
+                  : form;
+                target.replaceWith(p);
               } else {
                 throw new Error('http ' + resp.status);
               }
             } catch (err) {
-              // Kit failed outright — but if the backup catcher took the
-              // address, the signup is recoverable by hand. Show success.
-              if (backupOk) { showSuccess(); return; }
               if (btn) { btn.disabled = false; btn.textContent = btnText; }
               const existing = form.querySelector('.formsubmit-error');
               if (existing) existing.remove();

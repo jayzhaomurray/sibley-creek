@@ -1,0 +1,566 @@
+---
+/*
+ * Plate1BalanceComposition — Budget balance: total + operating/capital composition.
+ *
+ * EDITORIAL PURPOSE: Show the total budget balance over 40+ years of history and
+ * project it forward, with the operating/capital split visible as secondary
+ * composition on the forecast segment (the Carney bifurcated-budget frame).
+ *
+ * DATA: fiscal.json panel-6
+ *   primary   = frt_federal_balance_total ($B, FY1983-84 → FY2030-31, is_forecast)
+ *   secondary = frt_federal_balance_opex  ($B, FY2025-26 → FY2030-31, forecast only)
+ *   tertiary  = frt_federal_balance_capex ($B, positive = capital expenditure that
+ *               reduces the balance; FY2025-26 → FY2030-31, forecast only)
+ *
+ * FORM DECISION (R2.4 — balance total is the headline):
+ *   Signed vertical bars per fiscal year = total budgetary balance (primary).
+ *   On the forecast segment (FY2025-26+), each bar is texture-segmented into
+ *   operating (solid ink) + capital (cross-hatch) so the bifurcated read is
+ *   visible. On the history segment (FY1983-84→FY2024-25), bars are solid
+ *   total-only (opex/capex data doesn't exist for history in the source).
+ *   Capital values in this data are POSITIVE and represent capital expenditure
+ *   that deepens the deficit: they extend the total-balance bar downward beyond
+ *   the operating segment.
+ *   Sign check: total = opex + (-capex). So opex = total + capex (since capex > 0
+ *   and acts as a downward extension). Both sum to the total bar height.
+ *
+ * FORECAST CONVENTION (R2.1 — vertical dashed divider, not dotted trace):
+ *   Data trace = ONE consistent solid-ink bar style across history + forecast.
+ *   No hatch/outline difference on forecast bars.
+ *   Forecast signal: vertical dashed divider at the boundary (ink 1px, dash 4 3, 0.40 opacity)
+ *   + "Forecast" micro-caps label above the projection region.
+ *   No latest-point red dot (canon R2: dot is line/area only, never on bars).
+ *   Latest-actual numeric value callout: above the last actual bar (e.g. "-$36.3B").
+ *
+ * HISTORY: full range FY1983-84 → FY2030-31 (42 history + 6 forecast = 48 bars).
+ *   x-axis ticks every 5 years given the long span.
+ *
+ * Y-DOMAIN (tight per R2.3): data range -$327.7B (COVID) to +$19.9B (surplus).
+ *   Nice strides: -340 to +40, step 40. Topmost tick "+40B".
+ *
+ * ZERO LINE: structural, 1.5px pure ink.
+ *
+ * ACTUALS-ONLY NOTE: History bars are total-balance only (solid ink).
+ *   The opex/capex split exists only for the forecast segment (FY2025-26+),
+ *   per the Capital Budgeting Framework introduced in Budget 2025.
+ *
+ * TITLE: [TITLE TK]
+ * CAPTION: [CAPTION TK]
+ *
+ * CANON COMPLIANCE (Tier-3):
+ *   1. Primary read = total balance bars, full history, signed from zero.
+ *   2. Zero line 1.5px pure ink.
+ *   3. Forecast signal = vertical dashed divider + "Forecast" label (R2.1).
+ *   4. Solid bars across boundary (no hatch/outline on forecast bars).
+ *   5. Texture split on forecast segment: opex solid, capex cross-hatch.
+ *   6. No latest-point red dot (canon R2: bars get no dot).
+ *   7. Latest-actual numeric value callout above last actual bar.
+ *   8. Hairline frame 1px ink.
+ *   9. 4 gridlines 0.18 opacity.
+ *  10. Plex Mono y-ticks; topmost "+40B".
+ *  11. Manrope x-ticks every 5 years.
+ *  12. viewBox 720x405.
+ *  13. aria-label.
+ *  14. Native SVG <title> on each bar segment.
+ *  15. No source/caption/methodology inside SVG.
+ */
+
+import type { PanelData } from "../_shared/panelData";
+import PanelEmpty from "../_shared/PanelEmpty.astro";
+
+interface Props {
+  data?: PanelData | null;
+}
+
+const { data = null } = Astro.props;
+
+// ---- Data types ----------------------------------------------------------------
+type RawPt = { date: string; value: number | null; is_forecast?: number; fy_label?: string };
+
+interface BarPt {
+  fyLabel: string;
+  total: number;    // total budgetary balance ($B) — signed (negative = deficit)
+  opex: number | null;   // operating balance ($B, forecast only)
+  capex: number | null;  // capital expenditure ($B positive, forecast only)
+  isForecast: boolean;
+}
+
+// Build lookup maps for secondary (opex) and tertiary (capex)
+const opexByFY = new Map<string, number | null>();
+const capexByFY = new Map<string, number | null>();
+
+if (data?.secondary?.data) {
+  for (const r of data.secondary.data as RawPt[]) {
+    const fy = r.fy_label ?? r.date.slice(0, 4);
+    opexByFY.set(fy, r.value);
+  }
+}
+if (data?.tertiary?.data) {
+  for (const r of data.tertiary.data as RawPt[]) {
+    const fy = r.fy_label ?? r.date.slice(0, 4);
+    capexByFY.set(fy, r.value);
+  }
+}
+
+const bars: BarPt[] = [];
+
+if (data?.primary?.data && data.primary.data.length > 0) {
+  for (const r of data.primary.data as RawPt[]) {
+    if (r.value === null || r.value === undefined) continue;
+    const fy = r.fy_label ?? r.date.slice(0, 4);
+    const isForecast = r.is_forecast === 1;
+    bars.push({
+      fyLabel: fy,
+      total: r.value,
+      opex: opexByFY.get(fy) ?? null,
+      capex: capexByFY.get(fy) ?? null,
+      isForecast,
+    });
+  }
+}
+
+const hasData = bars.length > 0;
+
+// ---- Geometry ------------------------------------------------------------------
+const VB_W = 720;
+const VB_H = 405;
+const M_L = 56;   // canon left margin; fits signed labels like "-340"
+const M_R = 96;   // canon right gutter for "Operating"/"Capital" segment labels
+const M_T = 44;   // canon top; "FORECAST" stamp fits with room
+const M_B = 40;   // canon bottom
+
+const PLOT_X0 = M_L;
+const PLOT_X1 = VB_W - M_R;
+const PLOT_Y0 = M_T;
+const PLOT_Y1 = VB_H - M_B;
+const PLOT_W  = PLOT_X1 - PLOT_X0;
+const PLOT_H  = PLOT_Y1 - PLOT_Y0;
+
+// ---- Y domain: tight fit, nice strides -----------------------------------------
+// Data range: -327.7B (FY2020-21 COVID) to +19.9B (FY2000-01 surplus)
+// Nice strides of 40: -360 to +40.
+const Y_DOM_MIN = -360;
+const Y_DOM_MAX =  40;
+const Y_TICK_STEP = 40;
+const ySpan = Y_DOM_MAX - Y_DOM_MIN;
+
+const yScale = (v: number): number =>
+  PLOT_Y0 + PLOT_H - ((v - Y_DOM_MIN) / ySpan) * PLOT_H;
+
+// ---- Bar geometry: 48 bars — narrow width, minimal gap -------------------------
+const N = bars.length;
+const BAR_TOTAL_W = PLOT_W / N;
+const BAR_GAP = Math.max(BAR_TOTAL_W * 0.12, 0.8);
+const BAR_W = BAR_TOTAL_W - BAR_GAP;
+
+const barX  = (i: number): number => PLOT_X0 + i * BAR_TOTAL_W + BAR_GAP / 2;
+const barCX = (i: number): number => barX(i) + BAR_W / 2;
+
+// ---- Y ticks -------------------------------------------------------------------
+type YTick = { y: number; label: string };
+const yTickVals: number[] = [];
+for (let v = Y_DOM_MIN; v <= Y_DOM_MAX; v += Y_TICK_STEP) yTickVals.push(v);
+const yTicks: YTick[] = yTickVals.map((v, i) => ({
+  y: yScale(v),
+  label: i === yTickVals.length - 1
+    ? (v >= 0 ? `+$${v}B` : `-$${Math.abs(v)}B`)
+    : (v === 0 ? "0" : (v > 0 ? `+${v}` : `${v}`)),
+}));
+
+const gridlines = yTickVals.filter((v) => v !== 0); // zero line drawn separately
+
+// ---- X ticks: every 5 fiscal years (long span) ---------------------------------
+type XTick = { x: number; label: string };
+// Show ticks at every 5th bar: FY1983-84 (index 0), FY1988-89, FY1993-94, ...
+// Also always show the last actual and the last forecast.
+const xTicks: XTick[] = bars
+  .map((b, i) => ({ b, i }))
+  .filter(({ i }) => i % 5 === 0 || i === bars.length - 1)
+  .map(({ b, i }) => ({
+    x: barCX(i),
+    // "1983-84" -> "84"; "2024-25" -> "'25" style
+    label: "'" + b.fyLabel.slice(-2),
+  }));
+
+// ---- Forecast boundary ---------------------------------------------------------
+// First forecast bar index
+const firstForecastIdx = bars.findIndex((b) => b.isForecast);
+// Divider sits between last actual and first forecast
+const dividerX = firstForecastIdx > 0
+  ? (barX(firstForecastIdx - 1) + BAR_W + barX(firstForecastIdx)) / 2
+  : firstForecastIdx === 0
+    ? barX(0) - BAR_GAP
+    : null;
+
+// ---- Last actual bar -----------------------------------------------------------
+const lastActualIdx = (() => {
+  let last = -1;
+  for (let i = 0; i < bars.length; i++) {
+    if (!bars[i]!.isForecast) last = i;
+  }
+  return last;
+})();
+
+const lastActualBar = lastActualIdx >= 0 ? bars[lastActualIdx] : null;
+const redDotX = lastActualIdx >= 0 ? barCX(lastActualIdx) : 0;
+
+// Top of bar for red dot and numeric label
+// For a deficit bar (total < 0), the top of the rendered rect is at yScale(0) (the zero line).
+// For a surplus bar (total > 0), the top is at yScale(total).
+const barTopY = (total: number): number =>
+  total >= 0 ? yScale(total) : yScale(0);
+
+const redDotY = lastActualBar ? barTopY(lastActualBar.total) : 0;
+const latestLabel = lastActualBar
+  ? (lastActualBar.total >= 0 ? `+$${lastActualBar.total.toFixed(1)}B` : `-$${Math.abs(lastActualBar.total).toFixed(1)}B`)
+  : "";
+
+// ---- Segment rectangles --------------------------------------------------------
+// For history bars (no opex/capex): one solid-ink rect from zero to total.
+// For forecast bars (opex + capex available): two textured rects summing to total.
+//   - Operating (opex): from zero downward by |opex| (if deficit) or upward (if surplus)
+//   - Capital (capex): stacks below the operating segment by capex value
+//   Both must sum exactly to total.
+//   Sign: opex is signed (negative = deficit). capex is positive (adds to deficit).
+//   Relationship: total = opex - capex. So capex extends the deficit below opex.
+
+interface SegRect {
+  x: number; y: number; w: number; h: number;
+  segment: "total" | "opex" | "capex";
+  isForecast: boolean;
+  title: string;
+}
+
+const segRects: SegRect[] = [];
+for (let i = 0; i < bars.length; i++) {
+  const bar = bars[i]!;
+  const x = barX(i);
+  const w = BAR_W;
+  const y0 = yScale(0);
+
+  if (!bar.isForecast || bar.opex === null || bar.capex === null) {
+    // History bar: single solid-ink rect, total balance
+    const y1 = yScale(bar.total);
+    const [rectY, rectH] = bar.total >= 0 ? [y1, y0 - y1] : [y0, y1 - y0];
+    if (rectH > 0.3) {
+      segRects.push({
+        x, y: rectY, w, h: rectH,
+        segment: "total",
+        isForecast: false,
+        title: `FY${bar.fyLabel}: $${bar.total >= 0 ? "+" : ""}${bar.total.toFixed(1)}B`,
+      });
+    }
+  } else {
+    // Forecast bar: opex + capex segmented
+    // opex is signed; capex is positive (extends deficit downward)
+    // Operating segment: from zero to opex
+    if (bar.opex !== 0) {
+      const y1 = yScale(bar.opex);
+      const [rectY, rectH] = bar.opex >= 0 ? [y1, y0 - y1] : [y0, y1 - y0];
+      if (rectH > 0.3) {
+        segRects.push({
+          x, y: rectY, w, h: rectH,
+          segment: "opex",
+          isForecast: true,
+          title: `FY${bar.fyLabel} operating: $${bar.opex >= 0 ? "+" : ""}${bar.opex.toFixed(1)}B (SEU 2026 proj.)`,
+        });
+      }
+    }
+    // Capital segment: stacks below operating (further into deficit)
+    if (bar.capex > 0) {
+      const capexTop = Math.min(bar.opex, 0); // where opex segment ends (below zero if deficit)
+      const capexBottom = capexTop - bar.capex;
+      const y1 = yScale(capexTop);
+      const y2 = yScale(capexBottom);
+      const rectH = y2 - y1;
+      if (rectH > 0.3) {
+        segRects.push({
+          x, y: y1, w, h: rectH,
+          segment: "capex",
+          isForecast: true,
+          title: `FY${bar.fyLabel} capital: $${bar.capex.toFixed(1)}B (SEU 2026 proj.)`,
+        });
+      }
+    }
+  }
+}
+
+// ---- In-gutter segment labels for forecast zone --------------------------------
+// Place "Operating" and "Capital" labels in the right gutter anchored to the
+// last forecast bar's segment midpoints.
+const lastForecastIdx = bars.reduce((acc, b, i) => b.isForecast ? i : acc, -1);
+const lastForecastBar = lastForecastIdx >= 0 ? bars[lastForecastIdx] : null;
+
+let opexLabelY = PLOT_Y1 - 60;
+let capexLabelY = PLOT_Y1 - 30;
+if (lastForecastBar && lastForecastBar.opex !== null && lastForecastBar.capex !== null) {
+  const opexMid = (yScale(0) + yScale(lastForecastBar.opex)) / 2;
+  const capexTopLevel = Math.min(lastForecastBar.opex, 0);
+  const capexMid = (yScale(capexTopLevel) + yScale(capexTopLevel - lastForecastBar.capex)) / 2;
+  opexLabelY = opexMid;
+  capexLabelY = capexMid;
+}
+const segLabelX = lastForecastIdx >= 0 ? barX(lastForecastIdx) + BAR_W + 5 : PLOT_X1 + 4;
+
+// ---- aria-label ----------------------------------------------------------------
+const firstFY = bars[0]?.fyLabel ?? "";
+const lastFY = bars[bars.length - 1]?.fyLabel ?? "";
+const ariaLabel =
+  `Federal budget balance total, FY${firstFY} to FY${lastFY}. ` +
+  `Signed bars: negative bars below zero are deficits; positive bars above zero are surpluses. ` +
+  `Last actual: FY${lastActualBar?.fyLabel ?? ""}${latestLabel ? " (" + latestLabel + ")" : ""}. ` +
+  `Forecast segment FY${firstForecastIdx >= 0 ? bars[firstForecastIdx]?.fyLabel : ""}+ shows operating/capital decomposition per the DoF Capital Budgeting Framework.`;
+---
+
+{!hasData ? (
+  <PanelEmpty reason="DATA NOT YET WIRED — fiscal.json panel-6 primary=frt_federal_balance_total" />
+) : (
+  <div class="p1bal-chart" data-panel="fiscal-plate-1" data-panel-status="live">
+    <svg
+      class="p1bal-chart__svg"
+      viewBox={`0 0 ${VB_W} ${VB_H}`}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      <title>[TITLE TK] — Federal budget balance</title>
+
+      <defs>
+        {/* Capital segment texture: cross-hatch (two diagonal directions) */}
+        <pattern id="p1-capex-hatch" width="6" height="6" patternUnits="userSpaceOnUse">
+          <line x1="0" y1="6" x2="6" y2="0" stroke="var(--ink)" stroke-width="1" stroke-opacity="0.75" />
+          <line x1="0" y1="0" x2="6" y2="6" stroke="var(--ink)" stroke-width="1" stroke-opacity="0.75" />
+        </pattern>
+      </defs>
+
+      {/* Horizontal gridlines (exclude zero — drawn separately) */}
+      {gridlines.map((v) => (
+        <line
+          class="p1bal-chart__gridline"
+          x1={PLOT_X0.toFixed(2)} y1={yScale(v).toFixed(2)}
+          x2={PLOT_X1.toFixed(2)} y2={yScale(v).toFixed(2)}
+        />
+      ))}
+
+      {/* Zero line — structural, heavier */}
+      <line
+        class="p1bal-chart__zero-line"
+        x1={PLOT_X0.toFixed(2)} y1={yScale(0).toFixed(2)}
+        x2={PLOT_X1.toFixed(2)} y2={yScale(0).toFixed(2)}
+      />
+
+      {/* Bar segments */}
+      {segRects.map((seg) => {
+        if (seg.segment === "capex") {
+          return (
+            <rect
+              class="p1bal-chart__bar-capex"
+              x={seg.x.toFixed(2)} y={seg.y.toFixed(2)}
+              width={seg.w.toFixed(2)} height={seg.h.toFixed(2)}
+            >
+              <title>{seg.title}</title>
+            </rect>
+          );
+        }
+        // "total" or "opex" — solid ink
+        return (
+          <rect
+            class="p1bal-chart__bar-solid"
+            x={seg.x.toFixed(2)} y={seg.y.toFixed(2)}
+            width={seg.w.toFixed(2)} height={seg.h.toFixed(2)}
+          >
+            <title>{seg.title}</title>
+          </rect>
+        );
+      })}
+
+      {/* Vertical forecast divider (R2.1) */}
+      {dividerX !== null && (
+        <line
+          class="p1bal-chart__divider"
+          x1={dividerX.toFixed(2)} y1={PLOT_Y0.toFixed(2)}
+          x2={dividerX.toFixed(2)} y2={PLOT_Y1.toFixed(2)}
+        />
+      )}
+
+      {/* "Forecast" label above projection region (R2.1) */}
+      {dividerX !== null && (
+        <text
+          class="p1bal-chart__forecast-label"
+          x={(dividerX + 6).toFixed(2)}
+          y={(PLOT_Y0 - 6).toFixed(2)}
+          text-anchor="start"
+        >FORECAST</text>
+      )}
+
+      {/* Latest-actual numeric value callout — anchored above the last actual bar.
+          No red dot: canon R2 restricts the latest-point dot to line/area charts. */}
+      {lastActualBar && latestLabel && (
+        <text
+          class="p1bal-chart__latest-label"
+          x={redDotX.toFixed(2)}
+          y={(redDotY - 10).toFixed(2)}
+          text-anchor="middle"
+        >{latestLabel}</text>
+      )}
+
+      {/* Hairline frame */}
+      <rect
+        class="p1bal-chart__frame"
+        x={PLOT_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
+        width={PLOT_W.toFixed(2)} height={PLOT_H.toFixed(2)}
+      />
+
+      {/* Y-axis tick labels */}
+      {yTicks.map((t) => (
+        <text
+          class="p1bal-chart__ytick-label"
+          x={(PLOT_X0 - 6).toFixed(2)}
+          y={(t.y + 4).toFixed(2)}
+          text-anchor="end"
+        >{t.label}</text>
+      ))}
+
+      {/* X-axis tick labels */}
+      {xTicks.map((t) => (
+        <g>
+          <line
+            class="p1bal-chart__xtick"
+            x1={t.x.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
+            x2={t.x.toFixed(2)} y2={(PLOT_Y1 + 5).toFixed(2)}
+          />
+          <text
+            class="p1bal-chart__xtick-label"
+            x={t.x.toFixed(2)}
+            y={(PLOT_Y1 + 17).toFixed(2)}
+            text-anchor="middle"
+          >{t.label}</text>
+        </g>
+      ))}
+
+      {/* Segment labels in right gutter — only if forecast segment has the split */}
+      {lastForecastBar && lastForecastBar.opex !== null && (
+        <>
+          <text
+            class="p1bal-chart__seg-label-primary"
+            x={(segLabelX).toFixed(2)}
+            y={(opexLabelY + 4).toFixed(2)}
+            text-anchor="start"
+          >Operating</text>
+          <text
+            class="p1bal-chart__seg-label-secondary"
+            x={(segLabelX).toFixed(2)}
+            y={(capexLabelY + 4).toFixed(2)}
+            text-anchor="start"
+          >Capital</text>
+        </>
+      )}
+
+    </svg>
+  </div>
+)}
+
+<style>
+  /*
+   * Plate1BalanceComposition — Tier-3 signed bar chart.
+   * Total budget balance bars, full FY1983-84 history + SEU 2026 forecast.
+   * Forecast signal: vertical dashed divider + "Forecast" label (R2.1).
+   * Forecast segment bars show opex/capex texture split.
+   * History bars: solid ink (total only).
+   * Zero line: structural 1.5px.
+   */
+  .p1bal-chart {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--paper);
+  }
+  .p1bal-chart__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans);
+  }
+  .p1bal-chart__gridline {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-opacity: 0.18;
+    shape-rendering: crispEdges;
+  }
+  .p1bal-chart__zero-line {
+    stroke: var(--ink);
+    stroke-width: 1.5;
+    stroke-opacity: 1;
+    shape-rendering: crispEdges;
+  }
+  /* History + operating forecast bars: solid ink */
+  .p1bal-chart__bar-solid {
+    fill: var(--ink);
+    stroke: none;
+  }
+  /* Capital forecast bars: cross-hatch */
+  .p1bal-chart__bar-capex {
+    fill: url(#p1-capex-hatch);
+    stroke: none;
+  }
+  /* Vertical dashed divider (R2.1): dash 4 2, opacity 0.40 (structural divider) */
+  .p1bal-chart__divider {
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    stroke-opacity: 0.40;
+    shape-rendering: crispEdges;
+  }
+  /* "FORECAST" label (R2.1): recession-label token — Manrope 600 11px, 0.18em, full ink */
+  .p1bal-chart__forecast-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+  }
+  /* Latest-actual numeric label: Plex Mono 400 12px (it is data, not prose) */
+  .p1bal-chart__latest-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .p1bal-chart__frame {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p1bal-chart__ytick-label {
+    fill: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .p1bal-chart__xtick {
+    stroke: var(--ink);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .p1bal-chart__xtick-label {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 400;
+  }
+  /* Segment labels: hierarchy by WEIGHT, full ink, 13px (canon direct-label ladder) */
+  .p1bal-chart__seg-label-primary {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .p1bal-chart__seg-label-secondary {
+    fill: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 400;
+  }
+</style>
