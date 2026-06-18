@@ -547,15 +547,6 @@ export const sections: Section[] = [
         asOf: "TK",
         spark: [],
       },
-      {
-        key: "debt-service-share",
-        indicator: "Debt service / revenues",
-        value: "TK",
-        delta: "TK",
-        deltaDir: "neutral",
-        asOf: "TK",
-        spark: [],
-      },
     ],
     blurb: {
       kind: "last",

@@ -4,8 +4,8 @@
  *
  * Three stacked surfaces:
  *   1. Indicator panel grid: 2x4 hairline-bordered cells, one per
- *      section. Fiscal cell renders "In development" while the chartbook
- *      is in team review.
+ *      section. (Fiscal now renders a live SectionPanel like the rest,
+ *      since the chartbook shipped.)
  *   2. Week ahead: Canadian economic calendar parsed from the Forex
  *      Factory XML feed at build time. Sibley-styled (Manrope + Plex
  *      Mono, hairlines, accent on high-impact). Ottawa time. Currency
@@ -863,21 +863,7 @@ const fmtNewsDate = (raw: string): string => {
       <h2 class="visually-hidden">Indicator panels</h2>
       {ordered.map((s, i) => (
         <div class="home__cell">
-          {s.slug === "fiscal" ? (
-            <a class="fiscal-soon" href="/fiscal/">
-              <p class="fiscal-soon__eyebrow">
-                <span class="fiscal-soon__fig">Figure</span>
-                <span class="fiscal-soon__fig-n">{String(i + 1)}.</span>
-              </p>
-              <h3 class="fiscal-soon__h">Fiscal</h3>
-              <p class="fiscal-soon__lede">
-                What is Canada's fiscal policy stance?
-              </p>
-              <p class="fiscal-soon__stamp">In development</p>
-            </a>
-          ) : (
-            <SectionPanel section={s} figureNum={String(i + 1)} />
-          )}
+          <SectionPanel section={s} figureNum={String(i + 1)} />
         </div>
       ))}
     </section>
@@ -1027,65 +1013,6 @@ const fmtNewsDate = (raw: string): string => {
       clip: rect(0, 0, 0, 0);
       white-space: nowrap;
       border: 0;
-    }
-
-    /* ──────────────── Fiscal "In development" placeholder cell ──────────────── */
-    .fiscal-soon {
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-      padding: 20px 22px 24px;
-      min-height: 260px;
-      text-decoration: none;
-      color: var(--ink);
-      transition: background-color 0.15s ease;
-    }
-    .fiscal-soon:hover { background-color: rgba(0, 0, 0, 0.02); }
-    .fiscal-soon:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: -2px;
-    }
-    .fiscal-soon__eyebrow {
-      margin: 0 0 12px;
-      font-family: var(--font-sans);
-      font-weight: 600;
-      font-size: 10px;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: var(--ink);
-      line-height: 1.4;
-    }
-    .fiscal-soon__fig { color: var(--ink); font-weight: 600; }
-    .fiscal-soon__fig-n {
-      color: var(--accent);
-      font-weight: 800;
-      margin-left: 0.2em;
-    }
-    .fiscal-soon__h {
-      margin: 0 0 8px;
-      font-family: var(--font-sans);
-      font-weight: 800;
-      font-size: 22px;
-      letter-spacing: -0.01em;
-      line-height: 1.05;
-      color: var(--ink);
-    }
-    .fiscal-soon__lede {
-      margin: 0 0 auto;
-      font-family: var(--font-sans);
-      font-weight: 300;
-      font-size: 15px;
-      line-height: 1.4;
-      color: var(--ink);
-    }
-    .fiscal-soon__stamp {
-      margin: 28px 0 0;
-      font-family: var(--font-sans);
-      font-weight: 600;
-      font-size: 10px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--ink-soft, #777);
     }
 
     /* ──────────────── Forex Factory calendar (Sibley-styled) ──────────────── */
