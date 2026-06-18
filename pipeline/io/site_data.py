@@ -175,6 +175,16 @@ class SectionConfig:
     # is stored in CAD BILLIONS but the `currency_cad` formatter expects CAD
     # MILLIONS, so value_scale=1000.0 bridges billions -> millions on the wire.
     value_scale: float = 1.0
+    # Override the `units` string written to sections.json (normally taken from
+    # the series meta.json). Use when value_scale changes the effective units
+    # but the meta still reflects the on-disk units -- e.g. value_scale=1000
+    # converts CAD billions to millions; set units_override="CAD millions" so
+    # the frontend axis formatter applies the correct /1000 factor.
+    units_override: Optional[str] = None
+    # When True, the primary series keeps rows whose date <= today even if
+    # is_forecast=1. Use for annual fiscal series where FRT actuals lag the
+    # fiscal year end by ~6 months; shows the latest complete FY immediately.
+    allow_forecast: bool = False
 
 
 # Editorial mapping. Editorial-director audits this block when scoping each
@@ -275,20 +285,16 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
     ),
     "fiscal": SectionConfig(
         slug="fiscal",
-        # Fiscal section primary series: federal budgetary balance, fiscal-
-        # year-to-date (DoF Fiscal Monitor, monthly, ~2-month lag). Chosen over
-        # the annual FRT series so the headline reflects the FRESHEST realized
-        # year: the Fiscal Monitor runs through Mar 2026 (full FY2025-26 to
-        # date, -$55.3B), whereas the final-audited FRT annual table still ends
-        # at FY2024-25 until the fall Public Accounts. Rendered as a bar
-        # sparkline; sits above the annual debt/GDP, program-expense, and
-        # interest-burden supporting prints (those carry their own FY2024-25
-        # actuals, the freshest the FRT publishes). Comparator is the same
-        # FY-YTD point one fiscal year prior (delta_window='fy-yoy'), not the
-        # prior month -- a month-over-month step on a cumulative series is
-        # meaningless. CAD millions on disk -> billions on display.
-        primary_series="federal_budget_ytd",
-        primary_dir="processed",
+        # Fiscal section primary series: annual total federal budgetary balance
+        # from the DoF Fiscal Reference Tables (frt_federal_balance_total, $B).
+        # allow_forecast=True keeps FY2025-26 (date=2026-03-31 <= today) even
+        # before the FRT actuals publish; asOf renders "FY 2025-26 est.".
+        # value_scale=1000 converts billions -> millions for the currency_cad
+        # formatter; units_override keeps the axis formatter consistent.
+        # Delta = FY2025-26 vs FY2024-25 annual total (prior row, delta_window
+        # default "prior"). Sparkline = last 12 fiscal years as signed bars.
+        primary_series="frt_federal_balance_total",
+        primary_dir="derived",
         unit_display="B",
         value_decimals=1,
         delta_decimals=1,
@@ -298,10 +304,12 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
         chart_series_key="fiscal-ytd-balance",
         print_key="fiscal-ytd-balance",
         print_indicator="Federal budget balance",
-        as_of_format="fy-ytd-month",
+        as_of_format="fiscal-year",
         delta_kind="level",
-        positive_is_good=True,  # surplus is good; deficit widening is bad
-        delta_window="fy-yoy",
+        positive_is_good=True,
+        value_scale=1000.0,
+        units_override="CAD millions",
+        allow_forecast=True,
     ),
     "markets": SectionConfig(
         slug="markets",
@@ -970,7 +978,12 @@ def _sample_spark(df: pd.DataFrame, frequency: str) -> list[float]:
     elif freq == "weekly":
         s = df.set_index("date")["value"].sort_index()
         sliced = s.tail(30)
-    else:  # monthly / annual / irregular / unknown -> default monthly window
+    elif freq == "annual":
+        # Annual fiscal series: last 12 fiscal years gives a readable bar-chart
+        # window on the tile without crowding (each bar ~15px at tile width).
+        s = df.set_index("date")["value"].sort_index()
+        sliced = s.tail(12)
+    else:  # monthly / irregular / unknown -> default monthly window
         s = df.set_index("date")["value"].sort_index()
         sliced = s.tail(24)
     return [float(v) for v in sliced.tolist() if not _is_nan(v)]
@@ -1416,7 +1429,7 @@ def _build_supporting_print(spec: SupportingPrintSpec, data_root: Path) -> dict 
 
 def _build_section(cfg: SectionConfig, data_root: Path) -> dict:
     """Construct one section's homepage payload, or an error sentinel."""
-    loaded = _read_series(cfg.primary_series, cfg.primary_dir, data_root)
+    loaded = _read_series(cfg.primary_series, cfg.primary_dir, data_root, allow_forecast=cfg.allow_forecast)
     if loaded is None or loaded.data.empty:
         return {
             "slug": cfg.slug,
@@ -1481,13 +1494,25 @@ def _build_section(cfg: SectionConfig, data_root: Path) -> dict:
     frequency = (loaded.meta.get("frequency") or "monthly").lower()
     spark = _sample_spark(df, frequency)
 
+    # When allow_forecast=True, mark the asOf "est." if the latest primary
+    # row is a forecast (is_forecast=1 in the raw series before value_scale).
+    primary_is_forecast = False
+    if cfg.allow_forecast and "is_forecast" in loaded.data.columns:
+        raw_row = loaded.data[loaded.data["date"] == latest_date]
+        if not raw_row.empty:
+            primary_is_forecast = int(raw_row.iloc[-1]["is_forecast"]) == 1
+
+    as_of_str = _format_as_of(latest_date, cfg.as_of_format)
+    if primary_is_forecast:
+        as_of_str += " est."
+
     print_entry: dict = {
         "key": cfg.print_key,
         "indicator": cfg.print_indicator,
         "value": _format_value(latest_val, cfg),
         "delta": _format_delta(latest_val, prior_val, cfg),
         "deltaDir": _resolve_delta_dir(latest_val, prior_val, cfg),
-        "asOf": _format_as_of(latest_date, cfg.as_of_format),
+        "asOf": as_of_str,
         "spark": spark,
         # Raw numeric scalars too, for any chart consumer that needs them
         # without re-parsing the formatted strings.
@@ -1538,7 +1563,7 @@ def _build_section(cfg: SectionConfig, data_root: Path) -> dict:
         "source": loaded.meta.get("source"),
         "sourceUrl": loaded.meta.get("source_url"),
         "sourceId": loaded.meta.get("source_id"),
-        "units": loaded.meta.get("units"),
+        "units": cfg.units_override or loaded.meta.get("units"),
         "frequency": frequency,
         "releaseDate": loaded.meta.get("release_date"),
     }
