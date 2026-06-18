@@ -1,13 +1,13 @@
----
+﻿---
 /*
- * Panel6FinancialStress — Housing financial-stress composite.
+ * Panel6FinancialStress â€” Housing financial-stress composite.
  * Two panels, side-by-side, 720x405. Housing section, plate-6.
  *
- * Left panel  — "MORTGAGE ARREARS": CBA national mortgage arrears rate,
+ * Left panel  â€” "MORTGAGE ARREARS": CBA national mortgage arrears rate,
  *   % of mortgages 90+ days past due. Monthly.
  *   Latest: 0.28%, Feb 2026.
  *
- * Right panel — "DEBT-SERVICE RATIO": Household aggregate debt-service
+ * Right panel â€” "DEBT-SERVICE RATIO": Household aggregate debt-service
  *   ratio, % of disposable income. Quarterly.
  *   Latest: 14.57%, Q4 2025 (2025-10-01).
  *
@@ -17,10 +17,10 @@
  *   primary  = cba_mortgage_arrears_national  (monthly)
  *   secondary = household_dsr                 (quarterly)
  *
- * Layout (Mode B two-panel — disparate units, each panel owns its y-axis):
- *   M_OUT_L = 36  — left y-tick gutter (left panel)
- *   GAP_X   = 40  — inter-panel gutter (right-panel y-tick labels live here)
- *   M_R     = 12  — right outer margin
+ * Layout (Mode B two-panel â€” disparate units, each panel owns its y-axis):
+ *   M_OUT_L = 36  â€” left y-tick gutter (left panel)
+ *   GAP_X   = 40  â€” inter-panel gutter (right-panel y-tick labels live here)
+ *   M_R     = 12  â€” right outer margin
  *   COL_W   = (720 - 36 - 40 - 12) / 2 = 316 per panel
  *
  * Canon-compliance:
@@ -35,7 +35,7 @@
  *  #15 SVG role="img" aria-label.
  *  #17 No section-accent, no series-color tokens, no legend.
  *  #18 var(--paper) background.
- *  No source paragraph — source on plate metadata strip.
+ *  No source paragraph â€” source on plate metadata strip.
  *
  * No derived-rate methodology note: both series are direct published
  * values. Arrears is the CBA published national arrears rate (% of
@@ -308,7 +308,7 @@ const ariaLabel =
       width={P0_PLOT_W} height={PLOT_H}
     />
 
-    {/* x-ticks — left panel */}
+    {/* x-ticks â€” left panel */}
     {xTicksLeft.map((t) => (
       <g>
         <line
@@ -325,7 +325,7 @@ const ariaLabel =
       </g>
     ))}
 
-    {/* y-tick labels: left panel — in M_OUT_L gutter */}
+    {/* y-tick labels: left panel â€” in M_OUT_L gutter */}
     {ARR_TICKS.map((v, idx) => {
       const yy = yScaleArr(v);
       const isTop = idx === ARR_TICKS.length - 1;
@@ -348,7 +348,6 @@ const ariaLabel =
         cy={arrDot.y.toFixed(2)}
         r="4"
       >
-        <title>{`${arrDot.date.slice(0, 7)}: ${arrDot.value.toFixed(2)}%`}</title>
       </circle>
     )}
 
@@ -394,7 +393,7 @@ const ariaLabel =
       width={P1_PLOT_W} height={PLOT_H}
     />
 
-    {/* x-ticks — right panel */}
+    {/* x-ticks â€” right panel */}
     {xTicksRight.map((t) => (
       <g>
         <line
@@ -411,7 +410,7 @@ const ariaLabel =
       </g>
     ))}
 
-    {/* y-tick labels: right panel — in GAP_X gutter (left of right panel) */}
+    {/* y-tick labels: right panel â€” in GAP_X gutter (left of right panel) */}
     {DSR_TICKS.map((v, idx) => {
       const yy = yScaleDSR(v);
       const isTop = idx === DSR_TICKS.length - 1;
@@ -434,7 +433,6 @@ const ariaLabel =
         cy={dsrDot.y.toFixed(2)}
         r="4"
       >
-        <title>{`${dsrDot.date.slice(0, 7)}: ${dsrDot.value.toFixed(2)}%`}</title>
       </circle>
     )}
 

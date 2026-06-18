@@ -1,28 +1,28 @@
----
+﻿---
 /*
  * Panel3IndustryComposite - 2-panel side-by-side composite.
  *
- * LEFT cell  — SERVICES VS GOODS, Y/Y
+ * LEFT cell  â€” SERVICES VS GOODS, Y/Y
  *   Services Y/Y (solid 1.5px primary) + Goods Y/Y (dashed 1px comparator).
  *   36-month window. Y-axis in %. Zero-line rendered if data crosses zero.
  *   Source: StatCan 36-10-0434-01 via panel-2.
  *
- * RIGHT cell — INDEXED TO DEC 2019
+ * RIGHT cell â€” INDEXED TO DEC 2019
  *   Mining + oil (solid 1.5px primary) + Manufacturing (dashed 1px comparator).
  *   84-month window anchored at Dec 2019 = 0 (cumulative % change).
  *   Baseline rule at y=0 (dashed-2-2) to anchor "no change since Dec 2019".
  *   Source: StatCan 36-10-0434-01 via panel-6.
  *
- * Layout: viewBox 720 × 405 (16:9), 1 row × 2 cols.
+ * Layout: viewBox 720 Ã— 405 (16:9), 1 row Ã— 2 cols.
  *   M_L=52, M_R=14, M_T=30, M_B=38, GAP_X=38.
- *   CELL_W ≈ 308, CELL_H = 337.
+ *   CELL_W â‰ˆ 308, CELL_H = 337.
  *
  * Canon compliance (design/canon_reference_panel.md):
  *   1. 1.5px pure ink primary line; 1px ink dashed (4-2) comparator.
  *   2. 4px MTA red latest-print dot on primary only.
  *   3. 1px pure ink hairline frame per cell.
  *   4. 2-3 horizontal gridlines per cell, stroke-opacity 0.18.
- *   5. Per-cell y-axis (Mode B — cells have wildly different scales).
+ *   5. Per-cell y-axis (Mode B â€” cells have wildly different scales).
  *   6. Y-tick labels: IBM Plex Mono 11px. Topmost tick of left cell
  *      carries "%" suffix; right cell topmost carries no suffix (dimensionless).
  *   7. X-tick labels: 3-4 year labels shared per cell (Manrope 11px 400).
@@ -100,7 +100,7 @@ const ANCHOR_DATE = "2023-01-01";
 // Left cell: show the Y/Y series from Jan 2023 onward (about 38 months through Feb 2026).
 // WINDOW_LEFT is used as a tail-cap; set generously to ensure the full Jan-2023-onward
 // window is not clipped by the tail function.
-const WINDOW_LEFT  = 48;   // months — tail cap, larger than the actual Jan-2023–Feb-2026 window
+const WINDOW_LEFT  = 48;   // months â€” tail cap, larger than the actual Jan-2023â€“Feb-2026 window
 // Right cell: Jan 2023 is the anchor (= 0%). Show all data from the anchor forward.
 const WINDOW_RIGHT = 48;   // months from anchor forward
 
@@ -402,8 +402,8 @@ const rightCmpLabelY = rightLastCmp
   : 0;
 
 // ---- Aria labels ------------------------------------------------------------
-const leftLatest  = leftLastPrim?.value?.toFixed(1) ?? "—";
-const rightLatest = rightLastPrim?.value?.toFixed(1) ?? "—";
+const leftLatest  = leftLastPrim?.value?.toFixed(1) ?? "â€”";
+const rightLatest = rightLastPrim?.value?.toFixed(1) ?? "â€”";
 
 const ariaLabel =
   `Two-panel industry GDP composite. Left: services vs goods Y/Y growth rate, ` +
@@ -424,7 +424,7 @@ const ariaLabel =
     >
 
       {/* ================================================================
-          LEFT CELL — Services vs Goods, Y/Y
+          LEFT CELL â€” Services vs Goods, Y/Y
           ================================================================ */}
 
       {/* Gridlines */}
@@ -452,17 +452,17 @@ const ariaLabel =
         />
       )}
 
-      {/* Goods Y/Y — comparator (dashed, drawn first so primary sits on top) */}
+      {/* Goods Y/Y â€” comparator (dashed, drawn first so primary sits on top) */}
       {leftCmpPath && (
         <path class="ic3-chart__line ic3-chart__line--cmp" d={leftCmpPath} />
       )}
 
-      {/* Services Y/Y — primary (solid) */}
+      {/* Services Y/Y â€” primary (solid) */}
       {leftPrimPath && (
         <path class="ic3-chart__line" d={leftPrimPath} />
       )}
 
-      {/* Latest-print dot — MTA red on primary only */}
+      {/* Latest-print dot â€” MTA red on primary only */}
       {leftLastPrim && (
         <circle
           class="ic3-chart__latest-dot"
@@ -470,11 +470,10 @@ const ariaLabel =
           cy={leftLastPrimY.toFixed(2)}
           r="4"
         >
-          <title>{`Services Y/Y latest ${leftLastPrim.date}: ${(leftLastPrim.value as number).toFixed(2)}%`}</title>
         </circle>
       )}
 
-      {/* Native SVG <title> hit areas — left primary */}
+      {/* Native SVG <title> hit areas â€” left primary */}
       {leftPrimary.map((pt) => {
         if (typeof pt.value !== "number") return null;
         const xv = decYear(pt.date);
@@ -486,12 +485,11 @@ const ariaLabel =
             cy={leftYScale(pt.value).toFixed(2)}
             r="5"
           >
-            <title>{`Services Y/Y ${pt.date}: ${(pt.value).toFixed(2)}%`}</title>
           </circle>
         );
       })}
 
-      {/* Native SVG <title> hit areas — left comparator */}
+      {/* Native SVG <title> hit areas â€” left comparator */}
       {leftCmp.map((pt) => {
         if (typeof pt.value !== "number") return null;
         const xv = decYear(pt.date);
@@ -503,7 +501,6 @@ const ariaLabel =
             cy={leftYScale(pt.value).toFixed(2)}
             r="5"
           >
-            <title>{`Goods Y/Y ${pt.date}: ${(pt.value).toFixed(2)}%`}</title>
           </circle>
         );
       })}
@@ -524,7 +521,7 @@ const ariaLabel =
         y={(CELL_Y0 - 8).toFixed(2)}
       >SERVICES VS GOODS, Y/Y</text>
 
-      {/* Y-axis ticks — left cell */}
+      {/* Y-axis ticks â€” left cell */}
       {leftYTicks.map((v, i) => {
         const yy = leftYScale(v);
         const isTop = i === leftYTicks.length - 1;
@@ -540,7 +537,7 @@ const ariaLabel =
         );
       })}
 
-      {/* X-axis ticks + labels — left cell */}
+      {/* X-axis ticks + labels â€” left cell */}
       {leftXTicks.map((t) => (
         <g>
           <line
@@ -559,7 +556,7 @@ const ariaLabel =
         </g>
       ))}
 
-      {/* End-of-line labels — left cell */}
+      {/* End-of-line labels â€” left cell */}
       {leftLastPrim && (
         <text
           class="ic3-chart__eol-label ic3-chart__eol-label--primary"
@@ -576,7 +573,7 @@ const ariaLabel =
       )}
 
       {/* ================================================================
-          RIGHT CELL — Manufacturing vs Mining + Oil, indexed to Dec 2019
+          RIGHT CELL â€” Manufacturing vs Mining + Oil, indexed to Dec 2019
           ================================================================ */}
 
       {/* Gridlines */}
@@ -604,17 +601,17 @@ const ariaLabel =
         />
       )}
 
-      {/* Manufacturing — comparator (dashed, drawn first) */}
+      {/* Manufacturing â€” comparator (dashed, drawn first) */}
       {rightCmpPath && (
         <path class="ic3-chart__line ic3-chart__line--cmp" d={rightCmpPath} />
       )}
 
-      {/* Mining + oil — primary (solid) */}
+      {/* Mining + oil â€” primary (solid) */}
       {rightPrimPath && (
         <path class="ic3-chart__line" d={rightPrimPath} />
       )}
 
-      {/* Latest-print dot — MTA red on mining+oil primary */}
+      {/* Latest-print dot â€” MTA red on mining+oil primary */}
       {rightLastPrim && (
         <circle
           class="ic3-chart__latest-dot"
@@ -622,11 +619,10 @@ const ariaLabel =
           cy={rightLastPrimY.toFixed(2)}
           r="4"
         >
-          <title>{`Mining and oil indexed latest ${rightLastPrim.date}: ${(rightLastPrim.value as number).toFixed(1)}% vs Jan 2023`}</title>
         </circle>
       )}
 
-      {/* Native SVG <title> hit areas — right primary */}
+      {/* Native SVG <title> hit areas â€” right primary */}
       {rightPrimary.map((pt) => {
         if (typeof pt.value !== "number") return null;
         const xv = decYear(pt.date);
@@ -638,12 +634,11 @@ const ariaLabel =
             cy={rightYScale(pt.value).toFixed(2)}
             r="5"
           >
-            <title>{`Mining + oil ${pt.date}: ${(pt.value).toFixed(1)}% vs Jan 2023`}</title>
           </circle>
         );
       })}
 
-      {/* Native SVG <title> hit areas — right comparator */}
+      {/* Native SVG <title> hit areas â€” right comparator */}
       {rightCmp.map((pt) => {
         if (typeof pt.value !== "number") return null;
         const xv = decYear(pt.date);
@@ -655,7 +650,6 @@ const ariaLabel =
             cy={rightYScale(pt.value).toFixed(2)}
             r="5"
           >
-            <title>{`Manufacturing ${pt.date}: ${(pt.value).toFixed(1)}% vs Jan 2023`}</title>
           </circle>
         );
       })}
@@ -676,7 +670,7 @@ const ariaLabel =
         y={(CELL_Y0 - 8).toFixed(2)}
       >INDEXED TO JAN 2023</text>
 
-      {/* Y-axis ticks — right cell (no unit suffix; dimensionless) */}
+      {/* Y-axis ticks â€” right cell (no unit suffix; dimensionless) */}
       {rightYTicks.map((v) => {
         const yy = rightYScale(v);
         const numStr = fmtTick(v);
@@ -690,7 +684,7 @@ const ariaLabel =
         );
       })}
 
-      {/* X-axis ticks + labels — right cell */}
+      {/* X-axis ticks + labels â€” right cell */}
       {rightXTicks.map((t) => (
         <g>
           <line
@@ -709,7 +703,7 @@ const ariaLabel =
         </g>
       ))}
 
-      {/* End-of-line labels — right cell. "Mining + oil" breaks to 2 lines
+      {/* End-of-line labels â€” right cell. "Mining + oil" breaks to 2 lines
            so the label doesn't overflow the right margin. */}
       {rightLastPrim && (
         <text
@@ -732,7 +726,7 @@ const ariaLabel =
 
 <style>
   /*
-   * Panel3IndustryComposite — Tier-3 two-cell composite chart.
+   * Panel3IndustryComposite â€” Tier-3 two-cell composite chart.
    * Vignelli canon: pure ink lines, MTA red latest dot, hairline frames.
    * Mode B: per-cell y-axes (Y/Y scale vs indexed-to-0 scale).
    */
@@ -752,7 +746,7 @@ const ariaLabel =
     font-family: var(--font-sans);
   }
 
-  /* Gridlines — pure ink, low opacity */
+  /* Gridlines â€” pure ink, low opacity */
   .ic3-chart__gridline {
     stroke: var(--ink);
     stroke-width: 1;
@@ -760,7 +754,7 @@ const ariaLabel =
     shape-rendering: crispEdges;
   }
 
-  /* Zero line — full opacity 1px (canon: appears when series crosses zero) */
+  /* Zero line â€” full opacity 1px (canon: appears when series crosses zero) */
   .ic3-chart__zero-line {
     stroke: var(--ink);
     stroke-width: 1;
@@ -768,7 +762,7 @@ const ariaLabel =
     shape-rendering: crispEdges;
   }
 
-  /* Baseline rule for indexed chart — dashed 2-2, ink */
+  /* Baseline rule for indexed chart â€” dashed 2-2, ink */
   .ic3-chart__baseline {
     stroke: var(--ink);
     stroke-width: 1;
@@ -777,7 +771,7 @@ const ariaLabel =
     shape-rendering: crispEdges;
   }
 
-  /* Primary data line — 1.5px solid pure ink */
+  /* Primary data line â€” 1.5px solid pure ink */
   .ic3-chart__line {
     stroke: var(--ink);
     stroke-width: 1.5;
@@ -787,7 +781,7 @@ const ariaLabel =
     vector-effect: non-scaling-stroke;
   }
 
-  /* Comparator line — 1px dashed (4 2) pure ink */
+  /* Comparator line â€” 1px dashed (4 2) pure ink */
   .ic3-chart__line--cmp {
     stroke-width: 1;
     stroke-dasharray: 4 2;
@@ -799,13 +793,13 @@ const ariaLabel =
     pointer-events: all;
   }
 
-  /* Latest-print dot — MTA red */
+  /* Latest-print dot â€” MTA red */
   .ic3-chart__latest-dot {
     fill: var(--accent);
     stroke: none;
   }
 
-  /* Hairline frame — 1px pure ink */
+  /* Hairline frame â€” 1px pure ink */
   .ic3-chart__frame {
     fill: none;
     stroke: var(--ink);
@@ -813,7 +807,7 @@ const ariaLabel =
     shape-rendering: crispEdges;
   }
 
-  /* Cell header label — Manrope 600, micro-caps */
+  /* Cell header label â€” Manrope 600, micro-caps */
   .ic3-chart__cell-label {
     fill: var(--ink);
     font-family: var(--font-sans);
@@ -823,7 +817,7 @@ const ariaLabel =
     text-transform: uppercase;
   }
 
-  /* Y-axis tick labels — IBM Plex Mono 11px */
+  /* Y-axis tick labels â€” IBM Plex Mono 11px */
   .ic3-chart__ytick {
     fill: var(--ink);
     font-family: var(--font-mono);
@@ -840,7 +834,7 @@ const ariaLabel =
     shape-rendering: crispEdges;
   }
 
-  /* X-axis tick labels — Manrope 11px 400 */
+  /* X-axis tick labels â€” Manrope 11px 400 */
   .ic3-chart__xtick {
     fill: var(--ink);
     font-family: var(--font-sans);
@@ -850,7 +844,7 @@ const ariaLabel =
     opacity: 0.75;
   }
 
-  /* End-of-line label — primary: Manrope 13px 600 */
+  /* End-of-line label â€” primary: Manrope 13px 600 */
   .ic3-chart__eol-label--primary {
     fill: var(--ink);
     font-family: var(--font-sans);
@@ -858,7 +852,7 @@ const ariaLabel =
     font-weight: var(--fw-semibold);
   }
 
-  /* End-of-line label — comparator: Manrope 13px 400 */
+  /* End-of-line label â€” comparator: Manrope 13px 400 */
   .ic3-chart__eol-label--cmp {
     fill: var(--ink);
     font-family: var(--font-sans);

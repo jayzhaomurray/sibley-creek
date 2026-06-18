@@ -1,7 +1,7 @@
----
+﻿---
 /*
  * Panel5LiabilityCompositionSmallMults - BoC balance-sheet liability
- * composition, six small multiples (Mode B — per-panel y-axis).
+ * composition, six small multiples (Mode B â€” per-panel y-axis).
  *
  * Sub-panels (each with its own y-axis, shared x-domain 2020-01-01 to latest):
  *   1. Total liabilities + equity  (data.primary  key: boc_total_liabilities)
@@ -13,7 +13,7 @@
  *        other[t] = total[t] - banknotes[t] - goc_deposits[t]
  *                             - settlement_balances[t] - reverse_repos[t]
  *
- * Layout: 3 cols x 2 rows (6 cells — no empty cell).
+ * Layout: 3 cols x 2 rows (6 cells â€” no empty cell).
  *   Top row:    TOTAL LIAB. & EQUITY | BANKNOTES | GOC DEPOSITS
  *   Bottom row: SETTLEMENT BALANCES  | REVERSE REPOS | OTHER
  *
@@ -72,7 +72,7 @@ const rawGocDeps   = filterWindow(extractSeries(extrasRaw[1]));
 const rawSettBal   = filterWindow(extractSeries(extrasRaw[2]));
 const rawRevRepos  = filterWindow(extractSeries(extrasRaw[3]));
 
-// ---- Sub-panel 6 (OTHER) — residual derived in frontmatter -----------------
+// ---- Sub-panel 6 (OTHER) â€” residual derived in frontmatter -----------------
 // other[t] = total[t] - banknotes[t] - goc_deposits[t]
 //           - settlement_balances[t] - reverse_repos[t]
 // Date-join: only dates where ALL five contributors are present + non-null.
@@ -127,11 +127,11 @@ for (const sp of subPanels) {
 if (!Number.isFinite(xMin)) { xMin = 2020; xMax = 2026.5; }
 
 // ---- Geometry ---------------------------------------------------------------
-// ViewBox: 720 x 405 (16:9) — identical to Panel4
+// ViewBox: 720 x 405 (16:9) â€” identical to Panel4
 const VB_W = 720;
 const VB_H = 405;
 
-// Outer margins — verbatim from Panel4
+// Outer margins â€” verbatim from Panel4
 const M_L = 52;
 const M_R = 14;
 const M_T = 30;
@@ -140,7 +140,7 @@ const M_B = 38;
 const GRID_W = VB_W - M_L - M_R;   // 654
 const GRID_H = VB_H - M_T - M_B;   // 337
 
-// 3-col x 2-row, all 6 cells filled (Mode B — 6 sub-panels)
+// 3-col x 2-row, all 6 cells filled (Mode B â€” 6 sub-panels)
 const NUM_COLS = 3;
 const NUM_ROWS = 2;
 const GAP_X = 38;
@@ -333,7 +333,7 @@ const totalLatest = rawTotal.length > 0
 const latestDateStr = totalLatest?.date ?? "unknown";
 const latestValStr  = totalLatest
   ? `$${(totalLatest.value as number).toFixed(0)}bn`
-  : "—";
+  : "â€”";
 ---
 
 {!hasData ? (
@@ -381,12 +381,11 @@ const latestValStr  = totalLatest
               const cy = yScale2(pt.value as number);
               return (
                 <circle class="p5sm-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="4">
-                  <title>{`${g.label} ${pt.date}: $${(pt.value as number).toFixed(1)}bn`}</title>
                 </circle>
               );
             })}
 
-            {/* Latest-print dot — MTA red */}
+            {/* Latest-print dot â€” MTA red */}
             {g.latestPt && (
               <circle
                 class="p5sm-chart__latest-dot"
@@ -394,11 +393,10 @@ const latestValStr  = totalLatest
                 cy={g.latestY.toFixed(2)}
                 r="4"
               >
-                <title>{`Latest — ${g.label} ${g.latestPt.date}: $${(g.latestPt.value as number).toFixed(1)}bn`}</title>
               </circle>
             )}
 
-            {/* Plot frame — 1px pure ink hairline */}
+            {/* Plot frame â€” 1px pure ink hairline */}
             <rect
               class="p5sm-chart__frame"
               x={g.x0}
@@ -407,14 +405,14 @@ const latestValStr  = totalLatest
               height={CELL_H}
             />
 
-            {/* Sub-panel label — top-left, Manrope 600 micro-caps */}
+            {/* Sub-panel label â€” top-left, Manrope 600 micro-caps */}
             <text
               class="p5sm-chart__panel-label"
               x={(g.x0 + 6).toFixed(2)}
               y={(g.y0 - 7).toFixed(2)}
             >{g.label}</text>
 
-            {/* Y-axis tick labels — per-panel (Mode B: every cell has its own y-scale) */}
+            {/* Y-axis tick labels â€” per-panel (Mode B: every cell has its own y-scale) */}
             {g.yTicks.map((v, i) => {
               const yyv = g.y0 + CELL_H - ((v - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
               const isTop = i === g.yTicks.length - 1;
@@ -431,7 +429,7 @@ const latestValStr  = totalLatest
               );
             })}
 
-            {/* X-axis ticks + labels — bottom row only */}
+            {/* X-axis ticks + labels â€” bottom row only */}
             {showXAxis && g.xTicks.map((t) => (
               <g>
                 <line
@@ -459,7 +457,7 @@ const latestValStr  = totalLatest
 
 <style>
   /* ------------------------------------------------------------------
-     Panel5LiabilityCompositionSmallMults — Tier-3 small-multiples chart.
+     Panel5LiabilityCompositionSmallMults â€” Tier-3 small-multiples chart.
      Vignelli canon: pure ink line, MTA red latest dot, hairline frame.
      Mode B: per-panel y-axis (6 cells, disparate magnitudes).
      No section-accent on data marks, ever.
@@ -478,7 +476,7 @@ const latestValStr  = totalLatest
     font-family: var(--font-sans);
   }
 
-  /* Gridlines — pure ink, low opacity */
+  /* Gridlines â€” pure ink, low opacity */
   .p5sm-chart__gridline {
     stroke: var(--ink);
     stroke-width: 1;
@@ -486,7 +484,7 @@ const latestValStr  = totalLatest
     shape-rendering: crispEdges;
   }
 
-  /* Data line — pure ink, 1.5px. The non-negotiable. */
+  /* Data line â€” pure ink, 1.5px. The non-negotiable. */
   .p5sm-chart__line {
     stroke: var(--ink);
     stroke-width: 1.5;
@@ -496,19 +494,19 @@ const latestValStr  = totalLatest
     vector-effect: non-scaling-stroke;
   }
 
-  /* Invisible hit-area for native SVG <title> hover — no JS */
+  /* Invisible hit-area for native SVG <title> hover â€” no JS */
   .p5sm-chart__hit {
     fill: transparent;
     pointer-events: all;
   }
 
-  /* Latest-print dot — MTA red, brand signal */
+  /* Latest-print dot â€” MTA red, brand signal */
   .p5sm-chart__latest-dot {
     fill: var(--accent);
     stroke: none;
   }
 
-  /* Plot frame — 1px pure ink hairline rectangle per sub-panel */
+  /* Plot frame â€” 1px pure ink hairline rectangle per sub-panel */
   .p5sm-chart__frame {
     fill: none;
     stroke: var(--ink);
@@ -516,7 +514,7 @@ const latestValStr  = totalLatest
     shape-rendering: crispEdges;
   }
 
-  /* Sub-panel label — Manrope 600, micro-caps, pure ink, top-left */
+  /* Sub-panel label â€” Manrope 600, micro-caps, pure ink, top-left */
   .p5sm-chart__panel-label {
     fill: var(--ink);
     font-family: var(--font-sans);
@@ -526,7 +524,7 @@ const latestValStr  = totalLatest
     text-transform: uppercase;
   }
 
-  /* Y-axis tick labels — IBM Plex Mono 400 (11px), right-aligned */
+  /* Y-axis tick labels â€” IBM Plex Mono 400 (11px), right-aligned */
   .p5sm-chart__ytick-label {
     fill: var(--ink);
     font-family: var(--font-mono);
@@ -535,14 +533,14 @@ const latestValStr  = totalLatest
     font-variant-numeric: tabular-nums;
   }
 
-  /* X-axis tick marks — 4px outward, pure ink */
+  /* X-axis tick marks â€” 4px outward, pure ink */
   .p5sm-chart__xtick {
     stroke: var(--ink);
     stroke-width: 1;
     shape-rendering: crispEdges;
   }
 
-  /* X-axis tick labels — Manrope 400 (11px), pure ink */
+  /* X-axis tick labels â€” Manrope 400 (11px), pure ink */
   .p5sm-chart__xtick-label {
     fill: var(--ink);
     font-family: var(--font-sans);

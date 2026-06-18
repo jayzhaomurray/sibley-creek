@@ -1,6 +1,6 @@
----
+﻿---
 /*
- * Panel4ProvincialDebt — net debt-to-GDP, ON / QC / AB / BC.
+ * Panel4ProvincialDebt â€” net debt-to-GDP, ON / QC / AB / BC.
  *
  * NEW. Four-province horizontal bar chart at chartbook density (720x405).
  * Each bar shows the province's debt ratio on its own published basis.
@@ -27,13 +27,13 @@
  *   - Left-to-right: 0% to ~45%, x-axis is the quantity axis.
  *   - Province name left of bar (not in bar); ratio value at bar terminus.
  *   - MTA red accent on the province with the highest ratio (the latest-print
- *     moment — editorial focus on QC as the structural peak).
+ *     moment â€” editorial focus on QC as the structural peak).
  *     All other bars: pure ink fill.
  *   - BC bar: filled with a lighter ink-wash (0.65 opacity) to signal that
  *     it is on a different basis. An asterisk label routes to the methodology
  *     badge below the chart. NOTE: The asterisk note is in the blurb,
  *     not inside the SVG (canon: no caption text in SVG).
- *     Inside the SVG, a small "†taxpayer-supported" label annotates the bar
+ *     Inside the SVG, a small "â€ taxpayer-supported" label annotates the bar
  *     end so the chart reads on its own.
  *   - "As of" vintage stamp per province: small Plex Mono 10px text
  *     inside or adjacent to each bar.
@@ -76,7 +76,7 @@ const { data = null } = Astro.props;
 
 // ---- Static province metadata (chart-builder's known order) -----------------
 // Province ordering: descending by ratio (highest debt burden first).
-// This is intentional — the editorial read is "QC and ON are the structural
+// This is intentional â€” the editorial read is "QC and ON are the structural
 // anchors; AB is at the other end."
 // Note: BC is on taxpayer-supported basis (different from net debt).
 // The pipeline must emit exactly 4 points in this province order:
@@ -89,7 +89,7 @@ const PROVINCE_META: {
   basis: string;
   vintageLabel: string;
   isBC: boolean;       // BC flag for methodology difference styling
-  isTop: boolean;      // highest ratio — gets MTA red accent
+  isTop: boolean;      // highest ratio â€” gets MTA red accent
 }[] = [
   { label: "QC", basis: "Net debt-to-GDP",           vintageLabel: "Budget 2026-27 (Mar 2026)", isBC: false, isTop: true  },
   { label: "ON", basis: "Net debt-to-GDP",           vintageLabel: "FEOFR Nov 2025",            isBC: false, isTop: false },
@@ -201,7 +201,7 @@ if (hasPrimary) {
         />
       ))}
 
-      {/* Zero line (x = 0%) — always at PLOT_X0 */}
+      {/* Zero line (x = 0%) â€” always at PLOT_X0 */}
       <line
         class="p4pd-chart__zero-line"
         x1={PLOT_X0.toFixed(2)} y1={PLOT_Y0.toFixed(2)}
@@ -223,10 +223,9 @@ if (hasPrimary) {
             width={b.w.toFixed(2)}
             height={b.h.toFixed(2)}
           >
-            <title>{b.titleText}</title>
           </rect>
 
-          {/* Province label — left of bar, right-aligned */}
+          {/* Province label â€” left of bar, right-aligned */}
           <text
             class="p4pd-chart__province-label"
             x={(PLOT_X0 - 6).toFixed(2)}
@@ -242,7 +241,7 @@ if (hasPrimary) {
             text-anchor="start"
           >{b.pctLabel}{b.isBC ? "*" : ""}</text>
 
-          {/* Vintage label — inside bar near terminus, or below bar */}
+          {/* Vintage label â€” inside bar near terminus, or below bar */}
           <text
             class="p4pd-chart__vintage-label"
             x={(b.x0 + b.w - 4).toFixed(2)}
@@ -276,7 +275,7 @@ if (hasPrimary) {
         </g>
       ))}
 
-      {/* BC methodology asterisk note — bottom of chart, Plex Mono */}
+      {/* BC methodology asterisk note â€” bottom of chart, Plex Mono */}
       <text
         class="p4pd-chart__footnote"
         x={(PLOT_X0).toFixed(2)}
@@ -290,7 +289,7 @@ if (hasPrimary) {
 
 <style>
   /* -------------------------------------------------------------------
-     Panel4ProvincialDebt — Tier-3 horizontal bar chart.
+     Panel4ProvincialDebt â€” Tier-3 horizontal bar chart.
      Four-province net debt-to-GDP. ON/QC/AB: net debt. BC: taxpayer-supported.
      Highest ratio bar (QC) gets MTA red accent. BC bar at 65% ink.
      Vintage stamps inside bars. Publisher's-own basis per province.
@@ -312,24 +311,24 @@ if (hasPrimary) {
     stroke-opacity: 0.18;
     shape-rendering: crispEdges;
   }
-  /* Zero-line (left edge of plot frame, at 0%) — full opacity */
+  /* Zero-line (left edge of plot frame, at 0%) â€” full opacity */
   .p4pd-chart__zero-line {
     stroke: var(--ink);
     stroke-width: 1;
     stroke-opacity: 1;
     shape-rendering: crispEdges;
   }
-  /* Standard bar — pure ink */
+  /* Standard bar â€” pure ink */
   .p4pd-chart__bar {
     fill: var(--ink);
     stroke: none;
     shape-rendering: crispEdges;
   }
-  /* Highest-ratio bar (QC) — MTA red accent */
+  /* Highest-ratio bar (QC) â€” MTA red accent */
   .p4pd-chart__bar--accent {
     fill: var(--accent);
   }
-  /* BC bar — methodology-different; 0.65 opacity signals different basis */
+  /* BC bar â€” methodology-different; 0.65 opacity signals different basis */
   .p4pd-chart__bar--bc {
     fill: var(--ink);
     fill-opacity: 0.65;
@@ -340,14 +339,14 @@ if (hasPrimary) {
     stroke-width: 1;
     shape-rendering: crispEdges;
   }
-  /* Province labels — Manrope 600, 13px, left of bar */
+  /* Province labels â€” Manrope 600, 13px, left of bar */
   .p4pd-chart__province-label {
     fill: var(--ink);
     font-family: var(--font-sans);
     font-size: 13px;
     font-weight: var(--fw-semibold);
   }
-  /* Ratio value at bar end — Plex Mono 400 12px */
+  /* Ratio value at bar end â€” Plex Mono 400 12px */
   .p4pd-chart__bar-value {
     fill: var(--ink);
     font-family: var(--font-mono);
@@ -355,7 +354,7 @@ if (hasPrimary) {
     font-weight: 400;
     font-variant-numeric: tabular-nums;
   }
-  /* Vintage label inside bar — Plex Mono 10px, light opacity for legibility */
+  /* Vintage label inside bar â€” Plex Mono 10px, light opacity for legibility */
   .p4pd-chart__vintage-label {
     fill: var(--paper);
     font-family: var(--font-mono);
@@ -368,14 +367,14 @@ if (hasPrimary) {
     stroke-width: 1;
     shape-rendering: crispEdges;
   }
-  /* X-axis tick labels — Manrope 400, 12px */
+  /* X-axis tick labels â€” Manrope 400, 12px */
   .p4pd-chart__xtick-label {
     fill: var(--ink);
     font-family: var(--font-sans);
     font-size: 12px;
     font-weight: 400;
   }
-  /* Footnote — Plex Mono 10px */
+  /* Footnote â€” Plex Mono 10px */
   .p4pd-chart__footnote {
     fill: var(--ink);
     font-family: var(--font-mono);

@@ -1,6 +1,6 @@
----
+﻿---
 /*
- * Plate4DebtDiptych — "Story A" merged diptych: federal debt %GDP (left) |
+ * Plate4DebtDiptych â€” "Story A" merged diptych: federal debt %GDP (left) |
  * debt charges % of revenues (right). Replaces the separate plate-4
  * (Plate4FederalDebtPctGDP) + plate-5 (Panel2DebtServiceRatio) pair; both
  * losing files retained per "tag and leave".
@@ -13,30 +13,30 @@
  *
  * HARD CANON: the SVG carries data, axes, tick labels, dividers, dots and
  * short furniture labels ONLY. NO title, NO source line, NO as-of/metadata
- * text, NO prose sentence inside the canvas — ever. Title / interpretation /
+ * text, NO prose sentence inside the canvas â€” ever. Title / interpretation /
  * source / asOf are PAGE-TEMPLATE slots rendered around the chart by
  * SectionLayout/ChartbookUnit. (The mockup script's bottom "Sources:" text
  * was a violation; it does NOT exist here and must not come back.)
  *
  * DATA
- *  Left panel — fiscal.json panel-9 (passed via the `data` prop):
+ *  Left panel â€” fiscal.json panel-9 (passed via the `data` prop):
  *    primary   = frt_federal_debt_pct_gdp
  *                42 actuals FY1983-84..FY2024-25 (last actual 41.2) +
  *                6 DoF forecasts FY2025-26..FY2030-31 (SEU Apr 2026, end 41.6).
  *    secondary = frt_federal_debt_pct_gdp_pbo (PBO EFO Jun 2026, end 42.5).
  *                PBO's own FY2024-25 point (40.7) is the SAME debt level on a
- *                later GDP-vintage denominator — NOT a forecast disagreement.
+ *                later GDP-vintage denominator â€” NOT a forecast disagreement.
  *                It is DROPPED from the render; the PBO dashed line bridges
  *                from the shared FY2024-25 actual anchor (41.2) instead.
  *                (Per story_a_data.json render_guidance, backend-verified.)
- *  Right panel — data/derived/frt_debt_charges_pct_revenues.csv plus
+ *  Right panel â€” data/derived/frt_debt_charges_pct_revenues.csv plus
  *    frt_debt_charges_pct_revenues_dof.csv, read at build time (git-tracked
- *    on this branch — resolves in a clean checkout; NOT in gitignored data/raw).
+ *    on this branch â€” resolves in a clean checkout; NOT in gitignored data/raw).
  *    Gross public debt charges as % of total budgetary revenues, annual
  *    fiscal-year: FRT 2025 Table 13 history (FY1983-84..FY2024-25, last actual
  *    10.5) + PBO EFO Jun 2026 forecast (end 13.1) and DoF SEU 2026 derived
  *    forecast from Annex 1 Table A1.7 public debt charges / revenues (end 13.2).
- *    ANNUAL series — replaces the monthly fiscal-monitor debt_service_ratio
+ *    ANNUAL series â€” replaces the monthly fiscal-monitor debt_service_ratio
  *    (panel-2); do not mix the two.
  *
  * GEOMETRY (mockup-exact): viewBox 720x384; plot band y 44..356; panels
@@ -288,7 +288,7 @@ const ariaLabel = hasData
 ---
 
 {!hasData ? (
-  <PanelEmpty reason="DATA NOT YET WIRED — fiscal.json panel-9 + data/derived/frt_debt_charges_pct_revenues*.csv" />
+  <PanelEmpty reason="DATA NOT YET WIRED â€” fiscal.json panel-9 + data/derived/frt_debt_charges_pct_revenues*.csv" />
 ) : (
   <div class="p4dd-chart" data-panel="fiscal-debt-diptych" data-panel-status="live">
     <svg
@@ -300,7 +300,7 @@ const ariaLabel = hasData
     >
       {panels.map((pm) => (
         <g>
-          {/* Panel furniture title — short subject label, not prose */}
+          {/* Panel furniture title â€” short subject label, not prose */}
           <text class="p4dd-chart__ptitle" x={pm.spec.X0} y={Y0 - 24}>{pm.spec.title}</text>
 
           {/* Gridlines + y-tick labels */}
@@ -319,9 +319,9 @@ const ariaLabel = hasData
           )}
 
           {/* Forecast divider at the last actual (FY2024-25); label above the frame.
-              Right-anchored at pm.spec.X1 − 2 so the text always sits inside the panel
+              Right-anchored at pm.spec.X1 âˆ’ 2 so the text always sits inside the panel
               and never overflows the SVG viewBox (the right panel's divider sits near
-              x=662 leaving only ~54px to the 720px viewBox edge — not enough for the
+              x=662 leaving only ~54px to the 720px viewBox edge â€” not enough for the
               "FORECAST" string at start-anchored position). */}
           <line class="p4dd-chart__div" x1={f(pm.dividerX)} y1={Y0} x2={f(pm.dividerX)} y2={Y1} />
           <text class="p4dd-chart__divlab" x={f(pm.spec.X1 - 2)} y={Y0 - 7} text-anchor="end">FORECAST</text>
@@ -331,9 +331,8 @@ const ariaLabel = hasData
           <path class="p4dd-chart__line-fc" d={pm.fcPath} />
           {pm.secPath && <path class="p4dd-chart__line-sec" d={pm.secPath} />}
 
-          {/* MTA red dot — the panel's last ACTUAL data point */}
+          {/* MTA red dot â€” the panel's last ACTUAL data point */}
           <circle class="p4dd-chart__dot" cx={f(pm.dot.x)} cy={f(pm.dot.y)} r="4">
-            <title>{pm.dot.title}</title>
           </circle>
 
           {/* Furniture labels: PBO / DoF / latest + endpoint values */}
@@ -345,10 +344,9 @@ const ariaLabel = hasData
             >{m.text}</text>
           ))}
 
-          {/* Hit areas (hover tooltips only — invisible) */}
+          {/* Hit areas (hover tooltips only â€” invisible) */}
           {pm.hits.map((h) => (
             <circle class="p4dd-chart__hit" cx={f(h.cx)} cy={f(h.cy)} r="5">
-              <title>{h.title}</title>
             </circle>
           ))}
 
@@ -374,7 +372,7 @@ const ariaLabel = hasData
 
 <style>
   /*
-   * Plate4DebtDiptych — Story-A diptych, mockup-exact port of
+   * Plate4DebtDiptych â€” Story-A diptych, mockup-exact port of
    * render_story_a_v2.mjs CSS classes onto site CSS vars.
    * No vector-effect: the mockup renders at native viewBox scale and the
    * chart slot is ~viewBox width; stroke scaling is negligible and matching
@@ -434,7 +432,7 @@ const ariaLabel = hasData
     stroke-linejoin: round;
     stroke-dasharray: 4 2;
   }
-  /* MTA red latest-actual dot — the only red mark on the chart */
+  /* MTA red latest-actual dot â€” the only red mark on the chart */
   .p4dd-chart__dot {
     fill: var(--accent);
     stroke: none;

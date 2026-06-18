@@ -1,4 +1,4 @@
----
+﻿---
 /*
  * Panel4AssetCompositionSmallMults - BoC balance-sheet asset composition,
  * five small multiples.
@@ -71,7 +71,7 @@ const rawRepos         = filterWindow(extractSeries(extrasRaw[3]));
 // ---- Derived: "Other assets" residual ---------------------------------------
 // total_assets minus (goc_bonds + tbills + advances + repos). Captures cash +
 // foreign deposits + other receivables + other investments (e.g. CMBs) +
-// capital + intangibles + accruals. Not a single BoC-published series —
+// capital + intangibles + accruals. Not a single BoC-published series â€”
 // our computed residual to make the breakdown sum to total assets.
 function buildOtherAssets(): SeriesPoint[] {
   const map = (pts: SeriesPoint[]) =>
@@ -339,7 +339,7 @@ const totalAssetsLatest = rawTotalAssets.length > 0
 const latestDateStr = totalAssetsLatest?.date ?? "unknown";
 const latestValStr  = totalAssetsLatest
   ? `$${(totalAssetsLatest.value as number).toFixed(0)}bn`
-  : "—";
+  : "â€”";
 ---
 
 {!hasData ? (
@@ -388,12 +388,11 @@ const latestValStr  = totalAssetsLatest
               const cy = yScale2(pt.value as number);
               return (
                 <circle class="p4sm-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="4">
-                  <title>{`${g.label} ${pt.date}: $${(pt.value as number).toFixed(1)}bn`}</title>
                 </circle>
               );
             })}
 
-            {/* Latest-print dot — MTA red */}
+            {/* Latest-print dot â€” MTA red */}
             {g.latestPt && (
               <circle
                 class="p4sm-chart__latest-dot"
@@ -401,11 +400,10 @@ const latestValStr  = totalAssetsLatest
                 cy={g.latestY.toFixed(2)}
                 r="4"
               >
-                <title>{`Latest — ${g.label} ${g.latestPt.date}: $${(g.latestPt.value as number).toFixed(1)}bn`}</title>
               </circle>
             )}
 
-            {/* Plot frame — 1px pure ink hairline */}
+            {/* Plot frame â€” 1px pure ink hairline */}
             <rect
               class="p4sm-chart__frame"
               x={g.x0}
@@ -414,14 +412,14 @@ const latestValStr  = totalAssetsLatest
               height={CELL_H}
             />
 
-            {/* Sub-panel label — top-left, Manrope 600 micro-caps */}
+            {/* Sub-panel label â€” top-left, Manrope 600 micro-caps */}
             <text
               class="p4sm-chart__panel-label"
               x={(g.x0 + 6).toFixed(2)}
               y={(g.y0 - 7).toFixed(2)}
             >{g.label}</text>
 
-            {/* Y-axis tick labels — per-panel (every sub-panel has its own y-scale) */}
+            {/* Y-axis tick labels â€” per-panel (every sub-panel has its own y-scale) */}
             {g.yTicks.map((v, i) => {
               const yyv = g.y0 + CELL_H - ((v - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
               const isTop = i === g.yTicks.length - 1;
@@ -439,7 +437,7 @@ const latestValStr  = totalAssetsLatest
               );
             })}
 
-            {/* X-axis ticks + labels — bottom row only */}
+            {/* X-axis ticks + labels â€” bottom row only */}
             {showXAxis && g.xTicks.map((t) => (
               <g>
                 <line
@@ -467,7 +465,7 @@ const latestValStr  = totalAssetsLatest
 
 <style>
   /* ------------------------------------------------------------------
-     Panel4AssetCompositionSmallMults — Tier-3 small-multiples chart.
+     Panel4AssetCompositionSmallMults â€” Tier-3 small-multiples chart.
      Vignelli canon: pure ink line, MTA red latest dot, hairline frame.
      No section-accent on data marks, ever.
      ------------------------------------------------------------------ */
@@ -485,7 +483,7 @@ const latestValStr  = totalAssetsLatest
     font-family: var(--font-sans);
   }
 
-  /* Gridlines — pure ink, low opacity */
+  /* Gridlines â€” pure ink, low opacity */
   .p4sm-chart__gridline {
     stroke: var(--ink);
     stroke-width: 1;
@@ -493,7 +491,7 @@ const latestValStr  = totalAssetsLatest
     shape-rendering: crispEdges;
   }
 
-  /* Data line — pure ink, 1.5px. The non-negotiable. */
+  /* Data line â€” pure ink, 1.5px. The non-negotiable. */
   .p4sm-chart__line {
     stroke: var(--ink);
     stroke-width: 1.5;
@@ -503,19 +501,19 @@ const latestValStr  = totalAssetsLatest
     vector-effect: non-scaling-stroke;
   }
 
-  /* Invisible hit-area for native SVG <title> hover — no JS */
+  /* Invisible hit-area for native SVG <title> hover â€” no JS */
   .p4sm-chart__hit {
     fill: transparent;
     pointer-events: all;
   }
 
-  /* Latest-print dot — MTA red, brand signal */
+  /* Latest-print dot â€” MTA red, brand signal */
   .p4sm-chart__latest-dot {
     fill: var(--accent);
     stroke: none;
   }
 
-  /* Plot frame — 1px pure ink hairline rectangle per sub-panel */
+  /* Plot frame â€” 1px pure ink hairline rectangle per sub-panel */
   .p4sm-chart__frame {
     fill: none;
     stroke: var(--ink);
@@ -523,7 +521,7 @@ const latestValStr  = totalAssetsLatest
     shape-rendering: crispEdges;
   }
 
-  /* Sub-panel label — Manrope 600, micro-caps, pure ink, top-left */
+  /* Sub-panel label â€” Manrope 600, micro-caps, pure ink, top-left */
   .p4sm-chart__panel-label {
     fill: var(--ink);
     font-family: var(--font-sans);
@@ -533,7 +531,7 @@ const latestValStr  = totalAssetsLatest
     text-transform: uppercase;
   }
 
-  /* Y-axis tick labels — IBM Plex Mono 400 micro (12px), right-aligned */
+  /* Y-axis tick labels â€” IBM Plex Mono 400 micro (12px), right-aligned */
   .p4sm-chart__ytick-label {
     fill: var(--ink);
     font-family: var(--font-mono);
@@ -542,14 +540,14 @@ const latestValStr  = totalAssetsLatest
     font-variant-numeric: tabular-nums;
   }
 
-  /* X-axis tick marks — 4px outward, pure ink */
+  /* X-axis tick marks â€” 4px outward, pure ink */
   .p4sm-chart__xtick {
     stroke: var(--ink);
     stroke-width: 1;
     shape-rendering: crispEdges;
   }
 
-  /* X-axis tick labels — Manrope 400 micro (12px), pure ink */
+  /* X-axis tick labels â€” Manrope 400 micro (12px), pure ink */
   .p4sm-chart__xtick-label {
     fill: var(--ink);
     font-family: var(--font-sans);

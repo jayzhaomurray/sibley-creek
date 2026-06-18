@@ -1,22 +1,22 @@
----
+﻿---
 /*
- * Plate1BalanceComposition — Budget balance: total + operating/capital composition.
+ * Plate1BalanceComposition â€” Budget balance: total + operating/capital composition.
  *
  * EDITORIAL PURPOSE: Show the total budget balance over 40+ years of history and
  * project it forward, with the operating/capital split visible as secondary
  * composition on the forecast segment (the Carney bifurcated-budget frame).
  *
  * DATA: fiscal.json panel-6
- *   primary   = frt_federal_balance_total ($B, FY1983-84 → FY2030-31, is_forecast)
- *   secondary = frt_federal_balance_opex  ($B, FY2025-26 → FY2030-31, forecast only)
+ *   primary   = frt_federal_balance_total ($B, FY1983-84 â†’ FY2030-31, is_forecast)
+ *   secondary = frt_federal_balance_opex  ($B, FY2025-26 â†’ FY2030-31, forecast only)
  *   tertiary  = frt_federal_balance_capex ($B, positive = capital expenditure that
- *               reduces the balance; FY2025-26 → FY2030-31, forecast only)
+ *               reduces the balance; FY2025-26 â†’ FY2030-31, forecast only)
  *
- * FORM DECISION (R2.4 — balance total is the headline):
+ * FORM DECISION (R2.4 â€” balance total is the headline):
  *   Signed vertical bars per fiscal year = total budgetary balance (primary).
  *   On the forecast segment (FY2025-26+), each bar is texture-segmented into
  *   operating (solid ink) + capital (cross-hatch) so the bifurcated read is
- *   visible. On the history segment (FY1983-84→FY2024-25), bars are solid
+ *   visible. On the history segment (FY1983-84â†’FY2024-25), bars are solid
  *   total-only (opex/capex data doesn't exist for history in the source).
  *   Capital values in this data are POSITIVE and represent capital expenditure
  *   that deepens the deficit: they extend the total-balance bar downward beyond
@@ -24,7 +24,7 @@
  *   Sign check: total = opex + (-capex). So opex = total + capex (since capex > 0
  *   and acts as a downward extension). Both sum to the total bar height.
  *
- * FORECAST CONVENTION (R2.1 — vertical dashed divider, not dotted trace):
+ * FORECAST CONVENTION (R2.1 â€” vertical dashed divider, not dotted trace):
  *   Data trace = ONE consistent solid-ink bar style across history + forecast.
  *   No hatch/outline difference on forecast bars.
  *   Forecast signal: vertical dashed divider at the boundary (ink 1px, dash 4 3, 0.40 opacity)
@@ -32,7 +32,7 @@
  *   No latest-point red dot (canon R2: dot is line/area only, never on bars).
  *   Latest-actual numeric value callout: above the last actual bar (e.g. "-$36.3B").
  *
- * HISTORY: full range FY1983-84 → FY2030-31 (42 history + 6 forecast = 48 bars).
+ * HISTORY: full range FY1983-84 â†’ FY2030-31 (42 history + 6 forecast = 48 bars).
  *   x-axis ticks every 5 years given the long span.
  *
  * Y-DOMAIN (tight per R2.3): data range -$327.7B (COVID) to +$19.9B (surplus).
@@ -79,7 +79,7 @@ type RawPt = { date: string; value: number | null; is_forecast?: number; fy_labe
 
 interface BarPt {
   fyLabel: string;
-  total: number;    // total budgetary balance ($B) — signed (negative = deficit)
+  total: number;    // total budgetary balance ($B) â€” signed (negative = deficit)
   opex: number | null;   // operating balance ($B, forecast only)
   capex: number | null;  // capital expenditure ($B positive, forecast only)
   isForecast: boolean;
@@ -147,7 +147,7 @@ const ySpan = Y_DOM_MAX - Y_DOM_MIN;
 const yScale = (v: number): number =>
   PLOT_Y0 + PLOT_H - ((v - Y_DOM_MIN) / ySpan) * PLOT_H;
 
-// ---- Bar geometry: 48 bars — narrow width, minimal gap -------------------------
+// ---- Bar geometry: 48 bars â€” narrow width, minimal gap -------------------------
 const N = bars.length;
 const BAR_TOTAL_W = PLOT_W / N;
 const BAR_GAP = Math.max(BAR_TOTAL_W * 0.12, 0.8);
@@ -313,7 +313,7 @@ const ariaLabel =
 ---
 
 {!hasData ? (
-  <PanelEmpty reason="DATA NOT YET WIRED — fiscal.json panel-6 primary=frt_federal_balance_total" />
+  <PanelEmpty reason="DATA NOT YET WIRED â€” fiscal.json panel-6 primary=frt_federal_balance_total" />
 ) : (
   <div class="p1bal-chart" data-panel="fiscal-plate-1" data-panel-status="live">
     <svg
@@ -323,7 +323,6 @@ const ariaLabel =
       role="img"
       aria-label={ariaLabel}
     >
-      <title>[TITLE TK] — Federal budget balance</title>
 
       <defs>
         {/* Capital segment texture: cross-hatch (two diagonal directions) */}
@@ -333,7 +332,7 @@ const ariaLabel =
         </pattern>
       </defs>
 
-      {/* Horizontal gridlines (exclude zero — drawn separately) */}
+      {/* Horizontal gridlines (exclude zero â€” drawn separately) */}
       {gridlines.map((v) => (
         <line
           class="p1bal-chart__gridline"
@@ -342,7 +341,7 @@ const ariaLabel =
         />
       ))}
 
-      {/* Zero line — structural, heavier */}
+      {/* Zero line â€” structural, heavier */}
       <line
         class="p1bal-chart__zero-line"
         x1={PLOT_X0.toFixed(2)} y1={yScale(0).toFixed(2)}
@@ -358,18 +357,16 @@ const ariaLabel =
               x={seg.x.toFixed(2)} y={seg.y.toFixed(2)}
               width={seg.w.toFixed(2)} height={seg.h.toFixed(2)}
             >
-              <title>{seg.title}</title>
             </rect>
           );
         }
-        // "total" or "opex" — solid ink
+        // "total" or "opex" â€” solid ink
         return (
           <rect
             class="p1bal-chart__bar-solid"
             x={seg.x.toFixed(2)} y={seg.y.toFixed(2)}
             width={seg.w.toFixed(2)} height={seg.h.toFixed(2)}
           >
-            <title>{seg.title}</title>
           </rect>
         );
       })}
@@ -393,7 +390,7 @@ const ariaLabel =
         >FORECAST</text>
       )}
 
-      {/* Latest-actual numeric value callout — anchored above the last actual bar.
+      {/* Latest-actual numeric value callout â€” anchored above the last actual bar.
           No red dot: canon R2 restricts the latest-point dot to line/area charts. */}
       {lastActualBar && latestLabel && (
         <text
@@ -438,7 +435,7 @@ const ariaLabel =
         </g>
       ))}
 
-      {/* Segment labels in right gutter — only if forecast segment has the split */}
+      {/* Segment labels in right gutter â€” only if forecast segment has the split */}
       {lastForecastBar && lastForecastBar.opex !== null && (
         <>
           <text
@@ -462,7 +459,7 @@ const ariaLabel =
 
 <style>
   /*
-   * Plate1BalanceComposition — Tier-3 signed bar chart.
+   * Plate1BalanceComposition â€” Tier-3 signed bar chart.
    * Total budget balance bars, full FY1983-84 history + SEU 2026 forecast.
    * Forecast signal: vertical dashed divider + "Forecast" label (R2.1).
    * Forecast segment bars show opex/capex texture split.
@@ -510,7 +507,7 @@ const ariaLabel =
     stroke-opacity: 0.40;
     shape-rendering: crispEdges;
   }
-  /* "FORECAST" label (R2.1): recession-label token — Manrope 600 11px, 0.18em, full ink */
+  /* "FORECAST" label (R2.1): recession-label token â€” Manrope 600 11px, 0.18em, full ink */
   .p1bal-chart__forecast-label {
     fill: var(--ink);
     font-family: var(--font-sans);

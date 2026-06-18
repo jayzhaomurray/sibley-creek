@@ -1,21 +1,21 @@
----
+﻿---
 /*
- * Plate3ProgramExpPctGDP — Federal program expenses as % of GDP.
+ * Plate3ProgramExpPctGDP â€” Federal program expenses as % of GDP.
  *
  * EDITORIAL PURPOSE: Show the federal program-expense-to-GDP ratio over 40+ years.
  * The FY2020-21 COVID spike (28.1%) is the chart's most important honest feature
  * and must reach its true height un-clipped.
  *
  * Per R2.5: Plate2 is the merged revenue-vs-expenses chart (editorial primary).
- * This Plate3 is the standalone expenses detail view — tight independent axis,
+ * This Plate3 is the standalone expenses detail view â€” tight independent axis,
  * full COVID spike visible.
  *
  * DATA: fiscal.json panel-8, key: frt_program_exp_pct_gdp
  *   42 actual points (FY1983-84 to FY2024-25) + 6 forecast (FY2025-26 to FY2030-31).
  *   is_forecast: 0 = history, 1 = forecast.
- *   FY2020-21 = 28.1% (COVID spike — real, not a basis break). Annotate.
+ *   FY2020-21 = 28.1% (COVID spike â€” real, not a basis break). Annotate.
  *
- * FORECAST CONVENTION (R2.1 — vertical dashed divider, not dotted trace):
+ * FORECAST CONVENTION (R2.1 â€” vertical dashed divider, not dotted trace):
  *   Data trace = ONE consistent 1.5px solid-ink line across history + forecast.
  *   Forecast signal: vertical dashed divider (ink 1px, dash 4 3, 0.40 opacity)
  *   + "Forecast" micro-caps label above the projection region.
@@ -23,10 +23,10 @@
  *   endpoint FY2030-31), one per chart. Numeric label above the dot.
  *
  * Y-DOMAIN (tight, independent per R2.3):
- *   Expense range: ~11.8%–28.1% (COVID spike). Tight axis: 10%–30%, 5pp strides.
- *   COVID spike reaches 28.1% — fits with headroom to 30%.
+ *   Expense range: ~11.8%â€“28.1% (COVID spike). Tight axis: 10%â€“30%, 5pp strides.
+ *   COVID spike reaches 28.1% â€” fits with headroom to 30%.
  *
- * LONG HISTORY: FY1983-84 → FY2030-31. x-ticks every 5 years.
+ * LONG HISTORY: FY1983-84 â†’ FY2030-31. x-ticks every 5 years.
  *
  * TITLE: [TITLE TK]
  * CAPTION: [CAPTION TK]
@@ -34,7 +34,7 @@
  * CANON COMPLIANCE (Tier-3):
  *   1. Single trace, pure ink 1.5px solid. No dotted forecast line.
  *   2. Forecast signal = vertical dashed divider + "Forecast" label (R2.1).
- *   3. COVID spike (28.1%) fully visible — NOT clamped (v1 defect fixed).
+ *   3. COVID spike (28.1%) fully visible â€” NOT clamped (v1 defect fixed).
  *   4. MTA red dot on last plotted observation (forecast endpoint), one per chart (R2).
  *   5. Latest-point numeric label above red dot.
  *   6. Hairline frame 1px ink.
@@ -105,9 +105,9 @@ const ySpan = Y_DOM_MAX - Y_DOM_MIN;
 
 const yScale = (v: number): number =>
   PLOT_Y0 + PLOT_H - ((v - Y_DOM_MIN) / ySpan) * PLOT_H;
-// NO clamping — the COVID spike at 28.1% must reach its true y position
+// NO clamping â€” the COVID spike at 28.1% must reach its true y position
 
-// ---- X scale (uniform index spacing — annual fiscal years) ---------------------
+// ---- X scale (uniform index spacing â€” annual fiscal years) ---------------------
 const N = pts.length;
 const xOfIndex = (i: number): number =>
   PLOT_X0 + (N > 1 ? (i / (N - 1)) * PLOT_W : PLOT_W / 2);
@@ -145,13 +145,13 @@ const dividerX = firstForecastIdx > 0
   ? (xOfIndex(firstForecastIdx - 1) + xOfIndex(firstForecastIdx)) / 2
   : null;
 
-// ---- SVG path — single continuous line across boundary -------------------------
+// ---- SVG path â€” single continuous line across boundary -------------------------
 const linePath = pts
   .map((p, i) => `${i === 0 ? "M" : "L"}${xOfIndex(i).toFixed(2)},${yScale(p.value).toFixed(2)}`)
   .join(" ");
 
 // ---- Latest-point dot + numeric label (canon R2) -------------------------------
-// The dot sits on the LAST PLOTTED OBSERVATION — the forecast endpoint, not the
+// The dot sits on the LAST PLOTTED OBSERVATION â€” the forecast endpoint, not the
 // last actual. One dot per chart. Numeric value label moves with it.
 const dotIdx = pts.length - 1;
 const dotPt = dotIdx >= 0 ? pts[dotIdx] : null;
@@ -187,7 +187,7 @@ const ariaLabel =
 ---
 
 {!hasData ? (
-  <PanelEmpty reason="DATA NOT YET WIRED — fiscal.json panel-8 frt_program_exp_pct_gdp" />
+  <PanelEmpty reason="DATA NOT YET WIRED â€” fiscal.json panel-8 frt_program_exp_pct_gdp" />
 ) : (
   <div class="p3exp-chart" data-panel="fiscal-plate-3" data-panel-status="live">
     <svg
@@ -197,7 +197,6 @@ const ariaLabel =
       role="img"
       aria-label={ariaLabel}
     >
-      <title>[TITLE TK] — Federal program expenses, % of GDP</title>
 
       {/* Horizontal gridlines */}
       {gridlines.map((v) => (
@@ -214,11 +213,10 @@ const ariaLabel =
       {/* Hit areas */}
       {hits.map((h) => (
         <circle class="p3exp-chart__hit" cx={h.cx.toFixed(2)} cy={h.cy.toFixed(2)} r="5">
-          <title>{h.title}</title>
         </circle>
       ))}
 
-      {/* COVID spike annotation — word + value only, anchored above the spike */}
+      {/* COVID spike annotation â€” word + value only, anchored above the spike */}
       {covidPt && (
         <g>
           <line
@@ -260,7 +258,7 @@ const ariaLabel =
         >FORECAST</text>
       )}
 
-      {/* MTA red dot — last plotted observation (forecast endpoint), one per chart (R2) */}
+      {/* MTA red dot â€” last plotted observation (forecast endpoint), one per chart (R2) */}
       {dotPt && (
         <circle
           class="p3exp-chart__latest-dot"
@@ -268,7 +266,6 @@ const ariaLabel =
           cy={dotY.toFixed(2)}
           r="4"
         >
-          <title>FY{dotPt.fyLabel}: {latestLabel}{dotPt.isForecast ? " (SEU 2026 proj.)" : ""}</title>
         </circle>
       )}
 
@@ -332,9 +329,9 @@ const ariaLabel =
 
 <style>
   /*
-   * Plate3ProgramExpPctGDP — Tier-3 single-trace line chart.
+   * Plate3ProgramExpPctGDP â€” Tier-3 single-trace line chart.
    * Program expenses % of GDP, tight independent axis (R2.3).
-   * COVID spike (28.1%) rendered un-clipped — v1 defect fixed.
+   * COVID spike (28.1%) rendered un-clipped â€” v1 defect fixed.
    * Forecast signal: vertical dashed divider + "Forecast" label (R2.1).
    * Solid line across boundary (no dotted forecast).
    */
@@ -385,7 +382,7 @@ const ariaLabel =
   .p3exp-chart__annot-label--tk {
     fill: var(--ink-placeholder);
   }
-  /* Annotation value: real data — Plex Mono 12px 600 (anchor emphasis), full ink */
+  /* Annotation value: real data â€” Plex Mono 12px 600 (anchor emphasis), full ink */
   .p3exp-chart__annot-value {
     fill: var(--ink);
     font-family: var(--font-mono);
@@ -400,7 +397,7 @@ const ariaLabel =
     stroke-opacity: 0.40;
     shape-rendering: crispEdges;
   }
-  /* "FORECAST" label (R2.1): recession-label token — Manrope 600 11px, 0.18em, full ink */
+  /* "FORECAST" label (R2.1): recession-label token â€” Manrope 600 11px, 0.18em, full ink */
   .p3exp-chart__forecast-label {
     fill: var(--ink);
     font-family: var(--font-sans);
@@ -443,7 +440,7 @@ const ariaLabel =
     font-size: 12px;
     font-weight: 400;
   }
-  /* Direct terminus label: canon direct-label — Manrope 600 13px, full ink */
+  /* Direct terminus label: canon direct-label â€” Manrope 600 13px, full ink */
   .p3exp-chart__term-label {
     fill: var(--ink);
     font-family: var(--font-sans);

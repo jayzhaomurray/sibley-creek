@@ -1,17 +1,17 @@
----
+﻿---
 /*
- * PanelHeadlineCPITrio — Headline CPI three-series composite.
+ * PanelHeadlineCPITrio â€” Headline CPI three-series composite.
  *
  * Extends PanelHeadlineCPIDual with a 3M-AR line added to the right panel.
  *
  * Layout:
- *   Left sub-panel  — m/m CPI % as bars, last 24 months.
- *   Right sub-panel — Y/Y CPI % (solid line) + 3M annualized rate (dashed
- *                     line) + BoC 1–3 % control band, last 36 months.
+ *   Left sub-panel  â€” m/m CPI % as bars, last 24 months.
+ *   Right sub-panel â€” Y/Y CPI % (solid line) + 3M annualized rate (dashed
+ *                     line) + BoC 1â€“3 % control band, last 36 months.
  *
  * 3M-AR derivation (chart-side, frontmatter):
- *   cpi_3m_ar[t] = ((cpi_level[t] / cpi_level[t-3])^4 − 1) × 100
- *   Source: standard annualized period-growth formula. 4 = 12 months ÷ 3
+ *   cpi_3m_ar[t] = ((cpi_level[t] / cpi_level[t-3])^4 âˆ’ 1) Ã— 100
+ *   Source: standard annualized period-growth formula. 4 = 12 months Ã· 3
  *   months. Produces the annualized rate implied by the most recent
  *   3-month run rate. No simplification vs the canonical formula; discrete
  *   compounding. No smoothing applied.
@@ -27,8 +27,8 @@
  *   the SVG right edge.
  *
  * Data sources:
- *   panel-1 primary  → cpi_all_items_yoy  (processed Y/Y series)
- *   panel-1 secondary → cpi_all_items     (SA monthly index levels)
+ *   panel-1 primary  â†’ cpi_all_items_yoy  (processed Y/Y series)
+ *   panel-1 secondary â†’ cpi_all_items     (SA monthly index levels)
  *   m/m and 3M-AR both derived from the level series in frontmatter.
  */
 
@@ -245,11 +245,11 @@ function buildSubPanel(
   // combined series to exclude single-point NSA seasonal artifacts. The
   // NSA CPI level series can produce 3M-AR readings of exactly 0.0% when
   // a month's index matches the reading 3 months prior (Feb == May in the
-  // unadjusted series) — a seasonal echo, not a structural signal. Using
+  // unadjusted series) â€” a seasonal echo, not a structural signal. Using
   // raw min/max for domain bounds would pull the visible range down to
   // include the artifact, wasting plot space and rendering a prominent
   // zero-crossing baseline on a chart whose editorial argument is about
-  // 1–4% inflation dynamics.
+  // 1â€“4% inflation dynamics.
   //
   // Bar sub-panels are exempt: bar domain is bounded by raw min/max so
   // every printed value maps to a visible bar (the zero anchor guarantees
@@ -283,7 +283,7 @@ function buildSubPanel(
     if (band.lower < yLo) yLo = band.lower - span * 0.08;
     if (band.upper > yHi) yHi = band.upper + span * 0.08;
   }
-  // Include zero to anchor the bar baseline — bars MUST start at zero.
+  // Include zero to anchor the bar baseline â€” bars MUST start at zero.
   // Line panels (right sub-panel: Y/Y + 3M-AR) must NOT be forced to zero:
   // if the series never crosses zero, drawing a zero line compresses the
   // visible signal into the upper portion of the frame and adds an
@@ -520,7 +520,7 @@ if (yoyLabelY !== null && arLabelY !== null) {
         text-anchor="middle"
       >MONTH-OVER-MONTH, %</text>
 
-      {/* y-gridlines (skip zero — zero-line drawn separately below) */}
+      {/* y-gridlines (skip zero â€” zero-line drawn separately below) */}
       {left.yTicks.map((v) => {
         const yy = PLOT_Y0 + PLOT_H - ((v - left.yLo) / left.yRange) * PLOT_H;
         if (left.zeroY !== null && Math.abs(yy - left.zeroY) < 0.5) return null;
@@ -610,7 +610,7 @@ if (yoyLabelY !== null && arLabelY !== null) {
         text-anchor="middle"
       >YEAR-OVER-YEAR + 3M AR, %</text>
 
-      {/* BoC control band: 1–3% shaded rect */}
+      {/* BoC control band: 1â€“3% shaded rect */}
       {right.showBand && right.bandHighY !== null && right.bandLowY !== null && (
         <rect
           class="cpitrio__reference-band"
@@ -657,7 +657,7 @@ if (yoyLabelY !== null && arLabelY !== null) {
         </clipPath>
       </defs>
 
-      {/* 3M-AR line — 1px dashed (4-2), no terminal dot */}
+      {/* 3M-AR line â€” 1px dashed (4-2), no terminal dot */}
       {right.path2 && (
         <path
           class="cpitrio__line--secondary"
@@ -667,7 +667,7 @@ if (yoyLabelY !== null && arLabelY !== null) {
         />
       )}
 
-      {/* Y/Y line — 1.5px solid */}
+      {/* Y/Y line â€” 1.5px solid */}
       <path
         class="cpitrio__line--primary"
         d={right.path}
@@ -726,11 +726,10 @@ if (yoyLabelY !== null && arLabelY !== null) {
           cy={right.lastY.toFixed(2)}
           r="4"
         >
-          <title>{`Latest Y/Y: ${right.lastDate}: ${right.lastValue!.toFixed(2)}%`}</title>
         </circle>
       )}
 
-      {/* Y/Y end-of-line label — left of terminus, inside plot frame */}
+      {/* Y/Y end-of-line label â€” left of terminus, inside plot frame */}
       {right.lastX !== null && yoyLabelY !== null && (
         <text
           class="cpitrio__eol-label"
@@ -740,7 +739,7 @@ if (yoyLabelY !== null && arLabelY !== null) {
         >Y/Y</text>
       )}
 
-      {/* 3M-AR end-of-line label — left of terminus, inside plot frame */}
+      {/* 3M-AR end-of-line label â€” left of terminus, inside plot frame */}
       {right.last2X !== null && arLabelY !== null && (
         <text
           class="cpitrio__eol-label"
@@ -750,7 +749,7 @@ if (yoyLabelY !== null && arLabelY !== null) {
         >3M AR</text>
       )}
 
-      {/* Control-range label — inside the shaded band, left-anchored.
+      {/* Control-range label â€” inside the shaded band, left-anchored.
           Placed at the band mid-y on the left side of the plot so it sits
           clearly within the gray band and away from the line termini (which
           cluster on the right edge near the 2% midpoint). */}
@@ -760,7 +759,7 @@ if (yoyLabelY !== null && arLabelY !== null) {
           x={(right.plotX0 + 6).toFixed(2)}
           y={(right.bandLowY - 8).toFixed(2)}
           text-anchor="start"
-        >BOC CONTROL RANGE 1–3%</text>
+        >BOC CONTROL RANGE 1â€“3%</text>
       )}
     </svg>
   </div>

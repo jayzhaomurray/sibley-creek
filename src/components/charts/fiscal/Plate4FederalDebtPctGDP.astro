@@ -1,6 +1,6 @@
----
+﻿---
 /*
- * Plate4FederalDebtPctGDP — Federal debt (accumulated deficit) as % of GDP.
+ * Plate4FederalDebtPctGDP â€” Federal debt (accumulated deficit) as % of GDP.
  *
  * EDITORIAL PURPOSE: The sustainability anchor. Long 40-year history showing
  * the 1990s debt-to-GDP climb (peak 66.6% FY1995-96), the sustained paydown
@@ -30,7 +30,7 @@
  * Federal-only basis (NOT general-government gross debt; IMF/OECD general-govt
  * figures ~91-107% are NOT comparable). Chart carries this in the aria-label.
  *
- * FORECAST CONVENTION (R2.1 — vertical dashed divider, not dotted trace):
+ * FORECAST CONVENTION (R2.1 â€” vertical dashed divider, not dotted trace):
  *   Primary trace = ONE consistent 1.5px solid-ink line across history + DoF forecast.
  *   PBO trace = 1.5px MID-tint (0.55 opacity) line, forecast zone only.
  *   Forecast signal: vertical dashed divider (ink 1px, dash 4 3, 0.40 opacity)
@@ -40,20 +40,20 @@
  *   Numeric label left-above the actual dot, inside frame.
  *
  * DIRECT LABELS (compact words, no sentences):
- *   "Ottawa (Apr 2026)" — Manrope 600 13px, full ink, anchored at DoF line terminus
+ *   "Ottawa (Apr 2026)" â€” Manrope 600 13px, full ink, anchored at DoF line terminus
  *     (FY2030-31), placed BELOW the terminus (+18px) to separate from PBO label.
- *   "PBO (Jun 2026)"   — Manrope 400 13px, 0.55 ink, anchored at PBO line terminus
+ *   "PBO (Jun 2026)"   â€” Manrope 400 13px, 0.55 ink, anchored at PBO line terminus
  *     (FY2030-31), placed ABOVE the terminus (-10px).
  *   Both right-anchored at PLOT_X1 - 6 (inside frame, no gutter overflow).
  *   Vertical separation between labels: ~33px (>>16px anti-collision threshold).
- *   Dot/numeric sit at actual point left of divider — no overlap with labels.
+ *   Dot/numeric sit at actual point left of divider â€” no overlap with labels.
  *
  * Y-DOMAIN (tight per R2.3):
- *   Actual range: 28.2%–66.6%. With forecasts: 41.1%–42.6%. Full range ~28%–67%.
+ *   Actual range: 28.2%â€“66.6%. With forecasts: 41.1%â€“42.6%. Full range ~28%â€“67%.
  *   Tight axis: 20% to 70%, 10pp strides. 6 ticks, 4 interior gridlines.
  *   PBO max 42.6 well inside domain. Tick density unchanged.
  *
- * LONG HISTORY: FY1983-84 → FY2030-31. x-ticks at decade end-years + 2031.
+ * LONG HISTORY: FY1983-84 â†’ FY2030-31. x-ticks at decade end-years + 2031.
  *
  * CANON COMPLIANCE (Tier-3):
  *   1. Primary: single solid-ink 1.5px line. No dotted forecast line.
@@ -71,7 +71,7 @@
  *  13. viewBox 720x405.
  *  14. aria-label states federal-only basis and both forecast tracks.
  *  15. No source/caption/methodology inside SVG.
- *  16. No new visual vocabulary — grey-tint MID 0.55 matches Plate2OperatingDispute.
+ *  16. No new visual vocabulary â€” grey-tint MID 0.55 matches Plate2OperatingDispute.
  */
 
 import type { PanelData } from "../_shared/panelData";
@@ -143,7 +143,7 @@ const PLOT_W  = PLOT_X1 - PLOT_X0;
 const PLOT_H  = PLOT_Y1 - PLOT_Y0;
 
 // ---- Y domain: tight, covers 1990s peak (66.6%) and pre-GFC trough (28.2%) ----
-// Range: ~28%–67% historical + ~41%–42.6% forecast. Tight axis: 20%–70%, 10pp strides.
+// Range: ~28%â€“67% historical + ~41%â€“42.6% forecast. Tight axis: 20%â€“70%, 10pp strides.
 // PBO max 42.6 is well inside domain. Tick density unchanged.
 const Y_DOM_MIN = 20;
 const Y_DOM_MAX = 70;
@@ -153,7 +153,7 @@ const ySpan = Y_DOM_MAX - Y_DOM_MIN;
 const yScale = (v: number): number =>
   PLOT_Y0 + PLOT_H - ((v - Y_DOM_MIN) / ySpan) * PLOT_H;
 
-// ---- X scale (uniform index spacing — annual fiscal years) ---------------------
+// ---- X scale (uniform index spacing â€” annual fiscal years) ---------------------
 const N = pts.length;
 const xOfIndex = (i: number): number =>
   PLOT_X0 + (N > 1 ? (i / (N - 1)) * PLOT_W : PLOT_W / 2);
@@ -193,15 +193,15 @@ const dividerX = firstForecastIdx > 0
   ? (xOfIndex(firstForecastIdx - 1) + xOfIndex(firstForecastIdx)) / 2
   : null;
 
-// ---- Primary line path — single continuous line --------------------------------
+// ---- Primary line path â€” single continuous line --------------------------------
 const linePath = pts
   .map((p, i) => `${i === 0 ? "M" : "L"}${xOfIndex(i).toFixed(2)},${yScale(p.value).toFixed(2)}`)
   .join(" ");
 
-// ---- PBO line path — forecast zone only ----------------------------------------
+// ---- PBO line path â€” forecast zone only ----------------------------------------
 // Map each PBO point to the x-position of the matching primary series index
 // (same fiscal year). Skip FY2024-25 (would fall left of/at the divider in the
-// history zone). Draw only FY2025-26 → FY2030-31.
+// history zone). Draw only FY2025-26 â†’ FY2030-31.
 //
 // The PBO fiscal years are: 2024-25, 2025-26, 2026-27, 2027-28, 2028-29, 2029-30, 2030-31
 // The forecast zone starts at FY2025-26 (primary index = firstForecastIdx).
@@ -247,7 +247,7 @@ const latestLabel = dotPt ? `${dotPt.value.toFixed(1)}%` : "";
 // Last PBO plot point = FY2030-31 at 42.5.
 const pboLast = pboPlotPts.length > 0 ? pboPlotPts[pboPlotPts.length - 1] : null;
 
-// ---- DoF forecast endpoint — used for "Ottawa" terminus label only --------------
+// ---- DoF forecast endpoint â€” used for "Ottawa" terminus label only --------------
 // The red dot has moved to the actual point; the "Ottawa" label still anchors to
 // the DoF line terminus (last primary point = FY2030-31, 41.6).
 const dofEndIdx = pts.length - 1;
@@ -255,24 +255,24 @@ const dofEndPt  = dofEndIdx >= 0 ? pts[dofEndIdx] : null;
 const dofEndY   = dofEndPt ? yScale(dofEndPt.value) : 0;
 
 // ---- Anti-collision spread for two forecast terminus labels --------------------
-// DoF line terminus: 41.6 → yScale(41.6) ≈ 226px
-// PBO line terminus: 42.5 → yScale(42.5) ≈ 221px  (only ~5px apart)
-// Required spread: ≥16px between label baselines.
-// Solution: DoF label BELOW its line terminus (+18px); PBO label ABOVE its terminus (−10px).
-// Separation = 18 + 10 + (yDoF - yPbo) ≈ 28 + 5 = 33px >> 16px threshold.
+// DoF line terminus: 41.6 â†’ yScale(41.6) â‰ˆ 226px
+// PBO line terminus: 42.5 â†’ yScale(42.5) â‰ˆ 221px  (only ~5px apart)
+// Required spread: â‰¥16px between label baselines.
+// Solution: DoF label BELOW its line terminus (+18px); PBO label ABOVE its terminus (âˆ’10px).
+// Separation = 18 + 10 + (yDoF - yPbo) â‰ˆ 28 + 5 = 33px >> 16px threshold.
 //
-// Both labels are inside the plot (text-anchor="end" at PLOT_X1 − 6) — not in gutter.
+// Both labels are inside the plot (text-anchor="end" at PLOT_X1 âˆ’ 6) â€” not in gutter.
 // Dot/numeric sit at the actual point (left of the divider), no overlap with labels.
 const LABEL_X = PLOT_X1 - 6;  // inside frame, text-anchor="end"
 
 // Ottawa label drops to +34 (not +18): the latest-actual numeric now sits at
-// dotY+18 ≈ y247 centered on x≈551, and an Ottawa label at dofEndY+18 ≈ y244
+// dotY+18 â‰ˆ y247 centered on xâ‰ˆ551, and an Ottawa label at dofEndY+18 â‰ˆ y244
 // (end-anchored at 618, spanning left past x530) would collide with it.
-// Stack order top→bottom: PBO label / lines / numeric / Ottawa label.
+// Stack order topâ†’bottom: PBO label / lines / numeric / Ottawa label.
 const dofLabelY  = dofEndPt ? dofEndY + 34 : 0;   // below DoF terminus, under the numeric row
 const pboLabelY  = pboLast  ? pboLast.y - 10 : 0; // above PBO line terminus
 
-// ---- Reference annotations (words only — canon) --------------------------------
+// ---- Reference annotations (words only â€” canon) --------------------------------
 interface AnnotDef { fyLabel: string; word: string; value: string; above: boolean }
 const annotDefs: AnnotDef[] = [
   { fyLabel: "1995-96", word: "1996 peak", value: "66.6%", above: false },
@@ -323,7 +323,7 @@ const ariaLabel =
 ---
 
 {!hasData ? (
-  <PanelEmpty reason="DATA NOT YET WIRED — fiscal.json panel-9 frt_federal_debt_pct_gdp" />
+  <PanelEmpty reason="DATA NOT YET WIRED â€” fiscal.json panel-9 frt_federal_debt_pct_gdp" />
 ) : (
   <div class="p4dbt-chart" data-panel="fiscal-plate-4" data-panel-status="live">
     <svg
@@ -333,7 +333,6 @@ const ariaLabel =
       role="img"
       aria-label={ariaLabel}
     >
-      <title>Federal debt has stabilized near 41% of GDP, far below its mid-1990s peak. — Federal debt as % of GDP</title>
 
       {/* Horizontal gridlines */}
       {gridlines.map((v) => (
@@ -344,27 +343,25 @@ const ariaLabel =
         />
       ))}
 
-      {/* Primary line — single continuous solid-ink 1.5px line (history + DoF forecast) */}
+      {/* Primary line â€” single continuous solid-ink 1.5px line (history + DoF forecast) */}
       {linePath && <path class="p4dbt-chart__line" d={linePath} />}
 
-      {/* PBO forecast line — MID tint (0.55), forecast zone only (FY2025-26 → FY2030-31) */}
+      {/* PBO forecast line â€” MID tint (0.55), forecast zone only (FY2025-26 â†’ FY2030-31) */}
       {pboLinePath && <path class="p4dbt-chart__line-pbo" d={pboLinePath} />}
 
       {/* Primary series hit areas */}
       {hits.map((h) => (
         <circle class="p4dbt-chart__hit" cx={h.cx.toFixed(2)} cy={h.cy.toFixed(2)} r="5">
-          <title>{h.title}</title>
         </circle>
       ))}
 
       {/* PBO series hit areas */}
       {pboHits.map((h) => (
         <circle class="p4dbt-chart__hit" cx={h.cx.toFixed(2)} cy={h.cy.toFixed(2)} r="5">
-          <title>{h.title}</title>
         </circle>
       ))}
 
-      {/* Reference annotations — words + values only.
+      {/* Reference annotations â€” words + values only.
           LEADER ROUTING: leader stub 7px short of the point, stopping short of text band. */}
       {annotPts.map((a) => {
         const wordY  = a.above ? a.y - 31 : a.y + 43;
@@ -412,7 +409,7 @@ const ariaLabel =
         >FORECAST</text>
       )}
 
-      {/* MTA red dot — last ACTUAL data point (R2 canon: marks latest observed, not a projection) */}
+      {/* MTA red dot â€” last ACTUAL data point (R2 canon: marks latest observed, not a projection) */}
       {dotPt && (
         <circle
           class="p4dbt-chart__latest-dot"
@@ -420,11 +417,10 @@ const ariaLabel =
           cy={dotY.toFixed(2)}
           r="4"
         >
-          <title>FY{dotPt.fyLabel}: {latestLabel} (last actual)</title>
         </circle>
       )}
 
-      {/* Latest-point numeric label — BELOW the actual dot, centered. The space
+      {/* Latest-point numeric label â€” BELOW the actual dot, centered. The space
           above the dot is occupied by the PBO forecast line + its label; below
           the ~41% line the plot is empty, so the numeric drops underneath. */}
       {dotPt && latestLabel && (
@@ -470,9 +466,9 @@ const ariaLabel =
         </g>
       ))}
 
-      {/* Direct terminus labels — compact words, inside plot, right-anchored.
-          Anti-collision spread: DoF BELOW its endpoint (+18px), PBO ABOVE (−10px).
-          Separation ≈ 28px + endpoint pixel gap > 16px threshold.
+      {/* Direct terminus labels â€” compact words, inside plot, right-anchored.
+          Anti-collision spread: DoF BELOW its endpoint (+18px), PBO ABOVE (âˆ’10px).
+          Separation â‰ˆ 28px + endpoint pixel gap > 16px threshold.
           DoF (primary): 600 weight, full ink.
           PBO (secondary): 400 weight, 0.55 ink (MID tint, matches bar language). */}
       {dotPt && (
@@ -498,7 +494,7 @@ const ariaLabel =
 
 <style>
   /*
-   * Plate4FederalDebtPctGDP — Tier-3 dual-forecast line chart.
+   * Plate4FederalDebtPctGDP â€” Tier-3 dual-forecast line chart.
    * Federal debt % of GDP, 40-year history + two forecast tracks (DoF + PBO).
    * R2.1-conformant: solid line throughout, vertical dashed divider for forecast signal.
    * Grey-tint vocabulary: primary = INK 1.00, secondary (PBO) = MID 0.55.
@@ -523,7 +519,7 @@ const ariaLabel =
     stroke-opacity: 0.18;
     shape-rendering: crispEdges;
   }
-  /* Primary line: INK 1.00 — single solid-ink trace (history + DoF forecast) */
+  /* Primary line: INK 1.00 â€” single solid-ink trace (history + DoF forecast) */
   .p4dbt-chart__line {
     fill: none;
     stroke: var(--ink);
@@ -533,7 +529,7 @@ const ariaLabel =
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
   }
-  /* PBO forecast line: MID 0.55 — grey-tint secondary series, forecast zone only.
+  /* PBO forecast line: MID 0.55 â€” grey-tint secondary series, forecast zone only.
      Matches Plate2OperatingDispute .p2od-chart__bar-pbo fill-opacity: 0.55. */
   .p4dbt-chart__line-pbo {
     fill: none;
@@ -566,7 +562,7 @@ const ariaLabel =
     font-size: 13px;
     font-weight: 400;
   }
-  /* Annotation value: Plex Mono 12px 600 — data anchor emphasis */
+  /* Annotation value: Plex Mono 12px 600 â€” data anchor emphasis */
   .p4dbt-chart__annot-value {
     fill: var(--ink);
     font-family: var(--font-mono);

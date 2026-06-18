@@ -1,4 +1,4 @@
----
+﻿---
 /*
  * PanelLiveChart - canonical rendering of a single panel's real data
  * from the pipeline shape `{ primary, secondary }`.
@@ -89,9 +89,9 @@ interface Props {
    */
   referenceBand?: { lower: number; upper: number; label?: string } | null;
   /** Position of the band label relative to the band rect.
-   *  "above" (default) places the label just above the band's upper edge —
+   *  "above" (default) places the label just above the band's upper edge â€”
    *  works for charts where the data line stays below or inside the band.
-   *  "below" places the label just below the band's lower edge — required
+   *  "below" places the label just below the band's lower edge â€” required
    *  for charts where the data line crosses the band's TOP edge at the
    *  leftmost x (i.e., the line starts above the band on the historical
    *  side, like inflation core measures during the 2022-23 spike). */
@@ -117,7 +117,7 @@ interface Props {
    * clipping of a long series pushes yHi below the next nice tick that
    * would otherwise cover the true data maximum (e.g. the breadth panel
    * secondary series peaking at 71.6% while the auto yHi tops out at
-   * 73.4% — enough to show the data but one tick short of the 80% label
+   * 73.4% â€” enough to show the data but one tick short of the 80% label
    * that anchors the peak visually). Default null (auto).
    */
   yDomainMax?: number | null;
@@ -250,8 +250,8 @@ let yHi = 1;
 // can decide whether the data line will overflow the visible plot frame.
 // A spike-clipped series (covid-era LFS rates, indexed-to-baseline charts
 // where one observation dwarfs the rest) still RENDERS its full path with
-// `overflow: visible` — the path coordinates land above PLOT_Y0 or below
-// PLOT_Y1 — so any label placed in the top or bottom margin would sit in
+// `overflow: visible` â€” the path coordinates land above PLOT_Y0 or below
+// PLOT_Y1 â€” so any label placed in the top or bottom margin would sit in
 // the stroke's path. Used by `recVisible` below to suppress the recession
 // label on charts where the line punches out of the plot box.
 let yTrueMin = 0;
@@ -349,7 +349,7 @@ const lastTer = terUnitsMatch ? lastReal(terData) : null;
 
 // ---- Y-axis ticks --------------------------------------------------------
 // Nice-number tick stride. Returns a stride that lands on multiples of
-// {1, 2, 2.5, 5} times a power of 10 — scales to any magnitude without
+// {1, 2, 2.5, 5} times a power of 10 â€” scales to any magnitude without
 // the old hard-coded candidate list (which capped at 1000 and produced
 // ugly fallback ticks for large-magnitude series like persons or hours).
 function pickStride(lo: number, hi: number, targetTicks = 5): number {
@@ -398,9 +398,9 @@ const recX1 = recVisible ? xScale(Math.min(recEnd, xMax)) : 0;
 // Suppress the RECESSION label (not the band itself) when the data line
 // overflows the clipped y-domain. On covid-spike charts (indexed-to-Feb-
 // 2020 LFS rates, housing affordability index, etc.) the rawMin/rawMax of
-// the series sit well outside the percentile-clipped [yLo, yHi] window —
+// the series sit well outside the percentile-clipped [yLo, yHi] window â€”
 // the line renders its full path with `overflow: visible`, punching above
-// PLOT_Y0 or below PLOT_Y1 — so any margin-anchored label is a guaranteed
+// PLOT_Y0 or below PLOT_Y1 â€” so any margin-anchored label is a guaranteed
 // stroke collision. The shaded band itself remains visible; readers know
 // the covid recession by sight. See text-vs-line overlap audit.
 const yOverflowMargin = (yHi - yLo) * 0.005; // tiny tolerance for FP slop
@@ -452,16 +452,16 @@ const showBand = referenceBand !== null && bandTopY !== null && bandBotY !== nul
 // the 1-3% range). The recession label, also placed at PLOT_Y0 - 6, only
 // appears on long-window charts (240-mo) and the three reference-band
 // charts (Panel1HeadlineCPI, Panel2CoreTrio, Panel1OvernightRate) all
-// run a 60-mo window — no horizontal collision in practice. See the
+// run a 60-mo window â€” no horizontal collision in practice. See the
 // text-vs-line overlap audit.
 // Band label position: "above" places ~4px above the band's upper edge
 // (clamped to PLOT_Y0+10 so it never crosses the plot frame). "below"
-// places INSIDE the band near its lower edge — used for charts where the
+// places INSIDE the band near its lower edge â€” used for charts where the
 // data line crosses the band's TOP at the leftmost x (inflation core
 // measures during the 2022-23 spike), so the label needs to be in the
 // band's empty lower portion to stay clear of the line.
 // Earlier implementation placed the label at yScale(lower - 0.6) which
-// is OUTSIDE the band at the bottom of the chart frame — visually broken.
+// is OUTSIDE the band at the bottom of the chart frame â€” visually broken.
 const BAND_LABEL_Y = bandTopY !== null
   ? (bandLabelPosition === "below"
       ? yScale((referenceBand?.lower ?? 0) + 0.4)
@@ -485,19 +485,19 @@ function splitLabel(s: string | null | undefined): string[] {
     const cut = includeChar ? idx + 1 : idx;
     return [s.slice(0, cut).trimEnd(), s.slice(cut).trimStart()];
   };
-  // 1. Comma in budget — split immediately after the comma so it stays
+  // 1. Comma in budget â€” split immediately after the comma so it stays
   //    on the first line ("Per-cap GDP, Y/Y" -> ["Per-cap GDP,", "Y/Y"]).
   const commaIdx = s.lastIndexOf(",", LABEL_MAX_CHARS - 1);
   if (commaIdx > 0) return trySplit(commaIdx, true);
   // 2. Space in budget.
   const spaceIdx = s.lastIndexOf(" ", LABEL_MAX_CHARS - 1);
   if (spaceIdx > 0) return trySplit(spaceIdx, false);
-  // 3. Slash or hyphen in budget — keep delimiter on first line.
+  // 3. Slash or hyphen in budget â€” keep delimiter on first line.
   const slashIdx = s.lastIndexOf("/", LABEL_MAX_CHARS - 1);
   const dashIdx = s.lastIndexOf("-", LABEL_MAX_CHARS - 1);
   const delimIdx = Math.max(slashIdx, dashIdx);
   if (delimIdx > 0) return trySplit(delimIdx, true);
-  // 4. No breakable character — hard split at the budget. Reader still
+  // 4. No breakable character â€” hard split at the budget. Reader still
   //    sees the full label rather than an ellipsis.
   return [s.slice(0, LABEL_MAX_CHARS), s.slice(LABEL_MAX_CHARS)];
 }
@@ -520,9 +520,9 @@ const REF_LABEL_MIN_DY = 16;   // direct-label vs reference-rule-label guard
 const RECESSION_LABEL_GUARD = 12; // y-tick vs recession-label guard
 const RECESSION_LABEL_Y = PLOT_Y0 - 6; // baseline of the recession label
                                          // (sits in the top margin above the
-                                         // plot frame so the data line —
+                                         // plot frame so the data line â€”
                                          // which in covid-spike charts
-                                         // reaches the plot's top edge —
+                                         // reaches the plot's top edge â€”
                                          // can't graze the label rect).
 
 // Rule L6: stack primary + secondary direct labels when their natural
@@ -751,7 +751,7 @@ if (showBandLabel) {
        a covid-era outlier sits outside the visible range), the polyline
        paths would otherwise extend past the bottom or top of the plot.
        Reference rules, ticks, recession bands, and the latest dot stay
-       OUTSIDE the clip group — they should remain visible at the edges. */}
+       OUTSIDE the clip group â€” they should remain visible at the edges. */}
     <defs>
       <clipPath id={`pcclip-${dataPanelAttr ?? 'plot'}`}>
         <rect x={PLOT_X0} y={PLOT_Y0} width={PLOT_W} height={PLOT_H} />
@@ -799,7 +799,6 @@ if (showBandLabel) {
         cy={lastPrim.y.toFixed(2)}
         r="4"
       >
-        <title>{`Latest: ${lastPrim.date}: ${fmtValue(lastPrim.v * primaryScale, primaryKind)}`}</title>
       </circle>
     )}
 

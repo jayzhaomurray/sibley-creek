@@ -1,24 +1,24 @@
----
+﻿---
 /*
- * Panel3SalesComposite — CREA national sales + sales-to-new-listings, two-panel composite.
+ * Panel3SalesComposite â€” CREA national sales + sales-to-new-listings, two-panel composite.
  *
  * Layout: 2 sub-panels side-by-side, 720x405 viewBox, shared x-axis 2016-01-01 to latest.
  *
- *   Left panel — "SALES"
+ *   Left panel â€” "SALES"
  *     Primary (main):  12-month moving average of crea_resales (1.5px solid + MTA red dot)
  *     Comparator:      raw monthly crea_resales (1px dashed 4-2, 0.65 opacity)
  *     Direct labels:   "12m avg." at 12mma terminus, "Sales" at raw terminus
  *     Y-axis:          per-panel, index values (2019=100); topmost tick carries "idx" suffix
  *
- *   Right panel — "SALES TO NEW LISTINGS"
+ *   Right panel â€” "SALES TO NEW LISTINGS"
  *     Primary (main):  CREA sales-to-new-listings ratio (1.5px solid + MTA red dot)
- *     Reference band:  40–60 balanced-market range (CREA) at 0.07 ink opacity behind line
+ *     Reference band:  40â€“60 balanced-market range (CREA) at 0.07 ink opacity behind line
  *     Direct label:    "Ratio" at terminus
  *     Y-axis:          per-panel, %; range includes band fully; topmost tick carries "%" suffix
  *
  * Data inputs (from housing.json panel-3):
- *   data.secondary  — crea_resales (FVI_CREA_HOUSE_RESALE_INDEXED_CANADA, Index 2019=100)
- *   data.primary    — crea_snlr    (FVI_CREA_HOUSE_SALES_TO_NEW_LISTINGS_CANADA, %)
+ *   data.secondary  â€” crea_resales (FVI_CREA_HOUSE_RESALE_INDEXED_CANADA, Index 2019=100)
+ *   data.primary    â€” crea_snlr    (FVI_CREA_HOUSE_SALES_TO_NEW_LISTINGS_CANADA, %)
  *
  * Note on sales series: BoC Valet does not publish CREA sales in absolute unit counts
  * (V41804 returned 404; FVI namespace has only the indexed series). The indexed series
@@ -402,8 +402,8 @@ function buildSnlrGeom(): PanelGeom {
   }
 
   // Balanced-market band y-coords (band spans BAND_LO to BAND_HI)
-  const bandY1 = yScale(BAND_HI); // SVG y for upper value (60) — smaller SVG y
-  const bandY2 = yScale(BAND_LO); // SVG y for lower value (40) — larger SVG y
+  const bandY1 = yScale(BAND_HI); // SVG y for upper value (60) â€” smaller SVG y
+  const bandY2 = yScale(BAND_LO); // SVG y for lower value (40) â€” larger SVG y
   const bandH  = bandY2 - bandY1;
 
   return {
@@ -443,9 +443,9 @@ if (salesMmaLabelY !== null && salesRawLabelY !== null) {
 // ---------------------------------------------------------------------------
 // Latest values for aria-label
 // ---------------------------------------------------------------------------
-const latestSnlr   = snlrGeom?.mainLastValue?.toFixed(1) ?? "–";
+const latestSnlr   = snlrGeom?.mainLastValue?.toFixed(1) ?? "â€“";
 const latestSnlrDt = snlrGeom?.mainLastDate?.slice(0, 7) ?? "";
-const latestMma    = salesGeom?.mainLastValue?.toFixed(1) ?? "–";
+const latestMma    = salesGeom?.mainLastValue?.toFixed(1) ?? "â€“";
 const latestMmaDt  = salesGeom?.mainLastDate?.slice(0, 7) ?? "";
 
 const ariaLabel =
@@ -466,7 +466,7 @@ const ariaLabel =
     >
 
       {/* =========================================================
-          LEFT PANEL — SALES
+          LEFT PANEL â€” SALES
           ========================================================= */}
       <g>
         {/* Gridlines */}
@@ -527,7 +527,7 @@ const ariaLabel =
           </g>
         ))}
 
-        {/* Y-tick labels — left outer gutter (Mode B: left panel) */}
+        {/* Y-tick labels â€” left outer gutter (Mode B: left panel) */}
         {salesGeom.yTicks.map((v, idx) => {
           const yy = salesGeom.plotY0 + salesGeom.plotH - ((v - salesGeom.yLo) / salesGeom.yRange) * salesGeom.plotH;
           const isTop = idx === salesGeom.yTicks.length - 1;
@@ -550,7 +550,6 @@ const ariaLabel =
             cy={salesGeom.mainDotY.toFixed(2)}
             r="4"
           >
-            <title>{`Sales 12m avg. ${latestMmaDt}: ${latestMma} (index 2019=100)`}</title>
           </circle>
         )}
 
@@ -574,7 +573,7 @@ const ariaLabel =
       </g>
 
       {/* =========================================================
-          RIGHT PANEL — SALES TO NEW LISTINGS
+          RIGHT PANEL â€” SALES TO NEW LISTINGS
           ========================================================= */}
       <g>
         {/* Balanced-market band (40-60) behind the line */}
@@ -620,13 +619,13 @@ const ariaLabel =
           text-anchor="start"
         >SALES TO NEW LISTINGS</text>
 
-        {/* Balanced-market band label — sits just inside upper edge of band */}
+        {/* Balanced-market band label â€” sits just inside upper edge of band */}
         <text
           class="p3sc__band-label"
           x={(snlrGeom.plotX0 + 4).toFixed(2)}
           y={(snlrGeom.bandY1 + 11).toFixed(2)}
           text-anchor="start"
-        >Balanced market (40–60)</text>
+        >Balanced market (40â€“60)</text>
 
         {/* X-axis ticks and labels */}
         {snlrGeom.xTicks.map((t) => (
@@ -645,7 +644,7 @@ const ariaLabel =
           </g>
         ))}
 
-        {/* Y-tick labels — right of right panel (Mode B: right panel) */}
+        {/* Y-tick labels â€” right of right panel (Mode B: right panel) */}
         {snlrGeom.yTicks.map((v, idx) => {
           const yy = snlrGeom.plotY0 + snlrGeom.plotH - ((v - snlrGeom.yLo) / snlrGeom.yRange) * snlrGeom.plotH;
           const isTop = idx === snlrGeom.yTicks.length - 1;
@@ -668,7 +667,6 @@ const ariaLabel =
             cy={snlrGeom.mainDotY.toFixed(2)}
             r="4"
           >
-            <title>{`Sales to listings ${latestSnlrDt}: ${latestSnlr}%`}</title>
           </circle>
         )}
 

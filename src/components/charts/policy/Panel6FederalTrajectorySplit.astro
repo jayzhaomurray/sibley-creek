@@ -1,33 +1,33 @@
----
+﻿---
 /*
- * Panel6FederalTrajectorySplit — federal fiscal balance, 2-panel composite.
+ * Panel6FederalTrajectorySplit â€” federal fiscal balance, 2-panel composite.
  *
- * Layout: 1 row × 2 cols, side-by-side. Both panels are BAR charts.
- *   Panel A (LEFT)  — Budget balance year-to-date (data.secondary,
+ * Layout: 1 row Ã— 2 cols, side-by-side. Both panels are BAR charts.
+ *   Panel A (LEFT)  â€” Budget balance year-to-date (data.secondary,
  *                     dof_fiscal_ytd_balance). Monthly cumulative balance
  *                     from April 1 of the fiscal year. Each bar is the
  *                     reported YTD total at that month-end. Always starts
  *                     near zero in April and deepens into deficit.
- *   Panel B (RIGHT) — Monthly balance (data.primary,
+ *   Panel B (RIGHT) â€” Monthly balance (data.primary,
  *                     dof_fiscal_monthly_balance). Surplus months rise
  *                     above, deficit months hang below the zero line.
  *
- * Window: 2025-04-01 onward (current fiscal year — 11 monthly points).
+ * Window: 2025-04-01 onward (current fiscal year â€” 11 monthly points).
  * Shared x-domain; per-panel y-scale (Mode B composite).
  *
  * Authoring pattern: ALL compute in frontmatter. JSX is presentational
- * only (.map over pre-computed record arrays). No IIFE-returning-JSX —
+ * only (.map over pre-computed record arrays). No IIFE-returning-JSX â€”
  * Astro's HTML-mode parser breaks on `<` operators inside JSX bodies.
  *
  * Canon compliance:
  *   1. Pure ink fill bars (var(--ink)); no stroke. Zero-anchored.
  *   2. MTA red latest-print bar: the most-recent bar in each panel fills
- *      var(--accent). No dot circle — dot is line-chart canon only.
+ *      var(--accent). No dot circle â€” dot is line-chart canon only.
  *   3. 1px pure ink hairline frame per cell (shape-rendering: crispEdges).
- *   4. Zero line 1px full opacity — both series cross or sit at zero.
+ *   4. Zero line 1px full opacity â€” both series cross or sit at zero.
  *   5. 2-3 horizontal gridlines per cell, stroke-opacity 0.18.
  *   6. Y-axis: IBM Plex Mono 11px, right-aligned in left gutter.
- *      Mode B — every cell has its own y-ticks.
+ *      Mode B â€” every cell has its own y-ticks.
  *      Topmost tick of the LEFT cell carries the unit suffix.
  *   7. X-axis: shared x-domain, BOTH cells get month labels (3-4 max).
  *   8. Panel labels: Manrope 600 micro-caps, top-left above frame.
@@ -54,7 +54,7 @@ const { data = null } = Astro.props;
 // ---- Guard ------------------------------------------------------------------
 const hasPrimary = !!(data && data.primary && data.primary.data.length > 0);
 
-// ---- Geometry (Tier-3, 1×2 composite) ---------------------------------------
+// ---- Geometry (Tier-3, 1Ã—2 composite) ---------------------------------------
 const VB_W   = 720;
 const VB_H   = 405;
 const M_L    = 52;    // left gutter (y-tick labels)
@@ -62,7 +62,7 @@ const M_R    = 14;    // right margin
 const M_T    = 30;    // top margin (room for panel label above frame)
 const M_B    = 38;    // bottom margin (x-tick labels)
 const GAP_X  = 38;    // inter-cell horizontal gap
-const CELL_W = (VB_W - M_L - M_R - GAP_X) / 2;  // ≈308
+const CELL_W = (VB_W - M_L - M_R - GAP_X) / 2;  // â‰ˆ308
 const CELL_H = VB_H - M_T - M_B;                  // 337
 
 // Cell origins (top-left corner of each plot frame)
@@ -134,7 +134,7 @@ function buildYTicks(
 }
 
 // ---- X-axis helpers ---------------------------------------------------------
-// Fiscal year window (Apr 2025 – Mar 2026): show quarterly labels.
+// Fiscal year window (Apr 2025 â€“ Mar 2026): show quarterly labels.
 // Target months: Apr=4, Jul=7, Oct=10, Jan=1.
 const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const SHOW_MONTHS = new Set([4, 7, 10, 1]);
@@ -207,8 +207,8 @@ if (hasPrimary) {
   }
   const xMidMin = allXvals.length > 0 ? Math.min(...allXvals) : 0;
   const xMidMax = allXvals.length > 0 ? Math.max(...allXvals) : 1;
-  // Extend domain by half a month slot on each side so every bar — including
-  // the first and last — occupies a full, identical slot within the frame.
+  // Extend domain by half a month slot on each side so every bar â€” including
+  // the first and last â€” occupies a full, identical slot within the frame.
   const monthFrac = 1 / 12;
   const xMin   = xMidMin - monthFrac / 2;
   const xMax   = xMidMax + monthFrac / 2;
@@ -225,7 +225,7 @@ if (hasPrimary) {
   const xScaleB = (xv: number): number =>
     B_X0 + ((xv - xMin) / xRange) * CELL_W;
 
-  // ---- Panel A (LEFT) — YTD balance (secondary) y-domain -------------------
+  // ---- Panel A (LEFT) â€” YTD balance (secondary) y-domain -------------------
   // YTD is all negative in a deficit year; zero should be visible at or
   // above the top of the frame so the zero baseline reads clearly.
   const secVals: number[] = [];
@@ -246,7 +246,7 @@ if (hasPrimary) {
   crossesZeroA = aYLo < 0 && aYHi > 0;
   zeroYA       = yScaleA(0);
 
-  // ---- Panel B (RIGHT) — monthly balance (primary) y-domain ----------------
+  // ---- Panel B (RIGHT) â€” monthly balance (primary) y-domain ----------------
   const primVals: number[] = [];
   for (const d of primRaw) {
     if (typeof d.value === "number" && Number.isFinite(d.value)) primVals.push(d.value);
@@ -264,7 +264,7 @@ if (hasPrimary) {
   crossesZeroB = bYLo < 0 && bYHi > 0;
   zeroYB       = yScaleB(0);
 
-  // ---- Panel A bars (YTD — secondary) --------------------------------------
+  // ---- Panel A bars (YTD â€” secondary) --------------------------------------
   for (const pt of secRaw) {
     if (typeof pt.value !== "number" || !Number.isFinite(pt.value)) continue;
     const xv = decYear(pt.date);
@@ -286,7 +286,7 @@ if (hasPrimary) {
   lastBarA = barsA.length > 0 ? barsA[barsA.length - 1]! : null;
   if (lastBarA) lastBarA.isLatest = true;
 
-  // ---- Panel B bars (monthly — primary) ------------------------------------
+  // ---- Panel B bars (monthly â€” primary) ------------------------------------
   for (const pt of primRaw) {
     if (typeof pt.value !== "number" || !Number.isFinite(pt.value)) continue;
     const xv = decYear(pt.date);
@@ -320,9 +320,9 @@ if (hasPrimary) {
   const lastSecVal  = secRaw.length  > 0 ? secRaw[secRaw.length - 1]!.value  : null;
   const lastPrimDate= primRaw.length > 0 ? primRaw[primRaw.length - 1]!.date  : "?";
   const lastPrimVal = primRaw.length > 0 ? primRaw[primRaw.length - 1]!.value : null;
-  const ytdStr  = typeof lastSecVal  === "number" ? fmtValue(lastSecVal  * scale, kind) : "—";
-  const monStr  = typeof lastPrimVal === "number" ? fmtValue(lastPrimVal * scale, kind) : "—";
-  ariaLabel = `Federal fiscal balance split view. Left panel: budget balance year-to-date as bars, CAD millions, fiscal year 2025–26 — latest ${lastSecDate}: ${ytdStr}. Right panel: monthly balance as bars — latest ${lastPrimDate}: ${monStr}. Source: Department of Finance Fiscal Monitor.`;
+  const ytdStr  = typeof lastSecVal  === "number" ? fmtValue(lastSecVal  * scale, kind) : "â€”";
+  const monStr  = typeof lastPrimVal === "number" ? fmtValue(lastPrimVal * scale, kind) : "â€”";
+  ariaLabel = `Federal fiscal balance split view. Left panel: budget balance year-to-date as bars, CAD millions, fiscal year 2025â€“26 â€” latest ${lastSecDate}: ${ytdStr}. Right panel: monthly balance as bars â€” latest ${lastPrimDate}: ${monStr}. Source: Department of Finance Fiscal Monitor.`;
 }
 
 const clipIdA = "p6s-clip-a";
@@ -350,10 +350,10 @@ const clipIdB = "p6s-clip-b";
       </defs>
 
       {/* ================================================================
-          PANEL A — YTD BALANCE BARS (LEFT)
+          PANEL A â€” YTD BALANCE BARS (LEFT)
           ================================================================ */}
 
-      {/* Panel A gridlines — skip zero tick (drawn full-opacity below) */}
+      {/* Panel A gridlines â€” skip zero tick (drawn full-opacity below) */}
       {yTicksA.map((t) => {
         if (crossesZeroA && Math.abs(t.value) < 1e-9) return null;
         return (
@@ -378,7 +378,7 @@ const clipIdB = "p6s-clip-b";
         />
       )}
 
-      {/* Panel A bars — latest bar fills MTA red (bar-chart latest-print accent) */}
+      {/* Panel A bars â€” latest bar fills MTA red (bar-chart latest-print accent) */}
       <g clip-path={`url(#${clipIdA})`}>
         {barsA.map((b) => (
           <rect
@@ -388,7 +388,6 @@ const clipIdB = "p6s-clip-b";
             width={b.w.toFixed(2)}
             height={b.h.toFixed(2)}
           >
-            <title>{b.titleText}</title>
           </rect>
         ))}
       </g>
@@ -439,10 +438,10 @@ const clipIdB = "p6s-clip-b";
       ))}
 
       {/* ================================================================
-          PANEL B — MONTHLY BALANCE BARS (RIGHT)
+          PANEL B â€” MONTHLY BALANCE BARS (RIGHT)
           ================================================================ */}
 
-      {/* Panel B gridlines — skip zero tick (drawn full-opacity below) */}
+      {/* Panel B gridlines â€” skip zero tick (drawn full-opacity below) */}
       {yTicksB.map((t) => {
         if (crossesZeroB && Math.abs(t.value) < 1e-9) return null;
         return (
@@ -467,7 +466,7 @@ const clipIdB = "p6s-clip-b";
         />
       )}
 
-      {/* Panel B bars — latest bar fills MTA red (bar-chart latest-print accent) */}
+      {/* Panel B bars â€” latest bar fills MTA red (bar-chart latest-print accent) */}
       <g clip-path={`url(#${clipIdB})`}>
         {barsB.map((b) => (
           <rect
@@ -477,7 +476,6 @@ const clipIdB = "p6s-clip-b";
             width={b.w.toFixed(2)}
             height={b.h.toFixed(2)}
           >
-            <title>{b.titleText}</title>
           </rect>
         ))}
       </g>
@@ -498,7 +496,7 @@ const clipIdB = "p6s-clip-b";
         y={(B_Y0 - 7).toFixed(2)}
       >MONTHLY BALANCE</text>
 
-      {/* Panel B y-tick labels — left gutter of Panel B cell */}
+      {/* Panel B y-tick labels â€” left gutter of Panel B cell */}
       {yTicksB.map((t) => (
         <text
           class="p6s-chart__ytick-label"
@@ -533,7 +531,7 @@ const clipIdB = "p6s-clip-b";
 
 <style>
   /* -------------------------------------------------------------------
-     Panel6FederalTrajectorySplit — Tier-3 Mode-B composite chart.
+     Panel6FederalTrajectorySplit â€” Tier-3 Mode-B composite chart.
      Two bar panels side-by-side: YTD balance (left), monthly (right).
      Vignelli canon: pure ink bars, MTA red latest dot, hairline frames.
      No color on data marks; no legends.
@@ -552,7 +550,7 @@ const clipIdB = "p6s-clip-b";
     font-family: var(--font-sans);
   }
 
-  /* Gridlines — pure ink, low opacity */
+  /* Gridlines â€” pure ink, low opacity */
   .p6s-chart__gridline {
     stroke: var(--ink);
     stroke-width: 1;
@@ -560,7 +558,7 @@ const clipIdB = "p6s-clip-b";
     shape-rendering: crispEdges;
   }
 
-  /* Zero line — full opacity, establishes surplus/deficit baseline */
+  /* Zero line â€” full opacity, establishes surplus/deficit baseline */
   .p6s-chart__zero-line {
     stroke: var(--ink);
     stroke-width: 1;
@@ -568,19 +566,19 @@ const clipIdB = "p6s-clip-b";
     shape-rendering: crispEdges;
   }
 
-  /* Bars — pure ink fill, no stroke; gap built into geometry */
+  /* Bars â€” pure ink fill, no stroke; gap built into geometry */
   .p6s-chart__bar {
     fill: var(--ink);
     stroke: none;
     shape-rendering: crispEdges;
   }
 
-  /* Latest-print bar — MTA red accent; the bar IS the moment-of-attention */
+  /* Latest-print bar â€” MTA red accent; the bar IS the moment-of-attention */
   .p6s-chart__bar--latest {
     fill: var(--accent);
   }
 
-  /* Hairline frame — 1px pure ink per cell */
+  /* Hairline frame â€” 1px pure ink per cell */
   .p6s-chart__frame {
     fill: none;
     stroke: var(--ink);
@@ -588,7 +586,7 @@ const clipIdB = "p6s-clip-b";
     shape-rendering: crispEdges;
   }
 
-  /* Sub-panel label — Manrope 600 micro-caps, top-left */
+  /* Sub-panel label â€” Manrope 600 micro-caps, top-left */
   .p6s-chart__panel-label {
     fill: var(--ink);
     font-family: var(--font-sans);
@@ -598,7 +596,7 @@ const clipIdB = "p6s-clip-b";
     text-transform: uppercase;
   }
 
-  /* Y-axis tick labels — IBM Plex Mono 11px, right-aligned */
+  /* Y-axis tick labels â€” IBM Plex Mono 11px, right-aligned */
   .p6s-chart__ytick-label {
     fill: var(--ink);
     font-family: var(--font-mono);
@@ -607,14 +605,14 @@ const clipIdB = "p6s-clip-b";
     font-variant-numeric: tabular-nums;
   }
 
-  /* X-axis tick marks — 4px outward */
+  /* X-axis tick marks â€” 4px outward */
   .p6s-chart__xtick {
     stroke: var(--ink);
     stroke-width: 1;
     shape-rendering: crispEdges;
   }
 
-  /* X-axis tick labels — Manrope 11px */
+  /* X-axis tick labels â€” Manrope 11px */
   .p6s-chart__xtick-label {
     fill: var(--ink);
     font-family: var(--font-sans);

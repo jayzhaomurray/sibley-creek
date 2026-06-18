@@ -1,6 +1,6 @@
----
+﻿---
 /*
- * Alt_AluminumByDestination — "Where does Canadian aluminum go?"
+ * Alt_AluminumByDestination â€” "Where does Canadian aluminum go?"
  *
  * Four 2x2 small-multiples panels: United States / Netherlands / Mexico /
  * All other non-US (non-US total minus Netherlands minus Mexico).
@@ -8,7 +8,7 @@
  * Each panel carries a single 12mma level line in CAD millions.
  *
  * Visual rationale (Option A over B/C):
- *   US 12mma ≈ 772M, Netherlands ≈ 141M, Mexico ≈ 22M, all-other ≈ 42M.
+ *   US 12mma â‰ˆ 772M, Netherlands â‰ˆ 141M, Mexico â‰ˆ 22M, all-other â‰ˆ 42M.
  *   Small-multiples with per-panel y-axes (Mode B) makes the concentration
  *   visceral: one large panel, one meaningfully rising panel, two flat
  *   panels near zero. A single-chart layout (Option B) compresses the
@@ -20,13 +20,13 @@
  *   NSA rationale: NAPCS sub-chapter aluminum export data carries
  *   seasonal patterns (infrastructure procurement cycles, smelter
  *   maintenance windows). 12mma removes seasonal noise while preserving
- *   the trend that matters editorially — whether non-US destinations are
+ *   the trend that matters editorially â€” whether non-US destinations are
  *   structurally absorbing volume that used to go south. Raw monthly
  *   dots are not included (panel size too small; adds clutter without
  *   editorial payoff).
  *
- * Mode B y-axis: US (~200–900M) vs Netherlands (0–200M) vs Mexico/other
- *   (0–60M) are order-of-magnitude apart. Per design-system.md "Small
+ * Mode B y-axis: US (~200â€“900M) vs Netherlands (0â€“200M) vs Mexico/other
+ *   (0â€“60M) are order-of-magnitude apart. Per design-system.md "Small
  *   multiples" Mode B rule: each panel carries its own y-tick labels.
  *   Shared axis (Mode A) would compress smaller panels to flat lines
  *   identical in shape to the "all other" flat.
@@ -35,7 +35,7 @@
  *   exports_aluminum_nld minus exports_aluminum_mex. These three
  *   (NLD + MEX + other) sum to total non-US aluminum exports per
  *   the StatCan NAPCS 32+38 aggregation. The residual "other" bucket
- *   covers GBR, CHN, JPN, DEU, KOR, FRA, BEL, IND, SGP — each under
+ *   covers GBR, CHN, JPN, DEU, KOR, FRA, BEL, IND, SGP â€” each under
  *   $2M/month on raw basis, collectively flat ~42M 12mma at Mar 2026.
  *
  * Data source: StatCan Table 12-10-0182-01 (NAPCS 32+38 summed),
@@ -157,7 +157,7 @@ const GRID_H = VB_H - M_T - M_B;   // 337
 
 const NUM_COLS = 2;
 const NUM_ROWS = 2;
-const GAP_X = 40;  // wide gutter — per-panel y-ticks on right column need room
+const GAP_X = 40;  // wide gutter â€” per-panel y-ticks on right column need room
 const GAP_Y = 22;
 
 const CELL_W = (GRID_W - GAP_X * (NUM_COLS - 1)) / NUM_COLS;   // ~311
@@ -376,7 +376,6 @@ const latestYear = latestDate.slice(0, 4);
             const yv = g.y1 - ((pt.value - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
             return (
               <circle class="abd-chart__hit" cx={xv.toFixed(2)} cy={yv.toFixed(2)} r="5">
-                <title>{`${g.label} — ${pt.date}: ${pt.value.toFixed(1)} M CAD (12mma)`}</title>
               </circle>
             );
           })}
@@ -389,7 +388,6 @@ const latestYear = latestDate.slice(0, 4);
               cy={g.latestY.toFixed(2)}
               r="4"
             >
-              <title>{`${g.label} latest — ${g.latest.date}: ${g.latest.value.toFixed(1)} M CAD (12mma)`}</title>
             </circle>
           )}
 
@@ -409,7 +407,7 @@ const latestYear = latestDate.slice(0, 4);
             y={(g.y0 - 7).toFixed(2)}
           >{g.label}</text>
 
-          {/* --- Y-axis tick labels (Mode B — every panel) --- */}
+          {/* --- Y-axis tick labels (Mode B â€” every panel) --- */}
           {g.yTicks.map((v, i) => {
             const yv = g.y1 - ((v - g.yLo) / (g.yHi - g.yLo || 1)) * CELL_H;
             if (yv < g.y0 - 2 || yv > g.y1 + 2) return null;
@@ -453,9 +451,9 @@ const latestYear = latestDate.slice(0, 4);
 
 <style>
   /*
-   * Alt_AluminumByDestination — Vignelli canon small-multiples.
+   * Alt_AluminumByDestination â€” Vignelli canon small-multiples.
    * Single series per panel: solid 1.5px ink line + MTA red terminal dot.
-   * Mode B per-panel y-axis (US ~200-900M vs others 0-200M — disparate magnitudes).
+   * Mode B per-panel y-axis (US ~200-900M vs others 0-200M â€” disparate magnitudes).
    */
 
   .abd-chart {
@@ -480,7 +478,7 @@ const latestYear = latestDate.slice(0, 4);
     shape-rendering: crispEdges;
   }
 
-  /* Data line — solid 1.5px pure ink */
+  /* Data line â€” solid 1.5px pure ink */
   .abd-chart__line {
     stroke: var(--ink, #000);
     stroke-width: 1.5;
@@ -496,13 +494,13 @@ const latestYear = latestDate.slice(0, 4);
     pointer-events: all;
   }
 
-  /* Latest-print dot — MTA red */
+  /* Latest-print dot â€” MTA red */
   .abd-chart__latest-dot {
     fill: var(--accent, #E63946);
     stroke: none;
   }
 
-  /* Plot frame — 1px pure ink hairline */
+  /* Plot frame â€” 1px pure ink hairline */
   .abd-chart__frame {
     fill: none;
     stroke: var(--ink, #000);
@@ -510,7 +508,7 @@ const latestYear = latestDate.slice(0, 4);
     shape-rendering: crispEdges;
   }
 
-  /* Sub-panel heading — Manrope 600, micro-caps, 11px */
+  /* Sub-panel heading â€” Manrope 600, micro-caps, 11px */
   .abd-chart__panel-label {
     fill: var(--ink, #000);
     font-family: var(--font-sans, 'Manrope', sans-serif);
@@ -520,7 +518,7 @@ const latestYear = latestDate.slice(0, 4);
     text-transform: uppercase;
   }
 
-  /* Y-axis tick labels — IBM Plex Mono 400, 11px */
+  /* Y-axis tick labels â€” IBM Plex Mono 400, 11px */
   .abd-chart__ytick-label {
     fill: var(--ink-faint, #555);
     font-family: var(--font-mono, 'IBM Plex Mono', monospace);
@@ -537,7 +535,7 @@ const latestYear = latestDate.slice(0, 4);
     shape-rendering: crispEdges;
   }
 
-  /* X-axis tick labels — Manrope 400, 11px */
+  /* X-axis tick labels â€” Manrope 400, 11px */
   .abd-chart__xtick-label {
     fill: var(--ink-faint, #555);
     font-family: var(--font-sans, 'Manrope', sans-serif);

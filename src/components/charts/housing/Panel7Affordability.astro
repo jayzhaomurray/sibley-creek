@@ -1,23 +1,23 @@
----
+﻿---
 /*
- * Panel7Affordability — BoC qualifying-mortgage-payment-to-income ratio.
+ * Panel7Affordability â€” BoC qualifying-mortgage-payment-to-income ratio.
  * Tier-3 single-panel chart, housing section.
  *
  * Series: INDINF_AFFORD_Q via BoC Valet (pipeline slot housing_affordability).
  * Values arrive as decimals (0.427 = 42.7%); multiply by 100 for % display.
- * Window: full pipeline history (2000 Q1 – present, 104 quarters as of refresh
+ * Window: full pipeline history (2000 Q1 â€“ present, 104 quarters as of refresh
  * 2026-05-13). BoC Valet availability starts 2000; 1981 history not in Valet.
- * Frequency: quarterly. Series is already smooth — no moving average needed.
+ * Frequency: quarterly. Series is already smooth â€” no moving average needed.
  *
  * Single annotation band: pandemic 2020-03 to 2022-03 only.
- * Band fill: rgba(21, 23, 26, 0.08) — canon rule 9 ink wash (~8% opacity).
+ * Band fill: rgba(21, 23, 26, 0.08) â€” canon rule 9 ink wash (~8% opacity).
  * Band label: "PANDEMIC" uppercase micro-caps, near top of plot area.
  *
  * Y-axis: integer % ticks at step 10 (range auto-fitted to data).
  *   Topmost tick carries "%" suffix.
  * X-axis: 5 decade-spaced ticks across the 25-year window.
  *
- * No source paragraph below SVG — source attribution on the plate metadata
+ * No source paragraph below SVG â€” source attribution on the plate metadata
  * strip (housing.astro plate.source). Per chart-builder.md rule 2026-05-13.
  *
  * Canon compliance (Tier-3 single panel):
@@ -33,7 +33,7 @@
  *  #15 SVG role="img" aria-label.
  *  #17 No section-accent, no series-color tokens.
  *  #18 var(--paper) background.
- *  No direct end-of-line label — single unambiguous series needs none.
+ *  No direct end-of-line label â€” single unambiguous series needs none.
  */
 
 import type { PanelData, SeriesPoint } from "../_shared/panelData";
@@ -47,7 +47,7 @@ interface Props {
 const { data = null } = Astro.props;
 
 // ---------------------------------------------------------------------------
-// Data prep — multiply decimal ratio by 100 to get percent
+// Data prep â€” multiply decimal ratio by 100 to get percent
 // ---------------------------------------------------------------------------
 
 const rawSeries: SeriesPoint[] = (data?.primary?.data ?? []).map((pt) => ({
@@ -78,7 +78,7 @@ const yDataMin = allY.length > 0 ? Math.min(...allY) : 20;
 const yDataMax = allY.length > 0 ? Math.max(...allY) : 60;
 
 // Nice integer ticks at step 10.
-// Floor data min to the nearest step below (no extra pad — the step already
+// Floor data min to the nearest step below (no extra pad â€” the step already
 // gives one full tick of breathing room below the data).
 // Ceil data max to the nearest step above similarly.
 const Y_STEP = 10;
@@ -96,7 +96,7 @@ for (let v = Y_LO; v <= Y_HI; v += Y_STEP) Y_TICKS.push(v);
 const VB_W = 720;
 const VB_H = 405;
 const M_OUT_L = 36;   // y-tick label gutter (3-digit "%" values at 11px mono)
-const M_R = 16;       // right margin — no direct label for single series
+const M_R = 16;       // right margin â€” no direct label for single series
 const M_T = 28;       // top
 const M_B = 36;       // bottom for x-ticks
 const PLOT_X0 = M_OUT_L;
@@ -114,7 +114,7 @@ const yScale = (v: number): number =>
 
 // ---------------------------------------------------------------------------
 // X-ticks: 5 decade-spaced anchors across the ~25-year window
-// 2000, 2005, 2010, 2015, 2020, 2025 → pick 5 that fit (drop 2000 if crowded)
+// 2000, 2005, 2010, 2015, 2020, 2025 â†’ pick 5 that fit (drop 2000 if crowded)
 // ---------------------------------------------------------------------------
 
 const X_TICK_YEARS = [2000, 2005, 2010, 2015, 2020, 2025];
@@ -215,7 +215,7 @@ const ariaLabel =
       role="img"
       aria-label={ariaLabel}
     >
-      {/* Pandemic annotation band — behind gridlines and data */}
+      {/* Pandemic annotation band â€” behind gridlines and data */}
       <rect
         class="p7aff__band"
         x={bandX0.toFixed(2)}
@@ -296,7 +296,6 @@ const ariaLabel =
           cy={dotY.toFixed(2)}
           r="4"
         >
-          <title>{`${latestDate?.slice(0, 7) ?? ""}: ${latestValue !== null ? latestValue.toFixed(1) : ""}%`}</title>
         </circle>
       )}
 
@@ -313,7 +312,6 @@ const ariaLabel =
             fill="transparent"
             stroke="none"
           >
-            <title>{`${pt.date.slice(0, 7)}: ${(pt.value).toFixed(1)}%`}</title>
           </circle>
         );
       })}

@@ -1,22 +1,22 @@
----
+﻿---
 /*
- * Panel6DebtToGDP — Federal debt as % of GDP: 45-year history + SEU 2026 projection.
+ * Panel6DebtToGDP â€” Federal debt as % of GDP: 45-year history + SEU 2026 projection.
  *
  * EDITORIAL PURPOSE: Sustainability anchor for the fiscal-stance page. Shows where
- * federal debt-to-GDP has been (1980–FY2024-25) and where it's projected to go
+ * federal debt-to-GDP has been (1980â€“FY2024-25) and where it's projected to go
  * (FY2025-26 through FY2030-31 per DoF SEU April 2026). Annotates the 1990s peak,
- * pre-GFC trough, COVID peak, and latest actual — the four durable reference points
+ * pre-GFC trough, COVID peak, and latest actual â€” the four durable reference points
  * that bracket the current position.
  *
  * PLATE TITLE CANDIDATE (per writing-style.md terminal-period / one-verb canon):
  *   "Federal debt holds above 40 per cent of GDP through the projection horizon."
  *
  * DATA SOURCES (Tier A verified):
- *   Historical (1980–2024): Budget 2025 Annex 1 Chart A1.5 (DoF).
+ *   Historical (1980â€“2024): Budget 2025 Annex 1 Chart A1.5 (DoF).
  *     Source card: editorial/source_cards/_pending/fiscal/dof_federal_debt_to_gdp_trajectory.yaml
  *     Derived JSON: data/derived/fiscal_debt_to_gdp.json
  *   Projection (FY2025-26 to FY2030-31): DoF Spring Economic Update April 28 2026,
- *     Annex 1 Table A1.7 — supersedes Budget 2025 baseline (always-freshest-vintage rule).
+ *     Annex 1 Table A1.7 â€” supersedes Budget 2025 baseline (always-freshest-vintage rule).
  *     Primary source: budget.canada.ca/update-miseajour/2026/report-rapport/anx1-en.html
  *
  * YEAR CONVENTION: "year" in the source data is fiscal-year-ending (calendar year of
@@ -31,10 +31,10 @@
  *   as the "latest reported / first projection" junction.
  *
  * VISUAL DESIGN (Tier-3 canon):
- *   - Solid 1.5px ink line for historical portion (years 1980–2024).
- *   - Dashed 1px ink line for projection (years 2025–2030, SEU 2026).
+ *   - Solid 1.5px ink line for historical portion (years 1980â€“2024).
+ *   - Dashed 1px ink line for projection (years 2025â€“2030, SEU 2026).
  *   - Vertical dashed separator at x = year 2025 (the break point).
- *   - MTA red dot at year 2025 (FY2024-25, 41.1%) — history/projection junction.
+ *   - MTA red dot at year 2025 (FY2024-25, 41.1%) â€” history/projection junction.
  *   - 4 annotation callouts at reference points (1990s peak, pre-GFC trough,
  *     COVID peak, latest actual at year 2024), plus one at FY2028-29 peak.
  *   - 3-4 horizontal gridlines, stroke-opacity 0.18.
@@ -125,7 +125,7 @@ const HIST: Pt[] = [
 // Projection: DoF SEU April 28 2026, Annex 1 Table A1.7 (fresher than Budget 2025)
 // year = fiscal-year-ending; year 2025 = FY2024-25
 const PROJ: Pt[] = [
-  { year: 2025, pct: 41.1, kind: "projection" }, // FY2024-25 — red dot / junction
+  { year: 2025, pct: 41.1, kind: "projection" }, // FY2024-25 â€” red dot / junction
   { year: 2026, pct: 41.5, kind: "projection" }, // FY2025-26
   { year: 2027, pct: 41.8, kind: "projection" }, // FY2026-27
   { year: 2028, pct: 41.9, kind: "projection" }, // FY2027-28
@@ -134,7 +134,7 @@ const PROJ: Pt[] = [
   { year: 2031, pct: 41.6, kind: "projection" }, // FY2030-31
 ];
 
-// Full series joined (historical + projection, no overlap — year 2025 starts proj)
+// Full series joined (historical + projection, no overlap â€” year 2025 starts proj)
 const ALL: Pt[] = [...HIST, ...PROJ];
 
 // Break point: x-position of year 2025 (the first projection point / red dot)
@@ -194,7 +194,7 @@ for (let yr = 1985; yr <= 2030; yr += 10) {
   xTicksFine.push({ x: xScale(yr), label: "" });
 }
 
-// ---- SVG path for historical segment (years 1980–2024) ----------------------
+// ---- SVG path for historical segment (years 1980â€“2024) ----------------------
 const histPath = HIST.map((p, i) => {
   const x = xScale(p.year);
   const y = yScale(p.pct);
@@ -208,7 +208,7 @@ const histPathWithBridge =
   histPath +
   ` L${xScale(histBridgePt.year).toFixed(2)},${yScale(histBridgePt.pct).toFixed(2)}`;
 
-// ---- SVG path for projection segment (years 2025–2031) ----------------------
+// ---- SVG path for projection segment (years 2025â€“2031) ----------------------
 const projPath = PROJ.map((p, i) => {
   const x = xScale(p.year);
   const y = yScale(p.pct);
@@ -239,7 +239,7 @@ const hits: Hit[] = ALL.map((p) => {
 
 // ---- Annotations: 5 callouts ------------------------------------------------
 // Each has a dot at the data point and a text label with a short leader line.
-// Layout is hand-tuned to avoid overlap given the 1980–2031 x span.
+// Layout is hand-tuned to avoid overlap given the 1980â€“2031 x span.
 type Annot = {
   year: number;
   pct: number;
@@ -302,7 +302,6 @@ const ariaLabel =
     role="img"
     aria-label={ariaLabel}
   >
-    <title>Federal debt as % of GDP, 1980–2031: history and DoF SEU 2026 projection.</title>
 
     {/* Horizontal gridlines */}
     {yTicks.map((t) => (
@@ -313,7 +312,7 @@ const ariaLabel =
       />
     ))}
 
-    {/* Projection zone background — subtle ink wash right of break */}
+    {/* Projection zone background â€” subtle ink wash right of break */}
     <rect
       class="p6dtg-chart__proj-zone"
       x={breakX.toFixed(2)}
@@ -337,16 +336,15 @@ const ariaLabel =
       text-anchor="middle"
     >SEU 2026 projection</text>
 
-    {/* Historical line — 1.5px solid */}
+    {/* Historical line â€” 1.5px solid */}
     <path class="p6dtg-chart__hist-line" d={histPathWithBridge} />
 
-    {/* Projection line — 1px dashed */}
+    {/* Projection line â€” 1px dashed */}
     <path class="p6dtg-chart__proj-line" d={projPath} />
 
     {/* Hit areas (transparent circles for title tooltips) */}
     {hits.map((h) => (
       <circle class="p6dtg-chart__hit" cx={h.cx.toFixed(2)} cy={h.cy.toFixed(2)} r="5">
-        <title>{h.title}</title>
       </circle>
     ))}
 
@@ -390,17 +388,16 @@ const ariaLabel =
       );
     })}
 
-    {/* MTA red dot — history/projection junction, FY2024-25 41.1% */}
+    {/* MTA red dot â€” history/projection junction, FY2024-25 41.1% */}
     <circle
       class="p6dtg-chart__latest-dot"
       cx={dotX.toFixed(2)}
       cy={dotY.toFixed(2)}
       r="4"
     >
-      <title>FY2024-25: 41.1% of GDP (SEU 2026 projection — first year)</title>
     </circle>
 
-    {/* Hairline frame — on top to clip any overflow */}
+    {/* Hairline frame â€” on top to clip any overflow */}
     <rect
       class="p6dtg-chart__frame"
       x={PLOT_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
@@ -417,7 +414,7 @@ const ariaLabel =
       >{t.label}</text>
     ))}
 
-    {/* X-axis ticks (major, labelled — every 10 years) */}
+    {/* X-axis ticks (major, labelled â€” every 10 years) */}
     {xTicks.map((t) => (
       <g>
         <line
@@ -434,7 +431,7 @@ const ariaLabel =
       </g>
     ))}
 
-    {/* X-axis ticks (minor, unlabelled — every 5 years) */}
+    {/* X-axis ticks (minor, unlabelled â€” every 5 years) */}
     {xTicksFine.map((t) => (
       <line
         class="p6dtg-chart__xtick-minor"
@@ -448,7 +445,7 @@ const ariaLabel =
 
 <style>
   /* -------------------------------------------------------------------
-     Panel6DebtToGDP — Tier-3 single-trace line chart.
+     Panel6DebtToGDP â€” Tier-3 single-trace line chart.
      Federal debt as % of GDP: 1980 historical through SEU 2026 projection.
 
      Historical line: 1.5px solid ink.
@@ -467,19 +464,19 @@ const ariaLabel =
     height: 100%;
     font-family: var(--font-sans);
   }
-  /* Gridlines — 0.18 opacity ink */
+  /* Gridlines â€” 0.18 opacity ink */
   .p6dtg-chart__gridline {
     stroke: var(--ink);
     stroke-width: 1;
     stroke-opacity: 0.18;
     shape-rendering: crispEdges;
   }
-  /* Projection zone background — very subtle ink wash */
+  /* Projection zone background â€” very subtle ink wash */
   .p6dtg-chart__proj-zone {
     fill: rgba(21, 23, 26, 0.03);
     stroke: none;
   }
-  /* Vertical break line — dashed, 0.4 opacity ink */
+  /* Vertical break line â€” dashed, 0.4 opacity ink */
   .p6dtg-chart__break-line {
     stroke: var(--ink);
     stroke-width: 1;
@@ -496,7 +493,7 @@ const ariaLabel =
     opacity: 0.55;
     letter-spacing: 0.02em;
   }
-  /* Historical line — 1.5px solid pure ink */
+  /* Historical line â€” 1.5px solid pure ink */
   .p6dtg-chart__hist-line {
     fill: none;
     stroke: var(--ink);
@@ -505,7 +502,7 @@ const ariaLabel =
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
   }
-  /* Projection line — 1px dashed "5 3" ink */
+  /* Projection line â€” 1px dashed "5 3" ink */
   .p6dtg-chart__proj-line {
     fill: none;
     stroke: var(--ink);
@@ -515,25 +512,25 @@ const ariaLabel =
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
   }
-  /* Hit areas — transparent */
+  /* Hit areas â€” transparent */
   .p6dtg-chart__hit {
     fill: transparent;
     stroke: none;
     cursor: default;
   }
-  /* Annotation dots — small solid ink circle at the annotated data point */
+  /* Annotation dots â€” small solid ink circle at the annotated data point */
   .p6dtg-chart__annot-dot {
     fill: var(--ink);
     stroke: none;
   }
-  /* Annotation leader lines — 0.45 opacity ink */
+  /* Annotation leader lines â€” 0.45 opacity ink */
   .p6dtg-chart__annot-leader {
     stroke: var(--ink);
     stroke-width: 1;
     stroke-opacity: 0.45;
     shape-rendering: crispEdges;
   }
-  /* Annotation first line — descriptor (Manrope 400 11px, recedes) */
+  /* Annotation first line â€” descriptor (Manrope 400 11px, recedes) */
   .p6dtg-chart__annot-line1 {
     fill: var(--ink);
     font-family: var(--font-sans);
@@ -541,26 +538,26 @@ const ariaLabel =
     font-weight: 400;
     opacity: 0.7;
   }
-  /* Annotation second line — value (Manrope 600 11px) */
+  /* Annotation second line â€” value (Manrope 600 11px) */
   .p6dtg-chart__annot-line2 {
     fill: var(--ink);
     font-family: var(--font-sans);
     font-size: 11px;
     font-weight: 600;
   }
-  /* Latest dot — MTA red, at junction */
+  /* Latest dot â€” MTA red, at junction */
   .p6dtg-chart__latest-dot {
     fill: var(--accent);
     stroke: none;
   }
-  /* Hairline frame — 1px pure ink */
+  /* Hairline frame â€” 1px pure ink */
   .p6dtg-chart__frame {
     fill: none;
     stroke: var(--ink);
     stroke-width: 1;
     shape-rendering: crispEdges;
   }
-  /* Y-axis tick labels — Plex Mono 400 12px */
+  /* Y-axis tick labels â€” Plex Mono 400 12px */
   .p6dtg-chart__ytick-label {
     fill: var(--ink);
     font-family: var(--font-mono);
@@ -576,7 +573,7 @@ const ariaLabel =
     shape-rendering: crispEdges;
     opacity: 0.4;
   }
-  /* X-axis major tick labels — Manrope 400 12px */
+  /* X-axis major tick labels â€” Manrope 400 12px */
   .p6dtg-chart__xtick-label {
     fill: var(--ink);
     font-family: var(--font-sans);

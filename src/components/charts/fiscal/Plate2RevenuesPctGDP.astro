@@ -1,16 +1,16 @@
----
+﻿---
 /*
- * Plate2RevenuesPctGDP — Federal revenues vs program expenses as % of GDP.
+ * Plate2RevenuesPctGDP â€” Federal revenues vs program expenses as % of GDP.
  *
  * EDITORIAL PURPOSE (R2.5 MERGE): Single two-line chart combining revenues and
  * program expenses on one honest axis. The gap between the lines IS the deficit/
  * surplus, readable by eye. Merged from the prior Plate2 (revenues) + Plate3
  * (expenses) because separate tight-axis charts at different y-domains would
- * destroy the gap read — the whole editorial point.
+ * destroy the gap read â€” the whole editorial point.
  *
  * DATA: fiscal.json panel-7 (revenues) + panel-8 (expenses), wired by fiscal.astro
- *   primary   = frt_revenues_pct_gdp      (% of GDP, FY1983-84 → FY2030-31)
- *   secondary = frt_program_exp_pct_gdp   (% of GDP, FY1983-84 → FY2030-31)
+ *   primary   = frt_revenues_pct_gdp      (% of GDP, FY1983-84 â†’ FY2030-31)
+ *   secondary = frt_program_exp_pct_gdp   (% of GDP, FY1983-84 â†’ FY2030-31)
  *   NOTE: fiscal.astro wires this as data.primary = revenues, data.secondary = expenses.
  *
  * FORM: Two solid lines on one axis (R2.5 monochrome discipline).
@@ -18,17 +18,17 @@
  *   Expense line:  1.5px long-dash (6 3) to separate from revenue without using hue.
  *   The gap between them is the fiscal surplus (revenue > expense) or deficit
  *   (expense > revenue). Optional faint fill between lines where expense > revenue
- *   is set to no-fill (default per spec — lines read cleanly without it on a 40-year
+ *   is set to no-fill (default per spec â€” lines read cleanly without it on a 40-year
  *   span with the COVID spike).
  *   Direct terminus labels at the right edge name each line.
  *
  * Y-DOMAIN (tight, honest, un-clipped per R2.3):
- *   Combined range: revenues 13.9%–18.0%, expenses 11.8%–28.1% (COVID spike).
- *   Domain must reach the COVID peak un-clipped. Tight axis: 11%–30%, nice 1pp...
- *   Actually for readability: 10%–30%, 5pp strides (10, 15, 20, 25, 30).
+ *   Combined range: revenues 13.9%â€“18.0%, expenses 11.8%â€“28.1% (COVID spike).
+ *   Domain must reach the COVID peak un-clipped. Tight axis: 11%â€“30%, nice 1pp...
+ *   Actually for readability: 10%â€“30%, 5pp strides (10, 15, 20, 25, 30).
  *   The spike at 28.1% is real and must reach its true y position.
  *
- * LONG HISTORY: FY1983-84 → FY2030-31 (42 actuals + 6 forecast per series).
+ * LONG HISTORY: FY1983-84 â†’ FY2030-31 (42 actuals + 6 forecast per series).
  *   x-ticks every 5 years.
  *
  * FORECAST CONVENTION (R2.1):
@@ -114,8 +114,8 @@ const PLOT_W  = PLOT_X1 - PLOT_X0;
 const PLOT_H  = PLOT_Y1 - PLOT_Y0;
 
 // ---- Y domain: tight, contains COVID spike un-clipped (R2.3) -------------------
-// Revenue range: ~13.9%–18.0%
-// Expense range: ~11.8%–28.1% (COVID spike at FY2020-21)
+// Revenue range: ~13.9%â€“18.0%
+// Expense range: ~11.8%â€“28.1% (COVID spike at FY2020-21)
 // Combined tight axis: 10% to 30%, 5pp strides -> 5 ticks, 3 interior gridlines.
 const Y_DOM_MIN = 10;
 const Y_DOM_MAX = 30;
@@ -197,7 +197,7 @@ const revPath = buildPath(revPts);
 const expPath = buildPath(expPts);
 
 // ---- Latest-point dot + numeric label (canon R2) -------------------------------
-// ONE dot only, on the PRIMARY series (revenues — fiscal.astro wires
+// ONE dot only, on the PRIMARY series (revenues â€” fiscal.astro wires
 // data.primary = revenues). It sits on the LAST PLOTTED OBSERVATION, which is the
 // forecast endpoint (FY2030-31), NOT the last actual. The secondary series
 // (expenses) gets NO dot. This also resolves the prior two-dot collision.
@@ -256,7 +256,7 @@ const ariaLabel =
 ---
 
 {!hasData ? (
-  <PanelEmpty reason="DATA NOT YET WIRED — fiscal.json panel-7 (revenues) + panel-8 (expenses)" />
+  <PanelEmpty reason="DATA NOT YET WIRED â€” fiscal.json panel-7 (revenues) + panel-8 (expenses)" />
 ) : (
   <div class="p2rev-chart" data-panel="fiscal-plate-2" data-panel-status="live">
     <svg
@@ -266,7 +266,6 @@ const ariaLabel =
       role="img"
       aria-label={ariaLabel}
     >
-      <title>Revenues and program spending converge near 15.5% of GDP—the gap is the deficit. — Federal revenues vs program expenses, % of GDP</title>
 
       {/* Horizontal gridlines */}
       {gridlines.map((v) => (
@@ -302,7 +301,7 @@ const ariaLabel =
         >FORECAST</text>
       )}
 
-      {/* MTA red dot — PRIMARY series (revenues) only, at the last plotted
+      {/* MTA red dot â€” PRIMARY series (revenues) only, at the last plotted
           observation (forecast endpoint). One dot per chart (canon R2). */}
       {revDotPt && (
         <circle
@@ -311,7 +310,6 @@ const ariaLabel =
           cy={revDotY.toFixed(2)}
           r="4"
         >
-          <title>Revenue FY{revDotPt.fyLabel}: {revLabel} of GDP{revDotPt.isForecast ? " (SEU 2026 proj.)" : ""}</title>
         </circle>
       )}
 
@@ -352,7 +350,7 @@ const ariaLabel =
         </g>
       ))}
 
-      {/* Direct terminus labels — name each line at its right terminus */}
+      {/* Direct terminus labels â€” name each line at its right terminus */}
       {revTerminus && (
         <text
           class="p2rev-chart__term-label"
@@ -376,9 +374,9 @@ const ariaLabel =
 
 <style>
   /*
-   * Plate2RevenuesPctGDP — Tier-3 two-line merged revenue-vs-expense chart (R2.5).
+   * Plate2RevenuesPctGDP â€” Tier-3 two-line merged revenue-vs-expense chart (R2.5).
    * Revenue: 1.5px solid ink. Expense: 1.5px long-dash (6 3).
-   * Axis 10%–30% contains COVID spike (28.1%) un-clipped.
+   * Axis 10%â€“30% contains COVID spike (28.1%) un-clipped.
    * Forecast signal: vertical dashed divider + "Forecast" label (R2.1).
    * Two red dots (one per series last actual). No hue on data lines.
    */
@@ -410,7 +408,7 @@ const ariaLabel =
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
   }
-  /* Expense line: 1.5px long-dash (6 3) — differentiates from revenue without hue */
+  /* Expense line: 1.5px long-dash (6 3) â€” differentiates from revenue without hue */
   .p2rev-chart__exp-line {
     fill: none;
     stroke: var(--ink);
@@ -428,7 +426,7 @@ const ariaLabel =
     stroke-opacity: 0.40;
     shape-rendering: crispEdges;
   }
-  /* "FORECAST" label (R2.1): recession-label token — Manrope 600 11px, 0.18em, full ink */
+  /* "FORECAST" label (R2.1): recession-label token â€” Manrope 600 11px, 0.18em, full ink */
   .p2rev-chart__forecast-label {
     fill: var(--ink);
     font-family: var(--font-sans);
@@ -472,7 +470,7 @@ const ariaLabel =
     font-size: 12px;
     font-weight: 400;
   }
-  /* Direct terminus labels: canon direct-label — Manrope 600 13px, full ink */
+  /* Direct terminus labels: canon direct-label â€” Manrope 600 13px, full ink */
   .p2rev-chart__term-label {
     fill: var(--ink);
     font-family: var(--font-sans);

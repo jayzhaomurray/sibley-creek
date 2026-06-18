@@ -1,6 +1,6 @@
----
+﻿---
 /*
- * PanelSectorPivot — "US share of sector exports: Apr 2025 → Apr 2026"
+ * PanelSectorPivot â€” "US share of sector exports: Apr 2025 â†’ Apr 2026"
  *
  * Chart type: Slopegraph (Tufte two-snapshot ranking-change form).
  * Two columns: APR 2025 (left) and APR 2026 (right).
@@ -9,13 +9,13 @@
  * Upward slope   = concentration toward US.
  *
  * Metric: US share of total sector exports
- *   = exports_<sector>_us[t] / (exports_<sector>_us[t] + exports_<sector>_nonus[t]) × 100
+ *   = exports_<sector>_us[t] / (exports_<sector>_us[t] + exports_<sector>_nonus[t]) Ã— 100
  *
  * Sectors: steel, aluminum, softwood, autos (Section 232 tariffed).
  * Copper: code path present; picks up automatically when
  *   data/processed/exports_copper_us.csv + exports_copper_nonus.csv land on disk.
  *
- * Sort order: by Δ US share (Apr 2025 → Apr 2026), ascending (biggest
+ * Sort order: by Î” US share (Apr 2025 â†’ Apr 2026), ascending (biggest
  *   diversifiers on top, concentrators on bottom).
  *
  * Visual canon (design/design-system.md v1.0):
@@ -30,14 +30,14 @@
  *   - Two vertical reference lines (the column spines)
  *   - No gridlines, no legend, no caption, no JS
  *
- * viewBox: 720×405
+ * viewBox: 720Ã—405
  *
  * Data source: data/processed/ CSVs
  *   exports_steel_us.csv / exports_steel_nonus.csv
  *   exports_aluminum_us.csv / exports_aluminum_nonus.csv
  *   exports_softwood_us.csv / exports_softwood_nonus.csv
  *   exports_autos_us.csv / exports_autos_nonus.csv
- *   (exports_copper_us.csv / exports_copper_nonus.csv — picked up when present)
+ *   (exports_copper_us.csv / exports_copper_nonus.csv â€” picked up when present)
  * Monthly NSA, CAD millions. Source: StatCan Table 12-10-0182-01.
  *
  * Canon compliance (design/canon_reference_panel.md):
@@ -46,13 +46,13 @@
  *   3. Left % value: same color as line. text-anchor="end", left of left dot.
  *   4. Right % value: same color as line. text-anchor="start", right of right dot.
  *   5. Sector label: same color as line. text-anchor="start", right of right % value.
- *   6. No Δpp annotations.
+ *   6. No Î”pp annotations.
  *   7. No color encoding of direction on non-Aluminum sectors.
  *   8. Column headers: Manrope 600 11px micro-caps, centered above each column.
  *   9. Column spine: 1px pure ink hairline rule (the two vertical guides).
  *  10. No legend. No client JS.
  *  11. Native SVG <title> on every data dot.
- *  12. viewBox 720×405.
+ *  12. viewBox 720Ã—405.
  *  13. aria-label describes the chart.
  */
 
@@ -138,7 +138,7 @@ for (const def of SECTOR_DEFS) {
 // Sort ascending by delta: biggest diversifiers (most negative) on top.
 // Then move aluminum to the END of the render list so its SVG elements
 // paint last and are never obscured by other sectors sharing the same y.
-// The visual y-position of aluminum in the chart is unchanged — only the
+// The visual y-position of aluminum in the chart is unchanged â€” only the
 // DOM rendering order shifts so aluminum's red marks sit on top.
 slopes.sort((a, b) => a.delta - b.delta);
 const alIdx = slopes.findIndex((s) => s.label === "Aluminum");
@@ -154,14 +154,14 @@ const VB_H = 405;
 // Margins: wide L/R to push slopes into center 30-40% of chart width.
 // The two column spines sit at X_LEFT and X_RIGHT; with generous margins
 // the slope distance is compressed and the visual slope angle is steeper.
-// Left: "97%" at ~11px mono ≈ 24px; 8px gap to dot → plenty of room.
-// Right: DOT_R(4) + GAP(8) + "86%"(~24px) + LABEL_GAP(10) + "Aluminum"(~62px) → ~108px.
+// Left: "97%" at ~11px mono â‰ˆ 24px; 8px gap to dot â†’ plenty of room.
+// Right: DOT_R(4) + GAP(8) + "86%"(~24px) + LABEL_GAP(10) + "Aluminum"(~62px) â†’ ~108px.
 const M_L  = 200;  // wide left margin pushes left spine inward
 const M_R  = 200;  // wide right margin pushes right spine inward
 const M_T  = 72;   // room for chart title + column headers + top padding
 const M_B  = 32;   // bottom padding
 
-const PLOT_W = VB_W - M_L - M_R;   // 320 — slopes span center ~44% of viewBox width
+const PLOT_W = VB_W - M_L - M_R;   // 320 â€” slopes span center ~44% of viewBox width
 const PLOT_H = VB_H - M_T - M_B;   // 321
 
 // Two column x-positions (the slopegraph "spines")
@@ -179,7 +179,7 @@ function yPx(share: number): number {
 }
 
 // ---- Label collision avoidance (right side only) -----------------------------
-// Left side: Apr 2025 % value is pinned to dot y — no spreading needed.
+// Left side: Apr 2025 % value is pinned to dot y â€” no spreading needed.
 // Right side: Apr 2026 % value + sector label group needs spreading when two
 //   right dots share the same y-coordinate (e.g. aluminum 86% and steel 86%).
 interface LabelPos { share: number; nominalY: number; adjustedY: number; label: string }
@@ -288,7 +288,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
       const lblRightY = rightLabelY.get(s.label) ?? y26;
       const DOT_R = 4;
       const PCT_GAP  = 8;  // px gap between dot edge and percent value text
-      // IBM Plex Mono 11px: "86%" is ~3 chars * ~7px/char ≈ 21px; 28px gives a safe clearance.
+      // IBM Plex Mono 11px: "86%" is ~3 chars * ~7px/char â‰ˆ 21px; 28px gives a safe clearance.
       const PCT_TEXT_W = 28; // px budget for the right-side percent value text
 
       // Aluminum: MTA red throughout. All other sectors: pure ink.
@@ -311,7 +311,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
             stroke={markColor}
           />
 
-          {/* Left dot — Apr 2025 */}
+          {/* Left dot â€” Apr 2025 */}
           <circle
             class="sg-chart__dot sg-chart__dot--left"
             cx={X_LEFT}
@@ -319,10 +319,9 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
             r={DOT_R}
             fill={markColor}
           >
-            <title>{`${s.label} Apr 2025: ${fmtShare(s.share25)} US share`}</title>
           </circle>
 
-          {/* Left percent value — Apr 2025, pinned to dot y, text-anchor="end" */}
+          {/* Left percent value â€” Apr 2025, pinned to dot y, text-anchor="end" */}
           <text
             class="sg-chart__pct-label"
             x={X_LEFT - DOT_R - PCT_GAP}
@@ -331,7 +330,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
             fill={markColor}
           >{fmtPct(s.share25)}</text>
 
-          {/* Right dot — Apr 2026 */}
+          {/* Right dot â€” Apr 2026 */}
           <circle
             class="sg-chart__dot sg-chart__dot--right"
             cx={X_RIGHT}
@@ -339,7 +338,6 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
             r={DOT_R}
             fill={markColor}
           >
-            <title>{`${s.label} Apr 2026: ${fmtShare(s.share26)} US share`}</title>
           </circle>
 
           {/* Right leader line from right-side group to dot (if label shifted) */}
@@ -353,7 +351,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
             />
           )}
 
-          {/* Right percent value — Apr 2026, text-anchor="start" */}
+          {/* Right percent value â€” Apr 2026, text-anchor="start" */}
           <text
             class="sg-chart__pct-label"
             x={pctRightX}
@@ -362,7 +360,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
             fill={markColor}
           >{fmtPct(s.share26)}</text>
 
-          {/* Sector label — right of Apr 2026 percent value */}
+          {/* Sector label â€” right of Apr 2026 percent value */}
           <text
             class="sg-chart__sector-label"
             x={sectorLabelX}
@@ -380,8 +378,8 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
 
 <style>
   /*
-   * PanelSectorPivot — Vignelli slopegraph.
-   * Two-snapshot US-share comparison: Apr 2025 → Apr 2026.
+   * PanelSectorPivot â€” Vignelli slopegraph.
+   * Two-snapshot US-share comparison: Apr 2025 â†’ Apr 2026.
    * Aluminum: MTA red treatment (line, both dots, percent values, sector label).
    * All other sectors: pure ink throughout.
    * Color is applied via inline fill/stroke attributes in the JSX map;
@@ -403,7 +401,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
     font-family: var(--font-sans, 'Manrope', sans-serif);
   }
 
-  /* Column spine — 1px pure ink hairline */
+  /* Column spine â€” 1px pure ink hairline */
   .sg-chart__spine {
     stroke: var(--ink, #000);
     stroke-width: 1;
@@ -411,7 +409,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
     shape-rendering: crispEdges;
   }
 
-  /* Chart title — Manrope 600, 12px micro-caps, ink */
+  /* Chart title â€” Manrope 600, 12px micro-caps, ink */
   .sg-chart__title {
     fill: var(--ink, #000);
     font-family: var(--font-sans, 'Manrope', sans-serif);
@@ -421,7 +419,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
     text-transform: uppercase;
   }
 
-  /* Column headers — Manrope 600, 11px micro-caps, ink-faint */
+  /* Column headers â€” Manrope 600, 11px micro-caps, ink-faint */
   .sg-chart__col-header {
     fill: var(--ink-faint, #555);
     font-family: var(--font-sans, 'Manrope', sans-serif);
@@ -431,7 +429,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
     text-transform: uppercase;
   }
 
-  /* Slope line — 1.5px. Structural properties only; stroke color is set
+  /* Slope line â€” 1.5px. Structural properties only; stroke color is set
      exclusively via inline attribute per sector so that aluminum's MTA red
      is never overridden. DO NOT add a `stroke:` rule here. */
   .sg-chart__slope-line {
@@ -441,13 +439,13 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
     vector-effect: non-scaling-stroke;
   }
 
-  /* Dots — fill is set inline per sector (ink or MTA red for Aluminum) */
+  /* Dots â€” fill is set inline per sector (ink or MTA red for Aluminum) */
   .sg-chart__dot--left,
   .sg-chart__dot--right {
     stroke: none;
   }
 
-  /* Leader line — 0.5px ink, low opacity, connects shifted label to dot */
+  /* Leader line â€” 0.5px ink, low opacity, connects shifted label to dot */
   .sg-chart__leader {
     stroke: var(--ink, #000);
     stroke-width: 0.5;
@@ -455,7 +453,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
     stroke-linecap: round;
   }
 
-  /* Percent value labels (left dot and right dot) — IBM Plex Mono 400, 11px */
+  /* Percent value labels (left dot and right dot) â€” IBM Plex Mono 400, 11px */
   /* fill is set inline per sector (ink or MTA red for Aluminum) */
   .sg-chart__pct-label {
     font-family: var(--font-mono, 'IBM Plex Mono', monospace);
@@ -464,7 +462,7 @@ const SPINE_BTM  = M_T + PLOT_H + 10;
     font-variant-numeric: tabular-nums;
   }
 
-  /* Sector label — Manrope 600, 13px */
+  /* Sector label â€” Manrope 600, 13px */
   /* fill is set inline per sector (ink or MTA red for Aluminum) */
   .sg-chart__sector-label {
     font-family: var(--font-sans, 'Manrope', sans-serif);

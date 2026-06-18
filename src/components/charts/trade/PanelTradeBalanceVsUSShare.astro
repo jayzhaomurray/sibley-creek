@@ -1,6 +1,6 @@
----
+﻿---
 /*
- * PanelTradeBalanceVsUSShare — two-panel lead chart for /trade/.
+ * PanelTradeBalanceVsUSShare â€” two-panel lead chart for /trade/.
  *
  * LEFT: Monthly goods trade balance (C$ millions), bar chart above/below zero.
  *   Source series: trade_balance_total (StatCan Table 12-10-0011-01, SA monthly).
@@ -27,17 +27,17 @@
  *   [9]  No recession band (2020 falls outside the 36-month window).
  *   [10] Direct end-of-line label per panel (right gutter of each sub-canvas).
  *   [11] No annotation leader/text (editorial handled in plate interpretation).
- *   [12] Native SVG <title> on each hit area — zero client JS.
+ *   [12] Native SVG <title> on each hit area â€” zero client JS.
  *   [13] viewBox 720x405, preserveAspectRatio xMidYMid meet. 16:9 wrapper.
  *   [15] aria-label on the root SVG.
  *   [16] No --section-accent-trade on data marks.
  *   BEM scope: .panel-trade-lead-2up__*
  *
- * Small-multiples mode: MODE B (disparate magnitudes — C$ millions vs %).
+ * Small-multiples mode: MODE B (disparate magnitudes â€” C$ millions vs %).
  *   Each panel has its own y-axis and y-tick labels.
  *   Column gap ~40px so per-panel labels fit in the gutter.
  *
- * Methodology note (derived series — right panel):
+ * Methodology note (derived series â€” right panel):
  *   Conceptual definition: the share of total Canadian merchandise exports
  *     destined for the United States in a given month.
  *   Formula: US exports divided by total exports, multiplied by 100.
@@ -46,7 +46,7 @@
  *   Simplifications: none. Both input series are StatCan SA monthly values
  *     from the same table; the share is a direct ratio with no approximation.
  *   The left panel (trade balance) is a direct pull of the published
- *     StatCan balance series — no derived computation.
+ *     StatCan balance series â€” no derived computation.
  */
 
 import fs from "node:fs";
@@ -66,7 +66,7 @@ const { data = null } = Astro.props;
 // trade_balance_total.csv lives in data/raw/ and is not included in
 // panel_data/trade.json. We read it at build time from the project root.
 // Force-add note: this file must be git-tracked for CI builds to succeed
-// (same pattern as other raw CSVs read at build time — see
+// (same pattern as other raw CSVs read at build time â€” see
 // CLAUDE.md feedback_buildtime_csv_reads_need_explicit_track).
 let balanceRawData: Array<{ date: string; value: number }> = [];
 try {
@@ -85,7 +85,7 @@ try {
     .filter((p): p is { date: string; value: number } => p !== null);
 } catch {
   // If the file is not present (e.g. CI without full raw data), fall through
-  // to the PanelEmpty path — same fail-closed pattern as panel fetchers.
+  // to the PanelEmpty path â€” same fail-closed pattern as panel fetchers.
   balanceRawData = [];
 }
 
@@ -132,8 +132,8 @@ const hasShare = shareTrimmed.length > 0;
 const VB_W = 720;
 const VB_H = 405;
 // Outer margins (shared top/bottom)
-const M_T = 44;   // top margin — room for panel label
-const M_B = 40;   // bottom margin — room for x-ticks
+const M_T = 44;   // top margin â€” room for panel label
+const M_B = 40;   // bottom margin â€” room for x-ticks
 // Left and right outer margins (absolute, across the whole 720px canvas)
 const M_L_OUTER = 48;   // leftmost gutter for left panel's y-ticks
 const M_R_OUTER = 88;   // rightmost gutter for right panel's direct label
@@ -391,7 +391,6 @@ const PANEL_LABEL_Y = PLOT_Y0 - 10;
                 width={barW.toFixed(2)}
                 height={Math.max(0.5, b.height).toFixed(2)}
               >
-                <title>{`${b.date}: ${fmtMillion(b.value)}`}</title>
               </rect>
             </g>
           );
@@ -430,11 +429,10 @@ const PANEL_LABEL_Y = PLOT_Y0 - 10;
           cy={(latestBar.positive ? latestBar.y - 4 : latestBar.y + latestBar.height + 4).toFixed(2)}
           r="4"
         >
-          <title>{`Latest: ${latestBar.date}: ${fmtMillion(latestBar.value)}`}</title>
         </circle>
       )}
 
-      {/* No end-of-line direct label on the left panel — the inter-panel
+      {/* No end-of-line direct label on the left panel â€” the inter-panel
            gutter also carries right-panel y-tick labels at RIGHT_X0 - 6;
            a left-panel label anchored at LEFT_X1 + 6 would collide with
            those ticks. The micro-cap panel header "GOODS BALANCE" above
@@ -480,7 +478,7 @@ const PANEL_LABEL_Y = PLOT_Y0 - 10;
         width={SUB_PLOT_W} height={PLOT_H}
       />
 
-      {/* Y-tick labels (right panel, between sub-canvases — uses RIGHT_X0 gutter) */}
+      {/* Y-tick labels (right panel, between sub-canvases â€” uses RIGHT_X0 gutter) */}
       {shareTicks.map((v, i) => {
         const yy = yScaleR(v);
         const isTop = i === shareTicks.length - 1;
@@ -510,7 +508,6 @@ const PANEL_LABEL_Y = PLOT_Y0 - 10;
           cy={lastShareY.toFixed(2)}
           r="4"
         >
-          <title>{`Latest: ${lastSharePt.date}: ${lastSharePt.value.toFixed(1)}%`}</title>
         </circle>
       )}
 
@@ -526,7 +523,6 @@ const PANEL_LABEL_Y = PLOT_Y0 - 10;
             fill="transparent"
             stroke="none"
           >
-            <title>{`${pt.date}: ${pt.value.toFixed(1)}%`}</title>
           </circle>
         );
       })}
@@ -574,7 +570,7 @@ const PANEL_LABEL_Y = PLOT_Y0 - 10;
               x1={xR.toFixed(2)} y1={PLOT_Y1.toFixed(2)}
               x2={xR.toFixed(2)} y2={(PLOT_Y1 + 4).toFixed(2)}
             />
-            {/* Right panel x-label (suppressed — same year, left carries it) */}
+            {/* Right panel x-label (suppressed â€” same year, left carries it) */}
           </g>
         );
       })}
@@ -619,7 +615,7 @@ const PANEL_LABEL_Y = PLOT_Y0 - 10;
     shape-rendering: crispEdges;
   }
 
-  /* Bars: pure ink fill. Latest bar also pure ink — the dot is the red moment. */
+  /* Bars: pure ink fill. Latest bar also pure ink â€” the dot is the red moment. */
   .panel-trade-lead-2up__bar {
     fill: var(--ink);
     fill-opacity: 0.75;

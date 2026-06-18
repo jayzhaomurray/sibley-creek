@@ -1,17 +1,17 @@
----
+﻿---
 /*
- * Panel2BalancePctGDP — Federal budgetary balance as % of GDP.
+ * Panel2BalancePctGDP â€” Federal budgetary balance as % of GDP.
  * FY1983-84 to FY2024-25 historical (FRT 2025, Tier A) + FY2025-26 to FY2030-31
  * projection (DoF Spring Economic Update April 28 2026, Tier A).
  *
  * REPLACES: Panel2DebtServiceRatio (debt-service ratio with 5-year band).
- * EDITORIAL PURPOSE: Answers "where is the fiscal stance heading?" — full
+ * EDITORIAL PURPOSE: Answers "where is the fiscal stance heading?" â€” full
  * historical horizon anchors the current position; 6-year DoF projection
  * shows the intended trajectory.
  *
  * PLATE TITLE CANDIDATE (writing-style.md terminal-period / one-verb canon):
  *   "The deficit widens sharply before Ottawa's six-year glide back to -1.4%."
- *   — or more concise —
+ *   â€” or more concise â€”
  *   "Ottawa projects a narrowing deficit through FY2030-31."
  *
  * DATA SOURCES (Tier A verified):
@@ -40,9 +40,9 @@
  *   - Pre-1983 ghost: 1.5px ink, opacity 0.22, same line (continuity signal).
  *   - Post-1983 historical solid: 1.5px solid ink.
  *   - Projection dashed: 1px ink, stroke-dasharray "5 3".
- *   - Vertical dotted separator at FY2024-25 → FY2025-26 break.
+ *   - Vertical dotted separator at FY2024-25 â†’ FY2025-26 break.
  *   - Zero line: 1.5px ink, distinct from gridlines.
- *   - MTA red dot at FY2024-25 (-1.2%) — actual/projection boundary.
+ *   - MTA red dot at FY2024-25 (-1.2%) â€” actual/projection boundary.
  *   - 4 annotation callouts: Martin pivot FY1996-97, surplus peak FY2000-01,
  *     GFC trough FY2009-10, COVID peak FY2020-21.
  *   - Direct end-of-line labels: "Historical" (at FY2024-25) and
@@ -58,7 +58,7 @@
  *   `data` prop accepted for interface parity; not consumed.
  *
  * CANON COMPLIANCE (Tier-3):
- *   1. Single trace — no multi-color series encoding.
+ *   1. Single trace â€” no multi-color series encoding.
  *   2. MTA red accent on actual/projection boundary dot only.
  *   3. Hairline frame 1px ink.
  *   4. Gridlines at 0.18 opacity; zero line 1.5px separate treatment.
@@ -87,7 +87,7 @@ void data;
 type Pt = { fy: number; v: number; pre83: boolean };
 
 const ALL_HIST: Pt[] = [
-  // Pre-1983 (modified cash — ghost line)
+  // Pre-1983 (modified cash â€” ghost line)
   { fy: 1966, v: -0.7,  pre83: true  },
   { fy: 1967, v: -1.5,  pre83: true  },
   { fy: 1968, v: -0.8,  pre83: true  },
@@ -105,7 +105,7 @@ const ALL_HIST: Pt[] = [
   { fy: 1980, v: -4.5,  pre83: true  },
   { fy: 1981, v: -4.3,  pre83: true  },
   { fy: 1982, v: -7.5,  pre83: true  },
-  // Post-1983 (full accrual — canonical series)
+  // Post-1983 (full accrual â€” canonical series)
   { fy: 1983, v: -7.7,  pre83: false },
   { fy: 1984, v: -8.0,  pre83: false },
   { fy: 1985, v: -6.7,  pre83: false },
@@ -147,7 +147,7 @@ const ALL_HIST: Pt[] = [
   { fy: 2021, v: -3.6,  pre83: false },
   { fy: 2022, v: -1.2,  pre83: false },
   { fy: 2023, v: -2.1,  pre83: false },
-  { fy: 2024, v: -1.2,  pre83: false }, // Latest actual — red dot
+  { fy: 2024, v: -1.2,  pre83: false }, // Latest actual â€” red dot
 ];
 
 // Projection series (DoF SEU April 2026, Annex 1 Table A1.7)
@@ -179,7 +179,7 @@ const PLOT_W  = PLOT_X1 - PLOT_X0;
 const PLOT_H  = PLOT_Y1 - PLOT_Y0;
 
 // ---- Y domain (fixed to accommodate COVID trough at -14.8%) --------------------
-// Range: -16% to +3% — clean enough for gridlines; COVID spike shows fully.
+// Range: -16% to +3% â€” clean enough for gridlines; COVID spike shows fully.
 const Y_DOM_MIN = -16;
 const Y_DOM_MAX =   3;
 const Y_RANGE   = Y_DOM_MAX - Y_DOM_MIN; // 19
@@ -199,7 +199,7 @@ const xScale = (fy: number): number =>
   PLOT_X0 + ((fy - X_MIN) / X_SPAN) * PLOT_W;
 
 // ---- Y ticks: -15, -10, -5, 0, +2 (approx 4 ticks; zero handled separately) ---
-// Use nice round values. Skip 0 — it's the zero line.
+// Use nice round values. Skip 0 â€” it's the zero line.
 const TICK_VALS = [-15, -10, -5, 0, 2];
 
 type YTick = { y: number; label: string };
@@ -232,13 +232,13 @@ const solidPath = solidPts
   .map((p, i) => `${i === 0 ? "M" : "L"}${xScale(p.fy).toFixed(2)},${yScale(p.v).toFixed(2)}`)
   .join(" ");
 
-// Projection path (dashed): FY2024 → FY2030
+// Projection path (dashed): FY2024 â†’ FY2030
 const projPath = PROJ
   .map((p, i) => `${i === 0 ? "M" : "L"}${xScale(p.fy).toFixed(2)},${yScale(p.v).toFixed(2)}`)
   .join(" ");
 
 // ---- Key coordinates -----------------------------------------------------------
-// Latest actual = FY2024 (-1.2%) — red dot
+// Latest actual = FY2024 (-1.2%) â€” red dot
 const latestPt = ALL_HIST[ALL_HIST.length - 1]!; // { fy: 2024, v: -1.2 }
 const latestX = xScale(latestPt.fy);
 const latestY = yScale(latestPt.v);
@@ -268,7 +268,7 @@ type Annot = {
   leader: boolean;
 };
 
-// Martin pivot: FY1996-97 (fy=1996, v=-1.0) — up from prior deficit, near zero
+// Martin pivot: FY1996-97 (fy=1996, v=-1.0) â€” up from prior deficit, near zero
 const martinX = xScale(1996);
 const martinY = yScale(-1.0);
 
@@ -285,7 +285,7 @@ const covidX = xScale(2020);
 const covidY = yScale(-14.8);
 
 const ANNOTS: Annot[] = [
-  // Martin pivot — label above, right of point (space available)
+  // Martin pivot â€” label above, right of point (space available)
   {
     x: martinX, y: martinY,
     textX: martinX + 2, textY: martinY - 28,
@@ -293,7 +293,7 @@ const ANNOTS: Annot[] = [
     line1: "Martin", line2: "pivot",
     leader: true,
   },
-  // Surplus peak — label above; anchor right since projection labels are right
+  // Surplus peak â€” label above; anchor right since projection labels are right
   {
     x: surplusX, y: surplusY,
     textX: surplusX + 2, textY: surplusY - 28,
@@ -301,7 +301,7 @@ const ANNOTS: Annot[] = [
     line1: "+1.8%", line2: "surplus",
     leader: true,
   },
-  // GFC trough — label below the line (line is at -3.6, enough room above the -5 gridline)
+  // GFC trough â€” label below the line (line is at -3.6, enough room above the -5 gridline)
   {
     x: gfcX, y: gfcY,
     textX: gfcX + 2, textY: gfcY + 22,
@@ -309,7 +309,7 @@ const ANNOTS: Annot[] = [
     line1: "GFC", line2: "-3.6%",
     leader: true,
   },
-  // COVID peak — label to the right (space to the right before break line)
+  // COVID peak â€” label to the right (space to the right before break line)
   {
     x: covidX, y: covidY,
     textX: covidX + 4, textY: covidY + 5,
@@ -357,7 +357,6 @@ const breakAnnotY = PLOT_Y0 + 14;
     role="img"
     aria-label={ariaLabel}
   >
-    <title>Federal budgetary balance as % of GDP, FY1983-84 to FY2030-31 (DoF FRT 2025 + SEU 2026 projection).</title>
 
     {/* Gridlines at -15, -10, -5, 0, +2 */}
     {yTicks.map((t) => (
@@ -368,7 +367,7 @@ const breakAnnotY = PLOT_Y0 + 14;
       />
     ))}
 
-    {/* Zero line — 1.5px ink, heavier; anchors the surplus/deficit divide */}
+    {/* Zero line â€” 1.5px ink, heavier; anchors the surplus/deficit divide */}
     <line
       class="p2bg-chart__zero-line"
       x1={PLOT_X0.toFixed(2)} y1={zeroY.toFixed(2)}
@@ -402,14 +401,12 @@ const breakAnnotY = PLOT_Y0 + 14;
     {/* Historical hit areas */}
     {histHits.map((h) => (
       <circle class="p2bg-chart__hit" cx={h.cx.toFixed(2)} cy={h.cy.toFixed(2)} r="5">
-        <title>{h.title}</title>
       </circle>
     ))}
 
     {/* Projection hit areas */}
     {projHits.map((h) => (
       <circle class="p2bg-chart__hit" cx={h.cx.toFixed(2)} cy={h.cy.toFixed(2)} r="5">
-        <title>{h.title}</title>
       </circle>
     ))}
 
@@ -440,17 +437,16 @@ const breakAnnotY = PLOT_Y0 + 14;
       </g>
     ))}
 
-    {/* MTA red dot — FY2024-25 actual/projection boundary */}
+    {/* MTA red dot â€” FY2024-25 actual/projection boundary */}
     <circle
       class="p2bg-chart__latest-dot"
       cx={latestX.toFixed(2)}
       cy={latestY.toFixed(2)}
       r="4"
     >
-      <title>FY2024-25 (latest actual): -1.2% of GDP</title>
     </circle>
 
-    {/* Hairline frame — clips any overflow */}
+    {/* Hairline frame â€” clips any overflow */}
     <rect
       class="p2bg-chart__frame"
       x={PLOT_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
@@ -511,7 +507,7 @@ const breakAnnotY = PLOT_Y0 + 14;
 
 <style>
   /* -------------------------------------------------------------------
-     Panel2BalancePctGDP — Tier-3 single-trace line chart.
+     Panel2BalancePctGDP â€” Tier-3 single-trace line chart.
      Federal budgetary balance % GDP: FY1966-FY2024-25 historical
      (FRT 2025) + FY2025-26 to FY2030-31 projection (DoF SEU 2026).
 
@@ -531,7 +527,7 @@ const breakAnnotY = PLOT_Y0 + 14;
     font-family: var(--font-sans);
   }
 
-  /* Gridlines — 1px ink, 0.18 opacity */
+  /* Gridlines â€” 1px ink, 0.18 opacity */
   .p2bg-chart__gridline {
     stroke: var(--ink);
     stroke-width: 1;
@@ -539,14 +535,14 @@ const breakAnnotY = PLOT_Y0 + 14;
     shape-rendering: crispEdges;
   }
 
-  /* Zero line — 1.5px ink, NOT a gridline */
+  /* Zero line â€” 1.5px ink, NOT a gridline */
   .p2bg-chart__zero-line {
     stroke: var(--ink);
     stroke-width: 1.5;
     shape-rendering: crispEdges;
   }
 
-  /* Vertical break separator (actual/projection) — dotted, faint */
+  /* Vertical break separator (actual/projection) â€” dotted, faint */
   .p2bg-chart__break-line {
     stroke: var(--ink);
     stroke-width: 1;
@@ -555,7 +551,7 @@ const breakAnnotY = PLOT_Y0 + 14;
     shape-rendering: crispEdges;
   }
 
-  /* Pre-1983 ghost line — same weight, much reduced opacity */
+  /* Pre-1983 ghost line â€” same weight, much reduced opacity */
   .p2bg-chart__ghost-line {
     fill: none;
     stroke: var(--ink);
@@ -566,7 +562,7 @@ const breakAnnotY = PLOT_Y0 + 14;
     vector-effect: non-scaling-stroke;
   }
 
-  /* Solid historical line — FY1983-84 onwards */
+  /* Solid historical line â€” FY1983-84 onwards */
   .p2bg-chart__solid-line {
     fill: none;
     stroke: var(--ink);
@@ -587,14 +583,14 @@ const breakAnnotY = PLOT_Y0 + 14;
     vector-effect: non-scaling-stroke;
   }
 
-  /* Hit areas — transparent, cursor pointer */
+  /* Hit areas â€” transparent, cursor pointer */
   .p2bg-chart__hit {
     fill: transparent;
     stroke: none;
     cursor: default;
   }
 
-  /* Latest dot — MTA red, boundary moment only */
+  /* Latest dot â€” MTA red, boundary moment only */
   .p2bg-chart__latest-dot {
     fill: var(--accent);
     stroke: none;
@@ -608,7 +604,7 @@ const breakAnnotY = PLOT_Y0 + 14;
     shape-rendering: crispEdges;
   }
 
-  /* Y-axis tick labels — Plex Mono 400, 12px, ink-faint */
+  /* Y-axis tick labels â€” Plex Mono 400, 12px, ink-faint */
   .p2bg-chart__ytick-label {
     fill: var(--ink);
     font-family: var(--font-mono);
@@ -626,7 +622,7 @@ const breakAnnotY = PLOT_Y0 + 14;
     opacity: 0.4;
   }
 
-  /* X-axis tick labels — Manrope 400, 12px */
+  /* X-axis tick labels â€” Manrope 400, 12px */
   .p2bg-chart__xtick-label {
     fill: var(--ink);
     font-family: var(--font-sans);
@@ -643,7 +639,7 @@ const breakAnnotY = PLOT_Y0 + 14;
     shape-rendering: crispEdges;
   }
 
-  /* Annotation text — Manrope 600, 11px (compact; canvas is crowded) */
+  /* Annotation text â€” Manrope 600, 11px (compact; canvas is crowded) */
   .p2bg-chart__annot-text {
     fill: var(--ink);
     font-family: var(--font-sans);
@@ -651,7 +647,7 @@ const breakAnnotY = PLOT_Y0 + 14;
     font-weight: 600;
   }
 
-  /* Basis-change note — Manrope 400, 10px, faint */
+  /* Basis-change note â€” Manrope 400, 10px, faint */
   .p2bg-chart__basis-note {
     fill: var(--ink);
     font-family: var(--font-sans);
@@ -660,7 +656,7 @@ const breakAnnotY = PLOT_Y0 + 14;
     opacity: 0.45;
   }
 
-  /* End-of-line label: "Historical" — Manrope 600, 12px */
+  /* End-of-line label: "Historical" â€” Manrope 600, 12px */
   .p2bg-chart__label-hist {
     fill: var(--ink);
     font-family: var(--font-sans);
@@ -668,7 +664,7 @@ const breakAnnotY = PLOT_Y0 + 14;
     font-weight: 600;
   }
 
-  /* End-of-line label: "Projection" — Manrope 600, 12px */
+  /* End-of-line label: "Projection" â€” Manrope 600, 12px */
   .p2bg-chart__label-proj {
     fill: var(--ink);
     font-family: var(--font-sans);
@@ -676,7 +672,7 @@ const breakAnnotY = PLOT_Y0 + 14;
     font-weight: 600;
   }
 
-  /* Projection vintage sub-label — Manrope 400, 11px, faint */
+  /* Projection vintage sub-label â€” Manrope 400, 11px, faint */
   .p2bg-chart__label-proj-sub {
     fill: var(--ink);
     font-family: var(--font-sans);

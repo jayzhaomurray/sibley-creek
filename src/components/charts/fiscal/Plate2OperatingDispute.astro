@@ -1,55 +1,55 @@
----
+﻿---
 /*
- * Plate2OperatingDispute — operating-balance comparison, TWO-PANEL small-multiples.
+ * Plate2OperatingDispute â€” operating-balance comparison, TWO-PANEL small-multiples.
  *
  * CHART JOB: show that the as-presented Budget 2025 operating balance crosses
  *   zero by FY2028-29 while the PBO's recast of the same budget under a stricter
- *   capital standard never clears zero. Same vintage, two definitions — the visual
+ *   capital standard never clears zero. Same vintage, two definitions â€” the visual
  *   point is that Panel B's bars are much deeper on the IDENTICAL scale.
  *
  * FORM: Two-panel small-multiples (Mode B, per-panel content; shared y-scale).
- *   PANEL A (left):  as-presented bars (INK 1.00 — Budget 2025 as filed).
- *   PANEL B (right): PBO-definition bars (MID 0.55 — same budget, stricter standard).
- *   Same six fiscal years (FY2024-25 → FY2029-30) in each panel.
- *   Signed bars from zero. SHARED Y-SCALE across both panels: −50 to +10 ($B).
+ *   PANEL A (left):  as-presented bars (INK 1.00 â€” Budget 2025 as filed).
+ *   PANEL B (right): PBO-definition bars (MID 0.55 â€” same budget, stricter standard).
+ *   Same six fiscal years (FY2024-25 â†’ FY2029-30) in each panel.
+ *   Signed bars from zero. SHARED Y-SCALE across both panels: âˆ’50 to +10 ($B).
  *   The identical scale is the visual argument: Panel B's bars sit far deeper.
  *
  * SHARED Y-SCALE (critical for the comparison):
- *   Y_DOM_MIN = −50, Y_DOM_MAX = +10, Y_TICK_STEP = 10.
- *   Both panels use the SAME yScale() function — never diverge.
+ *   Y_DOM_MIN = âˆ’50, Y_DOM_MAX = +10, Y_TICK_STEP = 10.
+ *   Both panels use the SAME yScale() function â€” never diverge.
  *   Y-tick labels appear on the LEFT panel (A) only, per small-multiples convention
  *   (reader registers the scale once; Panel B's bars are directly comparable).
  *
  * PANEL LABELS: short subject labels per small-multiples canon (not editorial
- *   sentences — the take lives in the plate title + blurb, never in the SVG):
+ *   sentences â€” the take lives in the plate title + blurb, never in the SVG):
  *   Panel A: "As presented"   (600 weight)
  *   Panel B: "PBO definition" (400 weight)
- *   Positioned at PLOT_Y0 − 22, left-anchored at each panel's X0.
+ *   Positioned at PLOT_Y0 âˆ’ 22, left-anchored at each panel's X0.
  *
- * ANNOTATION: "$94B capital, reclassified" — compact callout, Panel B upper
- *   whitespace (all Panel B bars below zero → region above yScale(0) is clear).
+ * ANNOTATION: "$94B capital, reclassified" â€” compact callout, Panel B upper
+ *   whitespace (all Panel B bars below zero â†’ region above yScale(0) is clear).
  *   Free-standing, no leader. Placed at B_X0+8, PLOT_Y0+18.
  *
  * DATA: fiscal.json panel-11 ($B, all is_forecast=1)
  *   primary   = frt_operating_balance_b2025  Budget 2025, as presented
- *               FY2024-25 → FY2029-30: −4.1 | −33.0 | −8.7 | −5.5 | +1.7 | +3.0
+ *               FY2024-25 â†’ FY2029-30: âˆ’4.1 | âˆ’33.0 | âˆ’8.7 | âˆ’5.5 | +1.7 | +3.0
  *   secondary = frt_operating_balance_pbo    Same budget, PBO definition
- *               FY2024-25 → FY2029-30: −10.5 | −45.8 | −25.3 | −23.3 | −18.1 | −17.6
+ *               FY2024-25 â†’ FY2029-30: âˆ’10.5 | âˆ’45.8 | âˆ’25.3 | âˆ’23.3 | âˆ’18.1 | âˆ’17.6
  *
  * CANON COMPLIANCE (Tier-3, two-panel Mode B):
- *   viewBox 720×405 (16:9), preserveAspectRatio xMidYMid meet
+ *   viewBox 720Ã—405 (16:9), preserveAspectRatio xMidYMid meet
  *   overflow:visible on wrapper + SVG
  *   M_L=56 M_R=96 M_T=44 M_B=40 (canon margins)
  *   PANEL_GUTTER=48px between panels (left panel carries y-axis; right gutter
- *     is reserved as standard right margin — no second axis needed in right gutter)
- *   y-tick x at A_X0−8, text-anchor="end" (left panel only)
+ *     is reserved as standard right margin â€” no second axis needed in right gutter)
+ *   y-tick x at A_X0âˆ’8, text-anchor="end" (left panel only)
  *   x-tick y at PLOT_Y1+18 (conformance audit; both panels)
  *   1px full-opacity zero line per panel
  *   gridlines 0.18 stroke-opacity
  *   1px hairline plot frame per panel
  *   Plex Mono y-ticks, Manrope x-ticks (12px each)
  *   Panel titles: Manrope 13px, 600/400 weight
- *   No latest-point dot (bars — canon R2)
+ *   No latest-point dot (bars â€” canon R2)
  *   No sentences inside SVG; no source paragraphs
  *   All color tokens (var(--ink), var(--paper)), no hardcoded hex
  *
@@ -109,9 +109,9 @@ const hasData = bars.length > 0;
 // ---- Outer geometry ------------------------------------------------------------
 const VB_W = 720;
 const VB_H = 405;
-const M_T  = 44;   // canon top — panel title clears
-const M_B  = 40;   // canon bottom — x-tick labels
-const M_L  = 56;   // canon left — y-tick labels (Panel A)
+const M_T  = 44;   // canon top â€” panel title clears
+const M_B  = 40;   // canon bottom â€” x-tick labels
+const M_L  = 56;   // canon left â€” y-tick labels (Panel A)
 const M_R  = 96;   // canon right gutter
 // PANEL_GUTTER: space between Panel A right edge and Panel B left edge.
 // Left panel (A) carries the y-axis; right panel (B) has no y-axis in the gutter.
@@ -122,7 +122,7 @@ const PLOT_Y0 = M_T;
 const PLOT_Y1 = VB_H - M_B;
 const PLOT_H  = PLOT_Y1 - PLOT_Y0; // 321px
 
-// Equal-width panels: innerW = 720 − 56 − 96 − 48 = 520px → 260px each
+// Equal-width panels: innerW = 720 âˆ’ 56 âˆ’ 96 âˆ’ 48 = 520px â†’ 260px each
 const innerW = VB_W - M_L - M_R - PANEL_GUTTER;
 const PANEL_W = innerW / 2; // 260px
 
@@ -131,9 +131,9 @@ const A_X1 = A_X0 + PANEL_W; // 316
 const B_X0 = A_X1 + PANEL_GUTTER; // 364
 const B_X1 = B_X0 + PANEL_W; // 624
 
-// ---- Shared Y scale (CRITICAL — both panels use this same function) -------------
-// Domain: −50 to +10 ($B). Step 10 → 7 ticks.
-// Data range: as-presented −33.0 to +3.0; PBO −45.8 to −10.5.
+// ---- Shared Y scale (CRITICAL â€” both panels use this same function) -------------
+// Domain: âˆ’50 to +10 ($B). Step 10 â†’ 7 ticks.
+// Data range: as-presented âˆ’33.0 to +3.0; PBO âˆ’45.8 to âˆ’10.5.
 // Domain is comfortable for both series at identical scale.
 // The visual argument: Panel B's bars sit far deeper on the same scale.
 const Y_DOM_MIN  = -50;
@@ -141,16 +141,16 @@ const Y_DOM_MAX  =  10;
 const Y_TICK_STEP = 10;
 const ySpan = Y_DOM_MAX - Y_DOM_MIN; // 60
 
-// Shared y scale — used for BOTH panels. Do not create a separate bY().
+// Shared y scale â€” used for BOTH panels. Do not create a separate bY().
 const yScale = (v: number): number =>
   PLOT_Y0 + PLOT_H - ((v - Y_DOM_MIN) / ySpan) * PLOT_H;
 
 // Verification (by arithmetic):
-//   yScale(10)  = 44 + 321 − (60/60)×321 = 44.00   ← top frame ✓
-//   yScale(0)   = 44 + 321 − (50/60)×321 = 97.50   ← zero line ✓
-//   yScale(−50) = 44 + 321 − 0           = 365.00  ← bottom frame ✓
-//   yScale(1.7) = 44 + 321 − (51.7/60)×321 = 88.28 → bar h = 97.5−88.28 = 9.22px ✓
-//   yScale(−45.8) = 44+321−(4.2/60)×321 = 342.53  → bar h = 342.53−97.5 = 245.03px ✓
+//   yScale(10)  = 44 + 321 âˆ’ (60/60)Ã—321 = 44.00   â† top frame âœ“
+//   yScale(0)   = 44 + 321 âˆ’ (50/60)Ã—321 = 97.50   â† zero line âœ“
+//   yScale(âˆ’50) = 44 + 321 âˆ’ 0           = 365.00  â† bottom frame âœ“
+//   yScale(1.7) = 44 + 321 âˆ’ (51.7/60)Ã—321 = 88.28 â†’ bar h = 97.5âˆ’88.28 = 9.22px âœ“
+//   yScale(âˆ’45.8) = 44+321âˆ’(4.2/60)Ã—321 = 342.53  â†’ bar h = 342.53âˆ’97.5 = 245.03px âœ“
 
 // ---- Y-tick labels (left panel only) -------------------------------------------
 type YTick = { y: number; label: string };
@@ -169,14 +169,14 @@ const yTicks: YTick[] = yTickVals.map((v, i) => ({
           : `${v}`,
 }));
 
-// Gridlines: all non-zero ticks (non-bottom too — bottom is the frame)
+// Gridlines: all non-zero ticks (non-bottom too â€” bottom is the frame)
 const gridlineVals = yTickVals.filter((v) => v !== 0 && v !== Y_DOM_MIN);
 
 // ---- Bar geometry (single bar per slot, per panel) -----------------------------
 // 6 year-slots per panel, one bar each (different series per panel).
 const N = bars.length; // 6
 const SLOT_W = PANEL_W / N; // 260/6 = 43.33px
-const BAR_GAP = SLOT_W * 0.18; // 7.8px — gap fraction matching Plate1 zoom-panel style
+const BAR_GAP = SLOT_W * 0.18; // 7.8px â€” gap fraction matching Plate1 zoom-panel style
 const BAR_W   = SLOT_W - BAR_GAP; // 35.53px per bar
 
 // Bar left-edge and center-x for slot i within a panel starting at panelX0
@@ -218,7 +218,7 @@ for (let i = 0; i < bars.length; i++) {
   }
 }
 
-// ---- X-tick labels ('YY) — both panels -----------------------------------------
+// ---- X-tick labels ('YY) â€” both panels -----------------------------------------
 type XTick = { ax: number; bx: number; label: string };
 const xTicks: XTick[] = bars.map((b, i) => ({
   ax: barCX(A_X0, i),
@@ -227,11 +227,11 @@ const xTicks: XTick[] = bars.map((b, i) => ({
 }));
 
 // ---- $94B annotation -----------------------------------------------------------
-// Panel B's bars are ALL below zero → the region above yScale(0)=97.5 down to
+// Panel B's bars are ALL below zero â†’ the region above yScale(0)=97.5 down to
 // PLOT_Y0=44 is 53.5px of guaranteed clear whitespace. Place annotation there.
 // Left-anchored at B_X0+8 (inside Panel B frame), y = PLOT_Y0+18 = 62.
 const ANNO_X = B_X0 + 8;   // 372
-const ANNO_Y = PLOT_Y0 + 18; // 62 — clear of top frame (44), inside the 97.5 zero line
+const ANNO_Y = PLOT_Y0 + 18; // 62 â€” clear of top frame (44), inside the 97.5 zero line
 
 // ---- aria-label ----------------------------------------------------------------
 const firstFY = bars[0]?.fyLabel ?? "";
@@ -243,11 +243,11 @@ const ariaLabel =
   `Both panels share identical y-axis scale of minus $50 billion to plus $10 billion. ` +
   `As presented: balance crosses to surplus of $1.7 billion in FY2028-29. ` +
   `PBO definition: deficit persists every year, reaching minus $17.6 billion in FY2029-30. ` +
-  `Cumulative gap approximately $94 billion — the capital-classification wedge.`;
+  `Cumulative gap approximately $94 billion â€” the capital-classification wedge.`;
 ---
 
 {!hasData ? (
-  <PanelEmpty reason="DATA NOT YET WIRED — fiscal.json panel-11 frt_operating_balance_b2025 / frt_operating_balance_pbo" />
+  <PanelEmpty reason="DATA NOT YET WIRED â€” fiscal.json panel-11 frt_operating_balance_b2025 / frt_operating_balance_pbo" />
 ) : (
   <div class="p2od-chart" data-panel="fiscal-plate-2-dispute" data-panel-status="live">
     <svg
@@ -257,11 +257,10 @@ const ariaLabel =
       role="img"
       aria-label={ariaLabel}
     >
-      <title>The budget watchdog can't confirm the operating books balance — the capital definition is undisclosed.</title>
 
-      {/* ===================== PANEL A — As presented (INK 1.00) =================== */}
+      {/* ===================== PANEL A â€” As presented (INK 1.00) =================== */}
 
-      {/* Gridlines (both panels share the same y-values — single render per value
+      {/* Gridlines (both panels share the same y-values â€” single render per value
           is not possible across separate panel x-extents, so emit once per panel) */}
       {gridlineVals.map((v) => (
         <line
@@ -271,7 +270,7 @@ const ariaLabel =
         />
       ))}
 
-      {/* Zero line — Panel A */}
+      {/* Zero line â€” Panel A */}
       <line
         class="p2od-chart__zero-line"
         x1={A_X0.toFixed(2)} y1={yScale(0).toFixed(2)}
@@ -285,18 +284,17 @@ const ariaLabel =
           x={r.x.toFixed(2)} y={r.y.toFixed(2)}
           width={r.w.toFixed(2)} height={r.h.toFixed(2)}
         >
-          <title>{r.title}</title>
         </rect>
       ))}
 
-      {/* Hairline frame — Panel A */}
+      {/* Hairline frame â€” Panel A */}
       <rect
         class="p2od-chart__frame"
         x={A_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
         width={PANEL_W.toFixed(2)} height={PLOT_H.toFixed(2)}
       />
 
-      {/* Y-axis tick labels — LEFT PANEL ONLY (shared scale; reader registers once) */}
+      {/* Y-axis tick labels â€” LEFT PANEL ONLY (shared scale; reader registers once) */}
       {yTicks.map((t) => (
         <text
           class="p2od-chart__ytick-label"
@@ -306,7 +304,7 @@ const ariaLabel =
         >{t.label}</text>
       ))}
 
-      {/* X-axis ticks + 'YY labels — Panel A */}
+      {/* X-axis ticks + 'YY labels â€” Panel A */}
       {xTicks.map((t) => (
         <g>
           <line
@@ -323,7 +321,7 @@ const ariaLabel =
         </g>
       ))}
 
-      {/* Panel A subject label — short, per small-multiples convention.
+      {/* Panel A subject label â€” short, per small-multiples convention.
           NOT an editorial sentence. The take lives in the plate title + blurb. */}
       <text
         class="p2od-chart__panel-title p2od-chart__panel-title--primary"
@@ -332,9 +330,9 @@ const ariaLabel =
         text-anchor="start"
       >As presented</text>
 
-      {/* ===================== PANEL B — PBO definition (MID 0.55) ================= */}
+      {/* ===================== PANEL B â€” PBO definition (MID 0.55) ================= */}
 
-      {/* Gridlines — Panel B */}
+      {/* Gridlines â€” Panel B */}
       {gridlineVals.map((v) => (
         <line
           class="p2od-chart__gridline"
@@ -343,32 +341,31 @@ const ariaLabel =
         />
       ))}
 
-      {/* Zero line — Panel B */}
+      {/* Zero line â€” Panel B */}
       <line
         class="p2od-chart__zero-line"
         x1={B_X0.toFixed(2)} y1={yScale(0).toFixed(2)}
         x2={B_X1.toFixed(2)} y2={yScale(0).toFixed(2)}
       />
 
-      {/* PBO-definition bars (MID grey 0.55 — same budget, stricter capital standard) */}
+      {/* PBO-definition bars (MID grey 0.55 â€” same budget, stricter capital standard) */}
       {bRects.map((r) => (
         <rect
           class="p2od-chart__bar-pbo"
           x={r.x.toFixed(2)} y={r.y.toFixed(2)}
           width={r.w.toFixed(2)} height={r.h.toFixed(2)}
         >
-          <title>{r.title}</title>
         </rect>
       ))}
 
-      {/* Hairline frame — Panel B */}
+      {/* Hairline frame â€” Panel B */}
       <rect
         class="p2od-chart__frame"
         x={B_X0.toFixed(2)} y={PLOT_Y0.toFixed(2)}
         width={PANEL_W.toFixed(2)} height={PLOT_H.toFixed(2)}
       />
 
-      {/* X-axis ticks + 'YY labels — Panel B */}
+      {/* X-axis ticks + 'YY labels â€” Panel B */}
       {xTicks.map((t) => (
         <g>
           <line
@@ -385,7 +382,7 @@ const ariaLabel =
         </g>
       ))}
 
-      {/* Panel B subject label — short, per small-multiples convention.
+      {/* Panel B subject label â€” short, per small-multiples convention.
           400 weight (secondary series label hierarchy). */}
       <text
         class="p2od-chart__panel-title p2od-chart__panel-title--secondary"
@@ -394,7 +391,7 @@ const ariaLabel =
         text-anchor="start"
       >PBO definition</text>
 
-      {/* $94B annotation — Panel B upper whitespace (all Panel B bars below zero).
+      {/* $94B annotation â€” Panel B upper whitespace (all Panel B bars below zero).
           Region above yScale(0)=97.5 to PLOT_Y0=44 = 53.5px guaranteed clear.
           Free-standing compact callout; no leader. */}
       <text
@@ -410,12 +407,12 @@ const ariaLabel =
 
 <style>
   /*
-   * Plate2OperatingDispute — Tier-3 two-panel small-multiples signed-bar chart.
+   * Plate2OperatingDispute â€” Tier-3 two-panel small-multiples signed-bar chart.
    * Panel A: as-presented (INK 1.00). Panel B: PBO definition (MID grey 0.55).
-   * SHARED Y-SCALE across both panels — the visual argument is that Panel B's
+   * SHARED Y-SCALE across both panels â€” the visual argument is that Panel B's
    * bars sit far deeper on the identical axis.
-   * Y-tick labels on LEFT PANEL (A) ONLY — shared scale, reader registers once.
-   * Grey-tint category differentiation per fiscal_bar_language.md §2.
+   * Y-tick labels on LEFT PANEL (A) ONLY â€” shared scale, reader registers once.
+   * Grey-tint category differentiation per fiscal_bar_language.md Â§2.
    * Full-ink chrome; conforms to conformance audit (overflow:visible, tick offsets).
    */
   .p2od-chart {
@@ -437,14 +434,14 @@ const ariaLabel =
     stroke-opacity: 0.18;
     shape-rendering: crispEdges;
   }
-  /* Zero line: 1px pure ink, full opacity — reads distinctly above 0.18-opacity gridlines. */
+  /* Zero line: 1px pure ink, full opacity â€” reads distinctly above 0.18-opacity gridlines. */
   .p2od-chart__zero-line {
     stroke: var(--ink);
     stroke-width: 1;
     stroke-opacity: 1;
     shape-rendering: crispEdges;
   }
-  /* Panel A bars: INK 1.00 (primary — the government's filed projection). */
+  /* Panel A bars: INK 1.00 (primary â€” the government's filed projection). */
   .p2od-chart__bar-as-presented {
     fill: var(--ink);
     fill-opacity: 1;

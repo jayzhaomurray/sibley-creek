@@ -1,10 +1,10 @@
----
+﻿---
 /*
- * Alt_GoldExportsAndPrice — "Gold exports surge with price."
+ * Alt_GoldExportsAndPrice â€” "Gold exports surge with price."
  *
  * Two-panel composite, side-by-side, 720x405 (16:9).
  *
- * LEFT PANEL — GOLD EXPORTS
+ * LEFT PANEL â€” GOLD EXPORTS
  *   Primary:   total gold/PGM exports, monthly, CAD millions.
  *              1.5px solid pure ink, MTA red 4px terminal dot.
  *   Secondary: UK-destination exports, 1px dashed "4 2" pure ink, 0.65 opacity.
@@ -13,7 +13,7 @@
  *   Y-axis: CAD millions, topmost tick carries "M" suffix.
  *   Direct labels: "Total" (Manrope 600) and "UK" (Manrope 400).
  *
- * RIGHT PANEL — GOLD PRICE
+ * RIGHT PANEL â€” GOLD PRICE
  *   Single line: monthly close, USD/oz.
  *   1.5px solid pure ink, MTA red 4px terminal dot.
  *   Y-axis: USD, topmost tick carries "$" prefix.
@@ -26,9 +26,9 @@
  * Right panel y-ticks in GAP_X gutter between panels.
  *
  * Data source: data/processed/ CSVs
- *   exports_gold_total.csv — StatCan 12-10-0182-01, NAPCS 35
- *   exports_gold_uk.csv    — same table, UK destination
- *   gold_price_monthly.csv — monthly close, USD/oz
+ *   exports_gold_total.csv â€” StatCan 12-10-0182-01, NAPCS 35
+ *   exports_gold_uk.csv    â€” same table, UK destination
+ *   gold_price_monthly.csv â€” monthly close, USD/oz
  *
  * Canon compliance (design/canon_reference_panel.md):
  *   1.  Primary line: pure ink 1.5px solid. MTA red 4px terminal dot.
@@ -151,7 +151,7 @@ const ukVals    = uk.map((p) => p.value);
 const priceVals = price.map((p) => p.value);
 const leftAxis  = computeAxisScale([...totalVals, ...ukVals], 4);
 
-// ---- Right panel (price) y-axis — fixed floor at $1000, explicit ticks ------
+// ---- Right panel (price) y-axis â€” fixed floor at $1000, explicit ticks ------
 // Floor fixed at 1000 so the 2020 values (~$1564) sit comfortably above the
 // base. Keep the ceiling above the latest full price path so high 2026 prints
 // do not escape the clipped plot area.
@@ -187,19 +187,19 @@ const VB_W = 720;
 const VB_H = 440;
 
 // Outer margins
-const M_OUT_L = 46;   // left outer gutter — left panel y-ticks
-const M_R     = 12;   // right outer margin — right panel label room
+const M_OUT_L = 46;   // left outer gutter â€” left panel y-ticks
+const M_R     = 12;   // right outer margin â€” right panel label room
 const M_T     = 28;   // top
-const M_B     = 36;   // bottom — x-tick labels
+const M_B     = 36;   // bottom â€” x-tick labels
 
-// Gap between panels — right panel y-ticks live here
+// Gap between panels â€” right panel y-ticks live here
 const GAP_X = 96;
 
 // Total plot area
 const TOTAL_W = VB_W - M_OUT_L - M_R;
 const TOTAL_H = VB_H - M_T - M_B;
 
-// Panel widths: equal — GAP_X sits between them, not inside either panel.
+// Panel widths: equal â€” GAP_X sits between them, not inside either panel.
 const LEFT_W  = Math.round((TOTAL_W - GAP_X) / 2);
 const RIGHT_W = TOTAL_W - GAP_X - LEFT_W;
 
@@ -276,7 +276,7 @@ const priceLastX = rightXScale(decYear(priceLast.date));
 const priceLastY = rightYScale(priceLast.value);
 
 // ---- Direct label positions --------------------------------------------------
-// Labels anchor text-anchor="start" in the right gutter of the left panel —
+// Labels anchor text-anchor="start" in the right gutter of the left panel â€”
 // i.e., to the right of LP_X1, inside the GAP_X zone. This ensures they
 // never touch the data lines inside the plot area and never collide with the
 // right-panel y-ticks (which anchor text-anchor="end" at RP_X0 - 6).
@@ -286,7 +286,7 @@ const LABEL_MIN_SEP = 14;      // minimum vertical separation between stacked la
 const totalLabelX = LP_X1 + LABEL_GAP;
 const totalLabelY = totalLastY + 4;
 
-// UK terminal is nearly coincident with total — stack down by LABEL_MIN_SEP if needed
+// UK terminal is nearly coincident with total â€” stack down by LABEL_MIN_SEP if needed
 const ukLabelX = LP_X1 + LABEL_GAP;
 const ukLabelY = Math.abs(ukLastY - totalLastY) < LABEL_MIN_SEP
   ? totalLabelY + LABEL_MIN_SEP
@@ -296,7 +296,7 @@ const ukLabelY = Math.abs(ukLastY - totalLastY) < LABEL_MIN_SEP
 const priceLabelX = Math.min(priceLastX + LABEL_GAP, RP_X1 + 50);
 const priceLabelY = priceLastY + 4;
 
-// ---- X-ticks — shared (same date domain for both panels) --------------------
+// ---- X-ticks â€” shared (same date domain for both panels) --------------------
 // 4 ticks: 2020, 2022, 2024, 2026
 const X_TICK_YEARS = [2020, 2022, 2024, 2026];
 
@@ -353,7 +353,7 @@ const latestPriceMonth = fmtMonthYear(priceLast.date);
   >
 
     <!-- =====================================================================
-         CLIP PATHS — one per panel so lines never escape the plot frame
+         CLIP PATHS â€” one per panel so lines never escape the plot frame
          ===================================================================== -->
     <defs>
       <clipPath id="clip-left">
@@ -365,7 +365,7 @@ const latestPriceMonth = fmtMonthYear(priceLast.date);
     </defs>
 
     <!-- =====================================================================
-         LEFT PANEL — GOLD EXPORTS
+         LEFT PANEL â€” GOLD EXPORTS
          ===================================================================== -->
 
     <!-- Panel label -->
@@ -375,7 +375,7 @@ const latestPriceMonth = fmtMonthYear(priceLast.date);
       y={LP_Y0 - 10}
     >GOLD EXPORTS</text>
 
-    <!-- Gridlines — left panel -->
+    <!-- Gridlines â€” left panel -->
     {leftAxis.ticks.map((v) => {
       const yv = leftYScale(v);
       if (yv < LP_Y0 - 0.5 || yv > LP_Y1 + 0.5) return null;
@@ -390,7 +390,7 @@ const latestPriceMonth = fmtMonthYear(priceLast.date);
       );
     })}
 
-    <!-- UK line (secondary: dashed 1px, 0.65 opacity) — behind total -->
+    <!-- UK line (secondary: dashed 1px, 0.65 opacity) â€” behind total -->
     {ukPath && (
       <path class="gep-chart__line--secondary" d={ukPath} clip-path="url(#clip-left)" />
     )}
@@ -400,39 +400,36 @@ const latestPriceMonth = fmtMonthYear(priceLast.date);
       <path class="gep-chart__line--primary" d={totalPath} clip-path="url(#clip-left)" />
     )}
 
-    <!-- Hit areas — total (every 3rd point) -->
+    <!-- Hit areas â€” total (every 3rd point) -->
     {total.filter((_p, i) => i % 3 === 0).map((pt) => {
       const cx = leftXScale(decYear(pt.date));
       const cy = leftYScale(pt.value);
       return (
         <circle class="gep-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="5" clip-path="url(#clip-left)">
-          <title>{`Gold exports (total) — ${pt.date}: CAD ${Math.round(pt.value).toLocaleString()}M`}</title>
         </circle>
       );
     })}
 
-    <!-- Hit areas — UK (every 3rd point) -->
+    <!-- Hit areas â€” UK (every 3rd point) -->
     {uk.filter((_p, i) => i % 3 === 0).map((pt) => {
       const cx = leftXScale(decYear(pt.date));
       const cy = leftYScale(pt.value);
       return (
         <circle class="gep-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="5" clip-path="url(#clip-left)">
-          <title>{`Gold exports (UK) — ${pt.date}: CAD ${Math.round(pt.value).toLocaleString()}M`}</title>
         </circle>
       );
     })}
 
-    <!-- MTA red terminal dot — total only (no clip-path: dot must always be visible) -->
+    <!-- MTA red terminal dot â€” total only (no clip-path: dot must always be visible) -->
     <circle
       class="gep-chart__latest-dot"
       cx={totalLastX.toFixed(2)}
       cy={totalLastY.toFixed(2)}
       r="4"
     >
-      <title>{`Latest — ${totalLast.date}: CAD ${Math.round(totalLast.value).toLocaleString()}M total gold exports`}</title>
     </circle>
 
-    <!-- Plot frame — left panel -->
+    <!-- Plot frame â€” left panel -->
     <rect
       class="gep-chart__frame"
       x={LP_X0}
@@ -441,7 +438,7 @@ const latestPriceMonth = fmtMonthYear(priceLast.date);
       height={LP_Y1 - LP_Y0}
     />
 
-    <!-- Y-axis tick labels — left panel (in left gutter) -->
+    <!-- Y-axis tick labels â€” left panel (in left gutter) -->
     {leftAxis.ticks.map((v, i) => {
       const yv = leftYScale(v);
       if (yv < LP_Y0 - 2 || yv > LP_Y1 + 2) return null;
@@ -458,7 +455,7 @@ const latestPriceMonth = fmtMonthYear(priceLast.date);
       );
     })}
 
-    <!-- Direct end-of-line labels — right gutter of left panel, clear of lines -->
+    <!-- Direct end-of-line labels â€” right gutter of left panel, clear of lines -->
     <text
       class="gep-chart__direct-label--primary"
       x={totalLabelX.toFixed(1)}
@@ -473,7 +470,7 @@ const latestPriceMonth = fmtMonthYear(priceLast.date);
       text-anchor="start"
     >UK</text>
 
-    <!-- X-axis ticks — left panel (bottom) -->
+    <!-- X-axis ticks â€” left panel (bottom) -->
     {xTicks.map((t) => {
       if (t.xLeft < LP_X0 - 1 || t.xLeft > LP_X1 + 1) return null;
       return (
@@ -490,7 +487,7 @@ const latestPriceMonth = fmtMonthYear(priceLast.date);
 
 
     <!-- =====================================================================
-         RIGHT PANEL — GOLD PRICE
+         RIGHT PANEL â€” GOLD PRICE
          ===================================================================== -->
 
     <!-- Sub-panel label -->
@@ -500,7 +497,7 @@ const latestPriceMonth = fmtMonthYear(priceLast.date);
       y={RP_Y0 - 8}
     >GOLD PRICE PER OZ</text>
 
-    <!-- Gridlines — right panel -->
+    <!-- Gridlines â€” right panel -->
     {rightAxis.ticks.map((v) => {
       const yv = rightYScale(v);
       if (yv < RP_Y0 - 0.5 || yv > RP_Y1 + 0.5) return null;
@@ -520,28 +517,26 @@ const latestPriceMonth = fmtMonthYear(priceLast.date);
       <path class="gep-chart__line--primary" d={pricePath} clip-path="url(#clip-right)" />
     )}
 
-    <!-- Hit areas — price (every 3rd point) -->
+    <!-- Hit areas â€” price (every 3rd point) -->
     {price.filter((_p, i) => i % 3 === 0).map((pt) => {
       const cx = rightXScale(decYear(pt.date));
       const cy = rightYScale(pt.value);
       return (
         <circle class="gep-chart__hit" cx={cx.toFixed(2)} cy={cy.toFixed(2)} r="5" clip-path="url(#clip-right)">
-          <title>{`Gold price — ${pt.date}: USD ${Math.round(pt.value).toLocaleString()}/oz`}</title>
         </circle>
       );
     })}
 
-    <!-- MTA red terminal dot — price (no clip-path: dot must always be visible) -->
+    <!-- MTA red terminal dot â€” price (no clip-path: dot must always be visible) -->
     <circle
       class="gep-chart__latest-dot"
       cx={priceLastX.toFixed(2)}
       cy={priceLastY.toFixed(2)}
       r="4"
     >
-      <title>{`Latest — ${priceLast.date}: USD ${Math.round(priceLast.value).toLocaleString()}/oz`}</title>
     </circle>
 
-    <!-- Plot frame — right panel -->
+    <!-- Plot frame â€” right panel -->
     <rect
       class="gep-chart__frame"
       x={RP_X0}
@@ -550,7 +545,7 @@ const latestPriceMonth = fmtMonthYear(priceLast.date);
       height={RP_Y1 - RP_Y0}
     />
 
-    <!-- Y-axis tick labels — right panel (in GAP_X gutter, left-aligned) -->
+    <!-- Y-axis tick labels â€” right panel (in GAP_X gutter, left-aligned) -->
     {rightAxis.ticks.map((v, i) => {
       const yv = rightYScale(v);
       if (yv < RP_Y0 - 2 || yv > RP_Y1 + 2) return null;
@@ -567,7 +562,7 @@ const latestPriceMonth = fmtMonthYear(priceLast.date);
       );
     })}
 
-    <!-- X-axis ticks — right panel (bottom) -->
+    <!-- X-axis ticks â€” right panel (bottom) -->
     {xTicks.map((t) => {
       if (t.xRight < RP_X0 - 1 || t.xRight > RP_X1 + 1) return null;
       return (

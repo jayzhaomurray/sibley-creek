@@ -1,15 +1,15 @@
----
+﻿---
 /*
- * Plate5IssuanceByInstrument — Federal gross issuance flow by maturity bucket,
+ * Plate5IssuanceByInstrument â€” Federal gross issuance flow by maturity bucket,
  * stacked bars, FY2019-20 to FY2026-27 (history + forecast).
  *
- * METRIC (rebuilt 2026-06-02): GROSS ISSUANCE FLOW by maturity bucket, $B —
+ * METRIC (rebuilt 2026-06-02): GROSS ISSUANCE FLOW by maturity bucket, $B â€”
  * NOT outstanding stock. Three buckets stack to the annual gross-issuance total.
  *
  * DATA: fiscal.json panel-10 ($B, FY2019-20 -> FY2026-27, 8 years)
- *   primary   = frt_issuance_flow_bonds  — long bonds (10/30yr/ultra/RRB/Green), $B
- *   secondary = frt_issuance_flow_bills  — treasury bills bucket, $B
- *   tertiary  = frt_issuance_flow_notes  — short/medium bonds (2/3/5yr), $B
+ *   primary   = frt_issuance_flow_bonds  â€” long bonds (10/30yr/ultra/RRB/Green), $B
+ *   secondary = frt_issuance_flow_bills  â€” treasury bills bucket, $B
+ *   tertiary  = frt_issuance_flow_notes  â€” short/medium bonds (2/3/5yr), $B
  *   FY2025-26 and FY2026-27 carry is_forecast: 1; FY2019-20 -> FY2024-25 are history.
  *
  * LABEL CAVEAT: the BILLS bucket is year-end T-bill STOCK, not gross auctions.
@@ -20,14 +20,14 @@
  *   (FY2025-26 forecast). Tight axis: 0 to 650B.
  *
  * STACKED BAR LAYOUT (bottom to top), grey-tint ink-density ramp:
- *   Bottom: Bills  — FAINT 0.28 (light grey), largest bucket by height.
- *   Middle: Notes  — MID 0.55 (mid grey).
- *   Top:    Bonds  — INK 1.00 (black), the lead instrument.
+ *   Bottom: Bills  â€” FAINT 0.28 (light grey), largest bucket by height.
+ *   Middle: Notes  â€” MID 0.55 (mid grey).
+ *   Top:    Bonds  â€” INK 1.00 (black), the lead instrument.
  *   Monotonic dark->light down the stack; 1px --paper white hairline between segments.
  *
  * FORM: Stacked vertical bars, three buckets per year, differentiated by
- *   grey-tint ink-density (per fiscal_bar_language.md §2), NOT texture, NOT hue.
- *   Bars keep ONE consistent tint across the actual/forecast boundary — the
+ *   grey-tint ink-density (per fiscal_bar_language.md Â§2), NOT texture, NOT hue.
+ *   Bars keep ONE consistent tint across the actual/forecast boundary â€” the
  *   divider + label carries the forecast signal, NOT bar tint or dimming.
  *
  * FORECAST CONVENTION (house standard, matches Plate4 R2.1):
@@ -159,7 +159,7 @@ const gridlines = yTickVals.filter((v) => v > Y_DOM_MIN && v < Y_DOM_MAX);
 // ---- X ticks: END-YEAR round numbers, every two years -------------------------
 // A Canadian fiscal year is named for the year it ends (FY2019-20 -> 2020,
 // FY2026-27 -> 2027). On this short 8-bar axis, label every-two end-years
-// (2020, 2022, 2024, 2026) — evenly spaced, no apostrophe, no emphasis, no
+// (2020, 2022, 2024, 2026) â€” evenly spaced, no apostrophe, no emphasis, no
 // adjacent-year crowding.
 const fyEndYear = (fy: string): number => parseInt(fy.slice(0, 4), 10) + 1;
 type XTick = { x: number; label: string };
@@ -218,8 +218,8 @@ const totalLabel = currentBar ? `$${Math.round(currentBar.total)}B` : "";
 
 // ---- In-gutter segment labels (anchored to the LAST bar's three segments) ------
 // The labels live in the right gutter (just past the frame) and must align to the
-// segment mid-heights of the RIGHTMOST bar (FY2026-27) — the bar physically next
-// to the gutter — so the reader maps texture -> name on the adjacent bar. Anchoring
+// segment mid-heights of the RIGHTMOST bar (FY2026-27) â€” the bar physically next
+// to the gutter â€” so the reader maps texture -> name on the adjacent bar. Anchoring
 // to the last ACTUAL bar (mid-chart, behind the forecast divider) detaches the
 // labels from the segments they name; the rightmost bar is the correct anchor.
 const lastBar = bars.length > 0 ? bars[bars.length - 1]! : null;
@@ -244,7 +244,7 @@ const ariaLabel =
 ---
 
 {!hasData ? (
-  <PanelEmpty reason="DATA NOT YET WIRED — fiscal.json panel-10 frt_issuance_flow_bills/notes/bonds" />
+  <PanelEmpty reason="DATA NOT YET WIRED â€” fiscal.json panel-10 frt_issuance_flow_bills/notes/bonds" />
 ) : (
   <div class="p5iss-chart" data-panel="fiscal-plate-5" data-panel-status="live">
     <svg
@@ -254,7 +254,6 @@ const ariaLabel =
       role="img"
       aria-label={ariaLabel}
     >
-      <title>Gross issuance eases to $566 billion in 2026-27 after peaking at $603 billion in 2025-26. — Federal gross issuance flow by maturity bucket</title>
 
       {/* Horizontal gridlines */}
       {gridlines.map((v) => (
@@ -265,7 +264,7 @@ const ariaLabel =
         />
       ))}
 
-      {/* Bar segments — ONE consistent style across the actual/forecast boundary */}
+      {/* Bar segments â€” ONE consistent style across the actual/forecast boundary */}
       {segRects.map((seg) => {
         const titleText = `FY${seg.fyLabel} ${seg.segment}: $${seg.value.toFixed(0)}B`;
         const cls =
@@ -275,7 +274,6 @@ const ariaLabel =
         return (
           <rect class={cls} x={seg.x.toFixed(2)} y={seg.y.toFixed(2)}
             width={seg.w.toFixed(2)} height={seg.h.toFixed(2)}>
-            <title>{titleText}</title>
           </rect>
         );
       })}
@@ -299,7 +297,7 @@ const ariaLabel =
         >FORECAST</text>
       )}
 
-      {/* Current-total numeric value callout — anchored above the FY2026-27 bar.
+      {/* Current-total numeric value callout â€” anchored above the FY2026-27 bar.
           No red dot: canon R2 restricts the latest-point dot to line/area charts. */}
       {currentBar && totalLabel && (
         <text
@@ -344,7 +342,7 @@ const ariaLabel =
         </g>
       ))}
 
-      {/* Segment labels in right gutter — each prefixed with a TINT swatch so the
+      {/* Segment labels in right gutter â€” each prefixed with a TINT swatch so the
           reader maps grey-density -> instrument (categories now separate by tint,
           not texture). Aligned to the rightmost bar's three segment mid-heights. */}
       {lastBar && (
@@ -353,12 +351,12 @@ const ariaLabel =
             x={labelX.toFixed(2)} y={(bondsLabelY - 5).toFixed(2)} width="9" height="9" />
           <text class="p5iss-chart__seg-label-bonds"
             x={(labelX + 14).toFixed(2)} y={(bondsLabelY + 4).toFixed(2)} text-anchor="start"
-          >10–30 yr</text>
+          >10â€“30 yr</text>
           <rect class="p5iss-chart__swatch-notes"
             x={labelX.toFixed(2)} y={(notesLabelY - 5).toFixed(2)} width="9" height="9" />
           <text class="p5iss-chart__seg-label-notes"
             x={(labelX + 14).toFixed(2)} y={(notesLabelY + 4).toFixed(2)} text-anchor="start"
-          >2–5 yr</text>
+          >2â€“5 yr</text>
           <rect class="p5iss-chart__swatch-bills"
             x={labelX.toFixed(2)} y={(billsLabelY - 5).toFixed(2)} width="9" height="9" />
           <text class="p5iss-chart__seg-label-bills"
@@ -373,12 +371,12 @@ const ariaLabel =
 
 <style>
   /*
-   * Plate5IssuanceByInstrument — Tier-3 stacked bar chart.
+   * Plate5IssuanceByInstrument â€” Tier-3 stacked bar chart.
    * Gross issuance flow by maturity bucket: FY2019-20 -> FY2026-27 (history + forecast).
    * Grey-tint ramp: bills FAINT 0.28, notes MID 0.55, bonds INK 1.00 (dark on top);
    * 1px --paper hairline between segments. Tint = category, never forecast.
    * Forecast signal = vertical dashed divider + "FORECAST" label; bars stay one tint.
-   * Full-ink chrome (no opacity on ticks/marks/labels) — canon tokens, no drift.
+   * Full-ink chrome (no opacity on ticks/marks/labels) â€” canon tokens, no drift.
    */
   .p5iss-chart {
     width: 100%;
@@ -399,7 +397,7 @@ const ariaLabel =
     stroke-opacity: 0.18;
     shape-rendering: crispEdges;
   }
-  /* Grey-tint ink-density ramp (replaces texture; per fiscal_bar_language.md §2).
+  /* Grey-tint ink-density ramp (replaces texture; per fiscal_bar_language.md Â§2).
      Monotonic dark->light down the stack: bonds (top) INK 1.00 = lead instrument,
      notes (mid) MID 0.55, bills (bottom) FAINT 0.28. Tint = category, never
      forecast. No --paper stroke: a full-rect white outline read as stripey
@@ -467,7 +465,7 @@ const ariaLabel =
     font-size: 12px;
     font-weight: 400;
   }
-  /* Gutter tint swatches — same ramp as the bar segments, so the legend reads
+  /* Gutter tint swatches â€” same ramp as the bar segments, so the legend reads
      as a tint key. Hairline outline keeps the faint bills swatch visible on paper. */
   .p5iss-chart__swatch-bonds {
     fill: var(--ink);
