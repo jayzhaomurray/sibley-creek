@@ -534,10 +534,9 @@ export const sections: Section[] = [
     heroKickerPrefix: "Fiscal Monitor",
     latestReleasePrefix: "Fiscal Monitor",
     tileLine:
-      "Federal deficit was $36B in FY2024-25, far below the FY2020-21 pandemic peak.",
+      "The federal deficit is running wider this fiscal year than last.",
     tileLineCitations: [
-      { phrase: "$36B in FY2024-25", source: "card:dof_federal_balance_pct_gdp_history", note: "DoF Fiscal Reference Tables 2025: FY2024-25 federal budgetary balance -$36.3bn (actual). Latest realized bar in the sparkline." },
-      { phrase: "far below the FY2020-21 pandemic peak", source: "card:claim_dof_deficit_larger_than_handoff_below_pandemic", note: "FRT 2025: FY2020-21 pandemic deficit -$327.7bn vs FY2024-25 -$36.3bn; both are actual bars shown in the sparkline." },
+      { phrase: "running wider this fiscal year than last", source: "card:dof_fiscal_monitor_debt_service_share", note: "DoF Fiscal Monitor Feb 2026: FY2025-26 budgetary deficit ran to -$25.5bn through February, ahead of the FY2024-25 year-to-date pace; the running FY-to-date deficit exceeds the prior fiscal year across the months the sparkline shows." },
     ],
     prints: [
       {

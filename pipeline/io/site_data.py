@@ -275,29 +275,33 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
     ),
     "fiscal": SectionConfig(
         slug="fiscal",
-        # Fiscal section primary series: federal budgetary balance, full
-        # fiscal-year ACTUALS (FRT history; forecast rows dropped on read).
-        # Rendered as a bar sparkline -- the canonical deficit chart -- so the
-        # tile reads as an annual fiscal snapshot alongside the debt/GDP,
-        # program-expense, and interest-burden supporting prints below. Source:
-        # DoF Fiscal Reference Tables 2025, derived -> frt_federal_balance_total
-        # (CAD billions on disk; value_scale bridges to the millions the
-        # currency_cad formatter expects).
-        primary_series="frt_federal_balance_total",
-        primary_dir="derived",
+        # Fiscal section primary series: federal budgetary balance, fiscal-
+        # year-to-date (DoF Fiscal Monitor, monthly, ~2-month lag). Chosen over
+        # the annual FRT series so the headline reflects the FRESHEST realized
+        # year: the Fiscal Monitor runs through Mar 2026 (full FY2025-26 to
+        # date, -$55.3B), whereas the final-audited FRT annual table still ends
+        # at FY2024-25 until the fall Public Accounts. Rendered as a bar
+        # sparkline; sits above the annual debt/GDP, program-expense, and
+        # interest-burden supporting prints (those carry their own FY2024-25
+        # actuals, the freshest the FRT publishes). Comparator is the same
+        # FY-YTD point one fiscal year prior (delta_window='fy-yoy'), not the
+        # prior month -- a month-over-month step on a cumulative series is
+        # meaningless. CAD millions on disk -> billions on display.
+        primary_series="federal_budget_ytd",
+        primary_dir="processed",
         unit_display="B",
         value_decimals=1,
         delta_decimals=1,
         delta_unit="B",
-        value_scale=1000.0,
         reference_value=0.0,
         reference_label="Balanced budget",
         chart_series_key="fiscal-ytd-balance",
         print_key="fiscal-ytd-balance",
         print_indicator="Federal budget balance",
-        as_of_format="fiscal-year",
+        as_of_format="fy-ytd-month",
         delta_kind="level",
         positive_is_good=True,  # surplus is good; deficit widening is bad
+        delta_window="fy-yoy",
     ),
     "markets": SectionConfig(
         slug="markets",
@@ -1424,6 +1428,19 @@ def _build_section(cfg: SectionConfig, data_root: Path) -> dict:
         nearest_row_date = pd.Timestamp(df.iloc[nearest_idx]["date"])
         gap_days = abs((latest_date - nearest_row_date).days)
         if date_diff.iloc[nearest_idx] <= pd.Timedelta(days=2) and gap_days >= 4:
+            prior_val = float(df.iloc[nearest_idx]["value"])
+        else:
+            prior_val = float(df.iloc[-2]["value"])
+    elif cfg.delta_window == "fy-yoy":
+        # Cumulative fiscal-year-to-date series (e.g. Fiscal Monitor balance):
+        # the meaningful comparator is the SAME FY-YTD month one fiscal year
+        # prior, not the prior calendar month (a m/m step on a cumulative
+        # running total is just that single month's flow). Pick the row
+        # nearest 12 months back; fall back to iloc[-2] if it isn't on disk.
+        prior_date_target = latest_date - pd.DateOffset(years=1)
+        date_diff = (df["date"] - prior_date_target).abs()
+        nearest_idx = int(date_diff.idxmin())
+        if date_diff.iloc[nearest_idx] <= pd.Timedelta(days=3):
             prior_val = float(df.iloc[nearest_idx]["value"])
         else:
             prior_val = float(df.iloc[-2]["value"])
