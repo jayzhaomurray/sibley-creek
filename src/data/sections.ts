@@ -508,7 +508,7 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "Apr 29, 2026",
+      date: "Jun 10, 2026",
       body:
         "On hold. The Bank of Canada has stayed at 2.25% through five straight decisions, sitting at the floor of its 2.25 to 3.25% neutral range. Activity is softening at the same time the Iran-war oil shock is feeding energy inflation. The call hinges on persistence — how long the Strait of Hormuz stays closed, and whether the shock seeps into expectations.",
     },

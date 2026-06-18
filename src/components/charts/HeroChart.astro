@@ -27,10 +27,6 @@
  *     policy-rate, hpi-yoy, usdcad per spec sec 8.
  *   - Direct label in the 44px right gutter for line/step. Bars use the
  *     y-axis unit only (no terminal point to label).
- *   - SVG <title> children on data marks render native browser tooltips
- *     with date + value, zero client JS. This is the "minimal precision-
- *     only" interaction model from spec sec 7 hit at static-render cost.
- *
  * Implementation: hand-rolled SVG (matches Sparkline.astro precedent).
  * Observable Plot would mean a React island + ~100KB Plot bundle for one
  * static single-series chart per page. The shapes here (line, step path,
@@ -263,15 +259,6 @@ const dates: DatePoint[] = heroPrint?.asOf
 
 // Defensive: if no series, render an empty canvas (still reserves 280x140).
 const hasData = n >= 2;
-
-// ---- Value formatter (matches the print's value style) --------------------
-function formatValue(v: number, key: string | undefined): string {
-  if (key === "policy-rate") return `${v.toFixed(2)}%`;
-  if (key === "usdcad") return v.toFixed(3);
-  if (key === "trade-balance") return `${v >= 0 ? "+" : ""}${v.toFixed(1)}`;
-  // Default: 1dp percentage.
-  return `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
-}
 
 function unitForTopTick(key: string | undefined): string {
   if (key === "usdcad") return ""; // bare level
@@ -641,24 +628,18 @@ const ariaLabel = heroPrint
           y={top.toFixed(2)}
           width={barWidth.toFixed(2)}
           height={Math.max(1, height).toFixed(2)}
-        >
-          <title>{`${c.label}: ${formatValue(c.v, section.chartSeriesKey)}`}</title>
-        </rect>
+        />
       );
     })}
 
-    {/* Invisible hit targets for line/step tooltips — one circle per point,
-        carrying a <title> for the native browser tooltip. Bars have their
-        own titles already. */}
+    {/* Invisible hit targets preserve pointer geometry without native hover text. */}
     {(chartType === "line" || chartType === "step") && hasData && coords.map((c) => (
       <circle
         class="hero-chart__hit"
         cx={c.x.toFixed(2)}
         cy={c.y.toFixed(2)}
         r="6"
-      >
-        <title>{`${c.label}: ${formatValue(c.v, section.chartSeriesKey)}`}</title>
-      </circle>
+      />
     ))}
 
     {/* Consensus tick + dashed connector (spec sec 8) */}
@@ -679,9 +660,7 @@ const ariaLabel = heroPrint
           y1={consensusY.toFixed(2)}
           x2={(consensusTickX + consensusTickHalfWidth).toFixed(2)}
           y2={consensusY.toFixed(2)}
-        >
-          <title>{`Consensus: ${formatValue(consensusV!, section.chartSeriesKey)}`}</title>
-        </line>
+        />
       </g>
     )}
 
@@ -693,9 +672,7 @@ const ariaLabel = heroPrint
         cx={latest.x.toFixed(2)}
         cy={latest.y.toFixed(2)}
         r="2.5"
-      >
-        <title>{`${latest.label}: ${formatValue(latest.v, section.chartSeriesKey)}`}</title>
-      </circle>
+      />
     )}
 
     {/* Y-axis tick labels — right-aligned in the 32px left gutter */}

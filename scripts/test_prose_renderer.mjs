@@ -162,6 +162,8 @@ const F = (name, v) => FORMATS[name].render(v);
 check("fx4", () => assertEq(F("fx4", 1.38964), "1.3896"));
 check("usd", () => assertEq(F("usd", 92.155), "US$92.16"));
 check("usd0", () => assertEq(F("usd0", 92.16), "US$92"));
+check("cadb", () => assertEq(F("cadb", -55.277), "-$55.3B"));
+check("cadb_from_m", () => assertEq(F("cadb_from_m", 1779), "$1.8B"));
 check("int", () => assertEq(F("int", 62.7), "63"));
 check("int_signed positive", () => assertEq(F("int_signed", 8.2), "+8"));
 check("int_signed negative uses U+2212", () =>

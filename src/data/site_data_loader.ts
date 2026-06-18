@@ -28,6 +28,7 @@
 // `resolveJsonModule: true`, so the import is fully typed.
 import payloadJson from "../../data/site/sections.json";
 
+import { renderSectionProse } from "../lib/prose";
 import {
   sections as canonSections,
   type Section,
@@ -146,6 +147,8 @@ export interface EnrichedSection {
   /** The error string when the pipeline could not build this section. */
   pipelineError: string | null;
   chartSeriesKey?: string;
+  /** Build-time prose rendered from editorial/prose_templates/<slug>.yaml. */
+  tileLine: string | null;
   /** Series unit as the pipeline names it (e.g. "%", "CAD per USD",
    *  "CAD millions"). Used to render the unit on the topmost y-tick. */
   units: string | null;
@@ -236,6 +239,7 @@ function enrichPrint(raw: RawPrint): EnrichedPrint {
 function enrichSection(canon: Section): EnrichedSection {
   const raw = payload.sections?.[canon.slug];
   const rawPrints = raw?.prints ?? [];
+  const renderedTileLine = renderSectionProse(canon.slug).surfaces.tileline?.text ?? null;
 
   // Resolve the primary print indicator label. Pipeline carries
   // `print_indicator` per series; if no real prints, fall back to canon's
@@ -322,6 +326,7 @@ function enrichSection(canon: Section): EnrichedSection {
     hasRealData: prints.some((p) => p.isReal),
     pipelineError: raw?.error ?? null,
     chartSeriesKey: canon.chartSeriesKey,
+    tileLine: renderedTileLine,
     units: raw?.units ?? null,
     frequency: raw?.frequency ?? null,
   };

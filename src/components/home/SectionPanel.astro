@@ -77,6 +77,9 @@ function computeEarliestISO(asOfISO: string | null, n: number, frequency: string
     const pm = String((totalMonths % 12) + 1).padStart(2, "0");
     return `${py}-${pm}-01`;
   }
+  if (frequency === "annual") {
+    return `${yy - back}-${String(mm).padStart(2, "0")}-01`;
+  }
   // monthly (default)
   const totalMonths = (yy * 12 + (mm - 1)) - back;
   const py = Math.floor(totalMonths / 12);
@@ -463,8 +466,8 @@ const periodStamp = periodStampFor(section.frequency);
           </span>
         )}
       </p>
-      {section.canon.tileLine && (
-        <p class="vig-panel__note">{section.canon.tileLine}</p>
+      {(section.tileLine ?? section.canon.tileLine) && (
+        <p class="vig-panel__note">{section.tileLine ?? section.canon.tileLine}</p>
       )}
     </aside>
   </div>

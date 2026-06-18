@@ -522,6 +522,8 @@ export const FORMATS = {
   fx4:        { kind: "num", render: (v) => fixedStr(v, 4) },
   usd:        { kind: "num", render: (v) => (roundTo(v, 2) < 0 ? "-" : "") + "US$" + Math.abs(roundTo(v, 2)).toFixed(2) },
   usd0:       { kind: "num", render: (v) => (roundTo(v, 0) < 0 ? "-" : "") + "US$" + Math.abs(roundTo(v, 0)).toFixed(0) },
+  cadb:       { kind: "num", render: (v) => (roundTo(v, 1) < 0 ? "-" : "") + "$" + Math.abs(roundTo(v, 1)).toFixed(1) + "B" },
+  cadb_from_m:{ kind: "num", render: (v) => FORMATS.cadb.render(v / 1000) },
   int:        { kind: "num", render: (v) => fixedStr(v, 0) },
   int_signed: {
     kind: "num",
