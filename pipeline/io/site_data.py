@@ -169,6 +169,12 @@ class SectionConfig:
     # When "w/w", the displayed delta string is suffixed " 1w" to stay
     # within the tile delta character cap.
     delta_window: str = "prior"
+    # Multiplier applied to the raw on-disk value before formatting. Default
+    # 1.0 (use the series as-is). Set >1 when the series unit on disk differs
+    # from the unit the formatter expects -- e.g. the annual federal balance
+    # is stored in CAD BILLIONS but the `currency_cad` formatter expects CAD
+    # MILLIONS, so value_scale=1000.0 bridges billions -> millions on the wire.
+    value_scale: float = 1.0
 
 
 # Editorial mapping. Editorial-director audits this block when scoping each
@@ -269,22 +275,27 @@ SECTION_CONFIGS: dict[str, SectionConfig] = {
     ),
     "fiscal": SectionConfig(
         slug="fiscal",
-        # Fiscal section primary series: federal fiscal YTD balance.
-        # The tile shows the running budget balance as the headline read on
-        # fiscal stance. Source: DoF Fiscal Monitor, ~2-month lag,
-        # derived in pipeline.build.derive_federal_fiscal_ytd.
-        primary_series="federal_budget_ytd",
-        primary_dir="processed",
+        # Fiscal section primary series: federal budgetary balance, full
+        # fiscal-year ACTUALS (FRT history; forecast rows dropped on read).
+        # Rendered as a bar sparkline -- the canonical deficit chart -- so the
+        # tile reads as an annual fiscal snapshot alongside the debt/GDP,
+        # program-expense, and interest-burden supporting prints below. Source:
+        # DoF Fiscal Reference Tables 2025, derived -> frt_federal_balance_total
+        # (CAD billions on disk; value_scale bridges to the millions the
+        # currency_cad formatter expects).
+        primary_series="frt_federal_balance_total",
+        primary_dir="derived",
         unit_display="B",
         value_decimals=1,
         delta_decimals=1,
         delta_unit="B",
+        value_scale=1000.0,
         reference_value=0.0,
         reference_label="Balanced budget",
         chart_series_key="fiscal-ytd-balance",
         print_key="fiscal-ytd-balance",
-        print_indicator="Federal balance (FYTD)",
-        as_of_format="fy-ytd-month",
+        print_indicator="Federal budget balance",
+        as_of_format="fiscal-year",
         delta_kind="level",
         positive_is_good=True,  # surplus is good; deficit widening is bad
     ),
@@ -673,12 +684,69 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
             ),
         ),
     ),
-    # "fiscal" debt-service-share tile removed 2026-05-28: raw CSVs
-    # (public_debt_charges_ytd, revenues_ytd) are not present in data/raw/,
-    # which caused the partner_share transform to fall back to "TK" and
-    # render as visible placeholders on /overview/. Restore this entry
-    # once the upstream DoF Fiscal Monitor pipeline writes those CSVs.
-    "fiscal": (),
+    # Fiscal supporting prints: three annual fiscal-stance ratios from the
+    # DoF Fiscal Reference Tables (derived frt_* series). All are ACTUALS --
+    # the forecast rows carried in these CSVs are dropped on read (see
+    # _read_series). Latest = FY2024-25; comparator = prior FY (iloc[-2]).
+    # (Replaced the 2026-05-28 debt-service-share placeholder, which depended
+    #  on raw CSVs that were never landed; these frt_* series are tracked.)
+    "fiscal": (
+        SupportingPrintSpec(
+            key="fiscal-debt-gdp",
+            indicator="Federal debt, % of GDP",
+            primary_series="frt_federal_debt_pct_gdp",
+            primary_dir="derived",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="fiscal-year",
+            transform=None,
+            notes=(
+                "Federal debt (accumulated deficit) as a share of GDP, annual. "
+                "DoF Fiscal Reference Tables 2025; actuals only. Source series: "
+                "frt_federal_debt_pct_gdp."
+            ),
+        ),
+        SupportingPrintSpec(
+            key="fiscal-program-exp-gdp",
+            indicator="Program expenses, % of GDP",
+            primary_series="frt_program_exp_pct_gdp",
+            primary_dir="derived",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="fiscal-year",
+            transform=None,
+            notes=(
+                "Federal program expenses as a share of GDP, annual. DoF Fiscal "
+                "Reference Tables 2025; actuals only. Source series: "
+                "frt_program_exp_pct_gdp."
+            ),
+        ),
+        SupportingPrintSpec(
+            key="fiscal-interest-rev",
+            indicator="Interest, % of revenue",
+            primary_series="frt_debt_charges_pct_revenues",
+            primary_dir="derived",
+            unit_display="%",
+            value_decimals=1,
+            delta_decimals=1,
+            delta_unit="pp",
+            delta_kind="pp",
+            as_of_format="fiscal-year",
+            transform=None,
+            notes=(
+                "Public debt charges as a share of federal revenues (the "
+                "interest-burden / debt-service ratio), annual. DoF Fiscal "
+                "Reference Tables 2025; actuals only. Source series: "
+                "frt_debt_charges_pct_revenues."
+            ),
+        ),
+    ),
     "markets": (
         SupportingPrintSpec(
             key="goc-10y",
@@ -830,6 +898,13 @@ def _read_series(
             # Drop rows where value is NaN -- never feed a NaN to the tile.
             if "value" in df.columns:
                 df = df.dropna(subset=["value"]).reset_index(drop=True)
+            # Homepage tiles report ACTUALS, never forecasts. Annual fiscal
+            # series (frt_*) carry an `is_forecast` flag with projection rows
+            # tacked onto the end; drop them so the tile value/delta/sparkline
+            # describe only realized data. (Series without the column -- every
+            # other tile series -- are untouched.)
+            if "is_forecast" in df.columns:
+                df = df[df["is_forecast"].fillna(0).astype(int) == 0].reset_index(drop=True)
             meta: dict = {}
             if meta_path.exists():
                 try:
@@ -1025,6 +1100,11 @@ def _format_as_of(d: pd.Timestamp, kind: str) -> str:
             fy_end_year = d.year
         fy_short = fy_end_year % 100
         return f"FYTD {d.strftime('%b')} {fy_short:02d}"
+    if kind == "fiscal-year":
+        # Annual federal fiscal-year series are dated at FY-end (Mar 31).
+        # The Canadian FY label spans the prior calendar year to the dated
+        # year: a row dated 2025-03-31 is "FY 2024-25".
+        return f"FY {d.year - 1}-{d.year % 100:02d}"
     # "month-year"
     return d.strftime("%b %Y")
 
@@ -1313,6 +1393,11 @@ def _build_section(cfg: SectionConfig, data_root: Path) -> dict:
         }
 
     df = loaded.data.sort_values("date").reset_index(drop=True)
+    # Bridge on-disk units to the formatter's expected units when they differ
+    # (e.g. annual federal balance stored in billions; currency_cad wants
+    # millions). Scales the value, delta, and sparkline uniformly.
+    if cfg.value_scale != 1.0 and "value" in df.columns:
+        df["value"] = df["value"] * cfg.value_scale
     if len(df) < 2:
         return {
             "slug": cfg.slug,
