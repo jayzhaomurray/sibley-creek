@@ -71,7 +71,8 @@ research built around a heart of data analysis.
 
 Canonical sources of truth (read on demand):
 - `editorial/dashboard_purpose.md` — what the publication exists to be
-- `editorial/writing-style.md` — voice + style canon
+- `editorial/writing-style.md` — voice + style canon (site surfaces)
+- `editorial/byline_voice.md` — Jay's signed-prose voice (notes + commentaries); brief writers here for bylined work
 - `editorial/review_protocol.md` — the three-gate review process (the core ship gate; see below)
 - `design/design-system.md` — Vignelli visual canon
 - `design/canon_reference_panel.md` — Tier-3 chart canon

@@ -396,6 +396,10 @@ class SupportingPrintSpec:
     # use "w/w" so the tile delta reads as a macro move, not day-trader
     # noise.
     delta_window: str = "prior"
+    # When True, keep the latest row even if is_forecast=1. For fiscal annual
+    # series: FRT actuals lag the fiscal year end by ~6 months; use the
+    # published projection for the just-completed year and mark it "est."
+    allow_forecast: bool = False
 
 
 # Per-section supporting prints. Each tuple is ordered; the homepage tile
@@ -689,9 +693,10 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
         ),
     ),
     # Fiscal supporting prints: three annual fiscal-stance ratios from the
-    # DoF Fiscal Reference Tables (derived frt_* series). All are ACTUALS --
-    # the forecast rows carried in these CSVs are dropped on read (see
-    # _read_series). Latest = FY2024-25; comparator = prior FY (iloc[-2]).
+    # DoF Fiscal Reference Tables (derived frt_* series). allow_forecast=True
+    # so the latest COMPLETE fiscal year is always shown even before FRT
+    # actuals publish (typically ~6 months after FY end). The asOf renders
+    # "FY YYYY-YY est." when the row is flagged is_forecast=1.
     # (Replaced the 2026-05-28 debt-service-share placeholder, which depended
     #  on raw CSVs that were never landed; these frt_* series are tracked.)
     "fiscal": (
@@ -707,10 +712,11 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
             delta_kind="pp",
             as_of_format="fiscal-year",
             transform=None,
+            allow_forecast=True,
             notes=(
                 "Federal debt (accumulated deficit) as a share of GDP, annual. "
-                "DoF Fiscal Reference Tables 2025; actuals only. Source series: "
-                "frt_federal_debt_pct_gdp."
+                "DoF Fiscal Reference Tables; latest complete FY shown (est. "
+                "until FRT actuals publish). Source series: frt_federal_debt_pct_gdp."
             ),
         ),
         SupportingPrintSpec(
@@ -725,10 +731,11 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
             delta_kind="pp",
             as_of_format="fiscal-year",
             transform=None,
+            allow_forecast=True,
             notes=(
                 "Federal program expenses as a share of GDP, annual. DoF Fiscal "
-                "Reference Tables 2025; actuals only. Source series: "
-                "frt_program_exp_pct_gdp."
+                "Reference Tables; latest complete FY shown (est. until FRT "
+                "actuals publish). Source series: frt_program_exp_pct_gdp."
             ),
         ),
         SupportingPrintSpec(
@@ -743,11 +750,12 @@ SUPPORTING_PRINTS: dict[str, tuple[SupportingPrintSpec, ...]] = {
             delta_kind="pp",
             as_of_format="fiscal-year",
             transform=None,
+            allow_forecast=True,
             notes=(
                 "Public debt charges as a share of federal revenues (the "
                 "interest-burden / debt-service ratio), annual. DoF Fiscal "
-                "Reference Tables 2025; actuals only. Source series: "
-                "frt_debt_charges_pct_revenues."
+                "Reference Tables; latest complete FY shown (est. until FRT "
+                "actuals publish). Source series: frt_debt_charges_pct_revenues."
             ),
         ),
     ),
@@ -879,6 +887,7 @@ def _read_series(
     name: str,
     preferred_dir: str,
     data_root: Path,
+    allow_forecast: bool = False,
 ) -> Optional[_LoadedSeries]:
     """Find `<name>.csv` in data/<preferred_dir>/ first; fall through to
     the other tiers in order: processed -> derived -> raw.
@@ -908,7 +917,15 @@ def _read_series(
             # describe only realized data. (Series without the column -- every
             # other tile series -- are untouched.)
             if "is_forecast" in df.columns:
-                df = df[df["is_forecast"].fillna(0).astype(int) == 0].reset_index(drop=True)
+                if allow_forecast:
+                    # Keep actuals + forecasts for completed periods only
+                    # (date <= today). This includes the just-finished fiscal
+                    # year before FRT actuals publish, but excludes future
+                    # projection rows (e.g. FY 2026-27 through 2030-31).
+                    today = pd.Timestamp.now().normalize()
+                    df = df[df["date"] <= today].reset_index(drop=True)
+                else:
+                    df = df[df["is_forecast"].fillna(0).astype(int) == 0].reset_index(drop=True)
             meta: dict = {}
             if meta_path.exists():
                 try:
@@ -1301,13 +1318,14 @@ def _build_supporting_print(spec: SupportingPrintSpec, data_root: Path) -> dict 
                     f"fails the deploy leakage gate."
                 )
 
-    primary = _read_series(spec.primary_series, spec.primary_dir, data_root)
+    primary = _read_series(spec.primary_series, spec.primary_dir, data_root, allow_forecast=spec.allow_forecast)
     secondary: Optional[_LoadedSeries] = None
     if spec.secondary_series is not None:
         secondary = _read_series(
             spec.secondary_series,
             spec.secondary_dir or spec.primary_dir,
             data_root,
+            allow_forecast=spec.allow_forecast,
         )
         if secondary is None:
             primary = None  # spread / partner-share needs both sides
@@ -1364,13 +1382,26 @@ def _build_supporting_print(spec: SupportingPrintSpec, data_root: Path) -> dict 
     frequency = (primary.meta.get("frequency") or "monthly").lower()
     spark = _sample_spark(df, frequency)
 
+    # Detect whether the latest row is a forecast (is_forecast=1 in the raw
+    # primary). When allow_forecast=True the forecast row is kept; we mark
+    # the asOf with " est." so the reader knows the figure is projected.
+    latest_is_forecast = False
+    if spec.allow_forecast and "is_forecast" in primary.data.columns:
+        raw_row = primary.data[primary.data["date"] == latest_date]
+        if not raw_row.empty:
+            latest_is_forecast = int(raw_row.iloc[-1]["is_forecast"]) == 1
+
+    as_of_str = _format_as_of(latest_date, spec.as_of_format)
+    if latest_is_forecast:
+        as_of_str += " est."
+
     return {
         "key": spec.key,
         "indicator": spec.indicator,
         "value": _format_value_for_spec(latest_val, spec),
         "delta": _format_delta_for_spec(latest_val, prior_val, spec),
         "deltaDir": _resolve_delta_dir_for_spec(latest_val, prior_val, spec),
-        "asOf": _format_as_of(latest_date, spec.as_of_format),
+        "asOf": as_of_str,
         "spark": spark,
         "valueRaw": latest_val,
         "priorRaw": prior_val,
