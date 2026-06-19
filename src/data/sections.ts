@@ -963,6 +963,47 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "boc-2026-06-10",
+    section: "monetary",
+    title: "The Bank of Canada holds at 2.25% and keeps its guidance.",
+    publishedAt: "2026-06-10",
+    pdfPath: "/research/commentaries/boc-2026-06-10.pdf",
+    excerpt:
+      "The Bank of Canada is getting closer to ending its hold, and will likely not wait longer than September to pick a direction. Officials were clear that the most important indicators to watch are core inflation, the share of the CPI basket running above 3%, and medium-to-long-term inflation expectations.",
+    coverage: [
+      {
+        outlet: "Financial Post",
+        url: "https://financialpost.com/news/bank-of-canada-end-interest-rate-pause",
+        date: "2026-06-11",
+      },
+    ],
+  },
+  {
+    slug: "trade-2026-06-09",
+    section: "trade",
+    title: "Oil exports boost Canada's trade surplus.",
+    publishedAt: "2026-06-09",
+    pdfPath: "/research/commentaries/trade-2026-06-09.pdf",
+    excerpt:
+      "Canada is selling more to the world, with exports hitting an all-time high of C$75 billion in April. Still, the month's export gains were driven by higher sales to the US, going against Prime Minister Carney's aim to diversify trade.",
+    coverage: [
+      {
+        outlet: "Financial Post",
+        url: "https://financialpost.com/news/economy/biggest-knock-canada-trade-carney-economic-pillars",
+        date: "2026-06-09",
+      },
+    ],
+  },
+  {
+    slug: "boc-preview-june-2026",
+    section: "monetary",
+    title: "The Bank of Canada is set to hold in June.",
+    publishedAt: "2026-06-08",
+    pdfPath: "/research/commentaries/boc-preview-june-2026.pdf",
+    excerpt:
+      "We expect the Bank to hold for a fifth straight meeting on Wednesday. Looking further out, markets are pricing too many hikes: our estimate of the Bank's internal rate path settles 25 to 50 basis points below what the market expects.",
+  },
+  {
     slug: "jobs-may-2026",
     section: "labour",
     title: "Blowout Canada jobs report shows 88k gain.",
