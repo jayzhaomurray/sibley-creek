@@ -963,6 +963,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "retail-2026-06-19",
+    section: "output",
+    title: "Retail sales rise 0.5% as gas prices still lead.",
+    publishedAt: "2026-06-19",
+    pdfPath: "/research/commentaries/retail-2026-06-19.pdf",
+    excerpt:
+      "April data tells the same story as March: Canadians look like they're spending more, but they're mostly paying more for gasoline. Looking ahead, Canadians will start to see relief in prices at the pump, giving them a boost in overall spending power.",
+  },
+  {
     slug: "boc-2026-06-10",
     section: "monetary",
     title: "The Bank of Canada holds at 2.25% and keeps its guidance.",
