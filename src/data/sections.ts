@@ -963,6 +963,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "cpi-2026-06-22",
+    section: "inflation",
+    title: "Inflation hits 3.2% as gasoline climbs.",
+    publishedAt: "2026-06-22",
+    pdfPath: "/research/commentaries/cpi-2026-06-22.pdf",
+    excerpt:
+      "Inflation broke out of the Bank of Canada's control band as gas prices rose to levels not seen since Russia invaded Ukraine. Still, with an Iran peace deal in the works and energy markets pulling back, the bank will be able to argue that it should continue to look through the shock.",
+  },
+  {
     slug: "retail-2026-06-19",
     section: "output",
     title: "Retail sales rise 0.5% as gas prices still lead.",
