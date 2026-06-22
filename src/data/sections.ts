@@ -300,17 +300,17 @@ export const sections: Section[] = [
     headlineQuestion:
       "How close is Canadian inflation to the 2% target?",
     cadence: "Monthly",
-    // Most recent CPI print released May 19, 2026 (April 2026 reference period).
-    updatedAt: Date.UTC(2026, 4, 19, 8, 30),
+    // Most recent CPI print released Jun 22, 2026 (May 2026 reference period).
+    updatedAt: Date.UTC(2026, 5, 22, 8, 30),
     chartSeriesKey: "cpi-yoy",
-    heroKicker: "April CPI",
+    heroKicker: "May CPI",
     heroKickerPrefix: "CPI",
     latestReleasePrefix: "CPI",
     tileLine:
-      "Headline CPI rose to 2.8% in April on gas; cores ticked down to 2.0-2.1%.",
+      "Headline CPI hit 3.2% in May; cores held at 2.0-2.1%.",
     tileLineCitations: [
-      { phrase: "2.8%", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI NSA Y/Y, April 2026." },
-      { phrase: "2.0-2.1%", source: "pipeline:statcan:cpi_trim", note: "CPI-trim 2.0% and CPI-median 2.1% Y/Y, April 2026; BoC Valet preferred-core series." },
+      { phrase: "3.2%", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI NSA Y/Y, May 2026." },
+      { phrase: "2.0-2.1%", source: "pipeline:statcan:cpi_trim", note: "CPI-trim 2.0% and CPI-median 2.1% Y/Y, May 2026; BoC Valet preferred-core series." },
     ],
     prints: [
       {
@@ -357,16 +357,18 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "May 19, 2026",
+      date: "Jun 22, 2026",
       body:
-        "Headline CPI rose to 2.8% in April on higher gasoline prices tied to the war in Iran, but the print landed below the 3.1% consensus expectation. Core-trim and core-median — the measures the Bank of Canada reacts to — ticked down two-tenths each, to 2.0% and 2.1%. With breadth still narrow, an energy-driven lift in headline shouldn't pull the Bank off hold.",
+        "Headline CPI moved above the Bank of Canada's control band in May, rising to 3.2% year-over-year as energy inflation reached 22.2%. The underlying signal was steadier: CPI-trim held at 2.0%, CPI-median held at 2.1%, and goods excluding energy slowed to 0.7%. Breadth widened to 33.6% of the basket running above 3%, so the print is harder to dismiss than April's, but it is still led by energy rather than a broad core re-acceleration.",
     },
     abstractCitations: [
-      { phrase: "2.8% in April", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI NSA Y/Y, April 2026." },
-      { phrase: "war in Iran", source: "card:iran_oil_conflict_2026_05", note: "Geopolitical attribution for the April energy-price lift; Tier B card pending user_confirmed_at." },
-      { phrase: "3.1% consensus expectation", source: "card:economist_consensus_april_2026_cpi", note: "Consensus expected 3.1% Y/Y headline (and 0.6% m/m NSA) for April 2026 CPI. Mode 2 aggregated consensus citation; source-card pending." },
-      { phrase: "2.0% and 2.1%", source: "pipeline:statcan:cpi_trim", note: "CPI-trim 2.0% and CPI-median 2.1% Y/Y, April 2026; BoC Valet preferred-core series." },
-      { phrase: "ticked down two-tenths each", source: "pipeline:statcan:cpi_trim", note: "CPI-trim fell from 2.2% (Mar) to 2.0% (Apr); CPI-median fell from 2.3% (Mar) to 2.1% (Apr). Both -0.2pp." },
+      { phrase: "3.2% year-over-year", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI NSA Y/Y, May 2026." },
+      { phrase: "22.2%", source: "pipeline:statcan:18-10-0004-01", note: "Energy CPI Y/Y, May 2026." },
+      { phrase: "CPI-trim held at 2.0%", source: "pipeline:statcan:cpi_trim", note: "CPI-trim Y/Y, May 2026; unchanged from April 2026." },
+      { phrase: "CPI-median held at 2.1%", source: "pipeline:statcan:cpi_median", note: "CPI-median Y/Y, May 2026; unchanged from April 2026." },
+      { phrase: "goods excluding energy slowed to 0.7%", source: "pipeline:statcan:18-10-0004-01", note: "Goods excluding energy CPI Y/Y, May 2026 = 0.7147%; April 2026 = 0.9439%." },
+      { phrase: "33.6%", source: "derived", note: "Share of valid CPI components with Y/Y > 3%, May 2026 = 33.5858%." },
+      { phrase: "above 3%", source: "card:boc_inflation_mandate", note: "3% is the upper edge of the Bank of Canada's 1-3% inflation-control range." },
     ],
   },
   {

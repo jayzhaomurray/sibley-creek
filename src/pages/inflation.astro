@@ -30,15 +30,15 @@ const plates: Plate[] = [
     number: "01",
     indicator: "Headline CPI, m/m and Y/Y",
     plateIndexLabel: "Headline CPI",
-    title: "Headline CPI rose to 2.8% in April on higher gasoline prices.",
+    title: "Headline CPI moved above the control band in May.",
     interpretationHtml:
-      "Headline inflation climbed to 2.8% year-over-year in April from 2.4% in March, lifted by higher global energy prices tied to the war in Iran. " +
-      "The print came in below the 3.1% consensus, and the monthly move was modest at 0.4% unadjusted and 0.3% seasonally adjusted. " +
-      "Headline remains inside the 1-to-3% control band, and the source of the lift is an energy shock the Bank of Canada can look through.",
+      "Headline inflation climbed to 3.2% year-over-year in May from 2.8% in April, with the unadjusted monthly move at 1.0%. " +
+      "That puts the headline above the Bank of Canada's 1-to-3% control band. " +
+      "The composition matters: the overshoot is energy-led, but the move is no longer just a one-month April pop.",
     callout: {
-      value: "+2.8%",
+      value: "+3.2%",
       unitPrefix: "Y/Y",
-      delta: "m/m +0.4%",
+      delta: "m/m +1.0%",
       direction: "pos",
     },
     source:
@@ -46,12 +46,9 @@ const plates: Plate[] = [
     chartKey: "inflation-panel-1",
     data: panel1Data,
     citations: [
-      { phrase: "2.8% year-over-year in April", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI NSA Y/Y, April 2026." },
-      { phrase: "2.4% in March", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI NSA Y/Y, March 2026 (one print back)." },
-      { phrase: "war in Iran", source: "card:iran_oil_conflict_2026_05", note: "Geopolitical attribution for April energy-price lift; Tier B card pending user_confirmed_at." },
-      { phrase: "3.1% consensus", source: "card:economist_consensus_april_2026_cpi", note: "Consensus expected 3.1% Y/Y for April headline CPI. Mode 2 aggregated consensus citation; source-card pending." },
-      { phrase: "0.4% unadjusted", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI m/m NSA, April 2026 (per April 2026 release commentary; pipeline m/m NSA derivation to be slotted via _derived_slot_queue)." },
-      { phrase: "0.3% seasonally adjusted", source: "pipeline:statcan:18-10-0006-01", note: "Headline CPI m/m SA, April 2026 (per April 2026 release commentary; SA level refresh pending — flag to fact-checker)." },
+      { phrase: "3.2% year-over-year in May", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI NSA Y/Y, May 2026." },
+      { phrase: "2.8% in April", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI NSA Y/Y, April 2026." },
+      { phrase: "1.0%", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI m/m NSA, May 2026 = 0.9524%, rounds to 1.0%." },
       { phrase: "1-to-3% control band", source: "card:boc_inflation_mandate" },
     ],
   },
@@ -60,25 +57,24 @@ const plates: Plate[] = [
     number: "02",
     indicator: "Core-trim and core-median, Y/Y",
     plateIndexLabel: "Preferred cores",
-    title: "Core measures ticked down in April, closer to the 2% target.",
+    title: "Core measures held near target even as headline broke higher.",
     interpretationHtml:
-      "Core-trim fell to 2.0% in April and core-median to 2.1%, each two-tenths lower than March and lower again than three months ago. " +
-      "Both measures now sit within a tenth of the 2% target &mdash; effectively where the Bank of Canada wants them. " +
-      "The energy lift in headline has not bled into the underlying signal — the only read that matters for the rate path.",
+      "CPI-trim held at 2.0% in May and CPI-median held at 2.1%, unchanged from April. " +
+      "Both measures sit within a tenth of the 2% target, so the Bank of Canada's preferred-core signal did not confirm the headline acceleration. " +
+      "That keeps the policy question focused on persistence: whether energy leaks into broader prices and expectations.",
     callout: {
       value: "2.0%",
       unitPrefix: "core-trim, Y/Y",
-      delta: "-0.2pp vs prior",
-      direction: "neg",
+      delta: "unchanged vs prior",
+      direction: "neutral",
     },
     source: "Bank of Canada (CPI-trim, CPI-median).",
     chartKey: "inflation-panel-2",
     data: panel2Data,
     citations: [
-      { phrase: "2.0% in April", source: "pipeline:statcan:cpi_trim", note: "CPI-trim Y/Y, April 2026 (BoC Valet preferred-core series)." },
-      { phrase: "core-median to 2.1%", source: "pipeline:statcan:cpi_median", note: "CPI-median Y/Y, April 2026 (BoC Valet preferred-core series)." },
-      { phrase: "two-tenths lower than March", source: "pipeline:statcan:cpi_trim", note: "CPI-trim 2.2% (Mar) -> 2.0% (Apr) = -0.2pp; CPI-median 2.3% (Mar) -> 2.1% (Apr) = -0.2pp." },
-      { phrase: "lower again than three months ago", source: "pipeline:statcan:cpi_trim", note: "Both trim and median ran higher in January 2026 than they print in April 2026; BoC Valet preferred-core series." },
+      { phrase: "CPI-trim held at 2.0%", source: "pipeline:statcan:cpi_trim", note: "CPI-trim Y/Y, May 2026 (BoC Valet preferred-core series)." },
+      { phrase: "CPI-median held at 2.1%", source: "pipeline:statcan:cpi_median", note: "CPI-median Y/Y, May 2026 (BoC Valet preferred-core series)." },
+      { phrase: "unchanged from April", source: "pipeline:statcan:cpi_trim", note: "CPI-trim held at 2.0% from April to May 2026; CPI-median held at 2.1% from April to May 2026." },
       { phrase: "2% target", source: "card:boc_inflation_mandate" },
     ],
   },
@@ -87,24 +83,26 @@ const plates: Plate[] = [
     number: "03",
     indicator: "Share of CPI basket above 3% Y/Y",
     plateIndexLabel: "Breadth",
-    title: "Breadth remains narrow, with 29% of the basket running above 3%.",
+    title: "Breadth widened, with 33.6% of the basket running above 3%.",
     interpretationHtml:
-      "The share of CPI components rising faster than 3% year-over-year sits at 29% in April, narrower than March's 30% and well below the 2022 episode when more than two thirds of the basket cleared that line. " +
-      "Pressure is concentrated, not diffuse &mdash; a mix the Bank of Canada can read as a relative-price story rather than a generalized one.",
+      "The valid-component breadth measure rose to 33.6% in May from 28.6% in April, while the BoC-recipe measure rose to 34.6%. " +
+      "That is still far below the 2022 episode when more than two thirds of the basket cleared 3%, but the direction is no longer benign. " +
+      "A narrow energy shock is becoming a broader watch item, not yet a generalized inflation episode.",
     callout: {
-      value: "29%",
+      value: "33.6%",
       unitPrefix: "share >3% Y/Y",
-      delta: "-1pp vs prior",
-      direction: "neg",
+      delta: "+5.0pp vs prior",
+      direction: "pos",
     },
     source: "Statistics Canada Table 18-10-0004-01; component shares constructed.",
     chartKey: "inflation-panel-3",
     data: panel3Data,
     citations: [
       { phrase: "rising faster than 3%", source: "derived", note: "Methodology threshold for the breadth measure: share of CPI components with Y/Y above 3.0% — the upper edge of the BoC 1-3% control band." },
-      { phrase: "29% in April", source: "derived", note: "Share of CPI basket components with Y/Y > 3%, April 2026 = 29.43% rounds to 29%; constructed from StatCan 18-10-0004-01 component-level Y/Y series." },
-      { phrase: "narrower than March's 30%", source: "derived", note: "March 2026 = 30.47% rounds to 30%; April narrowed -1pp from March." },
-      { phrase: "2022 episode when more than two thirds of the basket cleared that line", source: "derived", note: "Peak share of CPI components Y/Y > 3% during the 2022 inflation episode: 68.76% at Sept 2022 (also Aug 67.89%, Jul 67.09%, May 66.98%); constructed from StatCan 18-10-0004-01 component series." },
+      { phrase: "33.6% in May", source: "derived", note: "Share of valid CPI components with Y/Y > 3%, May 2026 = 33.5858%." },
+      { phrase: "28.6% in April", source: "derived", note: "Share of valid CPI components with Y/Y > 3%, April 2026 = 28.5570%." },
+      { phrase: "34.6%", source: "derived", note: "BoC-recipe breadth measure for components with Y/Y > 3%, May 2026 = 34.6134%." },
+      { phrase: "2022 episode when more than two thirds of the basket cleared 3%", source: "derived", note: "Peak share of CPI components Y/Y > 3% during the 2022 inflation episode: 68.76% at Sept 2022 (also Aug 67.89%, Jul 67.09%, May 66.98%); constructed from StatCan 18-10-0004-01 component series." },
     ],
   },
   {
@@ -112,15 +110,15 @@ const plates: Plate[] = [
     number: "04",
     indicator: "Shelter, services, goods, food, energy, Y/Y",
     plateIndexLabel: "Sub-aggregates",
-    title: "Gas and energy drove April's lift while the rest of the basket stayed soft.",
+    title: "Energy and goods drove the May acceleration.",
     interpretationHtml:
-      "Energy ran at 19.2% year-over-year in April on higher global oil and gasoline prices, the source of nearly all of the headline acceleration. " +
-      "The rest of the basket is well-behaved: shelter at 1.8% is a fourth straight month below the 2% target, services eased to 1.7%, food slowed to 3.5%, and goods at 4.4% looks hot only because energy sits inside it &mdash; strip those components and goods inflation is mild. " +
-      "That mix is why the Bank of Canada can absorb an energy-driven headline without changing course.",
+      "Energy inflation rose to 22.2% year-over-year in May, and goods inflation rose to 4.8%. " +
+      "The ex-energy read is much softer: goods excluding energy slowed to 0.7%, shelter held at 1.7%, services sat at 2.0%, and food ran at 3.8%. " +
+      "The headline is above band, but the pressure is still concentrated in energy-sensitive goods rather than the full services/shelter core.",
     callout: {
-      value: "19.2%",
+      value: "22.2%",
       unitPrefix: "energy, Y/Y",
-      delta: "+15.4pp vs prior",
+      delta: "+3.0pp vs prior",
       direction: "pos",
     },
     source:
@@ -128,14 +126,12 @@ const plates: Plate[] = [
     chartKey: "inflation-panel-4",
     data: panel4Data,
     citations: [
-      { phrase: "Energy ran at 19.2%", source: "pipeline:statcan:18-10-0004-01", note: "Energy Y/Y, April 2026." },
-      { phrase: "higher global oil and gasoline prices", source: "card:iran_oil_conflict_2026_05", note: "Geopolitical attribution for April energy-price lift; Tier B card pending user_confirmed_at." },
-      { phrase: "shelter at 1.8%", source: "pipeline:statcan:18-10-0004-01", note: "Shelter Y/Y, April 2026." },
-      { phrase: "fourth straight month below the 2% target", source: "pipeline:statcan:18-10-0004-01", note: "Shelter Y/Y prints below 2% in January (1.7%), February (1.5%), March (1.7%), April (1.8%) 2026; enumerated from monthly sub-aggregate series." },
-      { phrase: "2% target", source: "card:boc_inflation_mandate" },
-      { phrase: "services eased to 1.7%", source: "pipeline:statcan:18-10-0004-01", note: "Services Y/Y, April 2026 (1.65% rounds to 1.7%); March was 2.5%." },
-      { phrase: "food slowed to 3.5%", source: "pipeline:statcan:18-10-0004-01", note: "Food Y/Y, April 2026 (3.50% rounds to 3.5%); March was 4.0%." },
-      { phrase: "Goods at 4.4%", source: "pipeline:statcan:18-10-0004-01", note: "Goods Y/Y, April 2026 (4.42% rounds to 4.4%); March was 2.1%. The Y/Y lift sits inside the energy components of the goods aggregate." },
+      { phrase: "Energy inflation rose to 22.2%", source: "pipeline:statcan:18-10-0004-01", note: "Energy CPI Y/Y, May 2026 = 22.1753%." },
+      { phrase: "goods inflation rose to 4.8%", source: "pipeline:statcan:18-10-0004-01", note: "Goods CPI Y/Y, May 2026 = 4.8143%." },
+      { phrase: "goods excluding energy slowed to 0.7%", source: "pipeline:statcan:18-10-0004-01", note: "Goods excluding energy CPI Y/Y, May 2026 = 0.7147%; April 2026 = 0.9439%." },
+      { phrase: "shelter held at 1.7%", source: "pipeline:statcan:18-10-0004-01", note: "Shelter CPI Y/Y, May 2026 = 1.7121%." },
+      { phrase: "services sat at 2.0%", source: "pipeline:statcan:18-10-0004-01", note: "Services CPI Y/Y, May 2026 = 1.9683%." },
+      { phrase: "food ran at 3.8%", source: "pipeline:statcan:18-10-0004-01", note: "Food CPI Y/Y, May 2026 = 3.7871%." },
     ],
   },
   {
