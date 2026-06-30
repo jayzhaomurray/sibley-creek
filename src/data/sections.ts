@@ -229,16 +229,16 @@ export const sections: Section[] = [
     headlineQuestion:
       "How fast is Canada's economy growing?",
     cadence: "Monthly + quarterly",
-    // Most recent monthly GDP print released Apr 30, 2026 (Feb 2026 reference period).
-    updatedAt: Date.UTC(2026, 3, 30, 8, 30),
+    // Most recent monthly GDP print released Jun 30, 2026 (Apr 2026 reference period).
+    updatedAt: Date.UTC(2026, 5, 30, 8, 30),
     chartSeriesKey: "gdp-yoy",
-    heroKicker: "March & Q1 GDP",
+    heroKicker: "April & Q1 GDP",
     heroKickerPrefix: "GDP",
     latestReleasePrefix: "Monthly GDP by industry",
     tileLine:
-      "Growth slowed to 0.4% in March, driven by the goods sector.",
+      "Growth picked up to 1.1% in April, led by the goods sector.",
     tileLineCitations: [
-      { phrase: "0.4% in March", source: "pipeline:statcan:gdp_monthly_yoy", note: "Monthly real GDP y/y: 0.41% Mar 2026, down from 0.78% Feb 2026 (data/processed/gdp_monthly_yoy.csv)." },
+      { phrase: "1.1% in April", source: "pipeline:statcan:gdp_monthly_yoy", note: "Monthly real GDP y/y: 1.12% Apr 2026, up from 0.44% Mar 2026 (data/processed/gdp_monthly_yoy.csv)." },
     ],
     prints: [
       {
@@ -282,14 +282,14 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "May 29, 2026",
+      date: "June 30, 2026",
       body:
-        "Stalled at the headline, but the composition is more nuanced. Real GDP edged down 0.1% annualized in Q1 and slipped another 0.1% in March, leaving year-over-year growth at just 0.4%. The Q1 drag came from a surge in imports and contracting government spending — not from collapsing household demand. Calls of a technical recession remain premature.",
+        "Growth is running at 1.1% year-over-year, just below potential. Real GDP rose 0.5% in April after a soft first quarter, and while momentum is uneven, the data don't point to a recession underway.",
     },
     abstractCitations: [
-      { phrase: "0.1% annualized in Q1", source: "pipeline:statcan:36-10-0104-01", note: "Q1 2026 real GDP quarterly q/q SAAR." },
-      { phrase: "0.1% in March", source: "pipeline:statcan:36-10-0434-01", note: "March 2026 monthly real GDP m/m." },
-      { phrase: "0.4%", source: "pipeline:statcan:36-10-0434-01", note: "Real GDP Y/Y, March 2026 monthly print." },
+      { phrase: "1.1% year-over-year", source: "pipeline:statcan:36-10-0434-01", note: "Real GDP Y/Y, April 2026 monthly print = 1.12%." },
+      { phrase: "0.5% in April", source: "pipeline:statcan:36-10-0434-01", note: "April 2026 monthly real GDP m/m = +0.547%." },
+      { phrase: "just below potential", source: "card:boc_mpr_potential_growth", note: "BoC near-term potential growth 1.2% (MPR April 2026); 1.1% y/y sits just below." },
     ],
   },
   {
@@ -1223,16 +1223,13 @@ export const splashHero: {
   citations: import("../layouts/SectionLayout.astro").ClaimCitation[];
 } = {
   abstract:
-    "Stuck below its potential, on two fronts at once. Cyclically, growth is running at 0.4% as the job market slackens and core inflation sits at target. Gas prices are high due to the closing of the Strait of Hormuz. Structurally, immigration reforms and tariffs are forcing a realignment. Population growth has levelled off, which is showing up clearly in the housing market, while new exports are narrowly redirecting away from the US.",
+    "The story now is the price of oil coming down. With the Strait of Hormuz standoff easing, crude has retreated. That cuts two ways for Canada. It slows down the oil and gas extraction that drove the recent pickup in growth, but it also reduces the inflation pressure coming from gasoline.",
   citations: [
-    { phrase: "0.4%", source: "pipeline:statcan:36-10-0434-01", note: "Real GDP by industry, Y/Y, March 2026 monthly print." },
-    { phrase: "the job market slackens", source: "derived", note: "LFS data: unemployment rate has drifted up to 6.9% (April 2026) with aggregate hours worked negative year-over-year; intensive margin is leading the loosening." },
-    { phrase: "core inflation sits at target", source: "derived", note: "Preferred cores (CPI-trim, CPI-median) near 2% in April 2026; CPI-trim 2.2%, CPI-median 2.3%." },
-    { phrase: "Gas prices are high due to the closing of the Strait of Hormuz", source: "card:iran_oil_conflict_2026_05", note: "User-confirmed Tier B card: Strait of Hormuz impasse -> global oil -> Canadian gasoline transmission (CIBC Week Ahead May 18-22 2026, multi-author)." },
-    { phrase: "immigration reforms", source: "card:ircc_levels_plan_2026_2028", note: "IRCC 2026-2028 Immigration Levels Plan (announced November 2025) caps permanent residents at 380,000 per year with sub-caps on international students and temporary workers. Card in _pending/per-capita-output/ — gate blocks until user-approved." },
-    { phrase: "tariffs", source: "card:pp_section_232_steel_alum_50pct", note: "US Section 232 measures (50% steel and aluminum since June 2025, copper added April 2026); broader tariff stack and USMCA review covered in trade section." },
-    { phrase: "Population growth has levelled off", source: "pipeline:statcan:17-10-0009-01", note: "Quarterly population Y/Y peaked at 3.18% in Q2 2024 and printed -0.25% in Q1 2026 per StatCan demographic estimates." },
-    { phrase: "new exports are narrowly redirecting away from the US", source: "derived", note: "US share of Canadian merchandise exports moved from ~76% (2024 average) to ~66% (March 2026) per StatCan 12-10-0121-01 — the shift is real but concentrated in gold." },
+    { phrase: "the price of oil coming down", source: "derived", note: "NYMEX WTI front-month (CL=F, data/raw/wti.csv): $84.88 Jun 12 2026 falling to $70.35 Jun 29, down 17.1% on the month (peaked ~$108 mid-May; the slide tracks the Strait of Hormuz de-escalation)." },
+    { phrase: "the Strait of Hormuz standoff easing", source: "derived", note: "US-Iran MOU to end the war/strait blockade signed Jun 17 2026; US Navy JMIC widened the Hormuz transit route Jun 27 (en.wikipedia.org/wiki/2026_Strait_of_Hormuz_crisis; Al Jazeera, Jun 2026). Fragile de-escalation — Iran briefly reclosed the strait Jun 20 — net late-June trajectory is easing, not resolved." },
+    { phrase: "crude has retreated", source: "derived", note: "Same WTI series: front-month down from the mid-June high to ~$70 by end-June 2026." },
+    { phrase: "oil and gas extraction that drove the recent pickup in growth", source: "pipeline:statcan:36-10-0434-01", note: "Mining, quarrying, and oil and gas extraction led April 2026 monthly real GDP (+0.5% m/m), up 2.9% — its largest gain since Feb 2024; oil sands extraction rebounded 6.6% (StatCan Daily dq260630a, Table 36-10-0434-01)." },
+    { phrase: "reduces the inflation pressure coming from gasoline", source: "derived", note: "Gasoline drove the recent CPI breakout (May 2026 all-items CPI 3.2%, gasoline-led); a lower crude price relieves forward gasoline and headline-CPI pressure." },
   ],
 };
 
