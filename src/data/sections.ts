@@ -965,6 +965,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "gdp-2026-06-30",
+    section: "output",
+    title: "Canada's economy grows 0.5%, lifted by oil sands.",
+    publishedAt: "2026-06-30",
+    pdfPath: "/research/commentaries/gdp-2026-06-30.pdf",
+    excerpt:
+      "Canada's economy expanded 0.5% in April, its fastest pace in almost a year, cutting through the recession talk that followed last month's quarterly data. But more than half the gain came from a temporary rebound in oil sands extraction, and advance tracking already points to the bounce fizzling out in May.",
+  },
+  {
     slug: "cpi-2026-06-22",
     section: "inflation",
     title: "Inflation hits 3.2% as gasoline climbs.",
