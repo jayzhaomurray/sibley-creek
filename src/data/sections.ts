@@ -965,6 +965,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "trade-2026-07-07",
+    section: "trade",
+    title: "Canada posts widest trade surplus in four years.",
+    publishedAt: "2026-07-07",
+    pdfPath: "/research/commentaries/trade-2026-07-07.pdf",
+    excerpt:
+      "May's report is a positive terms of trade story: Canada is getting a better deal from the world, selling at higher prices and buying at lower prices. Export diversification is still limited, with US-bound exports back to 70%.",
+  },
+  {
     slug: "gdp-2026-06-30",
     section: "output",
     title: "Canada's economy grows 0.5%, lifted by oil sands.",
