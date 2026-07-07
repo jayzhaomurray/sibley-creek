@@ -663,17 +663,17 @@ export const sections: Section[] = [
     headlineQuestion:
       "Is Canada's trade pivot working?",
     cadence: "Monthly + event",
-    // March merch-trade release landed May 5, 2026.
-    updatedAt: Date.UTC(2026, 4, 5, 8, 30),
+    // May merch-trade release landed July 7, 2026.
+    updatedAt: Date.UTC(2026, 6, 7, 8, 30),
     chartSeriesKey: "trade-balance",
-    heroKicker: "March balance",
+    heroKicker: "May balance",
     heroKickerPrefix: "Trade balance",
     latestReleasePrefix: "Merchandise trade",
     tileLine:
-      "Goods balance flipped to $1.8B surplus in March; US export share fell to 66.1%.",
+      "Goods surplus widened to $4.2B in May; US export share rebounded to 70.0%.",
     tileLineCitations: [
-      { phrase: "$1.8B surplus in March", source: "pipeline:statcan:12-10-0119-01", note: "Goods trade balance, March 2026 monthly print: +$1,779M (swung from -$5,113M deficit in February)." },
-      { phrase: "66.1%", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, March 2026." },
+      { phrase: "$4.2B in May", source: "pipeline:statcan:12-10-0119-01", note: "Goods trade balance, May 2026 monthly print: +$4,243M, up from +$3,405M in April." },
+      { phrase: "70.0%", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, May 2026: 70.0%." },
     ],
     tileChartKind: "bars",
     prints: [
@@ -716,16 +716,18 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "May 6, 2026",
+      date: "July 7, 2026",
       body:
-        "Not really. The US export share dropped from three quarters to two thirds in a year, but most of that is gold being routed to London at record prices; strip it out and the underlying share is down about three percentage points. Among the tariffed sectors, only aluminum has meaningfully diversified — autos lost over a billion dollars in US sales with almost no offset elsewhere.",
+        "Not really. The trade surplus widened again in May, but the US export share is back at 70.0% and looks little changed from a year ago. The apparent diversification pulse was still mostly gold routed to London; that flow is cooling, and among tariff-exposed sectors aluminum is the only clear shift away from the US while copper leaned more heavily toward it.",
     },
     abstractCitations: [
-      { phrase: "from three quarters to two thirds in a year", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports: 74.4% (Mar 2025) ≈ three quarters; 66.1% (Mar 2026) ≈ two thirds." },
-      { phrase: "gold being routed to London at record prices", source: "derived", note: "NAPCS 35 (unwrought gold, silver, PGM) total exports March 2026: C$8.0B, of which C$7.8B (97.4%) to UK. Gold futures (GC=F) May 2026 monthly close ~$4,676/oz, a record. Sources: StatCan 12-10-0182-01 + Yahoo Finance GC=F." },
-      { phrase: "the underlying share is down about three percentage points", source: "derived", note: "Ex-gold US share: Mar 2025 = 77.7%; Mar 2026 = 74.6%; Δ = -3.1pp. NAPCS 35 stripped from both numerator and denominator. Sources: StatCan 12-10-0121-01 + 12-10-0182-01." },
-      { phrase: "only aluminum has meaningfully diversified", source: "derived", note: "Aluminum (NAPCS 32+38) US share: Mar 2025 = 96.9%; Mar 2026 = 86.0%; Δ = -10.9pp. Steel, softwood, cars each shed under 5pp. Source: StatCan 12-10-0182-01." },
-      { phrase: "autos lost over a billion dollars in US sales with almost no offset elsewhere", source: "derived", note: "NAPCS 81 (passenger cars and light trucks) Δ exports Mar 2026 vs Mar 2025: US -C$1,247M; non-US +C$42M. Source: StatCan 12-10-0182-01." },
+      { phrase: "surplus widened again in May", source: "pipeline:statcan:12-10-0119-01", note: "Goods trade balance: +C$3,405M in April 2026 and +C$4,243M in May 2026." },
+      { phrase: "back at 70.0%", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, May 2026: 70.0%." },
+      { phrase: "little changed from a year ago", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports: 69.6% in May 2025 and 70.0% in May 2026." },
+      { phrase: "gold routed to London", source: "derived", note: "NAPCS 35 gold/silver/PGM exports to the UK were C$4.6B in May 2026, 82.6% of total NAPCS 35 exports. Source: StatCan 12-10-0182-01." },
+      { phrase: "that flow is cooling", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 exports to the UK fell from C$7.8B in March to C$5.6B in April and C$4.6B in May 2026." },
+      { phrase: "aluminum is the only clear shift away from the US", source: "derived", note: "Aluminum US share fell from 88.7% in May 2025 to 62.9% in May 2026; steel, softwood, and autos moved away by under five percentage points. Source: StatCan 12-10-0182-01." },
+      { phrase: "copper leaned more heavily toward it", source: "derived", note: "Copper US share rose from 88.9% in May 2025 to 90.6% in May 2026. Source: StatCan 12-10-0182-01." },
     ],
   },
   {
