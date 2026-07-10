@@ -967,6 +967,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "lfs-2026-07-10",
+    section: "labour",
+    title: "Canada adds 18k jobs as youth market improves.",
+    publishedAt: "2026-07-10",
+    pdfPath: "/research/commentaries/lfs-2026-07-10.pdf",
+    excerpt:
+      "Young people are starting to find jobs again in what's been a tough summer market. The World Cup effect may also be showing up, with much of the hiring happening in the hospitality industry.",
+  },
+  {
     slug: "trade-2026-07-07",
     section: "trade",
     title: "Canada posts widest trade surplus in four years.",
