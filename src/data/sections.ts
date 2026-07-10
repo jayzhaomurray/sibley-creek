@@ -383,17 +383,17 @@ export const sections: Section[] = [
     headlineQuestion:
       "Is the labour market loosening?",
     cadence: "Monthly",
-    // Most recent LFS landed Jun 5, 2026 (May 2026 reference period).
-    updatedAt: Date.UTC(2026, 5, 5, 8, 30),
+    // Most recent LFS landed Jul 10, 2026 (Jun 2026 reference period).
+    updatedAt: Date.UTC(2026, 6, 10, 8, 30),
     chartSeriesKey: "unrate",
-    heroKicker: "May LFS",
+    heroKicker: "June LFS",
     heroKickerPrefix: "LFS",
     latestReleasePrefix: "LFS",
     tileLine:
-      "Hiring snapped back in May and unemployment fell to 6.6%.",
+      "Canada added 18k jobs in June and unemployment fell to 6.5%.",
     tileLineCitations: [
-      { phrase: "Hiring snapped back in May", source: "pipeline:statcan:14-10-0287-01", note: "LFS employment change, SA, May 2026: +87.8k m/m (21.1215M from 21.0337M), largest gain since Dec 2024." },
-      { phrase: "6.6%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA, May 2026." },
+      { phrase: "18k jobs in June", source: "pipeline:statcan:14-10-0287-01", note: "LFS employment change, SA, June 2026: +18.2k m/m (21.1397M from 21.1215M)." },
+      { phrase: "6.5%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA, June 2026." },
     ],
     prints: [
       {
@@ -429,15 +429,17 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "fresh",
-      date: "Jun 5, 2026",
+      date: "Jul 10, 2026",
       body:
-        "Not in May — the headline broke the loosening story. Employment jumped 87,800, the fastest gain in a year and a half, lifting jobs to their highest level this year — still shy of December's peak — and pulling the unemployment rate down to 6.6% from 6.9%. Slack clears slowly, so it remains the lagging piece, but the cyclical alarm that followed last week's GDP print now reads overdone.",
+        "Less than before. Canada added 18,200 jobs in June and the unemployment rate eased to 6.5%, while the employment rate rose to 60.8% and participation held at 65.0%. Hours worked barely moved and LFS-Micro wage growth is still running at 2.6%, so the print looks like a modest firming rather than a broad labour-market re-acceleration.",
     },
     abstractCitations: [
-      { phrase: "Employment jumped 87,800", source: "pipeline:statcan:14-10-0287-01", note: "LFS employment change, SA, May 2026: 21.1215M minus 21.0337M = +87.8k." },
-      { phrase: "fastest gain in a year and a half", source: "derived", note: "Enumerated LFS m/m employment changes: last gain >= +87.8k was Dec 2024 (+92.7k), 17 months before May 2026." },
-      { phrase: "highest level this year — still shy of December's peak", source: "derived", note: "May 2026 employment 21.1215M exceeds every other 2026 month (Jan 21.1212M the next highest) but sits ~24.5k below Dec 2025 (21.146M). Per the published correction notice: not an all-time high." },
-      { phrase: "down to 6.6% from 6.9%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA: May 6.6%, April 6.9%." },
+      { phrase: "18,200 jobs in June", source: "pipeline:statcan:14-10-0287-01", note: "LFS employment change, SA, June 2026: 21.1397M minus 21.1215M = +18.2k." },
+      { phrase: "unemployment rate eased to 6.5%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA: June 2026 = 6.5%, down from 6.6% in May." },
+      { phrase: "employment rate rose to 60.8%", source: "pipeline:statcan:14-10-0287-01", note: "LFS employment rate, SA: June 2026 = 60.8%, up from 60.7% in May." },
+      { phrase: "participation held at 65.0%", source: "pipeline:statcan:14-10-0287-01", note: "LFS participation rate, SA: June 2026 = 65.0%, unchanged from May." },
+      { phrase: "Hours worked barely moved", source: "pipeline:statcan:14-10-0287-01", note: "Aggregate hours worked Y/Y slowed to 0.16% in June 2026 from 0.30% in May." },
+      { phrase: "LFS-Micro wage growth is still running at 2.6%", source: "pipeline:boc:lfs_micro", note: "BoC LFS-Micro wage growth, May 2026 = 2.6% Y/Y; June observation not yet available in the Valet series at this refresh." },
     ],
   },
   {
@@ -448,11 +450,11 @@ export const sections: Section[] = [
     headlineQuestion:
       "What is Canada's monetary policy stance?",
     cadence: "Event-driven + monthly",
-    // Apr 29 rate decision is the primary event; daily yields refresh
+    // Jun 10 rate decision is the primary event; daily yields refresh
     // continuously but the policy stance is anchored to the rate decision.
-    updatedAt: Date.UTC(2026, 3, 29, 14, 0),
+    updatedAt: Date.UTC(2026, 5, 10, 14, 0),
     chartSeriesKey: "policy-rate",
-    heroKicker: "April rate decision",
+    heroKicker: "June rate decision",
     // Policy's primary event is the rate decision, not the pipeline's
     // monthly `policy-rate` print. heroKickerPrefix is hand-set to the
     // event-month phrasing; the page-level "Latest release" date is
@@ -460,12 +462,13 @@ export const sections: Section[] = [
     // decision doesn't sit in `prints[]` directly.
     heroKickerPrefix: "Rate decision",
     latestReleasePrefix: "BoC rate decision",
-    latestReleaseDateOverride: "Apr 29, 2026",
+    latestReleaseDateOverride: "Jun 10, 2026",
     tileLine:
-      "BoC parked at the floor of neutral, 150 bps below the Fed and holding.",
+      "BoC stayed at 2.25%; 2y GoCs are near 2.85% and the Canada-US spread is -136 bps.",
     tileLineCitations: [
-      { phrase: "floor of neutral", source: "card:boc_mpr_neutral_range", note: "BoC stated nominal neutral range 2.25-3.25%; overnight at 2.25% sits at the floor." },
-      { phrase: "150 bps below the Fed", source: "derived", note: "BoC overnight 2.25% minus Fed upper bound 3.75% = -150 bps." },
+      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, June 10 2026 FAD decision, via Valet V39079." },
+      { phrase: "2.85%", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, July 8 2026 daily close." },
+      { phrase: "-136 bps", source: "derived", note: "Canada-US 2y spread, July 8 2026: GoC 2y 2.85% minus UST 2y 4.21% = -136 bps." },
     ],
     prints: [
       {
@@ -512,12 +515,15 @@ export const sections: Section[] = [
       kind: "last",
       date: "Jun 10, 2026",
       body:
-        "On hold. The Bank of Canada has stayed at 2.25% through five straight decisions, sitting at the floor of its 2.25 to 3.25% neutral range. Activity is softening at the same time the Iran-war oil shock is feeding energy inflation. The call hinges on persistence — how long the Strait of Hormuz stays closed, and whether the shock seeps into expectations.",
+        "On hold. The Bank of Canada has stayed at 2.25% through five straight decisions, still at the floor of its 2.25 to 3.25% neutral range. Market pricing has moved the other way: the 2-year GoC yield is 2.85%, up 5 bps on the latest close, while the Canada-US 2-year spread is still deeply negative at -136 bps.",
     },
     abstractCitations: [
-      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, Apr 29 2026 FAD decision, via Valet V39079." },
+      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, June 10 2026 FAD decision, via Valet V39079." },
       { phrase: "five straight decisions", source: "card:boc_fad_holds_post_oct_2025_cut", expected_count: 5, note: "Enumerated FAD holds since Oct 29, 2025 cut: Dec 10, Jan 28, Mar 18, Apr 29, Jun 10." },
       { phrase: "2.25 to 3.25% neutral range", source: "card:boc_mpr_neutral_range" },
+      { phrase: "2-year GoC yield is 2.85%", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, July 8 2026 daily close." },
+      { phrase: "up 5 bps", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield rose from 2.80% to 2.85% on the latest close." },
+      { phrase: "-136 bps", source: "derived", note: "Canada-US 2y spread, July 8 2026: GoC 2y 2.85% minus UST 2y 4.21% = -136 bps." },
     ],
   },
   {
@@ -528,17 +534,18 @@ export const sections: Section[] = [
     headlineQuestion:
       "What is Canada's fiscal policy stance?",
     cadence: "Monthly (Fiscal Monitor) + annual (budgets)",
-    // Fiscal Monitor Feb 2026 (released ~Apr 24 2026) is the primary event.
-    updatedAt: Date.UTC(2026, 3, 24, 8, 30),
+    // Fiscal Monitor Mar 2026 is the latest monthly issue in the pipeline.
+    updatedAt: Date.UTC(2026, 5, 16, 16, 5),
     chartSeriesKey: "fiscal-ytd-balance",
     tileChartKind: "bars",
-    heroKicker: "Fiscal Monitor Feb '26",
+    heroKicker: "Fiscal Monitor Mar '26",
     heroKickerPrefix: "Fiscal Monitor",
     latestReleasePrefix: "Fiscal Monitor",
     tileLine:
-      "The federal deficit is running wider this fiscal year than last.",
+      "The federal deficit reached $55.3B through March, wider than last year.",
     tileLineCitations: [
-      { phrase: "running wider this fiscal year than last", source: "card:dof_fiscal_monitor_debt_service_share", note: "DoF Fiscal Monitor Feb 2026: FY2025-26 budgetary deficit ran to -$25.5bn through February, ahead of the FY2024-25 year-to-date pace; the running FY-to-date deficit exceeds the prior fiscal year across the months the sparkline shows." },
+      { phrase: "$55.3B through March", source: "pipeline:dof:fiscal_monitor", note: "DoF Fiscal Monitor March 2026: FY2025-26 budgetary deficit YTD = -C$55.277bn." },
+      { phrase: "wider than last year", source: "pipeline:dof:fiscal_monitor", note: "DoF Fiscal Monitor March 2026: FY2025-26 YTD deficit -C$55.277bn versus FY2024-25 full-year deficit -C$43.154bn in the comparable source series." },
     ],
     prints: [
       {
@@ -580,17 +587,17 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "Jun 4, 2026",
+      date: "Jun 16, 2026",
       body:
-        "Fiscal policy is modestly stimulative. Carney's government is running a larger deficit than he inherited, but nothing near pandemic-level extremes. The government has split the budget in two and says it will balance the operating books by 2028-29. The PBO disputes this, suggesting the government has misclassified C$94 billion in operating expenses as capital investment.",
+        "Fiscal policy is modestly stimulative. The March Fiscal Monitor put the FY2025-26 deficit at $55.3 billion on a cash basis, while the Spring Economic Update estimate is $66.9 billion, up from $36.3 billion the year before. Debt is still expected to sit near 41.1% of GDP, but public debt charges are taking 10.6% of revenue.",
     },
     abstractCitations: [
       { phrase: "Fiscal policy is modestly stimulative", source: "card:claim_dof_deficit_larger_than_handoff_below_pandemic", note: "Analytical read backed by the deficit widening from C$36.3bn in FY2024-25 to C$66.9bn in FY2025-26." },
-      { phrase: "larger deficit than he inherited", source: "card:claim_dof_deficit_larger_than_handoff_below_pandemic", note: "DoF FRT/SEU: FY2024-25 actual deficit C$36.3bn; FY2025-26 forecast deficit C$66.9bn." },
-      { phrase: "nothing near pandemic-level extremes", source: "card:claim_dof_deficit_larger_than_handoff_below_pandemic", note: "DoF FRT/SEU: FY2025-26 forecast deficit C$66.9bn vs FY2020-21 pandemic deficit C$327.7bn." },
-      { phrase: "balance the operating books by 2028-29", source: "card:claim_dof_operating_surplus_2028_29", note: "DoF SEU April 2026 Annex 1 Table A1.5: day-to-day operating balance crosses zero in FY2028-29 (+$0.9bn)." },
-      { phrase: "PBO disputes this", source: "card:claim_pbo_anchor_cannot_verify", note: "PBO May 2026 fiscal-anchor assessment says it is not possible to advise in depth on how the updates support the government's assertion that the operating-balance anchor remains in balance." },
-      { phrase: "suggesting the government has misclassified C$94 billion in operating expenses as capital investment", source: "card:claim_pbo_94bn_reclassified", note: "PBO RP-2526-017-S: PBO's capital total is C$217.3bn versus Budget 2025's C$311.5bn over FY2024-25 to FY2029-30, a roughly C$94bn wedge." },
+      { phrase: "FY2025-26 deficit at $55.3 billion", source: "pipeline:dof:fiscal_monitor", note: "DoF Fiscal Monitor March 2026: FY2025-26 budgetary deficit YTD = -C$55.277bn." },
+      { phrase: "Spring Economic Update estimate is $66.9 billion", source: "card:claim_dof_deficit_larger_than_handoff_below_pandemic", note: "DoF SEU April 2026 Annex 1 Table A1.7: FY2025-26 budgetary balance = -C$66.9bn." },
+      { phrase: "$36.3 billion the year before", source: "card:claim_dof_deficit_larger_than_handoff_below_pandemic", note: "DoF FRT/SEU: FY2024-25 actual deficit C$36.3bn." },
+      { phrase: "41.1% of GDP", source: "pipeline:dof:fiscal_reference_tables", note: "Federal debt, % of GDP, FY2025-26 estimate = 41.1%." },
+      { phrase: "10.6% of revenue", source: "pipeline:dof:fiscal_reference_tables", note: "Public debt charges / revenues, FY2025-26 estimate = 10.6%." },
     ],
   },
   {
@@ -601,17 +608,17 @@ export const sections: Section[] = [
     headlineQuestion:
       "What's the state of Canada's housing market?",
     cadence: "Monthly",
-    // CREA April release (March reference period) landed Apr 15, 2026.
-    updatedAt: Date.UTC(2026, 3, 15, 9, 0),
+    // CREA May 2026 release is latest available; HPI reference period is April.
+    updatedAt: Date.UTC(2026, 6, 10, 10, 24),
     chartSeriesKey: "hpi-yoy",
-    heroKicker: "March home prices",
+    heroKicker: "April home prices",
     heroKickerPrefix: "Home prices",
     latestReleasePrefix: "Home prices",
     tileLine:
-      "Composite home prices down 4.6% Y/Y, now two years of negative readings.",
+      "Composite home prices were down 4.0% Y/Y; starts held near 260k.",
     tileLineCitations: [
-      { phrase: "4.6%", source: "pipeline:crea:mls_hpi_national", note: "CREA MLS HPI composite, Y/Y, March 2026." },
-      { phrase: "two years of negative readings", source: "pipeline:crea:mls_hpi_national", note: "Enumerated: CREA MLS HPI Y/Y has printed negative every month since April 2024 — 24 consecutive months through March 2026." },
+      { phrase: "4.0%", source: "pipeline:crea:mls_hpi_national", note: "CREA MLS HPI composite, Y/Y, April 2026 = -3.98%." },
+      { phrase: "260k", source: "pipeline:statcan:34-10-0158-01", note: "Total housing starts, SAAR 3mma, May 2026 = 259.9k." },
     ],
     prints: [
       {
@@ -644,15 +651,16 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "Apr 15, 2026",
+      date: "Jul 10, 2026",
       body:
-        "Home prices fell 4.6% Y/Y on the MLS HPI in the latest print, per the Canadian Real Estate Association, a tenth shallower than the prior month but now two years into negative territory. Housing starts on a 3mma basis stepped down to 241k from 257k, per Canada Mortgage and Housing Corporation. Affordability held at 42.7% of household income in Q4 2025, half a point easier on continued mortgage-cost relief.",
+        "Home prices are still falling, but the decline is becoming less severe. The national MLS HPI was down 4.0% year-over-year in April, compared with 4.6% in March. Starts held near 260k on a 3-month average in May, mortgage arrears stayed at 0.28% in April, and affordability improved to 42.3% of household income in Q1.",
     },
     abstractCitations: [
-      { phrase: "fell 4.6% Y/Y on the MLS HPI", source: "pipeline:crea:mls_hpi_national", note: "CREA MLS HPI composite, Y/Y, Mar 2026." },
-      { phrase: "two years into negative territory", source: "pipeline:crea:mls_hpi_national", note: "Enumerated: CREA MLS HPI Y/Y has printed negative every month since April 2024 — 24 consecutive months through March 2026." },
-      { phrase: "241k from 257k", source: "pipeline:statcan:34-10-0158-01", note: "Total housing starts, SAAR 3mma; latest vs prior month per CMHC release (StatCan table)." },
-      { phrase: "42.7% of household income in Q4 2025", source: "pipeline:boc:INDINF_AFFORD_Q", note: "BoC housing affordability index, qualifying payment / income, 2025Q4." },
+      { phrase: "national MLS HPI was down 4.0% year-over-year in April", source: "pipeline:crea:mls_hpi_national", note: "CREA MLS HPI composite, Y/Y, Apr 2026 = -3.98%." },
+      { phrase: "4.6% in March", source: "pipeline:crea:mls_hpi_national", note: "CREA MLS HPI composite, Y/Y, Mar 2026 = -4.60%." },
+      { phrase: "Starts held near 260k", source: "pipeline:statcan:34-10-0158-01", note: "Total housing starts, SAAR 3mma, May 2026 = 259.9k." },
+      { phrase: "mortgage arrears stayed at 0.28%", source: "pipeline:cba:mortgage_arrears", note: "CBA national residential mortgages in arrears, April 2026 = 0.28%, unchanged from March." },
+      { phrase: "42.3% of household income in Q1", source: "pipeline:boc:INDINF_AFFORD_Q", note: "BoC housing affordability index, qualifying payment / income, 2026Q1." },
     ],
   },
   {
@@ -745,24 +753,26 @@ export const sections: Section[] = [
     headlineQuestion:
       "How are financial markets affecting Canada?",
     cadence: "Daily (light) + weekly synthesis",
-    // Markets data refreshes daily; latest BoC noon-rate stamp May 8, 2026.
-    updatedAt: Date.UTC(2026, 4, 8, 21, 0),
+    // Markets data refreshes daily; latest market-data stamp Jul 9, 2026.
+    updatedAt: Date.UTC(2026, 6, 9, 23, 0),
     chartSeriesKey: "usdcad",
     heroKicker: "Weekly close",
     // Markets refreshes daily; the kicker phrase "Daily close" + the
     // pipeline's daily-cadence date reads as the current convention
-    // ("Daily close May 8, 2026").
+    // ("Daily close Jul 9, 2026").
     heroKickerPrefix: "Daily close",
     latestReleasePrefix: "Daily close",
     tileLine:
-      "USDCAD closed the week at 1.369 as the Canada-US 2y spread held near -98 bps.",
+      "USDCAD is near 1.417, WTI is back below $72, and the TSX is near 35.2k.",
     tileLineCitations: [
-      { phrase: "-98 bps", source: "derived", note: "GoC 2y 2.94% minus UST 2y 3.92% = -98 bps. Inputs: BoC Valet yield_2yr and FRED DGS2, May 7 2026." },
+      { phrase: "1.417", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close, July 9 2026 = 1.4169 per BoC Valet FXUSDCAD." },
+      { phrase: "$72", source: "pipeline:yahoo:wti", note: "WTI daily close, July 9 2026 = US$71.84." },
+      { phrase: "35.2k", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close, July 9 2026 = 35,200.45." },
     ],
     prints: [
       {
-        // Pipeline produces a real value for this row (USDCAD, currently 1.369
-        // May 8, 2026); loader overwrites canon scaffold with real data before
+        // Pipeline produces a real value for this row (USDCAD, currently 1.417
+        // Jul 9, 2026); loader overwrites canon scaffold with real data before
         // render. TK is a fallback marker.
         key: "usdcad",
         indicator: "USDCAD",
@@ -802,18 +812,17 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "May 13, 2026",
+      date: "Jul 9, 2026",
       body:
-        "USDCAD has spent the past month inside a 1.36 to 1.38 band, closing at 1.3686 on May 8. The 10y GoC yield is at 3.53%, with the front end up roughly 10 bps over the past two weeks. WTI round-tripped to a US$109.76 peak on May 4 and settled at US$101.12 on May 13; the TSX Composite is near 34,000.",
+        "Markets have steadied after the June energy shock. USDCAD closed at 1.4169 on July 9, down 0.1% on the week, while WTI settled at US$71.84, still up 4.6% week-over-week but far below its June spike. Canadian yields moved higher, with the 10-year GoC at 3.56%, and the TSX Composite is near 35.2k.",
     },
     abstractCitations: [
-      { phrase: "USDCAD has spent the past month inside a 1.36 to 1.38 band", source: "pipeline:boc:fxusdcad", note: "USDCAD daily-close range across April 13 to May 12, 2026: 1.357 to 1.388 per BoC Valet FXUSDCAD." },
-      { phrase: "closing at 1.3686 on May 8", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close, May 8, 2026 per BoC Valet FXUSDCAD." },
-      { phrase: "10y GoC yield is at 3.53%", source: "pipeline:boc:yield_10yr", note: "GoC 10y benchmark yield, latest daily close." },
-      { phrase: "front end up roughly 10 bps over the past two weeks", source: "pipeline:boc:yield_2yr", note: "GoC 2y up roughly 10 bps over the trailing 2-week window (~2.83 to 2.93)." },
-      { phrase: "WTI round-tripped to a US$109.76 peak on May 4", source: "pipeline:fred:DCOILWTICO", note: "WTI spot daily-close peak in early May 2026: 109.76 on May 4. Subsequent close on May 13 at 101.12 returned the price to early-month levels." },
-      { phrase: "settled at US$101.12 on May 13", source: "pipeline:fred:DCOILWTICO", note: "WTI spot, May 13, 2026 daily close." },
-      { phrase: "TSX Composite is near 34,000", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close, May 12 2026 (33,994.87), via Yahoo Finance ^GSPTSE." },
+      { phrase: "USDCAD closed at 1.4169 on July 9", source: "pipeline:boc:fxusdcad", note: "USDCAD daily close, July 9 2026 = 1.4169 per BoC Valet FXUSDCAD." },
+      { phrase: "down 0.1% on the week", source: "pipeline:boc:fxusdcad", note: "USDCAD weekly change in the site payload, July 9 2026 = -0.1%." },
+      { phrase: "WTI settled at US$71.84", source: "pipeline:yahoo:wti", note: "WTI daily close, July 9 2026 = US$71.84." },
+      { phrase: "up 4.6% week-over-week", source: "pipeline:yahoo:wti", note: "WTI weekly change in the site payload, July 9 2026 = +4.6%." },
+      { phrase: "10-year GoC at 3.56%", source: "pipeline:boc:yield_10yr", note: "GoC 10y benchmark yield, July 8 2026 daily close." },
+      { phrase: "TSX Composite is near 35.2k", source: "pipeline:yahoo:tsx_composite", note: "S&P/TSX Composite daily close, July 9 2026 = 35,200.45." },
     ],
   },
 ];
