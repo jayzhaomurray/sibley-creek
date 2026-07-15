@@ -976,6 +976,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "boc-2026-07-15",
+    section: "policy",
+    title: "Bank of Canada stays on hold at 2.25%.",
+    publishedAt: "2026-07-15",
+    pdfPath: "/research/commentaries/boc-2026-07-15.pdf",
+    excerpt:
+      "The Bank of Canada held its policy rate at 2.25% for the sixth consecutive meeting and called the rate appropriate. Officials sounded more upbeat about the economy and more comfortable with their stance than in June, with both main risks easing.",
+  },
+  {
     slug: "lfs-2026-07-10",
     section: "labour",
     title: "Canada adds 18k jobs as youth market improves.",
