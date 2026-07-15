@@ -977,7 +977,7 @@ export interface DataCommentary {
 export const commentaries: DataCommentary[] = [
   {
     slug: "boc-2026-07-15",
-    section: "policy",
+    section: "monetary",
     title: "Bank of Canada stays on hold at 2.25%.",
     publishedAt: "2026-07-15",
     pdfPath: "/research/commentaries/boc-2026-07-15.pdf",
