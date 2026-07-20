@@ -977,6 +977,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "cpi-2026-07-20",
+    section: "inflation",
+    title: "Inflation falls to 2.8% on lower gas prices.",
+    publishedAt: "2026-07-20",
+    pdfPath: "/research/commentaries/cpi-2026-07-20.pdf",
+    excerpt:
+      "Inflation cooled to 2.8% in June as gasoline prices fell 10% on the month following an interim Middle East ceasefire, pulling both of the Bank of Canada's core measures below 2%. The relief looks temporary: the conflict has since reignited and oil prices are already back up $14 a barrel from their lows.",
+  },
+  {
     slug: "boc-2026-07-15",
     section: "monetary",
     title: "Bank of Canada stays on hold at 2.25%.",
