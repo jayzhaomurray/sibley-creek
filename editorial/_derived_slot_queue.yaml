@@ -145,3 +145,43 @@ queue:
       Feb 2025 Fiscal Monitor via alternative routes; if confirmed, re-open
       this entry (status pending_materialization) and restore the specific
       delta to the abstract.
+
+  - slot_name: infl_exp_recent_peak_trough
+    added_at: 2026-07-20
+    surface: /inflation/ plate-5 (Consumer and firm inflation expectations) — "recent-cycle peak of 3.7% in mid-2025" and "around 40% as recently as early 2024" claims
+    source_inputs:
+      - data/raw/infl_exp_consumer_5y.csv (BoC Valet CES_C1_LONG_TERM, quarterly)
+      - data/raw/infl_exp_above3.csv (BoC Valet ABOVE3, quarterly)
+    aggregation_rule: >
+      For a given lookback window (e.g. "since 2022" or "recent cycle" = trailing
+      ~3 years), scan the quarterly series and report the max (for "peak") or the
+      most recent quarter matching a stated threshold (for "as recently as X").
+      Round to 1 decimal for the 5y-expectations series (%), to whole numbers for
+      the ABOVE3 share-of-firms series (%). Report the quarter label (calendar
+      quarter of the observation date) alongside the value so "mid-2025" / "early
+      2024" phrasing in prose can be checked against the actual quarter, not
+      approximated.
+    example_values:
+      - { series: infl_exp_consumer_5y, date: "2025-07-01", value: 3.67, label: "peak, mid-2025" }
+      - { series: infl_exp_above3, date: "2024-01-01", value: 40.0, label: "early-2024 reading" }
+      - { series: infl_exp_above3, date: "2024-04-01", value: 41.0, label: "early-2024 reading" }
+    status: rejected
+    rejected_at: 2026-07-20
+    notes: >
+      Logged during fact-check of the 2026-07-20 /inflation/ redraft (plate-5).
+      The peak/early-2024 figures verified correctly against the raw CSVs, but
+      the SAME plate cited 2026-01-01 as the "current" quarter ("3.0% in Q1")
+      when both series already had a fresher 2026-04-01 print in the same
+      fetch (infl_exp_consumer_5y = 3.39%, infl_exp_above3 = 44.0) — a stale-
+      vintage error, not a peak/trough derivation error. See fact-check verdict
+      for plate-5 (FAILED) filed same date.
+    rejected_reason: >
+      Plate-5 was rewritten wholesale to the Q2 2026 vintage (verified officially
+      released 2026-07-06 per bankofcanada.ca) rather than patched — the "recent-
+      cycle peak of 3.7% in mid-2025" and "as recently as early 2024" claims that
+      triggered this entry were dropped entirely, not retained. No peak/trough
+      derivation is cited anywhere in the shipped plate-5 copy, so there is
+      nothing to materialize. If a future redraft wants a peak/trough framing
+      again, re-open a fresh entry rather than reviving this one — the "current
+      quarter" bug this entry flagged is also now moot (plate-5 cites Q2 2026 as
+      current, matching the freshest fetched observation).

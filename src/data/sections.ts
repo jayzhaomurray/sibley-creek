@@ -300,17 +300,17 @@ export const sections: Section[] = [
     headlineQuestion:
       "How close is Canadian inflation to the 2% target?",
     cadence: "Monthly",
-    // Most recent CPI print released Jun 22, 2026 (May 2026 reference period).
-    updatedAt: Date.UTC(2026, 5, 22, 8, 30),
+    // Most recent CPI print released Jul 20, 2026 (June 2026 reference period).
+    updatedAt: Date.UTC(2026, 6, 20, 8, 30),
     chartSeriesKey: "cpi-yoy",
-    heroKicker: "May CPI",
+    heroKicker: "June CPI",
     heroKickerPrefix: "CPI",
     latestReleasePrefix: "CPI",
     tileLine:
-      "Headline CPI hit 3.2% in May; cores held at 2.0-2.1%.",
+      "Headline CPI fell back to 2.8% in June; cores dropped to 1.8-1.9%.",
     tileLineCitations: [
-      { phrase: "3.2%", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI NSA Y/Y, May 2026." },
-      { phrase: "2.0-2.1%", source: "pipeline:statcan:cpi_trim", note: "CPI-trim 2.0% and CPI-median 2.1% Y/Y, May 2026; BoC Valet preferred-core series." },
+      { phrase: "2.8%", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI NSA Y/Y, June 2026." },
+      { phrase: "1.8-1.9%", source: "pipeline:statcan:cpi_trim", note: "CPI-trim 1.8% and CPI-median 1.9% Y/Y, June 2026, both down 0.2pp from May; BoC Valet preferred-core series." },
     ],
     prints: [
       {
@@ -357,18 +357,20 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "Jun 22, 2026",
+      date: "Jul 20, 2026",
       body:
-        "Headline CPI moved above the Bank of Canada's control band in May, rising to 3.2% year-over-year as energy inflation reached 22.2%. The underlying signal was steadier: CPI-trim held at 2.0%, CPI-median held at 2.1%, and goods excluding energy slowed to 0.7%. Breadth widened to 33.6% of the basket running above 3%, so the print is harder to dismiss than April's, but it is still led by energy rather than a broad core re-acceleration.",
+        "Headline CPI fell to 2.8% year-over-year in June from 3.2% in May, back inside the Bank of Canada's control band after a month above it. The reversal is largely energy: gasoline fell after an interim Middle East ceasefire, pulling energy inflation to 14.3% from 22.2%, while CPI-trim and CPI-median eased two-tenths to 1.8% and 1.9%, below the 2% midpoint. The relief looks temporary: the ceasefire has since broken down, and oil has climbed back roughly $14 a barrel.",
     },
     abstractCitations: [
-      { phrase: "3.2% year-over-year", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI NSA Y/Y, May 2026." },
-      { phrase: "22.2%", source: "pipeline:statcan:18-10-0004-01", note: "Energy CPI Y/Y, May 2026." },
-      { phrase: "CPI-trim held at 2.0%", source: "pipeline:statcan:cpi_trim", note: "CPI-trim Y/Y, May 2026; unchanged from April 2026." },
-      { phrase: "CPI-median held at 2.1%", source: "pipeline:statcan:cpi_median", note: "CPI-median Y/Y, May 2026; unchanged from April 2026." },
-      { phrase: "goods excluding energy slowed to 0.7%", source: "pipeline:statcan:18-10-0004-01", note: "Goods excluding energy CPI Y/Y, May 2026 = 0.7147%; April 2026 = 0.9439%." },
-      { phrase: "33.6%", source: "derived", note: "Share of valid CPI components with Y/Y > 3%, May 2026 = 33.5858%." },
-      { phrase: "above 3%", source: "card:boc_inflation_mandate", note: "3% is the upper edge of the Bank of Canada's 1-3% inflation-control range." },
+      { phrase: "2.8% year-over-year", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI NSA Y/Y, June 2026 = 2.798%." },
+      { phrase: "3.2% in May", source: "pipeline:statcan:18-10-0004-01", note: "Headline CPI NSA Y/Y, May 2026 = 3.226%." },
+      { phrase: "energy inflation to 14.3%", source: "pipeline:statcan:18-10-0004-01", note: "Energy CPI Y/Y, June 2026 = 14.316%." },
+      { phrase: "22.2%", source: "pipeline:statcan:18-10-0004-01", note: "Energy CPI Y/Y, May 2026 = 22.175%." },
+      { phrase: "eased two-tenths to 1.8%", source: "pipeline:statcan:cpi_trim", note: "CPI-trim Y/Y, June 2026 = 1.8%, down from 2.0% in May." },
+      { phrase: "1.9%", source: "pipeline:statcan:cpi_median", note: "CPI-median Y/Y, June 2026 = 1.9%, down from 2.1% in May." },
+      { phrase: "below the 2% midpoint", source: "card:boc_inflation_mandate", note: "2% is the midpoint of the Bank of Canada's 1-3% inflation-control range." },
+      { phrase: "gasoline fell after an interim Middle East ceasefire", source: "derived", note: "VERIFIED 2026-07-20 against work/published/commentaries/cpi-2026-07-20.pdf (p.2): \"prices at the pump fell 10% month-over-month following the announcement of an interim ceasefire agreement in the Middle East.\" Causal link is Jay's own reporting, correctly attributed to the commentary, not to StatCan." },
+      { phrase: "oil has climbed back roughly $14 a barrel", source: "derived", note: "VERIFIED 2026-07-20 against work/published/commentaries/cpi-2026-07-20.pdf (p.3): \"oil prices have risen, and now sit about $14 per barrel above the lows recorded two weeks ago.\" Matches \"roughly $14 a barrel\" exactly." },
     ],
   },
   {
