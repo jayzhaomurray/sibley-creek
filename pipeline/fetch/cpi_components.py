@@ -16,12 +16,26 @@ shape that was previously produced by the one-time boc-tracker lift.
 
 Vector registry
 ---------------
-The 60 vectors and their component names are loaded from:
-    C:/Users/jayzh/Documents/boc-tracker/data/cpi_breadth_mapping.json
+The 60 vectors and their component names are loaded from
+`pipeline/catalog/cpi_breadth_mapping.json`, vendored into this repo (copied
+verbatim from boc-tracker/data/cpi_breadth_mapping.json on 2026-05-11; see
+`data/derived/cpi_component_weights_canada.meta.json` for the lift record).
 
 That file is the canonical source of truth for the vector-to-name mapping.
 If it is not present at build time the fetch raises immediately (the
 derivations that follow depend on this data and should not run stale).
+
+NOTE (2026-07-20 incident): this used to point at the absolute path
+`C:/Users/jayzh/Documents/boc-tracker/data/cpi_breadth_mapping.json` on the
+author's machine. That worked locally (the file exists there) but does not
+exist on any CI runner, so every `build-data-daily` run raised
+FileNotFoundError here from 2026-05-20 onward -- and because `pipeline.build`
+fails the whole build on any single fetcher failure, this alone blocked
+every scheduled data refresh for two months even though 80+ other series
+were fetching fine. Fixed by vendoring the mapping into the repo itself so
+there is no machine-local dependency. If this file ever needs to be
+regenerated from a fresher boc-tracker lift, copy the JSON in whole --
+do not hand-edit vector IDs.
 
 Batching strategy
 -----------------
@@ -56,10 +70,14 @@ logger = logging.getLogger(__name__)
 TABLE_ID = "18-10-0004-01"
 TABLE_URL = "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401"
 
-# Path to the canonical vector-to-name mapping from boc-tracker.
+# Path to the canonical vector-to-name mapping, vendored into this repo
+# (see module docstring "Vector registry" for provenance). Resolved relative
+# to this file so it works identically on any machine / CI runner --
+# previously an absolute path onto the author's local disk, which is why
+# every CI run raised FileNotFoundError (see 2026-07-20 incident note above).
 # Exposed as a module constant so the build step can report it in the
 # .meta.json source_id without re-reading the file.
-MAPPING_PATH = Path("C:/Users/jayzh/Documents/boc-tracker/data/cpi_breadth_mapping.json")
+MAPPING_PATH = Path(__file__).resolve().parents[1] / "catalog" / "cpi_breadth_mapping.json"
 
 # Minimum number of vectors that must return data for the result to be
 # considered usable. 55 of 60 is a conservative threshold; real-world
@@ -104,7 +122,9 @@ def load_mapping(mapping_path: Path = MAPPING_PATH) -> list[dict]:
         raise FileNotFoundError(
             f"CPI breadth mapping not found: {mapping_path}. "
             "This file must exist for the CPI components fetch to proceed. "
-            "It is sourced from boc-tracker/data/cpi_breadth_mapping.json."
+            "It is vendored at pipeline/catalog/cpi_breadth_mapping.json; if it "
+            "went missing, restore it from git history rather than re-pointing "
+            "at a machine-local path."
         )
     raw = json.loads(mapping_path.read_text(encoding="utf-8"))
     if not isinstance(raw, list) or len(raw) < MIN_VECTOR_COUNT:
@@ -136,7 +156,8 @@ def fetch_cpi_components(
     `derive_cpi_breadth_band` expect.
 
     Args:
-        mapping_path: path to cpi_breadth_mapping.json (default: boc-tracker location).
+        mapping_path: path to cpi_breadth_mapping.json (default: vendored copy
+            at pipeline/catalog/cpi_breadth_mapping.json).
         latest_n: number of most-recent monthly observations to pull per vector.
 
     Returns:
