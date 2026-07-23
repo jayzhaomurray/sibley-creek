@@ -953,6 +953,17 @@ export interface DataCommentary {
    */
   excerpt: string;
   /**
+   * Optional byline override. Defaults to Jay Zhao-Murray, Chief Economist,
+   * when absent (matches every commentary published before this field
+   * existed). jsonLdId must match a Person @id already declared in
+   * BaseLayout.astro's JSON-LD graph.
+   */
+  author?: {
+    name: string;
+    title: string;
+    jsonLdId: string;
+  };
+  /**
    * Optional correction notice. When present, the commentary wrapper
    * page renders it as a labelled "Correction" note above the take,
    * and the Article JSON-LD dateModified picks up correctedAt.
@@ -986,6 +997,11 @@ export const commentaries: DataCommentary[] = [
     pdfPath: "/research/commentaries/retail-2026-07-23.pdf",
     excerpt:
       "Retail sales rose 1.0% in May, with all nine major subsectors posting gains. Gas stations led again, but the pop was entirely price-driven since volumes fell as pump prices dropped, hinting at fading support from gasoline in the months ahead.",
+    author: {
+      name: "Thompson Richards",
+      title: "Economist",
+      jsonLdId: "thompson-richards",
+    },
   },
   {
     slug: "cpi-2026-07-20",

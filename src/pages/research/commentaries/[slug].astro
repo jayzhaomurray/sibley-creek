@@ -73,6 +73,13 @@ const sectionLabel = sectionLabelFor(commentary.section);
 const pubDateLong = displayDateLong(commentary.publishedAt);
 const pubDateShort = displayDateShort(commentary.publishedAt);
 
+// Byline defaults to Jay Zhao-Murray, Chief Economist (every commentary
+// published before the optional `author` field existed). Override via
+// commentary.author for pieces bylined by another team member.
+const authorName = commentary.author?.name ?? "Jay Zhao-Murray";
+const authorTitle = commentary.author?.title ?? "Chief Economist";
+const authorJsonLdId = commentary.author?.jsonLdId ?? "jay-zhao-murray";
+
 // SEO. Description is the excerpt (the take), truncated to ~155 chars.
 // The excerpt is already short (1-2 sentences); trim only if over limit.
 const rawDesc = `${commentary.title} ${commentary.excerpt}`;
@@ -97,7 +104,7 @@ const articleLd = JSON.stringify({
   "url": canonicalHref,
   "mainEntityOfPage": canonicalHref,
   "author": {
-    "@id": `${site.url}/#jay-zhao-murray`
+    "@id": `${site.url}/#${authorJsonLdId}`
   },
   "publisher": {
     "@id": `${site.url}/#organization`
@@ -138,7 +145,7 @@ const articleLd = JSON.stringify({
       <p class="commentary__dateline">
         <time datetime={commentary.publishedAt}>{pubDateLong}</time>
         <span class="commentary__dateline-sep" aria-hidden="true">·</span>
-        <span class="commentary__byline">By Jay Zhao-Murray, Chief Economist</span>
+        <span class="commentary__byline">By {authorName}, {authorTitle}</span>
       </p>
 
       <hr class="commentary__rule" aria-hidden="true" />
