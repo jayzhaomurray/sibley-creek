@@ -979,6 +979,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "retail-2026-07-23",
+    section: "output",
+    title: "Retail sales grow 1% in May, accelerating broadly.",
+    publishedAt: "2026-07-23",
+    pdfPath: "/research/commentaries/retail-2026-07-23.pdf",
+    excerpt:
+      "Retail sales rose 1.0% in May, with all nine major subsectors posting gains. Gas stations led again, but the pop was entirely price-driven since volumes fell as pump prices dropped, hinting at fading support from gasoline in the months ahead.",
+  },
+  {
     slug: "cpi-2026-07-20",
     section: "inflation",
     title: "Inflation falls to 2.8% on lower gas prices.",
