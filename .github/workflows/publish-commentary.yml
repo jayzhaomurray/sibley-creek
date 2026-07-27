@@ -1,0 +1,184 @@
+# ----------------------------------------------------------------------------
+# Publish a commentary from a GitHub Issue form
+# ----------------------------------------------------------------------------
+#
+# Lets someone with no local setup (no git, no npm, no Python) publish a
+# finished commentary PDF: fill out the "Publish a data commentary" issue
+# form (.github/ISSUE_TEMPLATE/publish-commentary.yml), drag the PDF in,
+# submit. This workflow does everything a human currently does by hand:
+#
+#   1. Parse the form fields (scripts/process_commentary_issue.mjs)
+#   2. Save the PDF to public/research/commentaries/<slug>.pdf
+#   3. Render the cover + page-2 preview PNGs
+#   4. Add one entry to the commentaries[] array in src/data/sections.ts
+#   5. Run the FULL site build (npm run build -- every existing check
+#      script, citation gate, astro build) as a safety gate BEFORE
+#      anything is committed
+#   6. Only on a clean build: commit + push to master (deploy.yml then
+#      rebuilds and ships, same as any other push)
+#   7. Comment back on the issue with the live link, or -- if any step
+#      failed -- a clear "nothing shipped, here's why" comment. The live
+#      site is never touched unless step 5 passes.
+#
+# Mirrors the failure-visibility pattern already used in deploy.yml /
+# build-data-daily.yml: report clearly, never fail silently.
+#
+# AUTHORIZATION: this repo is PUBLIC, which means anyone with a GitHub
+# account can open an issue on it -- issue creation is not gated by
+# collaborator status the way `git push` is. Without a check here, any
+# stranger who found this issue form could get the bot to publish
+# arbitrary content to the live site.
+#
+# ALLOWED_PUBLISHERS (below, in each job's `if:`) is the only gate, and
+# it is independent of repo collaborator/write access entirely. To add
+# someone: add their GitHub USERNAME (not display name) to both `if:`
+# lists below and push. To remove someone: delete it. Nothing else
+# needs to change -- they don't need to be a repo collaborator at all.
+
+name: Publish commentary from issue
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: publish-commentary-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  reject-unauthorized:
+    if: >-
+      contains(github.event.issue.labels.*.name, 'publish-commentary') &&
+      !contains(fromJSON('["jayzhaomurray"]'), github.event.issue.user.login)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment and close
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: "This form is restricted to authorized publishers. Nothing was published.",
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              state: "closed",
+            });
+
+  publish:
+    if: >-
+      contains(github.event.issue.labels.*.name, 'publish-commentary') &&
+      contains(fromJSON('["jayzhaomurray"]'), github.event.issue.user.login)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/requirements.txt
+
+      - name: Install pipeline dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r pipeline/requirements.txt
+
+      - name: Parse issue form into a commentary entry
+        id: process
+        continue-on-error: true
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: node scripts/process_commentary_issue.mjs
+
+      - name: Render PDF preview images
+        id: render
+        continue-on-error: true
+        if: steps.process.outcome == 'success'
+        run: python scripts/render_commentary_pages.py "public/research/commentaries/${{ steps.process.outputs.slug }}.pdf" "${{ steps.process.outputs.slug }}"
+
+      - name: Validate full site build
+        id: buildcheck
+        continue-on-error: true
+        if: steps.render.outcome == 'success'
+        run: npm run build
+
+      - name: Commit and push
+        if: steps.buildcheck.outcome == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "public/research/commentaries/${{ steps.process.outputs.slug }}.pdf" public/showcase src/data/sections.ts
+          git commit -m "commentary: publish ${{ steps.process.outputs.slug }} (via issue #${{ github.event.issue.number }})"
+          git pull --rebase origin master
+          git push origin HEAD:master
+
+      - name: Comment with live link and close issue
+        if: steps.buildcheck.outcome == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const slug = "${{ steps.process.outputs.slug }}";
+            const pageUrl = `https://sibleycreek.ca/research/commentaries/${slug}/`;
+            const pdfUrl = `https://sibleycreek.ca/research/commentaries/${slug}.pdf`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: [
+                `Published. The site is rebuilding now -- give it about 5 minutes, then check:`,
+                ``,
+                `Page: ${pageUrl}`,
+                `PDF: ${pdfUrl}`,
+              ].join("\n"),
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              state: "closed",
+            });
+
+      - name: Comment with failure details
+        if: steps.process.outcome == 'failure' || steps.render.outcome == 'failure' || steps.buildcheck.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              `@${context.payload.issue.user.login} -- this did NOT go live. Nothing was published; the site is untouched.`,
+              ``,
+              `Details: ${runUrl}`,
+              ``,
+              `Open a new issue once the problem is sorted rather than editing this one.`,
+            ].join("\n");
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
