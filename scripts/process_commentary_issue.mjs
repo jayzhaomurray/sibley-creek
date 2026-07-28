@@ -140,14 +140,18 @@ async function main() {
   const body = process.env.ISSUE_BODY;
   if (!body) fail("ISSUE_BODY env var is not set.");
 
+  // The headline comes from the issue's own title (the box GitHub always
+  // shows at the top of every issue) -- not a form field. There is
+  // deliberately no separate "Title" question in the form body; that
+  // would just be a second box that sounds like the same thing.
+  const title = (process.env.ISSUE_TITLE || "").trim();
+  if (!title) fail("Issue title is empty -- that's the headline, and it can't be blank.");
+
   const fields = parseIssueForm(body);
 
   const sectionLabel = (fields["Section"] || "").trim();
   const sectionSlug = SECTION_MAP[sectionLabel.toLowerCase()];
   if (!sectionSlug) fail(`Unrecognized section "${sectionLabel}".`);
-
-  const title = (fields["Title"] || "").trim();
-  if (!title) fail("Title is empty.");
 
   const date = (fields["Publish date"] || "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fail(`Date "${date}" is not in YYYY-MM-DD format.`);
