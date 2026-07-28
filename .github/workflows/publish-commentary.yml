@@ -128,40 +128,36 @@ jobs:
         if: steps.render.outcome == 'success'
         run: npm run build
 
-      - name: Commit and push
+      # TEMPORARY DRY-RUN SWITCH -- pushes to a throwaway branch instead of
+      # master so nothing reaches the live site. MUST be reverted (push
+      # target back to "master", restore the live-link comment below)
+      # before this is used for real. Search "DRY-RUN" to find both spots.
+      - name: "Commit and push (DRY-RUN: test branch, not master)"
         if: steps.buildcheck.outcome == 'success'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "public/research/commentaries/${{ steps.process.outputs.slug }}.pdf" public/showcase src/data/sections.ts
-          git commit -m "commentary: publish ${{ steps.process.outputs.slug }} (via issue #${{ github.event.issue.number }})"
-          git pull --rebase origin master
-          git push origin HEAD:master
+          git commit -m "commentary: publish ${{ steps.process.outputs.slug }} (via issue #${{ github.event.issue.number }}) [DRY RUN]"
+          git push origin HEAD:refs/heads/test/commentary-dry-run --force
 
-      - name: Comment with live link and close issue
+      - name: Comment with dry-run result (DRY-RUN)
         if: steps.buildcheck.outcome == 'success'
         uses: actions/github-script@v7
         with:
           script: |
             const slug = "${{ steps.process.outputs.slug }}";
-            const pageUrl = `https://sibleycreek.ca/research/commentaries/${slug}/`;
-            const pdfUrl = `https://sibleycreek.ca/research/commentaries/${slug}.pdf`;
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
               body: [
-                `Published. The site is rebuilding now -- give it about 5 minutes, then check:`,
+                `DRY RUN -- nothing went live. Everything checked out and landed on the`,
+                `\`test/commentary-dry-run\` branch instead of \`master\`, so the real site was never touched.`,
                 ``,
-                `Page: ${pageUrl}`,
-                `PDF: ${pdfUrl}`,
+                `Slug: ${slug}`,
+                `Branch: https://github.com/${context.repo.owner}/${context.repo.repo}/tree/test/commentary-dry-run`,
               ].join("\n"),
-            });
-            await github.rest.issues.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              state: "closed",
             });
 
       - name: Comment with failure details
