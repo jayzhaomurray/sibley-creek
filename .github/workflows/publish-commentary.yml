@@ -39,7 +39,10 @@ name: Publish commentary from issue
 
 on:
   issues:
-    types: [opened]
+    # "reopened" lets a stuck/failed submission be retried by closing and
+    # reopening the same issue, rather than requiring the whole form to
+    # be filled out again from scratch.
+    types: [opened, reopened]
 
 permissions:
   contents: write
@@ -50,9 +53,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # NOTE: gating on github.event.issue.body containing "### PDF" instead of
+  # the form's declared `labels: [publish-commentary]`. GitHub only
+  # auto-applies an issue form's labels when the submitter has at least
+  # "triage" repo access -- for anyone without that (which is the whole
+  # point here: no collaborator invite needed), the label silently never
+  # gets attached, and both jobs below would skip with zero feedback.
+  # Confirmed live 2026-07-28 on Thompson's first real test (issue #4):
+  # workflow ran, both jobs skipped, no comment, nothing. The body marker
+  # is unique to this one form and doesn't depend on GitHub's permission
+  # model at all.
   reject-unauthorized:
     if: >-
-      contains(github.event.issue.labels.*.name, 'publish-commentary') &&
+      contains(github.event.issue.body, '### PDF') &&
       !contains(fromJSON('["jayzhaomurray", "thompsonrichards"]'), github.event.issue.user.login)
     runs-on: ubuntu-latest
     steps:
@@ -75,7 +88,7 @@ jobs:
 
   publish:
     if: >-
-      contains(github.event.issue.labels.*.name, 'publish-commentary') &&
+      contains(github.event.issue.body, '### PDF') &&
       contains(fromJSON('["jayzhaomurray", "thompsonrichards"]'), github.event.issue.user.login)
     runs-on: ubuntu-latest
     timeout-minutes: 15
