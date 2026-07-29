@@ -1,0 +1,122 @@
+# ----------------------------------------------------------------------------
+# Revert a published commentary -- triggered by a checkbox click
+# ----------------------------------------------------------------------------
+#
+# publish-commentary.yml's success comment includes:
+#
+#   - [ ] Revert this publish
+#   <!-- commentary-slug: <slug> -->
+#
+# Checking that box edits the comment (GitHub's normal task-list
+# behaviour), which fires this workflow. It only reacts to a checkbox
+# inside the BOT'S OWN comment (github.event.comment.user.login check),
+# so there's no way to trigger it from an arbitrary comment, and it can
+# only ever remove something that was published through the form in the
+# first place -- older hand-published commentaries never got this
+# comment, so there's nothing for the checkbox to attach to.
+#
+# Same safety shape as publish-commentary.yml: full site build validated
+# BEFORE anything is committed; nothing reaches master unless it's clean.
+
+name: Revert commentary from checkbox
+
+on:
+  issue_comment:
+    types: [edited]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: revert-commentary-${{ github.event.comment.id }}
+  cancel-in-progress: true
+
+jobs:
+  revert:
+    if: >-
+      github.event.comment.user.login == 'github-actions[bot]' &&
+      contains(github.event.comment.body, '[x] Revert this publish') &&
+      contains(fromJSON('["jayzhaomurray", "thompsonrichards"]'), github.event.sender.login)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/requirements.txt
+
+      - name: Install pipeline dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r pipeline/requirements.txt
+
+      - name: Remove the commentary entry and files
+        id: revert
+        continue-on-error: true
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: node scripts/revert_commentary.mjs
+
+      - name: Validate full site build
+        id: buildcheck
+        continue-on-error: true
+        if: steps.revert.outcome == 'success'
+        run: npm run build
+
+      - name: Commit and push
+        if: steps.buildcheck.outcome == 'success' && steps.revert.outputs.found == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A src/data/sections.ts public/research/commentaries public/showcase
+          git commit -m "commentary: revert ${{ steps.revert.outputs.slug }} (requested by ${{ github.event.sender.login }})"
+          git pull --rebase origin master
+          git push origin HEAD:master
+
+      - name: Comment with revert result
+        if: steps.buildcheck.outcome == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const found = "${{ steps.revert.outputs.found }}" === "true";
+            const body = found
+              ? `Reverted -- it's coming down now, give the site a few minutes to rebuild.`
+              : `That one was already reverted (or the slug wasn't found) -- nothing further to do, the site already doesn't have it.`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Comment with failure details
+        if: steps.revert.outcome == 'failure' || steps.buildcheck.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `Revert failed -- nothing was changed, the original publish is still live as-is. Details: ${runUrl}`,
+            });
