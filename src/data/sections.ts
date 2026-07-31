@@ -990,6 +990,19 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "output-2026-07-31",
+    section: "output",
+    title: "Canada's economy shakes off weak start with Q2 boom",
+    publishedAt: "2026-07-31",
+    pdfPath: "/research/commentaries/output-2026-07-31.pdf",
+    excerpt: "As growth runs ahead of the Bank of Canada’s expectations, recession fears are quickly fading into the rear-view mirror. The key question now is whether momentum can persist as temporary boosts to oil and gas are set to fade.",
+    author: {
+      name: "Thompson Richards",
+      title: "Economist",
+      jsonLdId: "thompson-richards",
+    },
+  },
+  {
     slug: "retail-2026-07-23",
     section: "output",
     title: "Retail sales grow 1% in May, accelerating broadly.",
