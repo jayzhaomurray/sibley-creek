@@ -91,19 +91,28 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A src/data/sections.ts public/research/commentaries public/showcase
           git commit -m "commentary: revert ${{ steps.revert.outputs.slug }} (requested by ${{ github.event.sender.login }})"
+          # `npm run build` regenerates a live news-feed cache and source-card
+          # audit HTML as a side effect (unrelated to this revert), which
+          # git add above deliberately never stages. Left dirty, those files
+          # block `git pull --rebase` any time a concurrent cron touches the
+          # same paths -- not just on a same-second collision. Discard them
+          # now that the revert itself is safely committed.
+          git checkout -- .
+          git clean -fd
           # Retry a few times: a same-second collision with the 15-min deploy
           # cron or a daily data-refresh push is the expected failure mode
           # here, not a real error -- `git pull --rebase` picks up whatever
           # landed and the next attempt pushes clean.
           for attempt in 1 2 3 4 5; do
-            git pull --rebase origin master
-            if git push origin HEAD:master; then
+            git rebase --abort 2>/dev/null || true
+            if git pull --rebase origin master && git push origin HEAD:master; then
               echo "Pushed on attempt $attempt."
               exit 0
             fi
             echo "Push attempt $attempt failed; retrying..."
             sleep $((attempt * 5))
           done
+          git rebase --abort 2>/dev/null || true
           echo "All push attempts failed."
           exit 1
 
