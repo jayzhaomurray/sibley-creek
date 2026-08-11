@@ -990,6 +990,19 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "trade-2026-08-04",
+    section: "trade",
+    title: "Trade surplus grows as gold powers exports",
+    publishedAt: "2026-08-04",
+    pdfPath: "/research/commentaries/trade-2026-08-04.pdf",
+    excerpt: "A weaker Canadian dollar and elevated gold exports boosted the headline numbers. Rising export volumes suggest Canada's export momentum extends beyond those temporary tailwinds.",
+    author: {
+      name: "Thompson Richards",
+      title: "Economist",
+      jsonLdId: "thompson-richards",
+    },
+  },
+  {
     slug: "output-2026-07-31",
     section: "output",
     title: "Canada's economy shakes off weak start with Q2 boom",
