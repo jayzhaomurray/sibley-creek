@@ -990,6 +990,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "cpi-2026-08-17",
+    section: "inflation",
+    title: "Inflation climbs back to 3% on fuel and travel costs.",
+    publishedAt: "2026-08-17",
+    pdfPath: "/research/commentaries/cpi-2026-08-17.pdf",
+    excerpt:
+      "Headline inflation rose to 3% in July, hitting the top of the Bank of Canada's control band for the second time this year as fuel and travel prices jumped. Grocery inflation kept cooling from its December peak, and with the drivers seen as temporary, the bank is unlikely to react even as the balance of risks tilts hawkish.",
+  },
+  {
     slug: "trade-2026-08-04",
     section: "trade",
     title: "Trade surplus grows as gold powers exports",
