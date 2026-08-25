@@ -466,11 +466,11 @@ export const sections: Section[] = [
     latestReleasePrefix: "BoC rate decision",
     latestReleaseDateOverride: "Jul 15, 2026",
     tileLine:
-      "BoC stayed at 2.25%; 2y GoCs are near 2.88% and the Canada-US spread is -138 bps.",
+      "BoC stayed at 2.25%; 2y GoCs are near 3.02% and the Canada-US spread is -117 bps.",
     tileLineCitations: [
-      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, July 15 2026 FAD decision, via Valet V39079." },
-      { phrase: "2.88%", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, July 13 2026 daily close." },
-      { phrase: "-138 bps", source: "derived", note: "Canada-US 2y spread, July 13 2026: GoC 2y 2.88% minus UST 2y 4.26% = -138 bps." },
+      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, unchanged since July 15 2026 FAD decision, via Valet V39079." },
+      { phrase: "3.02%", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, August 20 2026 daily close." },
+      { phrase: "-117 bps", source: "derived", note: "Canada-US 2y spread, August 20 2026: GoC 2y 3.02% minus UST 2y 4.19% = -117 bps." },
     ],
     prints: [
       {
@@ -515,18 +515,18 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "Jul 15, 2026",
+      date: "Aug 20, 2026",
       body:
-        "On hold. The Bank of Canada has stayed at 2.25% through six straight decisions, still at the floor of its 2.25 to 3.25% neutral range, and now calls the rate appropriate. Markets see it the same way: the 2-year GoC yield sits at 2.88%, well above the overnight rate, while the Canada-US 2-year spread is still deeply negative at -138 bps.",
+        "On hold. The Bank of Canada has stayed at 2.25% through six straight decisions, still at the floor of its 2.25 to 3.25% neutral range, and now calls the rate appropriate. Markets see it the same way: the 2-year GoC yield sits at 3.02%, 77 bps above the overnight rate, while the Canada-US 2-year spread is still deeply negative at -117 bps.",
     },
     abstractCitations: [
-      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, July 15 2026 FAD decision, via Valet V39079." },
-      { phrase: "six straight decisions", source: "card:boc_fad_holds_post_oct_2025_cut", expected_count: 6, note: "Enumerated FAD holds since Oct 29, 2025 cut: Dec 10, Jan 28, Mar 18, Apr 29, Jun 10, Jul 15." },
+      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, unchanged since July 15 2026 FAD decision, via Valet V39079." },
+      { phrase: "six straight decisions", source: "card:boc_fad_holds_post_oct_2025_cut", expected_count: 6, note: "Enumerated FAD holds since Oct 29, 2025 cut: Dec 10, Jan 28, Mar 18, Apr 29, Jun 10, Jul 15. No new FAD decision since; next expected ~Sep 2, 2026." },
       { phrase: "2.25 to 3.25% neutral range", source: "card:boc_mpr_neutral_range" },
-      { phrase: "calls the rate appropriate", source: "derived", note: "BoC July 15 2026 press release, verbatim: 'Governing Council judges the current policy rate remains appropriate to sustain the economic recovery and bring inflation back to the 2% target.' FLAG: migrate to a source card for the July 15 statement when it lands." },
-      { phrase: "2-year GoC yield sits at 2.88%", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, July 13 2026 daily close." },
-      { phrase: "well above the overnight rate", source: "derived", note: "GoC 2y 2.88% minus overnight target 2.25% = 63 bps; a 2y yield sitting above the overnight rate means the market prices no near-term easing (same claim covered in monetary.astro plate-3)." },
-      { phrase: "-138 bps", source: "derived", note: "Canada-US 2y spread, July 13 2026: GoC 2y 2.88% minus UST 2y 4.26% = -138 bps." },
+      { phrase: "calls the rate appropriate", source: "derived", note: "BoC July 15 2026 press release, verbatim: 'Governing Council judges the current policy rate remains appropriate to sustain the economic recovery and bring inflation back to the 2% target.' No newer FAD statement supersedes this. FLAG: migrate to a source card for the July 15 statement when it lands." },
+      { phrase: "2-year GoC yield sits at 3.02%", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, August 20 2026 daily close." },
+      { phrase: "77 bps above the overnight rate", source: "derived", note: "GoC 2y 3.02% minus overnight target 2.25% = 77 bps; a 2y yield sitting above the overnight rate means the market prices no near-term easing (same claim covered in monetary.astro plate-3)." },
+      { phrase: "-117 bps", source: "derived", note: "Canada-US 2y spread, August 20 2026: GoC 2y 3.02% minus UST 2y 4.19% = -117 bps." },
     ],
   },
   {

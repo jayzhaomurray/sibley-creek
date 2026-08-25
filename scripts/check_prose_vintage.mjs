@@ -123,7 +123,13 @@ for (const { slug, blurbDate } of parseSections(srcText)) {
     warnings++;
     continue;
   }
-  const textMs = Date.parse(blurbDate);
+  // Force UTC parsing -- bare `Date.parse(blurbDate)` on a non-ISO string
+  // like "Jul 15, 2026" uses the LOCAL system timezone, while dataISO below
+  // (ISO date-only) always parses as UTC. That mismatch made the day-lag
+  // computation timezone-dependent: a build machine west of UTC could
+  // compute one fewer day of lag than a UTC CI runner, silently masking a
+  // --strict failure in local dev while it hard-fails in CI.
+  const textMs = Date.parse(`${blurbDate} UTC`);
   if (Number.isNaN(textMs)) {
     console.warn(`  WARN: ${slug}: unparseable blurb date "${blurbDate}"`);
     warnings++;
