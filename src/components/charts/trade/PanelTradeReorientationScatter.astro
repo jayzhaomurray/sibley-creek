@@ -1,6 +1,6 @@
 ﻿---
 /*
- * PanelTradeReorientationScatter â€” Export reorientation scatter, latest YoY window
+ * PanelTradeReorientationScatter — Export reorientation scatter, latest YoY window
  *
  * Chart type: Scatter plot, 720x405 (16:9).
  *
@@ -18,14 +18,14 @@
  * transparent to the reader.
  *
  * Labeled sectors (4):
- *   Gold  â€” NAPCS 35 (unwrought gold/silver/platinum)
- *   Oil   â€” NAPCS 13 (crude oil and bitumen)
- *   Gas   â€” NAPCS 14 (natural gas)
- *   Cars  â€” NAPCS 81 (passenger cars and light trucks)
+ *   Gold  — NAPCS 35 (unwrought gold/silver/platinum)
+ *   Oil   — NAPCS 13 (crude oil and bitumen)
+ *   Gas   — NAPCS 14 (natural gas)
+ *   Cars  — NAPCS 81 (passenger cars and light trucks)
  *
  * Axis-orienting phrases (replace axis titles):
- *   "Sold less to the US"            â€” near Cars (most negative delta_us)
- *   "Sold more to non-US markets"    â€” near Gold (most positive delta_nonus)
+ *   "Sold less to the US"            — near Cars (most negative delta_us)
+ *   "Sold more to non-US markets"    — near Gold (most positive delta_nonus)
  *
  * Quadrant reading:
  *   Top-left:     real pivot    (lost US, gained non-US)
@@ -146,7 +146,7 @@ function xPx(v: number): number {
 }
 
 // ---- Y scale: linear ---------------------------------------------------------
-// Linear because gold is the editorial story â€” let it dwarf everything else.
+// Linear because gold is the editorial story — let it dwarf everything else.
 // Apr 2025->Apr 2026 range: -261 to +2481 (gold). Pad to -400 / +2800.
 const Y_LO = -400;
 const Y_HI = 2800;
@@ -225,24 +225,24 @@ const refinedR = dotR(refinedDot.size);
       text-anchor="middle"
     >CHANGE IN EXPORTS, MAY 2025 TO 2026</text>
 
-    {/* ---- Y-axis label (vertical, left of plot) â€” unit descriptor ----------- */}
+    {/* ---- Y-axis label (vertical, left of plot) — unit descriptor ----------- */}
     <text
       class="scatter-chart__axis-descriptor"
       x={M_L - 52}
       y={M_T + PLOT_H / 2}
       text-anchor="middle"
       transform={`rotate(-90, ${M_L - 52}, ${M_T + PLOT_H / 2})`}
-    >Î” NON-US EXPORTS (CAD)</text>
+    >Δ NON-US EXPORTS (CAD)</text>
 
-    {/* ---- X-axis label (horizontal, below plot) â€” unit descriptor ----------- */}
+    {/* ---- X-axis label (horizontal, below plot) — unit descriptor ----------- */}
     <text
       class="scatter-chart__axis-descriptor"
       x={M_L + PLOT_W / 2}
       y={M_T + PLOT_H + 36}
       text-anchor="middle"
-    >Î” US EXPORTS (CAD)</text>
+    >Δ US EXPORTS (CAD)</text>
 
-    {/* ---- Plot frame â€” 1px pure ink hairline -------------------------------- */}
+    {/* ---- Plot frame — 1px pure ink hairline -------------------------------- */}
     <rect
       class="scatter-chart__frame"
       x={FRAME_X}
@@ -316,7 +316,7 @@ const refinedR = dotR(refinedDot.size);
       </text>
     ))}
 
-    {/* ---- Scatter dots â€” all non-labeled sectors first ---------------------- */}
+    {/* ---- Scatter dots — all non-labeled sectors first ---------------------- */}
     {dots
       .filter((d) => ![35, 13, 19].includes(d.code))
       .map((d) => {
@@ -369,7 +369,7 @@ const refinedR = dotR(refinedDot.size);
       text-anchor="start"
     >Refined petroleum</text>
 
-    {/* Gold â€” MTA red, the editorial outlier */}
+    {/* Gold — MTA red, the editorial outlier */}
     <circle
       class="scatter-chart__dot scatter-chart__dot--labeled"
       cx={goldX.toFixed(2)}
@@ -386,7 +386,7 @@ const refinedR = dotR(refinedDot.size);
     >Gold</text>
 
     {/* ---- Axis-orienting phrases ------------------------------------------- */}
-    {/* "Sold more to the US" â€” lower-right, along the positive x-axis */}
+    {/* "Sold more to the US" — lower-right, along the positive x-axis */}
     <text
       class="scatter-chart__orient-phrase"
       x={(FRAME_X + FRAME_W - 10).toFixed(2)}
@@ -394,7 +394,7 @@ const refinedR = dotR(refinedDot.size);
       text-anchor="end"
     >Sold more to the US</text>
 
-    {/* "Sold more to non-US markets" â€” upper-left interior, clear of the top frame */}
+    {/* "Sold more to non-US markets" — upper-left interior, clear of the top frame */}
     <text
       class="scatter-chart__orient-phrase"
       x={(X_ZERO_PX + 8).toFixed(2)}
@@ -453,7 +453,7 @@ const refinedR = dotR(refinedDot.size);
 
 <style>
   /*
-   * PanelTradeReorientationScatter â€” Vignelli scatter plot.
+   * PanelTradeReorientationScatter — Vignelli scatter plot.
    * No MTA red on data points (every point is a "latest" observation).
    * Pure ink stroke + 0.18 fill-opacity per project brief.
    */
@@ -473,7 +473,7 @@ const refinedR = dotR(refinedDot.size);
     font-family: var(--font-sans, 'Manrope', sans-serif);
   }
 
-  /* Chart title â€” Manrope 600, 12px micro-caps */
+  /* Chart title — Manrope 600, 12px micro-caps */
   .scatter-chart__title {
     fill: var(--ink, #000);
     font-family: var(--font-sans, 'Manrope', sans-serif);
@@ -483,7 +483,7 @@ const refinedR = dotR(refinedDot.size);
     text-transform: uppercase;
   }
 
-  /* Axis descriptor â€” Manrope 600, 10px micro-caps, ink-faint */
+  /* Axis descriptor — Manrope 600, 10px micro-caps, ink-faint */
   .scatter-chart__axis-descriptor {
     fill: var(--ink-faint, #555);
     font-family: var(--font-sans, 'Manrope', sans-serif);
@@ -493,14 +493,14 @@ const refinedR = dotR(refinedDot.size);
     text-transform: uppercase;
   }
 
-  /* Plot frame â€” 1px pure ink hairline */
+  /* Plot frame — 1px pure ink hairline */
   .scatter-chart__frame {
     stroke: var(--ink, #000);
     stroke-width: 1;
     shape-rendering: crispEdges;
   }
 
-  /* Regular gridlines â€” 1px pure ink, 0.18 opacity */
+  /* Regular gridlines — 1px pure ink, 0.18 opacity */
   .scatter-chart__gridline {
     stroke: var(--ink, #000);
     stroke-width: 1;
@@ -508,7 +508,7 @@ const refinedR = dotR(refinedDot.size);
     shape-rendering: crispEdges;
   }
 
-  /* Zero lines â€” heavier, 0.4 opacity */
+  /* Zero lines — heavier, 0.4 opacity */
   .scatter-chart__zero-line {
     stroke: var(--ink, #000);
     stroke-width: 1;
@@ -516,7 +516,7 @@ const refinedR = dotR(refinedDot.size);
     shape-rendering: crispEdges;
   }
 
-  /* Y-axis tick labels â€” IBM Plex Mono 400, 11px, ink-faint */
+  /* Y-axis tick labels — IBM Plex Mono 400, 11px, ink-faint */
   .scatter-chart__ytick-label {
     fill: var(--ink-faint, #555);
     font-family: var(--font-mono, 'IBM Plex Mono', monospace);
@@ -525,7 +525,7 @@ const refinedR = dotR(refinedDot.size);
     font-variant-numeric: tabular-nums;
   }
 
-  /* X-axis tick labels â€” IBM Plex Mono 400, 11px, ink-faint */
+  /* X-axis tick labels — IBM Plex Mono 400, 11px, ink-faint */
   .scatter-chart__xtick-label {
     fill: var(--ink-faint, #555);
     font-family: var(--font-mono, 'IBM Plex Mono', monospace);
@@ -534,7 +534,7 @@ const refinedR = dotR(refinedDot.size);
     font-variant-numeric: tabular-nums;
   }
 
-  /* Scatter dots â€” thin ring + high-transparency fill, pure ink */
+  /* Scatter dots — thin ring + high-transparency fill, pure ink */
   .scatter-chart__dot {
     stroke: var(--ink, #000);
     stroke-width: 1;
@@ -542,13 +542,13 @@ const refinedR = dotR(refinedDot.size);
     fill-opacity: 0.18;
   }
 
-  /* Labeled dots â€” slightly more prominent stroke */
+  /* Labeled dots — slightly more prominent stroke */
   .scatter-chart__dot--labeled {
     stroke-width: 1.25;
     fill-opacity: 0.22;
   }
 
-  /* Sector label â€” Manrope 600, 12px, pure ink */
+  /* Sector label — Manrope 600, 12px, pure ink */
   .scatter-chart__dot-label {
     fill: var(--ink, #000);
     font-family: var(--font-sans, 'Manrope', sans-serif);
@@ -556,7 +556,7 @@ const refinedR = dotR(refinedDot.size);
     font-weight: 600;
   }
 
-  /* Axis-orienting phrases â€” Manrope 400, 11px, italic, ink-faint */
+  /* Axis-orienting phrases — Manrope 400, 11px, italic, ink-faint */
   .scatter-chart__orient-phrase {
     fill: var(--ink-faint, #555);
     font-family: var(--font-sans, 'Manrope', sans-serif);
@@ -565,7 +565,7 @@ const refinedR = dotR(refinedDot.size);
     font-style: italic;
   }
 
-  /* Signed-sqrt scale note â€” IBM Plex Mono 400, 10px, ink-faint */
+  /* Signed-sqrt scale note — IBM Plex Mono 400, 10px, ink-faint */
   .scatter-chart__legend-header {
     fill: var(--ink, #000);
     font-family: var(--font-sans, 'Manrope', sans-serif);

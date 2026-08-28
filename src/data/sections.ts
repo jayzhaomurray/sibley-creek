@@ -1025,6 +1025,15 @@ export const commentaries: DataCommentary[] = [
     },
   },
   {
+    slug: "gdp-2026-07-28",
+    section: "output",
+    title: "Canada's GDP rises 0.3% in June.",
+    publishedAt: "2026-07-28",
+    pdfPath: "/research/commentaries/gdp-2026-07-28.pdf",
+    excerpt:
+      "The Canadian economy performed well this summer. Growth was robust in the second quarter, leaving the economy on a stronger footing going into the trade war with the US. That said, escalating tariffs and counter-tariffs will no doubt harm growth on both sides of the border heading into the third quarter.",
+  },
+  {
     slug: "retail-2026-07-23",
     section: "output",
     title: "Retail sales grow 1% in May, accelerating broadly.",
