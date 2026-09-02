@@ -990,6 +990,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "boc-2026-09-02",
+    section: "monetary",
+    title: "Bank of Canada holds at 2.25%.",
+    publishedAt: "2026-09-02",
+    pdfPath: "/research/commentaries/boc-2026-09-02.pdf",
+    excerpt:
+      "The new trade war increases monetary policy risk on both sides of the ledger, raising inflation pressures while hamstringing growth. This should keep the central bank on hold for longer than markets currently expect.",
+  },
+  {
     slug: "cpi-2026-08-17",
     section: "inflation",
     title: "Inflation climbs back to 3% on fuel and travel costs.",
