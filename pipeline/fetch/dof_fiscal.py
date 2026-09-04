@@ -195,6 +195,33 @@ def parse_issue(html_bytes: bytes, reference_year: int, reference_month: int) ->
     )
 
 
+def _to_float(value) -> Optional[float]:
+    """Parse a Fiscal Monitor numeric cell to float.
+
+    The HTML tables publish accounting-style numerals: thousands separated
+    with commas and negatives wrapped in parentheses, e.g. "(1,046)" = -1046.
+    Positive cells parse as plain ints ("989", "3629"), so a bare float()
+    silently drops every negative month — an all-deficit FY column comes
+    back empty (this is what happened with the FY2026-27 columns in the
+    June 2026 issue).
+    """
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    s = str(value).strip().replace(",", "").replace("−", "-").replace("$", "")
+    if not s or s.lower() in ("nan", "n/a", "-", "–", "—"):
+        return None
+    negative = s.startswith("(") and s.endswith(")")
+    if negative:
+        s = s[1:-1]
+    try:
+        parsed = float(s)
+    except ValueError:
+        return None
+    return -parsed if negative else parsed
+
+
 def _extract_monthly_balance(df: pd.DataFrame, fy_start: int) -> pd.DataFrame:
     """Pull (date, value) pairs from the per-month balance table for the current FY.
 
@@ -222,9 +249,8 @@ def _extract_monthly_balance(df: pd.DataFrame, fy_start: int) -> pd.DataFrame:
         date_ts = _month_name_to_date(month_name, fy_start)
         if date_ts is None:
             continue
-        try:
-            value_f = float(value)
-        except (TypeError, ValueError):
+        value_f = _to_float(value)
+        if value_f is None:
             continue
         records.append({"date": date_ts, "value": value_f})
     return pd.DataFrame(records, columns=["date", "value"]).sort_values("date").reset_index(drop=True)
@@ -267,23 +293,17 @@ def _extract_two_fy_monthly_balance(df: pd.DataFrame, fy_start: int) -> pd.DataF
     for _, row in df.iterrows():
         month_name = str(row[month_col]).strip()
         # Prior-FY observation (always populated; finalized year)
-        prior_val = row[prior_fy_col]
-        if not pd.isna(prior_val):
+        prior_f = _to_float(row[prior_fy_col])
+        if prior_f is not None:
             d_prior = _month_name_to_date(month_name, prior_fy_start)
             if d_prior is not None:
-                try:
-                    records.append({"date": d_prior, "value": float(prior_val)})
-                except (TypeError, ValueError):
-                    pass
+                records.append({"date": d_prior, "value": prior_f})
         # Current-FY observation (may be NaN for months not yet reported)
-        cur_val = row[current_fy_col]
-        if not pd.isna(cur_val):
+        cur_f = _to_float(row[current_fy_col])
+        if cur_f is not None:
             d_cur = _month_name_to_date(month_name, fy_start)
             if d_cur is not None:
-                try:
-                    records.append({"date": d_cur, "value": float(cur_val)})
-                except (TypeError, ValueError):
-                    pass
+                records.append({"date": d_cur, "value": cur_f})
     out = pd.DataFrame(records, columns=["date", "value"])
     if out.empty:
         return out
@@ -336,10 +356,8 @@ def _extract_ytd_summary(
         for _, row in tbl.iterrows():
             first = str(row.iloc[0]).strip().lower()
             for i in fy_col_idx:
-                cell = row.iloc[i]
-                try:
-                    cell_val = float(cell)
-                except (TypeError, ValueError):
+                cell_val = _to_float(row.iloc[i])
+                if cell_val is None:
                     continue
                 # Match labels
                 if first == "revenues" and revenues is None:
