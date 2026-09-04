@@ -990,6 +990,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "lfs-2026-09-04",
+    section: "labour",
+    title: "Canada sheds 42k jobs in August.",
+    publishedAt: "2026-09-04",
+    pdfPath: "/research/commentaries/lfs-2026-09-04.pdf",
+    excerpt:
+      "Most Canadian industries shed jobs in August, but losses were geographically concentrated. Montreal alone accounts for half the country's employment decline.",
+  },
+  {
     slug: "boc-2026-09-02",
     section: "monetary",
     title: "Bank of Canada holds at 2.25%.",
