@@ -990,6 +990,15 @@ export interface DataCommentary {
 
 export const commentaries: DataCommentary[] = [
   {
+    slug: "cpi-factories-2026-09-14",
+    section: "inflation",
+    title: "Inflation remains at 3% in August.",
+    publishedAt: "2026-09-14",
+    pdfPath: "/research/commentaries/cpi-factories-2026-09-14.pdf",
+    excerpt:
+      "Inflation is set to pick up again in September after holding steady in August. Gas prices have already risen by 7 cents per litre since August, and Canadian counter-tariffs enacted last week will raise prices for imported goods.",
+  },
+  {
     slug: "lfs-2026-09-04",
     section: "labour",
     title: "Canada sheds 42k jobs in August.",
