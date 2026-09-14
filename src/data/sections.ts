@@ -385,17 +385,17 @@ export const sections: Section[] = [
     headlineQuestion:
       "Is the labour market loosening?",
     cadence: "Monthly",
-    // Most recent LFS landed Jul 10, 2026 (Jun 2026 reference period).
-    updatedAt: Date.UTC(2026, 6, 10, 8, 30),
+    // Most recent LFS landed Sep 4, 2026 (Aug 2026 reference period).
+    updatedAt: Date.UTC(2026, 8, 4, 12, 30),
     chartSeriesKey: "unrate",
-    heroKicker: "June LFS",
+    heroKicker: "August LFS",
     heroKickerPrefix: "LFS",
     latestReleasePrefix: "LFS",
     tileLine:
-      "Canada added 18k jobs in June and unemployment fell to 6.5%.",
+      "Canada shed 42k jobs in August and unemployment held at 6.4%.",
     tileLineCitations: [
-      { phrase: "18k jobs in June", source: "pipeline:statcan:14-10-0287-01", note: "LFS employment change, SA, June 2026: +18.2k m/m (21.1397M from 21.1215M)." },
-      { phrase: "6.5%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA, June 2026." },
+      { phrase: "42k jobs in August", source: "pipeline:statcan:14-10-0287-01", note: "LFS employment change, SA, August 2026: 21.1731M minus 21.2148M = -41.7k, rounded to 42k." },
+      { phrase: "6.4%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA, August 2026 = 6.4%, unchanged from July 2026 (6.4%)." },
     ],
     prints: [
       {
@@ -431,17 +431,17 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "fresh",
-      date: "Jul 10, 2026",
+      date: "Sep 4, 2026",
       body:
-        "Less than before. Canada added 18,200 jobs in June and the unemployment rate eased to 6.5%, while the employment rate rose to 60.8% and participation held at 65.0%. Hours worked barely moved and LFS-Micro wage growth is still running at 2.6%, so the print looks like a modest firming rather than a broad labour-market re-acceleration.",
+        "Yes, gradually. Canada shed 42,000 jobs in August, giving back part of July's gain, and the unemployment rate held at 6.4% only because participation slipped: the loss showed up as people leaving the workforce, not as more unemployed. Wage growth on the LFS-Micro measure slowed to 2.2% in July, the pace of a market losing tightness.",
     },
     abstractCitations: [
-      { phrase: "18,200 jobs in June", source: "pipeline:statcan:14-10-0287-01", note: "LFS employment change, SA, June 2026: 21.1397M minus 21.1215M = +18.2k." },
-      { phrase: "unemployment rate eased to 6.5%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA: June 2026 = 6.5%, down from 6.6% in May." },
-      { phrase: "employment rate rose to 60.8%", source: "pipeline:statcan:14-10-0287-01", note: "LFS employment rate, SA: June 2026 = 60.8%, up from 60.7% in May." },
-      { phrase: "participation held at 65.0%", source: "pipeline:statcan:14-10-0287-01", note: "LFS participation rate, SA: June 2026 = 65.0%, unchanged from May." },
-      { phrase: "Hours worked barely moved", source: "pipeline:statcan:14-10-0287-01", note: "Aggregate hours worked Y/Y slowed to 0.16% in June 2026 from 0.30% in May." },
-      { phrase: "LFS-Micro wage growth is still running at 2.6%", source: "pipeline:boc:lfs_micro", note: "BoC LFS-Micro wage growth, May 2026 = 2.6% Y/Y; June observation not yet available in the Valet series at this refresh." },
+      { phrase: "42,000 jobs in August", source: "pipeline:statcan:14-10-0287-01", note: "LFS employment change, SA, August 2026: 21.1731M minus 21.2148M = -41.7k, rounded to 42,000." },
+      { phrase: "giving back part of July's gain", source: "pipeline:statcan:14-10-0287-01", note: "LFS employment change, SA, July 2026: 21.2148M minus 21.1397M = +75.1k; August's -41.7k reverses 56% of it." },
+      { phrase: "unemployment rate held at 6.4%", source: "pipeline:statcan:14-10-0287-01", note: "LFS unemployment rate, SA: August 2026 = 6.4%, unchanged from July 2026 = 6.4%." },
+      { phrase: "participation slipped", source: "pipeline:statcan:14-10-0287-01", note: "LFS participation rate, SA: August 2026 = 65.0%, down from July 2026 = 65.1%." },
+      { phrase: "the loss showed up as people leaving the workforce, not as more unemployed", source: "derived", note: "Unemployment level rose only 4.8k (1.4595M minus 1.4547M) against a 41.7k employment decline while population 15+ grew 19.1k (34.8312M minus 34.8121M); the residual is a rise in not-in-labour-force, consistent with participation falling 0.1pp and the employment rate falling to 60.8% from 60.9%. Had participation held at 65.1%, the labour force would be ~22.675M and unemployment ~6.6%." },
+      { phrase: "Wage growth on the LFS-Micro measure slowed to 2.2% in July", source: "pipeline:boc:lfs_micro", note: "BoC LFS-Micro wage growth, Y/Y: July 2026 = 2.2%, down from June 2026 = 2.7% (series lags the LFS by one month; August observation not yet available)." },
     ],
   },
   {

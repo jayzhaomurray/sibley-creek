@@ -122,6 +122,12 @@ const FRESHNESS_DAYS = {
 // Per-series staleness overrides for sources with atypical publication lags.
 // Must stay in sync with SERIES_STALENESS_OVERRIDES in pipeline/io/panel_data.py.
 const SERIES_STALENESS_OVERRIDES = {
+  // BoC Valet V39079 (target for the overnight rate, business daily): the
+  // series is republished on Valet with a multi-day lag around fixed
+  // announcement dates (observed 2026-09: last obs 09-08 while CORRA and
+  // GoC yields were current through 09-10). The target only moves on
+  // announcement days, so a short lag carries no wrong-value risk.
+  overnight_rate_daily: 10,
   // StatCan bilateral trade (Table 12-10-0011-01): ~90-day lag
   trade_exports_us_customs: 120, trade_imports_us_customs: 120,
   trade_exports_all_customs: 120, trade_imports_all_customs: 120,

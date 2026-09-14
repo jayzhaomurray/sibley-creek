@@ -1688,6 +1688,11 @@ STALENESS_FAIL_SERIES: set[str] = {
 # runs ~90 days behind. CREA HPI runs ~30 days. DoF Fiscal Monitor ~70 days.
 # Override format: series_slug -> max_age_days.
 SERIES_STALENESS_OVERRIDES: dict[str, int] = {
+    # BoC Valet V39079 (target for the overnight rate, business daily):
+    # republished with a multi-day lag around fixed announcement dates
+    # (2026-09: last obs 09-08 while CORRA/yields were current to 09-10).
+    # Business days, same convention as goc_ust_spread_2y below.
+    "overnight_rate_daily": 10,
     # StatCan Table 12-10-0011-01 (customs bilateral trade, 27 partners)
     # Releases ~60-90 days after reference month.
     "trade_exports_us_customs":    120,

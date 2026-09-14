@@ -1,6 +1,6 @@
-﻿# Sibley Creek - operating dashboard
+# Sibley Creek - operating dashboard
 
-**Last updated:** 2026-07-20 (June CPI commentary published; site-wide staleness audit; build-monthly CI outage found + fixed + confirmed live; /inflation/ section fully redrafted and shipped through all 3 gates)
+**Last updated:** 2026-09-14 (deploy unblocked: labour prose refreshed to August LFS + overnight-rate staleness override; earlier: 2026-07-20 (June CPI commentary published; site-wide staleness audit; build-monthly CI outage found + fixed + confirmed live; /inflation/ section fully redrafted and shipped through all 3 gates)
 **Purpose:** I (Claude) read this at session start to load context and surface what matters to Jay in the terminal. Jay doesn't need to open this directly - ask me "where are we?" and I'll tell you.
 
 **Note on this file:** the June-July narrative below was recovered, not preserved cleanly. It existed only as an uncommitted edit in the working tree and got wiped by a `git reset --hard origin/master` during today's cleanup (a stash-as-safety-net silently failed on leftover unresolved-merge index entries, and I didn't catch that before resetting). I was able to reconstruct most of it verbatim from earlier in this session's own conversation context (I'd read the file just before the reset), but that read was capped at 80 lines, so anything past the "Fiscal chartbook" entry below may be incomplete or missing. Nothing in the actual site/git/deploy history was lost - only this file's narrative summary of it, and only partially. Lesson: commit STATUS.md edits instead of leaving them perpetually uncommitted - that's the actual root cause, and it's been silently losing content across sessions, not just today.
@@ -8,6 +8,15 @@
 ---
 
 ## What's active right now
+
+### 2026-09-14 - Deploy pipeline unblocked (broken since Sep 10, run #1745)
+- **Two independent gate failures, both fixed, full `npm run build` green locally, pushed to master.**
+  1. `check_prose_vintage --strict`: /labour/ hand-authored abstract was dated Jul 10 (June LFS) while labour panel data had moved to Sep 1 (Indeed postings slot) -> 53d lag vs 35d threshold. The Sep 9 financial refresh commit is what tipped it. Fix: labour section redrafted for the **August LFS (Sep 4 release)** through all 3 gates (writer -> fact-check PASS on numerics -> style -> surface-fit cut to 3 grounding numbers). Now: tileLine "Canada shed 42k jobs in August and unemployment held at 6.4%."; abstract opens "Yes, gradually." (participation-drop mechanism, LFS-Micro 2.2% July landing). heroKicker "August LFS", updatedAt Sep 4.
+  2. `check_panel_data_integrity`: `overnight_rate_daily` (BoC Valet V39079) stale >3 business days. Upstream lag, not a fetcher bug: Valet itself had no obs after Sep 8 while CORRA + GoC yields were current to Sep 10. Fix: per-series staleness override of 10 business days in BOTH `scripts/check_panel_data_integrity.mjs` and `pipeline/io/panel_data.py` (same precedent as goc_ust_spread_2y). 8/8 pytest pass.
+- **Open editorial call for Jay (not blocking):** fact-checker flagged that "Yes, gradually" leans on the wage reading; the unemployment rate has actually FALLEN 6.9% (Apr) -> 6.4% (Aug, lowest since May 2024). Shipped as-is because gates 2+3 accepted the take. One-word veto alternatives: opener "Only in wages." or "On wages, yes; on jobs, not yet."
+- **Follow-up spotted, not done:** /monetary/ abstract is still dated Jul 15 (July decision); the Sep 9 FAD has not been reflected in section copy. Will trip the same prose-vintage gate once monetary data leads it by 35d (yields excluded? check). Needs a decision-day refresh.
+- GITHUB_TOKEN in env is expired (401) - could not read CI logs; diagnosed by local repro instead. Deploy-failure issue #17 auto-resolves on the next green run.
+
 
 ### 2026-07-20 - June CPI commentary published + site-wide staleness fixed
 - **Commentary published** (master `10d4c7a`, deploy green, live-verified 200): `https://sibleycreek.ca/research/commentaries/cpi-2026-07-20/` ("Inflation falls to 2.8% on lower gas prices" - June CPI cooled back inside the BoC control band after May's 3.2% breakout; both core measures now sub-2%; gasoline -10% MoM post-ceasefire was the main driver; take flags the relief as temporary since the Middle East conflict has since reignited).
