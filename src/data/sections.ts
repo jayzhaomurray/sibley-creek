@@ -456,7 +456,7 @@ export const sections: Section[] = [
     // continuously but the policy stance is anchored to the rate decision.
     updatedAt: Date.UTC(2026, 8, 2, 13, 45),
     chartSeriesKey: "policy-rate",
-    heroKicker: "September rate decision",
+    heroKicker: "Sep 2 rate decision",
     // Policy's primary event is the rate decision, not the pipeline's
     // monthly `policy-rate` print. heroKickerPrefix is hand-set to the
     // event-month phrasing; the page-level "Latest release" date is

@@ -621,16 +621,145 @@ function ytickSuppressed(tickY: number, isTopTick: boolean): boolean {
 // Direct labels live in the right gutter (x > PLOT_X1) so no horizontal
 // overlap on the left.
 const BAND_LABEL_GUARD = 12;
-let showBandLabel = showBand && !!(referenceBand && referenceBand.label);
-if (showBandLabel) {
-  if (showRefLabel && refY !== null && Math.abs((refY - 5) - BAND_LABEL_Y) < BAND_LABEL_GUARD) {
-    showBandLabel = false;
+function bandLabelClearsOtherLabels(baselineY: number): boolean {
+  if (showRefLabel && refY !== null && Math.abs((refY - 5) - baselineY) < BAND_LABEL_GUARD) {
+    return false;
   }
-  if (showRefLabel2 && refY2 !== null && Math.abs((refY2 - 5) - BAND_LABEL_Y) < BAND_LABEL_GUARD) {
-    showBandLabel = false;
+  if (showRefLabel2 && refY2 !== null && Math.abs((refY2 - 5) - baselineY) < BAND_LABEL_GUARD) {
+    return false;
   }
   if (recVisible && !recLabelSuppressed
-      && Math.abs(BAND_LABEL_Y - RECESSION_LABEL_Y) < BAND_LABEL_GUARD) {
+      && Math.abs(baselineY - RECESSION_LABEL_Y) < BAND_LABEL_GUARD) {
+    return false;
+  }
+  return true;
+}
+let showBandLabel = showBand && !!(referenceBand && referenceBand.label);
+if (showBandLabel && !bandLabelClearsOtherLabels(BAND_LABEL_Y)) showBandLabel = false;
+
+// ---- Reference-band label vs data line ----------------------------------
+// The label's authored slot (left end, BAND_LABEL_Y) is a fixed position,
+// but the data lines move under it as the display window rolls. A policy
+// rate climbing through the band's upper edge near the left of the window
+// lands on the label sooner or later. So the slot is CHOSEN, not assumed:
+// test each candidate slot's rect against every drawn series segment and
+// take the first that is clear. Order of preference:
+//   1. authored slot, left end        (zero change when it is clear)
+//   2. same baseline, right end       (right-anchored at PLOT_X1 - 6)
+//   3. the remaining baselines (above the band / inside top / inside
+//      bottom), left end then right end
+// If no slot is clear the label is suppressed; the shaded band stays.
+// Rect metrics are measured from the rendered 10px / 0.16em micro-cap
+// style: ~7.9 units per character, 11 above the baseline, 3.5 below.
+const BAND_LABEL_CHAR_W = 8.2;   // conservative advance per character
+const BAND_LABEL_ASCENT = 11;
+const BAND_LABEL_DESCENT = 3.5;
+const BAND_LABEL_CLEAR = 4;      // min clearance to any data stroke
+const BAND_LABEL_INSET_X = 6;
+
+type Seg = [number, number, number, number];
+function seriesSegments(series: SeriesPoint[], step: boolean): Seg[] {
+  const segs: Seg[] = [];
+  let px: number | null = null;
+  let py: number | null = null;
+  for (const pt of series) {
+    if (typeof pt.value !== "number" || Number.isNaN(pt.value)) continue;
+    const xv = decYear(pt.date);
+    if (Number.isNaN(xv)) continue;
+    const x = xScale(xv);
+    const y = yScale(pt.value);
+    if (px !== null && py !== null) {
+      if (step) {
+        segs.push([px, py, x, py]);
+        segs.push([x, py, x, y]);
+      } else {
+        segs.push([px, py, x, y]);
+      }
+    }
+    px = x;
+    py = y;
+  }
+  return segs;
+}
+// Liang-Barsky: does the segment touch the axis-aligned rect?
+function segHitsRect(s: Seg, rx0: number, ry0: number, rx1: number, ry1: number): boolean {
+  const dx = s[2] - s[0];
+  const dy = s[3] - s[1];
+  let t0 = 0;
+  let t1 = 1;
+  const p = [-dx, dx, -dy, dy];
+  const q = [s[0] - rx0, rx1 - s[0], s[1] - ry0, ry1 - s[1]];
+  for (let i = 0; i < 4; i++) {
+    const pi = p[i]!;
+    const qi = q[i]!;
+    if (pi === 0) {
+      if (qi < 0) return false;
+    } else {
+      const r = qi / pi;
+      if (pi < 0) {
+        if (r > t1) return false;
+        if (r > t0) t0 = r;
+      } else {
+        if (r < t0) return false;
+        if (r < t1) t1 = r;
+      }
+    }
+  }
+  return true;
+}
+
+let bandLabelX = PLOT_X0 + BAND_LABEL_INSET_X;
+let bandLabelY = BAND_LABEL_Y;
+let bandLabelAnchor: "start" | "end" = "start";
+if (showBandLabel && bandTopY !== null && bandBotY !== null) {
+  const dataSegs: Seg[] = seriesSegments(primData, primaryStep);
+  if (unitsMatch) dataSegs.push(...seriesSegments(secData, secondaryStep));
+  if (terUnitsMatch) dataSegs.push(...seriesSegments(terData, tertiaryStep));
+  // Latest-print dot (r=4), as a cross through its centre.
+  if (lastPrim) {
+    dataSegs.push([lastPrim.x - 4, lastPrim.y, lastPrim.x + 4, lastPrim.y]);
+    dataSegs.push([lastPrim.x, lastPrim.y - 4, lastPrim.x, lastPrim.y + 4]);
+  }
+  const labelW = ((referenceBand as { label: string }).label.length) * BAND_LABEL_CHAR_W;
+  const slotIsClear = (baselineY: number, anchor: "start" | "end"): boolean => {
+    const x0 = anchor === "start"
+      ? PLOT_X0 + BAND_LABEL_INSET_X
+      : PLOT_X1 - BAND_LABEL_INSET_X - labelW;
+    const rx0 = x0 - BAND_LABEL_CLEAR;
+    const rx1 = x0 + labelW + BAND_LABEL_CLEAR;
+    const ry0 = baselineY - BAND_LABEL_ASCENT - BAND_LABEL_CLEAR;
+    const ry1 = baselineY + BAND_LABEL_DESCENT + BAND_LABEL_CLEAR;
+    return !dataSegs.some((s) => segHitsRect(s, rx0, ry0, rx1, ry1));
+  };
+  // Candidate baselines: authored slot first, then the alternates. Inside-
+  // band slots only exist when the band is tall enough to hold the label.
+  const baselines: number[] = [BAND_LABEL_Y];
+  const aboveY = Math.max(PLOT_Y0 + 10, bandTopY - 4);
+  const bandTallEnough = bandBotY - bandTopY >= BAND_LABEL_ASCENT + BAND_LABEL_DESCENT + 6;
+  const alternates = bandTallEnough
+    ? [aboveY, bandTopY + BAND_LABEL_ASCENT + 3, bandBotY - BAND_LABEL_DESCENT - 3]
+    : [aboveY];
+  for (const y of alternates) {
+    if (!baselines.some((b) => Math.abs(b - y) < 1) && bandLabelClearsOtherLabels(y)) {
+      baselines.push(y);
+    }
+  }
+  const slots: Array<{ y: number; anchor: "start" | "end" }> = [
+    { y: BAND_LABEL_Y, anchor: "start" },
+    { y: BAND_LABEL_Y, anchor: "end" },
+  ];
+  for (const y of baselines.slice(1)) {
+    slots.push({ y, anchor: "start" });
+    slots.push({ y, anchor: "end" });
+  }
+  const chosen = slots.find((s) => slotIsClear(s.y, s.anchor));
+  if (chosen) {
+    bandLabelY = chosen.y;
+    bandLabelAnchor = chosen.anchor;
+    bandLabelX = chosen.anchor === "start"
+      ? PLOT_X0 + BAND_LABEL_INSET_X
+      : PLOT_X1 - BAND_LABEL_INSET_X;
+  } else {
     showBandLabel = false;
   }
 }
@@ -676,9 +805,9 @@ if (showBandLabel) {
     {showBandLabel && (
       <text
         class="canon-chart__reference-band-label"
-        x={(PLOT_X0 + 6).toFixed(2)}
-        y={BAND_LABEL_Y.toFixed(2)}
-        text-anchor="start"
+        x={bandLabelX.toFixed(2)}
+        y={bandLabelY.toFixed(2)}
+        text-anchor={bandLabelAnchor}
       >{(referenceBand as { label: string }).label.toUpperCase()}</text>
     )}
 
