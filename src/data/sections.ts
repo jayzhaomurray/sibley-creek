@@ -452,11 +452,11 @@ export const sections: Section[] = [
     headlineQuestion:
       "What is Canada's monetary policy stance?",
     cadence: "Event-driven + monthly",
-    // Jul 15 rate decision is the primary event; daily yields refresh
+    // Sep 2 rate decision is the primary event; daily yields refresh
     // continuously but the policy stance is anchored to the rate decision.
-    updatedAt: Date.UTC(2026, 6, 15, 13, 45),
+    updatedAt: Date.UTC(2026, 8, 2, 13, 45),
     chartSeriesKey: "policy-rate",
-    heroKicker: "July rate decision",
+    heroKicker: "September rate decision",
     // Policy's primary event is the rate decision, not the pipeline's
     // monthly `policy-rate` print. heroKickerPrefix is hand-set to the
     // event-month phrasing; the page-level "Latest release" date is
@@ -464,13 +464,14 @@ export const sections: Section[] = [
     // decision doesn't sit in `prints[]` directly.
     heroKickerPrefix: "Rate decision",
     latestReleasePrefix: "BoC rate decision",
-    latestReleaseDateOverride: "Jul 15, 2026",
+    latestReleaseDateOverride: "Sep 2, 2026",
     tileLine:
-      "BoC stayed at 2.25%; 2y GoCs are near 3.02% and the Canada-US spread is -117 bps.",
+      "BoC held at 2.25% a seventh time, but 2y GoCs at 3.27% sit a full point higher.",
     tileLineCitations: [
-      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, unchanged since July 15 2026 FAD decision, via Valet V39079." },
-      { phrase: "3.02%", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, August 20 2026 daily close." },
-      { phrase: "-117 bps", source: "derived", note: "Canada-US 2y spread, August 20 2026: GoC 2y 3.02% minus UST 2y 4.19% = -117 bps." },
+      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate 2.25% as of 2026-10-01, unchanged at the September 2 2026 FAD decision, via Valet V39079." },
+      { phrase: "a seventh time", source: "card:boc_fad_holds_post_oct_2025_cut", expected_count: 7, note: "Enumerated FAD holds since the Oct 29, 2025 cut: Dec 10, Jan 28, Mar 18, Apr 29, Jun 10, Jul 15, Sep 2. Next decision Oct 28, 2026." },
+      { phrase: "3.27%", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, October 1 2026 daily close = 3.27%." },
+      { phrase: "a full point higher", source: "derived", note: "GoC 2y 3.27% minus overnight target 2.25% = 1.02 pp = 102 bps, October 1 2026." },
     ],
     prints: [
       {
@@ -515,18 +516,17 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "Aug 20, 2026",
+      date: "Oct 3, 2026",
       body:
-        "On hold. The Bank of Canada has stayed at 2.25% through six straight decisions, still at the floor of its 2.25 to 3.25% neutral range, and now calls the rate appropriate. Markets see it the same way: the 2-year GoC yield sits at 3.02%, 77 bps above the overnight rate, while the Canada-US 2-year spread is still deeply negative at -117 bps.",
+        "On hold, with the pressure pointing up. The Bank of Canada has held at 2.25%, the floor of its neutral range, through seven straight decisions, but says upside risks to inflation have increased. Bond markets lean the same way: the 2-year GoC yield is 3.27%, 102 bps above the overnight rate.",
     },
     abstractCitations: [
-      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate, unchanged since July 15 2026 FAD decision, via Valet V39079." },
-      { phrase: "six straight decisions", source: "card:boc_fad_holds_post_oct_2025_cut", expected_count: 6, note: "Enumerated FAD holds since Oct 29, 2025 cut: Dec 10, Jan 28, Mar 18, Apr 29, Jun 10, Jul 15. No new FAD decision since; next expected ~Sep 2, 2026." },
-      { phrase: "2.25 to 3.25% neutral range", source: "card:boc_mpr_neutral_range" },
-      { phrase: "calls the rate appropriate", source: "derived", note: "BoC July 15 2026 press release, verbatim: 'Governing Council judges the current policy rate remains appropriate to sustain the economic recovery and bring inflation back to the 2% target.' No newer FAD statement supersedes this. FLAG: migrate to a source card for the July 15 statement when it lands." },
-      { phrase: "2-year GoC yield sits at 3.02%", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, August 20 2026 daily close." },
-      { phrase: "77 bps above the overnight rate", source: "derived", note: "GoC 2y 3.02% minus overnight target 2.25% = 77 bps; a 2y yield sitting above the overnight rate means the market prices no near-term easing (same claim covered in monetary.astro plate-3)." },
-      { phrase: "-117 bps", source: "derived", note: "Canada-US 2y spread, August 20 2026: GoC 2y 3.02% minus UST 2y 4.19% = -117 bps." },
+      { phrase: "2.25%", source: "pipeline:boc:V39079", note: "BoC overnight target rate 2.25% as of 2026-10-01, unchanged at the September 2 2026 FAD decision, via Valet V39079." },
+      { phrase: "seven straight decisions", source: "card:boc_fad_holds_post_oct_2025_cut", expected_count: 7, note: "Enumerated FAD holds since the Oct 29, 2025 cut: Dec 10, Jan 28, Mar 18, Apr 29, Jun 10, Jul 15, Sep 2. No decision between Sep 2 and Oct 3; next is Oct 28, 2026." },
+      { phrase: "floor of its neutral range", source: "card:boc_mpr_neutral_range", note: "BoC nominal neutral range 2.25% to 3.25% (April 2026 MPR appendix, reaffirmed in the July 2026 MPR); the 2.25% target equals the lower bound." },
+      { phrase: "upside risks to inflation have increased", source: "card:boc_fad_2026_09_02_inflation_risks", note: "BoC September 2 2026 press release, verbatim: 'However, the upside risks to inflation have increased, while new tariffs make growth prospects more uncertain.'" },
+      { phrase: "2-year GoC yield is 3.27%", source: "pipeline:boc:yield_2yr", note: "GoC 2y benchmark yield, October 1 2026 daily close = 3.27%." },
+      { phrase: "102 bps above the overnight rate", source: "derived", note: "GoC 2y 3.27% minus overnight target 2.25% = 1.02 pp = 102 bps, October 1 2026. Up from 77 bps on August 20 and 86 bps at the September 2 close." },
     ],
   },
   {
@@ -537,18 +537,18 @@ export const sections: Section[] = [
     headlineQuestion:
       "What is Canada's fiscal policy stance?",
     cadence: "Monthly (Fiscal Monitor) + annual (budgets)",
-    // Fiscal Monitor Mar 2026 is the latest monthly issue in the pipeline.
-    updatedAt: Date.UTC(2026, 5, 16, 16, 5),
+    // Fiscal Monitor July 2026 (published 2026-09-25) is the latest monthly issue in the pipeline.
+    updatedAt: Date.UTC(2026, 8, 25, 16, 5),
     chartSeriesKey: "fiscal-ytd-balance",
     tileChartKind: "bars",
-    heroKicker: "Fiscal Monitor Mar '26",
+    heroKicker: "Fiscal Monitor Jul '26",
     heroKickerPrefix: "Fiscal Monitor",
     latestReleasePrefix: "Fiscal Monitor",
     tileLine:
-      "The federal deficit reached $55.3B through March, wider than last year.",
+      "This fiscal year's deficit was $5.1B through July, narrower than a year earlier.",
     tileLineCitations: [
-      { phrase: "$55.3B through March", source: "pipeline:dof:fiscal_monitor", note: "DoF Fiscal Monitor March 2026: FY2025-26 budgetary deficit YTD = -C$55.277bn." },
-      { phrase: "wider than last year", source: "pipeline:dof:fiscal_monitor", note: "DoF Fiscal Monitor March 2026: FY2025-26 YTD deficit -C$55.277bn versus FY2024-25 full-year deficit -C$43.154bn in the comparable source series." },
+      { phrase: "$5.1B through July", source: "pipeline:dof:fiscal_monitor", note: "DoF Fiscal Monitor July 2026 (published 2026-09-25): budgetary balance, April to July FY2026-27 = -C$5,138M, rounded to $5.1B. 'This fiscal year' = FY2026-27, April 2026 to March 2027." },
+      { phrase: "narrower than a year earlier", source: "pipeline:dof:fiscal_monitor", note: "DoF Fiscal Monitor July 2026 Table 1: April to July FY2026-27 deficit C$5,138M versus C$7,787M for April to July FY2025-26; 7,787 - 5,138 = 2,649, i.e. C$2.6bn narrower." },
     ],
     prints: [
       {
@@ -590,17 +590,19 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "Jun 16, 2026",
+      date: "Oct 3, 2026",
       body:
-        "Fiscal policy is modestly stimulative. The March Fiscal Monitor put the FY2025-26 deficit at $55.3 billion on a cash basis, while the Spring Economic Update estimate is $66.9 billion, up from $36.3 billion the year before. Debt is still expected to sit near 41.1% of GDP, but public debt charges are taking 10.6% of revenue.",
+        "Fiscal policy is holding roughly steady. Ottawa projects a $65.3 billion deficit this fiscal year, close to last year's $66.9 billion. Through July the shortfall was $5.1 billion, narrower than a year earlier as revenue outgrew program spending, but four months settle little and July alone was wider.",
     },
     abstractCitations: [
-      { phrase: "Fiscal policy is modestly stimulative", source: "card:claim_dof_deficit_larger_than_handoff_below_pandemic", note: "Analytical read backed by the deficit widening from C$36.3bn in FY2024-25 to C$66.9bn in FY2025-26." },
-      { phrase: "FY2025-26 deficit at $55.3 billion", source: "pipeline:dof:fiscal_monitor", note: "DoF Fiscal Monitor March 2026: FY2025-26 budgetary deficit YTD = -C$55.277bn." },
-      { phrase: "Spring Economic Update estimate is $66.9 billion", source: "card:claim_dof_deficit_larger_than_handoff_below_pandemic", note: "DoF SEU April 2026 Annex 1 Table A1.7: FY2025-26 budgetary balance = -C$66.9bn." },
-      { phrase: "$36.3 billion the year before", source: "card:claim_dof_deficit_larger_than_handoff_below_pandemic", note: "DoF FRT/SEU: FY2024-25 actual deficit C$36.3bn." },
-      { phrase: "41.1% of GDP", source: "pipeline:dof:fiscal_reference_tables", note: "Federal debt, % of GDP, FY2025-26 estimate = 41.1%." },
-      { phrase: "10.6% of revenue", source: "pipeline:dof:fiscal_reference_tables", note: "Public debt charges / revenues, FY2025-26 estimate = 10.6%." },
+      { phrase: "holding roughly steady", source: "derived", note: "Analytical read on the planned CHANGE in the headline deficit: FY2026-27 projection C$65.3bn versus FY2025-26 estimate C$66.9bn (Spring Economic Update 2026 Annex 1 Table A1.7, same vintage), 66.9 - 65.3 = C$1.6bn, 1.9% versus 2.1% of GDP. Takes no view on whether a deficit of that size is loose. Gate 1 caveat: on the balance before net actuarial losses the projection widens, -55.3 to -65.2 (about 0.3 points of GDP); adding back the C$6.7bn reclassified out of program expenses it is -62.0 to -65.2. The claim holds on the headline balance and on the reclassification-adjusted balance, not on the unadjusted before-actuarial-losses balance (Gate 1 delta verdict, item 1)." },
+      { phrase: "$65.3 billion deficit this fiscal year", source: "pipeline:dof:fiscal_reference_tables", note: "Spring Economic Update 2026 Annex 1 Table A1.7 budgetary balance row: FY2026-27 = -C$65.3bn (frt_federal_balance_total). 'This fiscal year' = FY2026-27, April 2026 to March 2027." },
+      { phrase: "last year's $66.9 billion", source: "pipeline:dof:fiscal_reference_tables", note: "Spring Economic Update 2026 Annex 1 Table A1.7 budgetary balance row, same vintage: FY2025-26 estimate = -C$66.9bn. An estimate, not final until the Annual Financial Report." },
+      { phrase: "$5.1 billion", source: "pipeline:dof:fiscal_monitor", note: "DoF Fiscal Monitor July 2026 (published 2026-09-25): budgetary balance, April to July FY2026-27 = -C$5,138M." },
+      { phrase: "narrower than a year earlier", source: "pipeline:dof:fiscal_monitor", note: "DoF Fiscal Monitor July 2026 Table 1: April to July FY2026-27 deficit C$5,138M versus C$7,787M for April to July FY2025-26; 7,787 - 5,138 = 2,649, i.e. C$2.6bn narrower." },
+      { phrase: "revenue outgrew program spending", source: "pipeline:dof:fiscal_monitor", note: "DoF Fiscal Monitor July 2026, April to July: revenues C$175,469M versus C$163,443M, up 7.4%; program expenses excluding net actuarial losses C$158,968M versus C$151,293M, up 5.1%. Growth rates are the published-page figures." },
+      { phrase: "four months", source: "derived", note: "The fiscal year starts April 1; the July 2026 Fiscal Monitor covers April, May, June, July = 4 months." },
+      { phrase: "July alone was wider", source: "derived", note: "DoF Fiscal Monitor July 2026: July 2026 deficit C$4,768M versus July 2025 deficit C$1,512M; 4,768 - 1,512 = C$3,256M wider." },
     ],
   },
   {
@@ -674,17 +676,18 @@ export const sections: Section[] = [
     headlineQuestion:
       "Is Canada's trade pivot working?",
     cadence: "Monthly + event",
-    // May merch-trade release landed July 7, 2026.
-    updatedAt: Date.UTC(2026, 6, 7, 8, 30),
+    // July merch-trade release landed September 3, 2026.
+    updatedAt: Date.UTC(2026, 8, 3, 8, 30),
     chartSeriesKey: "trade-balance",
-    heroKicker: "May balance",
+    heroKicker: "July balance",
     heroKickerPrefix: "Trade balance",
     latestReleasePrefix: "Merchandise trade",
     tileLine:
-      "Goods surplus widened to $4.2B in May; US export share rebounded to 70.0%.",
+      "Goods surplus shrank to $769M in July from $4.2B as exports to the US fell.",
     tileLineCitations: [
-      { phrase: "$4.2B in May", source: "pipeline:statcan:12-10-0119-01", note: "Goods trade balance, May 2026 monthly print: +$4,243M, up from +$3,405M in April." },
-      { phrase: "70.0%", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, May 2026: 70.0%." },
+      { phrase: "$769M in July", source: "pipeline:statcan:12-10-0011-01", note: "Goods trade balance, all countries, BoP SA (v87008984), July 2026: +C$769.2M. Equals the StatCan headline." },
+      { phrase: "from $4.2B", source: "pipeline:statcan:12-10-0011-01", note: "Goods trade balance, BoP SA (v87008984), June 2026: +C$4,201.4M. Change June to July: 769.2 - 4,201.4 = -3,432.2." },
+      { phrase: "exports to the US fell", source: "pipeline:statcan:12-10-0011-01", note: "Direction only, no number quoted. Exports to the US, customs SA (v87008898): 52,279.6 in June to 48,895.5 in July 2026 = -6.5%. Same direction on the BoP basis (-6.6%). Goods balance with the US, BoP SA (v87008985): 10,276.4 in June to 5,913.1 in July, a fall of 4,363.3, larger than the 3,432.2 fall in the total balance." },
     ],
     tileChartKind: "bars",
     prints: [
@@ -727,18 +730,18 @@ export const sections: Section[] = [
     ],
     blurb: {
       kind: "last",
-      date: "July 7, 2026",
+      date: "Oct 3, 2026",
       body:
-        "Not really. The trade surplus widened again in May, but the US export share is back at 70.0% and looks little changed from a year ago. The apparent diversification pulse was still mostly gold routed to London; that flow is cooling, and among tariff-exposed sectors aluminum is the only clear shift away from the US while copper leaned more heavily toward it.",
+        "It has started to, though gold flatters it. The US took 66.6% of goods exports in July, 6.4 points less than a year earlier, as sales to other markets rose 46%, far faster than US-bound sales. Precious metals shipped outside the US more than doubled over that year, and the share's fall from June owed as much to weaker US sales as to new buyers.",
     },
     abstractCitations: [
-      { phrase: "surplus widened again in May", source: "pipeline:statcan:12-10-0119-01", note: "Goods trade balance: +C$3,405M in April 2026 and +C$4,243M in May 2026." },
-      { phrase: "back at 70.0%", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports, May 2026: 70.0%." },
-      { phrase: "little changed from a year ago", source: "pipeline:statcan:12-10-0121-01", note: "US share of total Canadian goods exports: 69.6% in May 2025 and 70.0% in May 2026." },
-      { phrase: "gold routed to London", source: "derived", note: "NAPCS 35 gold/silver/PGM exports to the UK were C$4.6B in May 2026, 82.6% of total NAPCS 35 exports. Source: StatCan 12-10-0182-01." },
-      { phrase: "that flow is cooling", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 exports to the UK fell from C$7.8B in March to C$5.6B in April and C$4.6B in May 2026." },
-      { phrase: "aluminum is the only clear shift away from the US", source: "derived", note: "Aluminum US share fell from 88.7% in May 2025 to 62.9% in May 2026; steel, softwood, and autos moved away by under five percentage points. Source: StatCan 12-10-0182-01." },
-      { phrase: "copper leaned more heavily toward it", source: "derived", note: "Copper US share rose from 88.9% in May 2025 to 90.6% in May 2026. Source: StatCan 12-10-0182-01." },
+      { phrase: "66.6% of goods exports in July", source: "pipeline:statcan:12-10-0011-01", note: "US share of goods exports, customs SA, July 2026: 48,895.5 (v87008898) / 73,448.0 (v87008897) = 66.57%. Headline BoP basis is 66.3%; the page's charts draw the customs series." },
+      { phrase: "6.4 points less than a year earlier", source: "derived", note: "Customs SA. July 2025: 45,404.1 / 62,211.1 = 72.98%. July 2026: 66.57%. 66.57 - 72.98 = -6.41 points. Source: StatCan 12-10-0011-01." },
+      { phrase: "sales to other markets rose 46%", source: "derived", note: "Exports to non-US destinations, customs SA (total minus US): 24,552.5 in July 2026 vs 16,807.0 in July 2025 = +46.1%. Source: StatCan 12-10-0011-01." },
+      { phrase: "far faster than US-bound sales", source: "derived", note: "Exports to the US, customs SA: 48,895.5 in July 2026 vs 45,404.1 in July 2025 = +7.7%, against +46.1% for non-US. Source: StatCan 12-10-0011-01." },
+      { phrase: "gold flatters it", source: "derived", note: "Rests on the next entry: precious-metals exports outside the US rose from C$2,687.0M to C$6,290.2M July to July (customs NSA, StatCan 12-10-0182-01)." },
+      { phrase: "Precious metals shipped outside the US more than doubled over that year", source: "derived", note: "NAPCS 35 (unwrought gold, silver, platinum-group metals), customs NSA, total minus US. July 2026: 6,819.5 - 529.3 = 6,290.2. July 2025: 4,413.4 - 1,726.4 = 2,687.0. Ratio 2.34. Source: StatCan 12-10-0182-01." },
+      { phrase: "owed as much to weaker US sales as to new buyers", source: "derived", note: "June to July 2026, two decompositions of the fall in the US share. Customs SA (charted): exports to the US -3,384 (-6.5%), non-US +243 (+1.0%); share 68.26% to 66.57% = -1.69 points, of which -1.47 (87%) is due to the US fall. BoP SA (headline): exports to the US -3,578 (-6.6%), non-US +1,756 (+7.4%); share 69.39% to 66.35% = -3.04 points, of which -1.49 (49%) is due to the US fall. The US fall accounts for at least about half of the drop on both. Source: StatCan 12-10-0011-01." },
     ],
   },
   {

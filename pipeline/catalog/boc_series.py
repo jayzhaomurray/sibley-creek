@@ -132,6 +132,30 @@ BOC_VALET_SERIES: dict[str, BocSpec] = {
                                      notes="National-level only via FVI. CMA-level HPI ships via CREA XLSX (pipeline.fetch.crea)."),
     "crea_snlr":             BocSpec("crea_snlr", "FVI_CREA_HOUSE_SALES_TO_NEW_LISTINGS_CANADA", "2014-01-01",
                                      "%", "monthly", "housing", "monthly"),
+    # The four resale slots below were a one-time lift from boc-tracker on
+    # 2026-05-11 (pipeline/io/lift_from_boc_tracker.py) and were never added to
+    # this catalog, so nothing refreshed them: crea_resales froze at 2026-02
+    # and the CMA slots at 2025-Q4 until they were registered here 2026-10-03.
+    # `units` / `frequency` are kept exactly as lifted so the panel_data JSON
+    # contract (unit string, history window) does not shift under the charts.
+    "crea_resales":          BocSpec("crea_resales", "FVI_CREA_HOUSE_RESALE_INDEXED_CANADA", "2014-01-01",
+                                     "Index", "monthly", "housing", "monthly",
+                                     notes="CREA residential resales, all of Canada, indexed (Valet description: index 2019 = 100); BoC FVI bundle."),
+    # CAUTION -- slug and unit string are misleading. Valet describes
+    # FVI_HOUSE_RESALES_12M_<CMA> as "Share of homes purchased and then flipped
+    # within 12 months (%), by major census metropolitan area" -- a quarterly
+    # flipping share, NOT a 12-month rolling resale count. Verified against
+    # /valet/lists/series 2026-10-03. Relabelling the slot is an editorial
+    # call (it changes reader-facing chart labels), so it is flagged, not done.
+    "crea_resales_toronto":  BocSpec("crea_resales_toronto", "FVI_HOUSE_RESALES_12M_TORONTO", "2014-01-01",
+                                     "Resales (12M rolling)", "monthly", "housing", "quarterly",
+                                     notes="Actually: share of homes purchased and then flipped within 12 months (%), Toronto CMA; quarterly. Unit string and 'monthly' frequency retained from the boc-tracker lift pending an editorial relabel."),
+    "crea_resales_vancouver": BocSpec("crea_resales_vancouver", "FVI_HOUSE_RESALES_12M_VANCOUVER", "2014-01-01",
+                                      "Resales (12M rolling)", "monthly", "housing", "quarterly",
+                                      notes="Actually: share of homes purchased and then flipped within 12 months (%), Vancouver CMA; quarterly. Unit string and 'monthly' frequency retained from the boc-tracker lift pending an editorial relabel."),
+    "crea_resales_calgary":  BocSpec("crea_resales_calgary", "FVI_HOUSE_RESALES_12M_CALGARY", "2014-01-01",
+                                     "Resales (12M rolling)", "monthly", "housing", "quarterly",
+                                     notes="Actually: share of homes purchased and then flipped within 12 months (%), Calgary CMA; quarterly. Unit string and 'monthly' frequency retained from the boc-tracker lift pending an editorial relabel."),
     "housing_affordability": BocSpec("housing_affordability", "INDINF_AFFORD_Q", "2000-01-01",
                                      "Ratio", "quarterly", "housing", "quarterly"),
     "mortgage_rate_5yr":     BocSpec("mortgage_rate_5yr", "V80691335", "1990-01-01", "%", "weekly", "housing", "weekly"),

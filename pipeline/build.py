@@ -659,8 +659,21 @@ def fetch_crea_mls_hpi() -> None:
         data/raw/crea_hpi_<geo>.csv (+ .meta.json) -- raw monthly HPI level
         data/processed/crea_hpi_<geo>_yoy.csv      -- Y/Y % change
         data/processed/crea_hpi_<geo>_6m_ar.csv    -- 6-month annualized
+
+    Freshness: after writing, the latest reference month in each sheet is
+    checked against the calendar (crea.check_release_freshness). A ZIP that
+    is two or more release cycles old raises, so the step lands in `failed`
+    instead of quietly re-serving an old file -- which is how these series
+    sat frozen at April 2026 from June to October 2026. The write still
+    happens first so the newest vintage we could find is what is on disk.
     """
-    zip_bytes, release_label = crea.find_available_release(lookback=4)
+    release = crea.find_available_release(lookback=4)
+    zip_bytes, release_label = release.zip_bytes, release.label
+    # Release date for provenance: the ZIP's HTTP Last-Modified when the server
+    # sends it, else the first of the release month named in the filename.
+    release_day = release.published or crea.parse_release_label(release_label)
+    release_date_iso = release_day.isoformat() if release_day else None
+    stale: list[str] = []
     for geo in CREA_GEOGRAPHIES:
         # Each geography is its own _safe call so one bad sheet doesn't kill others.
         def _do(geo_local: str = geo) -> None:
@@ -668,11 +681,11 @@ def fetch_crea_mls_hpi() -> None:
             raw_meta = SeriesMeta(
                 name=f"crea_hpi_{geo_local}",
                 source="Canadian Real Estate Association -- MLS HPI",
-                source_url=crea.release_url_for(release_label),
+                source_url=release.url,
                 source_id=f"CREA-HPI-{result.sheet_name}",
                 units="Index, 2005=100 (Composite HPI, SA)",
                 frequency="monthly",
-                release_date=release_label.replace("_", "-01-")[:10] if release_label else None,
+                release_date=release_date_iso,
                 notes=(
                     f"CREA Composite HPI SA, geography '{geo_local}' "
                     f"(sheet {result.sheet_name!r}); release {release_label}. "
@@ -708,13 +721,28 @@ def fetch_crea_mls_hpi() -> None:
                 transform="annualize_period_growth(period_lag=6, periods_per_year=12)",
             )
             write_series(six_m, six_m_meta, DATA_PROCESSED)
+
+            # Freshness guard, after the write (see docstring).
+            crea.check_release_freshness(
+                crea.latest_reference_month(result), label=release_label,
+            )
         # Per-geography safe wrapper:
         try:
             _do()
+        except crea.CreaStaleReleaseError as exc:
+            # Keep going so every geography is written, then fail the step.
+            logger.error("STALE: crea_hpi_%s -- %s", geo, exc)
+            stale.append(geo)
         except Exception as exc:  # noqa: BLE001
             logger.error("FAILED: crea_hpi_%s -- %s: %s", geo, type(exc).__name__, exc)
             logger.debug("traceback:\n%s", traceback.format_exc())
             raise
+    if stale:
+        raise crea.CreaStaleReleaseError(
+            f"CREA MLS HPI release {release_label} ({release.url}, found via "
+            f"{release.discovered_via}) is stale for: {', '.join(stale)}. "
+            f"Check {crea.HPI_TOOL_PAGE_URL} for a changed download link."
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -2727,14 +2755,41 @@ def derive_tariff_state_fixture() -> None:
               "sector":         <sector string, e.g. "Steel & aluminum">,
               "mechanism":      <"Section 232" | "IEEPA" | "USMCA" | ...>,
               "effective_date": "YYYY-MM-DD",
-              "status":         "in_force" | "suspended" | "under_review",
+              "status":         "in_force" | "suspended" | "under_review" | "terminated",
               "source_url":     <card url>,
               "excerpt":        <verbatim excerpt from primary source>,
-              "notes":          <optional string>
+              "notes":          <optional string>,
+              "imposed_by":     <"United States" | "Canada" | "">,
+              "card_status":    <"registry" | "pending_user">,
+              "status_source_url":          <optional; primary source for a
+                                             status change, e.g. a termination>,
+              "effective_date_source_url":  <optional; set when the effective
+                                             date comes from a different card
+                                             than the rate>
             },
             ...
           ]
         }
+
+    Maintenance rules (2026-10-03):
+
+    - Status, rate and label for each row are hand-maintained in
+      TARIFF_CARD_MAP below. Dates, URLs and excerpts always come from a
+      source card -- never typed in here.
+    - A card is looked up in registry.yaml first, then in
+      editorial/source_cards/_pending/**/<id>.yaml. Rows resolved from a
+      pending card carry card_status="pending_user" so a consumer can tell
+      that the card is primary-verified but not yet approved for citation.
+    - "terminated" means a primary source says the duty is no longer in
+      effect. The row keeps its historical rate and effective date; the
+      terminating document goes in status_source_url. No termination date is
+      recorded unless a card carries one.
+    - Rows whose current state could not be confirmed against a primary
+      source keep their last-verified values untouched; `verified_at` is the
+      as-of date for that row and `notes` says what is unconfirmed.
+    - Top-level `as_of` is the latest effective date among in-force rows; it
+      is NOT a statement that every row was re-verified on that date. Use
+      `last_reviewed` plus each row's `verified_at` for that.
 
     Panel4TariffState.astro will be built by chart-builder to consume this
     fixture via the panel's `metadata` key (wired through metadata_path in
@@ -2759,6 +2814,26 @@ def derive_tariff_state_fixture() -> None:
 
     sources = registry.get("sources", [])
 
+    # Date of the last editorial pass over this log (hand-maintained).
+    TARIFF_STATE_LAST_REVIEWED = "2026-10-03"
+
+    # Primary source for the end of the EO 14193 duties. Fetched and
+    # text-matched 2026-10-03 (claude-ref/build_unblock_2026-10-03/
+    # trade_facts.md, F4.1a). The signing date was not captured from the
+    # body, so no termination date is recorded.
+    _EO_14193_TERMINATION_URL = (
+        "https://www.whitehouse.gov/presidential-actions/2026/02/"
+        "ending-certain-tariff-actions/"
+    )
+    _EO_14193_TERMINATION_NOTE = (
+        "No longer in effect. The executive order 'Ending Certain Tariff "
+        "Actions' (White House, February 2026) lists Executive Order 14193 "
+        "and states the duties 'shall no longer be in effect and, as soon as "
+        "practicable, shall no longer be collected.' Rate and effective date "
+        "shown are historical. Termination date not recorded: the signing "
+        "date was not captured from the order."
+    )
+
     # Card IDs that represent tariff/trade-action entries for the plate.
     TARIFF_CARD_MAP = {
         "eo_14193_ieepa_canada_2025": {
@@ -2767,7 +2842,10 @@ def derive_tariff_state_fixture() -> None:
             "mechanism": "IEEPA",
             "rate_pct": 35,           # as-amended by eo_14193_amendment_35pct below
             "rate_label": "25% -> 35%",
-            "status": "in_force",
+            "status": "terminated",
+            "imposed_by": "United States",
+            "status_source_url": _EO_14193_TERMINATION_URL,
+            "notes": _EO_14193_TERMINATION_NOTE,
         },
         "eo_14193_amendment_35pct": {
             "label": "IEEPA amendment — general goods raised to 35%",
@@ -2775,7 +2853,51 @@ def derive_tariff_state_fixture() -> None:
             "mechanism": "IEEPA",
             "rate_pct": 35,
             "rate_label": "35%",
+            "status": "terminated",
+            "imposed_by": "United States",
+            "status_source_url": _EO_14193_TERMINATION_URL,
+            "notes": _EO_14193_TERMINATION_NOTE,
+        },
+        # Section 338 (Tariff Act of 1930) additional 50% duties. Rate from
+        # the July 20, 2026 fact-sheet card; effective date from the
+        # proclamation card that moved it from August 19 to August 22, 2026.
+        "claim_wh_s338_50pct_tariffs_canada_2026_07_20": {
+            "label": "Section 338 — additional 50% on certain Canadian goods",
+            "sector": "Certain goods of Canada",
+            "mechanism": "Section 338",
+            "rate_pct": 50,
+            "rate_label": "50%",
             "status": "in_force",
+            "imposed_by": "United States",
+            "effective_date_card": "claim_wh_s338_effective_2026_08_22",
+            "notes": (
+                "Applies regardless of USMCA origin. Does not apply to energy, "
+                "potash, products subject to Section 232 tariffs, and certain "
+                "other goods such as fish or critical minerals (same fact "
+                "sheet). Effective date originally August 19, 2026; moved to "
+                "August 22, 2026. Scope was modified and import bans were "
+                "added by further proclamations on September 8, 2026 (White "
+                "House fact sheet of that date; no source card yet), which "
+                "this row does not itemize."
+            ),
+        },
+        # Canadian countermeasures. Rates are per product, matching the
+        # corresponding US rate, so there is no single primary rate.
+        "claim_dof_countertariffs_effective_2026_09_08": {
+            "label": "Canadian counter-tariffs — 15%, 25% and 50%",
+            "sector": "US goods targeted in response to Section 338 / 232",
+            "mechanism": "Canadian counter-tariff",
+            "rate_pct": None,
+            "rate_label": "15% / 25% / 50%",
+            "status": "in_force",
+            "imposed_by": "Canada",
+            "notes": (
+                "Announced August 25, 2026; effective September 8, 2026. Rate "
+                "for each product matches the corresponding US rate. Canada "
+                "states coverage of $27.6 billion in imports from the US; the "
+                "White House describes it as about $20 billion of US exports. "
+                "Neither states a currency."
+            ),
         },
         "pp_section_232_steel_alum_50pct": {
             "label": "Section 232 — steel & aluminum 50%",
@@ -2816,37 +2938,110 @@ def derive_tariff_state_fixture() -> None:
             "rate_pct": None,
             "rate_label": "Review pending",
             "status": "under_review",
+            "imposed_by": "",
+            # Values above deliberately unchanged: outcome not confirmed.
+            "notes": (
+                "UNCONFIRMED as of 2026-10-03. The July 1, 2026 joint-review "
+                "date has passed. The only primary statement on the outcome "
+                "found is the White House's (July 20, 2026 fact sheet), which "
+                "says the United States did not agree to renew the agreement "
+                "in its current form; no joint or Government of Canada "
+                "statement was fetched. Status and label are as last verified "
+                "on the row's verified_at date."
+            ),
         },
     }
+    # The four Section 232 rows carry no status change here: their rates were
+    # last verified on each card's verified_at (2026-05-13) and were not
+    # re-fetched in the 2026-10-03 review.
+    _S232_NOTE = (
+        "Rate not re-verified in the 2026-10-03 review; last verified on the "
+        "row's verified_at date."
+    )
+    for _cid in (
+        "pp_section_232_metals_copper_2026",
+        "pp_section_232_steel_alum_50pct",
+        "pp_10908_section_232_autos",
+        "pp_10976_section_232_lumber",
+    ):
+        TARIFF_CARD_MAP[_cid]["imposed_by"] = "United States"
+        TARIFF_CARD_MAP[_cid]["notes"] = _S232_NOTE
 
     # Index registry cards by id for O(1) lookup.
     card_index = {c.get("id"): c for c in sources if isinstance(c, dict)}
 
+    # Cards that are primary-verified but still awaiting approval live one
+    # file per card under _pending/. Read-only here; registry.yaml wins when a
+    # card has been promoted.
+    pending_dir = registry_path.parent / "_pending"
+
+    def _lookup_card(card_id: str):
+        """Return (card, card_status) or (None, "")."""
+        card = card_index.get(card_id)
+        if card is not None:
+            return card, "registry"
+        if pending_dir.is_dir():
+            for path in sorted(pending_dir.rglob(f"{card_id}.yaml")):
+                try:
+                    pending = _yaml.load(path.read_text(encoding="utf-8"))
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "derive_tariff_state_fixture: failed to parse pending card %s: %s",
+                        path, exc,
+                    )
+                    continue
+                if isinstance(pending, dict) and pending.get("id") == card_id:
+                    return pending, str(pending.get("status") or "pending_user")
+        return None, ""
+
+    def _effective_date_of(card) -> str:
+        verified_value = card.get("verified_value", {}) or {}
+        # For autos (pp_10908), effective_date_autos is the autos effective date.
+        return (
+            str(verified_value.get("effective_date", "") or "")
+            or str(verified_value.get("effective_date_autos", "") or "")
+            or str(verified_value.get("signed_date", "") or "")
+            or ""
+        )
+
     rows = []
     display_order = [
+        "claim_wh_s338_50pct_tariffs_canada_2026_07_20",
         "pp_section_232_metals_copper_2026",   # most recent steel/alum/copper update
         "pp_section_232_steel_alum_50pct",
         "pp_10908_section_232_autos",
         "pp_10976_section_232_lumber",
+        "claim_dof_countertariffs_effective_2026_09_08",
         "eo_14193_amendment_35pct",
         "eo_14193_ieepa_canada_2025",
         "usmca_article_34_7",
     ]
     for card_id in display_order:
-        card = card_index.get(card_id)
+        card, card_status = _lookup_card(card_id)
         if card is None:
-            logger.warning("derive_tariff_state_fixture: card id=%s not found in registry", card_id)
+            logger.warning(
+                "derive_tariff_state_fixture: card id=%s not found in registry or _pending",
+                card_id,
+            )
             continue
         meta = TARIFF_CARD_MAP.get(card_id, {})
-        verified_value = card.get("verified_value", {}) or {}
-        # For autos (pp_10908), effective_date_autos is the autos effective date.
-        effective_date = (
-            str(verified_value.get("effective_date", ""))
-            or str(verified_value.get("effective_date_autos", ""))
-            or str(verified_value.get("signed_date", ""))
-            or ""
-        )
-        rows.append({
+        effective_date = _effective_date_of(card)
+        effective_date_source_url = ""
+        date_card_id = meta.get("effective_date_card")
+        if date_card_id:
+            date_card, _ = _lookup_card(date_card_id)
+            if date_card is None:
+                # Never fall back to the rate card's signing date for a row
+                # that names a separate effective-date card: that would
+                # publish the wrong date without saying so.
+                raise RuntimeError(
+                    f"derive_tariff_state_fixture: effective-date card "
+                    f"{date_card_id!r} for row {card_id!r} not found in "
+                    f"registry or _pending"
+                )
+            effective_date = _effective_date_of(date_card)
+            effective_date_source_url = str(date_card.get("url", "") or "")
+        row = {
             "id": card_id,
             "label": meta.get("label", card.get("title", card_id)),
             "rate_pct": meta.get("rate_pct"),
@@ -2856,10 +3051,18 @@ def derive_tariff_state_fixture() -> None:
             "effective_date": effective_date,
             "status": meta.get("status", "in_force"),
             "source_url": card.get("url", ""),
-            "excerpt": card.get("excerpt", ""),
+            "excerpt": str(card.get("excerpt", "") or "").strip(),
             "verified_at": str(card.get("verified_at", "")),
             "verification_tier": card.get("verification_tier", ""),
-        })
+            "imposed_by": meta.get("imposed_by", ""),
+            "card_status": card_status,
+            "notes": meta.get("notes", ""),
+        }
+        if meta.get("status_source_url"):
+            row["status_source_url"] = meta["status_source_url"]
+        if effective_date_source_url:
+            row["effective_date_source_url"] = effective_date_source_url
+        rows.append(row)
 
     # Most-recent effective_date among in-force rows as the fixture as_of.
     in_force_dates = [
@@ -2872,12 +3075,21 @@ def derive_tariff_state_fixture() -> None:
         "name": "tariff_state",
         "generated_at": datetime_now_iso(),
         "as_of": as_of,
-        "source": "editorial/source_cards/registry.yaml (tariff-action cards)",
+        "last_reviewed": TARIFF_STATE_LAST_REVIEWED,
+        "source": (
+            "editorial/source_cards/registry.yaml and editorial/source_cards/_pending "
+            "(tariff-action cards)"
+        ),
         "notes": (
             "Editorially-maintained tariff-state log derived from verified source cards. "
-            "Each row corresponds to a primary-verified US trade action affecting Canada. "
-            "Update registry.yaml to add new actions; this fixture re-generates on each build. "
-            "Chart component: src/components/charts/trade/Panel4TariffState.astro."
+            "Each row corresponds to a primary-verified trade action between the US and "
+            "Canada (imposed_by says which side). as_of is the latest effective date among "
+            "in-force rows, not a re-verification date; see last_reviewed and each row's "
+            "verified_at and notes. Rows with card_status 'pending_user' rest on cards not "
+            "yet approved for citation. Update the source cards and TARIFF_CARD_MAP in "
+            "pipeline/build.py to add actions; this fixture re-generates on each build. "
+            "Chart component (retired, not mounted on /trade/): "
+            "src/components/charts/trade/Panel4TariffState.astro."
         ),
         "rows": rows,
     }

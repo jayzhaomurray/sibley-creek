@@ -19,7 +19,7 @@ const latestReleaseLabel = deriveLatestReleaseLabel(
 );
 
 const leadData = pickPanel(panelDataFile, 3);
-const plate2Data = pickPanel(panelDataFile, 8);
+// const plate2Data = pickPanel(panelDataFile, 8); // hidden with plate-2 (see below)
 const plate3Data = pickPanelByKey(panelDataFile, "panel-9");
 const plate4Data = pickPanelByKey(panelDataFile, "panel-7-alt");
 
@@ -30,92 +30,97 @@ const plates: Plate[] = [
     chartKey: "trade-panel-balance-vs-share",
     indicator: "Goods trade balance (C$M) and US share of goods exports (%)",
     plateIndexLabel: "Balance and US share",
-    title: "The US export share is back near 70%.",
+    title: "The US export share fell in July even as gold shipments dropped.",
     interpretationHtml:
-      "Canada's US-bound export share fell to 66.0% in March, then rebounded to 69.2% in April and 70.0% in May. " +
-      "That is close to where it was a year earlier. The apparent diversification pulse was mostly gold: shipments to London surged, then cooled as the gold flow normalized.",
+      "The US took 66.6% of Canada's goods exports in July, 6.4 points less than a year earlier and close to March's low. " +
+      "Exports to the US fell 6.5% in the month while sales elsewhere reached their highest in data back to 1997. " +
+      "March's low rode a spike in bullion shipments to the UK; in July precious-metals exports fell by a fifth and the share dropped anyway.",
     callout: {
-      value: "70.0%",
+      value: "66.6%",
       unitPrefix: "US share of goods exports",
-      delta: "+0.8pp m/m",
+      delta: "-1.7pp m/m",
       direction: "neutral",
     },
-    source: "Statistics Canada Tables 12-10-0011-01 (trade balance) and 12-10-0121-01 (exports by country).",
+    source: "Statistics Canada Table 12-10-0011-01 (trade balance and exports by country); Table 12-10-0182-01 (precious-metals exports).",
     data: leadData,
     citations: [
-      { phrase: "66.0% in March", source: "pipeline:statcan:12-10-0121-01", note: "US share of total goods exports, March 2026: 66.0%." },
-      { phrase: "69.2% in April", source: "pipeline:statcan:12-10-0121-01", note: "US share of total goods exports, April 2026: 69.2%." },
-      { phrase: "70.0% in May", source: "pipeline:statcan:12-10-0121-01", note: "US share of total goods exports, May 2026: 70.0%." },
-      { phrase: "close to where it was a year earlier", source: "pipeline:statcan:12-10-0121-01", note: "US share of total goods exports, May 2025: 69.6%." },
-      { phrase: "shipments to London surged, then cooled", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 gold/silver/PGM exports to the UK fell from C$7.8B in March to C$5.6B in April and C$4.6B in May 2026." },
+      { phrase: "gold shipments dropped", source: "pipeline:statcan:12-10-0182-01", note: "Title claim. NAPCS 35 total exports, customs NSA: 8,577.0 in June to 6,819.5 in July 2026 = -20.5% (headline basis: 10,071.1 to 8,752.1 = -13.1%). US share of goods exports fell June to July on both bases: customs SA 68.26% to 66.57%; headline 69.39% to 66.35%." },
+      { phrase: "66.6% of Canada's goods exports in July", source: "pipeline:statcan:12-10-0011-01", note: "US share of goods exports, customs SA, July 2026: 48,895.5 / 73,448.0 = 66.57%. Callout delta: 66.57 - 68.26 (June) = -1.69 points." },
+      { phrase: "6.4 points less than a year earlier", source: "derived", note: "Customs SA. July 2025: 45,404.1 / 62,211.1 = 72.98%. 66.57 - 72.98 = -6.41 points. Source: StatCan 12-10-0011-01." },
+      { phrase: "close to March's low", source: "pipeline:statcan:12-10-0011-01", note: "Customs SA. March 2026 = 65.98%, the lowest of the 355 months in the series (starts January 1997). July 2026 = 66.57%, 0.59 points above it." },
+      { phrase: "Exports to the US fell 6.5% in the month", source: "pipeline:statcan:12-10-0011-01", note: "Exports to the US, customs SA (v87008898): 52,279.6 in June to 48,895.5 in July 2026 = -6.5%. (Headline BoP basis: -6.6%.)" },
+      { phrase: "sales elsewhere reached their highest in data back to 1997", source: "derived", note: "Exports to non-US destinations, customs SA (total minus US): 24,552.5 in July 2026, the highest of the 355 months in the series (starts January 1997). Also a record on the headline BoP basis (25,620.3). Source: StatCan 12-10-0011-01." },
+      { phrase: "March's low rode a spike in bullion shipments to the UK", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 exports to the UK, customs NSA: C$7,818.6M in March 2026 (97.4% of the NAPCS 35 total of 8,026.3), against 5,565.0 in April and 4,716.0 in May." },
+      { phrase: "precious-metals exports fell by a fifth", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 total exports, customs NSA: 8,577.0 in June to 6,819.5 in July 2026 = -20.5%." },
     ],
   },
-  {
-    id: "plate-2",
-    number: "02",
-    chartKey: "trade-panel-reorientation-scatter",
-    indicator: "Δ exports to US vs Δ exports to non-US, by NAPCS sub-chapter, May 2025 to May 2026",
-    plateIndexLabel: "Sector-by-sector shift",
-    title: "Trade diversification is extremely limited.",
-    interpretationHtml:
-      "Gold still accounts for the clearest non-US export growth, but the surge is fading: total precious-metals exports fell from C$8.0B in March to C$5.6B in May. " +
-      "At the same time, exports to the US rose to C$52.2B, a new high in the refreshed data. " +
-      "Strip out the gold corridor and the pivot still is not there.",
-    source: "Statistics Canada Table 12-10-0182-01 (NAPCS sub-chapter exports by partner country).",
-    data: plate2Data,
-    citations: [
-      { phrase: "clearest non-US export growth", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 gold/silver/PGM exports remain the dominant visible non-US growth channel in the refreshed trade panels." },
-      { phrase: "fell from C$8.0B in March to C$5.6B in May", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 total exports: C$8.0B in March 2026, C$6.1B in April, C$5.6B in May." },
-      { phrase: "exports to the US rose to C$52.2B", source: "pipeline:statcan:12-10-0121-01", note: "Seasonally adjusted goods exports to the United States, May 2026: C$52.2B." },
-    ],
-  },
+  // plate-2 hidden until its data file (statcan_napcs_exports, frozen at May 2026) is refreshed.
+  // {
+  //   id: "plate-2",
+  //   number: "02",
+  //   chartKey: "trade-panel-reorientation-scatter",
+  //   indicator: "Δ exports to US vs Δ exports to non-US, by NAPCS sub-chapter, May 2025 to May 2026",
+  //   plateIndexLabel: "Sector-by-sector shift",
+  //   title: "Trade diversification is extremely limited.",
+  //   interpretationHtml:
+  //     "Gold still accounts for the clearest non-US export growth, but the surge is fading: total precious-metals exports fell from C$8.0B in March to C$5.6B in May. " +
+  //     "At the same time, exports to the US rose to C$52.2B, a new high in the refreshed data. " +
+  //     "Strip out the gold corridor and the pivot still is not there.",
+  //   source: "Statistics Canada Table 12-10-0182-01 (NAPCS sub-chapter exports by partner country).",
+  //   data: plate2Data,
+  //   citations: [
+  //     { phrase: "clearest non-US export growth", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 gold/silver/PGM exports remain the dominant visible non-US growth channel in the refreshed trade panels." },
+  //     { phrase: "fell from C$8.0B in March to C$5.6B in May", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 total exports: C$8.0B in March 2026, C$6.1B in April, C$5.6B in May." },
+  //     { phrase: "exports to the US rose to C$52.2B", source: "pipeline:statcan:12-10-0121-01", note: "Seasonally adjusted goods exports to the United States, May 2026: C$52.2B." },
+  //   ],
+  // },
   {
     id: "plate-3",
-    number: "03",
+    number: "02",
     chartKey: "trade-panel-gold",
     indicator: "Gold and PGM exports: total and UK destination, with gold price",
-    plateIndexLabel: "Gold corridor",
-    title: "London is still buying most of Canada's gold, but the surge is cooling.",
+    plateIndexLabel: "Gold route",
+    title: "London still takes most of Canada's gold exports.",
     interpretationHtml:
-      "For decades, gold has been mined in Ontario and Quebec and sent straight to London's bullion banks, who store much of it in the Bank of England's vaults. " +
-      "The story is old; what changed was the scale of the flow. " +
-      "Canada sold C$5.6 billion of precious metals in May, down from C$8.0 billion in March, and the UK's share fell to 83% from 97%.",
+      "Canada exported C$6.8 billion of precious metals in July, half again as much as a year earlier, and the UK took 87% of it. " +
+      "Of June's C$8.6 billion, the UK took two-thirds.",
     callout: {
-      value: "83%",
+      value: "87%",
       unitPrefix: "UK share of gold/PGM exports",
-      delta: "May 2026",
+      delta: "July 2026",
       direction: "neutral",
     },
     source: "Statistics Canada Table 12-10-0182-01 (NAPCS 35: unwrought gold, silver, and PGM by partner country); Yahoo Finance (gold futures, USD/oz).",
     data: plate3Data,
     citations: [
-      { phrase: "gold has been mined in Ontario and Quebec", source: "derived", note: "Natural Resources Canada: Ontario and Quebec are the two largest gold-producing provinces, together accounting for roughly three-quarters of Canadian gold production." },
-      { phrase: "sent straight to London's bullion banks, who store much of it in the Bank of England's vaults", source: "derived", note: "Royal Canadian Mint named on the original LBMA Good Delivery List in 1934; Canadian refined gold flows to LBMA-member bullion banks (HSBC, JPM, ICBC Standard) in London, who custody a substantial portion of their bullion at the Bank of England. BoE vaults hold ~5,000 tonnes of gold, of which only ~300 tonnes is UK reserves; the balance is custody for foreign central banks and commercial bullion banks." },
-      { phrase: "C$5.6 billion of precious metals in May", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 total exports, all countries, May 2026: C$5,598M." },
-      { phrase: "down from C$8.0 billion in March", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 total exports, all countries, March 2026: C$8,026M." },
-      { phrase: "UK's share fell to 83% from 97%", source: "derived", note: "UK share of NAPCS 35 exports: 97.4% in March 2026 and 82.6% in May 2026." },
+      { phrase: "C$6.8 billion of precious metals in July", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 total exports, all countries, customs NSA, July 2026: C$6,819.5M." },
+      { phrase: "half again as much as a year earlier", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 total exports, customs NSA: 6,819.5 in July 2026 vs 4,413.4 in July 2025 = +54.5%." },
+      { phrase: "the UK took 87% of it", source: "derived", note: "UK share of NAPCS 35 exports, July 2026: 5,939.0 / 6,819.5 = 87.1%. Source: StatCan 12-10-0182-01." },
+      { phrase: "June's C$8.6 billion", source: "pipeline:statcan:12-10-0182-01", note: "NAPCS 35 total exports, all countries, customs NSA, June 2026: C$8,577.0M." },
+      { phrase: "the UK took two-thirds", source: "derived", note: "UK share of NAPCS 35 exports, June 2026: 5,748.5 / 8,577.0 = 67.0%. Source: StatCan 12-10-0182-01." },
     ],
   },
   {
     id: "plate-4",
-    number: "04",
+    number: "03",
     chartKey: "trade-panel-sector-pivot",
     indicator: "Tariff-exposed sectors: US share of total exports, May 2025 vs May 2026",
     plateIndexLabel: "Tariff-exposed sectors",
-    title: "Aluminum is the only clear move away from the US.",
+    title: "Aluminum's May swing away from the US was a one-month spike.",
     interpretationHtml:
-      "Of the tariff-exposed sectors charted, aluminum is the only clear move away from the US between May 2025 and May 2026. " +
-      "Its US share fell from 88.7% to 62.9%, while steel, softwood, and autos each moved away by less than five points and copper moved further toward the US. " +
-      "One sector is moving; the rest are still mostly tied to the US market.",
+      "Aluminum's US share fell to 62.9% in May 2026 from 88.7% a year earlier, the only large move among five export sectors. " +
+      "One month of unusually large shipments to other markets produced it, and the share had recovered to 81.5% by July. " +
+      "From July to July, copper, aluminum, and steel each moved away from the US by roughly 6 to 9 points, while autos and softwood barely shifted.",
+    asOf: "May 2026",
     source: "Statistics Canada Table 12-10-0182-01 (NAPCS sub-chapter exports by partner country).",
     data: plate4Data,
     citations: [
-      { phrase: "between May 2025 and May 2026", source: "pipeline:statcan:12-10-0182-01", note: "Plate compares the latest May 2026 tariff-exposed sector readings with the same month a year earlier, May 2025." },
-      { phrase: "tariff-exposed sectors charted", source: "derived", note: "Chart renders steel, aluminum, copper, softwood lumber, and autos/parts from StatCan 12-10-0182-01. Steel, aluminum, copper, and autos are subject to US Section 232 tariffs; softwood is covered by US AD/CVD duties." },
-      { phrase: "aluminum is the only clear move away from the US", source: "derived", note: "Aluminum (NAPCS 32+38) US share fell 25.8pp between May 2025 and May 2026. Source: StatCan 12-10-0182-01." },
-      { phrase: "88.7% to 62.9%", source: "derived", note: "Aluminum US share: May 2025 = 88.7%; May 2026 = 62.9%. Source: StatCan 12-10-0182-01." },
-      { phrase: "steel, softwood, and autos each moved away by less than five points", source: "derived", note: "US share May 2025 -> May 2026: steel 91.1% -> 87.0% (-4.1pp), softwood 88.9% -> 88.1% (-0.8pp), autos 90.8% -> 88.3% (-2.5pp). Source: StatCan 12-10-0182-01." },
-      { phrase: "copper moved further toward the US", source: "derived", note: "Copper US share rose from 88.9% in May 2025 to 90.6% in May 2026. Source: StatCan 12-10-0182-01." },
+      { phrase: "62.9% in May 2026 from 88.7% a year earlier", source: "derived", note: "Aluminum US share of sector exports, customs NSA: May 2025 = 88.69%; May 2026 = 62.94% (912.5 / (912.5 + 537.3)). Change -25.75 points. These are the two points the chart draws. Source: StatCan 12-10-0182-01." },
+      { phrase: "the only large move among five export sectors", source: "derived", note: "Five sectors: steel, aluminum, copper, softwood lumber, autos and parts. US share change May 2025 to May 2026: aluminum -25.75; steel 90.94 to 87.04 = -3.90; copper 87.44 to 90.65 = +3.21; autos 90.74 to 88.32 = -2.42; softwood 88.78 to 88.13 = -0.65. Source: StatCan 12-10-0182-01." },
+      { phrase: "One month of unusually large shipments to other markets produced it", source: "derived", note: "Aluminum exports to non-US destinations, customs NSA: C$129M in April 2026, C$537.3M in May, C$225.1M in June, C$230.7M in July. Source: StatCan 12-10-0182-01." },
+      { phrase: "recovered to 81.5% by July", source: "derived", note: "Aluminum US share: 80.6% in June 2026 (937.1 / (937.1 + 225.1)); 81.52% in July 2026 (1,017.9 / (1,017.9 + 230.7)). Source: StatCan 12-10-0182-01." },
+      { phrase: "copper, aluminum, and steel each moved away from the US by roughly 6 to 9 points", source: "derived", note: "US share, July 2025 to July 2026: copper 93.14 to 84.51 = -8.63; aluminum 90.06 to 81.52 = -8.54; steel 89.76 to 84.02 = -5.74. Three sectors. Not drawn on the chart, which is fixed at May. Source: StatCan 12-10-0182-01." },
+      { phrase: "autos and softwood barely shifted", source: "derived", note: "US share, July 2025 to July 2026: autos and parts 89.46 to 88.12 = -1.34; softwood 89.17 to 89.43 = +0.26. Source: StatCan 12-10-0182-01." },
     ],
   },
 ];

@@ -515,6 +515,26 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
                                        "C$ thousands", "monthly", "housing", sa=True),
     "new_housing_price_index": StatcanSpec("new_housing_price_index", 111955442, "18-10-0205-01",
                                            "Index, Dec 2016=100", "monthly", "housing", sa=False),
+    # CAUTION -- this slot is mis-sourced. It was a one-time lift from
+    # boc-tracker (2026-05-11) with a vector "inferred from magnitude" and was
+    # never registered here, so it froze at 2026-01 until 2026-10-03.
+    # getSeriesInfoFromVector (2026-10-03) shows v52300170 is productId
+    # 34100141, coordinate 1.1, "Canada; Total units", frequencyCode 9 --
+    # i.e. QUARTERLY HOUSING STARTS at SAAR (Table 34-10-0141-01), not units
+    # under construction. Registered as-is so the slot at least advances with
+    # the same series the site already shows; `units` / `frequency` kept as
+    # lifted so the panel_data contract does not shift. Swapping in a real
+    # under-construction series (Table 34-10-0135-01 carries "Housing under
+    # construction") changes what the chart shows and is an editorial +
+    # researcher decision. The 75-day staleness override for this slug assumes
+    # monthly data and will keep warning; that warning is deliberate.
+    "units_under_construction": StatcanSpec("units_under_construction", 52300170, "34-10-0141-01",
+                                            "Units (thousands), SAAR", "monthly", "housing", sa=True,
+                                            notes=(
+                                                "MIS-SOURCED SLOT: v52300170 is quarterly housing starts, Canada, "
+                                                "total units, SAAR (Table 34-10-0141-01) -- not units under "
+                                                "construction. Pending owner decision on a replacement series."
+                                            )),
     # Completions (canon 4.4 element 2)
     # Table 34-10-0135-01 publishes "Housing completions, by intended market". Specific intended-market
     # vectors require getCubeMetadata; for v1 we register the headline total. Researcher confirmed the
@@ -607,19 +627,63 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
     ),
 
     # ----- Trade (Section 4.7) --------------------------------------------
-    "trade_balance_total": StatcanSpec("trade_balance_total", 87008984, "12-10-0119-01",
+    # BASIS -- READ BEFORE QUOTING (corrected 2026-10-03, metadata only; the
+    # vectors fetched are unchanged). getSeriesInfoFromVector shows all six
+    # vectors below live in Table 12-10-0011-01 (productId 12100011), not
+    # 12-10-0119-01 as previously labelled, and they are NOT all on one basis:
+    #   exports / imports (v87008897, v87008898, v87008781, v87008782):
+    #       CUSTOMS basis, seasonally adjusted (coord basis dim = 1).
+    #   balances (v87008984, v87008985):
+    #       BALANCE-OF-PAYMENTS basis, seasonally adjusted (basis dim = 2).
+    # Statistics Canada's headline export/import levels in The Daily are
+    # balance-of-payments basis, so the export levels and the US export share
+    # computed from these slugs differ from the headline (July 2026: exports
+    # 73,448.0 here vs 76,137.4 headline; US share 66.6% vs 66.3%). The balances
+    # match the headline exactly. The headline-basis export vectors are
+    # v87008955 (all countries) and v87008956 (United States); they are not
+    # registered. Switching is an editorial decision, not a metadata fix.
+    "trade_balance_total": StatcanSpec("trade_balance_total", 87008984, "12-10-0011-01",
                                        "C$ millions", "monthly", "trade", sa=True,
-                                       notes="Trade balance, BOP basis, all countries."),
-    "trade_exports_total": StatcanSpec("trade_exports_total", 87008897, "12-10-0119-01",
-                                       "C$ millions", "monthly", "trade", sa=True),
-    "trade_imports_total": StatcanSpec("trade_imports_total", 87008781, "12-10-0119-01",
-                                       "C$ millions", "monthly", "trade", sa=True),
-    "trade_balance_us":    StatcanSpec("trade_balance_us", 87008985, "12-10-0119-01",
-                                       "C$ millions", "monthly", "trade", sa=True),
-    "trade_exports_us":    StatcanSpec("trade_exports_us", 87008898, "12-10-0119-01",
-                                       "C$ millions", "monthly", "trade", sa=True),
-    "trade_imports_us":    StatcanSpec("trade_imports_us", 87008782, "12-10-0119-01",
-                                       "C$ millions", "monthly", "trade", sa=True),
+                                       notes=(
+                                           "Merchandise trade balance, all countries, balance-of-payments "
+                                           "basis, seasonally adjusted. Coord 1.3.2.2.1. Matches the "
+                                           "Statistics Canada headline balance."
+                                       )),
+    "trade_exports_total": StatcanSpec("trade_exports_total", 87008897, "12-10-0011-01",
+                                       "C$ millions", "monthly", "trade", sa=True,
+                                       notes=(
+                                           "Merchandise exports, all countries, CUSTOMS basis, seasonally "
+                                           "adjusted. Coord 1.2.1.2.1. NOT the Statistics Canada headline "
+                                           "(balance-of-payments basis, v87008955); levels differ."
+                                       )),
+    "trade_imports_total": StatcanSpec("trade_imports_total", 87008781, "12-10-0011-01",
+                                       "C$ millions", "monthly", "trade", sa=True,
+                                       notes=(
+                                           "Merchandise imports, all countries, CUSTOMS basis, seasonally "
+                                           "adjusted. Coord 1.1.1.2.1. NOT the Statistics Canada headline "
+                                           "(balance-of-payments basis); levels differ."
+                                       )),
+    "trade_balance_us":    StatcanSpec("trade_balance_us", 87008985, "12-10-0011-01",
+                                       "C$ millions", "monthly", "trade", sa=True,
+                                       notes=(
+                                           "Merchandise trade balance with the United States, "
+                                           "balance-of-payments basis, seasonally adjusted. Coord 1.3.2.2.2. "
+                                           "Matches the Statistics Canada headline balance."
+                                       )),
+    "trade_exports_us":    StatcanSpec("trade_exports_us", 87008898, "12-10-0011-01",
+                                       "C$ millions", "monthly", "trade", sa=True,
+                                       notes=(
+                                           "Merchandise exports to the United States, CUSTOMS basis, "
+                                           "seasonally adjusted. Coord 1.2.1.2.2. NOT the Statistics Canada "
+                                           "headline (balance-of-payments basis, v87008956); levels differ."
+                                       )),
+    "trade_imports_us":    StatcanSpec("trade_imports_us", 87008782, "12-10-0011-01",
+                                       "C$ millions", "monthly", "trade", sa=True,
+                                       notes=(
+                                           "Merchandise imports from the United States, CUSTOMS basis, "
+                                           "seasonally adjusted. Coord 1.1.1.2.2. NOT the Statistics Canada "
+                                           "headline (balance-of-payments basis); levels differ."
+                                       )),
     # ---------------------------------------------------------------------------
     # By-partner bilateral flows: Table 12-10-0011-01
     # ---------------------------------------------------------------------------
@@ -635,9 +699,11 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
     #   Dim5: Partner country  (member IDs below)
     #
     # All vectors registered here are Customs basis, Unadjusted (dim3=1, dim4=1)
-    # so series are strictly comparable across countries. SA variant exists only
-    # on the BOP basis; for SA bilateral data use the BOP-basis table 12-10-0119-01
-    # (the trade_exports_us / trade_imports_us entries already in catalog above).
+    # so series are strictly comparable across countries. Seasonally adjusted
+    # variants exist in this same table on both bases; the trade_exports_us /
+    # trade_imports_us entries above are the customs-basis SA US vectors
+    # (corrected 2026-10-03: they were previously described as BOP-basis from
+    # Table 12-10-0119-01, which is wrong on both counts).
     #
     # COVERAGE GAPS -- countries NOT in this table's 27-partner list:
     #   Vietnam, Thailand (ASEAN), UAE, Qatar, Kuwait, Bahrain, Oman (GCC).
@@ -651,8 +717,9 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
     #
     # SA BOP-basis counterparts also exist in Table 12-10-0011-01 (dim3=2,
     # dim4=2) for all 27 countries; not registered here to avoid doubling the
-    # catalog. The SA US vectors already registered above under 12-10-0119-01
-    # are the canonical SA headline series.
+    # catalog. The SA US export/import vectors registered above are customs
+    # basis (dim3=1), NOT the headline basis; only the two balance vectors
+    # (trade_balance_total, trade_balance_us) are on the headline BOP basis.
     #
     # Vector IDs resolved from primary source bulk CSV download 2026-05-14.
     # No placeholder IDs -- all verified.
@@ -665,7 +732,7 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
         notes=(
             "Exports to United States, customs basis, unadjusted. "
             "Coord 1.2.1.1.2. Mar-2026: C$49,494M. "
-            "Companion BOP SA: trade_exports_us (v87008898 in Table 12-10-0119-01). "
+            "Companion customs-basis SA: trade_exports_us (v87008898, same table). "
             "Resolved 2026-05-14 via bulk CSV."
         ),
     ),
@@ -912,17 +979,17 @@ STATCAN_SERIES: dict[str, StatcanSpec] = {
     ),
 
     # --- All-countries aggregate (customs basis, unadjusted total) ---
-    # Note: the catalog already has BOP-SA totals (trade_exports_total,
-    # trade_imports_total) from Table 12-10-0119-01 (v87008897, v87008781).
-    # These customs-basis totals are the matching denominators for computing
-    # per-country shares on a customs basis.
+    # Note: the catalog already has seasonally adjusted customs-basis totals
+    # (trade_exports_total, trade_imports_total; v87008897, v87008781, same
+    # table). These unadjusted customs-basis totals are the matching
+    # denominators for computing per-country shares from unadjusted series.
     "trade_exports_all_customs": StatcanSpec(
         "trade_exports_all_customs", 87008868, "12-10-0011-01",
         "C$ millions", "monthly", "trade", sa=False,
         notes=(
             "Total exports, all countries, customs basis, unadjusted. "
             "Coord 1.2.1.1.1. Denominator for customs-basis partner-share computation. "
-            "Distinct from trade_exports_total (BOP SA, Table 12-10-0119-01). "
+            "Distinct from trade_exports_total (customs basis, seasonally adjusted, v87008897). "
             "Resolved 2026-05-14 via bulk CSV."
         ),
     ),

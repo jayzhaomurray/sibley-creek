@@ -103,8 +103,26 @@ checker resolves the data through StatCan's public-facing table page.
 **Basis:** Customs (physical border crossing). Also contains Balance of Payments
 (BOP) variants in the same table, distinguished by Dim3 (Basis dimension).
 **Seasonal adjustment:** Unadjusted only for partner-country series registered
-here. SA BOP variant exists in the table but is only used for the existing
-BOP-SA totals in Table 12-10-0119-01 (already in catalog separately).
+here. The six legacy seasonally adjusted slugs below are also in this table
+(they were mislabelled as Table 12-10-0119-01 until 2026-10-03).
+
+**Legacy seasonally adjusted slugs -- mixed basis (verified 2026-10-03 via
+WDS getSeriesInfoFromVector; metadata corrected, vectors unchanged):**
+
+| Slug | Vector | Basis | Headline in The Daily? |
+|---|---|---|---|
+| `trade_exports_total` | v87008897 | Customs, SA | No (headline is BOP, v87008955) |
+| `trade_exports_us` | v87008898 | Customs, SA | No (headline is BOP, v87008956) |
+| `trade_imports_total` | v87008781 | Customs, SA | No |
+| `trade_imports_us` | v87008782 | Customs, SA | No |
+| `trade_balance_total` | v87008984 | Balance of payments, SA | Yes |
+| `trade_balance_us` | v87008985 | Balance of payments, SA | Yes |
+
+Quirk: export levels and the US export share built from these slugs differ
+from the Statistics Canada headline (July 2026: exports 73,448.0 customs vs
+76,137.4 BOP; US share 66.6% vs 66.3%). The balances match exactly. Do not
+put a customs-basis export level beside a headline balance or a Daily
+percentage without naming the basis.
 
 **Dimension structure (verified 2026-05-14 via bulk CSV download):**
 - Dim1: Geography (1=Canada -- single value)
@@ -144,8 +162,9 @@ Partners: US, China, UK, Germany, France, Netherlands, Japan, Mexico,
 South Korea, India, Australia, Indonesia, Singapore, Saudi Arabia,
 Taiwan, Hong Kong, All countries.
 Slug pattern: `trade_exports_{iso3}` / `trade_imports_{iso3}`.
-US uses `_us_customs` suffix to distinguish from the existing BOP-SA
-`trade_exports_us` (v87008898, Table 12-10-0119-01).
+US uses `_us_customs` suffix (customs basis, unadjusted) to distinguish from
+the existing customs-basis seasonally adjusted `trade_exports_us` (v87008898,
+same table).
 
 ---
 
@@ -291,7 +310,10 @@ the caret URL-encoded.
 
 ## CREA — Canadian Real Estate Association (MLS HPI bulk XLSX)
 
-**Bulk URL:** `https://www.crea.ca/files/mls-hpi-data/MLS_HPI_{Month}_{Year}.zip`
+**Bulk URL:** `https://www.crea.ca/files/mls-hpi-data/MLS_HPI_{MonthToken}_{Year}.zip`
+(month token spelling is unstable; see Gotchas)
+**Discovery page:** `https://www.crea.ca/housing-market-stats/mls-home-price-index/hpi-tool/`
+("Accept and download data" button links the current ZIP)
 **Pipeline module:** `pipeline/fetch/crea.py`
 **Authentication:** none. Standard browser headers acceptable.
 
@@ -306,12 +328,36 @@ element 1. Inside that XLSX, each sheet is one geography (e.g.
 ### Release schedule
 
 Monthly, mid-month, ~3 weeks after the reference month closes. CREA back-
-revises the prior ~3 months as late-closing sales report in. The fetcher
-`crea.find_available_release()` walks back up to 4 months to locate the
-most recent 200-OK ZIP if the current-month candidate isn't up yet.
+revises the prior ~3 months as late-closing sales report in. The filename
+names the RELEASE month (`MLS_HPI_Sept_2026.zip` = mid-September release,
+data through August).
+
+`crea.find_available_release()` is page-first: it reads the ZIP link off
+the discovery page. Only if the page is unreachable or has no link does it
+guess dated URLs back 4 months, trying every known month spelling.
+
+### Freshness guard
+
+Finding a ZIP is not proof it is current. After writing, `pipeline/build.py`
+calls `crea.check_release_freshness()` on the latest reference month inside
+the workbook: 1-2 months behind today is normal, 3 logs a WARNING (one
+release late or missed), more than 3 raises `CreaStaleReleaseError` and the
+`crea_mls_hpi` step counts as a build failure. Do not widen the lookback to
+clear that failure; find the new download link.
 
 ### Gotchas
 
+- **Filename month token changed in mid-2026.** Full month names through
+  `MLS_HPI_May_2026.zip`; then `MLS_HPI_Aug_2026.zip` and
+  `MLS_HPI_Sept_2026.zip` (`Sep_2026` and `September_2026` both 404). June
+  and July 2026 do not resolve under any known spelling. The old
+  full-name-only guess silently re-served the May ZIP from June to September
+  2026, freezing the series at an April reference month, and only failed on
+  2026-10-01 when May aged out of the lookback. Diagnosed and fixed
+  2026-10-03.
+- **Missing files return HTTP 404 with a JSON or HTML shell** depending on
+  the Accept header; it is a true 404, not a bot block (same result from
+  httpx with the pipeline User-Agent and `requests` with a Chrome one).
 - **AGGREGATE is methodology context, not a headline.** Canon explicitly
   forbids a national-average headline price; use AGGREGATE only as
   methodology context.
@@ -321,8 +367,10 @@ most recent 200-OK ZIP if the current-month candidate isn't up yet.
 
 ### What we record in .meta.json
 
-`source_url` is the canonical CREA bulk ZIP URL for the named release
-(`MLS_HPI_April_2026.zip` etc.). `source_id` is `CREA-HPI-<sheet_name>`.
+`source_url` is the exact ZIP URL that was downloaded
+(`MLS_HPI_Sept_2026.zip` etc.). `source_id` is `CREA-HPI-<sheet_name>`.
+`release_date` is the ZIP's HTTP `Last-Modified` date (ISO), falling back to
+the first of the release month named in the filename.
 
 ---
 

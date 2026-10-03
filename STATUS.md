@@ -1,6 +1,6 @@
 # Sibley Creek - operating dashboard
 
-**Last updated:** 2026-09-14 (deploy unblocked: labour prose refreshed to August LFS + overnight-rate staleness override; earlier: 2026-07-20 (June CPI commentary published; site-wide staleness audit; build-monthly CI outage found + fixed + confirmed live; /inflation/ section fully redrafted and shipped through all 3 gates)
+**Last updated:** 2026-10-03 (deploy + daily data refresh unblocked: monetary/fiscal/trade copy redrafted through all 3 gates, CREA fetcher fixed; earlier: 2026-09-14 (deploy unblocked: labour prose refreshed to August LFS + overnight-rate staleness override; earlier: 2026-07-20 (June CPI commentary published; site-wide staleness audit; build-monthly CI outage found + fixed + confirmed live; /inflation/ section fully redrafted and shipped through all 3 gates)
 **Purpose:** I (Claude) read this at session start to load context and surface what matters to Jay in the terminal. Jay doesn't need to open this directly - ask me "where are we?" and I'll tell you.
 
 **Note on this file:** the June-July narrative below was recovered, not preserved cleanly. It existed only as an uncommitted edit in the working tree and got wiped by a `git reset --hard origin/master` during today's cleanup (a stash-as-safety-net silently failed on leftover unresolved-merge index entries, and I didn't catch that before resetting). I was able to reconstruct most of it verbatim from earlier in this session's own conversation context (I'd read the file just before the reset), but that read was capped at 80 lines, so anything past the "Fiscal chartbook" entry below may be incomplete or missing. Nothing in the actual site/git/deploy history was lost - only this file's narrative summary of it, and only partially. Lesson: commit STATUS.md edits instead of leaving them perpetually uncommitted - that's the actual root cause, and it's been silently losing content across sessions, not just today.
@@ -8,6 +8,30 @@
 ---
 
 ## What's active right now
+
+### 2026-10-03 - Deploy (red since Sep 25, run #1849) and build-data-daily (red since Oct 1) unblocked
+- **Deploy cause:** `check_prose_vintage --strict`. Fiscal copy (Jun 16, March Fiscal Monitor) tripped when the July Fiscal Monitor landed Sep 25; monetary copy (Aug 20, July decision) tripped next; trade copy (Jul 7) would have tripped on the next data push (gold-price slot dated Sep 1).
+- **Daily refresh cause:** CREA renamed its HPI ZIPs (`MLS_HPI_Sept_2026.zip`, `Aug_2026`); fetcher had silently re-served the May ZIP since spring and hard-failed Oct 1 when it left the lookback window. Fixed in `pipeline/fetch/crea.py` (page-first discovery, multi-spelling fallback, freshness guard that fails loudly); HPI now at Aug 2026. Resale + `units_under_construction` series registered in the catalogs (they had no fetcher).
+- **Copy shipped (all through writer -> fact-check -> style -> surface-fit, working files in `claude-ref/build_unblock_2026-10-03/`):**
+  - /monetary/: Sep 2 hold (seventh straight), "On hold, with the pressure pointing up."; all five plates redrafted; hold-count card now 7; new Sep 2 statement cards + `fomc_statement_2026_09_16` in registry.
+  - /fiscal/: July Fiscal Monitor; "Fiscal policy is holding roughly steady."; plate 4 "sits near 41%".
+  - /trade/: July release; "It has started to, though gold flatters it."; plates 1/3/4 redrafted, all tariff claims cut; **plate 2 (gold, non-US) commented out** in `trade.astro` until its data is refreshed.
+- **Open editorial calls for Jay (shipped, veto-able):**
+  1. Trade take flipped from "Not really" to "It has started to" (ex-precious-metals the US share fell 75.6% -> 72.6% y/y, so ~3.0 of the 6.4 points survive without gold).
+  2. Fiscal opener "holding roughly steady" holds on the headline deficit (66.9 -> 65.3) but the before-actuarial-losses balance as published widens ~C$10bn. Airtight alternative: "The headline federal deficit is holding roughly steady."
+  3. Monetary plate 5 title "Settlement balances have jumped above the Bank's operating range." is true but the Sep 29 Gravelle speech says quarter-end overshoots can be deliberate.
+- **Follow-ups, not done:**
+  - **Oct 6 August trade release:** refresh trade copy; un-freeze plate 2 (`pipeline/fetch/statcan_napcs_exports.py` is a manual script nothing calls, last run Jul 7; chart reads the CSV directly so no gate sees it) and plate 4 (`PanelSectorPivot.astro` hardcodes May at lines ~123-126, 174-175, 247, 276/282); restore plate 2 with title "Gold shipments outside the US were little changed in May from a year earlier." or better.
+  - **Oct 28 BoC decision + MPR:** monetary refresh.
+  - /housing/ copy still says "April home prices, down 4.0%" while HPI chart now shows August (passes the gate, needs a redraft).
+  - `splashHero.abstract` on /overview/ (oil/Hormuz, late June) is 3 months old, not rechecked.
+  - Mislabelled series: `units_under_construction` is really quarterly housing starts (needs Table 34-10-0135-01); `crea_resales_<city>` are really "share of homes flipped within 12 months". Jay to decide relabel vs replace.
+  - Capacity utilization 367d stale, not investigated. `output_gap_mpr`, job vacancy also warning.
+  - Decide whether trade exports should switch to headline (balance-of-payments) basis; pipeline is customs basis (US share 66.6% vs 66.3%).
+  - Pending source cards awaiting Jay: 2 in `_pending/fiscal/`, 6 in `_pending/trade/`. Tariff fixture's new rows (Section 338 50% Aug 22; Canadian counter-tariffs Sep 8) rest on pending cards; the tariff panel is retired so nothing live reads it.
+  - `test_site_data.py::test_supporting_print_partner_share` fails on clean HEAD too.
+  - `fomc_target_rate` card stale; `fomc_statement_2025_12_17` has a dead URL. Homepage showcase PNGs show old fiscal copy until re-shot. Trade visual-regression baseline will differ (plate hidden).
+  - GITHUB_TOKEN still expired (401 on CI logs).
 
 ### 2026-09-14 - Deploy pipeline unblocked (broken since Sep 10, run #1745)
 - **Two independent gate failures, both fixed, full `npm run build` green locally, pushed to master.**

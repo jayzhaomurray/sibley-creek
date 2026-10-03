@@ -1000,7 +1000,7 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             primary=SlotSpec("trade_exports_total", "raw", label="Exports, all countries"),
             secondary=SlotSpec("trade_exports_us", "raw", label="Exports to US"),
             expected_status="NEAR",
-            notes="Panel expects shares to US/China/UK/Japan/Mexico. Only trade_exports_us is on disk in raw/; per-partner (china/uk/japan/mexico) MISSING. StatCan Table 12-10-0119 has the vectors; S effort to add 4 vectors to catalog.",
+            notes="Panel expects shares to US/China/UK/Japan/Mexico. Only trade_exports_us is on disk in raw/; per-partner (china/uk/japan/mexico) MISSING. Both slots are customs basis, seasonally adjusted (StatCan Table 12-10-0011-01), not the headline balance-of-payments basis.",
         ),
         # panel-7-alt: Sectoral exports by destination (US vs non-US).
         # NOT a live plate yet — alt channel only.
@@ -1066,7 +1066,7 @@ PANEL_SPECS: dict[str, list[PanelSpec]] = {
             # Secondary = imports from US. All per-country extras listed in ISO-
             # alpha-3 slug order so the chart layer can iterate them uniformly.
             # The customs-basis unadjusted series (Table 12-10-0011-01) are used
-            # here rather than the BOP-SA series (12-10-0119-01) because:
+            # here rather than seasonally adjusted series because:
             #   (a) Customs basis covers all 27 named partners; BOP-SA partner
             #       breakdown is more limited.
             #   (b) Frontend is computing partner shares (country / all_customs);
@@ -1766,7 +1766,7 @@ SERIES_STALENESS_OVERRIDES: dict[str, int] = {
     "natural_gas_alberta": 120,
     # BoC-Fed spread: derived from monthly rate data; same lag as overnight rate.
     "boc_fed_spread_monthly": 75,
-    # Trade exports total (StatCan 12-10-0119, BOP basis): ~90-day lag.
+    # Trade exports total (StatCan 12-10-0011-01, customs basis SA): ~90-day lag.
     "trade_exports_total": 120,
     "trade_exports_us":    120,
     # GoC-UST spreads (derived, limited by FRED DGS2/DGS10 availability)
